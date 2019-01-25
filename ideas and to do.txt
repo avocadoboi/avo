@@ -1,0 +1,2 @@
+1.
+Make a Path/Geometry/Shape class, which holds an ID2D1PathGeometry object and is used for custom clip shapes. Views should have one of these to customize their shape, allowing cut corners and such. Views still have corner rounding functionality, and can be used seperately or together.

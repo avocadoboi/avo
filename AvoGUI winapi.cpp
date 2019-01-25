@@ -385,7 +385,7 @@ namespace AvoGUI
 			return Rectangle<float>(
 				Point<float>(
 					0.5f*(m_bounds.left + m_bounds.right - (float)m_shadowImage->getWidth()),
-					m_bounds.top + 0.3f*(m_bounds.bottom - m_bounds.top - (float)m_shadowImage->getHeight())
+					m_bounds.top + 0.35f*(m_bounds.bottom - m_bounds.top - (float)m_shadowImage->getHeight())
 				), m_shadowImage->getSize()
 			);
 		}
@@ -3376,7 +3376,7 @@ namespace AvoGUI
 			// trying to make a GUI library using SDL, so why not use it here
 
 			// Me in the future: because it doesn't look similar enough to shadows made with the shadow effect in direct2d,
-			// which is used in the createRoundedRectangleShadowImage() method. I also don't know which method is faster
+			// which is used in the createRoundedRectangleShadowImage() method. I also don't know which method is faster (mine probably hehe)
 
 			// Here is the code anyways, it is pretty fun:
 
@@ -3575,7 +3575,6 @@ namespace AvoGUI
 		{
 			if (!p_width || !p_height || !p_color.alpha) return 0;
 
-			//p_blur /= 3.f;
 			p_blur *= 2.f/3.f;
 
 			// Create input bitmap
@@ -3684,8 +3683,8 @@ namespace AvoGUI
 
 		inline void addFont(const void* p_data, uint32_t p_dataSize, const char* p_name)
 		{
-			//m_fonts.push_back(FontData(p_data, p_dataSize, p_name));
-			//updateFontCollection();
+			m_fonts.push_back(FontData(p_data, p_dataSize, p_name));
+			updateFontCollection();
 		}
 
 		//------------------------------
@@ -4335,47 +4334,11 @@ namespace AvoGUI
 
 		Rectangle<float> movedTargetRectangle(p_targetRectangle);
 
-		//while (true)
-		//{
-		//	bool isDoneWithContainer = true;
-		//	for (uint32_t a = startPosition; a < currentContainer->getNumberOfViews(); a++)
-		//	{
-		//		View* view = currentContainer->getView(a);
-		//		if (view->getIsVisible() && view->getBounds().getIsIntersecting(movedTargetRectangle))
-		//		{
-		//			view->prepareDrawing(m_drawingContext, movedTargetRectangle);
-
-		//			ViewContainer* container = dynamic_cast<ViewContainer*>(view);
-		//			if (container)
-		//			{
-		//				movedTargetRectangle -= container->getTopLeft();
-		//				currentContainer = container;
-		//				startPosition = 0;
-		//				isDoneWithContainer = false;
-		//				break;
-		//			}
-		//		}
-		//	}
-
-		//	if (isDoneWithContainer)
-		//	{
-		//		if (currentContainer == this)
-		//		{
-		//			break;
-		//		}
-		//		movedTargetRectangle += currentContainer->getTopLeft();
-		//		startPosition = currentContainer->getIndex() + 1;
-		//		currentContainer = dynamic_cast<ViewContainer*>(currentContainer->getParent());
-		//	}
-		//}
-
 		m_drawingContext->beginDrawing();
 
 		m_drawingContext->setOrigin(0, 0);
 		m_drawingContext->pushClipRectangle(p_targetRectangle);
 		m_drawingContext->clear(m_theme->colors["background"]);
-
-		//startPosition = 0;
 
 		while (true)
 		{
@@ -4543,7 +4506,7 @@ namespace AvoGUI
 			{
 				if (m_overlayAlphaFactor < 1.f)
 				{
-					m_overlayAnimationTime += 0.25f;
+					m_overlayAnimationTime += 0.21f;
 					queueAnimationUpdate();
 				}
 				else
@@ -4555,7 +4518,7 @@ namespace AvoGUI
 			{
 				if (m_overlayAlphaFactor > 0.f)
 				{
-					m_overlayAnimationTime -= 0.25f;
+					m_overlayAnimationTime -= 0.21f;
 					queueAnimationUpdate();
 				}
 				else
@@ -4602,7 +4565,7 @@ namespace AvoGUI
 
 	void Ripple::draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
 	{
-		p_drawingContext->setColor(Color(m_color, m_color.alpha*m_overlayAlphaFactor*0.25f));
+		p_drawingContext->setColor(Color(m_color, m_color.alpha*m_overlayAlphaFactor*0.4f));
 		p_drawingContext->fillRectangle(getSize());
 
 		if (m_color.alpha*m_alphaFactor >= 0.f)
@@ -4629,7 +4592,7 @@ namespace AvoGUI
 		if (p_emphasis == Emphasis::High)
 		{
 			setElevation(2.f);
-			ripple->setColor(Color(1.f, 0.45f));
+			ripple->setColor(Color(1.f, 0.5f));
 		}
 		else
 		{
@@ -4737,11 +4700,12 @@ namespace AvoGUI
 
 	void Button::drawUnclipped(DrawingContext* p_context, const Rectangle<float>& p_invalidRectangle)
 	{
-		// Want to draw the outline outside of the button.
 		if (m_emphasis == Emphasis::Medium)
 		{
-			p_context->setColor(Color(0.f, 0.f, 0.f, 0.15f));
-			p_context->strokeRoundedRectangle(Rectangle<float>(-0.5f, 0.f, getWidth() + 0.5f, getHeight()), getCornerRadius(), 1.f);
+			//p_context->setColor(m_theme->colors["primary"]);
+			p_context->setColor(Color(m_theme->colors["on background"], 0.25f));
+			//p_context->setColor(Color(0.f, 0.f, 0.f, 0.2f));
+			p_context->strokeRoundedRectangle(Rectangle<float>(0.f, 0.f, getWidth(), getHeight()), getCornerRadius(), 1.f);
 		}
 	}
 
