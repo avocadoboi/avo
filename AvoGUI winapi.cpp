@@ -2007,7 +2007,7 @@ namespace AvoGUI
 		inline void minimizeSize() override
 		{
 			DWRITE_TEXT_METRICS metrics;
-			m_handle->GetMetrics(&metrics);
+			HRESULT result = m_handle->GetMetrics(&metrics);
 			m_bounds.setSize(metrics.width, metrics.height);
 		}
 
@@ -2452,14 +2452,14 @@ namespace AvoGUI
 
 #pragma region Platform-specific drawing context implementations
 #ifdef _WIN32
-	struct FontData
+	class FontData
 	{
+	public:
 		const void* data;
 		uint32_t dataSize;
-		const char* name;
 
-		FontData(const void* p_data, uint32_t p_dataSize, const char* p_name) :
-			data(p_data), dataSize(p_dataSize), name(p_name)
+		FontData(const void* p_data, uint32_t p_dataSize) :
+			data(p_data), dataSize(p_dataSize)
 		{ }
 	};
 
@@ -2473,21 +2473,18 @@ namespace AvoGUI
 		ULONG m_referenceCount;
 
 	public:
-		FontFileStream(const void* p_data)
-		{
-			m_fontData = ((FontData*)p_data);
-		}
+		FontFileStream(FontData* p_fontData) : m_referenceCount(0), m_fontData(p_fontData) { }
 
 		//------------------------------
+		// The IUnknown methods...
 
 		ULONG __stdcall AddRef() override
 		{
-			m_referenceCount++;
-			return m_referenceCount;
+			return InterlockedIncrement(&m_referenceCount);
 		}
 		ULONG __stdcall Release() override
 		{
-			m_referenceCount--;
+			InterlockedDecrement(&m_referenceCount);
 			if (!m_referenceCount)
 			{
 				delete this;
@@ -2496,58 +2493,63 @@ namespace AvoGUI
 		}
 		HRESULT __stdcall QueryInterface(const IID& p_id, void** p_object) override
 		{
-			*p_object = this;
-			AddRef();
-			return S_OK;
+			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontFileStream))
+			{
+				*p_object = this;
+				AddRef();
+				return S_OK;
+			}
+			*p_object = 0;
+			return E_NOINTERFACE;
 		}
 
 		//------------------------------
+
+		HRESULT __stdcall ReadFileFragment(const void** p_fragment, UINT64 p_fileOffset, UINT64 p_fragmentSize, void** p_fragmentContext) override
+		{
+			if (p_fileOffset + p_fragmentSize > m_fontData->dataSize || !p_fragmentSize)
+			{
+				*p_fragment = 0;
+				*p_fragmentContext = 0;
+				return E_FAIL;
+			}
+
+			*p_fragment = (const char*)m_fontData->data + p_fileOffset;
+			*p_fragmentContext = 0;
+			return S_OK;
+		}
+		void __stdcall ReleaseFileFragment(void* p_fragmentContext) override { }
 
 		HRESULT __stdcall GetFileSize(UINT64* p_fileSize) override
 		{
 			*p_fileSize = m_fontData->dataSize;
 			return S_OK;
 		}
-		HRESULT __stdcall ReadFileFragment(const void** p_fragment, UINT64 p_fileOffset, UINT64 p_fragmentSize, void** p_fragmentContext) override
-		{
-			if (p_fragmentSize + p_fileOffset > m_fontData->dataSize)
-			{
-				return S_OK;
-			}
-			*p_fragmentContext = new char[p_fragmentSize];
-			memcpy(*p_fragmentContext, (const char*)(m_fontData->data) + p_fileOffset, p_fragmentSize);
-			*p_fragment = *p_fragmentContext;
-			return S_OK;
-		}
-		void __stdcall ReleaseFileFragment(void* p_fragmentContext) override
-		{
-			delete[] p_fragmentContext;
-		}
 		HRESULT __stdcall GetLastWriteTime(UINT64* p_lastWriteTime) override
 		{
-			*p_lastWriteTime = 100;
-			return S_OK;
+			*p_lastWriteTime = 0;
+			return E_NOTIMPL;
 		}
 	};
+
 	class FontFileLoader : public IDWriteFontFileLoader
 	{
 	private:
 		uint32_t m_referenceCount;
 
 	public:
-		FontFileLoader() : m_referenceCount(1)
-		{ }
+		FontFileLoader() : m_referenceCount(0) { }
 
 		//------------------------------
+		// The IUnknown methods...
 
 		ULONG __stdcall AddRef() override
 		{
-			m_referenceCount++;
-			return m_referenceCount;
+			return InterlockedIncrement(&m_referenceCount);
 		}
 		ULONG __stdcall Release() override
 		{
-			m_referenceCount--;
+			InterlockedDecrement(&m_referenceCount);
 			if (!m_referenceCount)
 			{
 				delete this;
@@ -2556,20 +2558,30 @@ namespace AvoGUI
 		}
 		HRESULT __stdcall QueryInterface(const IID& p_id, void** p_object)
 		{
-			*p_object = this;
-			AddRef();
-			return S_OK;
+			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontFileLoader))
+			{
+				*p_object = this;
+				AddRef();
+				return S_OK;
+			}
+			*p_object = 0;
+			return E_NOINTERFACE;
 		}
 
 		//------------------------------
 
 		HRESULT __stdcall CreateStreamFromKey(const void* p_data, UINT32 p_dataSize, IDWriteFontFileStream** p_stream)
 		{
-			*p_stream = new FontFileStream(p_data);
+			if (p_dataSize != sizeof(FontData*) || !p_data)
+			{
+				*p_stream = 0;
+				return E_INVALIDARG;
+			}
+			*p_stream = new FontFileStream(*((FontData**)p_data));
+			(*p_stream)->AddRef();
 			return S_OK;
 		}
 	};
-
 	class FontFileEnumerator : public IDWriteFontFileEnumerator
 	{
 	private:
@@ -2578,44 +2590,29 @@ namespace AvoGUI
 		//------------------------------
 
 		IDWriteFactory* m_factory;
+		FontFileLoader* m_fontFileLoader;
 
-		IDWriteFontFile** m_fontFiles;
+		std::vector<FontData*>* m_fontData;
+		IDWriteFontFile* m_currentFontFile;
 		int32_t m_currentFontFileIndex;
-		uint32_t m_numberOfFontFiles;
 
 	public:
-		FontFileEnumerator(IDWriteFactory* p_factory, const void* p_data, uint32_t p_dataSize, FontFileLoader* p_fontFileLoader) :
-			m_referenceCount(1), m_factory(p_factory), m_currentFontFileIndex(-1)
+		FontFileEnumerator(IDWriteFactory* p_factory, FontFileLoader* p_fontFileLoader, std::vector<FontData*>* p_data) :
+			m_referenceCount(0), m_factory(p_factory), m_fontFileLoader(p_fontFileLoader), m_fontData(p_data), 
+			m_currentFontFileIndex(-1), m_currentFontFile(0)
 		{
-			m_numberOfFontFiles = p_dataSize / sizeof(FontData);
-
-			FontData* data = (FontData*)p_data;
-			m_fontFiles = new IDWriteFontFile*[m_numberOfFontFiles];
-
-			for (uint32_t a = 0; a < m_numberOfFontFiles; a++)
-			{
-				p_factory->CreateCustomFontFileReference((const void*)(data + a), sizeof(FontData), p_fontFileLoader, m_fontFiles + a);
-			}
-		}
-		~FontFileEnumerator()
-		{
-			for (uint32_t a = 0; a < m_numberOfFontFiles; a++)
-			{
-				m_fontFiles[a]->Release();
-			}
-			delete[] m_fontFiles;
 		}
 
 		//------------------------------
+		// The IUnknown methods...
 
 		ULONG __stdcall AddRef() override
 		{
-			m_referenceCount++;
-			return m_referenceCount;
+			return InterlockedIncrement(&m_referenceCount);
 		}
 		ULONG __stdcall Release() override
 		{
-			m_referenceCount--;
+			InterlockedDecrement(&m_referenceCount);
 			if (!m_referenceCount)
 			{
 				delete this;
@@ -2624,29 +2621,40 @@ namespace AvoGUI
 		}
 		HRESULT __stdcall QueryInterface(const IID& p_id, void** p_object) override
 		{
-			*p_object = this;
-			AddRef();
-			return S_OK;
+			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontFileEnumerator))
+			{
+				*p_object = this;
+				AddRef();
+				return S_OK;
+			}
+			*p_object = 0;
+			return E_NOINTERFACE;
 		}
 
 		//------------------------------
 
 		HRESULT __stdcall GetCurrentFontFile(IDWriteFontFile** p_fontFile) override
 		{
-			if (m_currentFontFileIndex >= m_numberOfFontFiles) {
-				return E_FAIL;
+			*p_fontFile = m_currentFontFile;
+			if (m_currentFontFile)
+			{
+				return S_OK;
 			}
-			*p_fontFile = *(m_fontFiles + m_currentFontFileIndex);
-			return S_OK;
+			return E_FAIL;
 		}
 		HRESULT __stdcall MoveNext(BOOL* p_hasCurrentFile) override
 		{
 			m_currentFontFileIndex++;
-			if (m_currentFontFileIndex + 1 >= m_numberOfFontFiles) {
+
+			if (m_currentFontFileIndex >= m_fontData->size()) 
+			{
 				*p_hasCurrentFile = 0;
+				m_currentFontFile = 0;
 			}
-			else {
+			else 
+			{
 				*p_hasCurrentFile = 1;
+				m_factory->CreateCustomFontFileReference((const void*)&(*m_fontData)[m_currentFontFileIndex], sizeof(FontData*), m_fontFileLoader, &m_currentFontFile);
 			}
 			return S_OK;
 		}
@@ -2659,20 +2667,20 @@ namespace AvoGUI
 
 	public:
 		FontCollectionLoader(FontFileLoader* p_fontFileLoader) :
-			m_referenceCount(1), m_fontFileLoader(p_fontFileLoader)
+			m_referenceCount(0), m_fontFileLoader(p_fontFileLoader)
 		{
 		}
 
 		//------------------------------
+		// The IUnknown methods...
 
 		ULONG __stdcall AddRef() override
 		{
-			m_referenceCount++;
-			return m_referenceCount;
+			return InterlockedIncrement(&m_referenceCount);
 		}
 		ULONG __stdcall Release() override
 		{
-			m_referenceCount--;
+			InterlockedDecrement(&m_referenceCount);
 			if (!m_referenceCount)
 			{
 				delete this;
@@ -2681,16 +2689,22 @@ namespace AvoGUI
 		}
 		HRESULT __stdcall QueryInterface(const IID& p_id, void** p_object) override
 		{
-			*p_object = this;
-			AddRef();
-			return S_OK;
+			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontCollectionLoader))
+			{
+				*p_object = this;
+				AddRef();
+				return S_OK;
+			}
+			*p_object = 0;
+			return E_NOINTERFACE;
 		}
 
 		//------------------------------
 
 		HRESULT __stdcall CreateEnumeratorFromKey(IDWriteFactory* p_factory, const void* p_data, UINT32 p_dataSize, IDWriteFontFileEnumerator** p_fontFileEnumerator)
 		{
-			*p_fontFileEnumerator = new FontFileEnumerator(p_factory, p_data, p_dataSize, m_fontFileLoader);
+			*p_fontFileEnumerator = new FontFileEnumerator(p_factory, m_fontFileLoader, *((std::vector<FontData*>**)p_data));
+			(*p_fontFileEnumerator)->AddRef();
 			return S_OK;
 		}
 	};
@@ -2712,19 +2726,20 @@ namespace AvoGUI
 		IDWriteFactory* m_directWriteFactory;
 		IDWriteTextFormat* m_textFormat;
 		IDWriteFontCollection* m_fontCollection;
-		//FontCollectionLoader* m_fontCollectionLoader;
-		//FontFileLoader* m_fontFileLoader;
-		std::vector<FontData> m_fonts;
+		FontCollectionLoader* m_fontCollectionLoader;
+		FontFileLoader* m_fontFileLoader;
+		std::vector<FontData*> m_fontData;
 
 		//------------------------------
 
 		void updateFontCollection()
 		{
-			//if (m_fontCollection)
-			//{
-			//	m_fontCollection->Release();
-			//}
-			//m_directWriteFactory->CreateCustomFontCollection(m_fontCollectionLoader, m_fonts.data(), m_fonts.size() * sizeof(FontData), &m_fontCollection);
+			if (m_fontCollection)
+			{
+				m_fontCollection->Release();
+			}
+			std::vector<FontData*>* fontDataPointer = &m_fontData;
+			m_directWriteFactory->CreateCustomFontCollection(m_fontCollectionLoader, &fontDataPointer, sizeof(std::vector<FontData*>*), &m_fontCollection);
 		}
 
 	public:
@@ -2853,27 +2868,33 @@ namespace AvoGUI
 				__uuidof(m_directWriteFactory), (IUnknown**)&m_directWriteFactory
 			);
 
-			//m_fontFileLoader = new FontFileLoader();
-			//m_directWriteFactory->RegisterFontFileLoader(m_fontFileLoader);
+			m_fontFileLoader = new FontFileLoader();
+			m_fontFileLoader->AddRef();
+			m_directWriteFactory->RegisterFontFileLoader(m_fontFileLoader);
 
-			//m_fontCollectionLoader = new FontCollectionLoader(m_fontFileLoader);
-			//m_directWriteFactory->RegisterFontCollectionLoader(m_fontCollectionLoader);
+			m_fontCollectionLoader = new FontCollectionLoader(m_fontFileLoader);
+			m_fontCollectionLoader->AddRef();
+			m_directWriteFactory->RegisterFontCollectionLoader(m_fontCollectionLoader);
 
-			//m_fonts.push_back(FontData(FONT_ROBOTO_REGULAR_DATA, FONT_ROBOTO_REGULAR_DATA_SIZE, FONT_ROBOTO_REGULAR_NAME));
-			//m_fonts.push_back(FontData(FONT_ROBOTO_BOLD_DATA, FONT_ROBOTO_BOLD_DATA_SIZE, FONT_ROBOTO_BOLD_NAME));
+			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_REGULAR, FONT_SIZE_ROBOTO_REGULAR));
+			updateFontCollection();
 
-			//updateFontCollection();
-
-			m_directWriteFactory->GetSystemFontCollection(&m_fontCollection);
-
-			m_textProperties.fontFamilyName = "helvetica";
+			m_textProperties.fontFamilyName = FONT_NAME_ROBOTO_REGULAR;
 			setDefaultTextProperties(m_textProperties);
 		}
 
 		~WindowsDrawingContext()
 		{
-			//m_directWriteFactory->UnregisterFontCollectionLoader(m_fontCollectionLoader);
-			//m_directWriteFactory->UnregisterFontFileLoader(m_fontFileLoader);
+			for (uint32_t a = 0; a < m_fontData.size(); a++)
+			{
+				delete m_fontData[a];
+			}
+
+			m_directWriteFactory->UnregisterFontCollectionLoader(m_fontCollectionLoader);
+			m_fontCollectionLoader->Release();
+
+			m_directWriteFactory->UnregisterFontFileLoader(m_fontFileLoader);
+			m_fontFileLoader->Release();
 
 			m_directWriteFactory->Release();
 
@@ -3681,9 +3702,9 @@ namespace AvoGUI
 
 		//------------------------------
 
-		inline void addFont(const void* p_data, uint32_t p_dataSize, const char* p_name)
+		inline void addFont(const void* p_data, uint32_t p_dataSize)
 		{
-			m_fonts.push_back(FontData(p_data, p_dataSize, p_name));
+			m_fontData.push_back(new FontData(p_data, p_dataSize));
 			updateFontCollection();
 		}
 
@@ -4592,11 +4613,11 @@ namespace AvoGUI
 		if (p_emphasis == Emphasis::High)
 		{
 			setElevation(2.f);
-			ripple->setColor(Color(1.f, 0.5f));
+			ripple->setColor(Color(m_theme->colors["on primary"], 0.3f));
 		}
 		else
 		{
-			ripple->setColor(Color(m_theme->colors["primary"], 0.3f));
+			ripple->setColor(Color(m_theme->colors["primary on background"], 0.3f));
 		}
 
 		m_GUI->addMouseEventListener(this);
@@ -4677,8 +4698,8 @@ namespace AvoGUI
 
 		m_text = getGUI()->getDrawingContext()->createText(p_text, m_fontSize);
 		m_text->setWordWrapping(WordWrapping::Never);
-		m_text->setFontWeight(FontWeight::Thick600);
-		m_text->setCharacterSpacing(1.5f);
+		m_text->setCharacterSpacing(1.f);
+		m_text->setFontWeight(FontWeight::Thick500);
 		m_text->minimizeSize();
 
 		if (m_text->getWidth() >= 32.f)
@@ -4689,7 +4710,7 @@ namespace AvoGUI
 		{
 			setSize(64.f, round(m_text->getHeight()) + 17.f);
 		}
-		m_text->setCenter(getWidth()*0.5f, getHeight()*0.5f - 1.f);
+		m_text->setCenter(getWidth()*0.5f, getHeight()*0.5f);
 	}
 	const char* Button::getText()
 	{
@@ -4702,9 +4723,8 @@ namespace AvoGUI
 	{
 		if (m_emphasis == Emphasis::Medium)
 		{
-			//p_context->setColor(m_theme->colors["primary"]);
+			//p_context->setColor(m_theme->colors["primary on background"]);
 			p_context->setColor(Color(m_theme->colors["on background"], 0.25f));
-			//p_context->setColor(Color(0.f, 0.f, 0.f, 0.2f));
 			p_context->strokeRoundedRectangle(Rectangle<float>(0.f, 0.f, getWidth(), getHeight()), getCornerRadius(), 1.f);
 		}
 	}
@@ -4718,7 +4738,7 @@ namespace AvoGUI
 		}
 		else
 		{
-			p_context->setColor(m_theme->colors["primary"]);
+			p_context->setColor(m_theme->colors["primary on background"]);
 		}
 
 		p_context->drawText(m_text);
