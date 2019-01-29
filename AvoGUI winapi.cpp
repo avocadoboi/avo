@@ -2876,10 +2876,26 @@ namespace AvoGUI
 			m_fontCollectionLoader->AddRef();
 			m_directWriteFactory->RegisterFontCollectionLoader(m_fontCollectionLoader);
 
-			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_REGULAR, FONT_SIZE_ROBOTO_REGULAR));
+			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_LIGHT, FONT_DATA_SIZE_ROBOTO_LIGHT));
+			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_SIZE_ROBOTO_REGULAR));
+			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_MEDIUM, FONT_DATA_SIZE_ROBOTO_MEDIUM));
+			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_BOLD, FONT_DATA_SIZE_ROBOTO_BOLD));
 			updateFontCollection();
 
-			m_textProperties.fontFamilyName = FONT_NAME_ROBOTO_REGULAR;
+			// Just for debugging...
+			//std::vector<wchar_t*> fontFamilyNames;
+			//for (uint32_t a = 0; a < m_fontCollection->GetFontFamilyCount(); a++)
+			//{
+			//	IDWriteFontFamily* fontFamily;
+			//	m_fontCollection->GetFontFamily(a, &fontFamily);
+			//	IDWriteLocalizedStrings* names;
+			//	fontFamily->GetFamilyNames(&names);
+			//	wchar_t* buffer = new wchar_t[30];
+			//	names->GetString(0, buffer, 30);
+			//	fontFamilyNames.push_back(buffer);
+			//}
+
+			m_textProperties.fontFamilyName = "Roboto";
 			setDefaultTextProperties(m_textProperties);
 		}
 
@@ -4699,7 +4715,7 @@ namespace AvoGUI
 		m_text = getGUI()->getDrawingContext()->createText(p_text, m_fontSize);
 		m_text->setWordWrapping(WordWrapping::Never);
 		m_text->setCharacterSpacing(1.f);
-		m_text->setFontWeight(FontWeight::Thick500);
+		m_text->setFontWeight(FontWeight::Medium);
 		m_text->minimizeSize();
 
 		if (m_text->getWidth() >= 32.f)
@@ -4744,4 +4760,3 @@ namespace AvoGUI
 		p_context->drawText(m_text);
 	}
 };
-
