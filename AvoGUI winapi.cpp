@@ -1938,12 +1938,6 @@ namespace AvoGUI
 		IDWriteTextLayout1* m_handle;
 		std::string m_string;
 
-		inline void updateMaxSize()
-		{
-			m_handle->SetMaxWidth(getWidth());
-			m_handle->SetMaxHeight(getHeight());
-		}
-
 		inline DWRITE_TEXT_RANGE createTextRange(int32_t p_startPosition, int32_t p_length)
 		{
 			DWRITE_TEXT_RANGE textRange = { };
@@ -2019,7 +2013,8 @@ namespace AvoGUI
 			if (p_rectangle.right - p_rectangle.left != m_bounds.right - m_bounds.left ||
 				p_rectangle.bottom - p_rectangle.top != m_bounds.bottom - m_bounds.top)
 			{
-				updateMaxSize();
+				m_handle->SetMaxWidth(getWidth());
+				m_handle->SetMaxHeight(getHeight());
 			}
 		}
 		inline void setBounds(float p_left, float p_top, float p_right, float p_bottom) override
@@ -2031,7 +2026,8 @@ namespace AvoGUI
 			if (p_right - p_left != m_bounds.right - m_bounds.left ||
 				p_bottom - p_top != m_bounds.bottom - m_bounds.top)
 			{
-				updateMaxSize();
+				m_handle->SetMaxWidth(getWidth());
+				m_handle->SetMaxHeight(getHeight());
 			}
 		}
 		inline void setBounds(const Point<float>& p_position, const Point<float>& p_size) override
@@ -2043,7 +2039,8 @@ namespace AvoGUI
 			if (p_size.x != m_bounds.right - m_bounds.left ||
 				p_size.y != m_bounds.bottom - m_bounds.top)
 			{
-				updateMaxSize();
+				m_handle->SetMaxWidth(getWidth());
+				m_handle->SetMaxHeight(getHeight());
 			}
 		}
 		inline const Rectangle<float>& getBounds() const override
@@ -2071,7 +2068,8 @@ namespace AvoGUI
 				m_bounds.setTopLeft(p_position, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					updateMaxSize();
+					m_handle->SetMaxWidth(getWidth());
+					m_handle->SetMaxHeight(getHeight());
 				}
 			}
 		}
@@ -2082,7 +2080,8 @@ namespace AvoGUI
 				m_bounds.setTopLeft(p_left, p_top, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					updateMaxSize();
+					m_handle->SetMaxWidth(getWidth());
+					m_handle->SetMaxHeight(getHeight());
 				}
 			}
 		}
@@ -2098,7 +2097,8 @@ namespace AvoGUI
 				m_bounds.setTopRight(p_position, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					updateMaxSize();
+					m_handle->SetMaxWidth(getWidth());
+					m_handle->SetMaxHeight(getHeight());
 				}
 			}
 		}
@@ -2109,7 +2109,8 @@ namespace AvoGUI
 				m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					updateMaxSize();
+					m_handle->SetMaxWidth(getWidth());
+					m_handle->SetMaxHeight(getHeight());
 				}
 			}
 		}
@@ -2125,7 +2126,8 @@ namespace AvoGUI
 				m_bounds.setBottomLeft(p_position, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					updateMaxSize();
+					m_handle->SetMaxWidth(getWidth());
+					m_handle->SetMaxHeight(getHeight());
 				}
 			}
 		}
@@ -2136,7 +2138,8 @@ namespace AvoGUI
 				m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					updateMaxSize();
+					m_handle->SetMaxWidth(getWidth());
+					m_handle->SetMaxHeight(getHeight());
 				}
 			}
 		}
@@ -2152,7 +2155,8 @@ namespace AvoGUI
 				m_bounds.setBottomRight(p_position, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					updateMaxSize();
+					m_handle->SetMaxWidth(getWidth());
+					m_handle->SetMaxHeight(getHeight());
 				}
 			}
 		}
@@ -2163,7 +2167,8 @@ namespace AvoGUI
 				m_bounds.setBottomRight(p_right, p_bottom, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					updateMaxSize();
+					m_handle->SetMaxWidth(getWidth());
+					m_handle->SetMaxHeight(getHeight());
 				}
 			}
 		}
@@ -2212,7 +2217,7 @@ namespace AvoGUI
 				m_bounds.setLeft(p_left, p_willKeepWidth);
 				if (!p_willKeepWidth)
 				{
-					updateMaxSize();
+					m_handle->SetMaxWidth(getWidth());
 				}
 			}
 		}
@@ -2228,7 +2233,7 @@ namespace AvoGUI
 				m_bounds.setTop(p_top, p_willKeepHeight);
 				if (!p_willKeepHeight)
 				{
-					updateMaxSize();
+					m_handle->SetMaxHeight(getHeight());
 				}
 			}
 		}
@@ -2244,7 +2249,7 @@ namespace AvoGUI
 				m_bounds.setRight(p_right, p_willKeepWidth);
 				if (!p_willKeepWidth)
 				{
-					updateMaxSize();
+					m_handle->SetMaxWidth(getWidth());
 				}
 			}
 		}
@@ -2260,7 +2265,7 @@ namespace AvoGUI
 				m_bounds.setBottom(p_bottom, p_willKeepHeight);
 				if (!p_willKeepHeight)
 				{
-					updateMaxSize();
+					m_handle->SetMaxHeight(getHeight());
 				}
 			}
 		}
@@ -2276,7 +2281,7 @@ namespace AvoGUI
 			if (p_width != m_bounds.right - m_bounds.left)
 			{
 				m_bounds.setWidth(p_width);
-				updateMaxSize();
+				m_handle->SetMaxWidth(getWidth());
 			}
 		}
 		inline float getWidth() const override
@@ -2289,7 +2294,7 @@ namespace AvoGUI
 			if (p_height != m_bounds.bottom - m_bounds.top)
 			{
 				m_bounds.setHeight(p_height);
-				updateMaxSize();
+				m_handle->SetMaxHeight(getHeight());
 			}
 		}
 		inline float getHeight() const override
@@ -2302,7 +2307,8 @@ namespace AvoGUI
 			if (p_size.x != m_bounds.right - m_bounds.left || p_size.y != m_bounds.bottom - m_bounds.top)
 			{
 				m_bounds.setSize(p_size);
-				updateMaxSize();
+				m_handle->SetMaxWidth(getWidth());
+				m_handle->SetMaxHeight(getHeight());
 			}
 		}
 		inline void setSize(float p_width, float p_height) override
@@ -2310,7 +2316,8 @@ namespace AvoGUI
 			if (p_width != m_bounds.right - m_bounds.left || p_height != m_bounds.bottom - m_bounds.top)
 			{
 				m_bounds.setSize(p_width, p_height);
-				updateMaxSize();
+				m_handle->SetMaxWidth(getWidth());
+				m_handle->SetMaxHeight(getHeight());
 			}
 		}
 		inline Point<float> getSize() const override
@@ -2351,7 +2358,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		inline void setFont(const char* p_name, int32_t p_startPosition, int32_t p_length) override
+		inline void setFontFamily(const char* p_name, int32_t p_startPosition, int32_t p_length) override
 		{
 			wchar_t* wideName = widenString(p_name);
 
@@ -3363,6 +3370,91 @@ namespace AvoGUI
 
 		//------------------------------
 
+		inline void setLineDashStyle(LineDashStyle p_dashStyle) override
+		{
+			switch (p_dashStyle)
+			{
+			case LineDashStyle::Solid:
+				m_strokeStyle.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_SOLID;
+				break;
+			case LineDashStyle::Dash:
+				m_strokeStyle.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH;
+				break;
+			case LineDashStyle::Dot:
+				m_strokeStyle.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DOT;
+				break;
+			case LineDashStyle::DashDot:
+				m_strokeStyle.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT;
+				break;
+			case LineDashStyle::DashDotDot:
+				m_strokeStyle.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT_DOT;
+				break;
+			case LineDashStyle::Custom:
+				m_strokeStyle.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_CUSTOM;
+			}
+		}
+		inline LineDashStyle getLineDashStyle() override
+		{
+			switch (m_strokeStyle.dashStyle)
+			{
+			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_SOLID:
+				return LineDashStyle::Solid;
+			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH:
+				return LineDashStyle::Dash;
+			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DOT:
+				return LineDashStyle::Dot;
+			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT:
+				return LineDashStyle::DashDot;
+			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT_DOT:
+				return LineDashStyle::DashDotDot;
+			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_CUSTOM:
+				return LineDashStyle::Custom;
+			}
+		}
+
+		inline void setLineDashOffset(float p_dashOffset) override
+		{
+			m_strokeStyle.dashOffset = p_dashOffset;
+		}
+		inline float getLineDashOffset() override
+		{
+			return m_strokeStyle.dashOffset;
+		}
+
+		inline void setLineDashCap(LineCap p_dashCap) override
+		{
+			switch (p_dashCap)
+			{
+			case LineCap::Flat:
+				m_strokeStyle.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				break;
+			case LineCap::Round:
+				m_strokeStyle.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				break;
+			case LineCap::Square:
+				m_strokeStyle.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				break;
+			case LineCap::Triangle:
+				m_strokeStyle.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+			}
+		}
+		inline LineCap getLineDashCap() override
+		{
+			switch (m_strokeStyle.dashCap)
+			{
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT:
+				return LineCap::Flat;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND:
+				return LineCap::Round;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE:
+				return LineCap::Square;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE:
+				return LineCap::Triangle;
+			}
+		}
+
+		//------------------------------
+
 		inline void pushClipRectangle(Rectangle<float> p_rectangle) override
 		{
 			m_context->PushAxisAlignedClip(
@@ -3676,6 +3768,22 @@ namespace AvoGUI
 			inputBitmap->Release();
 
 			return new WindowsImage(outputBitmap);
+		}
+
+		//------------------------------
+
+		inline Image* createImage(const void* p_pixelData, uint32_t p_width, uint32_t p_height) override
+		{
+			ID2D1Bitmap1* bitmap;
+			m_context->CreateBitmap(
+				D2D1::Size(p_width, p_height),
+				p_pixelData, p_width*4,
+				D2D1::BitmapProperties1(
+					D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_NONE,
+					D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UINT, D2D1_ALPHA_MODE_PREMULTIPLIED)
+				), &bitmap
+			);
+			return new WindowsImage(bitmap);
 		}
 
 		//------------------------------
@@ -4714,7 +4822,7 @@ namespace AvoGUI
 
 		m_text = getGUI()->getDrawingContext()->createText(p_text, m_fontSize);
 		m_text->setWordWrapping(WordWrapping::Never);
-		m_text->setCharacterSpacing(1.f);
+		m_text->setCharacterSpacing(1.2f);
 		m_text->setFontWeight(FontWeight::Medium);
 		m_text->minimizeSize();
 

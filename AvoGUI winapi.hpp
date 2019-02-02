@@ -3962,17 +3962,17 @@ namespace AvoGUI
 
 	enum class FontWeight
 	{
-		Thin = 100,
+		Thin = 100, // Thinnest option
 		UltraLight = 200,
 		Light = 300,
 		SemiLight = 350,
-		Regular = 400,
-		Medium = 500,
+		Regular = 400, // Normal thickness
+		Medium = 500, // A bit thicker than regular
 		SemiBold = 600,
 		Bold = 700,
 		UltraBold = 800,
-		Black = 900,
-		UltraBlack = 950
+		Black = 900, // Second most thick option
+		UltraBlack = 950 // Most thick option
 	};
 
 	enum class FontStyle
@@ -3986,22 +3986,31 @@ namespace AvoGUI
 	{
 		Undefined = 0,
 		UltraCondensed = 1, // Most condensed
-		ExtraCondensed = 2,
+		ExtraCondensed = 2, // Second most condensed
 		Condensed = 3,
 		SemiCondensed = 4,
 		Medium = 5,
 		SemiStretched = 6,
 		Stretched = 7,
-		ExtraStretched = 8,
+		ExtraStretched = 8, // Second most stretched
 		UltraStretched = 9 // Most stretched
 	};
 
 	class Text : public ProtectedRectangle, public ReferenceCounted
 	{
 	public:
+		/// <summary>
+		/// Sets the rules for inserting line breaks in the text to avoid overflow.
+		/// </summary>
 		virtual void setWordWrapping(WordWrapping p_wordWrapping) = 0;
+		/// <summary>
+		/// Returns the type of rules used for inserting line breaks in the text to avoid overflow.
+		/// </summary>
 		virtual WordWrapping getWordWrapping() = 0;
 
+		/// <summary>
+		/// Sets the size of the bounding box to fit the text.
+		/// </summary>
 		virtual void minimizeSize() = 0;
 
 		//------------------------------
@@ -4009,7 +4018,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Sets the font in a section of the text.
 		/// </summary>
-		/// <param name="p_name">The name of the font to be used.</param>
+		/// <param name="p_name">The name of the font family to be used.</param>
 		/// <param name="p_startPosition">
 		/// <para>The position of the first character to use this font.</para>
 		/// <para>If this is negative, it is relative to the end of the text.</para>
@@ -4019,7 +4028,7 @@ namespace AvoGUI
 		/// <para>If this is negative, it goes to the left of the start position.</para>
 		/// <para>If it is 0, everything after the starting position will be affected.</para>
 		/// </param>
-		virtual void setFont(const char* p_name, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
+		virtual void setFontFamily(const char* p_name, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
 
 		//------------------------------
 
@@ -4151,6 +4160,10 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/// <summary>
+		/// Returns a pointer to an OS-specific text object.
+		/// </summary>
+		/// <returns></returns>
 		virtual void* getHandle() = 0;
 	};
 
@@ -4172,7 +4185,17 @@ namespace AvoGUI
 		Round
 	};
 
-	struct TextProperties : public ReferenceCounted
+	enum class LineDashStyle
+	{
+		Solid,
+		Dash,
+		Dot,
+		DashDot,
+		DashDotDot,
+		Custom
+	};
+
+	class TextProperties : public ReferenceCounted
 	{
 	public:
 		const char* fontFamilyName = "arial";
@@ -4254,15 +4277,15 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Draws a filled rectangle onto the screen using the current color. Change color with the method setColor.
+		/// Draws a filled rectangle using the current color. Change color with the method setColor.
 		/// </summary>
 		virtual void fillRectangle(const Rectangle<float>& p_rectangle) = 0;
 		/// <summary>
-		/// Draws a filled rectangle onto the screen using the current color. Change color with the method setColor.
+		/// Draws a filled rectangle using the current color. Change color with the method setColor.
 		/// </summary>
 		virtual void fillRectangle(const Point<float>& p_position, const Point<float>& p_size) = 0;
 		/// <summary>
-		/// Draws a filled rectangle onto the screen using the current color. Change color with the method setColor.
+		/// Draws a filled rectangle using the current color. Change color with the method setColor.
 		/// </summary>
 		virtual void fillRectangle(float p_left, float p_top, float p_right, float p_bottom) = 0;
 
@@ -4280,100 +4303,269 @@ namespace AvoGUI
 		/// <summary>
 		/// Draws a rectangle outline using the current color. Change the color being used with the method setColor.
 		/// </summary>
-		/// <param name="p_strokeWidth">Width of the line</param>
 		virtual void strokeRectangle(const Rectangle<float>& p_rectangle, float p_strokeWidth = 1.f) = 0;
 		/// <summary>
 		/// Draws a rectangle outline using the current color. Change the color being used with the method setColor.
 		/// </summary>
-		/// <param name="p_strokeWidth">Width of the line</param>
 		virtual void strokeRectangle(const Point<float>& p_position, const Point<float>& p_size, float p_strokeWidth = 1.f) = 0;
 		/// <summary>
 		/// Draws a rectangle outline using the current color. Change the color being used with the method setColor.
 		/// </summary>
-		/// <param name="p_strokeWidth">Width of the line</param>
 		virtual void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth = 1.f) = 0;
 
 		/// <summary>
 		/// Draws a rectangle outline at the origin using the current color. Change the color being used with the method setColor.
 		/// </summary>
-		/// <param name="p_strokeWidth">Width of the line</param>
 		virtual void strokeRectangle(const Point<float>& p_size, float p_strokeWidth = 1.f) = 0;
 		/// <summary>
 		/// Draws a rectangle outline at the origin using the current color. Change the color being used with the method setColor.
 		/// </summary>
-		/// <param name="p_strokeWidth">Width of the line</param>
 		virtual void strokeRectangle(float p_width, float p_height, float p_strokeWidth = 1.f) = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// Draws a filled rounded rectangle using the current color. Change the color being used with the method setColor.
+		/// </summary>
 		virtual void fillRoundedRectangle(const Rectangle<float>& p_rectangle, float p_radius) = 0;
+		/// <summary>
+		/// Draws a filled rounded rectangle using the current color. Change the color being used with the method setColor.
+		/// </summary>
 		virtual void fillRoundedRectangle(const Point<float>& p_position, const Point<float>& p_size, float p_radius) = 0;
+		/// <summary>
+		/// Draws a filled rounded rectangle using the current color. Change the color being used with the method setColor.
+		/// </summary>
 		virtual void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) = 0;
 
+		/// <summary>
+		/// Draws a filled rounded rectangle at the origin using the current color. Change the color being used with the method setColor.
+		/// </summary>
 		virtual void fillRoundedRectangle(const Point<float>& p_size, float p_radius) = 0;
+		/// <summary>
+		/// Draws a filled rounded rectangle at the origin using the current color. Change the color being used with the method setColor.
+		/// </summary>
 		virtual void fillRoundedRectangle(float p_width, float p_height, float p_radius) = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// Draws a rounded rectangle outline using the current color. Change the color being used with the method setColor.
+		/// </summary>
 		virtual void strokeRoundedRectangle(const Rectangle<float>& p_rectangle, float p_radius, float p_strokeWidth = 1.f) = 0;
+		/// <summary>
+		/// Draws a rounded rectangle outline using the current color. Change the color being used with the method setColor.
+		/// </summary>
 		virtual void strokeRoundedRectangle(const Point<float>& p_position, const Point<float>& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
+		/// <summary>
+		/// Draws a rounded rectangle outline using the current color. Change the color being used with the method setColor.
+		/// </summary>
 		virtual void strokeRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_strokeWidth = 1.f) = 0;
 
+		/// <summary>
+		/// Draws a rounded rectangle outline at the origin using the current color. Change the color being used with the method setColor.
+		/// </summary>
 		virtual void strokeRoundedRectangle(const Point<float>& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
+		/// <summary>
+		/// Draws a rounded rectangle outline at the origin using the current color. Change the color being used with the method setColor.
+		/// </summary>
 		virtual void strokeRoundedRectangle(float p_width, float p_height, float p_radius, float p_strokeWidth = 1.f) = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// Draws a filled circle using the current color. Change the color being used with the method setColor.
+		/// </summary>
+		/// <param name="p_position">Center position of the circle.</param>
 		virtual void fillCircle(const Point<float>& p_position, float p_radius) = 0;
+		/// <summary>
+		/// Draws a filled circle using the current color. Change the color being used with the method setColor.
+		/// </summary>
+		/// <param name="p_x">Center X position of the circle.</param>
+		/// <param name="p_y">Center Y position of the circle.</param>
 		virtual void fillCircle(float p_x, float p_y, float p_radius) = 0;
 
+		/// <summary>
+		/// Draws a circle outline using the current color. Change the color being used with the method setColor.
+		/// </summary>
+		/// <param name="p_position">Center position of the circle.</param>
 		virtual void strokeCircle(const Point<float>& p_position, float p_radius, float p_strokeWidth = 1.f) = 0;
+		/// <summary>
+		/// Draws a circle outline using the current color. Change the color being used with the method setColor.
+		/// </summary>
+		/// <param name="p_position">Center position of the circle.</param>
 		virtual void strokeCircle(float p_x, float p_y, float p_radius, float p_strokeWidth = 1.f) = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// Draws a straight line between two points using the current color. Change the color being used with the method setColor.
+		/// </summary>
 		virtual void drawLine(const Point<float>& p_point_0, const Point<float>& p_point_1, float p_thickness = 1.f) = 0;
+		/// <summary>
+		/// Draws a straight line between two points using the current color. Change the color being used with the method setColor.
+		/// </summary>
 		virtual void drawLine(float p_x0, float p_y0, float p_x1, float p_y1, float p_thickness = 1.f) = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// Changes the way both start- and endpoints of lines are drawn.
+		/// </summary>
 		virtual void setLineCap(LineCap p_lineCap) = 0;
+		/// <summary>
+		/// Changes the way startpoints of lines are drawn.
+		/// </summary>
 		virtual void setStartLineCap(LineCap p_lineCap) = 0;
+		/// <summary>
+		/// Changes the way endpoints of lines are drawn.
+		/// </summary>
 		virtual void setEndLineCap(LineCap p_lineCap) = 0;
+		/// <summary>
+		/// Returns the way startpoints of lines are drawn.
+		/// </summary>
 		virtual LineCap getStartLineCap() = 0;
+		/// <summary>
+		/// Returns the way endpoints of lines are drawn.
+		/// </summary>
 		virtual LineCap getEndLineCap() = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// Sets how and if lines are dashed/dotted.
+		/// </summary>
+		virtual void setLineDashStyle(LineDashStyle p_dashStyle) = 0;
+		/// <summary>
+		/// Returns how and if lines are dashed/dotted.
+		/// </summary>
+		virtual LineDashStyle getLineDashStyle() = 0;
+
+		/// <summary>
+		/// Sets the offset of line dashing/dotting.
+		/// </summary>
+		virtual void setLineDashOffset(float p_dashOffset) = 0;
+		/// <summary>
+		/// Returns the offset of line dashing/dotting.
+		/// </summary>
+		virtual float getLineDashOffset() = 0;
+
+		/// <summary>
+		/// This changes the way the endpoints of dots and dashes on lines are drawn.
+		/// </summary>
+		virtual void setLineDashCap(LineCap p_dashCap) = 0;
+		/// <summary>
+		/// Returns the way the endpoints of dots and dashes on lines are drawn.
+		/// </summary>
+		virtual LineCap getLineDashCap() = 0;
+
+		//------------------------------
+
+		/// <summary>
+		/// Sets the way line joints are drawn.
+		/// </summary>
 		virtual void setLineJoin(LineJoin p_lineJoin) = 0;
+		/// <summary>
+		/// Returns the way line joints are drawn.
+		/// </summary>
 		virtual LineJoin getLineJoin() = 0;
 
+		/// <summary>
+		/// Sets the limit of the thickness of pointy "mitered" joints.
+		/// </summary>
 		virtual void setLineJoinMiterLimit(float p_miterLimit) = 0;
+		/// <summary>
+		/// Returns the limit of the thickness of pointy "mitered" joints.
+		/// </summary>
 		virtual float getLineJoinMiterLimit() = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// After calling this, all graphics drawn outside the rectangle will be invisible, on pixel-level.
+		/// </summary>
 		virtual void pushClipRectangle(Rectangle<float> p_rectangle) = 0;
+		/// <summary>
+		/// This undos the last added clipping rectangle.
+		/// </summary>
 		virtual void popClipRectangle() = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// After calling this, all graphics drawn outside the rounded rectangle will be invisible, on pixel-level.
+		/// </summary>
 		virtual void pushRoundedClipRectangle(const Rectangle<float>& p_rectangle, float p_radius) = 0;
+		/// <summary>
+		/// This undos the last added rounded clipping rectangle.
+		/// </summary>
 		virtual void popRoundedClipRectangle() = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// Generates a shadow cast by a rectangle.
+		/// </summary>
+		/// <param name="p_size">The size of the rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.</param>
+		/// <param name="p_blur">How far away from the surface the rectangle is (how blurry the shadow is).</param>
+		/// <param name="p_color">The color of the resulting shadow.</param>
 		virtual Image* createRectangleShadowImage(const Point<uint32_t>& p_size, float p_blur, const Color& p_color) = 0;
+		/// <summary>
+		/// Generates a shadow cast by a rectangle.
+		/// </summary>
+		/// <param name="p_width">The width of the rectangle which will cast the shadow. The shadow will be wider than this if p_blur > 0.</param>
+		/// <param name="p_height">The height of the rectangle which will cast the shadow. The shadow will be taller than this if p_blur > 0.</param>
+		/// <param name="p_blur">How far away from the surface the rectangle is (how blurry the shadow is).</param>
+		/// <param name="p_color">The color of the resulting shadow.</param>
 		virtual Image* createRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_blur, const Color& p_color) = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// Generates a shadow cast by a rounded rectangle.
+		/// </summary>
+		/// <param name="p_size">The size of the rounded rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.</param>
+		/// <param name="p_radius">The corner radius ("roundness") of the rounded rectangle which will cast the shadow.</param>
+		/// <param name="p_blur">How far away from the surface the rounded rectangle is (how blurry the shadow is).</param>
+		/// <param name="p_color">The color of the resulting shadow.</param>
 		virtual Image* createRoundedRectangleShadowImage(const Point<uint32_t>& p_size, float p_radius, float p_blur, const Color& p_color) = 0;
+		/// <summary>
+		/// Generates a shadow cast by a rounded rectangle.
+		/// </summary>
+		/// <param name="p_width">The width of the rounded rectangle which will cast the shadow. The shadow will be wider than this if p_blur > 0.</param>
+		/// <param name="p_height">The height of the rounded rectangle which will cast the shadow. The shadow will be taller than this if p_blur > 0.</param>
+		/// <param name="p_radius">The corner radius ("roundness") of the rounded rectangle which will cast the shadow.</param>
+		/// <param name="p_blur">How far away from the surface the rounded rectangle is (how blurry the shadow is).</param>
+		/// <param name="p_color">The color of the resulting shadow.</param>
 		virtual Image* createRoundedRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_radius, float p_blur, const Color& p_color) = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// Creates a new image from pixel data in RGBA format.
+		/// </summary>
+		/// <param name="p_pixelData">An array which is 4*width*height bytes in size. It contains the color values for every pixel in the image, row-by-row. One byte for every color channel.</param>
+		/// <param name="p_width">The number of pixels wide the image is.</param>
+		/// <param name="p_height">The number of pixels high the image is.</param>
+		virtual Image* createImage(const void* p_pixelData, uint32_t p_width, uint32_t p_height) = 0;
+
+		//------------------------------
+
+		/// <summary>
+		/// Draws an image at a position with a crop rectangle, scale and opacity.
+		/// </summary>
+		/// <param name="p_image">Image representing the pixels to be drawn.</param>
+		/// <param name="p_position">The coordinates of the top-left corner of the image where it will be drawn.</param>
+		/// <param name="sourceRectangle">A rectangle representing the portion of the image which will be drawn.</param>
+		/// <param name="p_scale">The image will be drawn p_scale times as big on the screen as it actually is.</param>
+		/// <param name="p_opacity">How opaque the image is drawn. If it is 0, it is not drawn at all, if it's 1, it's fully opaque.</param>
 		virtual void drawImage(Image* p_image, const Point<float>& p_position, const Rectangle<float>& sourceRectangle, float p_scale = 1.f, float p_opacity = 1.f) = 0;
+		/// <summary>
+		/// Draws an image at a position with a scale and opacity.
+		/// </summary>
+		/// <param name="p_image">Image representing the pixels to be drawn.</param>
+		/// <param name="p_position">The coordinates of the top-left corner of the image where it will be drawn.</param>
+		/// <param name="p_scale">The image will be drawn p_scale times as big on the screen as it actually is.</param>
+		/// <param name="p_opacity">How opaque the image is drawn. If it is 0, it is not drawn at all, if it's 1, it's fully opaque.</param>
 		virtual void drawImage(Image* p_image, const Point<float>& p_position, float p_scale = 1.f, float p_opacity = 1.f) = 0;
 
 		//------------------------------
@@ -4419,26 +4611,26 @@ namespace AvoGUI
 
 		/// <summary>
 		/// <para>Lays out and draws a string in a rectangle.</para>
-		/// <para>If you're drawing the same text repeatedly, use a Text object (created with createText()).</para>
+		/// <para>If you're drawing the same text repeatedly, use a Text object (created with method createText).</para>
 		/// </summary>
 		virtual void drawText(const char* p_string, const Rectangle<float>& p_rectangle) = 0;
 		/// <summary>
 		/// <para>Lays out and draws a string in a rectangle.</para>
-		/// <para>If you're drawing the same text repeatedly, use a Text object (created with createText()).</para>
+		/// <para>If you're drawing the same text repeatedly, use a Text object (created with method createText()).</para>
 		/// </summary>
 		virtual void drawText(const char* p_string, float p_left, float p_top, float p_right, float p_bottom) = 0;
 		/// <summary>
 		/// <para>Lays out and draws a string in a rectangle.</para>
-		/// <para>If you're drawing the same text repeatedly, use a Text object (created with createText()).</para>
+		/// <para>If you're drawing the same text repeatedly, use a Text object (created with method createText()).</para>
 		/// </summary>
 		virtual void drawText(const char* p_string, const Point<float>& p_position, const Point<float>& p_size) = 0;
 		/// <summary>
-		/// <para>Lays out and draws a string in a rectangle.</para>
+		/// <para>Lays out and draws a string at a position.</para>
 		/// <para>If you're drawing the same text repeatedly, use a Text object (created with createText()).</para>
 		/// </summary>
 		virtual void drawText(const char* p_string, float p_x, float p_y) = 0;
 		/// <summary>
-		/// <para>Lays out and draws a string in a rectangle.</para>
+		/// <para>Lays out and draws a string at a position.</para>
 		/// <para>If you're drawing the same text repeatedly, use a Text object (created with createText()).</para>
 		/// </summary>
 		virtual void drawText(const char* p_string, const Point<float>& p_position) = 0;
