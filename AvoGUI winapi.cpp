@@ -18,11 +18,13 @@
 #include <d3d11_1.h>
 #include <dwrite.h>
 #include <dwrite_1.h>
+#include <wincodec.h>
 
 #pragma comment(lib, "d2d1")
 #pragma comment(lib, "d3d11")
 #pragma comment(lib, "dxguid")
 #pragma comment(lib, "dwrite")
+#pragma comment(lib, "windowscodecs")
 #endif
 
 //------------------------------
@@ -124,7 +126,7 @@ namespace AvoGUI
 
 	View::View(ViewContainer* p_parent, const Rectangle<float>& p_bounds) :
 		ProtectedRectangle(p_bounds), m_isVisible(true), m_cornerRadius(0), m_hasShadow(true), m_elevation(0),
-		m_shadowImage(0), m_userData(0)
+		m_hasSizeChangedSinceLastElevationChange(false), m_shadowImage(0), m_userData(0)
 	{
 		if (p_parent)
 		{
@@ -341,27 +343,29 @@ namespace AvoGUI
 	{
 		p_elevation = float(p_elevation < 0.f)*FLT_MAX + p_elevation;
 
-		if (m_hasShadow && p_elevation < 500.f)
+		if (m_elevation != p_elevation || m_hasSizeChangedSinceLastElevationChange)
 		{
-			if (m_shadowImage)
+			if (m_hasShadow && p_elevation < 400.f)
+			{
+				if (m_shadowImage)
+				{
+					m_shadowImage->forget();
+				}
+				m_shadowImage = m_GUI->getDrawingContext()->createRoundedRectangleShadowImage(getSize(), m_cornerRadius, p_elevation, m_theme->colors["shadow"]);
+			}
+			else if (m_shadowImage)
 			{
 				m_shadowImage->forget();
+				m_shadowImage = 0;
 			}
-			m_shadowImage = m_GUI->getDrawingContext()->createRoundedRectangleShadowImage(getSize(), m_cornerRadius, p_elevation, m_theme->colors["shadow"]);
-		}
-		else if (m_shadowImage)
-		{
-			m_shadowImage->forget();
-			m_shadowImage = 0;
-		}
 
-		if (p_elevation != m_elevation)
-		{
-			m_elevation = p_elevation;
-			m_parent->updateViewDrawingIndex(this);
-			return;
+			if (p_elevation != m_elevation)
+			{
+				m_elevation = p_elevation;
+				m_parent->updateViewDrawingIndex(this);
+			}
+			m_hasSizeChangedSinceLastElevationChange = false;
 		}
-		m_elevation = p_elevation;
 	}
 
 	void View::setHasShadow(bool p_hasShadow)
@@ -401,7 +405,7 @@ namespace AvoGUI
 	{
 		if (!m_isInAnimationUpdateQueue && m_GUI && m_isVisible)
 		{
-			m_GUI->queueAnimationUpdateForView(this);
+			m_GUI->getWindow()->queueAnimationUpdateForView(this);
 			m_isInAnimationUpdateQueue = true;
 		}
 	}
@@ -413,30 +417,30 @@ namespace AvoGUI
 		if (m_GUI)
 		{
 			Rectangle<float> shadowBounds(calculateAbsoluteShadowBounds().roundCoordinatesOutwards());
-			if (shadowBounds == m_lastShadowBounds)
+			if (shadowBounds == m_lastInvalidatedShadowBounds)
 			{
 				m_GUI->invalidateRect(shadowBounds);
 			}
-			else if (shadowBounds.getIsIntersecting(m_lastShadowBounds))
+			else if (shadowBounds.getIsIntersecting(m_lastInvalidatedShadowBounds))
 			{
-				m_GUI->invalidateRect(m_lastShadowBounds.createContainedCopy(shadowBounds));
+				m_GUI->invalidateRect(m_lastInvalidatedShadowBounds.createContainedCopy(shadowBounds));
 			}
 			else 
 			{
 				m_GUI->invalidateRect(shadowBounds);
-				if (m_lastShadowBounds.getWidth() && m_lastShadowBounds.getHeight())
+				if (m_lastInvalidatedShadowBounds.getWidth() && m_lastInvalidatedShadowBounds.getHeight())
 				{
-					m_GUI->invalidateRect(m_lastShadowBounds);
+					m_GUI->invalidateRect(m_lastInvalidatedShadowBounds);
 				}
 			}
 
-			if (m_lastBounds.getSize() != m_bounds.getSize() && m_lastBounds.getWidth() && m_lastBounds.getHeight())
+			if (m_lastInvalidatedBounds.getSize() != m_bounds.getSize() && m_lastInvalidatedBounds.getWidth() && m_lastInvalidatedBounds.getHeight())
 			{
 				setElevation(m_elevation);
 			}
 
-			m_lastShadowBounds = shadowBounds;
-			m_lastBounds = m_bounds;
+			m_lastInvalidatedShadowBounds = shadowBounds;
+			m_lastInvalidatedBounds = m_bounds;
 		}
 	}
 
@@ -559,9 +563,6 @@ namespace AvoGUI
 
 #pragma region Platform-specific window implementations
 #ifdef _WIN32
-	uint32_t numberOfWindows = 0;
-	const char* const WINDOW_CLASS_NAME = "AvoGUI window class";
-
 	class WindowsWindow : public Window
 	{
 	private:
@@ -958,6 +959,11 @@ namespace AvoGUI
 		}
 
 	public:
+		static uint32_t s_numberOfWindows;
+		static const char* const WINDOW_CLASS_NAME;
+
+		//------------------------------
+
 		WindowsWindow(GUI* p_GUI) :
 			m_windowHandle(0), m_isMouseOutsideWindow(true), m_cursorHandle(0)
 		{
@@ -994,9 +1000,9 @@ namespace AvoGUI
 			if (m_windowHandle)
 			{
 				DestroyWindow(m_windowHandle);
-				numberOfWindows--;
+				s_numberOfWindows--;
 			}
-			else if (!numberOfWindows)
+			else if (!s_numberOfWindows)
 			{
 				WNDCLASS windowClass = { };
 				windowClass.lpszClassName = WINDOW_CLASS_NAME;
@@ -1065,7 +1071,7 @@ namespace AvoGUI
 
 			UpdateWindow(m_windowHandle);
 
-			numberOfWindows++;
+			s_numberOfWindows++;
 		}
 		inline void create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, bool p_isFullscreen = false, Window* p_parent = 0) override
 		{
@@ -1078,9 +1084,9 @@ namespace AvoGUI
 			{
 				DestroyWindow(m_windowHandle);
 				m_windowHandle = 0;
-				numberOfWindows--;
+				s_numberOfWindows--;
 
-				if (!numberOfWindows)
+				if (!s_numberOfWindows)
 				{
 					UnregisterClass(WINDOW_CLASS_NAME, GetModuleHandle(0));
 					PostQuitMessage(0);
@@ -1251,185 +1257,185 @@ namespace AvoGUI
 			case KeyboardKey::Control:
 				return GetAsyncKeyState(VK_CONTROL);
 			case KeyboardKey::ControlLeft:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_LCONTROL);
 			case KeyboardKey::ControlRight:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_RCONTROL);
 			case KeyboardKey::Decimal:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_DECIMAL);
 			case KeyboardKey::Delete:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_DELETE);
 			case KeyboardKey::Divide:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_DIVIDE);
 			case KeyboardKey::Down:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_DOWN);
 			case KeyboardKey::End:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_END);
 			case KeyboardKey::Enter:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_RETURN);
 			case KeyboardKey::Escape:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_ESCAPE);
 			case KeyboardKey::F1:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F1);
 			case KeyboardKey::F2:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F2);
 			case KeyboardKey::F3:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F3);
 			case KeyboardKey::F4:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F4);
 			case KeyboardKey::F5:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F5);
 			case KeyboardKey::F6:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F6);
 			case KeyboardKey::F7:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F7);
 			case KeyboardKey::F8:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F8);
 			case KeyboardKey::F9:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F9);
 			case KeyboardKey::F10:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F10);
 			case KeyboardKey::F11:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F11);
 			case KeyboardKey::F12:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F12);
 			case KeyboardKey::F13:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F13);
 			case KeyboardKey::F14:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F14);
 			case KeyboardKey::F15:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F15);
 			case KeyboardKey::F16:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F16);
 			case KeyboardKey::F17:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F17);
 			case KeyboardKey::F18:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F18);
 			case KeyboardKey::F19:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F19);
 			case KeyboardKey::F20:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F20);
 			case KeyboardKey::F21:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F21);
 			case KeyboardKey::F22:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F22);
 			case KeyboardKey::F23:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F23);
 			case KeyboardKey::F24:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_F24);
 			case KeyboardKey::Help:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_HELP);
 			case KeyboardKey::Home:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_HOME);
 			case KeyboardKey::Insert:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_INSERT);
 			case KeyboardKey::Left:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_LEFT);
 			case KeyboardKey::MenuLeft:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_LMENU);
 			case KeyboardKey::MenuRight:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_RMENU);
 			case KeyboardKey::Minus:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_OEM_MINUS);
 			case KeyboardKey::Multiply:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_MULTIPLY);
 			case KeyboardKey::NextTrack:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_MEDIA_NEXT_TRACK);
 			case KeyboardKey::Number0:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(0x30);
 			case KeyboardKey::Number1:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(0x31);
 			case KeyboardKey::Number2:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(0x32);
 			case KeyboardKey::Number3:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(0x33);
 			case KeyboardKey::Number4:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(0x34);
 			case KeyboardKey::Number5:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(0x35);
 			case KeyboardKey::Number6:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(0x36);
 			case KeyboardKey::Number7:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(0x37);
 			case KeyboardKey::Number8:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(0x38);
 			case KeyboardKey::Number9:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(0x39);
 			case KeyboardKey::NumLock:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_NUMLOCK);
 			case KeyboardKey::Numpad0:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_NUMPAD0);
 			case KeyboardKey::Numpad1:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_NUMPAD1);
 			case KeyboardKey::Numpad2:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_NUMPAD2);
 			case KeyboardKey::Numpad3:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_NUMPAD3);
 			case KeyboardKey::Numpad4:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_NUMPAD4);
 			case KeyboardKey::Numpad5:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_NUMPAD5);
 			case KeyboardKey::Numpad6:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_NUMPAD6);
 			case KeyboardKey::Numpad7:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_NUMPAD7);
 			case KeyboardKey::Numpad8:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_NUMPAD8);
 			case KeyboardKey::Numpad9:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_NUMPAD9);
 			case KeyboardKey::PageDown:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_NEXT);
 			case KeyboardKey::PageUp:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_PRIOR);
 			case KeyboardKey::Pause:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_PAUSE);
 			case KeyboardKey::Period:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_OEM_PERIOD);
 			case KeyboardKey::Play:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_PLAY);
 			case KeyboardKey::PlayPauseTrack:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_MEDIA_PLAY_PAUSE);
 			case KeyboardKey::Plus:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_OEM_PLUS);
 			case KeyboardKey::PreviousTrack:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_MEDIA_PREV_TRACK);
 			case KeyboardKey::PrintScreen:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_SNAPSHOT);
 			case KeyboardKey::Regional1:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_OEM_1);
 			case KeyboardKey::Regional2:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_OEM_2);
 			case KeyboardKey::Regional3:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_OEM_3);
 			case KeyboardKey::Regional4:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_OEM_4);
 			case KeyboardKey::Regional5:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_OEM_5);
 			case KeyboardKey::Regional6:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_OEM_6);
 			case KeyboardKey::Regional7:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_OEM_7);
 			case KeyboardKey::Regional8:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_OEM_8);
 			case KeyboardKey::Right:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_RIGHT);
 			case KeyboardKey::Separator:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_SEPARATOR);
 			case KeyboardKey::Shift:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_SHIFT);
 			case KeyboardKey::ShiftLeft:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_LSHIFT);
 			case KeyboardKey::ShiftRight:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_RSHIFT);
 			case KeyboardKey::Spacebar:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_SPACE);
 			case KeyboardKey::StopTrack:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_MEDIA_STOP);
 			case KeyboardKey::Subtract:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_SUBTRACT);
 			case KeyboardKey::Tab:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_TAB);
 			case KeyboardKey::Up:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_UP);
 			}
 			return false;
 		}
@@ -1629,7 +1635,7 @@ namespace AvoGUI
 				mouseEvent.y = mousePosition.y;
 				mouseEvent.scrollDelta = delta;
 				mouseEvent.modifierKeys = modifierKeyFlags;
-				m_GUI->handleMouseScrolled(mouseEvent);
+				m_GUI->handleMouseScroll(mouseEvent);
 
 				return true;
 			}
@@ -1827,7 +1833,7 @@ namespace AvoGUI
 				KeyboardEvent keyboardEvent;
 				keyboardEvent.key = key;
 				keyboardEvent.isRepeated = isRepeated;
-				m_GUI->handleKeyboardKeyPressed(keyboardEvent);
+				m_GUI->handleKeyboardKeyDown(keyboardEvent);
 
 				return true;
 			}
@@ -1837,7 +1843,7 @@ namespace AvoGUI
 
 				KeyboardEvent keyboardEvent;
 				keyboardEvent.key = key;
-				m_GUI->handleKeyboardKeyReleased(keyboardEvent);
+				m_GUI->handleKeyboardKeyUp(keyboardEvent);
 
 				return true;
 			}
@@ -1849,7 +1855,7 @@ namespace AvoGUI
 				KeyboardEvent keyboardEvent;
 				keyboardEvent.character = character;
 				keyboardEvent.isRepeated = isRepeated;
-				m_GUI->handleCharacterPressed(keyboardEvent);
+				m_GUI->handleCharacterInput(keyboardEvent);
 
 				return true;
 			}
@@ -1890,6 +1896,9 @@ namespace AvoGUI
 			return DefWindowProc(p_windowHandle, p_message, p_data_a, p_data_b);
 		}
 	};
+	uint32_t WindowsWindow::s_numberOfWindows;
+	const char* const WindowsWindow::WINDOW_CLASS_NAME = "AvoGUI window class";
+
 #endif
 #pragma endregion
 
@@ -1897,7 +1906,6 @@ namespace AvoGUI
 	{
 	private:
 		ID2D1Bitmap* m_image;
-		Point<uint32_t> m_size;
 
 	public:
 		WindowsImage(ID2D1Bitmap* p_image)
@@ -1911,22 +1919,22 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void* getHandle() override
-		{
-			return m_image;
-		}
-
-		Point<uint32_t> getSize() override
+		inline Point<uint32_t> getSize() override
 		{
 			return Point<uint32_t>(m_image->GetSize().width, m_image->GetSize().height);
 		}
-		uint32_t getWidth() override
+		inline uint32_t getWidth() override
 		{
 			return m_image->GetSize().width;
 		}
-		uint32_t getHeight() override
+		inline uint32_t getHeight() override
 		{
 			return m_image->GetSize().height;
+		}
+
+		inline void* getHandle() override
+		{
+			return m_image;
 		}
 	};
 
@@ -2719,10 +2727,14 @@ namespace AvoGUI
 	class WindowsDrawingContext : public DrawingContext
 	{
 	private:
+		static ID2D1Factory1* s_direct2DFactory;
+		static IDWriteFactory1* s_directWriteFactory;
+		static FontCollectionLoader* s_fontCollectionLoader;
+		static FontFileLoader* s_fontFileLoader;
+		static IWICImagingFactory2* s_imagingFactory;
+
 		Window* m_window;
 
-		ID2D1Factory1* m_factory;
-		ID2D1Device* m_device;
 		ID2D1DeviceContext* m_context;
 		IDXGISwapChain1* m_swapChain;
 		ID2D1Bitmap1* m_targetWindowBitmap;
@@ -2730,11 +2742,8 @@ namespace AvoGUI
 		ID2D1SolidColorBrush* m_solidColorBrush;
 		D2D1_STROKE_STYLE_PROPERTIES m_strokeStyle;
 
-		IDWriteFactory* m_directWriteFactory;
 		IDWriteTextFormat* m_textFormat;
 		IDWriteFontCollection* m_fontCollection;
-		FontCollectionLoader* m_fontCollectionLoader;
-		FontFileLoader* m_fontFileLoader;
 		std::vector<FontData*> m_fontData;
 
 		//------------------------------
@@ -2746,17 +2755,28 @@ namespace AvoGUI
 				m_fontCollection->Release();
 			}
 			std::vector<FontData*>* fontDataPointer = &m_fontData;
-			m_directWriteFactory->CreateCustomFontCollection(m_fontCollectionLoader, &fontDataPointer, sizeof(std::vector<FontData*>*), &m_fontCollection);
+			s_directWriteFactory->CreateCustomFontCollection(s_fontCollectionLoader, &fontDataPointer, sizeof(std::vector<FontData*>*), &m_fontCollection);
 		}
 
 	public:
 		WindowsDrawingContext(Window* p_window) :
 			m_window(p_window), m_textFormat(0), m_fontCollection(0)
 		{
-			D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_factory);
+			if (!s_imagingFactory)
+			{
+				CoInitialize(0);
+				CoCreateInstance(CLSID_WICImagingFactory2, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&s_imagingFactory));
+			}
 
 			//------------------------------
-			// Create Direct3D device
+
+			if (!s_direct2DFactory)
+			{
+				D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &s_direct2DFactory);
+			}
+
+			//------------------------------
+			// Create temporary Direct3D device
 
 			ID3D11Device* d3dDevice;
 			ID3D11DeviceContext* d3dDeviceContext;
@@ -2777,7 +2797,7 @@ namespace AvoGUI
 			D3D11CreateDevice(
 				nullptr, 
 				D3D_DRIVER_TYPE_HARDWARE,
-				0, 
+				0,
 				D3D11_CREATE_DEVICE_BGRA_SUPPORT,
 				featureLevels, 
 				sizeof(featureLevels) / sizeof(D3D_FEATURE_LEVEL),
@@ -2803,11 +2823,12 @@ namespace AvoGUI
 			//------------------------------
 			// Create Direct2D device and device context.
 
-			m_factory->CreateDevice(dxgiDevice, &m_device);
-			m_device->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &m_context);
+			ID2D1Device* direct2DDevice = 0;
+			s_direct2DFactory->CreateDevice(dxgiDevice, &direct2DDevice);
+			direct2DDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &m_context);
 
 			//------------------------------
-			// Create swap chain, which holds the back buffer.
+			// Create swap chain, which holds the back buffer and is connected to the window.
 
 			DXGI_SWAP_CHAIN_DESC1 swapChainDescription = { };
 			swapChainDescription.Width = 0; // Automatic width.
@@ -2824,7 +2845,7 @@ namespace AvoGUI
 
 			DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreenSwapChainDescription = { };
 			// The documentation says the refresh rate is expressed in hertz, so I guess it's just 60/1 = 60 hertz?
-			// Why is this a rational then? Wouldn't it be more logical to express it in seconds? Then it would be 1/60
+			// Why is this a rational object then? Wouldn't it be more logical to express it in seconds? Then it would be 1/60
 			fullscreenSwapChainDescription.RefreshRate.Numerator = 60;
 			fullscreenSwapChainDescription.RefreshRate.Denominator = 1;
 			fullscreenSwapChainDescription.Scaling = DXGI_MODE_SCALING::DXGI_MODE_SCALING_UNSPECIFIED;
@@ -2862,6 +2883,7 @@ namespace AvoGUI
 
 			dxgiBackBuffer->Release();
 			dxgiFactory->Release();
+			direct2DDevice->Release();
 			dxgiAdapter->Release();
 			dxgiDevice->Release();
 			d3dDeviceContext->Release();
@@ -2870,18 +2892,21 @@ namespace AvoGUI
 			//------------------------------
 			// Create text stuff
 
-			DWriteCreateFactory(
-				DWRITE_FACTORY_TYPE::DWRITE_FACTORY_TYPE_ISOLATED,
-				__uuidof(m_directWriteFactory), (IUnknown**)&m_directWriteFactory
-			);
+			if (!s_directWriteFactory)
+			{
+				DWriteCreateFactory(
+					DWRITE_FACTORY_TYPE::DWRITE_FACTORY_TYPE_ISOLATED,
+					__uuidof(s_directWriteFactory), (IUnknown**)&s_directWriteFactory
+				);
 
-			m_fontFileLoader = new FontFileLoader();
-			m_fontFileLoader->AddRef();
-			m_directWriteFactory->RegisterFontFileLoader(m_fontFileLoader);
+				s_fontFileLoader = new FontFileLoader();
+				s_fontFileLoader->AddRef();
+				s_directWriteFactory->RegisterFontFileLoader(s_fontFileLoader);
 
-			m_fontCollectionLoader = new FontCollectionLoader(m_fontFileLoader);
-			m_fontCollectionLoader->AddRef();
-			m_directWriteFactory->RegisterFontCollectionLoader(m_fontCollectionLoader);
+				s_fontCollectionLoader = new FontCollectionLoader(s_fontFileLoader);
+				s_fontCollectionLoader->AddRef();
+				s_directWriteFactory->RegisterFontCollectionLoader(s_fontCollectionLoader);
+			}
 
 			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_LIGHT, FONT_DATA_SIZE_ROBOTO_LIGHT));
 			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_SIZE_ROBOTO_REGULAR));
@@ -2913,20 +2938,25 @@ namespace AvoGUI
 				delete m_fontData[a];
 			}
 
-			m_directWriteFactory->UnregisterFontCollectionLoader(m_fontCollectionLoader);
-			m_fontCollectionLoader->Release();
-
-			m_directWriteFactory->UnregisterFontFileLoader(m_fontFileLoader);
-			m_fontFileLoader->Release();
-
-			m_directWriteFactory->Release();
-
 			m_solidColorBrush->Release();
 			m_targetWindowBitmap->Release();
 			m_swapChain->Release();
 			m_context->Release();
-			m_device->Release();
-			m_factory->Release();
+
+			if (!WindowsWindow::s_numberOfWindows)
+			{
+				s_directWriteFactory->UnregisterFontCollectionLoader(s_fontCollectionLoader);
+				s_fontCollectionLoader->Release();
+
+				s_directWriteFactory->UnregisterFontFileLoader(s_fontFileLoader);
+				s_fontFileLoader->Release();
+
+				s_directWriteFactory->Release();
+
+				s_direct2DFactory->Release();
+
+				s_imagingFactory->Release();
+			}
 		}
 
 		//------------------------------
@@ -3071,7 +3101,7 @@ namespace AvoGUI
 		inline void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth = 1.f) override
 		{
 			ID2D1StrokeStyle* strokeStyle;
-			m_factory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
+			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
 
 			m_context->DrawRectangle(
 				D2D1::RectF(
@@ -3090,7 +3120,7 @@ namespace AvoGUI
 		inline void strokeRectangle(float p_width, float p_height, float p_strokeWidth = 1.f) override
 		{
 			ID2D1StrokeStyle* strokeStyle;
-			m_factory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
+			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
 
 			m_context->DrawRectangle(
 				D2D1::RectF(0, 0, p_width, p_height),
@@ -3149,7 +3179,7 @@ namespace AvoGUI
 		inline void strokeRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_strokeWidth = 1.f) override
 		{
 			ID2D1StrokeStyle* strokeStyle;
-			m_factory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
+			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
 
 			m_context->DrawRoundedRectangle(
 				D2D1::RoundedRect(
@@ -3171,7 +3201,7 @@ namespace AvoGUI
 		inline void strokeRoundedRectangle(float p_width, float p_height, float p_radius, float p_strokeWidth = 1.f) override
 		{
 			ID2D1StrokeStyle* strokeStyle;
-			m_factory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
+			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
 
 			m_context->DrawRoundedRectangle(
 				D2D1::RoundedRect(
@@ -3206,7 +3236,7 @@ namespace AvoGUI
 		void strokeCircle(float p_x, float p_y, float p_radius, float p_strokeWidth = 1.f)
 		{
 			ID2D1StrokeStyle* strokeStyle;
-			m_factory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
+			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
 
 			m_context->DrawEllipse(
 				D2D1::Ellipse(
@@ -3228,7 +3258,7 @@ namespace AvoGUI
 		inline void drawLine(float p_x0, float p_y0, float p_x1, float p_y1, float p_thickness = 1.f) override
 		{
 			ID2D1StrokeStyle* strokeStyle;
-			m_factory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
+			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
 
 			m_context->DrawLine(
 				D2D1::Point2F(p_x0, p_y0),
@@ -3474,7 +3504,7 @@ namespace AvoGUI
 		inline void pushRoundedClipRectangle(const Rectangle<float>& p_rectangle, float p_radius) override
 		{
 			ID2D1RoundedRectangleGeometry* geometry;
-			m_factory->CreateRoundedRectangleGeometry(
+			s_direct2DFactory->CreateRoundedRectangleGeometry(
 				D2D1::RoundedRect(
 					D2D1::RectF(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom),
 					p_radius, p_radius
@@ -3652,7 +3682,7 @@ namespace AvoGUI
 			m_context->EndDraw();
 
 			//------------------------------
-			// Appy effect
+			// Apply effect
 
 			ID2D1Effect* shadowEffect;
 			m_context->CreateEffect(CLSID_D2D1Shadow, &shadowEffect);
@@ -3678,7 +3708,7 @@ namespace AvoGUI
 				outputSize,
 				0, outputSize.width * 4,
 				D2D1::BitmapProperties1(
-					D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_TARGET,
+					D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_CPU_READ,
 					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
 				), &outputBitmap
 			);
@@ -3780,15 +3810,40 @@ namespace AvoGUI
 				p_pixelData, p_width*4,
 				D2D1::BitmapProperties1(
 					D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_NONE,
-					D2D1::PixelFormat(DXGI_FORMAT_R8G8B8A8_UINT, D2D1_ALPHA_MODE_PREMULTIPLIED)
+					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
 				), &bitmap
 			);
+			return new WindowsImage(bitmap);
+		}
+		inline Image* createImage(const char* p_filePath) override
+		{
+			wchar_t* wideFilePath = widenString(p_filePath);
+
+			IWICBitmapDecoder* decoder = 0;
+			s_imagingFactory->CreateDecoderFromFilename(wideFilePath, 0, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &decoder);
+
+			delete[] wideFilePath;
+
+			IWICBitmapFrameDecode* frame = 0;
+			decoder->GetFrame(0, &frame);
+
+			IWICFormatConverter* formatConverter = 0;
+			s_imagingFactory->CreateFormatConverter(&formatConverter);
+			formatConverter->Initialize(frame, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, 0, 0.f, WICBitmapPaletteTypeMedianCut);
+
+			ID2D1Bitmap* bitmap;
+			m_context->CreateBitmapFromWicBitmap(formatConverter, 0, &bitmap);
+
+			formatConverter->Release();
+			frame->Release();
+			decoder->Release();
+
 			return new WindowsImage(bitmap);
 		}
 
 		//------------------------------
 
-		inline void drawImage(Image* p_image, const Point<float>& p_position, const Rectangle<float>& p_sourceRectangle, float p_scale = 1.f, float p_opacity = 1.f)
+		inline void drawImage(Image* p_image, const Rectangle<float>& p_sourceRectangle, const Point<float>& p_position, float p_scale, float p_opacity)
 		{
 			m_context->DrawBitmap(
 				(ID2D1Bitmap*)p_image->getHandle(),
@@ -3804,7 +3859,7 @@ namespace AvoGUI
 				)
 			);
 		}
-		inline void drawImage(Image* p_image, const Point<float>& p_position, float p_scale = 1.f, float p_opacity = 1.f)
+		inline void drawImage(Image* p_image, const Point<float>& p_position, float p_scale, float p_opacity)
 		{
 			m_context->DrawBitmap(
 				(ID2D1Bitmap*)p_image->getHandle(),
@@ -3849,7 +3904,7 @@ namespace AvoGUI
 				fontStyle = DWRITE_FONT_STYLE_OBLIQUE;
 			}
 
-			m_directWriteFactory->CreateTextFormat(
+			s_directWriteFactory->CreateTextFormat(
 				fontFamily, m_fontCollection, (DWRITE_FONT_WEIGHT)p_textProperties.fontWeight,
 				fontStyle, (DWRITE_FONT_STRETCH)p_textProperties.fontStretch,
 				p_textProperties.fontSize, fontLocale,
@@ -3873,7 +3928,7 @@ namespace AvoGUI
 			MultiByteToWideChar(CP_ACP, 0, p_string, -1, wideString, numberOfCharacters);
 
 			IDWriteTextLayout1* textLayout;
-			m_directWriteFactory->CreateTextLayout(wideString, numberOfCharacters, m_textFormat, p_bounds.getWidth(), p_bounds.getHeight(), (IDWriteTextLayout**)&textLayout);
+			s_directWriteFactory->CreateTextLayout(wideString, numberOfCharacters, m_textFormat, p_bounds.getWidth(), p_bounds.getHeight(), (IDWriteTextLayout**)&textLayout);
 			DWRITE_TEXT_RANGE textRange;
 			textRange.startPosition = 0;
 			textRange.length = numberOfCharacters;
@@ -3918,6 +3973,12 @@ namespace AvoGUI
 			drawText(p_string, Rectangle<float>(p_position.x, p_position.y, p_position.x, p_position.y));
 		}
 	};
+	ID2D1Factory1* WindowsDrawingContext::s_direct2DFactory = 0;
+	IDWriteFactory1* WindowsDrawingContext::s_directWriteFactory = 0;
+	FontCollectionLoader* WindowsDrawingContext::s_fontCollectionLoader = 0;
+	FontFileLoader* WindowsDrawingContext::s_fontFileLoader = 0;
+	IWICImagingFactory2* WindowsDrawingContext::s_imagingFactory = 0;
+
 #endif
 #pragma endregion
 
@@ -4010,7 +4071,7 @@ namespace AvoGUI
 		}
 		return results;
 	}
-	std::vector<MouseEventListener*> GUI::getTopMouseListenersAt(float p_x, float p_y)
+	std::vector<MouseEventListener*> GUI::getTopMouseListenersAt(float p_x, float p_y) 
 	{
 		return getTopMouseListenersAt(Point<float>(p_x, p_y));
 	}
@@ -4397,7 +4458,7 @@ namespace AvoGUI
 			}
 		}
 	}
-	void GUI::handleMouseScrolled(const MouseEvent& p_event)
+	void GUI::handleMouseScroll(const MouseEvent& p_event)
 	{
 		std::vector<MouseEventListener*> targets = getTopMouseListenersAt(p_event.x, p_event.y);
 
@@ -4423,7 +4484,7 @@ namespace AvoGUI
 						break;
 					}
 				}
-				m_mouseEventListeners[a]->handleMouseScrolled(event);
+				m_mouseEventListeners[a]->handleMouseScroll(event);
 			}
 		}
 		else
@@ -4438,8 +4499,38 @@ namespace AvoGUI
 					event.x = p_event.x - position.x;
 					event.y = p_event.y - position.y;
 				}
-				targets[a]->handleMouseScrolled(event);
+				targets[a]->handleMouseScroll(event);
 			}
+		}
+	}
+
+	//------------------------------
+
+	void GUI::handleCharacterInput(const KeyboardEvent& p_event)
+	{
+		KeyboardEvent event = p_event;
+		for (uint32_t a = 0; a < m_keyboardEventListeners.size(); a++)
+		{
+			event.isTarget = m_keyboardEventListeners[a] == m_keyboardFocus;
+			m_keyboardEventListeners[a]->handleCharacterInput(p_event);
+		}
+	}
+	void GUI::handleKeyboardKeyDown(const KeyboardEvent& p_event)
+	{
+		KeyboardEvent event = p_event;
+		for (uint32_t a = 0; a < m_keyboardEventListeners.size(); a++)
+		{
+			event.isTarget = m_keyboardEventListeners[a] == m_keyboardFocus;
+			m_keyboardEventListeners[a]->handleKeyboardKeyDown(event);
+		}
+	}
+	void GUI::handleKeyboardKeyUp(const KeyboardEvent& p_event)
+	{
+		KeyboardEvent event = p_event;
+		for (uint32_t a = 0; a < m_keyboardEventListeners.size(); a++)
+		{
+			event.isTarget = m_keyboardEventListeners[a] == m_keyboardFocus;
+			m_keyboardEventListeners[a]->handleKeyboardKeyUp(event);
 		}
 	}
 
@@ -4456,13 +4547,6 @@ namespace AvoGUI
 	void GUI::addMouseEventListener(MouseEventListener* p_listener)
 	{
 		m_mouseEventListeners.push_back(p_listener);
-	}
-
-	//------------------------------
-
-	void GUI::queueAnimationUpdateForView(View* p_view)
-	{
-		m_window->queueAnimationUpdateForView(p_view);
 	}
 
 	//------------------------------
@@ -4591,9 +4675,8 @@ namespace AvoGUI
 	//------------------------------
 
 	Ripple::Ripple(ViewContainer* p_parent, const Color& p_color) :
-		View(p_parent, p_parent->getBounds().createCopyAtOrigin()), 
-		m_alphaEasing(0.5, 0.0, 0.5, 1.0), m_color(0.f, 0.45f), 
-		m_isMouseDown(false), m_isMouseHovering(false), m_hasHoverEffect(true)
+		View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(0.f, 0.45f),
+		m_isEnabled(true), m_isMouseDown(false), m_isMouseHovering(false), m_hasHoverEffect(true)
 	{
 		setIsOverlay(true); // Mouse events should be sent through
 		setHasShadow(false);
@@ -4615,61 +4698,63 @@ namespace AvoGUI
 
 	void Ripple::handleMouseDown(const MouseEvent& p_event)
 	{
-		m_position.set(p_event.x - getLeft(), p_event.y - getTop());
-		m_circleAnimationTime = 0.f;
-		m_alphaFactor = 1.f;
-		m_isMouseDown = true;
+		if (m_isEnabled)
+		{
+			m_position.set(p_event.x - getLeft(), p_event.y - getTop());
+			m_circleAnimationTime = 0.f;
+			m_alphaFactor = 1.f;
+			m_isMouseDown = true;
 
-		m_maxSize = 2.f*Point<>::getDistanceFast(m_position, Point<float>(m_position.x < getWidth()*0.5 ? getWidth() : 0, m_position.y < getHeight()*0.5 ? getHeight() : 0));
+			m_maxSize = 2.f*Point<>::getDistanceFast(m_position, Point<float>(m_position.x < getWidth()*0.5 ? getWidth() : 0, m_position.y < getHeight()*0.5 ? getHeight() : 0));
 
-		queueAnimationUpdate();
+			queueAnimationUpdate();
+		}
 	}
 	void Ripple::handleMouseUp(const MouseEvent& p_event)
 	{
-		m_isMouseDown = false;
-		m_alphaAnimationTime = 0.f;
-		queueAnimationUpdate();
+		if (m_isMouseDown)
+		{
+			m_isMouseDown = false;
+			m_alphaAnimationTime = 0.f;
+			queueAnimationUpdate();
+		}
 	}
 	void Ripple::handleMouseEnter(const MouseEvent& p_event)
 	{
-		m_isMouseHovering = true;
-		queueAnimationUpdate();
+		if (m_isEnabled)
+		{
+			getGUI()->getWindow()->setCursor(Cursor::Hand);
+			m_isMouseHovering = true;
+			queueAnimationUpdate();
+		}
 	}
 	void Ripple::handleMouseLeave(const MouseEvent& p_event)
 	{
-		m_isMouseHovering = false;
-		queueAnimationUpdate();
+		if (m_isMouseHovering)
+		{
+			m_isMouseHovering = false;
+			queueAnimationUpdate();
+		}
 	}
 
 	void Ripple::updateAnimations()
 	{
 		if (m_hasHoverEffect)
 		{
-			m_overlayAlphaFactor = m_alphaEasing.easeValue(m_overlayAnimationTime);
+			m_overlayAlphaFactor = m_theme->easings["symmetrical in out"].easeValue(m_overlayAnimationTime);
 
 			if (m_isMouseHovering)
 			{
 				if (m_overlayAlphaFactor < 1.f)
 				{
-					m_overlayAnimationTime += 0.21f;
+					m_overlayAnimationTime = min(m_overlayAnimationTime + 0.21f, 1.f);
 					queueAnimationUpdate();
-				}
-				else
-				{
-					m_overlayAnimationTime = 1.f;
 				}
 			}
-			else
+			else if (m_overlayAlphaFactor > 0.f)
 			{
-				if (m_overlayAlphaFactor > 0.f)
-				{
-					m_overlayAnimationTime -= 0.21f;
-					queueAnimationUpdate();
-				}
-				else
-				{
-					m_overlayAnimationTime = 0.f;
-				}
+				m_overlayAnimationTime = max(m_overlayAnimationTime - 0.21f, 0.f);
+				queueAnimationUpdate();
 			}
 		}
 
@@ -4692,8 +4777,8 @@ namespace AvoGUI
 		{
 			if (m_alphaAnimationTime < 1.f)
 			{
-				m_alphaFactor = 1.f - m_alphaEasing.easeValue(m_alphaAnimationTime);
-				m_alphaAnimationTime += 0.06f;
+				m_alphaFactor = 1.f - m_theme->easings["symmetrical in out"].easeValue(m_alphaAnimationTime);
+				m_alphaAnimationTime = min(1.f, m_alphaAnimationTime + 0.06f);
 
 				queueAnimationUpdate();
 			}
@@ -4710,13 +4795,16 @@ namespace AvoGUI
 
 	void Ripple::draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
 	{
-		p_drawingContext->setColor(Color(m_color, m_color.alpha*m_overlayAlphaFactor*0.4f));
-		p_drawingContext->fillRectangle(getSize());
-
-		if (m_color.alpha*m_alphaFactor >= 0.f)
+		if (m_isEnabled)
 		{
-			p_drawingContext->setColor(Color(m_color, m_color.alpha*m_alphaFactor));
-			p_drawingContext->fillCircle(m_position, m_size*0.5f);
+			p_drawingContext->setColor(Color(m_color, m_color.alpha*m_overlayAlphaFactor*0.4f));
+			p_drawingContext->fillRectangle(getSize());
+
+			if (m_color.alpha*m_alphaFactor >= 0.f)
+			{
+				p_drawingContext->setColor(Color(m_color, m_color.alpha*m_alphaFactor));
+				p_drawingContext->fillCircle(m_position, m_size*0.5f);
+			}
 		}
 	}
 
@@ -4726,27 +4814,27 @@ namespace AvoGUI
 
 	Button::Button(ViewContainer* p_parent, const char* p_text, Emphasis p_emphasis, float p_x, float p_y) :
 		ViewContainer(p_parent, Rectangle<float>(p_x, p_y, p_x, p_y)), m_text(0), m_fontSize(14.f),
-		m_isPressed(false), m_emphasis(p_emphasis)
+		m_pressAnimationTime(1.f), m_isPressed(false), m_emphasis(p_emphasis), m_isEnabled(true), m_colorAnimationTime(1.f)
 	{
 		setText(p_text);
 
 		setCornerRadius(4.f);
 
-		Ripple* ripple = new Ripple(this);
+		m_ripple = new Ripple(this);
 
 		if (p_emphasis == Emphasis::High)
 		{
 			setElevation(2.f);
-			ripple->setColor(Color(m_theme->colors["on primary"], 0.3f));
+			m_ripple->setColor(Color(m_theme->colors["on primary"], 0.3f));
+			m_currentColor = m_theme->colors["primary"];
 		}
 		else
 		{
-			ripple->setColor(Color(m_theme->colors["primary on background"], 0.3f));
+			m_ripple->setColor(Color(m_theme->colors["primary on background"], 0.3f));
+			m_currentColor = m_theme->colors["primary on background"];
 		}
 
 		m_GUI->addMouseEventListener(this);
-		setCursor(Cursor::Hand);
-
 	}
 	Button::~Button()
 	{
@@ -4762,52 +4850,28 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void Button::handleMouseDown(const MouseEvent& p_event)
+	void Button::disable()
 	{
-		if (m_emphasis == Emphasis::High)
+		if (m_isEnabled)
 		{
-			m_isPressed = true;
-			m_isRaising = true;
-			m_animationTime = 0.f;
+			m_isEnabled = false;
+			m_colorAnimationTime = 1.f;
 			queueAnimationUpdate();
+
+			m_ripple->disable();
+			getGUI()->getWindow()->setCursor(Cursor::Arrow);
 		}
 	}
-	void Button::handleMouseUp(const MouseEvent& p_event)
+	void Button::enable()
 	{
-		if (m_emphasis == Emphasis::High)
+		if (!m_isEnabled)
 		{
-			m_isPressed = false;
+			m_isEnabled = true;
+			m_colorAnimationTime = 0.f;
 			queueAnimationUpdate();
-		}
-	}
 
-	//------------------------------
-
-	void Button::updateAnimations()
-	{
-		float easedValue = m_theme->easings["in out"].easeValue(m_animationTime);
-		m_animationTime += 0.08f;
-
-		if (m_isRaising || m_isPressed)
-		{
-			setElevation(2.f + easedValue * 4.f);
-			if (!m_isPressed && easedValue == 1.f)
-			{
-				m_animationTime = 0.f;
-				m_isRaising = false;
-				queueAnimationUpdate();
-			}
-		}
-		else
-		{
-			setElevation(2.f + (1.f - easedValue) * 4.f);
-		}
-
-		invalidate();
-
-		if (easedValue < 1.f)
-		{
-			queueAnimationUpdate();
+			m_ripple->enable();
+			getGUI()->getWindow()->setCursor(Cursor::Hand);
 		}
 	}
 
@@ -4843,11 +4907,102 @@ namespace AvoGUI
 
 	//------------------------------
 
+	void Button::handleMouseDown(const MouseEvent& p_event)
+	{
+		if (m_isEnabled && m_emphasis == Emphasis::High)
+		{
+			m_isPressed = true;
+			m_isRaising = true;
+			m_pressAnimationTime = 0.f;
+			queueAnimationUpdate();
+		}
+	}
+	void Button::handleMouseUp(const MouseEvent& p_event)
+	{
+		if (m_emphasis == Emphasis::High)
+		{
+			m_isPressed = false;
+			queueAnimationUpdate();
+		}
+		if (m_isEnabled)
+		{
+			for (uint32_t a = 0; a < m_buttonListeners.size(); a++)
+			{
+				m_buttonListeners[a]->handleButtonClick(this);
+			}
+		}
+	}
+
+	//------------------------------
+
+	void Button::updateAnimations()
+	{
+		if (m_colorAnimationTime != 1.f && m_isEnabled || m_colorAnimationTime != 0.f && !m_isEnabled)
+		{
+			float colorAnimationValue = m_theme->easings["symmetrical in out"].easeValue(m_colorAnimationTime);
+			if (m_emphasis == Emphasis::High)
+			{
+				m_currentColor = m_theme->colors["primary"];
+			}
+			else
+			{
+				m_currentColor = m_theme->colors["primary on background"];
+			}
+			m_currentColor.setSaturationHSL(colorAnimationValue);
+
+			if (m_isEnabled)
+			{
+				if (m_colorAnimationTime < 1.f)
+				{
+					m_colorAnimationTime = min(1.f, m_colorAnimationTime + 0.1f);
+					queueAnimationUpdate();
+				}
+			}
+			else
+			{
+				if (m_colorAnimationTime > 0.f)
+				{
+					m_colorAnimationTime = max(0.f, m_colorAnimationTime - 0.1f);
+					queueAnimationUpdate();
+				}
+			}
+		}
+
+		if (m_emphasis == Emphasis::High)
+		{
+			float pressAnimationValue = m_theme->easings["in out"].easeValue(m_pressAnimationTime);
+			m_pressAnimationTime += 0.08f;
+
+			if (m_isRaising || m_isPressed)
+			{
+				setElevation(2.f + pressAnimationValue * 4.f);
+				if (!m_isPressed && pressAnimationValue == 1.f)
+				{
+					m_pressAnimationTime = 0.f;
+					m_isRaising = false;
+					queueAnimationUpdate();
+				}
+			}
+			else
+			{
+				setElevation(2.f + (1.f - pressAnimationValue) * 4.f);
+			}
+
+			if (pressAnimationValue < 1.f)
+			{
+				queueAnimationUpdate();
+			}
+		}
+
+		invalidate();
+	}
+
+	//------------------------------
+
 	void Button::drawUnclipped(DrawingContext* p_context, const Rectangle<float>& p_invalidRectangle)
 	{
 		if (m_emphasis == Emphasis::Medium)
 		{
-			//p_context->setColor(m_theme->colors["primary on background"]);
 			p_context->setColor(Color(m_theme->colors["on background"], 0.25f));
 			p_context->strokeRoundedRectangle(Rectangle<float>(0.f, 0.f, getWidth(), getHeight()), getCornerRadius(), 1.f);
 		}
@@ -4857,12 +5012,12 @@ namespace AvoGUI
 	{
 		if (m_emphasis == Emphasis::High)
 		{
-			p_context->clear(m_theme->colors["primary"]);
+			p_context->clear(m_currentColor);
 			p_context->setColor(m_theme->colors["on primary"]);
 		}
 		else
 		{
-			p_context->setColor(m_theme->colors["primary on background"]);
+			p_context->setColor(m_currentColor);
 		}
 
 		p_context->drawText(m_text);

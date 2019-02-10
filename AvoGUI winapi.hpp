@@ -4,17 +4,24 @@
 	guidelines, by Björn Sundin aka Avocado Boy.
 	It is very freely themable, and easy to use.
 
-	   (me)
-		v
-		--
-   \  --  --    /
-	\|      \ /
-	|   /\   \
-	\   \/   /
-	 \      /
-	  ------
-	   | |
-
+	    (me)
+		 v
+		 --
+   \   --  --   /
+	\ /      \ /
+	 |   /\   |
+	 \   \/   /
+	  \      /
+	   ------
+	    | |
+	
+	Info about documentation: a class that has virtual methods starts the documentation of methods with either 
+	"LIBRARY IMPLEMENTED" or "USER IMPLEMENTED". If a method is "USER IMPLEMENTED", it means that the method 
+	has no default library implementation and is meant to be implemented by you, the user of the library. A 
+	method that is "LIBRARY IMPLEMENTED" can sometimes be overridden (if it is virtual) and in that case you 
+	can choose to keep the library implementation and only add to it (by calling Parent::method(...) from
+	inside your overridden method()), or you can completely override it (although that can sometimes remove
+	important functionality).
 */
 
 #pragma once
@@ -294,6 +301,11 @@ namespace AvoGUI
 		{
 			return Point<PointType>(x - (PointType)p_point.x, y - (PointType)p_point.y);
 		}
+		/// <summary>
+		/// Returns this point offset negatively by the same amount on the x and y axis.
+		/// </summary>
+		/// <param name="p_offset"></param>
+		/// <returns></returns>
 		inline Point<PointType> operator-(PointType p_offset) const
 		{
 			return Point<PointType>(x - p_offset, y - p_offset);
@@ -2221,6 +2233,7 @@ namespace AvoGUI
 		/// <para>"in"</para>
 		/// <para>"out"</para>
 		/// <para>"in out"</para>
+		/// <para>"symmmetrical in out"</para>
 		/// <para>"ripple"</para>
 		/// </summary>
 		std::map<const char*, Easing> easings;
@@ -2245,6 +2258,7 @@ namespace AvoGUI
 			easings["in"] = Easing(0.6, 0.0, 0.8, 0.2);
 			easings["out"] = Easing(0.1, 0.9, 0.2, 1.0);
 			easings["in out"] = Easing(0.4, 0.0, 0.0, 1.0);
+			easings["symmetrical in out"] = Easing(0.6, 0.0, 0.4, 1.0);
 			easings["ripple"] = Easing(0.1, 0.8, 0.2, 0.95);
 		}
 	};
@@ -2258,6 +2272,11 @@ namespace AvoGUI
 	class ViewEventListener
 	{
 	public:
+		/// <summary>
+		/// USER IMPLEMENTED
+		/// <para>This gets called when a view that has registered this listener has changed its size.</para>
+		/// </summary>
+		/// <param name="p_view">The view that has changed size.</param>
 		virtual void handleViewSizeChange(View* p_view) = 0;
 	};
 
@@ -2278,12 +2297,13 @@ namespace AvoGUI
 		bool m_isVisible;
 		float m_cornerRadius;
 
-		Rectangle<float> m_lastBounds;
-		Rectangle<float> m_lastShadowBounds;
+		Rectangle<float> m_lastInvalidatedBounds;
+		Rectangle<float> m_lastInvalidatedShadowBounds;
 
 		Image* m_shadowImage;
 		bool m_hasShadow;
 		float m_elevation;
+		bool m_hasSizeChangedSinceLastElevationChange;
 
 		uint32_t m_layerIndex;
 		uint32_t m_index;
@@ -2298,8 +2318,10 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void sendSizeChangedEvents()
+		inline void sendSizeChangedEvents()
 		{
+			m_hasSizeChangedSinceLastElevationChange = true;
+
 			handleSizeChanged();
 			for (uint32_t a = 0; a < m_viewEventListeners.size(); a++)
 			{
@@ -2315,13 +2337,14 @@ namespace AvoGUI
 		Theme* m_theme;
 
 	public:
-		View(ViewContainer* p_parent, const Rectangle<float>& p_bounds);
+		View(ViewContainer* p_parent, const Rectangle<float>& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
 		virtual ~View();
 
 		//------------------------------
 
 		/// <summary>
-		/// Returns a pointer to the highest view in the hierarchy, the GUI.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns a pointer to the highest view in the hierarchy, the GUI.</para>
 		/// </summary>
 		inline GUI* getGUI() const
 		{
@@ -2331,11 +2354,13 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Attaches this view to a new parent.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Attaches this view to a new parent.</para>
 		/// </summary>
-		inline void setParent(ViewContainer* p_container);
+		void setParent(ViewContainer* p_container);
 		/// <summary>
-		/// Returns a pointer to the parent of this view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns a pointer to the parent of this view.</para>
 		/// </summary>
 		inline ViewContainer* getParent() const
 		{
@@ -2345,6 +2370,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets a new theme to be used by this view and upcoming children of this view.</para>
 		/// <para>-</para>
 		/// <para>Child views inherit their parent's theme, unless they make a new one.</para>
@@ -2361,6 +2387,7 @@ namespace AvoGUI
 			m_theme = p_newTheme;
 		}
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Returns a pointer to the theme which is used by this view.</para>
 		/// </summary>
 		inline Theme* getTheme() const
@@ -2371,52 +2398,59 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Calculates the bounds of the view shadow relative to the top left corner of the GUI.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Calculates the bounds of the view shadow relative to the top left corner of the GUI.</para>
 		/// </summary>
-		Rectangle<float> calculateAbsoluteShadowBounds() const
+		inline Rectangle<float> calculateAbsoluteShadowBounds() const
 		{
 			Rectangle<float> shadowBounds(getShadowBounds());
 			return Rectangle<float>(calculateAbsolutePositionRelativeTo(shadowBounds.getTopLeft()), shadowBounds.getSize());
 		}
 		/// <summary>
-		/// Calculates the bounds of the view relative to the top left corner of the GUI.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Calculates the bounds of the view relative to the top left corner of the GUI.</para>
 		/// </summary>
 		inline Rectangle<float> calculateAbsoluteBounds() const
 		{
 			return Rectangle<float>(calculateAbsoluteTopLeft(), getSize());
 		}
 		/// <summary>
-		/// Calculates the top left position of the view relative to the top left corner of the GUI.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Calculates the top left position of the view relative to the top left corner of the GUI.</para>
 		/// </summary>
-		Point<float> calculateAbsoluteTopLeft() const
+		inline Point<float> calculateAbsoluteTopLeft() const
 		{
 			return calculateAbsolutePositionRelativeTo(getTopLeft());
 		}
 		/// <summary>
-		/// Calculates the top right position of the view relative to the top left corner of the GUI.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Calculates the top right position of the view relative to the top left corner of the GUI.</para>
 		/// </summary>
-		Point<float> calculateAbsoluteTopRight() const
+		inline Point<float> calculateAbsoluteTopRight() const
 		{
 			return calculateAbsolutePositionRelativeTo(getTopRight());
 		}
 		/// <summary>
-		/// Calculates the bottom left position of the view relative to the top left corner of the GUI.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Calculates the bottom left position of the view relative to the top left corner of the GUI.</para>
 		/// </summary>
-		Point<float> calculateAbsoluteBottomLeft() const
+		inline Point<float> calculateAbsoluteBottomLeft() const
 		{
 			return calculateAbsolutePositionRelativeTo(getBottomLeft());
 		}
 		/// <summary>
-		/// Calculates the bottom right position of the view relative to the top left corner of the GUI.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Calculates the bottom right position of the view relative to the top left corner of the GUI.</para>
 		/// </summary>
-		Point<float> calculateAbsoluteBottomRight() const
+		inline Point<float> calculateAbsoluteBottomRight() const
 		{
 			return calculateAbsolutePositionRelativeTo(getBottomRight());
 		}
 		/// <summary>
-		/// Calculates the center position of the view relative to the top left corner of the GUI.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Calculates the center position of the view relative to the top left corner of the GUI.</para>
 		/// </summary>
-		Point<float> calculateAbsoluteCenter() const
+		inline Point<float> calculateAbsoluteCenter() const
 		{
 			return calculateAbsolutePositionRelativeTo(getCenter());
 		}
@@ -2424,7 +2458,8 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Sets the rectangle representing the bounds of this view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the rectangle representing the bounds of this view.</para>
 		/// </summary>
 		inline void setBounds(const Rectangle<float>& p_rectangle) override
 		{
@@ -2436,7 +2471,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Sets the rectangle representing the bounds of this view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the rectangle representing the bounds of this view.</para>
 		/// </summary>
 		inline void setBounds(float p_left, float p_top, float p_right, float p_bottom) override
 		{
@@ -2451,7 +2487,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Sets the rectangle representing the bounds of this view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the rectangle representing the bounds of this view.</para>
 		/// </summary>
 		inline void setBounds(const Point<float>& p_position, const Point<float>& p_size) override
 		{
@@ -2466,7 +2503,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Returns a rectangle representing the bounds of this view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns a rectangle representing the bounds of this view.</para>
 		/// </summary>
 		inline const Rectangle<float>& getBounds() const override
 		{
@@ -2476,14 +2514,16 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Moves the bounds of the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Moves the whoie view.</para>
 		/// </summary>
 		inline void move(const Point<float>& p_offset) override
 		{
 			m_bounds += p_offset;
 		}
 		/// <summary>
-		/// Moves the bounds of the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Moves the whole view.</para>
 		/// </summary>
 		inline void move(float p_offsetX, float p_offsetY) override
 		{
@@ -2493,6 +2533,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the top left coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
@@ -2508,6 +2549,7 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the top left coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
@@ -2523,7 +2565,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Returns the coordinates of the top left corner of the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinates of the top left corner of the view.</para>
 		/// </summary>
 		inline Point<float> getTopLeft() const override
 		{
@@ -2531,6 +2574,7 @@ namespace AvoGUI
 		}
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the top right coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
@@ -2546,6 +2590,7 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the top right coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
@@ -2561,7 +2606,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Returns the coordinates of the top right corner of the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinates of the top right corner of the view.</para>
 		/// </summary>
 		inline Point<float> getTopRight() const override
 		{
@@ -2569,6 +2615,7 @@ namespace AvoGUI
 		}
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the bottom left coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
@@ -2584,6 +2631,7 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the bottom left coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
@@ -2599,7 +2647,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Returns the coordinates of the bottom left corner of the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinates of the bottom left corner of the view.</para>
 		/// </summary>
 		inline Point<float> getBottomLeft() const override
 		{
@@ -2607,6 +2656,7 @@ namespace AvoGUI
 		}
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the bottom right coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
@@ -2622,6 +2672,7 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the bottom right coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
@@ -2637,7 +2688,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Returns the coordinates of the bottom right corner of the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinates of the bottom right corner of the view.</para>
 		/// </summary>
 		inline Point<float> getBottomRight() const override
 		{
@@ -2647,6 +2699,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the center coordinates of the view.</para> 
 		/// </summary>
 		inline void setCenter(const Point<float>& p_position) override
@@ -2654,6 +2707,7 @@ namespace AvoGUI
 			m_bounds.setCenter(p_position.x, p_position.y);
 		}
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the center coordinates of the view.</para> 
 		/// </summary>
 		inline void setCenter(float p_x, float p_y) override
@@ -2661,35 +2715,40 @@ namespace AvoGUI
 			m_bounds.setCenter(p_x, p_y);
 		}
 		/// <summary>
-		/// Sets the horizontal center coordinate of the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the horizontal center coordinate of the view.</para>
 		/// </summary>
 		inline void setCenterX(float p_x) override
 		{
 			m_bounds.setCenterX(p_x);
 		}
 		/// <summary>
-		/// Sets the vertical center coordinate of the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the vertical center coordinate of the view.</para>
 		/// </summary>
 		inline void setCenterY(float p_y) override
 		{
 			m_bounds.setCenterY(p_y);
 		}
 		/// <summary>
-		/// Returns the center coordinates of the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the center coordinates of the view.</para>
 		/// </summary>
 		inline Point<float> getCenter() const override
 		{
 			return m_bounds.getCenter();
 		}
 		/// <summary>
-		/// Returns the x-axis center coordinate of the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the x-axis center coordinate of the view.</para>
 		/// </summary>
 		inline float getCenterX() const override
 		{
 			return m_bounds.getCenterX();
 		}
 		/// <summary>
-		/// Returns the y-axis center coordinate of the rectangle.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the y-axis center coordinate of the view.</para>
 		/// </summary>
 		inline float getCenterY() const override
 		{
@@ -2699,6 +2758,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the left coordinate of this view and updates the layout. If p_willKeepWidth is</para>
 		/// <para>true, the right coordinate will be changed so that the width of the view stays the same.</para>
 		/// </summary>
@@ -2714,7 +2774,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Returns the left coordinate of this view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the left coordinate of this view.</para>
 		/// </summary>
 		inline float getLeft() const override
 		{
@@ -2722,6 +2783,7 @@ namespace AvoGUI
 		}
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the top coordinate of this view. If p_willKeepHeight is true, the bottom </para>
 		/// <para>coordinate will be changed so that the height of the view stays the same.</para>
 		/// </summary>
@@ -2737,7 +2799,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Returns the top coordinate of this view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the top coordinate of this view.</para>
 		/// </summary>
 		inline float getTop() const override
 		{
@@ -2745,6 +2808,7 @@ namespace AvoGUI
 		}
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the right coordinate of this view. If p_willKeepWidth is true, the left</para>
 		/// <para>coordinate will be changed so that the width of the view stays the same.</para>
 		/// </summary>
@@ -2760,7 +2824,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Returns the coordinate of the right edge of this view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinate of the right edge of this view.</para>
 		/// </summary>
 		inline float getRight() const override
 		{
@@ -2768,6 +2833,7 @@ namespace AvoGUI
 		}
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the bottom coordinate of this view and updates the layout. If p_willKeepHeight is true, the top</para>
 		/// <para>coordinate will be changed so that the height of the view stays the same.</para>
 		/// </summary>
@@ -2783,7 +2849,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Returns the coordinate of the bottom edge of this view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinate of the bottom edge of this view.</para>
 		/// </summary>
 		inline float getBottom() const override
 		{
@@ -2793,7 +2860,8 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Sets the width of this view in pixels and updates the layout.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the width of this view in pixels and updates the layout.</para>
 		/// </summary>
 		inline void setWidth(float p_width) override
 		{
@@ -2804,7 +2872,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Returns the height of this view in pixels.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the height of this view in pixels.</para>
 		/// </summary>
 		inline float getWidth() const override
 		{
@@ -2812,7 +2881,8 @@ namespace AvoGUI
 		}
 
 		/// <summary>
-		/// Sets the height of this view in pixels and updates the layout.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the height of this view in pixels and updates the layout.</para>
 		/// </summary>
 		inline void setHeight(float p_height) override
 		{
@@ -2823,7 +2893,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Returns the height of this view in pixels.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the height of this view in pixels.</para>
 		/// </summary>
 		inline float getHeight() const override
 		{
@@ -2831,7 +2902,8 @@ namespace AvoGUI
 		}
 
 		/// <summary>
-		/// Sets the size of this view in pixels and updates the layout.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the size of this view in pixels and updates the layout.</para>
 		/// </summary>
 		inline void setSize(const Point<float>& p_size) override
 		{
@@ -2842,7 +2914,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Sets the size of this view in pixels and updates the layout.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the size of this view in pixels and updates the layout.</para>
 		/// </summary>
 		inline void setSize(float p_width, float p_height) override
 		{
@@ -2853,7 +2926,8 @@ namespace AvoGUI
 			}
 		}
 		/// <summary>
-		/// Returns the size of this view in pixels.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the size of this view in pixels.</para>
 		/// </summary>
 		inline Point<float> getSize() const override
 		{
@@ -2863,7 +2937,8 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Returns if this view intersects/overlaps a rectangle.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns if this view intersects/overlaps a rectangle.</para>
 		/// </summary>
 		inline bool getIsIntersecting(const Rectangle<float>& p_rectangle) const override
 		{
@@ -2900,21 +2975,24 @@ namespace AvoGUI
 			return m_bounds.getIsIntersecting(p_rectangle);
 		}
 		/// <summary>
-		/// Returns if this view intersects/overlaps another protected rectangle.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns if this view intersects/overlaps another protected rectangle.</para>
 		/// </summary>
 		inline bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const override
 		{
 			return getIsIntersecting(p_protectedRectangle->getBounds());
 		}
 		/// <summary>
-		/// Returns if this view intersects/overlaps another view. Takes rounded corners of both views into account.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns if this view intersects/overlaps another view. Takes rounded corners of both views into account.</para>
 		/// </summary>
 		bool getIsIntersecting(View* p_view) const;
 
 		//------------------------------
 
 		/// <summary>
-		/// Returns if this view contains a rectangle. The rectangle is relative to the parent of the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns if this view contains a rectangle. The rectangle is relative to the parent of the view.</para>
 		/// </summary>
 		inline bool getIsContaining(const Rectangle<float>& p_rectangle) const override
 		{
@@ -2951,19 +3029,22 @@ namespace AvoGUI
 			return m_bounds.getIsContaining(p_rectangle);
 		}
 		/// <summary>
-		/// Returns if this view contains another protected rectangle. The rectangle is relative to the parent of this view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns if this view contains another protected rectangle. The rectangle is relative to the parent of this view.</para>
 		/// </summary>
 		inline bool getIsContaining(ProtectedRectangle* p_rectangle) const override
 		{
 			return getIsContaining(p_rectangle->getBounds());
 		}
 		/// <summary>
-		/// Returns if this view contains another view. Takes rounded corners of both views into account.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns if this view contains another view. Takes rounded corners of both views into account.</para>
 		/// </summary>
 		bool getIsContaining(View* p_view) const;
 
 		/// <summary>
-		/// Returns if this view contains a point. The point is relative to the parent of the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns if this view contains a point. The point is relative to the parent of the view.</para>
 		/// </summary>
 		inline bool getIsContaining(float p_x, float p_y) const override
 		{
@@ -3000,7 +3081,8 @@ namespace AvoGUI
 			return m_bounds.getIsContaining(p_x, p_y);
 		}
 		/// <summary>
-		/// Returns if this view contains a point. The point is relative to the parent of the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns if this view contains a point. The point is relative to the parent of the view.</para>
 		/// </summary>
 		inline bool getIsContaining(const Point<float>& p_point) const override
 		{
@@ -3010,6 +3092,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets if the view is visible and can receive events.</para>
 		/// </summary>
 		inline void setIsVisible(bool p_isVisible)
@@ -3017,6 +3100,7 @@ namespace AvoGUI
 			m_isVisible = p_isVisible;
 		}
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Returns if the view is visible and can receive events.</para>
 		/// </summary>
 		inline bool getIsVisible() const
@@ -3027,7 +3111,8 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Sets the roundness of the corners of the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the roundness of the corners of the view.</para>
 		/// </summary>
 		/// <param name="p_radius">Radius of the corner circles.</param>
 		inline void setCornerRadius(float p_radius)
@@ -3035,7 +3120,8 @@ namespace AvoGUI
 			m_cornerRadius = p_radius;
 		}
 		/// <summary>
-		/// Returns the roundness of the corners of the view, as a radius. 
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the roundness of the corners of the view, as a radius. </para>
 		/// </summary>
 		inline float getCornerRadius() const
 		{
@@ -3045,12 +3131,14 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the elevation of the view. This both changes its shadow (if the view has shadow) and drawing order.</para>
 		/// <para>The higher the elevation is, the later it will get drawn.</para>
 		/// </summary>
 		/// <param name="p_elevation">If this is negative, it is set from the top of the elevation space.</param>
 		void setElevation(float p_elevation);
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the elevation of the view. See the setElevation method.</para>
 		/// </summary>
 		inline float getElevation() const
@@ -3059,11 +3147,13 @@ namespace AvoGUI
 		}
 
 		/// <summary>
-		/// Sets whether the elevation is shown with a shadow or not.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets whether the elevation is shown with a shadow or not.</para>
 		/// </summary>
 		void setHasShadow(bool p_hasShadow);
 		/// <summary>
-		/// Returns whether the elevation is shown with a shadow or not.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns whether the elevation is shown with a shadow or not.</para>
 		/// </summary>
 		bool getHasShadow() const
 		{
@@ -3071,6 +3161,7 @@ namespace AvoGUI
 		}
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the rectangle which represents the area where the shadow is drawn.</para>
 		/// <para>This rectangle is bigger than the view or equal to the size of the view.</para>
 		/// </summary>
@@ -3084,6 +3175,7 @@ namespace AvoGUI
 			m_index = p_index;
 		}
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the index of this view relative to its siblings.</para>
 		/// </summary>
 		inline uint32_t getIndex() const
@@ -3092,7 +3184,8 @@ namespace AvoGUI
 		}
 
 		/// <summary>
-		/// Returns the layer index of the view, how deep down the view hierarchy it is.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the layer index of the view, how deep down the view hierarchy it is.</para>
 		/// </summary>
 		inline uint32_t getLayerIndex() const
 		{
@@ -3102,6 +3195,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets some arbitrary data you can use yourself to keep track of the view, or not.</para>
 		/// </summary>
 		/// <param name="p_userData"></param>
@@ -3110,7 +3204,8 @@ namespace AvoGUI
 			m_userData = p_userData;
 		}
 		/// <summary>
-		/// Returns your data that you for some reason wanted to associate with this view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns your data that you for some reason wanted to associate with this view.</para>
 		/// </summary>
 		inline void* getUserData()
 		{
@@ -3120,11 +3215,13 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Queues an animation update for the next frame.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Queues an animation update for the next frame.</para>
 		/// </summary>
 		void queueAnimationUpdate();
 		/// <summary>
-		/// Don't do anything with this.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Don't do anything with this.</para>
 		/// </summary>
 		inline void informAboutAnimationUpdateQueueRemoval()
 		{
@@ -3132,6 +3229,7 @@ namespace AvoGUI
 		}
 
 		/// <summary>
+		/// USER IMPLEMENTED
 		/// <para>Updates things like animations and does other stuff that you never want to happen</para>
 		/// <para>more than once every frame. Call queueAnimationUpdate() when you want this</para>
 		/// <para>method to be called in the next frame. This system allows for animations</para>
@@ -3142,14 +3240,16 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Adds an event listener to the view that recieves events about when the view has changed size.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Adds an event listener to the view that recieves events about when the view has changed size.</para>
 		/// </summary>
 		void addEventListener(ViewEventListener* p_eventListener)
 		{
 			m_viewEventListeners.push_back(p_eventListener);
 		}
 		/// <summary>
-		/// Removes an event listener from the view.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Removes an event listener from the view.</para>
 		/// </summary>
 		void removeEventListener(ViewEventListener* p_eventListener)
 		{
@@ -3159,28 +3259,33 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// <para>Implement this function in your view if you want to update things when the size of</para>
+		/// USER IMPLEMENTED
+		/// <para>Implement this method in your view if you want to update things when the size of</para>
 		/// <para>the view has been changed.</para>
 		/// </summary>
 		virtual void handleSizeChanged() { }
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Call this if you want the view to get redrawn. Adds an invalid rectangle to the window.</para>
 		/// </summary>
 		void invalidate();
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Draws the shadow of the view. This gets called by the parent ViewContainer before the</para>
 		/// <para>content of the view is drawn.</para>
 		/// </summary>
 		void drawShadow(DrawingContext* p_drawingContext);
 		/// <summary>
+		/// USER IMPLEMENTED
 		/// <para>Draws the content of the view. This is a method that is called by default from the other draw method</para>
 		/// <para>that also takes the target rectangle as input. You do not often care about that parameter.</para>
 		/// </summary>
 		/// <param name="p_drawingContext">Object used to draw graphics to the window.</param>
 		virtual inline void draw(DrawingContext* p_drawingContext) { }
 		/// <summary>
+		/// USER IMPLEMENTED
 		/// <para>Draws the content of the view. Override this method if you want the target rectangle, override the overloaded</para>
 		/// <para>method that only takes the drawing context otherwise.</para>
 		/// </summary>
@@ -3194,6 +3299,7 @@ namespace AvoGUI
 		}
 
 		/// <summary>
+		/// USER IMPLEMENTED
 		/// <para>Draws on top of the view, without any view clipping applied. This is a method that is called by default from the other</para>
 		/// <para>drawUnclipped method that also takes the target rectangle as input. You do not often care about that parameter.</para>
 		/// </summary>
@@ -3201,6 +3307,7 @@ namespace AvoGUI
 		virtual inline void drawUnclipped(DrawingContext* p_drawingContext) {}
 
 		/// <summary>
+		/// USER IMPLEMENTED
 		/// <para>Draws on top of the view, without any view clipping applied. Override this method if you want the target rectangle, override</para>
 		/// <para>the overloaded method that only takes the drawing context otherwise.</para>
 		/// </summary>
@@ -3231,36 +3338,42 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Adds a child view to the container. Do not call this method yourself, it is called automatically</para>
 		/// <para>when you create a view with a parent.</para>
 		/// </summary>
 		void addView(View* p_view);
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Removes a child view from the container. This forgets the view. If you haven't remembered</para>
 		/// <para>it yourself, it will get deleted.</para>
 		/// </summary>
 		/// <param name="p_view">Pointer to view to remove from the container</param>
 		void removeView(View* p_view);
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Removes a child view from the container. This forgets the view. If you haven't remembered</para>
 		/// <para>it yourself, it will get deleted.</para>
 		/// </summary>
 		/// <param name="p_viewIndex">Index of the view to remove from the container</param>
 		void removeView(uint32_t p_viewIndex);
 		/// <summary>
-		/// Deletes the children views and empties the view container.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Deletes the children views and empties the view container.</para>
 		/// </summary>
 		void removeAllViews();
 
 		/// <summary>
-		/// Returns the child view at an index.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the child view at an index.</para>
 		/// </summary>
 		inline View* getView(uint32_t p_viewIndex)
 		{
 			return m_views[p_viewIndex];
 		}
 		/// <summary>
-		/// Returns the number of child views.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the number of child views.</para>
 		/// </summary>
 		inline uint32_t getNumberOfViews()
 		{
@@ -3268,6 +3381,7 @@ namespace AvoGUI
 		}
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Makes sure the view is drawn at the correct time, according to elevation. You shouldn't</para>
 		/// <para>need to use this method, it is used internally.</para>
 		/// </summary>
@@ -3275,6 +3389,11 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the smallest possible rectangle which contains all child views belonging to this ViewContainer.</para>
+		/// <para>The rectangle is relative to the position of this view.</para>
+		/// </summary>
 		inline Rectangle<float> calculateContentBounds() const
 		{
 			if (!m_views.size())
@@ -3309,6 +3428,10 @@ namespace AvoGUI
 			return Rectangle<float>(left, top, right, bottom);
 		}
 
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the width of the smallest possible rectangle that contains all child views belonging to this ViewContainer.</para>
+		/// </summary>
 		inline float calculateContentWidth() const
 		{
 			if (!m_views.size())
@@ -3331,6 +3454,10 @@ namespace AvoGUI
 			}
 			return right - left;
 		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the hight of the smallest possible rectangle that contains all child views belonging to this ViewContainer.</para>
+		/// </summary>
 		inline float calculateContentHeight() const
 		{
 			if (!m_views.size())
@@ -3353,11 +3480,19 @@ namespace AvoGUI
 			}
 			return bottom - top;
 		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the size of the smallest possible rectangle that contains all child views belonging to this ViewContainer.</para>
+		/// </summary>
 		inline Point<float> calculateContentSize() const
 		{
 			return calculateContentBounds().getSize();
 		}
 
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the leftmost edge of all child views belonging to this ViewContainer. The returned offset is relative to the left edge of this view.</para>
+		/// </summary>
 		inline float calculateContentLeft() const
 		{
 			if (!m_views.size())
@@ -3375,6 +3510,10 @@ namespace AvoGUI
 			}
 			return left;
 		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the rightmost edge of all child views belonging to this ViewContainer. The returned offset is relative to the left edge of this view.</para>
+		/// </summary>
 		inline float calculateContentRight() const
 		{
 			if (!m_views.size())
@@ -3392,6 +3531,10 @@ namespace AvoGUI
 			}
 			return right;
 		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the topmost edge of all child views belonging to this ViewContainer. The returned offset is relative to the top edge of this view.</para>
+		/// </summary>
 		inline float calculateContentTop() const
 		{
 			if (!m_views.size())
@@ -3409,6 +3552,10 @@ namespace AvoGUI
 			}
 			return top;
 		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the bottommost edge of all child views belonging to this ViewContainer. The returned offset is relative to the top edge of this view.</para>
+		/// </summary>
 		inline float calculateContentBottom() const
 		{
 			if (!m_views.size())
@@ -3429,14 +3576,35 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets a certain spacing between the outer edges of the contents and the edges of this ViewContainer.</para>
+		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
+		/// </summary>
 		inline void setPadding(float p_padding) 
 		{
 			setPadding(p_padding, p_padding, p_padding, p_padding);
 		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets a certain spacing between the outer edges of the contents and the edges of this ViewContainer.</para>
+		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
+		/// </summary>
+		/// <param name="p_horizontalPadding">Spacing at the left and right edges</param>
+		/// <param name="p_verticalPadding">Spacing at the top and bottom edges</param>
 		inline void setPadding(float p_horizontalPadding, float p_verticalPadding)
 		{
 			setPadding(p_horizontalPadding, p_horizontalPadding, p_verticalPadding, p_verticalPadding);
 		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets a certain spacing between the outer edges of the contents and the edges of this ViewContainer.</para>
+		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
+		/// </summary>
+		/// <param name="p_leftPadding">Spacing at the left edge</param>
+		/// <param name="p_rightPadding">Spacing at the right edge</param>
+		/// <param name="p_topPadding">Spacing at the top edge</param>
+		/// <param name="p_bottomPadding">Spacing at the bottom edge</param>
 		inline void setPadding(float p_leftPadding, float p_rightPadding, float p_topPadding, float p_bottomPadding)
 		{
 			Rectangle<float> contentBounds(calculateContentBounds());
@@ -3448,6 +3616,11 @@ namespace AvoGUI
 			setSize(contentBounds.getWidth() + p_leftPadding + p_rightPadding, contentBounds.getHeight() + p_topPadding + p_bottomPadding);
 		}
 
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the spacing between the leftmost edge of the contents and the left edge of this ViewContainer.</para>
+		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
+		/// </summary>
 		inline void setLeftPadding(float p_leftPadding)
 		{
 			float left = calculateContentLeft();
@@ -3458,10 +3631,19 @@ namespace AvoGUI
 			}
 			setWidth(getWidth() + offset);
 		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the spacing between the rightmost edge of the contents and the right edge of this ViewContainer. This changes the width of this view.</para>
+		/// </summary>
 		inline void setRightPadding(float p_rightPadding)
 		{
 			setWidth(calculateContentRight() + p_rightPadding);
 		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the spacing between the topmost edge of the contents and the top edge of this ViewContainer.</para>
+		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
+		/// </summary>
 		inline void setTopPadding(float p_topPadding)
 		{
 			float top = calculateContentTop();
@@ -3472,9 +3654,13 @@ namespace AvoGUI
 			}
 			setHeight(getHeight() + offset);
 		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the spacing between the bottommost edge of the contents and the bottom edge of this ViewContainer. This changes the height of this view.</para>
+		/// </summary>
 		inline void setBottomPadding(float p_bottomPadding)
 		{
-			setHeight(calculateContentRight() + p_bottomPadding);
+			setHeight(calculateContentBottom() + p_bottomPadding);
 		}
 	};
 
@@ -3491,11 +3677,11 @@ namespace AvoGUI
 		/// </summary>
 		Window* window = 0;
 		/// <summary>
-		/// The new width of the window if it has been maximized, restored or changed size.
+		/// The new width of the window if it has changed size (includes restore/maximize events).
 		/// </summary>
 		uint32_t width = 0U;
 		/// <summary>
-		/// The new height of the window if it has been maximized, restored or changed size.
+		/// The new height of the window if it has changed size (includes restore/maximize events).
 		/// </summary>
 		uint32_t height = 0U;
 	};
@@ -3503,22 +3689,59 @@ namespace AvoGUI
 	class WindowEventListener
 	{
 	public:
+		/// <summary>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a window has been created.</para>
+		/// </summary>
+		/// <param name="p_event">Object containing information about the event.</param>
 		virtual void handleWindowCreated(const WindowEvent& p_event) { }
+		/// <summary>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a window has been closed.</para>
+		/// </summary>
+		/// <param name="p_event">Object containing information about the event.</param>
 		virtual void handleWindowDestroyed(const WindowEvent& p_event) { }
 
+		/// <summary>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a window has been minimized in the taskbar. The width and height properties of the event tell you the new size of the window.</para>
+		/// </summary>
+		/// <param name="p_event">Object containing information about the event.</param>
 		virtual void handleWindowMinimized(const WindowEvent& p_event) { }
+		/// <summary>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a window has been maximized so that it is as big as possible while still showing the border.</para>
+		/// </summary>
+		/// <param name="p_event">Object containing information about the event.</param>
 		virtual void handleWindowMaximized(const WindowEvent& p_event) { }
+		/// <summary>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a window has been restored so that it is shown again after being minimized in the taskbar.</para>
+		/// <para>The width and height properties of the event tell you the size of the window.</para>
+		/// </summary>
+		/// <param name="p_event">Object containing information about the event.</param>
 		virtual void handleWindowRestored(const WindowEvent& p_event) { }
 
 		/// <summary>
-		/// <para>Gets called when the size of the window has changed. This includes if it has been maximized,</para>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when the size of a window has changed. This includes if it has been maximized,</para>
 		/// <para>restored or if the border has been dragged to resize it. The width and height properties of</para>
 		/// <para>the event tell you the new size of the window.</para>
 		/// </summary>
-		/// <param name="p_event"></param>
+		/// <param name="p_event">Object containing information about the event.</param>
 		virtual void handleWindowSizeChanged(const WindowEvent& p_event) { }
 
+		/// <summary>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a window has been focused, meaning it has been interacted with so that another window loses focus.</para>
+		/// </summary>
+		/// <param name="p_event">Object containing information about the event.</param>
 		virtual void handleWindowFocused(const WindowEvent& p_event) { }
+		/// <summary>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a window has been unfocused, meaning another window is interacted with.</para>
+		/// </summary>
+		/// <param name="p_event">Object containing information about the event.</param>
 		virtual void handleWindowUnfocused(const WindowEvent& p_event) { }
 	};
 
@@ -3612,16 +3835,21 @@ namespace AvoGUI
 		/// </summary>
 		ModifierKeyFlags modifierKeys = ModifierKeyFlags::None;
 		/// <summary>
-		/// <para>If this is true, the event is directed to the view that gets the event. A mouse event is directed</para>
-		/// <para>to a view if the mouse either moved from, moved to, or hovered over the view when the event</para>
-		/// <para>ocurred. If it is a mouse up event, this is only true if the last mouse down was above the view.</para>
-		/// <para>You usually only want to do anything if this is true. But if indirect mouse events are disabled</para>
+		/// <para>If this is true, the event is targeted at the view that is currently getting the event. A mouse event is</para>
+		/// <para>targeted at a view if the mouse either moved from, moved to, or hovered over the view when the event</para>
+		/// <para>ocurred. If it is a mouse up event, isTarget is only true if the last mouse down was above the view.</para>
+		/// <para>You usually only want to do anything if isTarget is true. But if indirect mouse events are disabled</para>
 		/// <para>in the GUI, isTarget is always true because events are not sent to the untargeted views.</para>
 		/// <para>Multiple views can be targeted in one event since mouse event listeners can be overlaid.</para>
 		/// </summary>
 		bool isTarget = false;
 	};
 
+	/// <summary>
+	/// <para>Represents an object that gets notified when the user does things with the mouse. It is supposed to be inherited by views or other classes.</para>
+	/// <para>If the listener is not a view, it only recieves events if indirect mouse events are enabled in the GUI. This is because a listener is only</para>
+	/// <para>targeted if the mouse was interacting with it.</para>
+	/// </summary>
 	class MouseEventListener
 	{
 	private:
@@ -3637,14 +3865,17 @@ namespace AvoGUI
 		//------------------------------------
 
 		/// <summary>
-		/// Sets the cursor that will by default be shown when the mouse enters the view (if this mouse listener is a view).
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the cursor that will by default be shown when the mouse enters the view (if this mouse listener is a view).</para>
+		/// <para>The default implementation of handleMouseEnter sets the cursor to this one, but you can override this behaviour.</para>
 		/// </summary>
 		inline void setCursor(Cursor p_cursor)
 		{
 			m_cursor = p_cursor;
 		}
 		/// <summary>
-		/// Returns the cursor that will by default be shown when the mouse enters the view (if this mouse listener is a view).
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the cursor that will by default be shown when the mouse enters the view (if this mouse listener is a view).</para>
 		/// </summary>
 		inline Cursor getCursor()
 		{
@@ -3654,6 +3885,7 @@ namespace AvoGUI
 		//------------------------------------
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>If you set this to true, any mouse events that are directed to this view are also sent to the view below.</para>
 		/// </summary>
 		void setIsOverlay(bool p_isOverlay)
@@ -3661,6 +3893,7 @@ namespace AvoGUI
 			m_isOverlay = p_isOverlay;
 		}
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Returns if this view is a mouse event overlay. If it is true, it means that any mouse events directed to this</para>
 		/// <para>view are also directed to the view below.</para>
 		/// </summary>
@@ -3673,22 +3906,26 @@ namespace AvoGUI
 		//------------------------------------
 
 		/// <summary>
-		/// Gets called when a mouse button has been pressed down.
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a mouse button has been pressed down.</para>
 		/// </summary>
 		/// <param name="p_event">An object that contains information about the mouse event.</param>
 		virtual void handleMouseDown(const MouseEvent& p_event) { }
 		/// <summary>
-		/// Gets called when a mouse button has been released.
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a mouse button has been released.</para>
 		/// </summary>
 		/// <param name="p_event">An object that contains information about the mouse event.</param>
 		virtual void handleMouseUp(const MouseEvent& p_event) { }
 		/// <summary>
-		/// Gets called when a mouse button has been double clicked.
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a mouse button has been double clicked.</para>
 		/// </summary>
 		/// <param name="p_event">An object that contains information about the mouse event.</param>
 		virtual void handleMouseDoubleClick(const MouseEvent& p_event) { }
 
 		/// <summary>
+		/// USER IMPLEMENTED
 		/// <para>Gets called when the mouse pointer has been moved. The isTarget property of the event is only true</para>
 		/// <para>if the mouse has been moved inside of the view. If it has entered the view, a mouse enter event is</para>
 		/// <para>sent, and if it has left the view, a mouse leave event is sent.</para>
@@ -3696,20 +3933,23 @@ namespace AvoGUI
 		/// <param name="p_event">An object that contains information about the mouse event.</param>
 		virtual void handleMouseMove(const MouseEvent& p_event) { }
 		/// <summary>
-		/// Gets called when the mouse pointer has entered the view, if this mouse listener is a view, that is.
+		/// LIBRARY IMPLEMENTED (only default behaviour)
+		/// <para>Gets called when the mouse pointer has entered the view, if this mouse listener is a view, that is.</para>
 		/// </summary>
 		/// <param name="p_event">An object that contains information about the mouse event.</param>
 		virtual void handleMouseEnter(const MouseEvent& p_event);
 		/// <summary>
-		/// Gets called when the mouse pointer has left the view, if this mouse listener is a view, that is.
+		/// USER IMPLEMENTED
+		/// <para>Gets called when the mouse pointer has left the view, if this mouse listener is a view, that is.</para>
 		/// </summary>
 		/// <param name="p_event">An object that contains information about the mouse event.</param>
 		virtual void handleMouseLeave(const MouseEvent& p_event) { }
 		/// <summary>
-		/// Gets called when the mouse wheel has been moved/scrolled.
+		/// USER IMPLEMENTED
+		/// <para>Gets called when the mouse wheel has been moved/scrolled.</para>
 		/// </summary>
 		/// <param name="p_event">An object that contains information about the mouse event.</param>
-		virtual void handleMouseScrolled(const MouseEvent& p_event) { }
+		virtual void handleMouseScroll(const MouseEvent& p_event) { }
 	};
 
 	//------------------------------
@@ -3766,6 +4006,13 @@ namespace AvoGUI
 		/// <para>the key is being held down.</para>
 		/// </summary>
 		bool isRepeated = false;
+		/// <summary>
+		/// <para>If this is true, the event is targeted at the listener that is currently getting the event.</para>
+		/// <para>A keyboard event listener is targeted if it has keyboard focus in the GUI. Call setKeyboardFocus() on the</para>
+		/// <para>GUI to switch keyborad focus. You usually only want to do anything if isTarget is true. But if indirect</para>
+		/// <para>keyboard events are disabled in the GUI, isTarget is always true because events are not sent to the untargeted listeners.</para>
+		/// </summary>
+		bool isTarget = false;
 	};
 
 	class KeyboardEventListener
@@ -3776,19 +4023,19 @@ namespace AvoGUI
 		/// <para>that was pressed, and whether it's a repeated character or not.</para>
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
-		virtual void handleCharacterPressed(const KeyboardEvent& p_event) { }
+		virtual void handleCharacterInput(const KeyboardEvent& p_event) { }
 		/// <summary>
 		/// <para>This method is called when a keyboard key has been pressed. The event contains the virtual key</para>
 		/// <para>that was pressed, and whether it's a repeated key event or not.</para>
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
-		virtual void handleKeyboardKeyPressed(const KeyboardEvent& p_event) { }
+		virtual void handleKeyboardKeyDown(const KeyboardEvent& p_event) { }
 		/// <summary>
 		/// <para>This method is called when a keyboard key has been released. The event only contains the virtual</para>
 		/// <para>key that was pressed.</para>
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
-		virtual void handleKeyboardKeyReleased(const KeyboardEvent& p_event) { }
+		virtual void handleKeyboardKeyUp(const KeyboardEvent& p_event) { }
 	};
 
 	//------------------------------
@@ -3839,18 +4086,50 @@ namespace AvoGUI
 		Point<int32_t> m_mousePosition;
 
 	public:
+		/// <summary>
+		/// Creates the window. To close it, use close().
+		/// </summary>
+		/// <param name="p_title">The text that appears in the title bar of the window (if it has a border).</param>
+		/// <param name="p_x">The position of the left edge of the window relative to the left edge of the screen.</param>
+		/// <param name="p_y">The position of the top edge of the window relative to the top edge of the screen.</param>
+		/// <param name="p_width">The width of the client area in pixels.</param>
+		/// <param name="p_height">The height of the client area in pixels.</param>
+		/// <param name="p_styleFlags">Styling options for the window.</param>
+		/// <param name="p_isFullscreen">If the client area fills the whole screen without anything else showing.</param>
+		/// <param name="p_parent">An optional parent window that is behind this window.</param>
 		virtual void create(const char* p_title, int32_t p_x, int32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, bool p_isFullscreen = false, Window* p_parent = 0) = 0;
+		/// <summary>
+		/// Creates the window in the center of the screen. To close it, use close().
+		/// </summary>
+		/// <param name="p_title">The text that appears in the title bar of the window (if it has a border).</param>
+		/// <param name="p_width">The width of the client area in pixels.</param>
+		/// <param name="p_height">The height of the client area in pixels.</param>
+		/// <param name="p_styleFlags">Styling options for the window.</param>
+		/// <param name="p_isFullscreen">If the client area fills the whole screen without anything else showing.</param>
+		/// <param name="p_parent">An optional parent window that is behind this window.</param>
 		virtual void create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, bool p_isFullscreen = false, Window* p_parent = 0) = 0;
 
+		/// <summary>
+		/// Closes the window. To recreate it, use create(...).
+		/// </summary>
 		virtual void close() = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// Returns the OS-specific window object associated with this window.
+		/// </summary>
 		virtual void* getWindowHandle() = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// Changes whether the client area of the window fills the whole screen or not.
+		/// </summary>
 		virtual void setIsFullscreen(bool p_isFullscreen) = 0;
+		/// <summary>
+		/// Returns whether the client area of the window fills the whole screen or not.
+		/// </summary>
 		bool getIsFullscreen()
 		{
 			return m_isFullscreen;
@@ -3858,40 +4137,85 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/// <summary>
+		/// Makes the window invisible and disabled.
+		/// </summary>
 		virtual void hide() = 0;
+		/// <summary>
+		/// Shows the window and enables it.
+		/// </summary>
 		virtual void show() = 0;
 
+		/// <summary>
+		/// Makes the size of the window as big as possible so that the border still shows.
+		/// </summary>
 		virtual void maximize() = 0;
+		/// <summary>
+		/// Hides the window temporarily in a taskbar where it can be restored again.
+		/// </summary>
 		virtual void minimize() = 0;
+		/// <summary>
+		/// Shows/opens the window as it was before it was minimized.
+		/// </summary>
 		virtual void restore() = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// Sets the position of the window relative to the top-left corner of the screen.
+		/// </summary>
 		virtual void setPosition(const Point<int32_t>& p_position) = 0;
+		/// <summary>
+		/// Sets the position of the window relative to the top-left corner of the screen.
+		/// </summary>
 		virtual void setPosition(int32_t p_x, int32_t p_y) = 0;
+		/// <summary>
+		/// Returns the position of the window relative to the top-left corner of the screen.
+		/// </summary>
 		inline const Point<int32_t>& getPosition() const
 		{
 			return m_position;
 		}
-		inline int32_t getX() const
+		/// <summary>
+		/// Returns the position of the left edge of the window relative to the top-left corner of the screen.
+		/// </summary>
+		inline int32_t getPositionX() const
 		{
 			return m_position.x;
 		}
-		inline int32_t getY() const
+		/// <summary>
+		/// Returns the position of the left edge of the window relative to the top-left corner of the screen.
+		/// </summary>
+		inline int32_t getPositionY() const
 		{
 			return m_position.y;
 		}
 
+		/// <summary>
+		/// Sets the size of the client area of the window, in pixels.
+		/// </summary>
 		virtual void setSize(const Point<uint32_t>& p_size) = 0;
+		/// <summary>
+		/// Sets the size of the client area of the window, in pixels.
+		/// </summary>
 		virtual void setSize(uint32_t p_width, uint32_t p_height) = 0;
+		/// <summary>
+		/// Returns the size of the client area of the window, in pixels.
+		/// </summary>
 		inline const Point<uint32_t>& getSize() const
 		{
 			return m_size;
 		}
+		/// <summary>
+		/// Returns the width of the client area of the window, in pixels.
+		/// </summary>
 		inline uint32_t getWidth() const
 		{
 			return m_size.x;
 		}
+		/// <summary>
+		/// Returns the height of the client area of the window, in pixels.
+		/// </summary>
 		inline uint32_t getHeight() const
 		{
 			return m_size.y;
@@ -3917,8 +4241,17 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/// <summary>
+		/// Returns whether a key is currently pressed down or not.
+		/// </summary>
 		virtual bool getIsKeyDown(KeyboardKey p_key) = 0;
+		/// <summary>
+		/// Returns whether a mouse button is currently pressed down or not.
+		/// </summary>
 		virtual bool getIsMouseButtonDown(MouseButton p_button) = 0;
+		/// <summary>
+		/// Returns the position of the mouse cursor, relative to the top-left corner of the window.
+		/// </summary>
 		inline const Point<int32_t>& getMousePosition()
 		{
 			return m_mousePosition;
@@ -3926,28 +4259,48 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/// <summary>
+		/// Sets how frequently animations are updated, in milliseconds.
+		/// </summary>
 		virtual void setAnimationTimerInterval(uint32_t p_interval) = 0;
+		/// <summary>
+		/// <para>Adds a view to the animation update queue. Views that are in the animation update queue will be updated after a certain interval.</para>
+		/// <para>This is called by the GUI when you call queueAnimationUpdate() from a view.</para>
+		/// </summary>
+		/// <param name="p_view"></param>
 		virtual void queueAnimationUpdateForView(View* p_view) = 0;
 
+		/// <summary>
+		/// Adds a rectangle to the region that currently needs to be redrawn.
+		/// </summary>
 		virtual void invalidateRect(const Rectangle<float>& p_rectangle) = 0;
 
 		//------------------------------
 
+		/// <summary>
+		/// Changes what the mouse cursor looks like.
+		/// </summary>
 		virtual void setCursor(Cursor p_cursor) = 0;
+		/// <summary>
+		/// Returns the current mouse cursor.
+		/// </summary>
 		virtual Cursor getCursor() = 0;
 	};
 #pragma endregion
 
 	//------------------------------
 
+	/// <summary>
+	/// Represents an image on the GPU which can be created and drawn by a DrawingContext. Notice that this is not a view, but should be treated as a drawable object.
+	/// </summary>
 	class Image : public ReferenceCounted
 	{
 	public:
-		virtual void* getHandle() = 0;
-
 		virtual Point<uint32_t> getSize() = 0;
 		virtual uint32_t getWidth() = 0;
 		virtual uint32_t getHeight() = 0;
+
+		virtual void* getHandle() = 0;
 	};
 
 	//------------------------------
@@ -3996,6 +4349,9 @@ namespace AvoGUI
 		UltraStretched = 9 // Most stretched
 	};
 
+	/// <summary>
+	/// Represents a text block which can be calculated once and drawn any number of times by a DrawingContext. Notice that this is not a view, but should be treated as a drawable object created by a DrawingContext.
+	/// </summary>
 	class Text : public ProtectedRectangle, public ReferenceCounted
 	{
 	public:
@@ -4541,12 +4897,18 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Creates a new image from pixel data in RGBA format.
+		/// Loads an image from pixel data in BGRA format.
 		/// </summary>
 		/// <param name="p_pixelData">An array which is 4*width*height bytes in size. It contains the color values for every pixel in the image, row-by-row. One byte for every color channel.</param>
 		/// <param name="p_width">The number of pixels wide the image is.</param>
 		/// <param name="p_height">The number of pixels high the image is.</param>
 		virtual Image* createImage(const void* p_pixelData, uint32_t p_width, uint32_t p_height) = 0;
+
+		/// <summary>
+		/// Loads an image from a file. Most standard image formats/codecs are supported.
+		/// </summary>
+		/// <param name="p_filePath">The path, relative or absolute, to the image file to be loaded.</param>
+		virtual Image* createImage(const char* p_filePath) = 0;
 
 		//------------------------------
 
@@ -4558,7 +4920,7 @@ namespace AvoGUI
 		/// <param name="sourceRectangle">A rectangle representing the portion of the image which will be drawn.</param>
 		/// <param name="p_scale">The image will be drawn p_scale times as big on the screen as it actually is.</param>
 		/// <param name="p_opacity">How opaque the image is drawn. If it is 0, it is not drawn at all, if it's 1, it's fully opaque.</param>
-		virtual void drawImage(Image* p_image, const Point<float>& p_position, const Rectangle<float>& sourceRectangle, float p_scale = 1.f, float p_opacity = 1.f) = 0;
+		virtual void drawImage(Image* p_image, const Rectangle<float>& sourceRectangle, const Point<float>& p_position = Point<>(), float p_scale = 1.f, float p_opacity = 1.f) = 0;
 		/// <summary>
 		/// Draws an image at a position with a scale and opacity.
 		/// </summary>
@@ -4566,7 +4928,7 @@ namespace AvoGUI
 		/// <param name="p_position">The coordinates of the top-left corner of the image where it will be drawn.</param>
 		/// <param name="p_scale">The image will be drawn p_scale times as big on the screen as it actually is.</param>
 		/// <param name="p_opacity">How opaque the image is drawn. If it is 0, it is not drawn at all, if it's 1, it's fully opaque.</param>
-		virtual void drawImage(Image* p_image, const Point<float>& p_position, float p_scale = 1.f, float p_opacity = 1.f) = 0;
+		virtual void drawImage(Image* p_image, const Point<float>& p_position = Point<>(), float p_scale = 1.f, float p_opacity = 1.f) = 0;
 
 		//------------------------------
 
@@ -4641,7 +5003,7 @@ namespace AvoGUI
 
 	/// <summary>
 	/// <para>The highest view in the view hierarchy.</para>
-	/// <para>Holds a window and recieves events from it.</para>
+	/// <para>Is connected to a window (which it holds) and recieves events from it.</para>
 	/// </summary>
 	class GUI : public ViewContainer, public WindowEventListener
 	{
@@ -4674,6 +5036,7 @@ namespace AvoGUI
 		~GUI();
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>This method creates the window and drawing context as well as</para>
 		/// <para>creates the content of the GUI and lays it out.</para>
 		/// </summary>
@@ -4687,6 +5050,7 @@ namespace AvoGUI
 		/// <param name="p_parent">Parent GUI, is only used if the Child flag is turned on in p_windowFlags.</param>
 		void create(const char* p_title, uint32_t p_x, uint32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, bool p_isFullscreen = false, GUI* p_parent = 0);
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>This method creates the window and drawing context as well as</para>
 		/// <para>creates the content of the GUI and lays it out.</para>
 		/// </summary>
@@ -4701,61 +5065,72 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Returns the topmost view which contains the coordinates given.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the topmost view which contains the coordinates given.</para>
 		/// </summary>
 		View* getViewAt(const Point<float>& p_coordinates);
 		/// <summary>
-		/// Returns the topmost view which contains the coordinates given.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the topmost view which contains the coordinates given.</para>
 		/// </summary>
 		View* getViewAt(float p_x, float p_y);
 
 		//------------------------------
 
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Creates a new drawing context and calls createContent() and handleSizeChanged() to initialize the layout.</para>
+		/// </summary>
 		void handleWindowCreated(const WindowEvent& p_event) override;
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Resizes the drawing context and updates the size of the GUI.</para>
+		/// </summary>
 		void handleWindowSizeChanged(const WindowEvent& p_event) override;
 
 		//------------------------------
 
 		/// <summary>
-		/// <para>Mouse down event that has been sent directly from the window to the GUI.</para>
-		/// <para>This sends the event down to all event listeners and lets them know if the event is directed to them.</para>
-		/// <para>Make the GUI an event listener and ignore the p_isMine parameter in the handler if you want to</para>
-		/// <para>handle all mouse events.</para>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Handles a mouse down event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
+		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
+		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
 		void handleMouseDown(const MouseEvent& p_event);
 		/// <summary>
-		/// <para>Mouse up event that has been sent directly from the window to the GUI.</para>
-		/// <para>This sends the event down to all event listeners and lets them know if the event is directed to them.</para>
-		/// <para>Make the GUI an event listener and ignore the p_isMine parameter in the handler if you want to</para>
-		/// <para>handle all mouse events.</para>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Handles a mouse up event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
+		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
+		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
 		void handleMouseUp(const MouseEvent& p_event);
 		/// <summary>
-		/// <para>Double click event that has been sent directly from the window to the GUI.</para>
-		/// <para>This sends the event down to all event listeners and lets them know if the event is directed to them.</para>
-		/// <para>Make the GUI an event listener and ignore the p_isMine parameter in the handler if you want to</para>
-		/// <para>handle all mouse events.</para>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Handles a double click event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
+		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
+		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
 		void handleMouseDoubleClick(const MouseEvent& p_event);
 
 		/// <summary>
-		/// <para>Mouse move event that has been sent directly from the window to the GUI.</para>
-		/// <para>This sends the event down to all event listeners and lets them know if the event is directed to them.</para>
-		/// <para>Make the GUI an event listener and ignore the p_isMine parameter in the handler if you want to</para>
-		/// <para>handle all mouse events.</para>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Handles a mouse move event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
+		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
+		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
 		void handleMouseMove(const MouseEvent& p_event);
 		/// <summary>
-		/// <para>Mouse scroll event that has been sent directly from the window to the GUI.</para>
-		/// <para>This sends the event down to all event listeners and lets them know if the event is directed to them.</para>
-		/// <para>Make the GUI an event listener and ignore the p_isMine parameter in the handler if you want to</para>
-		/// <para>handle all mouse events.</para>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Handles a mouse scroll event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
+		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
+		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
-		void handleMouseScrolled(const MouseEvent& p_event);
+		void handleMouseScroll(const MouseEvent& p_event);
 
 		//------------------------------
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the keyboard event listener that keyboard events are directed to.</para>
 		/// <para>If indirect keyboard events are enabled, listeners that do not have keyboard focus will also receive</para>
 		/// <para>the events, but the isTarget property of the keyboard event will tell you if it does have keyboard focus.</para>
@@ -4765,38 +5140,61 @@ namespace AvoGUI
 			m_keyboardFocus = p_keyboardFocus;
 		}
 
-		void handleCharacterPressed(const KeyboardEvent& p_event) { }
-		void handleKeyboardKeyPressed(const KeyboardEvent& p_event) { }
-		void handleKeyboardKeyReleased(const KeyboardEvent& p_event) { }
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Handles a character pressed event that has been sent directly from the window to the GUI. If indirect keyboard events are disabled, the event is only</para>
+		/// <para>sent to the keyboard focus. If indirect keyboard events are enabled, this sends the event down to all keyboard event listeners but lets them know if</para>
+		/// <para>the event is targeted at them.</para>
+		/// </summary>
+		virtual void handleCharacterInput(const KeyboardEvent& p_event);
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Handles a key pressed event that has been sent directly from the window to the GUI. If indirect keyboard events are disabled, the event is only</para>
+		/// <para>sent to the keyboard focus. If indirect keyboard events are enabled, this sends the event down to all keyboard event listeners but lets them know if</para>
+		/// <para>the event is targeted at them.</para>
+		/// </summary>
+		virtual void handleKeyboardKeyDown(const KeyboardEvent& p_event);
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Handles a key released event that has been sent directly from the window to the GUI. If indirect keyboard events are disabled, the event is only</para>
+		/// <para>sent to the keyboard focus. If indirect keyboard events are enabled, this sends the event down to all keyboard event listeners but lets them know if</para>
+		/// <para>the event is targeted at them.</para>
+		/// </summary>
+		virtual void handleKeyboardKeyUp(const KeyboardEvent& p_event);
 
 		//------------------------------
 
 		/// <summary>
-		/// Adds an event listener that will recieve events about the window.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Adds an event listener that will recieve events about the window.</para>
 		/// </summary>
 		void addWindowEventListener(WindowEventListener* p_listener);
 		/// <summary>
-		/// Adds an event listener that will recieve mouse events.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Adds an event listener that will recieve mouse events.</para>
 		/// </summary>
 		void addMouseEventListener(MouseEventListener* p_listener);
 		/// <summary>
-		/// Adds an event listener that will recieve keyboard events.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Adds an event listener that will recieve keyboard events.</para>
 		/// </summary>
 		void addKeyboardEventListener(KeyboardEventListener* p_listener);
 
 		//------------------------------
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>After this method has been called, mouse events will not only be sent to the view</para>
 		/// <para>that has been clicked or scrolled over, but to all of the registered mouse event</para>
-		/// <para>listeners. The isTarget property in the mouse event tells you if the event is </para>
-		/// <para>directed to that view.</para>
+		/// <para>listeners. The isTarget property in the mouse event tells you if the event is</para>
+		/// <para>directed to the view that receives the event.</para>
 		/// </summary>
 		inline void enableIndirectMouseEvents()
 		{
 			m_areIndirectMouseEventsEnabled = true;
 		}
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>After this method has been called, mouse events will only be sent to the view</para>
 		/// <para>that has been clicked or scrolled over, and no other mouse event listeners.</para>
 		/// </summary>
@@ -4806,15 +5204,17 @@ namespace AvoGUI
 		}
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>After this method has been called, keyboard events will not only be sent to the view</para>
 		/// <para>with keyboard focus, but to all of the registered keyboard listeners. The isTarget property</para>
-		/// <para>in the keyboard event tells you if the event is directed to that view.</para>
+		/// <para>in the keyboard event tells you if the event is directed to the view that receives the event.</para>
 		/// </summary>
 		inline void enableIndirectKeyboardEvents()
 		{
 			m_areIndirectKeyboardEventsEnabled = true;
 		}
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>After this method has been called, keyboard events will only be sent to the view</para>
 		/// <para>with keyboard focus, and no other keyboard event listeners.</para>
 		/// </summary>
@@ -4826,14 +5226,16 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Returns a pointer to the window used by this GUI.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns a pointer to the window used by this GUI.</para>
 		/// </summary>
 		inline Window* getWindow()
 		{
 			return m_window;
 		}
 		/// <summary>
-		/// Returns a pointer to the drawing context used by this GUI.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns a pointer to the drawing context used by this GUI.</para>
 		/// </summary>
 		inline DrawingContext* getDrawingContext()
 		{
@@ -4843,47 +5245,50 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// USER IMPLEMENTED
 		/// <para>This is called after the window and drawing context have been created.</para>
-		/// <para>You should initialize your GUI in this method.</para>
+		/// <para>You should initialize your GUI in this method, but do the layout in handleSizeChanged().</para>
 		/// </summary>
 		virtual void createContent() { };
 
 		//------------------------------
 
-		void queueAnimationUpdateForView(View* p_view);
-
-		//------------------------------
-
 		/// <summary>
-		/// Invalidates a region of the GUI that has been changed, and therefore needs to be redrawn.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Invalidates a region of the GUI that has been changed, and therefore needs to be redrawn.</para>
 		/// </summary>
 		void invalidateRect(const Rectangle<float>& p_rectangle);
 
 		/// <summary>
-		/// <para>Draws a portion of the GUI.</para>
-		/// <para>This method should only be called by a window, you don't need to care about it.</para>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Draws a portion of the GUI. This method should only be called by the window. You cannot draw directly from the GUI by</para>
+		/// <para>overriding this method, you need to create a custom view and attach it to the GUI, which is simple :^).</para>
 		/// </summary>
-		/// <param name="p_drawingContext">Object used for drawing to the window.</param>
-		/// <param name="p_rectangle">Region that needs to be redrawn.</param>
 		void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_rectangle);
 
 		//------------------------------
 
 		/// <summary>
-		/// Runs the global OS window event loop.
+		/// LIBRARY IMPLEMENTED
+		/// <para>Runs the global window event loop.</para>
 		/// </summary>
 		static void run();
 	};
 
 	//------------------------------
 
+	/// <summary>
+	/// <para>A view that shows a ripple effect when you click it and optionally shows a hover effect when the mouse hovers over it.</para>
+	/// <para>It is a mouse event overlay which means views behind this view are targeted as if this view didn't exist.</para>
+	/// </summary>
 	class Ripple : 
 		public View, public ViewEventListener, 
 		public MouseEventListener
 	{
 	private:
-		Easing m_alphaEasing;
 		Color m_color;
+
+		bool m_isEnabled;
 
 		//------------------------------
 
@@ -4908,6 +5313,30 @@ namespace AvoGUI
 	public:
 		Ripple(ViewContainer* p_parent, const Color& p_color = Color(1.f, 0.45f));
 		virtual ~Ripple();
+
+		//------------------------------
+
+		/// <summary>
+		/// Disables the ripple and hover effects.
+		/// </summary>
+		void disable()
+		{
+			m_isEnabled = false;
+		}
+		/// <summary>
+		/// Enables the ripple and hover effects.
+		/// </summary>
+		void enable()
+		{
+			m_isEnabled = true;
+		}
+		/// <summary>
+		/// Returns if the ripple and hover effects are enabled or not.
+		/// </summary>
+		bool getIsEnabled()
+		{
+			return m_isEnabled;
+		}
 
 		//------------------------------
 
@@ -4986,12 +5415,16 @@ namespace AvoGUI
 		Text* m_text;
 		float m_fontSize;
 
-		float m_animationTime;
+		float m_pressAnimationTime;
 		bool m_isPressed;
-
 		bool m_isRaising;
-
 		Emphasis m_emphasis;
+
+		bool m_isEnabled;
+		Color m_currentColor;
+		float m_colorAnimationTime;
+
+		Ripple* m_ripple;
 
 		std::vector<ButtonListener*> m_buttonListeners;
 
@@ -5005,12 +5438,22 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void handleMouseDown(const MouseEvent& p_event) override;
-		void handleMouseUp(const MouseEvent& p_event) override;
+		/// <summary>
+		/// Makes the user unable to use the button and makes it gray.
+		/// </summary>
+		void disable();
+		/// <summary>
+		/// Makes the user able to use the button.
+		/// </summary>
+		void enable();
 
-		//------------------------------
-
-		void updateAnimations() override;
+		/// <summary>
+		/// Returns if the user can use the button or not.
+		/// </summary>
+		bool getIsEnabled()
+		{
+			return m_isEnabled;
+		}
 
 		//------------------------------
 
@@ -5022,6 +5465,16 @@ namespace AvoGUI
 		/// Returns the text that the button displays.
 		/// </summary>
 		const char* getText();
+
+		//------------------------------
+
+		inline void handleMouseEnter(const MouseEvent& p_event) override { }
+		void handleMouseDown(const MouseEvent& p_event) override;
+		void handleMouseUp(const MouseEvent& p_event) override;
+
+		//------------------------------
+
+		void updateAnimations() override;
 
 		//------------------------------
 
