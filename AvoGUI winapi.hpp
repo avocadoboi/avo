@@ -2283,13 +2283,12 @@ namespace AvoGUI
 	//------------------------------
 
 	class GUI;
-	class ViewContainer;
 	class DrawingContext;
 	class Image;
 
 	/// <summary>
-	/// <para>A rectangle which can draw itself and receive events.</para>
-	/// <para>Used for GUI components and stuff.</para>
+	/// <para>A rectangle which can draw itself and receive events. Used for GUI components and stuff.</para>
+	/// <para></para>
 	/// </summary>
 	class View : public ReferenceCounted, public ProtectedRectangle
 	{
@@ -2297,17 +2296,27 @@ namespace AvoGUI
 		bool m_isVisible;
 		float m_cornerRadius;
 
+		//------------------------------
+
 		Rectangle<float> m_lastInvalidatedBounds;
 		Rectangle<float> m_lastInvalidatedShadowBounds;
+
+		//------------------------------
 
 		Image* m_shadowImage;
 		bool m_hasShadow;
 		float m_elevation;
 		bool m_hasSizeChangedSinceLastElevationChange;
 
+		//------------------------------
+
+		std::vector<View*> m_views;
+
 		uint32_t m_layerIndex;
 		uint32_t m_index;
 
+		//------------------------------
+		
 		bool m_isInAnimationUpdateQueue;
 
 		//------------------------------
@@ -2333,11 +2342,11 @@ namespace AvoGUI
 
 	protected:
 		GUI* m_GUI;
-		ViewContainer* m_parent;
+		View* m_parent;
 		Theme* m_theme;
 
 	public:
-		View(ViewContainer* p_parent, const Rectangle<float>& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
+		View(View* p_parent, const Rectangle<float>& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
 		virtual ~View();
 
 		//------------------------------
@@ -2357,14 +2366,340 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Attaches this view to a new parent.</para>
 		/// </summary>
-		void setParent(ViewContainer* p_container);
+		void setParent(View* p_container);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns a pointer to the parent of this view.</para>
 		/// </summary>
-		inline ViewContainer* getParent() const
+		inline View* getParent() const
 		{
 			return m_parent;
+		}
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Adds a child view to the container. Do not call this method yourself, it is called automatically</para>
+		/// <para>when you create a view with a parent.</para>
+		/// </summary>
+		void addView(View* p_view);
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Removes a child view from the container. This forgets the view. If you haven't remembered</para>
+		/// <para>it yourself, it will get deleted.</para>
+		/// </summary>
+		/// <param name="p_view">Pointer to view to remove from the container</param>
+		void removeView(View* p_view);
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Removes a child view from the container. This forgets the view. If you haven't remembered</para>
+		/// <para>it yourself, it will get deleted.</para>
+		/// </summary>
+		/// <param name="p_viewIndex">Index of the view to remove from the container</param>
+		void removeView(uint32_t p_viewIndex);
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Deletes the children views and empties the view container.</para>
+		/// </summary>
+		void removeAllViews();
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the child view at an index.</para>
+		/// </summary>
+		inline View* getView(uint32_t p_viewIndex)
+		{
+			return m_views[p_viewIndex];
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the number of child views.</para>
+		/// </summary>
+		inline uint32_t getNumberOfViews()
+		{
+			return m_views.size();
+		}
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Makes sure the view is drawn at the correct time, according to elevation. You shouldn't</para>
+		/// <para>need to use this method, it is used internally.</para>
+		/// </summary>
+		void updateViewDrawingIndex(View* p_view);
+
+		//------------------------------
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the smallest possible rectangle which contains all child views belonging to this View.</para>
+		/// <para>The rectangle is relative to the position of this view.</para>
+		/// </summary>
+		inline Rectangle<float> calculateContentBounds() const
+		{
+			if (!m_views.size())
+			{
+				return Rectangle<float>();
+			}
+
+			float left = m_views[0]->getLeft();
+			float right = m_views[0]->getRight();
+			float top = m_views[0]->getTop();
+			float bottom = m_views[0]->getBottom();
+			for (uint32_t a = 1; a < m_views.size(); a++)
+			{
+				if (m_views[a]->getLeft() < left)
+				{
+					left = m_views[a]->getLeft();
+				}
+				if (m_views[a]->getTop() < top)
+				{
+					top = m_views[a]->getTop();
+				}
+				if (m_views[a]->getRight() > right)
+				{
+					right = m_views[a]->getRight();
+				}
+				if (m_views[a]->getBottom() > bottom)
+				{
+					bottom = m_views[a]->getBottom();
+				}
+			}
+
+			return Rectangle<float>(left, top, right, bottom);
+		}
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the width of the smallest possible rectangle that contains all child views belonging to this View.</para>
+		/// </summary>
+		inline float calculateContentWidth() const
+		{
+			if (!m_views.size())
+			{
+				return 0.f;
+			}
+
+			float left = m_views[0]->getLeft();
+			float right = m_views[0]->getRight();
+			for (uint32_t a = 1; a < m_views.size(); a++)
+			{
+				if (m_views[a]->getLeft() < left)
+				{
+					left = m_views[a]->getLeft();
+				}
+				if (m_views[a]->getRight() > right)
+				{
+					right = m_views[a]->getRight();
+				}
+			}
+			return right - left;
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the hight of the smallest possible rectangle that contains all child views belonging to this View.</para>
+		/// </summary>
+		inline float calculateContentHeight() const
+		{
+			if (!m_views.size())
+			{
+				return 0.f;
+			}
+
+			float top = m_views[0]->getTop();
+			float bottom = m_views[0]->getBottom();
+			for (uint32_t a = 1; a < m_views.size(); a++)
+			{
+				if (m_views[a]->getTop() < top)
+				{
+					top = m_views[a]->getTop();
+				}
+				if (m_views[a]->getBottom() > bottom)
+				{
+					bottom = m_views[a]->getBottom();
+				}
+			}
+			return bottom - top;
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the size of the smallest possible rectangle that contains all child views belonging to this View.</para>
+		/// </summary>
+		inline Point<float> calculateContentSize() const
+		{
+			return calculateContentBounds().getSize();
+		}
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the leftmost edge of all child views belonging to this View. The returned offset is relative to the left edge of this view.</para>
+		/// </summary>
+		inline float calculateContentLeft() const
+		{
+			if (!m_views.size())
+			{
+				return 0.f;
+			}
+
+			float left = m_views[0]->getLeft();
+			for (uint32_t a = 1; a < m_views.size(); a++)
+			{
+				if (m_views[a]->getLeft() < left)
+				{
+					left = m_views[a]->getLeft();
+				}
+			}
+			return left;
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the rightmost edge of all child views belonging to this View. The returned offset is relative to the left edge of this view.</para>
+		/// </summary>
+		inline float calculateContentRight() const
+		{
+			if (!m_views.size())
+			{
+				return 0.f;
+			}
+
+			float right = m_views[0]->getRight();
+			for (uint32_t a = 1; a < m_views.size(); a++)
+			{
+				if (m_views[a]->getRight() > right)
+				{
+					right = m_views[a]->getRight();
+				}
+			}
+			return right;
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the topmost edge of all child views belonging to this View. The returned offset is relative to the top edge of this view.</para>
+		/// </summary>
+		inline float calculateContentTop() const
+		{
+			if (!m_views.size())
+			{
+				return 0.f;
+			}
+
+			float top = m_views[0]->getTop();
+			for (uint32_t a = 1; a < m_views.size(); a++)
+			{
+				if (m_views[a]->getTop() < top)
+				{
+					top = m_views[a]->getTop();
+				}
+			}
+			return top;
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the bottommost edge of all child views belonging to this View. The returned offset is relative to the top edge of this view.</para>
+		/// </summary>
+		inline float calculateContentBottom() const
+		{
+			if (!m_views.size())
+			{
+				return 0.f;
+			}
+
+			float bottom = m_views[0]->getBottom();
+			for (uint32_t a = 1; a < m_views.size(); a++)
+			{
+				if (m_views[a]->getBottom() > bottom)
+				{
+					bottom = m_views[a]->getBottom();
+				}
+			}
+			return bottom;
+		}
+
+		//------------------------------
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets a certain spacing between the outer edges of the contents and the edges of this View.</para>
+		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
+		/// </summary>
+		inline void setPadding(float p_padding)
+		{
+			setPadding(p_padding, p_padding, p_padding, p_padding);
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets a certain spacing between the outer edges of the contents and the edges of this View.</para>
+		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
+		/// </summary>
+		/// <param name="p_horizontalPadding">Spacing at the left and right edges</param>
+		/// <param name="p_verticalPadding">Spacing at the top and bottom edges</param>
+		inline void setPadding(float p_horizontalPadding, float p_verticalPadding)
+		{
+			setPadding(p_horizontalPadding, p_horizontalPadding, p_verticalPadding, p_verticalPadding);
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets a certain spacing between the outer edges of the contents and the edges of this View.</para>
+		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
+		/// </summary>
+		/// <param name="p_leftPadding">Spacing at the left edge</param>
+		/// <param name="p_rightPadding">Spacing at the right edge</param>
+		/// <param name="p_topPadding">Spacing at the top edge</param>
+		/// <param name="p_bottomPadding">Spacing at the bottom edge</param>
+		inline void setPadding(float p_leftPadding, float p_rightPadding, float p_topPadding, float p_bottomPadding)
+		{
+			Rectangle<float> contentBounds(calculateContentBounds());
+			Point<float> offset(p_leftPadding - contentBounds.left, p_topPadding - contentBounds.top);
+			for (uint32_t a = 0; a < m_views.size(); a++)
+			{
+				m_views[a]->move(offset);
+			}
+			setSize(contentBounds.getWidth() + p_leftPadding + p_rightPadding, contentBounds.getHeight() + p_topPadding + p_bottomPadding);
+		}
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the spacing between the leftmost edge of the contents and the left edge of this View.</para>
+		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
+		/// </summary>
+		inline void setLeftPadding(float p_leftPadding)
+		{
+			float left = calculateContentLeft();
+			float offset = p_leftPadding - left;
+			for (uint32_t a = 0; a < m_views.size(); a++)
+			{
+				m_views[a]->move(offset, 0.f);
+			}
+			setWidth(getWidth() + offset);
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the spacing between the rightmost edge of the contents and the right edge of this View. This changes the width of this view.</para>
+		/// </summary>
+		inline void setRightPadding(float p_rightPadding)
+		{
+			setWidth(calculateContentRight() + p_rightPadding);
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the spacing between the topmost edge of the contents and the top edge of this View.</para>
+		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
+		/// </summary>
+		inline void setTopPadding(float p_topPadding)
+		{
+			float top = calculateContentTop();
+			float offset = p_topPadding - top;
+			for (uint32_t a = 0; a < m_views.size(); a++)
+			{
+				m_views[a]->move(offset, 0.f);
+			}
+			setHeight(getHeight() + offset);
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the spacing between the bottommost edge of the contents and the bottom edge of this View. This changes the height of this view.</para>
+		/// </summary>
+		inline void setBottomPadding(float p_bottomPadding)
+		{
+			setHeight(calculateContentBottom() + p_bottomPadding);
 		}
 
 		//------------------------------
@@ -3273,7 +3608,7 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Draws the shadow of the view. This gets called by the parent ViewContainer before the</para>
+		/// <para>Draws the shadow of the view. This gets called by the parent View before the</para>
 		/// <para>content of the view is drawn.</para>
 		/// </summary>
 		void drawShadow(DrawingContext* p_drawingContext);
@@ -3318,349 +3653,6 @@ namespace AvoGUI
 		virtual inline void drawUnclipped(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
 		{
 			drawUnclipped(p_drawingContext);
-		}
-	};
-
-	//------------------------------
-
-	/// <summary>
-	/// <para>A view that has other views inside it. It reacts to mouse events as if it were behind the child views.</para>
-	/// </summary>
-	class ViewContainer : public View
-	{
-	protected:
-		std::vector<View*> m_views;
-
-	public:
-		ViewContainer(ViewContainer* p_parent, const Rectangle<float>& p_bounds);
-		virtual ~ViewContainer();
-
-		//------------------------------
-
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Adds a child view to the container. Do not call this method yourself, it is called automatically</para>
-		/// <para>when you create a view with a parent.</para>
-		/// </summary>
-		void addView(View* p_view);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Removes a child view from the container. This forgets the view. If you haven't remembered</para>
-		/// <para>it yourself, it will get deleted.</para>
-		/// </summary>
-		/// <param name="p_view">Pointer to view to remove from the container</param>
-		void removeView(View* p_view);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Removes a child view from the container. This forgets the view. If you haven't remembered</para>
-		/// <para>it yourself, it will get deleted.</para>
-		/// </summary>
-		/// <param name="p_viewIndex">Index of the view to remove from the container</param>
-		void removeView(uint32_t p_viewIndex);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Deletes the children views and empties the view container.</para>
-		/// </summary>
-		void removeAllViews();
-
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the child view at an index.</para>
-		/// </summary>
-		inline View* getView(uint32_t p_viewIndex)
-		{
-			return m_views[p_viewIndex];
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the number of child views.</para>
-		/// </summary>
-		inline uint32_t getNumberOfViews()
-		{
-			return m_views.size();
-		}
-
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Makes sure the view is drawn at the correct time, according to elevation. You shouldn't</para>
-		/// <para>need to use this method, it is used internally.</para>
-		/// </summary>
-		void updateViewDrawingIndex(View* p_view);
-
-		//------------------------------
-
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the smallest possible rectangle which contains all child views belonging to this ViewContainer.</para>
-		/// <para>The rectangle is relative to the position of this view.</para>
-		/// </summary>
-		inline Rectangle<float> calculateContentBounds() const
-		{
-			if (!m_views.size())
-			{
-				return Rectangle<float>();
-			}
-
-			float left = m_views[0]->getLeft();
-			float right = m_views[0]->getRight();
-			float top = m_views[0]->getTop();
-			float bottom = m_views[0]->getBottom();
-			for (uint32_t a = 1; a < m_views.size(); a++)
-			{
-				if (m_views[a]->getLeft() < left)
-				{
-					left = m_views[a]->getLeft();
-				}
-				if (m_views[a]->getTop() < top)
-				{
-					top = m_views[a]->getTop();
-				}
-				if (m_views[a]->getRight() > right)
-				{
-					right = m_views[a]->getRight();
-				}
-				if (m_views[a]->getBottom() > bottom)
-				{
-					bottom = m_views[a]->getBottom();
-				}
-			}
-
-			return Rectangle<float>(left, top, right, bottom);
-		}
-
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the width of the smallest possible rectangle that contains all child views belonging to this ViewContainer.</para>
-		/// </summary>
-		inline float calculateContentWidth() const
-		{
-			if (!m_views.size())
-			{
-				return 0.f;
-			}
-
-			float left = m_views[0]->getLeft();
-			float right = m_views[0]->getRight();
-			for (uint32_t a = 1; a < m_views.size(); a++)
-			{
-				if (m_views[a]->getLeft() < left)
-				{
-					left = m_views[a]->getLeft();
-				}
-				if (m_views[a]->getRight() > right)
-				{
-					right = m_views[a]->getRight();
-				}
-			}
-			return right - left;
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the hight of the smallest possible rectangle that contains all child views belonging to this ViewContainer.</para>
-		/// </summary>
-		inline float calculateContentHeight() const
-		{
-			if (!m_views.size())
-			{
-				return 0.f;
-			}
-
-			float top = m_views[0]->getTop();
-			float bottom = m_views[0]->getBottom();
-			for (uint32_t a = 1; a < m_views.size(); a++)
-			{
-				if (m_views[a]->getTop() < top)
-				{
-					top = m_views[a]->getTop();
-				}
-				if (m_views[a]->getBottom() > bottom)
-				{
-					bottom = m_views[a]->getBottom();
-				}
-			}
-			return bottom - top;
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the size of the smallest possible rectangle that contains all child views belonging to this ViewContainer.</para>
-		/// </summary>
-		inline Point<float> calculateContentSize() const
-		{
-			return calculateContentBounds().getSize();
-		}
-
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the leftmost edge of all child views belonging to this ViewContainer. The returned offset is relative to the left edge of this view.</para>
-		/// </summary>
-		inline float calculateContentLeft() const
-		{
-			if (!m_views.size())
-			{
-				return 0.f;
-			}
-
-			float left = m_views[0]->getLeft();
-			for (uint32_t a = 1; a < m_views.size(); a++)
-			{
-				if (m_views[a]->getLeft() < left)
-				{
-					left = m_views[a]->getLeft();
-				}
-			}
-			return left;
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the rightmost edge of all child views belonging to this ViewContainer. The returned offset is relative to the left edge of this view.</para>
-		/// </summary>
-		inline float calculateContentRight() const
-		{
-			if (!m_views.size())
-			{
-				return 0.f;
-			}
-
-			float right = m_views[0]->getRight();
-			for (uint32_t a = 1; a < m_views.size(); a++)
-			{
-				if (m_views[a]->getRight() > right)
-				{
-					right = m_views[a]->getRight();
-				}
-			}
-			return right;
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the topmost edge of all child views belonging to this ViewContainer. The returned offset is relative to the top edge of this view.</para>
-		/// </summary>
-		inline float calculateContentTop() const
-		{
-			if (!m_views.size())
-			{
-				return 0.f;
-			}
-
-			float top = m_views[0]->getTop();
-			for (uint32_t a = 1; a < m_views.size(); a++)
-			{
-				if (m_views[a]->getTop() < top)
-				{
-					top = m_views[a]->getTop();
-				}
-			}
-			return top;
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the bottommost edge of all child views belonging to this ViewContainer. The returned offset is relative to the top edge of this view.</para>
-		/// </summary>
-		inline float calculateContentBottom() const
-		{
-			if (!m_views.size())
-			{
-				return 0.f;
-			}
-
-			float bottom = m_views[0]->getBottom();
-			for (uint32_t a = 1; a < m_views.size(); a++)
-			{
-				if (m_views[a]->getBottom() > bottom)
-				{
-					bottom = m_views[a]->getBottom();
-				}
-			}
-			return bottom;
-		}
-
-		//------------------------------
-
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets a certain spacing between the outer edges of the contents and the edges of this ViewContainer.</para>
-		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
-		/// </summary>
-		inline void setPadding(float p_padding) 
-		{
-			setPadding(p_padding, p_padding, p_padding, p_padding);
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets a certain spacing between the outer edges of the contents and the edges of this ViewContainer.</para>
-		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
-		/// </summary>
-		/// <param name="p_horizontalPadding">Spacing at the left and right edges</param>
-		/// <param name="p_verticalPadding">Spacing at the top and bottom edges</param>
-		inline void setPadding(float p_horizontalPadding, float p_verticalPadding)
-		{
-			setPadding(p_horizontalPadding, p_horizontalPadding, p_verticalPadding, p_verticalPadding);
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets a certain spacing between the outer edges of the contents and the edges of this ViewContainer.</para>
-		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
-		/// </summary>
-		/// <param name="p_leftPadding">Spacing at the left edge</param>
-		/// <param name="p_rightPadding">Spacing at the right edge</param>
-		/// <param name="p_topPadding">Spacing at the top edge</param>
-		/// <param name="p_bottomPadding">Spacing at the bottom edge</param>
-		inline void setPadding(float p_leftPadding, float p_rightPadding, float p_topPadding, float p_bottomPadding)
-		{
-			Rectangle<float> contentBounds(calculateContentBounds());
-			Point<float> offset(p_leftPadding - contentBounds.left, p_topPadding - contentBounds.top);
-			for (uint32_t a = 0; a < m_views.size(); a++)
-			{
-				m_views[a]->move(offset);
-			}
-			setSize(contentBounds.getWidth() + p_leftPadding + p_rightPadding, contentBounds.getHeight() + p_topPadding + p_bottomPadding);
-		}
-
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the spacing between the leftmost edge of the contents and the left edge of this ViewContainer.</para>
-		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
-		/// </summary>
-		inline void setLeftPadding(float p_leftPadding)
-		{
-			float left = calculateContentLeft();
-			float offset = p_leftPadding - left;
-			for (uint32_t a = 0; a < m_views.size(); a++)
-			{
-				m_views[a]->move(offset, 0.f);
-			}
-			setWidth(getWidth() + offset);
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the spacing between the rightmost edge of the contents and the right edge of this ViewContainer. This changes the width of this view.</para>
-		/// </summary>
-		inline void setRightPadding(float p_rightPadding)
-		{
-			setWidth(calculateContentRight() + p_rightPadding);
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the spacing between the topmost edge of the contents and the top edge of this ViewContainer.</para>
-		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
-		/// </summary>
-		inline void setTopPadding(float p_topPadding)
-		{
-			float top = calculateContentTop();
-			float offset = p_topPadding - top;
-			for (uint32_t a = 0; a < m_views.size(); a++)
-			{
-				m_views[a]->move(offset, 0.f);
-			}
-			setHeight(getHeight() + offset);
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the spacing between the bottommost edge of the contents and the bottom edge of this ViewContainer. This changes the height of this view.</para>
-		/// </summary>
-		inline void setBottomPadding(float p_bottomPadding)
-		{
-			setHeight(calculateContentBottom() + p_bottomPadding);
 		}
 	};
 
@@ -5005,7 +4997,7 @@ namespace AvoGUI
 	/// <para>The highest view in the view hierarchy.</para>
 	/// <para>Is connected to a window (which it holds) and recieves events from it.</para>
 	/// </summary>
-	class GUI : public ViewContainer, public WindowEventListener
+	class GUI : public View, public WindowEventListener
 	{
 	private:
 		Window* m_window;
@@ -5096,21 +5088,21 @@ namespace AvoGUI
 		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
 		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
-		void handleMouseDown(const MouseEvent& p_event);
+		virtual void handleMouseDown(const MouseEvent& p_event);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Handles a mouse up event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
 		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
 		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
-		void handleMouseUp(const MouseEvent& p_event);
+		virtual void handleMouseUp(const MouseEvent& p_event);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Handles a double click event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
 		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
 		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
-		void handleMouseDoubleClick(const MouseEvent& p_event);
+		virtual void handleMouseDoubleClick(const MouseEvent& p_event);
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
@@ -5118,14 +5110,14 @@ namespace AvoGUI
 		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
 		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
-		void handleMouseMove(const MouseEvent& p_event);
+		virtual void handleMouseMove(const MouseEvent& p_event);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Handles a mouse scroll event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
 		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
 		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
-		void handleMouseScroll(const MouseEvent& p_event);
+		virtual void handleMouseScroll(const MouseEvent& p_event);
 
 		//------------------------------
 
@@ -5311,7 +5303,7 @@ namespace AvoGUI
 		bool m_hasHoverEffect;
 
 	public:
-		Ripple(ViewContainer* p_parent, const Color& p_color = Color(1.f, 0.45f));
+		Ripple(View* p_parent, const Color& p_color = Color(1.f, 0.45f));
 		virtual ~Ripple();
 
 		//------------------------------
@@ -5401,7 +5393,7 @@ namespace AvoGUI
 
 	//------------------------------
 
-	class Button : public ViewContainer, public MouseEventListener
+	class Button : public View, public MouseEventListener
 	{
 	public:
 		enum class Emphasis
@@ -5429,7 +5421,7 @@ namespace AvoGUI
 		std::vector<ButtonListener*> m_buttonListeners;
 
 	public:
-		Button(ViewContainer* p_parent, const char* p_text = "", Emphasis p_emphasis = Emphasis::High, float p_x = 0.f, float p_y = 0.f);
+		Button(View* p_parent, const char* p_text = "", Emphasis p_emphasis = Emphasis::High, float p_x = 0.f, float p_y = 0.f);
 		virtual ~Button();
 
 		//------------------------------
@@ -5450,7 +5442,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns if the user can use the button or not.
 		/// </summary>
-		bool getIsEnabled()
+		inline bool getIsEnabled()
 		{
 			return m_isEnabled;
 		}

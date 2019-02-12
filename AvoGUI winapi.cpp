@@ -109,11 +109,11 @@ namespace AvoGUI
 	{
 		Point<float> position(p_position);
 
-		ViewContainer* container = dynamic_cast<ViewContainer*>(getParent());
+		View* container = getParent();
 		while (container && container != getGUI())
 		{
 			position += container->getTopLeft();
-			container = dynamic_cast<ViewContainer*>(container->getParent());
+			container = container->getParent();
 		}
 
 		return position;
@@ -124,7 +124,7 @@ namespace AvoGUI
 	// Public
 	//
 
-	View::View(ViewContainer* p_parent, const Rectangle<float>& p_bounds) :
+	View::View(View* p_parent, const Rectangle<float>& p_bounds) :
 		ProtectedRectangle(p_bounds), m_isVisible(true), m_cornerRadius(0), m_hasShadow(true), m_elevation(0),
 		m_hasSizeChangedSinceLastElevationChange(false), m_shadowImage(0), m_userData(0)
 	{
@@ -153,11 +153,12 @@ namespace AvoGUI
 	View::~View()
 	{
 		m_theme->forget();
+		removeAllViews();
 	}
 
 	//------------------------------
 
-	inline void View::setParent(ViewContainer* p_container)
+	inline void View::setParent(View* p_container)
 	{
 		if (m_parent)
 		{
@@ -177,6 +178,85 @@ namespace AvoGUI
 		}
 		m_parent->addView(this);
 		m_parent->updateViewDrawingIndex(this);
+	}
+
+	void View::addView(View* p_view)
+	{
+		p_view->setIndex(m_views.size());
+		m_views.push_back(p_view);
+		updateViewDrawingIndex(p_view);
+	}
+	void View::removeView(View* p_view)
+	{
+		for (int32_t a = 0; a < (int32_t)m_views.size(); a++)
+		{
+			if (m_views[a] == p_view)
+			{
+				p_view->forget();
+				m_views.erase(m_views.begin() + a);
+				return;
+			}
+		}
+	}
+	void View::removeView(uint32_t p_viewIndex)
+	{
+		m_views[p_viewIndex]->forget();
+		m_views.erase(m_views.begin() + p_viewIndex);
+	}
+	void View::removeAllViews()
+	{
+		if (m_views.empty()) // That function naming, ew... Why didn't they call it getIsEmpty? empty() should be emptying something >:^(
+		{
+			return;
+		}
+
+		for (int32_t a = 0; a < (int32_t)m_views.size(); a++)
+		{
+			m_views[a]->forget();
+		}
+		m_views.clear();
+	}
+
+	void View::updateViewDrawingIndex(View* p_view)
+	{
+		int32_t numberOfViews = (int32_t)m_views.size();
+		if (numberOfViews <= 1) return;
+
+		float elevation = p_view->getElevation();
+		if (!p_view->getIndex() || (p_view->getIndex() < numberOfViews - 1 && m_views[p_view->getIndex() + 1]->getElevation() < elevation))
+		{
+			for (uint32_t a = p_view->getIndex(); a < numberOfViews; a++)
+			{
+				if (a == numberOfViews - 1 || m_views[a + 1]->getElevation() >= elevation)
+				{
+					m_views[a] = p_view;
+					p_view->setIndex(a);
+					return;
+				}
+				else
+				{
+					m_views[a] = m_views[a + 1];
+					m_views[a]->setIndex(a);
+				}
+			}
+		}
+		else
+		{
+			for (int32_t a = p_view->getIndex(); a >= 0; a--)
+			{
+				if (!a || m_views[a - 1]->getElevation() <= elevation)
+				{
+					m_views[a] = p_view;
+					p_view->setIndex(a);
+					return;
+				}
+				else
+				{
+					m_views[a] = m_views[a - 1];
+					m_views[a]->setIndex(a);
+				}
+			}
+		}
 	}
 
 	//------------------------------
@@ -450,99 +530,6 @@ namespace AvoGUI
 		{
 			p_drawingContext->setColor(Color(1.f));
 			p_drawingContext->drawImage(m_shadowImage, getShadowBounds().getTopLeft());
-		}
-	}
-
-	//------------------------------
-	// class ViewContainer
-	//------------------------------
-
-	ViewContainer::ViewContainer(ViewContainer* p_parent, const Rectangle<float>& p_bounds) :
-		View(p_parent, p_bounds)
-	{ }
-	ViewContainer::~ViewContainer()
-	{
-		removeAllViews();
-	}
-
-	//------------------------------
-
-	void ViewContainer::addView(View* p_view)
-	{
-		p_view->setIndex(m_views.size());
-		m_views.push_back(p_view);
-		updateViewDrawingIndex(p_view);
-	}
-	void ViewContainer::removeView(View* p_view)
-	{
-		for (int32_t a = 0; a < (int32_t)m_views.size(); a++)
-		{
-			if (m_views[a] == p_view)
-			{
-				p_view->forget();
-				m_views.erase(m_views.begin() + a);
-				return;
-			}
-		}
-	}
-	void ViewContainer::removeView(uint32_t p_viewIndex)
-	{
-		m_views[p_viewIndex]->forget();
-		m_views.erase(m_views.begin() + p_viewIndex);
-	}
-	void ViewContainer::removeAllViews()
-	{
-		if (m_views.empty()) // That function naming, ew... Why didn't they call it getIsEmpty? empty() should be emptying something >:^(
-		{
-			return;
-		}
-
-		for (int32_t a = 0; a < (int32_t)m_views.size(); a++)
-		{
-			m_views[a]->forget();
-		}
-		m_views.clear();
-	}
-
-	void ViewContainer::updateViewDrawingIndex(View* p_view)
-	{
-		int32_t numberOfViews = (int32_t)m_views.size();
-		if (numberOfViews <= 1) return;
-
-		float elevation = p_view->getElevation();
-		if (!p_view->getIndex() || (p_view->getIndex() < numberOfViews - 1 && m_views[p_view->getIndex() + 1]->getElevation() < elevation))
-		{
-			for (uint32_t a = p_view->getIndex(); a < numberOfViews; a++)
-			{
-				if (a == numberOfViews - 1 || m_views[a + 1]->getElevation() >= elevation)
-				{
-					m_views[a] = p_view;
-					p_view->setIndex(a);
-					return;
-				}
-				else
-				{
-					m_views[a] = m_views[a + 1];
-					m_views[a]->setIndex(a);
-				}
-			}
-		}
-		else
-		{
-			for (int32_t a = p_view->getIndex(); a >= 0; a--)
-			{
-				if (!a || m_views[a - 1]->getElevation() <= elevation)
-				{
-					m_views[a] = p_view;
-					p_view->setIndex(a);
-					return;
-				}
-				else
-				{
-					m_views[a] = m_views[a - 1];
-					m_views[a]->setIndex(a);
-				}
-			}
 		}
 	}
 
@@ -3994,7 +3981,7 @@ namespace AvoGUI
 	{
 		std::vector<MouseEventListener*> results;
 
-		ViewContainer* currentContainer = this;
+		View* currentContainer = this;
 		uint32_t startPosition = getNumberOfViews() - 1U;
 
 		Point<float> viewOffset;
@@ -4012,15 +3999,14 @@ namespace AvoGUI
 						results.push_back(mouseEventListener);
 						if (mouseEventListener->getIsOverlay())
 						{
-							ViewContainer* parentContainer = dynamic_cast<ViewContainer*>(currentContainer->getParent());
-							if (parentContainer == this)
+							if (currentContainer->getParent() == this)
 							{
 								willContinue = false;
 							}
 							else
 							{
 								startPosition = currentContainer->getIndex() - 1;
-								currentContainer = parentContainer;
+								currentContainer = currentContainer->getParent();
 								viewOffset -= currentContainer->getTopLeft();
 							}
 						}
@@ -4039,10 +4025,9 @@ namespace AvoGUI
 					View* view = currentContainer->getView(a);
 					if (view->getIsContaining(p_coordinates - viewOffset))
 					{
-						ViewContainer* viewContainer = dynamic_cast<ViewContainer*>(view);
-						if (viewContainer)
+						if (view->getNumberOfViews())
 						{
-							currentContainer = viewContainer;
+							currentContainer = view;
 							startPosition = currentContainer->getNumberOfViews() - 1;
 							viewOffset += currentContainer->getTopLeft();
 							break;
@@ -4081,7 +4066,7 @@ namespace AvoGUI
 	//
 
 	GUI::GUI() :
-		ViewContainer(0, Rectangle<float>(0, 0, 0, 0)), m_drawingContext(0),
+		View(0, Rectangle<float>(0, 0, 0, 0)), m_drawingContext(0),
 		m_keyboardFocus(0),
 		m_areIndirectKeyboardEventsEnabled(false), m_areIndirectMouseEventsEnabled(false)
 	{
@@ -4125,7 +4110,7 @@ namespace AvoGUI
 
 	View* GUI::getViewAt(const Point<float>& p_coordinates)
 	{
-		ViewContainer* currentContainer = this;
+		View* currentContainer = this;
 
 		View* result = 0;
 		while (!result)
@@ -4135,10 +4120,9 @@ namespace AvoGUI
 				View* view = currentContainer->getView(a);
 				if (view->getIsContaining(p_coordinates))
 				{
-					ViewContainer* container = dynamic_cast<ViewContainer*>(view);
-					if (container)
+					if (view->getNumberOfViews())
 					{
-						currentContainer = container;
+						currentContainer = view;
 						break;
 					}
 					else
@@ -4558,7 +4542,7 @@ namespace AvoGUI
 
 	void GUI::draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
 	{
-		ViewContainer* currentContainer = this;
+		View* currentContainer = this;
 		uint32_t startPosition = 0;
 
 		Rectangle<float> movedTargetRectangle(p_targetRectangle);
@@ -4594,10 +4578,9 @@ namespace AvoGUI
 				
 					view->draw(m_drawingContext, movedTargetRectangle);
 
-					ViewContainer* viewContainer = dynamic_cast<ViewContainer*>(view);
-					if (viewContainer)
+					if (view->getNumberOfViews())
 					{
-						currentContainer = viewContainer;
+						currentContainer = view;
 						startPosition = 0;
 						isDoneWithContainer = false;
 						break;
@@ -4646,7 +4629,7 @@ namespace AvoGUI
 				movedTargetRectangle += currentContainer->getTopLeft();
 
 				startPosition = currentContainer->getIndex() + 1;
-				currentContainer = dynamic_cast<ViewContainer*>(currentContainer->getParent());
+				currentContainer = currentContainer->getParent();
 			}
 		}
 
@@ -4674,7 +4657,7 @@ namespace AvoGUI
 	// class Ripple
 	//------------------------------
 
-	Ripple::Ripple(ViewContainer* p_parent, const Color& p_color) :
+	Ripple::Ripple(View* p_parent, const Color& p_color) :
 		View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(0.f, 0.45f),
 		m_isEnabled(true), m_isMouseDown(false), m_isMouseHovering(false), m_hasHoverEffect(true)
 	{
@@ -4812,8 +4795,8 @@ namespace AvoGUI
 	// class Button
 	//------------------------------
 
-	Button::Button(ViewContainer* p_parent, const char* p_text, Emphasis p_emphasis, float p_x, float p_y) :
-		ViewContainer(p_parent, Rectangle<float>(p_x, p_y, p_x, p_y)), m_text(0), m_fontSize(14.f),
+	Button::Button(View* p_parent, const char* p_text, Emphasis p_emphasis, float p_x, float p_y) :
+		View(p_parent, Rectangle<float>(p_x, p_y, p_x, p_y)), m_text(0), m_fontSize(14.f),
 		m_pressAnimationTime(1.f), m_isPressed(false), m_emphasis(p_emphasis), m_isEnabled(true), m_colorAnimationTime(1.f)
 	{
 		setText(p_text);

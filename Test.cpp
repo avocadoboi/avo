@@ -9,7 +9,7 @@ private:
 	AvoGUI::Image* m_image;
 
 public:
-	Sprite(AvoGUI::ViewContainer* p_parent, const char* p_filePath) : AvoGUI::View(p_parent)
+	Sprite(AvoGUI::View* p_parent, const char* p_filePath) : AvoGUI::View(p_parent)
 	{
 		m_image = getGUI()->getDrawingContext()->createImage(p_filePath);
 		setSize(m_image->getSize()*0.5f);
@@ -32,7 +32,7 @@ public:
 class MyGUI : public AvoGUI::GUI
 {
 private:
-	AvoGUI::ViewContainer* m_buttonContainer;
+	AvoGUI::View* m_buttonContainer;
 	AvoGUI::Button* m_button_readMore;
 	Sprite* m_sprite;
 
@@ -85,7 +85,7 @@ public:
 
 		m_sprite = new Sprite(this, "test image.png");
 
-		m_buttonContainer = new AvoGUI::ViewContainer(this, AvoGUI::Rectangle<float>());
+		m_buttonContainer = new AvoGUI::View(this, AvoGUI::Rectangle<float>());
 		AvoGUI::Button* button_press = new AvoGUI::Button(m_buttonContainer, "YES");
 		new AvoGUI::Button(m_buttonContainer, "NO", AvoGUI::Button::Emphasis::Medium, button_press->getWidth() + 10.f);
 		m_buttonContainer->setPadding(30.f);
