@@ -1,4 +1,4 @@
-#include "AvoGUI winapi.hpp"
+#include "AvoGUI.hpp"
 #include <iostream>
 
 //------------------------------
@@ -9,7 +9,7 @@ private:
 	AvoGUI::Image* m_image;
 
 public:
-	Sprite(AvoGUI::View* p_parent, const char* p_filePath) : AvoGUI::View(p_parent)
+	Sprite(AvoGUI::View* p_parent, const char* p_filePath) : View(p_parent)
 	{
 		m_image = getGUI()->getDrawingContext()->createImage(p_filePath);
 		setSize(m_image->getSize()*0.5f);
