@@ -54,7 +54,7 @@ class MyApplication : public AvoGUI::GUI
 ```
 
 ### Creating a custom view
-First of all, what exactly is a view? A view is a rectangle that can draw itself, and is used to create GUI components. If you want your view to react to mouse interactions, inherit AvoGUI::MouseEventListener and override the mouse event methods that you want to use. If you want your view to react to keyboard events, inherit AvoGUI::KeyboardEventListener and override the keyboard event methods. Look at the documentation in AvoGUI.hpp for more information. 
+First of all, what exactly is a view? A view is a rectangle that can draw itself, and is used to create GUI components. If you want your view to react to mouse interactions, inherit AvoGUI::MouseEventListener, register it with getGUI()->addMouseEventListener(this) and override the mouse event methods that you want to use. If you want your view to react to keyboard events, inherit AvoGUI::KeyboardEventListener, register it with getGUI()->addKeyboardEventListener(this) and override the keyboard event methods. Look at the documentation in AvoGUI.hpp for more information. 
 
 This is the structure of a custom View class. Every method that can be overridden by your view (assuming it only inherits AvoGUI::View) is shown here.
 ```cpp
