@@ -45,7 +45,7 @@ class MyApplication : public AvoGUI::GUI
   {
     // Here you can create your views, set up your theme and initialize other things. This method has no default implementation.
   }
-  inline void handleSizeChanged() override
+  inline void handleSizeChange() override
   {
     // This is called when the GUI has changed size due to window resizing. This method has no default implementation.
     // Note that this method belongs to the View class (which AvoGUI::GUI inherits) and can be implemented on any view.
@@ -82,7 +82,7 @@ class MyView : public AvoGUI::View
     // since you only need to call queueAnimationUpdate() when you know that your animation isn't done.
   }
   
-  inline void handleSizeChanged() override
+  inline void handleSizeChange() override
   {
     // This is called when the size of the view has changed. You can update your layout here. There is no standard 
     // implementation.
