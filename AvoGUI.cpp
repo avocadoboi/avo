@@ -53,16 +53,16 @@ namespace AvoGUI
 	f0'(x) = (3*x0*(t+h)*(1-t-h)*(1-t-h) - 3*t*(1-t)*(1-t)*x0)/h =
 	(3*x0*(t+h)*(1-t-h)*(1-t-h) - 3*t*x0 + 6*t*t*x0 - 3*t*t*t*x0)/h =
 	(3*x0*(t + h)*(1 - 2*t - 2*h + t*t + h*h + 2*t*h) - 3*t*x0 + 6*t*t*x0 - 3*t*t*t*x0)/h =
-	(3*x0*(t + h - 2*t*t - 2*t*h - 2*t*h - 2*h*h + t*t*t + t*t*h + t*h*h + h*h*h + 2*t*t*h + 2*t*h*h) - 3*t*x0 + 6*t*t*x0 - 3*t*t*t*x0)/h = 
+	(3*x0*(t + h - 2*t*t - 2*t*h - 2*t*h - 2*h*h + t*t*t + t*t*h + t*h*h + h*h*h + 2*t*t*h + 2*t*h*h) - 3*t*x0 + 6*t*t*x0 - 3*t*t*t*x0)/h =
 	(3*t*x0 + 3*h*x0 - 6*t*t*x0 - 6*t*h*x0 - 6*t*h*x0 - 6*h*h*x0 + 3*t*t*t*x0 + 3*t*t*h*x0 + 3*t*h*h*x0 + 3*h*h*h*x0 + 6*t*t*h*x0 + 6*t*h*h*x0 - 3*t*x0 + 6*t*t*x0 - 3*t*t*t*x0)/h =
 	(3*h*x0 - 6*h*h*x0 + 3*h*h*h*x0 - 12*t*h*x0 + 9*t*t*h*x0 + 9*t*h*h*x0)/h =
 	3*x0 - 6*h*x0 + 3*h*h*x0 - 12*t*x0 + 9*t*t*x0 + 9*t*h*x0 =
-	3*x0 - 12*t*x0 + 9*t*t*x0 = 
+	3*x0 - 12*t*x0 + 9*t*t*x0 =
 	x0*(3 - 12*t + 9*t*t)
 
 	f1(x) = 3*t*t*(1-t)*x1
 	f1'(x) = (3*(t + h)*(t + h)*(1 - t - h)*x1 - 3*t*t*(1-t)*x1)/h =
-	(3*(t + h)*(t + h)*(1 - t - h)*x1 - 3*t*t*x1 + 3*t*t*t*x1)/h = 
+	(3*(t + h)*(t + h)*(1 - t - h)*x1 - 3*t*t*x1 + 3*t*t*t*x1)/h =
 	(3*(t*t + 2*t*h + h*h)*(1 - t - h)*x1 - 3*t*t*x1 + 3*t*t*t*x1)/h =
 	((3*t*t*x1 + 6*t*h*x1 + 3*h*h*x1) - (3*t*t*x1 + 6*t*h*x1 + 3*h*h*x1)*t - (3*t*t*x1 + 6*t*h*x1 + 3*h*h*x1)*h - 3*t*t*x1 + 3*t*t*t*x1)/h =
 	(3*t*t*x1 + 6*t*h*x1 + 3*h*h*x1 - 3*t*t*t*x1 - 6*t*t*h*x1 - 3*t*h*h*x1 - 3*t*t*h*x1 - 6*t*h*h*x1 - 3*h*h*h*x1 - 3*t*t*x1 + 3*t*t*t*x1)/h =
@@ -90,11 +90,28 @@ namespace AvoGUI
 
 		float error = 1;
 		while (abs(error) > p_precision) {
-			error = p_value - t*((1.f - t)*(3.f*(1.f - t)*x0 + 3.f*t*x1) + t*t);
-			t += error / (x0*(3.f - 12.f*t + 9.f*t*t) + x1*(6.f*t - 9.f*t*t) + 3.f*t*t);
+			error = p_value - t * ((1.f - t)*(3.f*(1.f - t)*x0 + 3.f*t*x1) + t * t);
+			t += error / (x0*(3.f - 12.f*t + 9.f*t*t) + x1 * (6.f*t - 9.f*t*t) + 3.f*t*t);
 		}
 
-		return t*((1.f - t)*(3.f*(1.f - t)*y0 + 3.f*t*y1) + t*t);
+		return t * ((1.f - t)*(3.f*(1.f - t)*y0 + 3.f*t*y1) + t * t);
+	}
+
+	//------------------------------
+	// class Rectangle
+	//------------------------------
+
+	template <typename RectangleType>
+	bool Rectangle<RectangleType>::getIsContaining(ProtectedRectangle* p_protectedRectangle) const
+	{
+		return p_protectedRectangle->getLeft() >= left && p_protectedRectangle->getTop() >= top
+			&& p_protectedRectangle->getRight() <= right && p_protectedRectangle->getBottom() <= bottom;
+	}
+	template <typename RectangleType>
+	bool Rectangle<RectangleType>::getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const
+	{
+		return p_protectedRectangle->getRight() >= left && p_protectedRectangle->getBottom() >= top
+			&& p_protectedRectangle->getLeft() <= right && p_protectedRectangle->getTop() <= bottom;
 	}
 
 	//------------------------------
@@ -107,16 +124,14 @@ namespace AvoGUI
 
 	Point<float> View::calculateAbsolutePositionRelativeTo(Point<float> p_position) const
 	{
-		Point<float> position(p_position);
-
 		View* container = getParent();
 		while (container && container != getGUI())
 		{
-			position += container->getTopLeft();
+			p_position += container->getTopLeft();
 			container = container->getParent();
 		}
 
-		return position;
+		return p_position;
 
 	}
 
@@ -126,7 +141,7 @@ namespace AvoGUI
 
 	View::View(View* p_parent, const Rectangle<float>& p_bounds) :
 		ProtectedRectangle(p_bounds), m_isVisible(true), m_cornerRadius(0), m_hasShadow(true), m_elevation(0),
-		m_hasSizeChangedSinceLastElevationChange(false), m_shadowImage(0), m_userData(0)
+		m_hasSizeChangedSinceLastElevationChange(false), m_shadowImage(0), m_shadowBounds(p_bounds), m_userData(0)
 	{
 		if (p_parent)
 		{
@@ -432,11 +447,19 @@ namespace AvoGUI
 					m_shadowImage->forget();
 				}
 				m_shadowImage = m_GUI->getDrawingContext()->createRoundedRectangleShadowImage(getSize(), m_cornerRadius, p_elevation, m_theme->colors["shadow"]);
+				m_shadowBounds = Rectangle<float>(
+					Point<float>(
+						0.5f*(m_bounds.right - m_bounds.left - (float)m_shadowImage->getWidth()),
+						0.35f*(m_bounds.bottom - m_bounds.top - (float)m_shadowImage->getHeight())
+					), m_shadowImage->getSize()
+				);
+				m_shadowImage->setTopLeft(m_shadowBounds.getTopLeft());
 			}
 			else if (m_shadowImage)
 			{
 				m_shadowImage->forget();
 				m_shadowImage = 0;
+				m_shadowBounds = m_bounds;
 			}
 
 			if (p_elevation != m_elevation)
@@ -459,23 +482,7 @@ namespace AvoGUI
 		{
 			m_shadowImage->forget();
 			m_shadowImage = 0;
-		}
-	}
-
-	Rectangle<float> View::getShadowBounds() const
-	{
-		if (m_shadowImage)
-		{
-			return Rectangle<float>(
-				Point<float>(
-					0.5f*(m_bounds.left + m_bounds.right - (float)m_shadowImage->getWidth()),
-					m_bounds.top + 0.35f*(m_bounds.bottom - m_bounds.top - (float)m_shadowImage->getHeight())
-				), m_shadowImage->getSize()
-			);
-		}
-		else
-		{
-			return m_bounds;
+			m_shadowBounds = m_bounds;
 		}
 	}
 
@@ -505,7 +512,7 @@ namespace AvoGUI
 			{
 				m_GUI->invalidateRect(m_lastInvalidatedShadowBounds.createContainedCopy(shadowBounds));
 			}
-			else 
+			else
 			{
 				m_GUI->invalidateRect(shadowBounds);
 				if (m_lastInvalidatedShadowBounds.getWidth() && m_lastInvalidatedShadowBounds.getHeight())
@@ -529,7 +536,7 @@ namespace AvoGUI
 		if (m_shadowImage && m_hasShadow)
 		{
 			p_drawingContext->setColor(Color(1.f));
-			p_drawingContext->drawImage(m_shadowImage, getShadowBounds().getTopLeft());
+			p_drawingContext->drawImage(m_shadowImage);
 		}
 	}
 
@@ -1894,10 +1901,19 @@ namespace AvoGUI
 	private:
 		ID2D1Bitmap* m_image;
 
+		ImageBoundsSizing m_boundsSizing;
+		Point<float> m_boundsPositioning;
+
+		Rectangle<float> m_cropRectangle;
+		float m_opacity;
+
 	public:
-		WindowsImage(ID2D1Bitmap* p_image)
+		WindowsImage(ID2D1Bitmap* p_image) :
+			m_image(p_image), m_boundsSizing(ImageBoundsSizing::Stretch), m_boundsPositioning(0.5f, 0.5f),
+			m_cropRectangle(0.f, 0.f, p_image->GetSize().width, p_image->GetSize().height),
+			m_opacity(1.f)
 		{
-			m_image = p_image;
+			m_bounds = m_cropRectangle;
 		}
 		~WindowsImage()
 		{
@@ -1906,20 +1922,78 @@ namespace AvoGUI
 
 		//------------------------------
 
-		inline Point<uint32_t> getSize() override
+		inline void setCropRectangle(const Rectangle<float>& p_rectangle) override
+		{
+			m_cropRectangle = p_rectangle;
+		}
+		inline const Rectangle<float>& getCropRectangle() const override
+		{
+			return m_cropRectangle;
+		}
+
+		inline Point<uint32_t> getOriginalSize() const override
 		{
 			return Point<uint32_t>(m_image->GetSize().width, m_image->GetSize().height);
 		}
-		inline uint32_t getWidth() override
+		inline uint32_t getOriginalWidth() const override
 		{
 			return m_image->GetSize().width;
 		}
-		inline uint32_t getHeight() override
+		inline uint32_t getOriginalHeight() const override
 		{
 			return m_image->GetSize().height;
 		}
 
-		inline void* getHandle() override
+		//------------------------------
+
+		inline void setBoundsSizing(ImageBoundsSizing p_sizeMode) override
+		{
+			m_boundsSizing = p_sizeMode;
+		}
+		inline ImageBoundsSizing getBoundsSizing() const override
+		{
+			return m_boundsSizing;
+		}
+
+		inline void setBoundsPositioning(float p_x, float p_y) override
+		{
+			m_boundsPositioning.set(p_x, p_y);
+		}
+		inline void setBoundsPositioningX(float p_x) override
+		{
+			m_boundsPositioning.x = p_x;
+		}
+		inline void setBoundsPositioningY(float p_y) override
+		{
+			m_boundsPositioning.y = p_y;
+		}
+		inline const Point<float>& getBoundsPositioning() const override
+		{
+			return m_boundsPositioning;
+		}
+		inline float getBoundsPositioningX() const override
+		{
+			return m_boundsPositioning.x;
+		}
+		inline float getBoundsPositioningY() const override
+		{
+			return m_boundsPositioning.x;
+		}
+
+		//------------------------------
+
+		inline void setOpacity(float p_opacity) override
+		{
+			m_opacity = p_opacity;
+		}
+		inline float getOpacity() const override
+		{
+			return m_opacity;
+		}
+
+		//------------------------------
+
+		inline void* getHandle() const override
 		{
 			return m_image;
 		}
@@ -2600,7 +2674,7 @@ namespace AvoGUI
 
 	public:
 		FontFileEnumerator(IDWriteFactory* p_factory, FontFileLoader* p_fontFileLoader, std::vector<FontData*>* p_data) :
-			m_referenceCount(0), m_factory(p_factory), m_fontFileLoader(p_fontFileLoader), m_fontData(p_data), 
+			m_referenceCount(0), m_factory(p_factory), m_fontFileLoader(p_fontFileLoader), m_fontData(p_data),
 			m_currentFontFileIndex(-1), m_currentFontFile(0)
 		{
 		}
@@ -2648,12 +2722,12 @@ namespace AvoGUI
 		{
 			m_currentFontFileIndex++;
 
-			if (m_currentFontFileIndex >= m_fontData->size()) 
+			if (m_currentFontFileIndex >= m_fontData->size())
 			{
 				*p_hasCurrentFile = 0;
 				m_currentFontFile = 0;
 			}
-			else 
+			else
 			{
 				*p_hasCurrentFile = 1;
 				m_factory->CreateCustomFontFileReference((const void*)&(*m_fontData)[m_currentFontFileIndex], sizeof(FontData*), m_fontFileLoader, &m_currentFontFile);
@@ -2782,15 +2856,15 @@ namespace AvoGUI
 			};
 			D3D_FEATURE_LEVEL featureLevel;
 			D3D11CreateDevice(
-				nullptr, 
+				nullptr,
 				D3D_DRIVER_TYPE_HARDWARE,
 				0,
 				D3D11_CREATE_DEVICE_BGRA_SUPPORT,
-				featureLevels, 
+				featureLevels,
 				sizeof(featureLevels) / sizeof(D3D_FEATURE_LEVEL),
-				D3D11_SDK_VERSION, 
-				&d3dDevice, 
-				&featureLevel, 
+				D3D11_SDK_VERSION,
+				&d3dDevice,
+				&featureLevel,
 				&d3dDeviceContext
 			);
 
@@ -2967,6 +3041,23 @@ namespace AvoGUI
 			presentParameters.pDirtyRects = &updatedRectangle;
 
 			m_swapChain->Present1(1, 0, &presentParameters);
+		}
+
+		//------------------------------
+
+		inline float convertPixelsToDeviceIndependentPixels(float p_pixels) override
+		{
+			float DPIX = 0.f;
+			float DPIY = 0.f;
+			m_context->GetDpi(&DPIX, &DPIY);
+			return p_pixels * 96.f / DPIX;
+		}
+		inline float convertDeviceIndependentPixelsToPixels(float p_deviceIndependentPixels) override
+		{
+			float DPIX = 0.f;
+			float DPIY = 0.f;
+			m_context->GetDpi(&DPIX, &DPIY);
+			return p_deviceIndependentPixels * DPIX / 96.f;
 		}
 
 		//------------------------------
@@ -3472,12 +3563,20 @@ namespace AvoGUI
 
 		//------------------------------
 
-		inline void pushClipRectangle(Rectangle<float> p_rectangle) override
+		inline void pushClipRectangle(const Rectangle<float>& p_rectangle) override
 		{
 			m_context->PushAxisAlignedClip(
 				D2D1::RectF(
 					p_rectangle.left, p_rectangle.top,
 					p_rectangle.right, p_rectangle.bottom
+				), D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE
+			);
+		}
+		inline void pushClipRectangle(const Point<float>& p_size) override
+		{
+			m_context->PushAxisAlignedClip(
+				D2D1::RectF(
+					0, 0, p_size.x, p_size.y
 				), D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE
 			);
 		}
@@ -3494,6 +3593,23 @@ namespace AvoGUI
 			s_direct2DFactory->CreateRoundedRectangleGeometry(
 				D2D1::RoundedRect(
 					D2D1::RectF(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom),
+					p_radius, p_radius
+				), &geometry
+			);
+
+			ID2D1Layer* layer;
+			m_context->CreateLayer(&layer);
+			m_context->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE), layer);
+
+			layer->Release();
+			geometry->Release();
+		}
+		inline void pushRoundedClipRectangle(const Point<float>& p_size, float p_radius) override
+		{
+			ID2D1RoundedRectangleGeometry* geometry;
+			s_direct2DFactory->CreateRoundedRectangleGeometry(
+				D2D1::RoundedRect(
+					D2D1::RectF(0, 0, p_size.x, p_size.y),
 					p_radius, p_radius
 				), &geometry
 			);
@@ -3649,7 +3765,7 @@ namespace AvoGUI
 
 			if (!p_width || !p_height || !p_color.alpha) return 0;
 
-			p_blur *= 2.f/3.f;
+			p_blur *= 2.f / 3.f;
 
 			// Create input bitmap
 			ID2D1Bitmap1* inputBitmap;
@@ -3721,7 +3837,7 @@ namespace AvoGUI
 		{
 			if (!p_width || !p_height || !p_color.alpha) return 0;
 
-			p_blur *= 2.f/3.f;
+			p_blur *= 2.f / 3.f;
 
 			// Create input bitmap
 			ID2D1Bitmap1* inputBitmap;
@@ -3794,7 +3910,7 @@ namespace AvoGUI
 			ID2D1Bitmap1* bitmap;
 			m_context->CreateBitmap(
 				D2D1::Size(p_width, p_height),
-				p_pixelData, p_width*4,
+				p_pixelData, p_width * 4,
 				D2D1::BitmapProperties1(
 					D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_NONE,
 					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
@@ -3830,32 +3946,52 @@ namespace AvoGUI
 
 		//------------------------------
 
-		inline void drawImage(Image* p_image, const Rectangle<float>& p_sourceRectangle, const Point<float>& p_position, float p_scale, float p_opacity)
+		inline void drawImage(Image* p_image) override
 		{
+			const Rectangle<float>& cropRectangle = p_image->getCropRectangle();
+			const Point<float>& imageSize = cropRectangle.getSize();
+			const Point<float>& boundsSize = p_image->getSize();
+
+			float left = p_image->getLeft();
+			float top = p_image->getTop();
+			float width = boundsSize.x;
+			float height = boundsSize.y;
+
+			if (p_image->getBoundsSizing() != ImageBoundsSizing::Stretch)
+			{
+				if (p_image->getBoundsSizing() == ImageBoundsSizing::Fill)
+				{
+					if (boundsSize.x / boundsSize.y > imageSize.x / imageSize.y)
+					{
+						height = imageSize.y * width / imageSize.x;
+					}
+					else
+					{
+						width = imageSize.x * height / imageSize.y;
+					}
+				}
+				else if (p_image->getBoundsSizing() == ImageBoundsSizing::Contain)
+				{
+					if (boundsSize.x / boundsSize.y > imageSize.x / imageSize.y)
+					{
+						width = imageSize.x * height / imageSize.y;
+					}
+					else
+					{
+						height = imageSize.y * width / imageSize.x;
+					}
+				}
+
+				left += p_image->getBoundsPositioningX()*(boundsSize.x - width);
+				top += p_image->getBoundsPositioningY()*(boundsSize.y - height);
+			}
+
 			m_context->DrawBitmap(
 				(ID2D1Bitmap*)p_image->getHandle(),
-				D2D1::RectF(
-					p_position.x, p_position.y,
-					p_position.x + (float)p_image->getWidth()*p_scale,
-					p_position.y + (float)p_image->getHeight()*p_scale
-				),
-				p_opacity, D2D1_BITMAP_INTERPOLATION_MODE::D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
-				D2D1::RectF(
-					p_sourceRectangle.left, p_sourceRectangle.top,
-					p_sourceRectangle.right, p_sourceRectangle.bottom
-				)
-			);
-		}
-		inline void drawImage(Image* p_image, const Point<float>& p_position, float p_scale, float p_opacity)
-		{
-			m_context->DrawBitmap(
-				(ID2D1Bitmap*)p_image->getHandle(),
-				D2D1::RectF(
-					p_position.x, p_position.y,
-					p_position.x + (float)p_image->getWidth()*p_scale,
-					p_position.y + (float)p_image->getHeight()*p_scale
-				),
-				p_opacity, D2D1_BITMAP_INTERPOLATION_MODE::D2D1_BITMAP_INTERPOLATION_MODE_LINEAR
+				D2D1::RectF(left, top, left + width, top + height),
+				p_image->getOpacity(),
+				D2D1_BITMAP_INTERPOLATION_MODE::D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
+				D2D1::RectF(cropRectangle.left, cropRectangle.top, cropRectangle.right, cropRectangle.bottom)
 			);
 		}
 
@@ -4056,7 +4192,7 @@ namespace AvoGUI
 		}
 		return results;
 	}
-	std::vector<MouseEventListener*> GUI::getTopMouseListenersAt(float p_x, float p_y) 
+	std::vector<MouseEventListener*> GUI::getTopMouseListenersAt(float p_x, float p_y)
 	{
 		return getTopMouseListenersAt(Point<float>(p_x, p_y));
 	}
@@ -4157,7 +4293,6 @@ namespace AvoGUI
 		m_drawingContext = new WindowsDrawingContext(m_window);
 #endif
 		createContent();
-		handleSizeChanged();
 	}
 	void GUI::handleWindowSizeChanged(const WindowEvent& p_event)
 	{
@@ -4562,20 +4697,20 @@ namespace AvoGUI
 
 				if (view->getIsIntersecting(movedTargetRectangle) && view->getIsVisible())
 				{
+					m_drawingContext->moveOrigin(view->getTopLeft());
+					movedTargetRectangle -= view->getTopLeft();
+
 					view->drawShadow(m_drawingContext);
 
 					if (view->getCornerRadius())
 					{
-						m_drawingContext->pushRoundedClipRectangle(view->getBounds(), view->getCornerRadius());
+						m_drawingContext->pushRoundedClipRectangle(view->getSize(), view->getCornerRadius());
 					}
 					else
 					{
-						m_drawingContext->pushClipRectangle(view->getBounds());
+						m_drawingContext->pushClipRectangle(view->getSize());
 					}
 
-					m_drawingContext->moveOrigin(view->getTopLeft());
-					movedTargetRectangle -= view->getTopLeft();
-				
 					view->draw(m_drawingContext, movedTargetRectangle);
 
 					if (view->getNumberOfViews())
@@ -4604,7 +4739,9 @@ namespace AvoGUI
 				}
 				else if (view->getShadowBounds().getIsIntersecting(movedTargetRectangle))
 				{
+					m_drawingContext->moveOrigin(view->getTopLeft());
 					view->drawShadow(m_drawingContext);
+					m_drawingContext->moveOrigin(-view->getTopLeft());
 				}
 			}
 			if (isDoneWithContainer)
@@ -4796,7 +4933,7 @@ namespace AvoGUI
 	//------------------------------
 
 	Button::Button(View* p_parent, const char* p_text, Emphasis p_emphasis, float p_x, float p_y) :
-		View(p_parent, Rectangle<float>(p_x, p_y, p_x, p_y)), m_text(0), m_fontSize(14.f),
+		View(p_parent, Rectangle<float>(p_x, p_y, p_x, p_y)), m_text(0), m_fontSize(14.f), m_icon(0),
 		m_pressAnimationTime(1.f), m_isPressed(false), m_emphasis(p_emphasis), m_isEnabled(true), m_colorAnimationTime(1.f)
 	{
 		setText(p_text);
@@ -4886,6 +5023,26 @@ namespace AvoGUI
 	const char* Button::getText()
 	{
 		return m_text->getString().c_str();
+	}
+
+	//------------------------------
+
+	void Button::setIcon(Image* p_icon)
+	{
+		if (p_icon != m_icon)
+		{
+			if (p_icon)
+			{
+				if (!m_icon)
+				{
+					m_icon = p_icon;
+					m_text->setLeft(38.f, true);
+					setWidth(round(m_text->getWidth()) + 16.f + 38.f);
+				}
+
+			}
+			invalidate();
+		}
 	}
 
 	//------------------------------

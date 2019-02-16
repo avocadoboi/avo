@@ -491,12 +491,15 @@ namespace AvoGUI
 
 	//------------------------------
 
+	class ProtectedRectangle;
+
 	/// <summary>
 	/// A 2D axis-aligned rectangle. right > left and bottom > top. 
 	/// </summary>
 	template<typename RectangleType = float>
-	struct Rectangle
+	class Rectangle
 	{
+	public:
 		RectangleType left, top, right, bottom;
 
 		inline Rectangle()
@@ -505,18 +508,12 @@ namespace AvoGUI
 		}
 		inline Rectangle(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
 		{
-			left = p_left;
-			top = p_top;
-			right = p_right;
-			bottom = p_bottom;
+			set(p_left, p_top, p_right, p_bottom);
 		}
 		template<typename PositionType, typename SizeType>
 		inline Rectangle(const Point<PositionType>& p_position, const Point<SizeType>& p_size)
 		{
-			left = (RectangleType)p_position.x;
-			top = (RectangleType)p_position.y;
-			right = left + (RectangleType)p_size.x;
-			bottom = top + (RectangleType)p_size.y;
+			set(p_position, p_size);
 		}
 		template<typename ParameterRectangleType>
 		inline Rectangle(const Rectangle<ParameterRectangleType>& p_rectangle)
@@ -527,6 +524,24 @@ namespace AvoGUI
 		inline Rectangle(Rectangle<ParameterRectangleType>&& p_rectangle)
 		{
 			*this = p_rectangle;
+		}
+
+		//------------------------------
+
+		inline void set(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
+		{
+			left = p_left;
+			top = p_top;
+			right = p_right;
+			bottom = p_bottom;
+		}
+		template<typename PositionType, typename SizeType>
+		inline void set(const Point<PositionType>& p_position, const Point<SizeType>& p_size)
+		{
+			left = (RectangleType)p_position.x;
+			top = (RectangleType)p_position.y;
+			right = left + (RectangleType)p_size.x;
+			bottom = top + (RectangleType)p_size.y;
 		}
 
 		//------------------------------
@@ -879,6 +894,9 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/// <summary>
+		/// Returns a copy of the rectangle where the coordinates are rounded in the directions that expand the rectangle.
+		/// </summary>
 		inline Rectangle<RectangleType> createCopyWithOutwardsRoundedCoordinates() const
 		{
 			Rectangle<RectangleType> rounded;
@@ -888,6 +906,9 @@ namespace AvoGUI
 			rounded.bottom = ceil(bottom);
 			return rounded;
 		}
+		/// <summary>
+		/// Rounds the coordinates of the rectangle in the directions that expand the rectangle.
+		/// </summary>
 		inline Rectangle<RectangleType>& roundCoordinatesOutwards()
 		{
 			left = floor(left);
@@ -1250,7 +1271,7 @@ namespace AvoGUI
 		/// <para>Returns if a point lies within this rectangle.</para>
 		/// </summary>
 		template<typename PointType>
-		inline bool getIsContaining(const Point<PointType>& p_point) const
+		bool getIsContaining(const Point<PointType>& p_point) const
 		{
 			return p_point.x >= left && p_point.x <= right
 				&& p_point.y >= top && p_point.y <= bottom;
@@ -1268,21 +1289,28 @@ namespace AvoGUI
 		/// <para>Returns if another rectangle is fully inside this rectangle.</para>
 		/// </summary>
 		template<typename ParameterRectangleType>
-		inline bool getIsContaining(const Rectangle<ParameterRectangleType>& p_rectangle) const
+		bool getIsContaining(const Rectangle<ParameterRectangleType>& p_rectangle) const
 		{
 			return p_rectangle.left >= left && p_rectangle.right <= right
 				&& p_rectangle.top >= top && p_rectangle.bottom <= bottom;
 		}
-
+		/// <summary>
+		/// Returns if a protected rectangle is fully inside this rectangle.
+		/// </summary>
+		bool getIsContaining(ProtectedRectangle* p_protectedRectangle) const;
 		/// <summary>
 		/// <para>Returns if this rectangle intersects/overlaps/touches another rectangle.</para>
 		/// </summary>
 		template<typename ParameterRectangleType>
-		inline bool getIsIntersecting(const Rectangle<ParameterRectangleType>& p_rectangle) const
+		bool getIsIntersecting(const Rectangle<ParameterRectangleType>& p_rectangle) const
 		{
 			return p_rectangle.right >= left && p_rectangle.bottom >= top
 				&& p_rectangle.left <= right && p_rectangle.top <= bottom;
 		}
+		/// <summary>
+		/// Returns if this rectangle intersects/overlaps/touches a protected rectangle.
+		/// </summary>
+		bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const;
 	};
 
 	// would be useless and too much job to make templated... floats are pretty nice anyways
@@ -1300,79 +1328,218 @@ namespace AvoGUI
 		ProtectedRectangle(const Rectangle<float>& p_bounds) : m_bounds(p_bounds) { }
 		ProtectedRectangle(Rectangle<float>&& p_bounds) : m_bounds(p_bounds) { }
 
-		virtual void setBounds(const Rectangle<float>& p_rectangle) = 0;
-		virtual void setBounds(float p_left, float p_top, float p_right, float p_bottom) = 0;
-		virtual void setBounds(const Point<float>& p_position, const Point<float>& p_size) = 0;
-		virtual const Rectangle<float>& getBounds() const = 0;
+		inline virtual void setBounds(const Rectangle<float>& p_rectangle)
+		{
+			m_bounds = p_rectangle;
+		}
+		inline virtual void setBounds(float p_left, float p_top, float p_right, float p_bottom)
+		{
+			m_bounds.set(p_left, p_top, p_right, p_bottom);
+		}
+		inline virtual void setBounds(const Point<float>& p_position, const Point<float>& p_size)
+		{
+			m_bounds.set(p_position, p_size);
+		}
+		inline virtual const Rectangle<float>& getBounds() const
+		{
+			return m_bounds;
+		}
 
 		//------------------------------
 
-		virtual void move(const Point<float>& p_offset) = 0;
-		virtual void move(float p_offsetX, float p_offsetY) = 0;
+		inline virtual void move(const Point<float>& p_offset)
+		{
+			m_bounds.move(p_offset);
+		}
+		inline virtual void move(float p_offsetX, float p_offsetY)
+		{
+			m_bounds.move(p_offsetX, p_offsetY);
+		}
 
 		//------------------------------
 
-		virtual void setTopLeft(const Point<float>& p_position, bool p_willKeepSize = true) = 0;
-		virtual void setTopLeft(float p_left, float p_top, bool p_willKeepSize = true) = 0;
-		virtual Point<float> getTopLeft() const = 0;
+		inline virtual void setTopLeft(const Point<float>& p_position, bool p_willKeepSize = true)
+		{
+			m_bounds.setTopLeft(p_position, p_willKeepSize);
+		}
+		inline virtual void setTopLeft(float p_left, float p_top, bool p_willKeepSize = true)
+		{
+			m_bounds.setTopLeft(p_left, p_top, p_willKeepSize);
+		}
+		inline virtual Point<float> getTopLeft() const
+		{
+			return m_bounds.getTopLeft();
+		}
 
-		virtual void setTopRight(const Point<float>& p_position, bool p_willKeepSize = true) = 0;
-		virtual void setTopRight(float p_right, float p_top, bool p_willKeepSize = true) = 0;
-		virtual Point<float> getTopRight() const = 0;
+		inline virtual void setTopRight(const Point<float>& p_topRight, bool p_willKeepSize = true)
+		{
+			m_bounds.setTopRight(p_topRight, p_willKeepSize);
+		}
+		inline virtual void setTopRight(float p_right, float p_top, bool p_willKeepSize = true)
+		{
+			m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
+		}
+		inline virtual Point<float> getTopRight() const
+		{
+			return m_bounds.getTopRight();
+		}
 
-		virtual void setBottomLeft(const Point<float>& p_position, bool p_willKeepSize = true) = 0;
-		virtual void setBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true) = 0;
-		virtual Point<float> getBottomLeft() const = 0;
+		inline virtual void setBottomLeft(const Point<float>& p_bottomLeft, bool p_willKeepSize = true)
+		{
+			m_bounds.setBottomLeft(p_bottomLeft, p_willKeepSize);
+		}
+		inline virtual void setBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true)
+		{
+			m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
+		}
+		inline virtual Point<float> getBottomLeft() const
+		{
+			return m_bounds.getBottomLeft();
+		}
 
-		virtual void setBottomRight(const Point<float>& p_position, bool p_willKeepSize = true) = 0;
-		virtual void setBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true) = 0;
-		virtual Point<float> getBottomRight() const = 0;
+		inline virtual void setBottomRight(const Point<float>& p_bottomRight, bool p_willKeepSize = true)
+		{
+			m_bounds.setBottomRight(p_bottomRight, p_willKeepSize);
+		}
+		inline virtual void setBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true)
+		{
+			m_bounds.setBottomRight(p_right, p_bottom, p_willKeepSize);
+		}
+		inline virtual Point<float> getBottomRight() const
+		{
+			return m_bounds.getBottomRight();
+		}
 
 		//------------------------------
 
-		virtual void setCenter(const Point<float>& p_position) = 0;
-		virtual void setCenter(float p_x, float p_y) = 0;
-		virtual void setCenterX(float p_x) = 0;
-		virtual void setCenterY(float p_y) = 0;
-		virtual Point<float> getCenter() const = 0;
-		virtual float getCenterX() const = 0;
-		virtual float getCenterY() const = 0;
+		inline virtual void setCenter(const Point<float>& p_position)
+		{
+			m_bounds.setCenter(p_position);
+		}
+		inline virtual void setCenter(float p_x, float p_y)
+		{
+			m_bounds.setCenter(p_x, p_y);
+		}
+		inline virtual void setCenterX(float p_x)
+		{
+			m_bounds.setCenterX(p_x);
+		}
+		inline virtual void setCenterY(float p_y)
+		{
+			m_bounds.setCenterY(p_y);
+		}
+
+		inline virtual Point<float> getCenter() const
+		{
+			return m_bounds.getCenter();
+		}
+		inline virtual float getCenterX() const
+		{
+			return m_bounds.getCenterX();
+		}
+		inline virtual float getCenterY() const
+		{
+			return m_bounds.getCenterY();
+		}
 
 		//------------------------------
 
-		virtual void setLeft(float p_left, bool p_willKeepWidth = false) = 0;
-		virtual float getLeft() const = 0;
+		inline virtual void setLeft(float p_left, bool p_willKeepWidth = false)
+		{
+			m_bounds.setLeft(p_left, p_willKeepWidth);
+		}
+		inline virtual float getLeft() const
+		{
+			return m_bounds.left;
+		}
 
-		virtual void setTop(float p_top, bool p_willKeepHeight = false) = 0;
-		virtual float getTop() const = 0;
+		inline virtual void setTop(float p_top, bool p_willKeepHeight = false)
+		{
+			m_bounds.setTop(p_top, p_willKeepHeight);
+		}
+		inline virtual float getTop() const
+		{
+			return m_bounds.top;
+		}
 
-		virtual void setRight(float p_right, bool p_willKeepWidth = false) = 0;
-		virtual float getRight() const = 0;
+		inline virtual void setRight(float p_right, bool p_willKeepWidth = false)
+		{
+			m_bounds.setRight(p_right, p_willKeepWidth);
+		}
+		inline virtual float getRight() const
+		{
+			return m_bounds.right;
+		}
 
-		virtual void setBottom(float p_bottom, bool p_willKeepHeight = false) = 0;
-		virtual float getBottom() const = 0;
+		inline virtual void setBottom(float p_bottom, bool p_willKeepHeight = false)
+		{
+			m_bounds.setBottom(p_bottom, p_willKeepHeight);
+		}
+		inline virtual float getBottom() const
+		{
+			return m_bounds.bottom;
+		}
 
 		//------------------------------
 
-		virtual void setWidth(float p_width) = 0;
-		virtual float getWidth() const = 0;
+		inline virtual void setWidth(float p_width)
+		{
+			m_bounds.setWidth(p_width);
+		}
+		inline virtual float getWidth() const
+		{
+			return m_bounds.getWidth();
+		}
 
-		virtual void setHeight(float p_height) = 0;
-		virtual float getHeight() const = 0;
+		inline virtual void setHeight(float p_height)
+		{
+			m_bounds.setHeight(p_height);
+		}
+		inline virtual float getHeight() const
+		{
+			return m_bounds.getHeight();
+		}
 
-		virtual void setSize(const Point<float>& p_size) = 0;
-		virtual void setSize(float p_width, float p_height) = 0;
-		virtual Point<float> getSize() const = 0;
+		inline virtual void setSize(const Point<float>& p_size)
+		{
+			m_bounds.setSize(p_size);
+		}
+		inline virtual void setSize(float p_width, float p_height)
+		{
+			m_bounds.setSize(p_width, p_height);
+		}
+		inline virtual Point<float> getSize() const
+		{
+			return m_bounds.getSize();
+		}
 
 		//------------------------------
 
-		virtual bool getIsIntersecting(const Rectangle<float>& p_rectangle) const = 0;
-		virtual bool getIsIntersecting(ProtectedRectangle* p_view) const = 0;
+		inline virtual bool getIsIntersecting(const Rectangle<float>& p_rectangle) const
+		{
+			return m_bounds.getIsIntersecting(p_rectangle);
+		}
+		inline virtual bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const
+		{
+			return m_bounds.getIsIntersecting(p_protectedRectangle);
+		}
 
-		virtual bool getIsContaining(const Rectangle<float>& p_rectangle) const = 0;
-		virtual bool getIsContaining(ProtectedRectangle* p_rectangle) const = 0;
-		virtual bool getIsContaining(float p_x, float p_y) const = 0;
-		virtual bool getIsContaining(const Point<float>& p_point) const = 0;
+		inline virtual bool getIsContaining(const Rectangle<float>& p_rectangle) const
+		{
+			return m_bounds.getIsContaining(p_rectangle);
+		}
+		inline virtual bool getIsContaining(ProtectedRectangle* p_rectangle) const
+		{
+			return m_bounds.getIsContaining(p_rectangle);
+		}
+		inline virtual bool getIsContaining(float p_x, float p_y) const
+		{
+			return m_bounds.getIsContaining(p_x, p_y);
+		}
+		inline virtual bool getIsContaining(const Point<float>& p_point) const
+		{
+			return m_bounds.getIsContaining(p_point);
+		}
 	};
 
 	//------------------------------
@@ -2304,6 +2471,7 @@ namespace AvoGUI
 		//------------------------------
 
 		Image* m_shadowImage;
+		Rectangle<float> m_shadowBounds;
 		bool m_hasShadow;
 		float m_elevation;
 		bool m_hasSizeChangedSinceLastElevationChange;
@@ -2327,23 +2495,23 @@ namespace AvoGUI
 
 		//------------------------------
 
-		inline void sendSizeChangedEvents()
-		{
-			m_hasSizeChangedSinceLastElevationChange = true;
-
-			handleSizeChanged();
-			for (uint32_t a = 0; a < m_viewEventListeners.size(); a++)
-			{
-				m_viewEventListeners[a]->handleViewSizeChange(this);
-			}
-		}
-
 		Point<float> calculateAbsolutePositionRelativeTo(Point<float> p_position) const;
 
 	protected:
 		GUI* m_GUI;
 		View* m_parent;
 		Theme* m_theme;
+
+		inline void sendSizeChangedEvents()
+		{
+			m_hasSizeChangedSinceLastElevationChange = true;
+
+			handleSizeChange();
+			for (uint32_t a = 0; a < m_viewEventListeners.size(); a++)
+			{
+				m_viewEventListeners[a]->handleViewSizeChange(this);
+			}
+		}
 
 	public:
 		View(View* p_parent, const Rectangle<float>& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
@@ -2378,27 +2546,27 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Adds a child view to the container. Do not call this method yourself, it is called automatically</para>
-		/// <para>when you create a view with a parent.</para>
+		/// <para>Adds a child view to this view. Do not call this method yourself, it is called automatically</para>
+		/// <para>when you create a view with a parent, or set a new parent.</para>
 		/// </summary>
 		void addView(View* p_view);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Removes a child view from the container. This forgets the view. If you haven't remembered</para>
+		/// <para>Removes a child view from this view. This forgets the view being removed. If you haven't remembered</para>
 		/// <para>it yourself, it will get deleted.</para>
 		/// </summary>
 		/// <param name="p_view">Pointer to view to remove from the container</param>
 		void removeView(View* p_view);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Removes a child view from the container. This forgets the view. If you haven't remembered</para>
+		/// <para>Removes a child view from this view. This forgets the view being removed. If you haven't remembered</para>
 		/// <para>it yourself, it will get deleted.</para>
 		/// </summary>
 		/// <param name="p_viewIndex">Index of the view to remove from the container</param>
 		void removeView(uint32_t p_viewIndex);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Deletes the children views and empties the view container.</para>
+		/// <para>Deletes the children views and empties this view from children.</para>
 		/// </summary>
 		void removeAllViews();
 
@@ -2738,8 +2906,7 @@ namespace AvoGUI
 		/// </summary>
 		inline Rectangle<float> calculateAbsoluteShadowBounds() const
 		{
-			Rectangle<float> shadowBounds(getShadowBounds());
-			return Rectangle<float>(calculateAbsolutePositionRelativeTo(shadowBounds.getTopLeft()), shadowBounds.getSize());
+			return Rectangle<float>(calculateAbsolutePositionRelativeTo(getTopLeft() + m_shadowBounds.getTopLeft()), m_shadowBounds.getSize());
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
@@ -2802,7 +2969,7 @@ namespace AvoGUI
 			if (p_rectangle.right - p_rectangle.left != m_bounds.right - m_bounds.left ||
 				p_rectangle.bottom - p_rectangle.top != m_bounds.bottom - m_bounds.top)
 			{
-				handleSizeChanged();
+				sendSizeChangedEvents();
 			}
 		}
 		/// <summary>
@@ -2818,7 +2985,7 @@ namespace AvoGUI
 			if (p_right - p_left != m_bounds.right - m_bounds.left ||
 				p_bottom - p_top != m_bounds.bottom - m_bounds.top)
 			{
-				handleSizeChanged();
+				sendSizeChangedEvents();
 			}
 		}
 		/// <summary>
@@ -2834,7 +3001,7 @@ namespace AvoGUI
 			if (p_size.x != m_bounds.right - m_bounds.left ||
 				p_size.y != m_bounds.bottom - m_bounds.top)
 			{
-				handleSizeChanged();
+				sendSizeChangedEvents();
 			}
 		}
 		/// <summary>
@@ -2879,7 +3046,7 @@ namespace AvoGUI
 				m_bounds.setTopLeft(p_position, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					handleSizeChanged();
+					sendSizeChangedEvents();
 				}
 			}
 		}
@@ -2895,7 +3062,7 @@ namespace AvoGUI
 				m_bounds.setTopLeft(p_left, p_top, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					handleSizeChanged();
+					sendSizeChangedEvents();
 				}
 			}
 		}
@@ -2920,7 +3087,7 @@ namespace AvoGUI
 				m_bounds.setTopRight(p_position, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					handleSizeChanged();
+					sendSizeChangedEvents();
 				}
 			}
 		}
@@ -2936,7 +3103,7 @@ namespace AvoGUI
 				m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					handleSizeChanged();
+					sendSizeChangedEvents();
 				}
 			}
 		}
@@ -2961,7 +3128,7 @@ namespace AvoGUI
 				m_bounds.setBottomLeft(p_position, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					handleSizeChanged();
+					sendSizeChangedEvents();
 				}
 			}
 		}
@@ -2977,7 +3144,7 @@ namespace AvoGUI
 				m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					handleSizeChanged();
+					sendSizeChangedEvents();
 				}
 			}
 		}
@@ -3002,7 +3169,7 @@ namespace AvoGUI
 				m_bounds.setBottomRight(p_position, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					handleSizeChanged();
+					sendSizeChangedEvents();
 				}
 			}
 		}
@@ -3018,7 +3185,7 @@ namespace AvoGUI
 				m_bounds.setBottomRight(p_right, p_bottom, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					handleSizeChanged();
+					sendSizeChangedEvents();
 				}
 			}
 		}
@@ -3104,7 +3271,7 @@ namespace AvoGUI
 				m_bounds.setLeft(p_left, p_willKeepWidth);
 				if (!p_willKeepWidth)
 				{
-					handleSizeChanged();
+					sendSizeChangedEvents();
 				}
 			}
 		}
@@ -3129,7 +3296,7 @@ namespace AvoGUI
 				m_bounds.setTop(p_top, p_willKeepHeight);
 				if (!p_willKeepHeight)
 				{
-					handleSizeChanged();
+					sendSizeChangedEvents();
 				}
 			}
 		}
@@ -3154,7 +3321,7 @@ namespace AvoGUI
 				m_bounds.setRight(p_right, p_willKeepWidth);
 				if (!p_willKeepWidth)
 				{
-					handleSizeChanged();
+					sendSizeChangedEvents();
 				}
 			}
 		}
@@ -3179,7 +3346,7 @@ namespace AvoGUI
 				m_bounds.setBottom(p_bottom, p_willKeepHeight);
 				if (!p_willKeepHeight)
 				{
-					handleSizeChanged();
+					sendSizeChangedEvents();
 				}
 			}
 		}
@@ -3203,7 +3370,7 @@ namespace AvoGUI
 			if (p_width != m_bounds.right - m_bounds.left)
 			{
 				m_bounds.setWidth(p_width);
-				handleSizeChanged();
+				sendSizeChangedEvents();
 			}
 		}
 		/// <summary>
@@ -3224,7 +3391,7 @@ namespace AvoGUI
 			if (p_height != m_bounds.bottom - m_bounds.top)
 			{
 				m_bounds.setHeight(p_height);
-				handleSizeChanged();
+				sendSizeChangedEvents();
 			}
 		}
 		/// <summary>
@@ -3245,7 +3412,7 @@ namespace AvoGUI
 			if (p_size.x != m_bounds.right - m_bounds.left || p_size.y != m_bounds.bottom - m_bounds.top)
 			{
 				m_bounds.setSize(p_size);
-				handleSizeChanged();
+				sendSizeChangedEvents();
 			}
 		}
 		/// <summary>
@@ -3257,7 +3424,7 @@ namespace AvoGUI
 			if (p_width != m_bounds.right - m_bounds.left || p_height != m_bounds.bottom - m_bounds.top)
 			{
 				m_bounds.setSize(p_width, p_height);
-				handleSizeChanged();
+				sendSizeChangedEvents();
 			}
 		}
 		/// <summary>
@@ -3497,13 +3664,18 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the rectangle which represents the area where the shadow is drawn.</para>
+		/// <para>Returns the rectangle which represents the area where the shadow is drawn, relative to the view position.</para>
 		/// <para>This rectangle is bigger than the view or equal to the size of the view.</para>
 		/// </summary>
-		Rectangle<float> getShadowBounds() const;
+		Rectangle<float> getShadowBounds() const
+		{
+			return m_shadowBounds;
+		}
 
 		/// <summary>
-		/// This is only used by view containers.
+		/// LIBRARY IMPLEMENTED
+		/// <para>This is only used by the library from the parent of this view. It doesn't change the actual index of this view, it </para>
+		/// <para>only helps the view keep track of its current index. I apologize for the ambiguousness here.</para>
 		/// </summary>
 		inline void setIndex(uint32_t p_index)
 		{
@@ -3565,10 +3737,9 @@ namespace AvoGUI
 
 		/// <summary>
 		/// USER IMPLEMENTED
-		/// <para>Updates things like animations and does other stuff that you never want to happen</para>
-		/// <para>more than once every frame. Call queueAnimationUpdate() when you want this</para>
-		/// <para>method to be called in the next frame. This system allows for animations</para>
-		/// <para>to only get updated when they have to.</para>
+		/// <para>Updates things like animations and does anything that you never want to happen more than once every frame.</para>
+		/// <para>Call queueAnimationUpdate() when you want this method to be called in the next interval. This system allows</para>
+		/// <para>for animations to only get updated when they have to.</para>
 		/// </summary>
 		virtual void updateAnimations() { }
 
@@ -3598,7 +3769,7 @@ namespace AvoGUI
 		/// <para>Implement this method in your view if you want to update things when the size of</para>
 		/// <para>the view has been changed.</para>
 		/// </summary>
-		virtual void handleSizeChanged() { }
+		virtual void handleSizeChange() { }
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
@@ -4283,16 +4454,117 @@ namespace AvoGUI
 	//------------------------------
 
 	/// <summary>
-	/// Represents an image on the GPU which can be created and drawn by a DrawingContext. Notice that this is not a view, but should be treated as a drawable object.
+	/// This specifies what is done to fit the image within its bounds.
 	/// </summary>
-	class Image : public ReferenceCounted
+	enum class ImageBoundsSizing
+	{
+		Stretch, // This stretches the image so that it fills its bounds.
+		Contain, // This makes sure the image is as big as possible while still keeping the image within its bounds. Aspect ratio is kept.
+		Fill // This makes sure the image is so big that it fills its bounds while keeping aspect ratio. Edges may be clipped.
+	};
+
+	/// <summary>
+	/// Represents an image on the GPU which can be created and drawn by a DrawingContext. Notice that this is not a view but should be treated as a drawable object.
+	/// </summary>
+	class Image : public ReferenceCounted, public ProtectedRectangle
 	{
 	public:
-		virtual Point<uint32_t> getSize() = 0;
-		virtual uint32_t getWidth() = 0;
-		virtual uint32_t getHeight() = 0;
+		/// <summary>
+		/// Sets a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
+		/// </summary>
+		virtual void setCropRectangle(const Rectangle<float>& p_rectangle) = 0;
+		/// <summary>
+		/// Returns a rectangle representing the portion of the image that will be drawn, relative ot the top-left corner of the image.
+		/// </summary>
+		virtual const Rectangle<float>& getCropRectangle() const = 0;
 
-		virtual void* getHandle() = 0;
+		/// <summary>
+		/// Returns the DIP size of the actual image.
+		/// </summary>
+		virtual Point<uint32_t> getOriginalSize() const = 0;
+		/// <summary>
+		/// Returns the DIP width of the actual image.
+		/// </summary>
+		virtual uint32_t getOriginalWidth() const = 0;
+		/// <summary>
+		/// Returns the DIP height of the actual image.
+		/// </summary>
+		virtual uint32_t getOriginalHeight() const = 0;
+
+		//------------------------------
+
+		/// <summary>
+		/// Sets the way the image is fit within its bounds.
+		/// </summary>
+		virtual void setBoundsSizing(ImageBoundsSizing p_sizeMode) = 0;
+		/// <summary>
+		/// Returns the way the image is fit within its bounds.
+		/// </summary>
+		virtual ImageBoundsSizing getBoundsSizing() const = 0;
+
+		/// <summary>
+		/// <para>Sets the way the image is positioned within its bounds.</para>
+		/// </summary>
+		/// <param name="p_x">
+		/// <para>Represents the x coordinate of the point on the image that aligns with the same point but relative to the bounds.</para> 
+		/// <para>p_x is expressed as a factor of the width of the image. For example, if p_x is 1, the right edge of the image</para>
+		/// <para>will be aligned with the right edge of the bounds. 0.5 means the centers will be aligned.</para>
+		/// </param>
+		/// <param name="p_y">
+		/// <para>Represents the y coordinate of the point on the image that aligns with the same point but relative to the bounds.</para> 
+		/// <para>p_y is expressed as a factor of the height of the image. For example, if p_y is 1, the bottom edge of the image</para>
+		/// <para>will be aligned with the bottom edge of the bounds. 0.5 means the centers will be aligned.</para>
+		/// </param>
+		virtual void setBoundsPositioning(float p_x, float p_y) = 0;
+		/// <summary>
+		/// <para>Sets the way the image is positioned within its bounds on the x-axis.</para>
+		/// </summary>
+		/// <param name="p_x">
+		/// <para>Represents the x coordinate of the point on the image that aligns with the same point but relative to the bounds.</para> 
+		/// <para>p_x is expressed as a factor of the width of the image. For example, if p_x is 1, the right edge of the image</para>
+		/// <para>will be aligned with the right edge of the bounds. 0.5 means the centers will be aligned.</para>
+		/// </param>
+		virtual void setBoundsPositioningX(float p_x) = 0;
+		/// <summary>
+		/// <para>Sets the way the image is positioned within its bounds on the y-axis.</para>
+		/// </summary>
+		/// <param name="p_y">
+		/// <para>Represents the y coordinate of the point on the image that aligns with the same point but relative to the bounds.</para> 
+		/// <para>p_y is expressed as a factor of the height of the image. For example, if p_y is 1, the bottom edge of the image</para>
+		/// <para>will be aligned with the bottom edge of the bounds. 0.5 means the centers will be aligned.</para>
+		/// </param>
+		virtual void setBoundsPositioningY(float p_y) = 0;
+		/// <summary>
+		/// Returns the way the image is positioned within its bounds. See setBoundsPositioning for more info.
+		/// </summary>
+		virtual const Point<float>& getBoundsPositioning() const = 0;
+		/// <summary>
+		/// Returns the way the image is positioned within its bounds on the x-axis. See setBoundsPositioning for more info.
+		/// </summary>
+		virtual float getBoundsPositioningX() const = 0;
+		/// <summary>
+		/// Returns the way the image is positioned within its bounds on the y-axis. See setBoundsPositioning for more info.
+		/// </summary>
+		virtual float getBoundsPositioningY() const = 0;
+
+		//------------------------------
+
+		/// <summary>
+		/// Sets how opaque the image is being drawn.
+		/// </summary>
+		virtual void setOpacity(float p_opacity) = 0;
+		/// <summary>
+		/// Returns how opaque the image is being drawn.
+		/// </summary>
+		/// <returns></returns>
+		virtual float getOpacity() const = 0;
+
+		//------------------------------
+
+		/// <summary>
+		/// Returns a pointer to the os-specific image object.
+		/// </summary>
+		virtual void* getHandle() const = 0;
 	};
 
 	//------------------------------
@@ -4578,6 +4850,17 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// Converts a number of physical pixels to the corresponding number of device independent pixels (DIP). Everything you draw is by default in DIPs.
+		/// </summary>
+		virtual float convertPixelsToDeviceIndependentPixels(float p_pixels) = 0;
+		/// <summary>
+		/// Converts a number of device independent pixels to the corresponding number of physical pixels (DIP). Everything you draw is by default in DIPs.
+		/// </summary>
+		virtual float convertDeviceIndependentPixelsToPixels(float p_deviceIndependentPixels) = 0;
+
+		//------------------------------
+
+		/// <summary>
 		/// <para>Moves the screen position of the coordinate (0, 0).</para>
 		/// </summary>
 		virtual void moveOrigin(const Point<float>& p_offset) = 0;
@@ -4829,9 +5112,14 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// After calling this, all graphics drawn outside the rectangle will be invisible, on pixel-level.
+		/// After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
 		/// </summary>
-		virtual void pushClipRectangle(Rectangle<float> p_rectangle) = 0;
+		virtual void pushClipRectangle(const Rectangle<float>& p_rectangle) = 0;
+		/// <summary>
+		/// After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
+		/// </summary>
+		/// <param name="p_size">The size of the clip rectangle positioned at the origin.</param>
+		virtual void pushClipRectangle(const Point<float>& p_size) = 0;
 		/// <summary>
 		/// This undos the last added clipping rectangle.
 		/// </summary>
@@ -4843,6 +5131,11 @@ namespace AvoGUI
 		/// After calling this, all graphics drawn outside the rounded rectangle will be invisible, on pixel-level.
 		/// </summary>
 		virtual void pushRoundedClipRectangle(const Rectangle<float>& p_rectangle, float p_radius) = 0;
+		/// <summary>
+		/// After calling this, all graphics drawn outside a rounded rectangle at the origin with the given size and radius will be invisible, on pixel level.
+		/// </summary>
+		/// <param name="p_size">The size of the rounded clip rectangle positioned at the origin.</param>
+		virtual void pushRoundedClipRectangle(const Point<float>& p_size, float p_radius) = 0;
 		/// <summary>
 		/// This undos the last added rounded clipping rectangle.
 		/// </summary>
@@ -4902,25 +5195,7 @@ namespace AvoGUI
 		/// <param name="p_filePath">The path, relative or absolute, to the image file to be loaded.</param>
 		virtual Image* createImage(const char* p_filePath) = 0;
 
-		//------------------------------
-
-		/// <summary>
-		/// Draws an image at a position with a crop rectangle, scale and opacity.
-		/// </summary>
-		/// <param name="p_image">Image representing the pixels to be drawn.</param>
-		/// <param name="p_position">The coordinates of the top-left corner of the image where it will be drawn.</param>
-		/// <param name="sourceRectangle">A rectangle representing the portion of the image which will be drawn.</param>
-		/// <param name="p_scale">The image will be drawn p_scale times as big on the screen as it actually is.</param>
-		/// <param name="p_opacity">How opaque the image is drawn. If it is 0, it is not drawn at all, if it's 1, it's fully opaque.</param>
-		virtual void drawImage(Image* p_image, const Rectangle<float>& sourceRectangle, const Point<float>& p_position = Point<>(), float p_scale = 1.f, float p_opacity = 1.f) = 0;
-		/// <summary>
-		/// Draws an image at a position with a scale and opacity.
-		/// </summary>
-		/// <param name="p_image">Image representing the pixels to be drawn.</param>
-		/// <param name="p_position">The coordinates of the top-left corner of the image where it will be drawn.</param>
-		/// <param name="p_scale">The image will be drawn p_scale times as big on the screen as it actually is.</param>
-		/// <param name="p_opacity">How opaque the image is drawn. If it is 0, it is not drawn at all, if it's 1, it's fully opaque.</param>
-		virtual void drawImage(Image* p_image, const Point<float>& p_position = Point<>(), float p_scale = 1.f, float p_opacity = 1.f) = 0;
+		virtual void drawImage(Image* p_image) = 0;
 
 		//------------------------------
 
@@ -5071,7 +5346,7 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Creates a new drawing context and calls createContent() and handleSizeChanged() to initialize the layout.</para>
+		/// <para>Creates a new drawing context and calls createContent() to initialize the layout.</para>
 		/// </summary>
 		void handleWindowCreated(const WindowEvent& p_event) override;
 		/// <summary>
@@ -5238,8 +5513,8 @@ namespace AvoGUI
 
 		/// <summary>
 		/// USER IMPLEMENTED
-		/// <para>This is called after the window and drawing context have been created.</para>
-		/// <para>You should initialize your GUI in this method, but do the layout in handleSizeChanged().</para>
+		/// <para>This is called after the window and drawing context have been created. You should initialize your GUI in this method,</para>
+		/// <para>but it is easiest to do the layout in handleSizeChange() - it is called right after creation too.</para>
 		/// </summary>
 		virtual void createContent() { };
 
@@ -5407,6 +5682,8 @@ namespace AvoGUI
 		Text* m_text;
 		float m_fontSize;
 
+		Image* m_icon;
+
 		float m_pressAnimationTime;
 		bool m_isPressed;
 		bool m_isRaising;
@@ -5426,6 +5703,10 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/// <summary>
+		/// Registers a button listener to this button. The button listener will get an event when the button has been pressed.
+		/// </summary>
+		/// <param name="p_buttonListener"></param>
 		void addButtonListener(ButtonListener* p_buttonListener);
 
 		//------------------------------
@@ -5457,6 +5738,22 @@ namespace AvoGUI
 		/// Returns the text that the button displays.
 		/// </summary>
 		const char* getText();
+
+		//------------------------------
+
+		/// <summary>
+		/// <para>Sets an image to be shown together with the text. It is best to keep a text label with the icon, unless it is</para>
+		/// <para>very clear to all users what the button does with the icon alone, or if you have set a tooltip.</para>
+		/// </summary>
+		/// <param name="p_icon">The image to be shown as an icon. If this is 0, the icon is removed.</param>
+		void setIcon(Image* p_icon);
+		/// <summary>
+		/// Returns the image that is shown together with the button text.
+		/// </summary>
+		inline Image* getIcon()
+		{
+			return m_icon;
+		}
 
 		//------------------------------
 

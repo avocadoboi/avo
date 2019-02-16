@@ -3,7 +3,7 @@
 
 //------------------------------
 
-class Sprite : public AvoGUI::View
+class Sprite : public AvoGUI::View, public AvoGUI::ViewEventListener
 {
 private:
 	AvoGUI::Image* m_image;
@@ -11,8 +11,11 @@ private:
 public:
 	Sprite(AvoGUI::View* p_parent, const char* p_filePath) : View(p_parent)
 	{
+		p_parent->addEventListener(this);
+
 		m_image = getGUI()->getDrawingContext()->createImage(p_filePath);
-		setSize(m_image->getSize()*0.5f);
+		m_image->setBoundsPositioning(0.5f, 0.5f);
+		m_image->setBoundsSizing(AvoGUI::ImageBoundsSizing::Contain);
 	}
 	~Sprite()
 	{
@@ -21,9 +24,15 @@ public:
 
 	//------------------------------
 
+	inline void handleViewSizeChange(View* p_view) override
+	{
+		m_image->setSize(getParent()->getSize());
+		setSize(getParent()->getSize());
+	}
+
 	inline void draw(AvoGUI::DrawingContext* p_drawingContext) override
 	{
-		p_drawingContext->drawImage(m_image, AvoGUI::Point<>(), 0.5f);
+		p_drawingContext->drawImage(m_image);
 	}
 };
 
@@ -92,12 +101,10 @@ public:
 
 		m_button_readMore = new AvoGUI::Button(this, "READ MORE", AvoGUI::Button::Emphasis::Low);
 	}
-	inline void handleSizeChanged() override
+	inline void handleSizeChange() override
 	{
 		m_buttonContainer->setCenter(getCenterX(), getCenterY() - 30.f);
 		m_button_readMore->setCenter(getCenterX(), getCenterY() + 30.f);
-	
-		m_sprite->setCenter(getWidth()*0.2f, getCenterY() - 20.f);
 	}
 };
 
