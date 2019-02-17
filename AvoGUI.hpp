@@ -44,7 +44,7 @@ namespace AvoGUI
 	/// <summary>
 	/// Returns the square root of a float using a fast but less accurate algorithm.
 	/// </summary>
-	inline float fastSqrt(float p_x)
+	float fastSqrt(float p_x)
 	{
 		int32_t bits = (*(int32_t*)&p_x - (1 << 23) >> 1) + (1 << 29);
 		float approximation = *(float*)&bits;
@@ -53,7 +53,7 @@ namespace AvoGUI
 	/// <summary>
 	/// Returns the inverse square root of a float using a fast but less accurate algorithm.
 	/// </summary>
-	inline float fastInverseSqrt(float p_x)
+	float fastInverseSqrt(float p_x)
 	{
 		int32_t bits = 0x5f375a86 - (*(int32_t*)&p_x >> 1);
 		float approximation = *(float*)&bits;
@@ -151,11 +151,11 @@ namespace AvoGUI
 	{
 		PointType x, y;
 
-		inline Point()
+		Point()
 		{
 			x = y = (PointType)0;
 		}
-		inline Point(PointType p_x, PointType p_y)
+		Point(PointType p_x, PointType p_y)
 		{
 			x = p_x;
 			y = p_y;
@@ -164,19 +164,19 @@ namespace AvoGUI
 		/// Initializes the point with the same x and y coordinates.
 		/// </summary>
 		/// <param name="p_coordinate">x and y coordinate</param>
-		inline Point(PointType p_coordinate)
+		Point(PointType p_coordinate)
 		{
 			x = p_coordinate;
 			y = p_coordinate;
 		}
 		template<typename T>
-		inline Point(const Point<T>& p_point)
+		Point(const Point<T>& p_point)
 		{
 			x = (PointType)p_point.x;
 			y = (PointType)p_point.y;
 		}
 		template<typename T>
-		inline Point(Point<T>&& p_point)
+		Point(Point<T>&& p_point)
 		{
 			x = (PointType)p_point.x;
 			y = (PointType)p_point.y;
@@ -184,7 +184,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		inline Point<PointType> operator-() const
+		Point<PointType> operator-() const
 		{
 			return Point<PointType>(-x, -y);
 		}
@@ -192,14 +192,14 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename T>
-		inline Point<PointType>& operator=(const Point<T>& p_point)
+		Point<PointType>& operator=(const Point<T>& p_point)
 		{
 			x = (PointType)p_point.x;
 			y = (PointType)p_point.y;
 			return *this;
 		}
 		template<typename T>
-		inline Point<PointType>& operator=(Point<T>&& p_point)
+		Point<PointType>& operator=(Point<T>&& p_point)
 		{
 			x = (PointType)p_point.x;
 			y = (PointType)p_point.y;
@@ -210,7 +210,7 @@ namespace AvoGUI
 		/// Sets the same value for the x and the y coordinates.
 		/// </summary>
 		/// <param name="p_coordinate">x and y coordinate</param>
-		inline Point<PointType>& operator=(PointType p_coordinate)
+		Point<PointType>& operator=(PointType p_coordinate)
 		{
 			x = y = p_coordinate;
 			return *this;
@@ -218,7 +218,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		inline void set(PointType p_x, PointType p_y)
+		void set(PointType p_x, PointType p_y)
 		{
 			x = p_x;
 			y = p_y;
@@ -226,30 +226,30 @@ namespace AvoGUI
 
 		//------------------------------
 
-		inline bool operator==(const Point<PointType>& p_point) const
+		bool operator==(const Point<PointType>& p_point) const
 		{
 			return x == p_point.x && y == p_point.y;
 		}
-		inline bool operator==(Point<PointType>&& p_point) const
+		bool operator==(Point<PointType>&& p_point) const
 		{
 			return x == p_point.x && y == p_point.y;
 		}
-		inline bool operator==(PointType p_coordinate) const
+		bool operator==(PointType p_coordinate) const
 		{
 			return x == p_coordinate && y == p_coordinate;
 		}
 
 		//------------------------------
 
-		inline bool operator!=(const Point<PointType>& p_point) const
+		bool operator!=(const Point<PointType>& p_point) const
 		{
 			return x != p_point.x || y != p_point.y;
 		}
-		inline bool operator!=(Point<PointType>&& p_point) const
+		bool operator!=(Point<PointType>&& p_point) const
 		{
 			return x != p_point.x || y != p_point.y;
 		}
-		inline bool operator!=(PointType p_coordinate) const
+		bool operator!=(PointType p_coordinate) const
 		{
 			return x != p_coordinate || y != p_coordinate;
 		}
@@ -257,12 +257,12 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename T>
-		inline Point<PointType> operator+(const Point<T>& p_point) const
+		Point<PointType> operator+(const Point<T>& p_point) const
 		{
 			return Point<PointType>(x + (PointType)p_point.x, y + (PointType)p_point.y);
 		}
 		template<typename T>
-		inline Point<PointType> operator+(Point<T>&& p_point) const
+		Point<PointType> operator+(Point<T>&& p_point) const
 		{
 			return Point<PointType>(x + (PointType)p_point.x, y + (PointType)p_point.y);
 		}
@@ -270,19 +270,19 @@ namespace AvoGUI
 		/// Returns this point offset by the same amount on the x and y axis.
 		/// </summary>
 		template<typename OffsetType>
-		inline Point<PointType> operator+(OffsetType p_offset) const
+		Point<PointType> operator+(OffsetType p_offset) const
 		{
 			return Point<PointType>(x + (PointType)p_offset, y + (PointType)p_offset);
 		}
 
 		template<typename OffsetType>
-		inline Point<PointType>& operator+=(const Point<OffsetType>& p_offset)
+		Point<PointType>& operator+=(const Point<OffsetType>& p_offset)
 		{
 			x += (PointType)p_offset.x;
 			y += (PointType)p_offset.y;
 			return *this;
 		}
-		inline Point<PointType>& operator+=(PointType p_offset)
+		Point<PointType>& operator+=(PointType p_offset)
 		{
 			x += p_offset;
 			y += p_offset;
@@ -292,12 +292,12 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename T>
-		inline Point<PointType> operator-(const Point<T>& p_point) const
+		Point<PointType> operator-(const Point<T>& p_point) const
 		{
 			return Point<PointType>(x - (PointType)p_point.x, y - (PointType)p_point.y);
 		}
 		template<typename T>
-		inline Point<PointType> operator-(Point<T>&& p_point) const
+		Point<PointType> operator-(Point<T>&& p_point) const
 		{
 			return Point<PointType>(x - (PointType)p_point.x, y - (PointType)p_point.y);
 		}
@@ -306,19 +306,19 @@ namespace AvoGUI
 		/// </summary>
 		/// <param name="p_offset"></param>
 		/// <returns></returns>
-		inline Point<PointType> operator-(PointType p_offset) const
+		Point<PointType> operator-(PointType p_offset) const
 		{
 			return Point<PointType>(x - p_offset, y - p_offset);
 		}
 
 		template<typename OffsetType>
-		inline Point<PointType>& operator-=(const Point<OffsetType>& p_offset)
+		Point<PointType>& operator-=(const Point<OffsetType>& p_offset)
 		{
 			x -= (PointType)p_offset.x;
 			y -= (PointType)p_offset.y;
 			return *this;
 		}
-		inline Point<PointType>& operator-=(PointType p_offset)
+		Point<PointType>& operator-=(PointType p_offset)
 		{
 			x -= p_offset;
 			y -= p_offset;
@@ -328,28 +328,28 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename T>
-		inline Point<PointType> operator*(const Point<T>& p_point) const
+		Point<PointType> operator*(const Point<T>& p_point) const
 		{
 			return Point<PointType>(x*(PointType)p_point.x, y*(PointType)p_point.y);
 		}
 		template<typename T>
-		inline Point<PointType> operator*(Point<T>&& p_point) const
+		Point<PointType> operator*(Point<T>&& p_point) const
 		{
 			return Point<PointType>(x*(PointType)p_point.x, y*(PointType)p_point.y);
 		}
-		inline Point<PointType> operator*(double p_factor) const
+		Point<PointType> operator*(double p_factor) const
 		{
 			return Point<PointType>(x*p_factor, y*p_factor);
 		}
 
 		template<typename T>
-		inline Point<PointType>& operator*=(const Point<T>& p_point)
+		Point<PointType>& operator*=(const Point<T>& p_point)
 		{
 			x *= (PointType)p_point.x;
 			x *= (PointType)p_point.y;
 			return *this;
 		}
-		inline Point<PointType>& operator*=(double p_factor)
+		Point<PointType>& operator*=(double p_factor)
 		{
 			x *= p_factor;
 			x *= p_factor;
@@ -359,28 +359,28 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename T>
-		inline Point<PointType> operator/(const Point<T>& p_point) const
+		Point<PointType> operator/(const Point<T>& p_point) const
 		{
 			return Point<PointType>(x / (PointType)p_point.x, y / (PointType)p_point.y);
 		}
 		template<typename T>
-		inline Point<PointType> operator/(Point<T>&& p_point) const
+		Point<PointType> operator/(Point<T>&& p_point) const
 		{
 			return Point<PointType>(x / (PointType)p_point.x, y / (PointType)p_point.y);
 		}
-		inline Point<PointType> operator/(double p_divisor) const
+		Point<PointType> operator/(double p_divisor) const
 		{
 			return Point<PointType>(x / p_divisor, y / p_divisor);
 		}
 
 		template<typename T>
-		inline Point<PointType>& operator/=(const Point<T>& p_point)
+		Point<PointType>& operator/=(const Point<T>& p_point)
 		{
 			x /= (PointType)p_point.x;
 			x /= (PointType)p_point.y;
 			return *this;
 		}
-		inline Point<PointType>& operator/=(double p_divisor)
+		Point<PointType>& operator/=(double p_divisor)
 		{
 			x /= p_divisor;
 			x /= p_divisor;
@@ -390,91 +390,91 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename T>
-		inline double getDotProduct(const Point<T>& p_point) const
+		double getDotProduct(const Point<T>& p_point) const
 		{
 			return x * p_point.x + y * p_point.y;
 		}
-		inline double getDotProduct(double p_x, double p_y) const
+		double getDotProduct(double p_x, double p_y) const
 		{
 			return x * p_x + y * p_y;
 		}
 
 		template<typename T>
-		inline double getCrossProduct(const Point<T>& p_point) const
+		double getCrossProduct(const Point<T>& p_point) const
 		{
 			return x * p_point.x - y * p_point.x;
 		}
-		inline double getCrossProduct(double p_x, double p_y) const
+		double getCrossProduct(double p_x, double p_y) const
 		{
 			return x * p_y - y * p_x;
 		}
 
 		//------------------------------
 
-		inline PointType getLengthSquared() const
+		PointType getLengthSquared() const
 		{
 			return x * x + y * y;
 		}
-		inline double getLength() const
+		double getLength() const
 		{
 			return sqrt(x*x + y * y);
 		}
-		inline double getLengthFast() const
+		double getLengthFast() const
 		{
 			return fastSqrt(x*x + y * y);
 		}
 
-		static inline double getLengthSquared(float p_x, float p_y)
+		static double getLengthSquared(float p_x, float p_y)
 		{
 			return p_x * p_x + p_y * p_y;
 		}
-		static inline double getLength(float p_x, float p_y)
+		static double getLength(float p_x, float p_y)
 		{
 			return sqrt(p_x * p_x + p_y * p_y);
 		}
-		static inline double getLengthFast(float p_x, float p_y)
+		static double getLengthFast(float p_x, float p_y)
 		{
 			return fastSqrt(p_x * p_x + p_y * p_y);
 		}
 
 		template<typename T0, typename T1>
-		static inline double getDistanceSquared(const Point<T0>& p_point_0, const Point<T1>& p_point_1)
+		static double getDistanceSquared(const Point<T0>& p_point_0, const Point<T1>& p_point_1)
 		{
 			return (p_point_1.x - p_point_0.x)*(p_point_1.x - p_point_0.x) + (p_point_1.y - p_point_0.y)*(p_point_1.y - p_point_0.y);
 		}
-		static inline double getDistanceSquared(double p_x0, double p_y0, double p_x1, double p_y1)
+		static double getDistanceSquared(double p_x0, double p_y0, double p_x1, double p_y1)
 		{
 			return (p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0);
 		}
 		template<typename T0, typename T1>
-		static inline double getDistance(const Point<T0>& p_point_0, const Point<T1>& p_point_1)
+		static double getDistance(const Point<T0>& p_point_0, const Point<T1>& p_point_1)
 		{
 			return sqrt((p_point_1.x - p_point_0.x)*(p_point_1.x - p_point_0.x) + (p_point_1.y - p_point_0.y)*(p_point_1.y - p_point_0.y));
 		}
-		static inline double getDistance(double p_x0, double p_y0, double p_x1, double p_y1)
+		static double getDistance(double p_x0, double p_y0, double p_x1, double p_y1)
 		{
 			return sqrt((p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0));
 		}
 		template<typename T0, typename T1>
-		static inline double getDistanceFast(const Point<T0>& p_point_0, const Point<T1>& p_point_1)
+		static double getDistanceFast(const Point<T0>& p_point_0, const Point<T1>& p_point_1)
 		{
 			return fastSqrt((p_point_1.x - p_point_0.x)*(p_point_1.x - p_point_0.x) + (p_point_1.y - p_point_0.y)*(p_point_1.y - p_point_0.y));
 		}
-		static inline double getDistanceFast(double p_x0, double p_y0, double p_x1, double p_y1)
+		static double getDistanceFast(double p_x0, double p_y0, double p_x1, double p_y1)
 		{
 			return fastSqrt((p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0));
 		}
 
 		//------------------------------
 
-		inline Point<PointType>& normalize()
+		Point<PointType>& normalize()
 		{
 			float length = sqrt(x*x + y * y);
 			x /= length;
 			y /= length;
 			return *this;
 		}
-		inline Point<PointType>& normalizeFast()
+		Point<PointType>& normalizeFast()
 		{
 			float inverseLength = fastInverseSqrt(x*x + y * y);
 			x *= inverseLength;
@@ -502,33 +502,33 @@ namespace AvoGUI
 	public:
 		RectangleType left, top, right, bottom;
 
-		inline Rectangle()
+		Rectangle()
 		{
 			left = top = right = bottom = (RectangleType)0;
 		}
-		inline Rectangle(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
+		Rectangle(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
 		{
 			set(p_left, p_top, p_right, p_bottom);
 		}
 		template<typename PositionType, typename SizeType>
-		inline Rectangle(const Point<PositionType>& p_position, const Point<SizeType>& p_size)
+		Rectangle(const Point<PositionType>& p_position, const Point<SizeType>& p_size)
 		{
 			set(p_position, p_size);
 		}
 		template<typename ParameterRectangleType>
-		inline Rectangle(const Rectangle<ParameterRectangleType>& p_rectangle)
+		Rectangle(const Rectangle<ParameterRectangleType>& p_rectangle)
 		{
 			*this = p_rectangle;
 		}
 		template<typename ParameterRectangleType>
-		inline Rectangle(Rectangle<ParameterRectangleType>&& p_rectangle)
+		Rectangle(Rectangle<ParameterRectangleType>&& p_rectangle)
 		{
 			*this = p_rectangle;
 		}
 
 		//------------------------------
 
-		inline void set(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
+		void set(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
 		{
 			left = p_left;
 			top = p_top;
@@ -536,7 +536,7 @@ namespace AvoGUI
 			bottom = p_bottom;
 		}
 		template<typename PositionType, typename SizeType>
-		inline void set(const Point<PositionType>& p_position, const Point<SizeType>& p_size)
+		void set(const Point<PositionType>& p_position, const Point<SizeType>& p_size)
 		{
 			left = (RectangleType)p_position.x;
 			top = (RectangleType)p_position.y;
@@ -547,7 +547,7 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename ParameterRectangleType>
-		inline Rectangle<RectangleType>& operator=(const Rectangle<ParameterRectangleType>& p_rectangle)
+		Rectangle<RectangleType>& operator=(const Rectangle<ParameterRectangleType>& p_rectangle)
 		{
 			left = (RectangleType)p_rectangle.left;
 			top = (RectangleType)p_rectangle.top;
@@ -556,7 +556,7 @@ namespace AvoGUI
 			return *this;
 		}
 		template<typename ParameterRectangleType>
-		inline Rectangle<RectangleType>& operator=(Rectangle<ParameterRectangleType>&& p_rectangle)
+		Rectangle<RectangleType>& operator=(Rectangle<ParameterRectangleType>&& p_rectangle)
 		{
 			left = (RectangleType)p_rectangle.left;
 			top = (RectangleType)p_rectangle.top;
@@ -572,7 +572,7 @@ namespace AvoGUI
 		/// </summary>
 		/// <param name="p_point">Offset to use</param>
 		template<typename OffsetType>
-		inline Rectangle<RectangleType>& operator+=(const Point<OffsetType>& p_offset)
+		Rectangle<RectangleType>& operator+=(const Point<OffsetType>& p_offset)
 		{
 			left += (RectangleType)p_offset.x;
 			top += (RectangleType)p_offset.y;
@@ -585,7 +585,7 @@ namespace AvoGUI
 		/// </summary>
 		/// <param name="p_point">Negative offset to use</param>
 		template<typename OffsetType>
-		inline Rectangle<RectangleType>& operator-=(const Point<OffsetType>& p_offset)
+		Rectangle<RectangleType>& operator-=(const Point<OffsetType>& p_offset)
 		{
 			left -= (RectangleType)p_offset.x;
 			top -= (RectangleType)p_offset.y;
@@ -597,26 +597,26 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename ParameterRectangleType>
-		inline bool operator==(const Rectangle<ParameterRectangleType>& p_rectangle) const
+		bool operator==(const Rectangle<ParameterRectangleType>& p_rectangle) const
 		{
 			return left == p_rectangle.left && right == p_rectangle.right
 				&& top == p_rectangle.top && bottom == p_rectangle.bottom;
 		}
 		template<typename ParameterRectangleType>
-		inline bool operator==(Rectangle<ParameterRectangleType>&& p_rectangle) const
+		bool operator==(Rectangle<ParameterRectangleType>&& p_rectangle) const
 		{
 			return left == p_rectangle.left && right == p_rectangle.right
 				&& top == p_rectangle.top && bottom == p_rectangle.bottom;
 		}
 
 		template<typename ParameterRectangleType>
-		inline bool operator!=(const Rectangle<ParameterRectangleType>& p_rectangle) const
+		bool operator!=(const Rectangle<ParameterRectangleType>& p_rectangle) const
 		{
 			return left != p_rectangle.left || right != p_rectangle.right
 				|| top != p_rectangle.top || bottom != p_rectangle.bottom;
 		}
 		template<typename ParameterRectangleType>
-		inline bool operator!=(Rectangle<ParameterRectangleType>&& p_rectangle) const
+		bool operator!=(Rectangle<ParameterRectangleType>&& p_rectangle) const
 		{
 			return left != p_rectangle.left || right != p_rectangle.right
 				|| top != p_rectangle.top || bottom != p_rectangle.bottom;
@@ -624,7 +624,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		inline Rectangle<RectangleType> createCopyAtOrigin() const
+		Rectangle<RectangleType> createCopyAtOrigin() const
 		{
 			return Rectangle<RectangleType>(0, 0, right - left, bottom - top);
 		}
@@ -636,7 +636,7 @@ namespace AvoGUI
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
 		template<typename PositionType>
-		inline Rectangle<RectangleType> createCopyWithTopLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
+		Rectangle<RectangleType> createCopyWithTopLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_position.x, p_position.y, p_willKeepSize*(p_position.x - left) + right, p_willKeepSize*(p_position.y - top) + bottom);
 		}
@@ -644,7 +644,7 @@ namespace AvoGUI
 		/// <para>Creates a copy of this rectangle, with a new top-left corner.</para>
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
-		inline Rectangle<RectangleType> createCopyWithTopLeft(RectangleType p_left, RectangleType p_top, bool p_willKeepSize = true) const
+		Rectangle<RectangleType> createCopyWithTopLeft(RectangleType p_left, RectangleType p_top, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_left, p_top, p_willKeepSize*(p_left - left) + right, p_willKeepSize*(p_top - top) + bottom);
 		}
@@ -653,7 +653,7 @@ namespace AvoGUI
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
 		template<typename PositionType>
-		inline Rectangle<RectangleType>& setTopLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true)
+		Rectangle<RectangleType>& setTopLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true)
 		{
 			return setTopLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -661,7 +661,7 @@ namespace AvoGUI
 		/// <para>Sets the top left coordinates of the rectangle.</para> 
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
-		inline Rectangle<RectangleType>& setTopLeft(RectangleType p_left, RectangleType p_top, bool p_willKeepSize = true)
+		Rectangle<RectangleType>& setTopLeft(RectangleType p_left, RectangleType p_top, bool p_willKeepSize = true)
 		{
 			if (p_willKeepSize)
 			{
@@ -675,7 +675,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the top left coordinates of the rectangle.
 		/// </summary>
-		inline Point<RectangleType> getTopLeft() const
+		Point<RectangleType> getTopLeft() const
 		{
 			return Point<RectangleType>(left, top);
 		}
@@ -687,7 +687,7 @@ namespace AvoGUI
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
 		template<typename PositionType>
-		inline Rectangle<RectangleType> createCopyWithTopRight(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
+		Rectangle<RectangleType> createCopyWithTopRight(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_position.x - right) + left, p_position.y, p_position.x, p_willKeepSize*(p_position.y - top) + bottom);
 		}
@@ -695,7 +695,7 @@ namespace AvoGUI
 		/// <para>Creates a copy of this rectangle, with a new top-right corner.</para>
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
-		inline Rectangle<RectangleType> createCopyWithTopRight(RectangleType p_right, RectangleType p_top, bool p_willKeepSize = true) const
+		Rectangle<RectangleType> createCopyWithTopRight(RectangleType p_right, RectangleType p_top, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_right - right) + left, p_top, p_right, p_willKeepSize*(p_top - top) + bottom);
 		}
@@ -704,7 +704,7 @@ namespace AvoGUI
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
 		template<typename PositionType>
-		inline Rectangle<RectangleType>& setTopRight(const Point<PositionType>& p_position, bool p_willKeepSize = true)
+		Rectangle<RectangleType>& setTopRight(const Point<PositionType>& p_position, bool p_willKeepSize = true)
 		{
 			return setTopRight(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -712,7 +712,7 @@ namespace AvoGUI
 		/// <para>Sets the top right coordinates of the rectangle.</para> 
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
-		inline Rectangle<RectangleType>& setTopRight(RectangleType p_right, RectangleType p_top, bool p_willKeepSize = true)
+		Rectangle<RectangleType>& setTopRight(RectangleType p_right, RectangleType p_top, bool p_willKeepSize = true)
 		{
 			if (p_willKeepSize)
 			{
@@ -726,7 +726,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the top right coordinates of the rectangle.
 		/// </summary>
-		inline Point<RectangleType> getTopRight() const
+		Point<RectangleType> getTopRight() const
 		{
 			return Point<RectangleType>(right, top);
 		}
@@ -738,7 +738,7 @@ namespace AvoGUI
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
 		template<typename PositionType>
-		inline Rectangle<RectangleType> createCopyWithBottomLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
+		Rectangle<RectangleType> createCopyWithBottomLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_position.x, p_willKeepSize*(p_position.y - bottom) + top, (p_position.x - left) + right, p_position.y);
 		}
@@ -746,7 +746,7 @@ namespace AvoGUI
 		/// <para>Creates a copy of this rectangle, with a new bottom-left corner.</para>
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
-		inline Rectangle<RectangleType> createCopyWithBottomLeft(RectangleType p_left, RectangleType p_bottom, bool p_willKeepSize = true) const
+		Rectangle<RectangleType> createCopyWithBottomLeft(RectangleType p_left, RectangleType p_bottom, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_left, p_willKeepSize*(p_bottom - bottom) + top, (p_left - left) + right, p_bottom);
 		}
@@ -755,7 +755,7 @@ namespace AvoGUI
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
 		template<typename PositionType>
-		inline Rectangle<RectangleType>& setBottomLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true)
+		Rectangle<RectangleType>& setBottomLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true)
 		{
 			return setBottomLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -763,7 +763,7 @@ namespace AvoGUI
 		/// <para>Sets the bottom left coordinates of the rectangle.</para> 
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
-		inline Rectangle<RectangleType>& setBottomLeft(RectangleType p_left, RectangleType p_bottom, bool p_willKeepSize = true)
+		Rectangle<RectangleType>& setBottomLeft(RectangleType p_left, RectangleType p_bottom, bool p_willKeepSize = true)
 		{
 			if (p_willKeepSize)
 			{
@@ -777,7 +777,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the bottom left coordinates of the rectangle.
 		/// </summary>
-		inline Point<RectangleType> getBottomLeft() const
+		Point<RectangleType> getBottomLeft() const
 		{
 			return Point<RectangleType>(left, bottom);
 		}
@@ -789,7 +789,7 @@ namespace AvoGUI
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
 		template<typename PositionType>
-		inline Rectangle<RectangleType> createCopyWithBottomRight(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
+		Rectangle<RectangleType> createCopyWithBottomRight(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_position.x - right) + left, p_willKeepSize*(p_position.y - bottom) + top, p_position.x, p_position.y);
 		}
@@ -797,7 +797,7 @@ namespace AvoGUI
 		/// <para>Creates a copy of this rectangle, with a new bottom-right corner.</para>
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
-		inline Rectangle<RectangleType> createCopyWithBottomRight(RectangleType p_right, RectangleType p_bottom, bool p_willKeepSize = true) const
+		Rectangle<RectangleType> createCopyWithBottomRight(RectangleType p_right, RectangleType p_bottom, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_right - right) + left, p_willKeepSize*(p_bottom - bottom) + top, p_right, p_bottom);
 		}
@@ -806,7 +806,7 @@ namespace AvoGUI
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
 		template<typename PositionType>
-		inline Rectangle<RectangleType>& setBottomRight(const Point<PositionType>& p_position, bool p_willKeepSize = true)
+		Rectangle<RectangleType>& setBottomRight(const Point<PositionType>& p_position, bool p_willKeepSize = true)
 		{
 			return setBottomRight(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -814,7 +814,7 @@ namespace AvoGUI
 		/// <para>Sets the bottom right coordinates of the rectangle.</para> 
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
-		inline Rectangle<RectangleType>& setBottomRight(RectangleType p_right, RectangleType p_bottom, bool p_willKeepSize = true)
+		Rectangle<RectangleType>& setBottomRight(RectangleType p_right, RectangleType p_bottom, bool p_willKeepSize = true)
 		{
 			if (p_willKeepSize)
 			{
@@ -828,7 +828,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the bottom right coordinates of the rectangle.
 		/// </summary>
-		inline Point<RectangleType> getBottomRight() const
+		Point<RectangleType> getBottomRight() const
 		{
 			return Point<RectangleType>(right, bottom);
 		}
@@ -840,7 +840,7 @@ namespace AvoGUI
 		/// <para>If p_willKeepWidth is true, the right coordinate will be changed</para>
 		/// <para>so that the width stays the same.</para>
 		/// </summary>
-		inline Rectangle<RectangleType>& setLeft(RectangleType p_left, bool p_willKeepWidth = true)
+		Rectangle<RectangleType>& setLeft(RectangleType p_left, bool p_willKeepWidth = true)
 		{
 			if (p_willKeepWidth)
 			{
@@ -854,7 +854,7 @@ namespace AvoGUI
 		/// <para>If p_willKeepHeight is true, the bottom coordinate will be changed</para>
 		/// <para>so that the height stays the same.</para>
 		/// </summary>
-		inline Rectangle<RectangleType>& setTop(RectangleType p_top, bool p_willKeepHeight = true)
+		Rectangle<RectangleType>& setTop(RectangleType p_top, bool p_willKeepHeight = true)
 		{
 			if (p_willKeepHeight)
 			{
@@ -868,7 +868,7 @@ namespace AvoGUI
 		/// <para>If p_willKeepWidth is true, the left coordinate will be changed</para>
 		/// <para>so that the width stays the same.</para>
 		/// </summary>
-		inline Rectangle<RectangleType>& setRight(RectangleType p_right, bool p_willKeepWidth = true)
+		Rectangle<RectangleType>& setRight(RectangleType p_right, bool p_willKeepWidth = true)
 		{
 			if (p_willKeepWidth)
 			{
@@ -882,7 +882,7 @@ namespace AvoGUI
 		/// <para>If p_willKeepWidth is true, the top coordinate will be changed</para>
 		/// <para>so that the height stays the same.</para>
 		/// </summary>
-		inline Rectangle<RectangleType>& setBottom(RectangleType p_bottom, bool p_willKeepHeight = true)
+		Rectangle<RectangleType>& setBottom(RectangleType p_bottom, bool p_willKeepHeight = true)
 		{
 			if (p_willKeepHeight)
 			{
@@ -897,7 +897,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns a copy of the rectangle where the coordinates are rounded in the directions that expand the rectangle.
 		/// </summary>
-		inline Rectangle<RectangleType> createCopyWithOutwardsRoundedCoordinates() const
+		Rectangle<RectangleType> createCopyWithOutwardsRoundedCoordinates() const
 		{
 			Rectangle<RectangleType> rounded;
 			rounded.left = floor(left);
@@ -909,7 +909,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Rounds the coordinates of the rectangle in the directions that expand the rectangle.
 		/// </summary>
-		inline Rectangle<RectangleType>& roundCoordinatesOutwards()
+		Rectangle<RectangleType>& roundCoordinatesOutwards()
 		{
 			left = floor(left);
 			top = floor(top);
@@ -924,7 +924,7 @@ namespace AvoGUI
 		/// <para>Creates a copy of this rectangle, with a new center position.</para>
 		/// </summary>
 		template<typename PositionType>
-		inline Rectangle<RectangleType> createCopyWithCenter(const Point<PositionType>& p_position) const
+		Rectangle<RectangleType> createCopyWithCenter(const Point<PositionType>& p_position) const
 		{
 			RectangleType offsetX = (RectangleType)p_position.x - (left + right)*0.5;
 			RectangleType offsetY = (RectangleType)p_position.y - (top + bottom)*0.5;
@@ -933,7 +933,7 @@ namespace AvoGUI
 		/// <summary>
 		/// <para>Creates a copy of this rectangle, with a new center position.</para>
 		/// </summary>
-		inline Rectangle<RectangleType> createCopyWithBottomRight(RectangleType p_centerX, RectangleType p_centerY) const
+		Rectangle<RectangleType> createCopyWithBottomRight(RectangleType p_centerX, RectangleType p_centerY) const
 		{
 			RectangleType offsetX = p_centerX - (left + right)*0.5;
 			RectangleType offsetY = p_centerY - (top + bottom)*0.5;
@@ -943,14 +943,14 @@ namespace AvoGUI
 		/// <para>Sets the center coordinates of the rectangle.</para> 
 		/// </summary>
 		template<typename PositionType>
-		inline Rectangle<RectangleType>& setCenter(const Point<PositionType>& p_position)
+		Rectangle<RectangleType>& setCenter(const Point<PositionType>& p_position)
 		{
 			return setCenter(p_position.x, p_position.y);
 		}
 		/// <summary>
 		/// <para>Sets the center coordinates of the rectangle.</para> 
 		/// </summary>
-		inline Rectangle<RectangleType>& setCenter(RectangleType p_x, RectangleType p_y)
+		Rectangle<RectangleType>& setCenter(RectangleType p_x, RectangleType p_y)
 		{
 			RectangleType halfWidth = (right - left) / 2;
 			RectangleType halfHeight = (bottom - top) / 2;
@@ -963,7 +963,7 @@ namespace AvoGUI
 		/// <summary>
 		/// <para>Sets the horizontal center coordinate of the rectangle.</para>
 		/// </summary>
-		inline Rectangle<RectangleType>& setCenterX(RectangleType p_x)
+		Rectangle<RectangleType>& setCenterX(RectangleType p_x)
 		{
 			RectangleType halfWidth = (right - left) / 2;
 			left = p_x - halfWidth;
@@ -973,7 +973,7 @@ namespace AvoGUI
 		/// <summary>
 		/// <para>Sets the vertical center coordinate of the rectangle.</para>
 		/// </summary>
-		inline Rectangle<RectangleType>& setCenterY(RectangleType p_y)
+		Rectangle<RectangleType>& setCenterY(RectangleType p_y)
 		{
 			RectangleType halfHeight = (bottom - top) / 2;
 			top = p_y - halfHeight;
@@ -983,21 +983,21 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the center coordinates of the rectangle.
 		/// </summary>
-		inline Point<RectangleType> getCenter() const
+		Point<RectangleType> getCenter() const
 		{
 			return Point<RectangleType>((left + right) / 2, (top + bottom) / 2);
 		}
 		/// <summary>
 		/// Returns the x-axis center coordinate of the rectangle.
 		/// </summary>
-		inline RectangleType getCenterX() const
+		RectangleType getCenterX() const
 		{
 			return (left + right) / 2;
 		}
 		/// <summary>
 		/// Returns the y-axis center coordinate of the rectangle.
 		/// </summary>
-		inline RectangleType getCenterY() const
+		RectangleType getCenterY() const
 		{
 			return (top + bottom) / 2;
 		}
@@ -1005,13 +1005,13 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename OffsetType>
-		inline Rectangle<RectangleType>& moveTopLeft(const Point<OffsetType>& p_offset)
+		Rectangle<RectangleType>& moveTopLeft(const Point<OffsetType>& p_offset)
 		{
 			left += p_offset.x;
 			top += p_offset.y;
 			return *this;
 		}
-		inline Rectangle<RectangleType>& moveTopLeft(RectangleType p_offsetX, RectangleType p_offsetY)
+		Rectangle<RectangleType>& moveTopLeft(RectangleType p_offsetX, RectangleType p_offsetY)
 		{
 			left += p_offsetX;
 			top += p_offsetY;
@@ -1019,13 +1019,13 @@ namespace AvoGUI
 		}
 
 		template<typename OffsetType>
-		inline Rectangle<RectangleType>& moveTopRight(const Point<OffsetType>& p_offset)
+		Rectangle<RectangleType>& moveTopRight(const Point<OffsetType>& p_offset)
 		{
 			right += p_offset.x;
 			top += p_offset.y;
 			return *this;
 		}
-		inline Rectangle<RectangleType>& moveTopRight(RectangleType p_offsetX, RectangleType p_offsetY)
+		Rectangle<RectangleType>& moveTopRight(RectangleType p_offsetX, RectangleType p_offsetY)
 		{
 			right += p_offsetX;
 			top += p_offsetY;
@@ -1033,13 +1033,13 @@ namespace AvoGUI
 		}
 
 		template<typename OffsetType>
-		inline Rectangle<RectangleType>& moveBottomLeft(const Point<OffsetType>& p_offset)
+		Rectangle<RectangleType>& moveBottomLeft(const Point<OffsetType>& p_offset)
 		{
 			left += p_offset.x;
 			bottom += p_offset.y;
 			return *this;
 		}
-		inline Rectangle<RectangleType>& moveBottomLeft(RectangleType p_offsetX, RectangleType p_offsetY)
+		Rectangle<RectangleType>& moveBottomLeft(RectangleType p_offsetX, RectangleType p_offsetY)
 		{
 			left += p_offsetX;
 			bottom += p_offsetY;
@@ -1047,13 +1047,13 @@ namespace AvoGUI
 		}
 
 		template<typename OffsetType>
-		inline Rectangle<RectangleType>& moveBottomRight(const Point<OffsetType>& p_offset)
+		Rectangle<RectangleType>& moveBottomRight(const Point<OffsetType>& p_offset)
 		{
 			right += p_offset.x;
 			bottom += p_offset.y;
 			return *this;
 		}
-		inline Rectangle<RectangleType>& moveBottomRight(RectangleType p_offsetX, RectangleType p_offsetY)
+		Rectangle<RectangleType>& moveBottomRight(RectangleType p_offsetX, RectangleType p_offsetY)
 		{
 			right += p_offsetX;
 			bottom += p_offsetY;
@@ -1066,14 +1066,14 @@ namespace AvoGUI
 		/// Creates a copy of this rectangle, offseted by an amount.
 		/// </summary>
 		template<typename OffsetType>
-		inline Rectangle<RectangleType> createMovedCopy(const Point<OffsetType>& p_offset) const
+		Rectangle<RectangleType> createMovedCopy(const Point<OffsetType>& p_offset) const
 		{
 			return Rectangle<RectangleType>(left + p_offset.x, top + p_offset.y, right + p_offset.x, bottom + p_offset.y);
 		}
 		/// <summary>
 		/// Creates a copy of this rectangle, offseted by an amount.
 		/// </summary>
-		inline Rectangle<RectangleType> createMovedCopy(RectangleType p_offsetX, RectangleType p_offsetY) const
+		Rectangle<RectangleType> createMovedCopy(RectangleType p_offsetX, RectangleType p_offsetY) const
 		{
 			return Rectangle<RectangleType>(left + p_offsetX, top + p_offsetY, right + p_offsetX, bottom + p_offsetY);
 		}
@@ -1081,7 +1081,7 @@ namespace AvoGUI
 		/// Does the same as the += operator, offsets the whole rectangle.
 		/// </summary>
 		template<typename OffsetType>
-		inline Rectangle<RectangleType>& move(const Point<OffsetType>& p_offset)
+		Rectangle<RectangleType>& move(const Point<OffsetType>& p_offset)
 		{
 			left += p_offset.x;
 			right += p_offset.x;
@@ -1092,7 +1092,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Does the same as the += operator, offsets the whole rectangle.
 		/// </summary>
-		inline Rectangle<RectangleType>& move(RectangleType p_offsetX, RectangleType p_offsetY)
+		Rectangle<RectangleType>& move(RectangleType p_offsetX, RectangleType p_offsetY)
 		{
 			left += p_offsetX;
 			right += p_offsetX;
@@ -1107,14 +1107,14 @@ namespace AvoGUI
 		/// Sets the width and height of the rectangle, changing the right and bottom properties.
 		/// </summary>
 		template<typename SizeType>
-		inline Rectangle<RectangleType>& setSize(const Point<SizeType>& p_size)
+		Rectangle<RectangleType>& setSize(const Point<SizeType>& p_size)
 		{
 			return setSize(p_size.x, p_size.y);
 		}
 		/// <summary>
 		/// Sets the width and height of the rectangle, changing the right and bottom variables.
 		/// </summary>
-		inline Rectangle<RectangleType>& setSize(RectangleType p_width, RectangleType p_height)
+		Rectangle<RectangleType>& setSize(RectangleType p_width, RectangleType p_height)
 		{
 			right = left + p_width;
 			bottom = top + p_height;
@@ -1123,7 +1123,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns a point representing the size of the rectangle, where the x component is width and y is height.
 		/// </summary>
-		inline Point<RectangleType> getSize() const
+		Point<RectangleType> getSize() const
 		{
 			return Point<RectangleType>(right - left, bottom - top);
 		}
@@ -1131,7 +1131,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Sets the width of the rectangle, changing the right property.
 		/// </summary>
-		inline Rectangle<RectangleType>& setWidth(RectangleType p_width)
+		Rectangle<RectangleType>& setWidth(RectangleType p_width)
 		{
 			right = left + p_width;
 			return *this;
@@ -1139,7 +1139,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the width of the rectangle.
 		/// </summary>
-		inline RectangleType getWidth() const
+		RectangleType getWidth() const
 		{
 			return right - left;
 		}
@@ -1147,7 +1147,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Sets the height of the rectangle, changing the bottom property.
 		/// </summary>
-		inline Rectangle<RectangleType>& setHeight(RectangleType p_height)
+		Rectangle<RectangleType>& setHeight(RectangleType p_height)
 		{
 			bottom = top + p_height;
 			return *this;
@@ -1155,7 +1155,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the height of the rectangle.
 		/// </summary>
-		inline RectangleType getHeight() const
+		RectangleType getHeight() const
 		{
 			return bottom - top;
 		}
@@ -1166,7 +1166,7 @@ namespace AvoGUI
 		/// Returns a new copy of this rectangle which is clipped to fit into the parameter rectangle.
 		/// </summary>
 		template<typename ParameterRectangleType>
-		inline Rectangle<RectangleType> createBoundedCopy(const Rectangle<ParameterRectangleType>& p_bounds) const
+		Rectangle<RectangleType> createBoundedCopy(const Rectangle<ParameterRectangleType>& p_bounds) const
 		{
 			Rectangle<RectangleType> bounded;
 			bounded.left = max(left, min(right, p_bounds.left));
@@ -1178,7 +1178,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns a new copy of this rectangle which is clipped to fit into the parameter rectangle.
 		/// </summary>
-		inline Rectangle<RectangleType> createBoundedCopy(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom) const
+		Rectangle<RectangleType> createBoundedCopy(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom) const
 		{
 			Rectangle<RectangleType> bounded;
 			bounded.left = max(left, min(right, p_left));
@@ -1192,7 +1192,7 @@ namespace AvoGUI
 		/// Clips this rectangle to fit into the parameter rectangle.
 		/// </summary>
 		template<typename ParameterRectangleType>
-		inline Rectangle<RectangleType>& bound(const Rectangle<ParameterRectangleType>& p_bounds)
+		Rectangle<RectangleType>& bound(const Rectangle<ParameterRectangleType>& p_bounds)
 		{
 			if (left < p_bounds.left) left = p_bounds.left;
 			if (top < p_bounds.top) top = p_bounds.top;
@@ -1203,7 +1203,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Clips this rectangle to fit into the parameter rectangle.
 		/// </summary>
-		inline Rectangle<RectangleType>& bound(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
+		Rectangle<RectangleType>& bound(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
 		{
 			if (left < p_left) left = p_left;
 			if (top < p_top) top = p_top;
@@ -1218,7 +1218,7 @@ namespace AvoGUI
 		/// Returns a new copy of this rectangle which is extended so that it contains another rectangle.
 		/// </summary>
 		template<typename ParameterRectangleType>
-		inline Rectangle<RectangleType> createContainedCopy(const Rectangle<ParameterRectangleType>& p_rectangle) const
+		Rectangle<RectangleType> createContainedCopy(const Rectangle<ParameterRectangleType>& p_rectangle) const
 		{
 			Rectangle<RectangleType> contained;
 			contained.left = min(left, p_rectangle.left);
@@ -1230,7 +1230,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns a new copy of this rectangle which is extended so that it contains another rectangle.
 		/// </summary>
-		inline Rectangle<RectangleType> createContainedCopy(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom) const
+		Rectangle<RectangleType> createContainedCopy(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom) const
 		{
 			Rectangle<RectangleType> contained;
 			contained.left = min(left, p_left);
@@ -1244,7 +1244,7 @@ namespace AvoGUI
 		/// Extends the rectangle so that it contains another rectangle.
 		/// </summary>
 		template<typename ParameterRectangleType>
-		inline Rectangle<RectangleType>& contain(const Rectangle<ParameterRectangleType>& p_rectangle)
+		Rectangle<RectangleType>& contain(const Rectangle<ParameterRectangleType>& p_rectangle)
 		{
 			if (p_rectangle.left < left) left = p_rectangle.left;
 			if (p_rectangle.top < top) top = p_rectangle.top;
@@ -1256,7 +1256,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Extends the rectangle so that it contains another rectangle.
 		/// </summary>
-		inline Rectangle<RectangleType>& contain(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
+		Rectangle<RectangleType>& contain(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
 		{
 			if (p_left < left) left = p_left;
 			if (p_top < top) top = p_top;
@@ -1279,7 +1279,7 @@ namespace AvoGUI
 		/// <summary>
 		/// <para>Returns if a point lies within this rectangle.</para>
 		/// </summary>
-		inline bool getIsContaining(RectangleType p_x, RectangleType p_y) const
+		bool getIsContaining(RectangleType p_x, RectangleType p_y) const
 		{
 			return p_x >= left && p_x <= right
 				&& p_y >= top && p_y <= bottom;
@@ -1328,215 +1328,215 @@ namespace AvoGUI
 		ProtectedRectangle(const Rectangle<float>& p_bounds) : m_bounds(p_bounds) { }
 		ProtectedRectangle(Rectangle<float>&& p_bounds) : m_bounds(p_bounds) { }
 
-		inline virtual void setBounds(const Rectangle<float>& p_rectangle)
+		virtual void setBounds(const Rectangle<float>& p_rectangle)
 		{
 			m_bounds = p_rectangle;
 		}
-		inline virtual void setBounds(float p_left, float p_top, float p_right, float p_bottom)
+		virtual void setBounds(float p_left, float p_top, float p_right, float p_bottom)
 		{
 			m_bounds.set(p_left, p_top, p_right, p_bottom);
 		}
-		inline virtual void setBounds(const Point<float>& p_position, const Point<float>& p_size)
+		virtual void setBounds(const Point<float>& p_position, const Point<float>& p_size)
 		{
 			m_bounds.set(p_position, p_size);
 		}
-		inline virtual const Rectangle<float>& getBounds() const
+		virtual const Rectangle<float>& getBounds() const
 		{
 			return m_bounds;
 		}
 
 		//------------------------------
 
-		inline virtual void move(const Point<float>& p_offset)
+		virtual void move(const Point<float>& p_offset)
 		{
 			m_bounds.move(p_offset);
 		}
-		inline virtual void move(float p_offsetX, float p_offsetY)
+		virtual void move(float p_offsetX, float p_offsetY)
 		{
 			m_bounds.move(p_offsetX, p_offsetY);
 		}
 
 		//------------------------------
 
-		inline virtual void setTopLeft(const Point<float>& p_position, bool p_willKeepSize = true)
+		virtual void setTopLeft(const Point<float>& p_position, bool p_willKeepSize = true)
 		{
 			m_bounds.setTopLeft(p_position, p_willKeepSize);
 		}
-		inline virtual void setTopLeft(float p_left, float p_top, bool p_willKeepSize = true)
+		virtual void setTopLeft(float p_left, float p_top, bool p_willKeepSize = true)
 		{
 			m_bounds.setTopLeft(p_left, p_top, p_willKeepSize);
 		}
-		inline virtual Point<float> getTopLeft() const
+		virtual Point<float> getTopLeft() const
 		{
 			return m_bounds.getTopLeft();
 		}
 
-		inline virtual void setTopRight(const Point<float>& p_topRight, bool p_willKeepSize = true)
+		virtual void setTopRight(const Point<float>& p_topRight, bool p_willKeepSize = true)
 		{
 			m_bounds.setTopRight(p_topRight, p_willKeepSize);
 		}
-		inline virtual void setTopRight(float p_right, float p_top, bool p_willKeepSize = true)
+		virtual void setTopRight(float p_right, float p_top, bool p_willKeepSize = true)
 		{
 			m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
 		}
-		inline virtual Point<float> getTopRight() const
+		virtual Point<float> getTopRight() const
 		{
 			return m_bounds.getTopRight();
 		}
 
-		inline virtual void setBottomLeft(const Point<float>& p_bottomLeft, bool p_willKeepSize = true)
+		virtual void setBottomLeft(const Point<float>& p_bottomLeft, bool p_willKeepSize = true)
 		{
 			m_bounds.setBottomLeft(p_bottomLeft, p_willKeepSize);
 		}
-		inline virtual void setBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true)
+		virtual void setBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true)
 		{
 			m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
 		}
-		inline virtual Point<float> getBottomLeft() const
+		virtual Point<float> getBottomLeft() const
 		{
 			return m_bounds.getBottomLeft();
 		}
 
-		inline virtual void setBottomRight(const Point<float>& p_bottomRight, bool p_willKeepSize = true)
+		virtual void setBottomRight(const Point<float>& p_bottomRight, bool p_willKeepSize = true)
 		{
 			m_bounds.setBottomRight(p_bottomRight, p_willKeepSize);
 		}
-		inline virtual void setBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true)
+		virtual void setBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true)
 		{
 			m_bounds.setBottomRight(p_right, p_bottom, p_willKeepSize);
 		}
-		inline virtual Point<float> getBottomRight() const
+		virtual Point<float> getBottomRight() const
 		{
 			return m_bounds.getBottomRight();
 		}
 
 		//------------------------------
 
-		inline virtual void setCenter(const Point<float>& p_position)
+		virtual void setCenter(const Point<float>& p_position)
 		{
 			m_bounds.setCenter(p_position);
 		}
-		inline virtual void setCenter(float p_x, float p_y)
+		virtual void setCenter(float p_x, float p_y)
 		{
 			m_bounds.setCenter(p_x, p_y);
 		}
-		inline virtual void setCenterX(float p_x)
+		virtual void setCenterX(float p_x)
 		{
 			m_bounds.setCenterX(p_x);
 		}
-		inline virtual void setCenterY(float p_y)
+		virtual void setCenterY(float p_y)
 		{
 			m_bounds.setCenterY(p_y);
 		}
 
-		inline virtual Point<float> getCenter() const
+		virtual Point<float> getCenter() const
 		{
 			return m_bounds.getCenter();
 		}
-		inline virtual float getCenterX() const
+		virtual float getCenterX() const
 		{
 			return m_bounds.getCenterX();
 		}
-		inline virtual float getCenterY() const
+		virtual float getCenterY() const
 		{
 			return m_bounds.getCenterY();
 		}
 
 		//------------------------------
 
-		inline virtual void setLeft(float p_left, bool p_willKeepWidth = false)
+		virtual void setLeft(float p_left, bool p_willKeepWidth = false)
 		{
 			m_bounds.setLeft(p_left, p_willKeepWidth);
 		}
-		inline virtual float getLeft() const
+		virtual float getLeft() const
 		{
 			return m_bounds.left;
 		}
 
-		inline virtual void setTop(float p_top, bool p_willKeepHeight = false)
+		virtual void setTop(float p_top, bool p_willKeepHeight = false)
 		{
 			m_bounds.setTop(p_top, p_willKeepHeight);
 		}
-		inline virtual float getTop() const
+		virtual float getTop() const
 		{
 			return m_bounds.top;
 		}
 
-		inline virtual void setRight(float p_right, bool p_willKeepWidth = false)
+		virtual void setRight(float p_right, bool p_willKeepWidth = false)
 		{
 			m_bounds.setRight(p_right, p_willKeepWidth);
 		}
-		inline virtual float getRight() const
+		virtual float getRight() const
 		{
 			return m_bounds.right;
 		}
 
-		inline virtual void setBottom(float p_bottom, bool p_willKeepHeight = false)
+		virtual void setBottom(float p_bottom, bool p_willKeepHeight = false)
 		{
 			m_bounds.setBottom(p_bottom, p_willKeepHeight);
 		}
-		inline virtual float getBottom() const
+		virtual float getBottom() const
 		{
 			return m_bounds.bottom;
 		}
 
 		//------------------------------
 
-		inline virtual void setWidth(float p_width)
+		virtual void setWidth(float p_width)
 		{
 			m_bounds.setWidth(p_width);
 		}
-		inline virtual float getWidth() const
+		virtual float getWidth() const
 		{
 			return m_bounds.getWidth();
 		}
 
-		inline virtual void setHeight(float p_height)
+		virtual void setHeight(float p_height)
 		{
 			m_bounds.setHeight(p_height);
 		}
-		inline virtual float getHeight() const
+		virtual float getHeight() const
 		{
 			return m_bounds.getHeight();
 		}
 
-		inline virtual void setSize(const Point<float>& p_size)
+		virtual void setSize(const Point<float>& p_size)
 		{
 			m_bounds.setSize(p_size);
 		}
-		inline virtual void setSize(float p_width, float p_height)
+		virtual void setSize(float p_width, float p_height)
 		{
 			m_bounds.setSize(p_width, p_height);
 		}
-		inline virtual Point<float> getSize() const
+		virtual Point<float> getSize() const
 		{
 			return m_bounds.getSize();
 		}
 
 		//------------------------------
 
-		inline virtual bool getIsIntersecting(const Rectangle<float>& p_rectangle) const
+		virtual bool getIsIntersecting(const Rectangle<float>& p_rectangle) const
 		{
 			return m_bounds.getIsIntersecting(p_rectangle);
 		}
-		inline virtual bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const
+		virtual bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const
 		{
 			return m_bounds.getIsIntersecting(p_protectedRectangle);
 		}
 
-		inline virtual bool getIsContaining(const Rectangle<float>& p_rectangle) const
+		virtual bool getIsContaining(const Rectangle<float>& p_rectangle) const
 		{
 			return m_bounds.getIsContaining(p_rectangle);
 		}
-		inline virtual bool getIsContaining(ProtectedRectangle* p_rectangle) const
+		virtual bool getIsContaining(ProtectedRectangle* p_rectangle) const
 		{
 			return m_bounds.getIsContaining(p_rectangle);
 		}
-		inline virtual bool getIsContaining(float p_x, float p_y) const
+		virtual bool getIsContaining(float p_x, float p_y) const
 		{
 			return m_bounds.getIsContaining(p_x, p_y);
 		}
-		inline virtual bool getIsContaining(const Point<float>& p_point) const
+		virtual bool getIsContaining(const Point<float>& p_point) const
 		{
 			return m_bounds.getIsContaining(p_point);
 		}
@@ -1559,12 +1559,12 @@ namespace AvoGUI
 	{
 		float x0, y0, x1, y1;
 
-		inline Easing() : x0(0.f), y0(0.f), x1(1.f), y1(1.f) { }
-		inline Easing(const Easing& p_easing)
+		Easing() : x0(0.f), y0(0.f), x1(1.f), y1(1.f) { }
+		Easing(const Easing& p_easing)
 		{
 			*this = p_easing;
 		}
-		inline Easing(Easing&& p_easing)
+		Easing(Easing&& p_easing)
 		{
 			*this = p_easing;
 		}
@@ -1589,7 +1589,7 @@ namespace AvoGUI
 			x0((float)p_x0), y0((float)p_y0), x1((float)p_x1), y1((float)p_y1)
 		{ }
 
-		inline Easing& operator=(const Easing& p_easing)
+		Easing& operator=(const Easing& p_easing)
 		{
 			x0 = p_easing.x0;
 			y0 = p_easing.y0;
@@ -1597,7 +1597,7 @@ namespace AvoGUI
 			y1 = p_easing.y1;
 			return *this;
 		}
-		inline Easing& operator=(Easing&& p_easing)
+		Easing& operator=(Easing&& p_easing)
 		{
 			x0 = p_easing.x0;
 			y0 = p_easing.y0;
@@ -1632,13 +1632,13 @@ namespace AvoGUI
 		int32_t m_referenceCount;
 
 	public:
-		inline ReferenceCounted() : m_referenceCount(1) { }
+		ReferenceCounted() : m_referenceCount(1) { }
 		virtual ~ReferenceCounted() { };
 
 		/// <summary>
 		/// Increments the reference count.
 		/// </summary>
-		inline void remember()
+		void remember()
 		{
 			m_referenceCount++;
 		}
@@ -1647,7 +1647,7 @@ namespace AvoGUI
 		/// <para>Decrements the reference count and deletes the</para>
 		/// <para>object if the reference count has reached 0.</para>
 		/// </summary>
-		inline void forget()
+		void forget()
 		{
 			m_referenceCount--;
 			if (!m_referenceCount)
@@ -1666,19 +1666,19 @@ namespace AvoGUI
 	/// </summary>
 	typedef uint32_t colorInt;
 
-	inline unsigned char getRed(colorInt p_color)
+	unsigned char getRed(colorInt p_color)
 	{
 		return (p_color >> 16) & 0xff;
 	}
-	inline unsigned char getGreen(colorInt p_color)
+	unsigned char getGreen(colorInt p_color)
 	{
 		return (p_color >> 8) & 0xff;
 	}
-	inline unsigned char getBlue(colorInt p_color)
+	unsigned char getBlue(colorInt p_color)
 	{
 		return p_color & 0xff;
 	}
-	inline unsigned char getAlpha(colorInt p_color)
+	unsigned char getAlpha(colorInt p_color)
 	{
 		return (p_color >> 24) & 0xff;
 	}
@@ -1776,7 +1776,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Sets the values for the red, green, blue and alpha channels. They are all floats in the range of [0, 1].
 		/// </summary>
-		inline void setRGBA(float p_red, float p_green, float p_blue, float p_alpha = 1.f)
+		void setRGBA(float p_red, float p_green, float p_blue, float p_alpha = 1.f)
 		{
 			red = constrain(p_red);
 			green = constrain(p_green);
@@ -1786,7 +1786,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Sets the values for the red, green, blue and alpha channels. The parameters are bytes, in the range of [0, 255].
 		/// </summary>
-		inline void setRGBA(unsigned char p_red, unsigned char p_green, unsigned char p_blue, unsigned char p_alpha = 255)
+		void setRGBA(unsigned char p_red, unsigned char p_green, unsigned char p_blue, unsigned char p_alpha = 255)
 		{
 			red = float(p_red) / 255.f;
 			green = float(p_green) / 255.f;
@@ -1799,7 +1799,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Sets the hue, saturation and brightness values of the color. They are all floats in the range [0, 1].
 		/// </summary>
-		inline Color& setHSB(float p_hue, float p_saturation, float p_brightness)
+		Color& setHSB(float p_hue, float p_saturation, float p_brightness)
 		{
 			p_hue -= floor(p_hue);
 			p_brightness = constrain(p_brightness);
@@ -1812,7 +1812,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Sets the hue, saturation, brightness and alpha values of the color. They are all floats in the range [0, 1].
 		/// </summary>
-		inline Color& setHSBA(float p_hue, float p_saturation, float p_brightness, float p_alpha = 1.f)
+		Color& setHSBA(float p_hue, float p_saturation, float p_brightness, float p_alpha = 1.f)
 		{
 			alpha = p_alpha;
 			return setHSB(p_hue, p_saturation, p_brightness);
@@ -1820,7 +1820,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Sets the hue, saturation and lightness values of the color. They are all floats in the range [0, 1]
 		/// </summary>
-		inline Color& setHSL(float p_hue, float p_saturation, float p_lightness)
+		Color& setHSL(float p_hue, float p_saturation, float p_lightness)
 		{
 			p_hue -= floor(p_hue);
 			p_lightness = constrain(p_lightness);
@@ -1833,7 +1833,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Sets the hue, saturation, lightness and alpha values of the color. They are all floats in the range [0, 1]
 		/// </summary>
-		inline Color& setHSLA(float p_hue, float p_saturation, float p_lightness, float p_alpha = 1.f)
+		Color& setHSLA(float p_hue, float p_saturation, float p_lightness, float p_alpha = 1.f)
 		{
 			alpha = p_alpha;
 			return setHSL(p_hue, p_saturation, p_lightness);
@@ -1842,7 +1842,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Changes the hue of the color. The hue is a float in the range [0, 1].
 		/// </summary>
-		inline Color& setHue(float p_hue)
+		Color& setHue(float p_hue)
 		{
 			p_hue -= floor(p_hue);
 			float minColor = min(red, green, blue);
@@ -1855,7 +1855,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the hue of the color. The hue is a float in the range [0, 1].
 		/// </summary>
-		inline float getHue() const
+		float getHue() const
 		{
 			if (red + green + blue == 0.f)
 			{
@@ -1911,7 +1911,7 @@ namespace AvoGUI
 		/// <para>HSB saturation can change lightness, and HSL saturation can change brightness.</para>
 		/// <para>Keep in mind that you can't change the saturation if the color is black, because only RGBA values are stored.</para>
 		/// </summary>
-		inline Color& setSaturationHSB(float p_saturation)
+		Color& setSaturationHSB(float p_saturation)
 		{
 			float brightness = max(red, green, blue);
 
@@ -1933,7 +1933,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the HSB saturation of the color. The saturation is a float in the range [0, 1].
 		/// </summary>
-		inline float getSaturationHSB() const
+		float getSaturationHSB() const
 		{
 			float brightness = getBrightness();
 			if (brightness)
@@ -1948,7 +1948,7 @@ namespace AvoGUI
 		/// <para>HSB saturation can change lightness, and HSL saturation can change brightness.</para>
 		/// <para>Keep in mind that you can't change the saturation if the color is black, since only RGBA values are stored.</para>
 		/// </summary>
-		inline Color& setSaturationHSL(float p_saturation)
+		Color& setSaturationHSL(float p_saturation)
 		{
 			p_saturation = constrain(p_saturation);
 
@@ -1967,7 +1967,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the HSL saturation of the color. The saturation is a float in the range [0, 1].
 		/// </summary>
-		inline float getSaturationHSL() const
+		float getSaturationHSL() const
 		{
 			float minColor = min(red, green, blue);
 			float maxColor = max(red, green, blue);
@@ -1982,7 +1982,7 @@ namespace AvoGUI
 		/// Sets the brightness of the color. The brightness is a float in the range [0, 1]. A brightness of 0 makes the
 		/// color black, and a brightness of 1 makes the color fully bright. This only makes it white if saturation is at 0.
 		/// </summary>
-		inline Color& setBrightness(float p_brightness)
+		Color& setBrightness(float p_brightness)
 		{
 			p_brightness = constrain(p_brightness);
 
@@ -2004,7 +2004,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the brightness of the color. The brightness is a float in the range [0, 1].
 		/// </summary>
-		inline float getBrightness() const
+		float getBrightness() const
 		{
 			return max(red, green, blue);
 		}
@@ -2013,7 +2013,7 @@ namespace AvoGUI
 		/// Changes the lightness of the color. The lightness a float in the range [0, 1]. A lightness of 0 makes the
 		/// color black, a lightness of 0.5 makes it normal and a lightness of 1 makes it white.
 		/// </summary>
-		inline Color& setLightness(float p_lightness)
+		Color& setLightness(float p_lightness)
 		{
 			p_lightness = constrain(p_lightness);
 
@@ -2062,7 +2062,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the lightness of the color. The lightness is a float in the range [0, 1].
 		/// </summary>
-		inline float getLightness() const
+		float getLightness() const
 		{
 			return 0.5f*(min(red, green, blue) + max(red, green, blue));
 		}
@@ -2465,7 +2465,6 @@ namespace AvoGUI
 
 		//------------------------------
 
-		Rectangle<float> m_lastInvalidatedBounds;
 		Rectangle<float> m_lastInvalidatedShadowBounds;
 
 		//------------------------------
@@ -2502,7 +2501,7 @@ namespace AvoGUI
 		View* m_parent;
 		Theme* m_theme;
 
-		inline void sendSizeChangedEvents()
+		void sendSizeChangedEvents()
 		{
 			m_hasSizeChangedSinceLastElevationChange = true;
 
@@ -2523,7 +2522,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns a pointer to the highest view in the hierarchy, the GUI.</para>
 		/// </summary>
-		inline GUI* getGUI() const
+		GUI* getGUI() const
 		{
 			return m_GUI;
 		}
@@ -2539,7 +2538,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns a pointer to the parent of this view.</para>
 		/// </summary>
-		inline View* getParent() const
+		View* getParent() const
 		{
 			return m_parent;
 		}
@@ -2574,7 +2573,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the child view at an index.</para>
 		/// </summary>
-		inline View* getView(uint32_t p_viewIndex)
+		View* getView(uint32_t p_viewIndex)
 		{
 			return m_views[p_viewIndex];
 		}
@@ -2582,7 +2581,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the number of child views.</para>
 		/// </summary>
-		inline uint32_t getNumberOfViews()
+		uint32_t getNumberOfViews()
 		{
 			return m_views.size();
 		}
@@ -2601,7 +2600,7 @@ namespace AvoGUI
 		/// <para>Returns the smallest possible rectangle which contains all child views belonging to this View.</para>
 		/// <para>The rectangle is relative to the position of this view.</para>
 		/// </summary>
-		inline Rectangle<float> calculateContentBounds() const
+		Rectangle<float> calculateContentBounds() const
 		{
 			if (!m_views.size())
 			{
@@ -2639,7 +2638,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the width of the smallest possible rectangle that contains all child views belonging to this View.</para>
 		/// </summary>
-		inline float calculateContentWidth() const
+		float calculateContentWidth() const
 		{
 			if (!m_views.size())
 			{
@@ -2665,7 +2664,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the hight of the smallest possible rectangle that contains all child views belonging to this View.</para>
 		/// </summary>
-		inline float calculateContentHeight() const
+		float calculateContentHeight() const
 		{
 			if (!m_views.size())
 			{
@@ -2691,7 +2690,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the size of the smallest possible rectangle that contains all child views belonging to this View.</para>
 		/// </summary>
-		inline Point<float> calculateContentSize() const
+		Point<float> calculateContentSize() const
 		{
 			return calculateContentBounds().getSize();
 		}
@@ -2700,7 +2699,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the leftmost edge of all child views belonging to this View. The returned offset is relative to the left edge of this view.</para>
 		/// </summary>
-		inline float calculateContentLeft() const
+		float calculateContentLeft() const
 		{
 			if (!m_views.size())
 			{
@@ -2721,7 +2720,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the rightmost edge of all child views belonging to this View. The returned offset is relative to the left edge of this view.</para>
 		/// </summary>
-		inline float calculateContentRight() const
+		float calculateContentRight() const
 		{
 			if (!m_views.size())
 			{
@@ -2742,7 +2741,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the topmost edge of all child views belonging to this View. The returned offset is relative to the top edge of this view.</para>
 		/// </summary>
-		inline float calculateContentTop() const
+		float calculateContentTop() const
 		{
 			if (!m_views.size())
 			{
@@ -2763,7 +2762,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the bottommost edge of all child views belonging to this View. The returned offset is relative to the top edge of this view.</para>
 		/// </summary>
-		inline float calculateContentBottom() const
+		float calculateContentBottom() const
 		{
 			if (!m_views.size())
 			{
@@ -2788,7 +2787,7 @@ namespace AvoGUI
 		/// <para>Sets a certain spacing between the outer edges of the contents and the edges of this View.</para>
 		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
 		/// </summary>
-		inline void setPadding(float p_padding)
+		void setPadding(float p_padding)
 		{
 			setPadding(p_padding, p_padding, p_padding, p_padding);
 		}
@@ -2799,7 +2798,7 @@ namespace AvoGUI
 		/// </summary>
 		/// <param name="p_horizontalPadding">Spacing at the left and right edges</param>
 		/// <param name="p_verticalPadding">Spacing at the top and bottom edges</param>
-		inline void setPadding(float p_horizontalPadding, float p_verticalPadding)
+		void setPadding(float p_horizontalPadding, float p_verticalPadding)
 		{
 			setPadding(p_horizontalPadding, p_horizontalPadding, p_verticalPadding, p_verticalPadding);
 		}
@@ -2812,7 +2811,7 @@ namespace AvoGUI
 		/// <param name="p_rightPadding">Spacing at the right edge</param>
 		/// <param name="p_topPadding">Spacing at the top edge</param>
 		/// <param name="p_bottomPadding">Spacing at the bottom edge</param>
-		inline void setPadding(float p_leftPadding, float p_rightPadding, float p_topPadding, float p_bottomPadding)
+		void setPadding(float p_leftPadding, float p_rightPadding, float p_topPadding, float p_bottomPadding)
 		{
 			Rectangle<float> contentBounds(calculateContentBounds());
 			Point<float> offset(p_leftPadding - contentBounds.left, p_topPadding - contentBounds.top);
@@ -2828,7 +2827,7 @@ namespace AvoGUI
 		/// <para>Sets the spacing between the leftmost edge of the contents and the left edge of this View.</para>
 		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
 		/// </summary>
-		inline void setLeftPadding(float p_leftPadding)
+		void setLeftPadding(float p_leftPadding)
 		{
 			float left = calculateContentLeft();
 			float offset = p_leftPadding - left;
@@ -2842,7 +2841,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the spacing between the rightmost edge of the contents and the right edge of this View. This changes the width of this view.</para>
 		/// </summary>
-		inline void setRightPadding(float p_rightPadding)
+		void setRightPadding(float p_rightPadding)
 		{
 			setWidth(calculateContentRight() + p_rightPadding);
 		}
@@ -2851,7 +2850,7 @@ namespace AvoGUI
 		/// <para>Sets the spacing between the topmost edge of the contents and the top edge of this View.</para>
 		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
 		/// </summary>
-		inline void setTopPadding(float p_topPadding)
+		void setTopPadding(float p_topPadding)
 		{
 			float top = calculateContentTop();
 			float offset = p_topPadding - top;
@@ -2865,7 +2864,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the spacing between the bottommost edge of the contents and the bottom edge of this View. This changes the height of this view.</para>
 		/// </summary>
-		inline void setBottomPadding(float p_bottomPadding)
+		void setBottomPadding(float p_bottomPadding)
 		{
 			setHeight(calculateContentBottom() + p_bottomPadding);
 		}
@@ -2881,7 +2880,7 @@ namespace AvoGUI
 		/// <para>Only children created after this function is called will inherit the new theme.</para>
 		/// </summary>
 		/// <param name="p_newTheme">A pointer to a newly allocated theme on the heap.</param>
-		inline void setTheme(Theme* p_newTheme)
+		void setTheme(Theme* p_newTheme)
 		{
 			if (m_theme)
 			{
@@ -2893,7 +2892,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns a pointer to the theme which is used by this view.</para>
 		/// </summary>
-		inline Theme* getTheme() const
+		Theme* getTheme() const
 		{
 			return m_theme;
 		}
@@ -2904,7 +2903,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Calculates the bounds of the view shadow relative to the top left corner of the GUI.</para>
 		/// </summary>
-		inline Rectangle<float> calculateAbsoluteShadowBounds() const
+		Rectangle<float> calculateAbsoluteShadowBounds() const
 		{
 			return Rectangle<float>(calculateAbsolutePositionRelativeTo(getTopLeft() + m_shadowBounds.getTopLeft()), m_shadowBounds.getSize());
 		}
@@ -2912,7 +2911,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Calculates the bounds of the view relative to the top left corner of the GUI.</para>
 		/// </summary>
-		inline Rectangle<float> calculateAbsoluteBounds() const
+		Rectangle<float> calculateAbsoluteBounds() const
 		{
 			return Rectangle<float>(calculateAbsoluteTopLeft(), getSize());
 		}
@@ -2920,7 +2919,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Calculates the top left position of the view relative to the top left corner of the GUI.</para>
 		/// </summary>
-		inline Point<float> calculateAbsoluteTopLeft() const
+		Point<float> calculateAbsoluteTopLeft() const
 		{
 			return calculateAbsolutePositionRelativeTo(getTopLeft());
 		}
@@ -2928,7 +2927,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Calculates the top right position of the view relative to the top left corner of the GUI.</para>
 		/// </summary>
-		inline Point<float> calculateAbsoluteTopRight() const
+		Point<float> calculateAbsoluteTopRight() const
 		{
 			return calculateAbsolutePositionRelativeTo(getTopRight());
 		}
@@ -2936,7 +2935,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Calculates the bottom left position of the view relative to the top left corner of the GUI.</para>
 		/// </summary>
-		inline Point<float> calculateAbsoluteBottomLeft() const
+		Point<float> calculateAbsoluteBottomLeft() const
 		{
 			return calculateAbsolutePositionRelativeTo(getBottomLeft());
 		}
@@ -2944,7 +2943,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Calculates the bottom right position of the view relative to the top left corner of the GUI.</para>
 		/// </summary>
-		inline Point<float> calculateAbsoluteBottomRight() const
+		Point<float> calculateAbsoluteBottomRight() const
 		{
 			return calculateAbsolutePositionRelativeTo(getBottomRight());
 		}
@@ -2952,7 +2951,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Calculates the center position of the view relative to the top left corner of the GUI.</para>
 		/// </summary>
-		inline Point<float> calculateAbsoluteCenter() const
+		Point<float> calculateAbsoluteCenter() const
 		{
 			return calculateAbsolutePositionRelativeTo(getCenter());
 		}
@@ -2963,7 +2962,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the rectangle representing the bounds of this view.</para>
 		/// </summary>
-		inline void setBounds(const Rectangle<float>& p_rectangle) override
+		void setBounds(const Rectangle<float>& p_rectangle) override
 		{
 			m_bounds = p_rectangle;
 			if (p_rectangle.right - p_rectangle.left != m_bounds.right - m_bounds.left ||
@@ -2976,7 +2975,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the rectangle representing the bounds of this view.</para>
 		/// </summary>
-		inline void setBounds(float p_left, float p_top, float p_right, float p_bottom) override
+		void setBounds(float p_left, float p_top, float p_right, float p_bottom) override
 		{
 			m_bounds.left = p_left;
 			m_bounds.top = p_top;
@@ -2992,7 +2991,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the rectangle representing the bounds of this view.</para>
 		/// </summary>
-		inline void setBounds(const Point<float>& p_position, const Point<float>& p_size) override
+		void setBounds(const Point<float>& p_position, const Point<float>& p_size) override
 		{
 			m_bounds.left = p_position.x;
 			m_bounds.top = p_position.y;
@@ -3008,7 +3007,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns a rectangle representing the bounds of this view.</para>
 		/// </summary>
-		inline const Rectangle<float>& getBounds() const override
+		const Rectangle<float>& getBounds() const override
 		{
 			return m_bounds;
 		}
@@ -3019,7 +3018,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Moves the whoie view.</para>
 		/// </summary>
-		inline void move(const Point<float>& p_offset) override
+		void move(const Point<float>& p_offset) override
 		{
 			m_bounds += p_offset;
 		}
@@ -3027,7 +3026,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Moves the whole view.</para>
 		/// </summary>
-		inline void move(float p_offsetX, float p_offsetY) override
+		void move(float p_offsetX, float p_offsetY) override
 		{
 			m_bounds.move(p_offsetX, p_offsetY);
 		}
@@ -3039,7 +3038,7 @@ namespace AvoGUI
 		/// <para>Sets the top left coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
-		inline void setTopLeft(const Point<float>& p_position, bool p_willKeepSize = true) override
+		void setTopLeft(const Point<float>& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.left || p_position.y != m_bounds.top)
 			{
@@ -3055,7 +3054,7 @@ namespace AvoGUI
 		/// <para>Sets the top left coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
-		inline void setTopLeft(float p_left, float p_top, bool p_willKeepSize = true) override
+		void setTopLeft(float p_left, float p_top, bool p_willKeepSize = true) override
 		{
 			if (p_left != m_bounds.left || p_top != m_bounds.top)
 			{
@@ -3070,7 +3069,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the coordinates of the top left corner of the view.</para>
 		/// </summary>
-		inline Point<float> getTopLeft() const override
+		Point<float> getTopLeft() const override
 		{
 			return Point<float>(m_bounds.left, m_bounds.top);
 		}
@@ -3080,7 +3079,7 @@ namespace AvoGUI
 		/// <para>Sets the top right coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
-		inline void setTopRight(const Point<float>& p_position, bool p_willKeepSize = true) override
+		void setTopRight(const Point<float>& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.right || p_position.y != m_bounds.top)
 			{
@@ -3096,7 +3095,7 @@ namespace AvoGUI
 		/// <para>Sets the top right coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
-		inline void setTopRight(float p_right, float p_top, bool p_willKeepSize = true) override
+		void setTopRight(float p_right, float p_top, bool p_willKeepSize = true) override
 		{
 			if (p_right != m_bounds.right || p_top != m_bounds.top)
 			{
@@ -3111,7 +3110,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the coordinates of the top right corner of the view.</para>
 		/// </summary>
-		inline Point<float> getTopRight() const override
+		Point<float> getTopRight() const override
 		{
 			return Point<float>(m_bounds.right, m_bounds.top);
 		}
@@ -3121,7 +3120,7 @@ namespace AvoGUI
 		/// <para>Sets the bottom left coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
-		inline void setBottomLeft(const Point<float>& p_position, bool p_willKeepSize = true) override
+		void setBottomLeft(const Point<float>& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.left || p_position.y != m_bounds.bottom)
 			{
@@ -3137,7 +3136,7 @@ namespace AvoGUI
 		/// <para>Sets the bottom left coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
-		inline void setBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true) override
+		void setBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true) override
 		{
 			if (p_left != m_bounds.left || p_bottom != m_bounds.bottom)
 			{
@@ -3152,7 +3151,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the coordinates of the bottom left corner of the view.</para>
 		/// </summary>
-		inline Point<float> getBottomLeft() const override
+		Point<float> getBottomLeft() const override
 		{
 			return Point<float>(m_bounds.left, m_bounds.bottom);
 		}
@@ -3162,7 +3161,7 @@ namespace AvoGUI
 		/// <para>Sets the bottom right coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
-		inline void setBottomRight(const Point<float>& p_position, bool p_willKeepSize = true) override
+		void setBottomRight(const Point<float>& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.right || p_position.y != m_bounds.bottom)
 			{
@@ -3178,7 +3177,7 @@ namespace AvoGUI
 		/// <para>Sets the bottom right coordinates of the view.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
-		inline void setBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true) override
+		void setBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true) override
 		{
 			if (p_right != m_bounds.right || p_bottom != m_bounds.bottom)
 			{
@@ -3193,7 +3192,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the coordinates of the bottom right corner of the view.</para>
 		/// </summary>
-		inline Point<float> getBottomRight() const override
+		Point<float> getBottomRight() const override
 		{
 			return Point<float>(m_bounds.right, m_bounds.bottom);
 		}
@@ -3204,7 +3203,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the center coordinates of the view.</para> 
 		/// </summary>
-		inline void setCenter(const Point<float>& p_position) override
+		void setCenter(const Point<float>& p_position) override
 		{
 			m_bounds.setCenter(p_position.x, p_position.y);
 		}
@@ -3212,7 +3211,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the center coordinates of the view.</para> 
 		/// </summary>
-		inline void setCenter(float p_x, float p_y) override
+		void setCenter(float p_x, float p_y) override
 		{
 			m_bounds.setCenter(p_x, p_y);
 		}
@@ -3220,7 +3219,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the horizontal center coordinate of the view.</para>
 		/// </summary>
-		inline void setCenterX(float p_x) override
+		void setCenterX(float p_x) override
 		{
 			m_bounds.setCenterX(p_x);
 		}
@@ -3228,7 +3227,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the vertical center coordinate of the view.</para>
 		/// </summary>
-		inline void setCenterY(float p_y) override
+		void setCenterY(float p_y) override
 		{
 			m_bounds.setCenterY(p_y);
 		}
@@ -3236,7 +3235,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the center coordinates of the view.</para>
 		/// </summary>
-		inline Point<float> getCenter() const override
+		Point<float> getCenter() const override
 		{
 			return m_bounds.getCenter();
 		}
@@ -3244,7 +3243,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the x-axis center coordinate of the view.</para>
 		/// </summary>
-		inline float getCenterX() const override
+		float getCenterX() const override
 		{
 			return m_bounds.getCenterX();
 		}
@@ -3252,7 +3251,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the y-axis center coordinate of the view.</para>
 		/// </summary>
-		inline float getCenterY() const override
+		float getCenterY() const override
 		{
 			return m_bounds.getCenterY();
 		}
@@ -3264,7 +3263,7 @@ namespace AvoGUI
 		/// <para>Sets the left coordinate of this view and updates the layout. If p_willKeepWidth is</para>
 		/// <para>true, the right coordinate will be changed so that the width of the view stays the same.</para>
 		/// </summary>
-		inline void setLeft(float p_left, bool p_willKeepWidth = false) override
+		void setLeft(float p_left, bool p_willKeepWidth = false) override
 		{
 			if (p_left != m_bounds.left)
 			{
@@ -3279,7 +3278,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the left coordinate of this view.</para>
 		/// </summary>
-		inline float getLeft() const override
+		float getLeft() const override
 		{
 			return m_bounds.left;
 		}
@@ -3289,7 +3288,7 @@ namespace AvoGUI
 		/// <para>Sets the top coordinate of this view. If p_willKeepHeight is true, the bottom </para>
 		/// <para>coordinate will be changed so that the height of the view stays the same.</para>
 		/// </summary>
-		inline void setTop(float p_top, bool p_willKeepHeight = false) override
+		void setTop(float p_top, bool p_willKeepHeight = false) override
 		{
 			if (p_top != m_bounds.top)
 			{
@@ -3304,7 +3303,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the top coordinate of this view.</para>
 		/// </summary>
-		inline float getTop() const override
+		float getTop() const override
 		{
 			return m_bounds.top;
 		}
@@ -3314,7 +3313,7 @@ namespace AvoGUI
 		/// <para>Sets the right coordinate of this view. If p_willKeepWidth is true, the left</para>
 		/// <para>coordinate will be changed so that the width of the view stays the same.</para>
 		/// </summary>
-		inline void setRight(float p_right, bool p_willKeepWidth = false) override
+		void setRight(float p_right, bool p_willKeepWidth = false) override
 		{
 			if (p_right != m_bounds.right)
 			{
@@ -3329,7 +3328,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the coordinate of the right edge of this view.</para>
 		/// </summary>
-		inline float getRight() const override
+		float getRight() const override
 		{
 			return m_bounds.right;
 		}
@@ -3339,7 +3338,7 @@ namespace AvoGUI
 		/// <para>Sets the bottom coordinate of this view and updates the layout. If p_willKeepHeight is true, the top</para>
 		/// <para>coordinate will be changed so that the height of the view stays the same.</para>
 		/// </summary>
-		inline void setBottom(float p_bottom, bool p_willKeepHeight = false) override
+		void setBottom(float p_bottom, bool p_willKeepHeight = false) override
 		{
 			if (p_bottom != m_bounds.bottom)
 			{
@@ -3354,7 +3353,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the coordinate of the bottom edge of this view.</para>
 		/// </summary>
-		inline float getBottom() const override
+		float getBottom() const override
 		{
 			return m_bounds.bottom;
 		}
@@ -3365,7 +3364,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the width of this view in pixels and updates the layout.</para>
 		/// </summary>
-		inline void setWidth(float p_width) override
+		void setWidth(float p_width) override
 		{
 			if (p_width != m_bounds.right - m_bounds.left)
 			{
@@ -3377,7 +3376,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the height of this view in pixels.</para>
 		/// </summary>
-		inline float getWidth() const override
+		float getWidth() const override
 		{
 			return m_bounds.right - m_bounds.left;
 		}
@@ -3386,7 +3385,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the height of this view in pixels and updates the layout.</para>
 		/// </summary>
-		inline void setHeight(float p_height) override
+		void setHeight(float p_height) override
 		{
 			if (p_height != m_bounds.bottom - m_bounds.top)
 			{
@@ -3398,7 +3397,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the height of this view in pixels.</para>
 		/// </summary>
-		inline float getHeight() const override
+		float getHeight() const override
 		{
 			return m_bounds.bottom - m_bounds.top;
 		}
@@ -3407,7 +3406,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the size of this view in pixels and updates the layout.</para>
 		/// </summary>
-		inline void setSize(const Point<float>& p_size) override
+		void setSize(const Point<float>& p_size) override
 		{
 			if (p_size.x != m_bounds.right - m_bounds.left || p_size.y != m_bounds.bottom - m_bounds.top)
 			{
@@ -3419,7 +3418,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets the size of this view in pixels and updates the layout.</para>
 		/// </summary>
-		inline void setSize(float p_width, float p_height) override
+		void setSize(float p_width, float p_height) override
 		{
 			if (p_width != m_bounds.right - m_bounds.left || p_height != m_bounds.bottom - m_bounds.top)
 			{
@@ -3431,7 +3430,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the size of this view in pixels.</para>
 		/// </summary>
-		inline Point<float> getSize() const override
+		Point<float> getSize() const override
 		{
 			return Point<float>(m_bounds.right - m_bounds.left, m_bounds.bottom - m_bounds.top);
 		}
@@ -3442,7 +3441,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns if this view intersects/overlaps a rectangle.</para>
 		/// </summary>
-		inline bool getIsIntersecting(const Rectangle<float>& p_rectangle) const override
+		bool getIsIntersecting(const Rectangle<float>& p_rectangle) const override
 		{
 			if (m_cornerRadius > 0.f)
 			{
@@ -3480,7 +3479,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns if this view intersects/overlaps another protected rectangle.</para>
 		/// </summary>
-		inline bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const override
+		bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const override
 		{
 			return getIsIntersecting(p_protectedRectangle->getBounds());
 		}
@@ -3496,7 +3495,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns if this view contains a rectangle. The rectangle is relative to the parent of the view.</para>
 		/// </summary>
-		inline bool getIsContaining(const Rectangle<float>& p_rectangle) const override
+		bool getIsContaining(const Rectangle<float>& p_rectangle) const override
 		{
 			if (m_cornerRadius > 0.f)
 			{
@@ -3534,7 +3533,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns if this view contains another protected rectangle. The rectangle is relative to the parent of this view.</para>
 		/// </summary>
-		inline bool getIsContaining(ProtectedRectangle* p_rectangle) const override
+		bool getIsContaining(ProtectedRectangle* p_rectangle) const override
 		{
 			return getIsContaining(p_rectangle->getBounds());
 		}
@@ -3548,7 +3547,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns if this view contains a point. The point is relative to the parent of the view.</para>
 		/// </summary>
-		inline bool getIsContaining(float p_x, float p_y) const override
+		bool getIsContaining(float p_x, float p_y) const override
 		{
 			if (m_cornerRadius > 0.f)
 			{
@@ -3586,7 +3585,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns if this view contains a point. The point is relative to the parent of the view.</para>
 		/// </summary>
-		inline bool getIsContaining(const Point<float>& p_point) const override
+		bool getIsContaining(const Point<float>& p_point) const override
 		{
 			return getIsContaining(p_point.x, p_point.y);
 		}
@@ -3597,7 +3596,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets if the view is visible and can receive events.</para>
 		/// </summary>
-		inline void setIsVisible(bool p_isVisible)
+		void setIsVisible(bool p_isVisible)
 		{
 			m_isVisible = p_isVisible;
 		}
@@ -3605,7 +3604,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns if the view is visible and can receive events.</para>
 		/// </summary>
-		inline bool getIsVisible() const
+		bool getIsVisible() const
 		{
 			return m_isVisible;
 		}
@@ -3617,7 +3616,7 @@ namespace AvoGUI
 		/// <para>Sets the roundness of the corners of the view.</para>
 		/// </summary>
 		/// <param name="p_radius">Radius of the corner circles.</param>
-		inline void setCornerRadius(float p_radius)
+		void setCornerRadius(float p_radius)
 		{
 			m_cornerRadius = p_radius;
 		}
@@ -3625,7 +3624,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the roundness of the corners of the view, as a radius. </para>
 		/// </summary>
-		inline float getCornerRadius() const
+		float getCornerRadius() const
 		{
 			return m_cornerRadius;
 		}
@@ -3643,7 +3642,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the elevation of the view. See the setElevation method.</para>
 		/// </summary>
-		inline float getElevation() const
+		float getElevation() const
 		{
 			return m_elevation;
 		}
@@ -3677,7 +3676,7 @@ namespace AvoGUI
 		/// <para>This is only used by the library from the parent of this view. It doesn't change the actual index of this view, it </para>
 		/// <para>only helps the view keep track of its current index. I apologize for the ambiguousness here.</para>
 		/// </summary>
-		inline void setIndex(uint32_t p_index)
+		void setIndex(uint32_t p_index)
 		{
 			m_index = p_index;
 		}
@@ -3685,7 +3684,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the index of this view relative to its siblings.</para>
 		/// </summary>
-		inline uint32_t getIndex() const
+		uint32_t getIndex() const
 		{
 			return m_index;
 		}
@@ -3694,7 +3693,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the layer index of the view, how deep down the view hierarchy it is.</para>
 		/// </summary>
-		inline uint32_t getLayerIndex() const
+		uint32_t getLayerIndex() const
 		{
 			return m_layerIndex;
 		}
@@ -3706,7 +3705,7 @@ namespace AvoGUI
 		/// <para>Sets some arbitrary data you can use yourself to keep track of the view, or not.</para>
 		/// </summary>
 		/// <param name="p_userData"></param>
-		inline void setUserData(void* p_userData)
+		void setUserData(void* p_userData)
 		{
 			m_userData = p_userData;
 		}
@@ -3714,7 +3713,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns your data that you for some reason wanted to associate with this view.</para>
 		/// </summary>
-		inline void* getUserData()
+		void* getUserData()
 		{
 			return m_userData;
 		}
@@ -3730,7 +3729,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Don't do anything with this.</para>
 		/// </summary>
-		inline void informAboutAnimationUpdateQueueRemoval()
+		void informAboutAnimationUpdateQueueRemoval()
 		{
 			m_isInAnimationUpdateQueue = false;
 		}
@@ -3789,7 +3788,7 @@ namespace AvoGUI
 		/// <para>that also takes the target rectangle as input. You do not often care about that parameter.</para>
 		/// </summary>
 		/// <param name="p_drawingContext">Object used to draw graphics to the window.</param>
-		virtual inline void draw(DrawingContext* p_drawingContext) { }
+		virtual void draw(DrawingContext* p_drawingContext) { }
 		/// <summary>
 		/// USER IMPLEMENTED
 		/// <para>Draws the content of the view. Override this method if you want the target rectangle, override the overloaded</para>
@@ -3799,7 +3798,7 @@ namespace AvoGUI
 		/// <param name="p_targetRectangle">
 		/// The rectangle that needs to be drawn. To optimize your application, you can make sure to only draw stuff in this region.
 		/// </param>
-		virtual inline void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
+		virtual void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
 		{
 			draw(p_drawingContext);
 		}
@@ -3810,7 +3809,7 @@ namespace AvoGUI
 		/// <para>drawUnclipped method that also takes the target rectangle as input. You do not often care about that parameter.</para>
 		/// </summary>
 		/// <param name="p_drawingContext"></param>
-		virtual inline void drawUnclipped(DrawingContext* p_drawingContext) {}
+		virtual void drawUnclipped(DrawingContext* p_drawingContext) {}
 
 		/// <summary>
 		/// USER IMPLEMENTED
@@ -3821,7 +3820,7 @@ namespace AvoGUI
 		/// <param name="p_targetRectangle">
 		/// The rectangle that needs to be drawn. To optimize your application, you can make sure to only draw stuff in this region.
 		/// </param>
-		virtual inline void drawUnclipped(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
+		virtual void drawUnclipped(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
 		{
 			drawUnclipped(p_drawingContext);
 		}
@@ -4032,7 +4031,7 @@ namespace AvoGUI
 		/// <para>Sets the cursor that will by default be shown when the mouse enters the view (if this mouse listener is a view).</para>
 		/// <para>The default implementation of handleMouseEnter sets the cursor to this one, but you can override this behaviour.</para>
 		/// </summary>
-		inline void setCursor(Cursor p_cursor)
+		void setCursor(Cursor p_cursor)
 		{
 			m_cursor = p_cursor;
 		}
@@ -4040,7 +4039,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the cursor that will by default be shown when the mouse enters the view (if this mouse listener is a view).</para>
 		/// </summary>
-		inline Cursor getCursor()
+		Cursor getCursor()
 		{
 			return m_cursor;
 		}
@@ -4335,21 +4334,21 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the position of the window relative to the top-left corner of the screen.
 		/// </summary>
-		inline const Point<int32_t>& getPosition() const
+		const Point<int32_t>& getPosition() const
 		{
 			return m_position;
 		}
 		/// <summary>
 		/// Returns the position of the left edge of the window relative to the top-left corner of the screen.
 		/// </summary>
-		inline int32_t getPositionX() const
+		int32_t getPositionX() const
 		{
 			return m_position.x;
 		}
 		/// <summary>
 		/// Returns the position of the left edge of the window relative to the top-left corner of the screen.
 		/// </summary>
-		inline int32_t getPositionY() const
+		int32_t getPositionY() const
 		{
 			return m_position.y;
 		}
@@ -4365,21 +4364,21 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the size of the client area of the window, in pixels.
 		/// </summary>
-		inline const Point<uint32_t>& getSize() const
+		const Point<uint32_t>& getSize() const
 		{
 			return m_size;
 		}
 		/// <summary>
 		/// Returns the width of the client area of the window, in pixels.
 		/// </summary>
-		inline uint32_t getWidth() const
+		uint32_t getWidth() const
 		{
 			return m_size.x;
 		}
 		/// <summary>
 		/// Returns the height of the client area of the window, in pixels.
 		/// </summary>
-		inline uint32_t getHeight() const
+		uint32_t getHeight() const
 		{
 			return m_size.y;
 		}
@@ -4415,7 +4414,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the position of the mouse cursor, relative to the top-left corner of the window.
 		/// </summary>
-		inline const Point<int32_t>& getMousePosition()
+		const Point<int32_t>& getMousePosition()
 		{
 			return m_mousePosition;
 		}
@@ -5402,7 +5401,7 @@ namespace AvoGUI
 		/// <para>If indirect keyboard events are enabled, listeners that do not have keyboard focus will also receive</para>
 		/// <para>the events, but the isTarget property of the keyboard event will tell you if it does have keyboard focus.</para>
 		/// </summary>
-		inline void setKeyboardFocus(KeyboardEventListener* p_keyboardFocus)
+		void setKeyboardFocus(KeyboardEventListener* p_keyboardFocus)
 		{
 			m_keyboardFocus = p_keyboardFocus;
 		}
@@ -5456,7 +5455,7 @@ namespace AvoGUI
 		/// <para>listeners. The isTarget property in the mouse event tells you if the event is</para>
 		/// <para>directed to the view that receives the event.</para>
 		/// </summary>
-		inline void enableIndirectMouseEvents()
+		void enableIndirectMouseEvents()
 		{
 			m_areIndirectMouseEventsEnabled = true;
 		}
@@ -5465,7 +5464,7 @@ namespace AvoGUI
 		/// <para>After this method has been called, mouse events will only be sent to the view</para>
 		/// <para>that has been clicked or scrolled over, and no other mouse event listeners.</para>
 		/// </summary>
-		inline void disableIndirectMouseEvents()
+		void disableIndirectMouseEvents()
 		{
 			m_areIndirectMouseEventsEnabled = false;
 		}
@@ -5476,7 +5475,7 @@ namespace AvoGUI
 		/// <para>with keyboard focus, but to all of the registered keyboard listeners. The isTarget property</para>
 		/// <para>in the keyboard event tells you if the event is directed to the view that receives the event.</para>
 		/// </summary>
-		inline void enableIndirectKeyboardEvents()
+		void enableIndirectKeyboardEvents()
 		{
 			m_areIndirectKeyboardEventsEnabled = true;
 		}
@@ -5485,7 +5484,7 @@ namespace AvoGUI
 		/// <para>After this method has been called, keyboard events will only be sent to the view</para>
 		/// <para>with keyboard focus, and no other keyboard event listeners.</para>
 		/// </summary>
-		inline void disableIndirectKeyboardEvents()
+		void disableIndirectKeyboardEvents()
 		{
 			m_areIndirectKeyboardEventsEnabled = false;
 		}
@@ -5496,7 +5495,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns a pointer to the window used by this GUI.</para>
 		/// </summary>
-		inline Window* getWindow()
+		Window* getWindow()
 		{
 			return m_window;
 		}
@@ -5504,7 +5503,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns a pointer to the drawing context used by this GUI.</para>
 		/// </summary>
-		inline DrawingContext* getDrawingContext()
+		DrawingContext* getDrawingContext()
 		{
 			return m_drawingContext;
 		}
@@ -5610,14 +5609,14 @@ namespace AvoGUI
 		/// <summary>
 		/// Sets the color that is used by the ripple and hover effects.
 		/// </summary>
-		inline void setColor(const Color& p_color)
+		void setColor(const Color& p_color)
 		{
 			m_color = p_color;
 		}
 		/// <summary>
 		/// Returns the color that is used by the ripple and hover effects.
 		/// </summary>
-		inline const Color& getColor()
+		const Color& getColor()
 		{
 			return m_color;
 		}
@@ -5628,14 +5627,14 @@ namespace AvoGUI
 		/// <para>Sets whether the view will be lightly highlighted when the mouse hovers over it or not.</para>
 		/// <para>This is true by default and is recommended since it indicates that the view can be pressed.</para>
 		/// </summary>
-		inline void setHasHoverEffect(bool p_hasHoverEffect)
+		void setHasHoverEffect(bool p_hasHoverEffect)
 		{
 			m_hasHoverEffect = p_hasHoverEffect;
 		}
 		/// <summary>
 		/// Returns whether the view will be lightly highlighted when the mouse hovers over it or not.
 		/// </summary>
-		inline bool getHasHoverEffect()
+		bool getHasHoverEffect()
 		{
 			return m_hasHoverEffect;
 		}
@@ -5723,7 +5722,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns if the user can use the button or not.
 		/// </summary>
-		inline bool getIsEnabled()
+		bool getIsEnabled()
 		{
 			return m_isEnabled;
 		}
@@ -5750,14 +5749,14 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the image that is shown together with the button text.
 		/// </summary>
-		inline Image* getIcon()
+		Image* getIcon()
 		{
 			return m_icon;
 		}
 
 		//------------------------------
 
-		inline void handleMouseEnter(const MouseEvent& p_event) override { }
+		void handleMouseEnter(const MouseEvent& p_event) override { }
 		void handleMouseDown(const MouseEvent& p_event) override;
 		void handleMouseUp(const MouseEvent& p_event) override;
 

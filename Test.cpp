@@ -24,13 +24,13 @@ public:
 
 	//------------------------------
 
-	inline void handleViewSizeChange(View* p_view) override
+	void handleViewSizeChange(View* p_view) override
 	{
 		m_image->setSize(getParent()->getSize());
 		setSize(getParent()->getSize());
 	}
 
-	inline void draw(AvoGUI::DrawingContext* p_drawingContext) override
+	void draw(AvoGUI::DrawingContext* p_drawingContext) override
 	{
 		p_drawingContext->drawImage(m_image);
 	}
@@ -79,7 +79,7 @@ public:
 
 	//------------------------------
 
-	inline void createContent() override
+	void createContent() override
 	{
 		m_theme->colors["background"] = 0xfffefefeU;
 		m_theme->colors["on background"] = 0xff202020U;
@@ -101,7 +101,7 @@ public:
 
 		m_button_readMore = new AvoGUI::Button(this, "READ MORE", AvoGUI::Button::Emphasis::Low);
 	}
-	inline void handleSizeChange() override
+	void handleSizeChange() override
 	{
 		m_buttonContainer->setCenter(getCenterX(), getCenterY() - 30.f);
 		m_button_readMore->setCenter(getCenterX(), getCenterY() + 30.f);
