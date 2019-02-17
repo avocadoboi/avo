@@ -5692,6 +5692,8 @@ namespace AvoGUI
 		Color m_currentColor;
 		float m_colorAnimationTime;
 
+		bool m_isMouseHovering;
+
 		Ripple* m_ripple;
 
 		std::vector<ButtonListener*> m_buttonListeners;
@@ -5757,6 +5759,14 @@ namespace AvoGUI
 		//------------------------------
 
 		void handleMouseEnter(const MouseEvent& p_event) override { }
+		void handleMouseMove(const MouseEvent& p_event) override
+		{
+			m_isMouseHovering = true;
+		}
+		void handleMouseLeave(const MouseEvent& p_event) override
+		{
+			m_isMouseHovering = false;
+		}
 		void handleMouseDown(const MouseEvent& p_event) override;
 		void handleMouseUp(const MouseEvent& p_event) override;
 

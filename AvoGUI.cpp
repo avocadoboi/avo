@@ -141,7 +141,7 @@ namespace AvoGUI
 
 	View::View(View* p_parent, const Rectangle<float>& p_bounds) :
 		ProtectedRectangle(p_bounds), m_isVisible(true), m_cornerRadius(0.f), m_hasShadow(true), m_elevation(0.f),
-		m_hasSizeChangedSinceLastElevationChange(false), m_shadowImage(0), m_shadowBounds(p_bounds), m_userData(0)
+		m_hasSizeChangedSinceLastElevationChange(true), m_shadowImage(0), m_shadowBounds(p_bounds), m_userData(0)
 	{
 		if (p_parent)
 		{
@@ -440,7 +440,7 @@ namespace AvoGUI
 
 		if (m_elevation != p_elevation || m_hasSizeChangedSinceLastElevationChange)
 		{
-			if (m_hasShadow && p_elevation < 400.f)
+			if (m_hasShadow && p_elevation < 400.f && p_elevation > 0.00001f)
 			{
 				if (m_shadowImage)
 				{
@@ -455,11 +455,14 @@ namespace AvoGUI
 				);
 				m_shadowImage->setTopLeft(m_shadowBounds.getTopLeft());
 			}
-			else if (m_shadowImage)
+			else
 			{
-				m_shadowImage->forget();
-				m_shadowImage = 0;
-				m_shadowBounds = m_bounds;
+				if (m_shadowImage)
+				{
+					m_shadowImage->forget();
+					m_shadowImage = 0;
+				}
+				m_shadowBounds = m_bounds.createCopyAtOrigin();
 			}
 
 			if (p_elevation != m_elevation)
@@ -482,7 +485,7 @@ namespace AvoGUI
 		{
 			m_shadowImage->forget();
 			m_shadowImage = 0;
-			m_shadowBounds = m_bounds;
+			m_shadowBounds = m_bounds.createCopyAtOrigin();
 		}
 	}
 
@@ -506,7 +509,7 @@ namespace AvoGUI
 			setElevation(m_elevation);
 
 			Rectangle<float> shadowBounds(calculateAbsoluteShadowBounds().roundCoordinatesOutwards());
-			if (shadowBounds == m_lastInvalidatedShadowBounds)
+			if (shadowBounds == m_lastInvalidatedShadowBounds || (!m_lastInvalidatedShadowBounds.getWidth() && !m_lastInvalidatedShadowBounds.getHeight()))
 			{
 				m_GUI->invalidateRect(shadowBounds);
 			}
@@ -517,10 +520,7 @@ namespace AvoGUI
 			else
 			{
 				m_GUI->invalidateRect(shadowBounds);
-				if (m_lastInvalidatedShadowBounds.getWidth() && m_lastInvalidatedShadowBounds.getHeight())
-				{
-					m_GUI->invalidateRect(m_lastInvalidatedShadowBounds);
-				}
+				m_GUI->invalidateRect(m_lastInvalidatedShadowBounds);
 			}
 
 			m_lastInvalidatedShadowBounds = shadowBounds;
@@ -4930,7 +4930,8 @@ namespace AvoGUI
 
 	Button::Button(View* p_parent, const char* p_text, Emphasis p_emphasis, float p_x, float p_y) :
 		View(p_parent, Rectangle<float>(p_x, p_y, p_x, p_y)), m_text(0), m_fontSize(14.f), m_icon(0),
-		m_pressAnimationTime(1.f), m_isPressed(false), m_emphasis(p_emphasis), m_isEnabled(true), m_colorAnimationTime(1.f)
+		m_pressAnimationTime(1.f), m_isPressed(false), m_emphasis(p_emphasis), m_isEnabled(true), m_colorAnimationTime(1.f),
+		m_isMouseHovering(false)
 	{
 		setText(p_text);
 
@@ -4975,7 +4976,11 @@ namespace AvoGUI
 			queueAnimationUpdate();
 
 			m_ripple->disable();
-			getGUI()->getWindow()->setCursor(Cursor::Arrow);
+
+			if (m_isMouseHovering)
+			{
+				getGUI()->getWindow()->setCursor(Cursor::Arrow);
+			}
 		}
 	}
 	void Button::enable()
@@ -4987,7 +4992,11 @@ namespace AvoGUI
 			queueAnimationUpdate();
 
 			m_ripple->enable();
-			getGUI()->getWindow()->setCursor(Cursor::Hand);
+
+			if (m_isMouseHovering)
+			{
+				getGUI()->getWindow()->setCursor(Cursor::Hand);
+			}
 		}
 	}
 
