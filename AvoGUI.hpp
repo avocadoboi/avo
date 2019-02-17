@@ -44,7 +44,7 @@ namespace AvoGUI
 	/// <summary>
 	/// Returns the square root of a float using a fast but less accurate algorithm.
 	/// </summary>
-	float fastSqrt(float p_x)
+	inline float fastSqrt(float p_x)
 	{
 		int32_t bits = (*(int32_t*)&p_x - (1 << 23) >> 1) + (1 << 29);
 		float approximation = *(float*)&bits;
@@ -53,7 +53,7 @@ namespace AvoGUI
 	/// <summary>
 	/// Returns the inverse square root of a float using a fast but less accurate algorithm.
 	/// </summary>
-	float fastInverseSqrt(float p_x)
+	inline float fastInverseSqrt(float p_x)
 	{
 		int32_t bits = 0x5f375a86 - (*(int32_t*)&p_x >> 1);
 		float approximation = *(float*)&bits;
@@ -1666,19 +1666,19 @@ namespace AvoGUI
 	/// </summary>
 	typedef uint32_t colorInt;
 
-	unsigned char getRed(colorInt p_color)
+	inline unsigned char getRed(colorInt p_color)
 	{
 		return (p_color >> 16) & 0xff;
 	}
-	unsigned char getGreen(colorInt p_color)
+	inline unsigned char getGreen(colorInt p_color)
 	{
 		return (p_color >> 8) & 0xff;
 	}
-	unsigned char getBlue(colorInt p_color)
+	inline unsigned char getBlue(colorInt p_color)
 	{
 		return p_color & 0xff;
 	}
-	unsigned char getAlpha(colorInt p_color)
+	inline unsigned char getAlpha(colorInt p_color)
 	{
 		return (p_color >> 24) & 0xff;
 	}
