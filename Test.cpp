@@ -2,6 +2,7 @@
 #include <iostream>
 
 //------------------------------
+// Example of a view that draws an image
 
 class Sprite : public AvoGUI::View, public AvoGUI::ViewEventListener
 {
@@ -38,7 +39,7 @@ public:
 
 //------------------------------
 
-class MyGUI : public AvoGUI::GUI
+class MyGUI : public AvoGUI::GUI, public AvoGUI::ButtonListener
 {
 private:
 	AvoGUI::View* m_buttonContainer;
@@ -51,6 +52,13 @@ public:
 	MyGUI() : m_areButtonsEnabled(true)
 	{
 		create("My GUI", 450, 300, AvoGUI::WindowStyleFlags::Default);
+	}
+
+	//------------------------------
+
+	void handleButtonClick(AvoGUI::Button* p_button)
+	{
+		std::cout << "A button saying '" << p_button->getString() << "' was pressed!" << std::endl;
 	}
 
 	//------------------------------
@@ -93,14 +101,19 @@ public:
 		//------------------------------
 
 		m_buttonContainer = new AvoGUI::View(this, AvoGUI::Rectangle<float>());
+
 		AvoGUI::Button* button_yes = new AvoGUI::Button(m_buttonContainer, "YES");
 		button_yes->setTooltip("tooltip 0");
+		button_yes->addButtonListener(this);
 		AvoGUI::Button* button_no = new AvoGUI::Button(m_buttonContainer, "NO", AvoGUI::Button::Emphasis::Medium, button_yes->getWidth() + 10.f);
 		button_no->setTooltip("tooltip 1");
+		button_no->addButtonListener(this);
+
 		m_buttonContainer->setPadding(30.f);
 
 		m_button_readMore = new AvoGUI::Button(this, "READ MORE", AvoGUI::Button::Emphasis::Low);
 		m_button_readMore->setTooltip("tooltip 2");
+		m_button_readMore->addButtonListener(this);
 	}
 	void handleSizeChange() override
 	{
