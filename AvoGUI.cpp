@@ -149,6 +149,9 @@ namespace AvoGUI
 
 			m_GUI = m_parent->getGUI();
 
+			m_absolutePosition.x = m_parent->getAbsoluteLeft() + m_bounds.left;
+			m_absolutePosition.y = m_parent->getAbsoluteTop() + m_bounds.top;
+
 			//------------------------------
 
 			m_theme = m_parent->getTheme();
@@ -168,7 +171,7 @@ namespace AvoGUI
 	View::~View()
 	{
 		m_theme->forget();
-		removeAllViews();
+		removeAllChildren();
 	}
 
 	//------------------------------
@@ -177,72 +180,79 @@ namespace AvoGUI
 	{
 		if (m_parent)
 		{
-			m_parent->removeView(this);
+			remember();
+			m_parent->removeChild(this); // This forgets this view
 		}
 
-		m_parent = p_container;
-
-		m_index = m_parent->getNumberOfViews();
-		if (m_parent == this)
+		if (p_container)
 		{
-			m_layerIndex = 0;
+			m_parent = p_container;
+
+			m_index = m_parent->getNumberOfChildren();
+			if (m_parent == this)
+			{
+				m_layerIndex = 0;
+			}
+			else
+			{
+				m_layerIndex = m_parent->getLayerIndex() + 1U;
+			}
+			m_absolutePosition.x = m_parent->getAbsoluteLeft() + m_bounds.left;
+			m_absolutePosition.y = m_parent->getAbsoluteTop() + m_bounds.top;
+			m_parent->addChild(this);
+			m_parent->updateViewDrawingIndex(this);
 		}
 		else
 		{
-			m_layerIndex = m_parent->getLayerIndex() + 1U;
+			m_parent = 0;
+			m_layerIndex = 0;
+			m_index = 0;
 		}
-		m_parent->addView(this);
-		m_parent->updateViewDrawingIndex(this);
 	}
 
-	void View::addView(View* p_view)
+	void View::addChild(View* p_view)
 	{
 		p_view->setIndex(m_views.size());
 		m_views.push_back(p_view);
 		updateViewDrawingIndex(p_view);
 	}
-	void View::removeView(View* p_view)
+	void View::removeChild(View* p_view)
 	{
-		for (int32_t a = 0; a < (int32_t)m_views.size(); a++)
+		if (removeVectorElementWhileKeepingOrder(m_views, p_view))
 		{
-			if (m_views[a] == p_view)
-			{
-				p_view->forget();
-				m_views.erase(m_views.begin() + a);
-				return;
-			}
+			p_view->forget();
 		}
 	}
-	void View::removeView(uint32_t p_viewIndex)
+	void View::removeChild(uint32_t p_viewIndex)
 	{
 		m_views[p_viewIndex]->forget();
 		m_views.erase(m_views.begin() + p_viewIndex);
 	}
-	void View::removeAllViews()
+	void View::removeAllChildren()
 	{
 		if (m_views.empty()) // That function naming, ew... Why didn't they call it getIsEmpty? empty() should be emptying something >:^(
 		{
 			return;
 		}
 
-		for (int32_t a = 0; a < (int32_t)m_views.size(); a++)
+		for (auto view = m_views.begin(); view != m_views.end(); view++)
 		{
-			m_views[a]->forget();
+			(*view)->forget();
 		}
 		m_views.clear();
 	}
 
 	void View::updateViewDrawingIndex(View* p_view)
 	{
-		int32_t numberOfViews = (int32_t)m_views.size();
+		uint32_t numberOfViews = (uint32_t)m_views.size();
 		if (numberOfViews <= 1) return;
 
 		float elevation = p_view->getElevation();
-		if (!p_view->getIndex() || (p_view->getIndex() < numberOfViews - 1 && m_views[p_view->getIndex() + 1]->getElevation() < elevation))
+		if (!p_view->getIndex() || (p_view->getIndex() < numberOfViews - 1U && m_views[p_view->getIndex() + 1U]->getElevation() < elevation))
 		{
 			for (uint32_t a = p_view->getIndex(); a < numberOfViews; a++)
 			{
-				if (a == numberOfViews - 1 || m_views[a + 1]->getElevation() >= elevation)
+				if (a == numberOfViews - 1U || m_views[a + 1U]->getElevation() >= elevation)
 				{
 					m_views[a] = p_view;
 					p_view->setIndex(a);
@@ -250,7 +260,7 @@ namespace AvoGUI
 				}
 				else
 				{
-					m_views[a] = m_views[a + 1];
+					m_views[a] = m_views[a + 1U];
 					m_views[a]->setIndex(a);
 				}
 			}
@@ -278,10 +288,10 @@ namespace AvoGUI
 
 	bool View::getIsIntersecting(View* p_view) const
 	{
-		Rectangle<float> viewBounds(p_view->calculateAbsoluteBounds());
+		Rectangle<float> viewBounds(p_view->getAbsoluteBounds());
 		if (p_view->getParent() != getParent())
 		{
-			viewBounds -= getParent()->calculateAbsoluteTopLeft();
+			viewBounds -= getParent()->getAbsoluteBounds().getTopLeft();
 		}
 		if (m_bounds.getIsIntersecting(viewBounds))
 		{
@@ -344,10 +354,10 @@ namespace AvoGUI
 
 	bool View::getIsContaining(View* p_view) const
 	{
-		Rectangle<float> viewBounds(p_view->calculateAbsoluteBounds());
+		Rectangle<float> viewBounds(p_view->getAbsoluteBounds());
 		if (p_view->getParent() != getParent())
 		{
-			viewBounds -= getParent()->calculateAbsoluteTopLeft();
+			viewBounds -= getParent()->getAbsoluteBounds().getTopLeft();
 		}
 		if (getIsContaining(viewBounds))
 		{
@@ -502,25 +512,41 @@ namespace AvoGUI
 
 	//------------------------------
 
+	void View::enableMouseEvents()
+	{
+		m_areMouseEventsEnabled = true;
+	}
+	void View::disableMouseEvents()
+	{
+		m_areMouseEventsEnabled = false;
+	}
+
+	void View::handleMouseEnter(const MouseEvent& p_event)
+	{
+		getGUI()->getWindow()->setCursor(m_cursor);
+	}
+
+	//------------------------------
+
 	void View::invalidate()
 	{
 		if (m_GUI)
 		{
 			setElevation(m_elevation);
 
-			Rectangle<float> shadowBounds(calculateAbsoluteShadowBounds().roundCoordinatesOutwards());
+			Rectangle<float> shadowBounds(getAbsoluteShadowBounds().roundCoordinatesOutwards());
 			if (shadowBounds == m_lastInvalidatedShadowBounds || (!m_lastInvalidatedShadowBounds.getWidth() && !m_lastInvalidatedShadowBounds.getHeight()))
 			{
-				m_GUI->invalidateRect(shadowBounds);
+				m_GUI->invalidateRectangle(shadowBounds);
 			}
 			else if (shadowBounds.getIsIntersecting(m_lastInvalidatedShadowBounds))
 			{
-				m_GUI->invalidateRect(m_lastInvalidatedShadowBounds.createContainedCopy(shadowBounds));
+				m_GUI->invalidateRectangle(m_lastInvalidatedShadowBounds.createContainedCopy(shadowBounds));
 			}
 			else
 			{
-				m_GUI->invalidateRect(shadowBounds);
-				m_GUI->invalidateRect(m_lastInvalidatedShadowBounds);
+				m_GUI->invalidateRectangle(shadowBounds);
+				m_GUI->invalidateRectangle(m_lastInvalidatedShadowBounds);
 			}
 
 			m_lastInvalidatedShadowBounds = shadowBounds;
@@ -533,19 +559,6 @@ namespace AvoGUI
 		{
 			p_drawingContext->setColor(Color(1.f));
 			p_drawingContext->drawImage(m_shadowImage);
-		}
-	}
-
-	//------------------------------
-	// class MouseEventListener
-	//------------------------------
-
-	void MouseEventListener::handleMouseEnter(const MouseEvent& p_event)
-	{
-		View* view = dynamic_cast<View*>(this);
-		if (view)
-		{
-			view->getGUI()->getWindow()->setCursor(m_cursor);
 		}
 	}
 
@@ -1458,7 +1471,7 @@ namespace AvoGUI
 			m_animationUpdateQueue.push_back(p_view);
 		}
 
-		void invalidateRect(const Rectangle<float>& p_rectangle) override
+		void invalidateRectangle(const Rectangle<float>& p_rectangle) override
 		{
 			RECT rect;
 			rect.left = p_rectangle.left;
@@ -1625,7 +1638,7 @@ namespace AvoGUI
 				mouseEvent.y = mousePosition.y;
 				mouseEvent.scrollDelta = delta;
 				mouseEvent.modifierKeys = modifierKeyFlags;
-				m_GUI->handleMouseScroll(mouseEvent);
+				m_GUI->handleGlobalMouseScroll(mouseEvent);
 
 				return true;
 			}
@@ -1641,7 +1654,7 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Left;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_GUI->handleMouseDown(mouseEvent);
+				m_GUI->handleGlobalMouseDown(mouseEvent);
 
 				SetCapture(m_windowHandle);
 
@@ -1659,7 +1672,7 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Left;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_GUI->handleMouseUp(mouseEvent);
+				m_GUI->handleGlobalMouseUp(mouseEvent);
 
 				ReleaseCapture();
 
@@ -1677,7 +1690,7 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Left;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_GUI->handleMouseDoubleClick(mouseEvent);
+				m_GUI->handleGlobalMouseDoubleClick(mouseEvent);
 
 				return true;
 			}
@@ -1693,7 +1706,7 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Right;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_GUI->handleMouseDown(mouseEvent);
+				m_GUI->handleGlobalMouseDown(mouseEvent);
 
 				return true;
 			}
@@ -1709,7 +1722,7 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Right;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_GUI->handleMouseUp(mouseEvent);
+				m_GUI->handleGlobalMouseUp(mouseEvent);
 
 				return true;
 			}
@@ -1725,7 +1738,7 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Right;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_GUI->handleMouseDoubleClick(mouseEvent);
+				m_GUI->handleGlobalMouseDoubleClick(mouseEvent);
 
 				return true;
 			}
@@ -1741,7 +1754,7 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Middle;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_GUI->handleMouseDown(mouseEvent);
+				m_GUI->handleGlobalMouseDown(mouseEvent);
 
 				return true;
 			}
@@ -1757,7 +1770,7 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Middle;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_GUI->handleMouseUp(mouseEvent);
+				m_GUI->handleGlobalMouseUp(mouseEvent);
 
 				return true;
 			}
@@ -1773,7 +1786,7 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Middle;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_GUI->handleMouseDoubleClick(mouseEvent);
+				m_GUI->handleGlobalMouseDoubleClick(mouseEvent);
 
 				return true;
 			}
@@ -1804,7 +1817,7 @@ namespace AvoGUI
 				mouseEvent.movementX = x - m_mousePosition.x;
 				mouseEvent.movementY = y - m_mousePosition.y;
 				mouseEvent.modifierKeys = modifierKeys;
-				m_GUI->handleMouseMove(mouseEvent);
+				m_GUI->handleGlobalMouseMove(mouseEvent);
 
 				m_mousePosition.set(x, y);
 
@@ -4109,12 +4122,12 @@ namespace AvoGUI
 	// Private
 	//
 
-	std::vector<MouseEventListener*> GUI::getTopMouseListenersAt(const Point<float>& p_coordinates)
+	void GUI::getTopMouseListenersAt(const Point<float>& p_coordinates, std::vector<View*>& p_result)
 	{
-		std::vector<MouseEventListener*> results;
+		p_result.reserve(5);
 
 		View* currentContainer = this;
-		uint32_t startPosition = getNumberOfViews() - 1U;
+		uint32_t startPosition = getNumberOfChildren() - 1U;
 
 		Point<float> viewOffset;
 
@@ -4125,11 +4138,10 @@ namespace AvoGUI
 			{
 				if (a == -1)
 				{
-					MouseEventListener* mouseEventListener = dynamic_cast<MouseEventListener*>(currentContainer);
-					if (mouseEventListener)
+					if (currentContainer->getAreMouseEventsEnabled())
 					{
-						results.push_back(mouseEventListener);
-						if (mouseEventListener->getIsOverlay())
+						p_result.push_back(currentContainer);
+						if (currentContainer->getIsOverlay())
 						{
 							if (currentContainer->getParent() == this)
 							{
@@ -4154,23 +4166,22 @@ namespace AvoGUI
 				}
 				else
 				{
-					View* view = currentContainer->getView(a);
+					View* view = currentContainer->getChild(a);
 					if (view->getIsContaining(p_coordinates - viewOffset))
 					{
-						if (view->getNumberOfViews())
+						if (view->getNumberOfChildren())
 						{
 							currentContainer = view;
-							startPosition = currentContainer->getNumberOfViews() - 1;
+							startPosition = currentContainer->getNumberOfChildren() - 1;
 							viewOffset += currentContainer->getTopLeft();
 							break;
 						}
 						else
 						{
-							MouseEventListener* mouseEventListener = dynamic_cast<MouseEventListener*>(view);
-							if (mouseEventListener)
+							if (view->getAreMouseEventsEnabled())
 							{
-								results.push_back(mouseEventListener);
-								if (!mouseEventListener->getIsOverlay())
+								p_result.push_back(view);
+								if (!view->getIsOverlay())
 								{
 									willContinue = false;
 									break;
@@ -4186,11 +4197,10 @@ namespace AvoGUI
 				}
 			}
 		}
-		return results;
 	}
-	std::vector<MouseEventListener*> GUI::getTopMouseListenersAt(float p_x, float p_y)
+	void GUI::getTopMouseListenersAt(float p_x, float p_y, std::vector<View*>& p_result)
 	{
-		return getTopMouseListenersAt(Point<float>(p_x, p_y));
+		getTopMouseListenersAt(Point<float>(p_x, p_y), p_result);
 	}
 
 	//
@@ -4199,8 +4209,7 @@ namespace AvoGUI
 
 	GUI::GUI() :
 		View(0, Rectangle<float>(0, 0, 0, 0)), m_drawingContext(0),
-		m_keyboardFocus(0),
-		m_areIndirectKeyboardEventsEnabled(false), m_areIndirectMouseEventsEnabled(false)
+		m_keyboardFocus(0)
 	{
 #ifdef _WIN32
 		m_window = new WindowsWindow(this);
@@ -4209,10 +4218,11 @@ namespace AvoGUI
 		m_GUI = this;
 		m_theme = new Theme();
 
+		m_tooltip = new Tooltip(this);
+
 		//------------------------------
 
 		m_windowEventListeners.reserve(5);
-		m_mouseEventListeners.reserve(20);
 		m_keyboardEventListeners.reserve(20);
 	}
 	GUI::~GUI()
@@ -4230,6 +4240,7 @@ namespace AvoGUI
 	void GUI::create(const char* p_title, uint32_t p_x, uint32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags, bool p_isFullscreen, GUI* p_parent)
 	{
 		m_bounds = Rectangle<float>(0, 0, p_width, p_height);
+		setAbsoluteBounds(m_bounds);
 		m_window->create(p_title, p_width, p_height, p_windowFlags, p_isFullscreen, p_parent ? p_parent->getWindow() : 0);
 	}
 	void GUI::create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags, bool p_isFullscreen, GUI* p_parent)
@@ -4247,12 +4258,12 @@ namespace AvoGUI
 		View* result = 0;
 		while (!result)
 		{
-			for (int32_t a = currentContainer->getNumberOfViews() - 1; a >= 0; a--)
+			for (int32_t a = currentContainer->getNumberOfChildren() - 1; a >= 0; a--)
 			{
-				View* view = currentContainer->getView(a);
+				View* view = currentContainer->getChild(a);
 				if (view->getIsContaining(p_coordinates))
 				{
-					if (view->getNumberOfViews())
+					if (view->getNumberOfChildren())
 					{
 						currentContainer = view;
 						break;
@@ -4294,159 +4305,102 @@ namespace AvoGUI
 	{
 		m_drawingContext->setSize(p_event.width, p_event.height);
 		setSize(p_event.width, p_event.height);
-		invalidateRect(getBounds().createCopyAtOrigin());
+		invalidateRectangle(getBounds().createCopyAtOrigin());
+		m_tooltip->hide();
 	}
 
 	//------------------------------
 
-	void GUI::handleMouseDown(const MouseEvent& p_event)
+	void GUI::handleGlobalMouseDown(const MouseEvent& p_event)
 	{
-		std::vector<MouseEventListener*> targets = getTopMouseListenersAt(p_event.x, p_event.y);
+		std::vector<View*> targets;
+		getTopMouseListenersAt(p_event.x, p_event.y, targets);
 
 		m_pressedMouseEventListeners.clear();
 
 		MouseEvent event = p_event;
-		if (m_areIndirectMouseEventsEnabled)
+		if (targets.size())
 		{
-			for (uint32_t a = 0; a < m_mouseEventListeners.size(); a++)
+			for (auto view = targets.begin(); view != targets.end(); view++)
 			{
-				View* view = dynamic_cast<View*>(m_mouseEventListeners[a]);
-				if (view)
-				{
-					Point<float> position = view->calculateAbsoluteTopLeft();
-					event.x = p_event.x - position.x;
-					event.y = p_event.y - position.y;
-				}
+				Point<float> position = (*view)->getAbsoluteBounds().getTopLeft();
+				event.x = p_event.x - position.x;
+				event.y = p_event.y - position.y;
 
-				event.isTarget = false;
-				for (uint32_t b = 0; b < targets.size(); b++)
-				{
-					if (targets[b] == m_mouseEventListeners[a])
-					{
-						event.isTarget = true;
-
-						m_pressedMouseEventListeners.push_back(targets[b]);
-
-						break;
-					}
-				}
-				m_mouseEventListeners[a]->handleMouseDown(event);
+				(*view)->handleMouseDown(event);
+				m_pressedMouseEventListeners.push_back(*view);
 			}
 		}
-		else
-		{
-			event.isTarget = true;
-			for (uint32_t a = 0; a < targets.size(); a++)
-			{
-				View* view = dynamic_cast<View*>(targets[a]);
-				if (view)
-				{
-					Point<float> position = view->calculateAbsoluteTopLeft();
-					event.x = p_event.x - position.x;
-					event.y = p_event.y - position.y;
-				}
 
-				targets[a]->handleMouseDown(event);
-				m_pressedMouseEventListeners.push_back(targets[a]);
+		if (m_globalMouseEventListeners.size())
+		{
+			for (auto listener = m_globalMouseEventListeners.begin(); listener != m_globalMouseEventListeners.end(); listener++)
+			{
+				(*listener)->handleGlobalMouseDown(p_event);
 			}
 		}
 	}
-	void GUI::handleMouseUp(const MouseEvent& p_event)
+	void GUI::handleGlobalMouseUp(const MouseEvent& p_event)
 	{
-		MouseEvent event = p_event;
-		if (m_areIndirectMouseEventsEnabled)
-		{
-			for (uint32_t a = 0; a < m_mouseEventListeners.size(); a++)
-			{
-				View* view = dynamic_cast<View*>(m_mouseEventListeners[a]);
-				if (view)
-				{
-					Point<float> position = view->calculateAbsoluteTopLeft();
-					event.x = p_event.x - position.x;
-					event.y = p_event.y - position.y;
-				}
-
-				event.isTarget = false;
-				for (uint32_t b = 0; b < m_pressedMouseEventListeners.size(); b++)
-				{
-					if (m_mouseEventListeners[a] == m_pressedMouseEventListeners[b])
-					{
-						event.isTarget = true;
-						break;
-					}
-				}
-				m_mouseEventListeners[a]->handleMouseUp(event);
-			}
-		}
-		else
-		{
-			event.isTarget = true;
-			for (uint32_t a = 0; a < m_pressedMouseEventListeners.size(); a++)
-			{
-				View* view = dynamic_cast<View*>(m_pressedMouseEventListeners[a]);
-				if (view)
-				{
-					Point<float> position = view->calculateAbsoluteTopLeft();
-					event.x = p_event.x - position.x;
-					event.y = p_event.y - position.y;
-				}
-
-				m_pressedMouseEventListeners[a]->handleMouseUp(event);
-			}
-		}
-	}
-	void GUI::handleMouseDoubleClick(const MouseEvent& p_event)
-	{
-		std::vector<MouseEventListener*> targets = getTopMouseListenersAt(p_event.x, p_event.y);
+		std::vector<View*> targets;
+		getTopMouseListenersAt(p_event.x, p_event.y, targets);
 
 		MouseEvent event = p_event;
-		if (m_areIndirectMouseEventsEnabled)
+		if (targets.size())
 		{
-			for (uint32_t a = 0; a < m_mouseEventListeners.size(); a++)
+			for (auto view = targets.begin(); view != targets.end(); view++)
 			{
-				View* view = dynamic_cast<View*>(m_mouseEventListeners[a]);
-				if (view)
-				{
-					Point<float> position = view->calculateAbsoluteTopLeft();
-					event.x = p_event.x - position.x;
-					event.y = p_event.y - position.y;
-				}
+				Point<float> position = (*view)->getAbsoluteBounds().getTopLeft();
+				event.x = p_event.x - position.x;
+				event.y = p_event.y - position.y;
 
-				event.isTarget = false;
-				for (uint32_t b = 0; b < targets.size(); b++)
-				{
-					if (targets[b] == m_mouseEventListeners[a])
-					{
-						event.isTarget = true;
-						break;
-					}
-				}
-				m_mouseEventListeners[a]->handleMouseDoubleClick(event);
+				(*view)->handleMouseUp(event);
 			}
 		}
-		else
+
+		if (m_globalMouseEventListeners.size())
 		{
-			event.isTarget = true;
-			for (uint32_t a = 0; a < targets.size(); a++)
+			for (auto listener = m_globalMouseEventListeners.begin(); listener != m_globalMouseEventListeners.end(); listener++)
 			{
-				View* view = dynamic_cast<View*>(targets[a]);
-				if (view)
-				{
-					Point<float> position = view->calculateAbsoluteTopLeft();
-					event.x = p_event.x - position.x;
-					event.y = p_event.y - position.y;
-				}
-				targets[a]->handleMouseDoubleClick(event);
+				(*listener)->handleGlobalMouseUp(p_event);
+			}
+		}
+	}
+	void GUI::handleGlobalMouseDoubleClick(const MouseEvent& p_event)
+	{
+		std::vector<View*> targets;
+		getTopMouseListenersAt(p_event.x, p_event.y, targets);
+
+		MouseEvent event = p_event;
+		if (targets.size())
+		{
+			for (auto view = targets.begin(); view != targets.end(); view++)
+			{
+				Point<float> position = (*view)->getAbsoluteBounds().getTopLeft();
+				event.x = p_event.x - position.x;
+				event.y = p_event.y - position.y;
+
+				(*view)->handleMouseDoubleClick(event);
+			}
+		}
+
+		if (m_globalMouseEventListeners.size())
+		{
+			for (auto listener = m_globalMouseEventListeners.begin(); listener != m_globalMouseEventListeners.end(); listener++)
+			{
+				(*listener)->handleGlobalMouseDoubleClick(p_event);
 			}
 		}
 	}
 
-	void GUI::handleMouseMove(const MouseEvent& p_event)
+	void GUI::handleGlobalMouseMove(const MouseEvent& p_event)
 	{
 		// These vectors usually don't have more than 1 or 2 elements in them, so the loops aren't as slow as it looks like.
 
-		std::vector<MouseEventListener*> oldTargets = getTopMouseListenersAt(p_event.x - p_event.movementX, p_event.y - p_event.movementY);
-		std::vector<MouseEventListener*> newTargets = getTopMouseListenersAt(p_event.x, p_event.y);
+		std::vector<View*> oldTargets;
+		getTopMouseListenersAt(p_event.x - p_event.movementX, p_event.y - p_event.movementY, oldTargets);
+		std::vector<View*> newTargets;
+		getTopMouseListenersAt(p_event.x, p_event.y, newTargets);
 
 		if (!newTargets.size() && oldTargets.size())
 		{
@@ -4455,166 +4409,74 @@ namespace AvoGUI
 
 		MouseEvent mouseEvent = p_event;
 
-		if (m_areIndirectMouseEventsEnabled)
+		std::vector<bool> isNewTargetOldTarget(newTargets.size());
+		for (uint32_t a = 0; a < oldTargets.size(); a++)
 		{
-			for (uint32_t a = 0; a < m_mouseEventListeners.size(); a++)
+			bool hasLeftTarget = true;
+			for (uint32_t b = 0; b < newTargets.size(); b++)
 			{
-				View* view = dynamic_cast<View*>(m_mouseEventListeners[a]);
-				if (view)
+				if (oldTargets[a] == newTargets[b])
 				{
-					Point<float> position = view->calculateAbsoluteTopLeft();
+					Point<float> position = newTargets[b]->getAbsoluteBounds().getTopLeft();
 					mouseEvent.x = p_event.x - position.x;
 					mouseEvent.y = p_event.y - position.y;
-				}
 
-				bool isOldTarget = false;
-				for (uint32_t b = 0; b < oldTargets.size(); b++)
-				{
-					if (m_mouseEventListeners[a] == oldTargets[b])
-					{
-						isOldTarget = true;
-						break;
-					}
+					newTargets[b]->handleMouseMove(mouseEvent);
+					isNewTargetOldTarget[b] = true;
+					hasLeftTarget = false;
+					break;
 				}
-				bool isNewTarget = false;
-				for (uint32_t b = 0; b < newTargets.size(); b++)
-				{
-					if (m_mouseEventListeners[a] == newTargets[b])
-					{
-						isNewTarget = true;
-						break;
-					}
-				}
-				if (isOldTarget && isNewTarget)
-				{
-					mouseEvent.isTarget = true;
-					m_mouseEventListeners[a]->handleMouseMove(mouseEvent);
-				}
-				else if (isOldTarget)
-				{
-					mouseEvent.isTarget = true;
-					m_mouseEventListeners[a]->handleMouseLeave(mouseEvent);
-				}
-				else if (isNewTarget)
-				{
-					mouseEvent.isTarget = true;
-					m_mouseEventListeners[a]->handleMouseEnter(mouseEvent);
-				}
-				else
-				{
-					mouseEvent.isTarget = false;
-					m_mouseEventListeners[a]->handleMouseMove(mouseEvent);
-				}
+			}
+			if (hasLeftTarget)
+			{
+				Point<float> position = oldTargets[a]->getAbsoluteBounds().getTopLeft();
+				mouseEvent.x = p_event.x - position.x;
+				mouseEvent.y = p_event.y - position.y;
+				oldTargets[a]->handleMouseLeave(mouseEvent);
 			}
 		}
-		else
+		for (auto view = newTargets.begin(); view != newTargets.end(); view++)
 		{
-			mouseEvent.isTarget = true;
-			std::vector<bool> isNewTargetOldTarget(newTargets.size());
-			for (uint32_t a = 0; a < oldTargets.size(); a++)
+			if (!isNewTargetOldTarget[view - newTargets.begin()])
 			{
-				bool hasLeftTarget = true;
-				for (uint32_t b = 0; b < newTargets.size(); b++)
-				{
-					if (oldTargets[a] == newTargets[b])
-					{
-						View* view = dynamic_cast<View*>(newTargets[b]);
-						if (view)
-						{
-							Point<float> position = view->calculateAbsoluteTopLeft();
-							mouseEvent.x = p_event.x - position.x;
-							mouseEvent.y = p_event.y - position.y;
-						}
-						else {
-							mouseEvent.x = p_event.x;
-							mouseEvent.y = p_event.y;
-						}
-						newTargets[b]->handleMouseMove(mouseEvent);
-						isNewTargetOldTarget[b] = true;
-						hasLeftTarget = false;
-						break;
-					}
-				}
-				if (hasLeftTarget)
-				{
-					View* view = dynamic_cast<View*>(oldTargets[a]);
-					if (view)
-					{
-						Point<float> position = view->calculateAbsoluteTopLeft();
-						mouseEvent.x = p_event.x - position.x;
-						mouseEvent.y = p_event.y - position.y;
-					}
-					else
-					{
-						mouseEvent.x = p_event.x;
-						mouseEvent.y = p_event.y;
-					}
-					oldTargets[a]->handleMouseLeave(mouseEvent);
-				}
+				Point<float> position = (*view)->getAbsoluteBounds().getTopLeft();
+				mouseEvent.x = p_event.x - position.x;
+				mouseEvent.y = p_event.y - position.y;
+				(*view)->handleMouseEnter(mouseEvent);
 			}
-			for (uint32_t a = 0; a < newTargets.size(); a++)
+		}
+
+		if (m_globalMouseEventListeners.size())
+		{
+			for (auto listener = m_globalMouseEventListeners.begin(); listener != m_globalMouseEventListeners.end(); listener++)
 			{
-				if (!isNewTargetOldTarget[a])
-				{
-					View* view = dynamic_cast<View*>(newTargets[a]);
-					if (view)
-					{
-						Point<float> position = view->calculateAbsoluteTopLeft();
-						mouseEvent.x = p_event.x - position.x;
-						mouseEvent.y = p_event.y - position.y;
-					}
-					else
-					{
-						mouseEvent.x = p_event.x;
-						mouseEvent.y = p_event.y;
-					}
-					newTargets[a]->handleMouseEnter(mouseEvent);
-				}
+				(*listener)->handleGlobalMouseMove(p_event);
 			}
 		}
 	}
-	void GUI::handleMouseScroll(const MouseEvent& p_event)
+	void GUI::handleGlobalMouseScroll(const MouseEvent& p_event)
 	{
-		std::vector<MouseEventListener*> targets = getTopMouseListenersAt(p_event.x, p_event.y);
+		std::vector<View*> targets;
+		getTopMouseListenersAt(p_event.x, p_event.y, targets);
 
 		MouseEvent event = p_event;
-		if (m_areIndirectMouseEventsEnabled)
+		if (targets.size())
 		{
-			for (uint32_t a = 0; a < m_mouseEventListeners.size(); a++)
+			for (auto view = targets.begin(); view != targets.end(); view++)
 			{
-				View* view = dynamic_cast<View*>(m_mouseEventListeners[a]);
-				if (view)
-				{
-					Point<float> position = view->calculateAbsoluteTopLeft();
-					event.x = p_event.x - position.x;
-					event.y = p_event.y - position.y;
-				}
+				Point<float> position = (*view)->getAbsoluteBounds().getTopLeft();
+				event.x = p_event.x - position.x;
+				event.y = p_event.y - position.y;
 
-				event.isTarget = false;
-				for (uint32_t b = 0; b < targets.size(); b++)
-				{
-					if (targets[b] == m_mouseEventListeners[a])
-					{
-						event.isTarget = true;
-						break;
-					}
-				}
-				m_mouseEventListeners[a]->handleMouseScroll(event);
+				(*view)->handleMouseScroll(event);
 			}
 		}
-		else
+
+		if (m_globalMouseEventListeners.size())
 		{
-			event.isTarget = true;
-			for (uint32_t a = 0; a < targets.size(); a++)
+			for (auto listener = m_globalMouseEventListeners.begin(); listener != m_globalMouseEventListeners.end(); listener++)
 			{
-				View* view = dynamic_cast<View*>(targets[a]);
-				if (view)
-				{
-					Point<float> position = view->calculateAbsoluteTopLeft();
-					event.x = p_event.x - position.x;
-					event.y = p_event.y - position.y;
-				}
-				targets[a]->handleMouseScroll(event);
+				(*listener)->handleGlobalMouseScroll(p_event);
 			}
 		}
 	}
@@ -4651,24 +4513,25 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void GUI::addWindowEventListener(WindowEventListener* p_listener)
+	void GUI::setTooltipView(Tooltip* p_tooltip)
 	{
-		m_windowEventListeners.push_back(p_listener);
+		if (m_tooltip)
+		{
+			m_tooltip->setParent(0);
+		}
+		p_tooltip->setParent(this);
+		m_tooltip = p_tooltip;
 	}
-	void GUI::addKeyboardEventListener(KeyboardEventListener* p_listener)
+	Tooltip* GUI::getTooltipView()
 	{
-		m_keyboardEventListeners.push_back(p_listener);
-	}
-	void GUI::addMouseEventListener(MouseEventListener* p_listener)
-	{
-		m_mouseEventListeners.push_back(p_listener);
+		return m_tooltip;
 	}
 
 	//------------------------------
 
-	void GUI::invalidateRect(const Rectangle<float>& p_rectangle)
+	void GUI::invalidateRectangle(const Rectangle<float>& p_rectangle)
 	{
-		m_window->invalidateRect(p_rectangle);
+		m_window->invalidateRectangle(p_rectangle);
 	}
 
 	void GUI::draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
@@ -4687,9 +4550,9 @@ namespace AvoGUI
 		while (true)
 		{
 			bool isDoneWithContainer = true;
-			for (uint32_t a = startPosition; a < currentContainer->getNumberOfViews(); a++)
+			for (uint32_t a = startPosition; a < currentContainer->getNumberOfChildren(); a++)
 			{
-				View* view = currentContainer->getView(a);
+				View* view = currentContainer->getChild(a);
 
 				if (view->getIsIntersecting(movedTargetRectangle) && view->getIsVisible())
 				{
@@ -4709,7 +4572,7 @@ namespace AvoGUI
 
 					view->draw(m_drawingContext, movedTargetRectangle);
 
-					if (view->getNumberOfViews())
+					if (view->getNumberOfChildren())
 					{
 						currentContainer = view;
 						startPosition = 0;
@@ -4787,6 +4650,56 @@ namespace AvoGUI
 	}
 
 	//------------------------------
+	// class Tooltip
+	//------------------------------
+
+	void Tooltip::show(const char* p_string, const Rectangle<float>& p_targetRectangle)
+	{
+		if (!m_isShowing)
+		{
+			if (!m_text || p_string != m_text->getString())
+			{
+				if (m_text)
+				{
+					m_text->forget();
+				}
+				m_text = getGUI()->getDrawingContext()->createText(p_string, 12.f);
+				m_text->minimizeSize();
+				setSize(m_text->getWidth() + 25.f, m_text->getHeight() + 15.f);
+				m_text->setCenter(getWidth()*0.5f, getHeight()*0.5f);
+			}
+
+			if (p_targetRectangle.bottom + 7.f + getHeight() >= getGUI()->getHeight())
+			{
+				setBottom(max(1.f, p_targetRectangle.top - 7.f), true);
+			}
+			else
+			{
+				setTop(p_targetRectangle.bottom + 7.f, true);
+			}
+			setCenterX(max(1.f + getWidth()*0.5f, min(getGUI()->getWidth() - getWidth()*0.5 - 1.f, p_targetRectangle.getCenterX())));
+
+			m_isShowing = true;
+			queueAnimationUpdate();
+		}
+	}
+	void Tooltip::hide()
+	{
+		if (m_isShowing)
+		{
+			m_isShowing = false;
+			queueAnimationUpdate();
+		}
+	}
+
+	void Tooltip::draw(DrawingContext* p_drawingContext)
+	{
+		p_drawingContext->clear(Color(0.f, m_opacity*0.7f));
+		p_drawingContext->setColor(Color(1.f, m_opacity*0.9f));
+		p_drawingContext->drawText(m_text);
+	}
+
+	//------------------------------
 	// class Ripple
 	//------------------------------
 
@@ -4797,7 +4710,7 @@ namespace AvoGUI
 		setIsOverlay(true); // Mouse events should be sent through
 		setHasShadow(false);
 		setElevation(FLT_MAX); // Nothing can be above a ripple...
-		getGUI()->addMouseEventListener(this);
+		enableMouseEvents();
 		p_parent->addEventListener(this);
 	}
 	Ripple::~Ripple()
@@ -4929,11 +4842,11 @@ namespace AvoGUI
 	//------------------------------
 
 	Button::Button(View* p_parent, const char* p_text, Emphasis p_emphasis, float p_x, float p_y) :
-		View(p_parent, Rectangle<float>(p_x, p_y, p_x, p_y)), m_text(0), m_fontSize(14.f), m_icon(0),
-		m_pressAnimationTime(1.f), m_isPressed(false), m_emphasis(p_emphasis), m_isEnabled(true), m_colorAnimationTime(1.f),
-		m_isMouseHovering(false)
+		View(p_parent, Rectangle<float>(p_x, p_y, p_x, p_y)), m_text(0), m_fontSize(14.f), m_tooltipString(""),
+		m_icon(0), m_pressAnimationTime(1.f), m_isPressed(false), m_emphasis(p_emphasis), m_isEnabled(true), 
+		m_colorAnimationTime(1.f), m_isMouseHovering(false)
 	{
-		setText(p_text);
+		setString(p_text);
 
 		setCornerRadius(4.f);
 
@@ -4951,11 +4864,14 @@ namespace AvoGUI
 			m_currentColor = m_theme->colors["primary on background"];
 		}
 
-		m_GUI->addMouseEventListener(this);
+		enableMouseEvents();
 	}
 	Button::~Button()
 	{
-		m_text->forget();
+		if (m_text)
+		{
+			m_text->forget();
+		}
 	}
 
 	//------------------------------
@@ -5002,7 +4918,7 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void Button::setText(const char* p_text)
+	void Button::setString(const char* p_text)
 	{
 		if (m_text)
 		{
@@ -5023,9 +4939,9 @@ namespace AvoGUI
 		{
 			setSize(64.f, round(m_text->getHeight()) + 17.f);
 		}
-		m_text->setCenter(getWidth()*0.5f, getHeight()*0.5f);
+		m_text->setCenter(getCenter() - getTopLeft());
 	}
-	const char* Button::getText()
+	const char* Button::getString()
 	{
 		return m_text->getString().c_str();
 	}
@@ -5040,11 +4956,29 @@ namespace AvoGUI
 			{
 				if (!m_icon)
 				{
-					m_icon = p_icon;
 					m_text->setLeft(38.f, true);
 					setWidth(round(m_text->getWidth()) + 16.f + 38.f);
+					m_icon = p_icon;
+					m_icon->setSize(16.f, 16.f);
+					m_icon->setCenter(38.f*0.5f, getHeight()*0.5f);
 				}
-
+				else
+				{
+					m_icon->forget();
+					m_icon = p_icon;
+				}
+			}
+			else
+			{
+				if (m_text->getWidth() >= 32.f)
+				{
+					setWidth(round(m_text->getWidth()) + 32.f);
+				}
+				else
+				{
+					setWidth(64.f);
+				}
+				m_text->setCenter(getCenter());
 			}
 			invalidate();
 		}

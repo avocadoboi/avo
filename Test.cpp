@@ -63,14 +63,14 @@ public:
 		{
 			if (m_areButtonsEnabled)
 			{
-				((AvoGUI::Button*)m_buttonContainer->getView(0))->disable();
-				((AvoGUI::Button*)m_buttonContainer->getView(1))->disable();
+				((AvoGUI::Button*)m_buttonContainer->getChild(0))->disable();
+				((AvoGUI::Button*)m_buttonContainer->getChild(1))->disable();
 				m_button_readMore->disable();
 			}
 			else
 			{
-				((AvoGUI::Button*)m_buttonContainer->getView(0))->enable();
-				((AvoGUI::Button*)m_buttonContainer->getView(1))->enable();
+				((AvoGUI::Button*)m_buttonContainer->getChild(0))->enable();
+				((AvoGUI::Button*)m_buttonContainer->getChild(1))->enable();
 				m_button_readMore->enable();
 			}
 			m_areButtonsEnabled = !m_areButtonsEnabled;
@@ -92,14 +92,15 @@ public:
 
 		//------------------------------
 
-		m_sprite = new Sprite(this, "test image.png");
-
 		m_buttonContainer = new AvoGUI::View(this, AvoGUI::Rectangle<float>());
-		AvoGUI::Button* button_press = new AvoGUI::Button(m_buttonContainer, "YES");
-		new AvoGUI::Button(m_buttonContainer, "NO", AvoGUI::Button::Emphasis::Medium, button_press->getWidth() + 10.f);
+		AvoGUI::Button* button_yes = new AvoGUI::Button(m_buttonContainer, "YES");
+		button_yes->setTooltip("tooltip 0");
+		AvoGUI::Button* button_no = new AvoGUI::Button(m_buttonContainer, "NO", AvoGUI::Button::Emphasis::Medium, button_yes->getWidth() + 10.f);
+		button_no->setTooltip("tooltip 1");
 		m_buttonContainer->setPadding(30.f);
 
 		m_button_readMore = new AvoGUI::Button(this, "READ MORE", AvoGUI::Button::Emphasis::Low);
+		m_button_readMore->setTooltip("tooltip 2");
 	}
 	void handleSizeChange() override
 	{

@@ -117,19 +117,38 @@ namespace AvoGUI
 	//------------------------------
 
 	/// <summary>
-	/// Removes an element from a vector.
+	/// Removes an element from a vector. The function returns true if the element existed in the vector and was removed.
 	/// </summary>
 	template<typename Type>
-	void removeVectorElement(std::vector<Type>& p_vector, Type p_value)
+	bool removeVectorElementWhileKeepingOrder(std::vector<Type>& p_vector, Type p_value)
 	{
-		for (uint32_t a = 0; a < p_vector.size(); a++)
+		for (auto element = p_vector.begin(); element != p_vector.end(); element++)
 		{
-			if (p_vector[a] == p_value)
+			if (*element == p_value)
 			{
-				p_vector.erase(p_vector.begin() + a);
-				return;
+				p_vector.erase(element);
+				return true;
 			}
 		}
+		return false;
+	}
+
+	/// <summary>
+	/// Removes an element from a vector efficiently without keeping the order of the elements in the vector. The function returns true if the element existed in the vector and was removed.
+	/// </summary>
+	template<typename Type>
+	bool removeVectorElementWithoutKeepingOrder(std::vector<Type>& p_vector, Type p_value)
+	{
+		for (auto element = p_vector.begin(); element != p_vector.end(); element++)
+		{
+			if (*element == p_value)
+			{
+				*element = p_vector.back();
+				p_vector.pop_back();
+				return true;
+			}
+		}
+		return false;
 	}
 
 	//------------------------------
@@ -274,6 +293,10 @@ namespace AvoGUI
 		{
 			return Point<PointType>(x + (PointType)p_offset, y + (PointType)p_offset);
 		}
+		Point<PointType> createAddedCopy(PointType p_x, PointType p_y) const
+		{
+			return Point<PointType>(x + p_x, y + p_y);
+		}
 
 		template<typename OffsetType>
 		Point<PointType>& operator+=(const Point<OffsetType>& p_offset)
@@ -286,6 +309,12 @@ namespace AvoGUI
 		{
 			x += p_offset;
 			y += p_offset;
+			return *this;
+		}
+		Point<PointType>& move(PointType p_x, PointType p_y)
+		{
+			x += p_x;
+			y += p_y;
 			return *this;
 		}
 
@@ -309,6 +338,10 @@ namespace AvoGUI
 		Point<PointType> operator-(PointType p_offset) const
 		{
 			return Point<PointType>(x - p_offset, y - p_offset);
+		}
+		Point<PointType> createSubtractedCopy(PointType p_x, PointType p_y) const
+		{
+			return Point<PointType>(x - p_x, y - p_y);
 		}
 
 		template<typename OffsetType>
@@ -341,6 +374,10 @@ namespace AvoGUI
 		{
 			return Point<PointType>(x*p_factor, y*p_factor);
 		}
+		Point<PointType> createMultipliedCopy(PointType p_x, PointType p_y) const
+		{
+			return Point<PointType>(x * p_x, y * p_y);
+		}
 
 		template<typename T>
 		Point<PointType>& operator*=(const Point<T>& p_point)
@@ -371,6 +408,10 @@ namespace AvoGUI
 		Point<PointType> operator/(double p_divisor) const
 		{
 			return Point<PointType>(x / p_divisor, y / p_divisor);
+		}
+		Point<PointType> createDividedCopy(PointType p_x, PointType p_y) const
+		{
+			return Point<PointType>(x / p_x, y / p_y);
 		}
 
 		template<typename T>
@@ -1100,6 +1141,18 @@ namespace AvoGUI
 			bottom += p_offsetY;
 			return *this;
 		}
+		Rectangle<RectangleType>& moveX(RectangleType p_offsetX)
+		{
+			left += p_offsetX;
+			right += p_offsetX;
+			return *this;
+		}
+		Rectangle<RectangleType>& moveY(RectangleType p_offsetY)
+		{
+			left += p_offsetY;
+			right += p_offsetY;
+			return *this;
+		}
 
 		//------------------------------
 
@@ -1354,6 +1407,14 @@ namespace AvoGUI
 		virtual void move(float p_offsetX, float p_offsetY)
 		{
 			m_bounds.move(p_offsetX, p_offsetY);
+		}
+		virtual void moveX(float p_offsetX)
+		{
+			m_bounds.moveX(p_offsetX);
+		}
+		virtual void moveY(float p_offsetX)
+		{
+			m_bounds.moveY(p_offsetX);
 		}
 
 		//------------------------------
@@ -1629,10 +1690,10 @@ namespace AvoGUI
 	class ReferenceCounted
 	{
 	private:
-		int32_t m_referenceCount;
+		uint32_t m_referenceCount;
 
 	public:
-		ReferenceCounted() : m_referenceCount(1) { }
+		ReferenceCounted() : m_referenceCount(1U) { }
 		virtual ~ReferenceCounted() { };
 
 		/// <summary>
@@ -1654,6 +1715,11 @@ namespace AvoGUI
 			{
 				delete this;
 			}
+		}
+
+		uint32_t getReferenceCount()
+		{
+			return m_referenceCount;
 		}
 	};
 
@@ -1909,21 +1975,19 @@ namespace AvoGUI
 		/// <summary>
 		/// <para>Sets the HSB saturation of the color. The saturation is a float in the range [0, 1].</para>
 		/// <para>HSB saturation can change lightness, and HSL saturation can change brightness.</para>
-		/// <para>Keep in mind that you can't change the saturation if the color is black, because only RGBA values are stored.</para>
+		/// <para>Keep in mind that you can't change the saturation if the color is grayscale, because only RGBA values are stored.</para>
 		/// </summary>
 		Color& setSaturationHSB(float p_saturation)
 		{
-			float brightness = max(red, green, blue);
-
-			float saturation = getSaturationHSB();
-			if (saturation == 0.f)
+			if (red == green && red == blue)
 			{
 				return *this;
 			}
 
 			p_saturation = constrain(p_saturation);
-			float factor = p_saturation / saturation;
+			float factor = p_saturation / getSaturationHSB();
 
+			float brightness = max(red, green, blue);
 			red = brightness + factor * (red - brightness);
 			green = brightness + factor * (green - brightness);
 			blue = brightness + factor * (blue - brightness);
@@ -1946,7 +2010,7 @@ namespace AvoGUI
 		/// <summary>
 		/// <para>Sets the HSL saturation of the color. The saturation is a float in the range [0, 1].</para>
 		/// <para>HSB saturation can change lightness, and HSL saturation can change brightness.</para>
-		/// <para>Keep in mind that you can't change the saturation if the color is black, since only RGBA values are stored.</para>
+		/// <para>Keep in mind that you can't change the saturation if the color is gray, since only RGBA values are stored.</para>
 		/// </summary>
 		Color& setSaturationHSL(float p_saturation)
 		{
@@ -1986,8 +2050,7 @@ namespace AvoGUI
 		{
 			p_brightness = constrain(p_brightness);
 
-			float brightness = max(red, green, blue);
-			if (brightness == 0.f)
+			if (red == green && red == blue)
 			{
 				red = p_brightness;
 				green = p_brightness;
@@ -1995,6 +2058,7 @@ namespace AvoGUI
 				return *this;
 			}
 
+			float brightness = max(red, green, blue);
 			red *= p_brightness / brightness;
 			green *= p_brightness / brightness;
 			blue *= p_brightness / brightness;
@@ -2017,9 +2081,7 @@ namespace AvoGUI
 		{
 			p_lightness = constrain(p_lightness);
 
-			float lightness = getLightness();
-
-			if (lightness == 0.f || lightness == 1.f)
+			if (red == green && red == blue)
 			{
 				red = p_lightness;
 				green = p_lightness;
@@ -2027,6 +2089,7 @@ namespace AvoGUI
 				return *this;
 			}
 
+			float lightness = getLightness();
 			if (lightness <= 0.5f)
 			{
 				if (p_lightness <= 0.5f)
@@ -2449,9 +2512,13 @@ namespace AvoGUI
 
 	//------------------------------
 
+	// forward declaration <3
+
 	class GUI;
 	class DrawingContext;
 	class Image;
+	class MouseEvent;
+	enum class Cursor;
 
 	/// <summary>
 	/// <para>A rectangle which can draw itself and receive events. Used for GUI components and stuff.</para>
@@ -2460,18 +2527,23 @@ namespace AvoGUI
 	class View : public ReferenceCounted, public ProtectedRectangle
 	{
 	private:
+		std::vector<ViewEventListener*> m_viewEventListeners;
+		bool m_isInAnimationUpdateQueue;
 		bool m_isVisible;
+		bool m_isOverlay;
+		bool m_areMouseEventsEnabled;
 		float m_cornerRadius;
+		Cursor m_cursor;
+		void* m_userData;
 
 		//------------------------------
 
+		Point<float> m_absolutePosition;
 		Rectangle<float> m_lastInvalidatedShadowBounds;
-
-		//------------------------------
-
-		Image* m_shadowImage;
 		Rectangle<float> m_shadowBounds;
+		Image* m_shadowImage;
 		bool m_hasShadow;
+
 		float m_elevation;
 		bool m_hasSizeChangedSinceLastElevationChange;
 
@@ -2483,16 +2555,36 @@ namespace AvoGUI
 		uint32_t m_index;
 
 		//------------------------------
-		
-		bool m_isInAnimationUpdateQueue;
 
-		//------------------------------
+		void moveAbsolutePositions(float p_offsetX, float p_offsetY)
+		{
+			m_absolutePosition.move(p_offsetX, p_offsetY);
 
-		std::vector<ViewEventListener*> m_viewEventListeners;
-
-		void* m_userData;
-
-		//------------------------------
+			View* currentContainer = this;
+			View* child = 0;
+			uint32_t startIndex = 0;
+			while (true)
+			{
+			loopBody:
+				for (uint32_t a = startIndex; a < currentContainer->getNumberOfChildren(); a++)
+				{
+					child = currentContainer->getChild(a);
+					child->moveAbsolutePosition(p_offsetX, p_offsetY);
+					if (child->getNumberOfChildren())
+					{
+						currentContainer = child;
+						startIndex = 0;
+						goto loopBody; // THIS IS GOOD USE OF GOTO OK
+					}
+				}
+				if (currentContainer == this)
+				{
+					return;
+				}
+				startIndex = currentContainer->getIndex() + 1;
+				currentContainer = currentContainer->getParent();
+			}
+		}
 
 		Point<float> calculateAbsolutePositionRelativeTo(Point<float> p_position) const;
 
@@ -2506,15 +2598,55 @@ namespace AvoGUI
 			m_hasSizeChangedSinceLastElevationChange = true;
 
 			handleSizeChange();
-			for (uint32_t a = 0; a < m_viewEventListeners.size(); a++)
+			for (auto viewListener = m_viewEventListeners.begin(); viewListener != m_viewEventListeners.end(); viewListener++)
 			{
-				m_viewEventListeners[a]->handleViewSizeChange(this);
+				(*viewListener)->handleViewSizeChange(this);
 			}
 		}
 
 	public:
 		View(View* p_parent, const Rectangle<float>& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
 		virtual ~View();
+
+		//------------------------------
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>If you set this to true, any mouse events that are directed to this view are also sent to the view below.</para>
+		/// </summary>
+		void setIsOverlay(bool p_isOverlay)
+		{
+			m_isOverlay = p_isOverlay;
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns whether this view is a mouse event overlay or not. If it is true, it means that any mouse events sent to this</para>
+		/// <para>view are also sent to the view below.</para>
+		/// </summary>
+		bool getIsOverlay()
+		{
+			return m_isOverlay;
+		}
+
+		//------------------------------
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the cursor that will by default be shown when the mouse enters the view.</para>
+		/// <para>The default implementation of handleMouseEnter sets the cursor to this one, and you can override this behaviour.</para>
+		/// </summary>
+		void setCursor(Cursor p_cursor)
+		{
+			m_cursor = p_cursor;
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the cursor that will by default be shown when the mouse enters the view.</para>
+		/// </summary>
+		Cursor getCursor()
+		{
+			return m_cursor;
+		}
 
 		//------------------------------
 
@@ -2527,11 +2659,10 @@ namespace AvoGUI
 			return m_GUI;
 		}
 
-		//------------------------------
-
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Attaches this view to a new parent.</para>
+		/// <para>Attaches this view to a new parent, which will be the owner of this view unless you've remembered it.</para>
+		/// <para>If the parameter is 0, the view is only detached from its old parent.</para>
 		/// </summary>
 		void setParent(View* p_container);
 		/// <summary>
@@ -2548,32 +2679,32 @@ namespace AvoGUI
 		/// <para>Adds a child view to this view. Do not call this method yourself, it is called automatically</para>
 		/// <para>when you create a view with a parent, or set a new parent.</para>
 		/// </summary>
-		void addView(View* p_view);
+		void addChild(View* p_view);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Removes a child view from this view. This forgets the view being removed. If you haven't remembered</para>
 		/// <para>it yourself, it will get deleted.</para>
 		/// </summary>
 		/// <param name="p_view">Pointer to view to remove from the container</param>
-		void removeView(View* p_view);
+		void removeChild(View* p_view);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Removes a child view from this view. This forgets the view being removed. If you haven't remembered</para>
 		/// <para>it yourself, it will get deleted.</para>
 		/// </summary>
 		/// <param name="p_viewIndex">Index of the view to remove from the container</param>
-		void removeView(uint32_t p_viewIndex);
+		void removeChild(uint32_t p_viewIndex);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Deletes the children views and empties this view from children.</para>
 		/// </summary>
-		void removeAllViews();
+		void removeAllChildren();
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the child view at an index.</para>
 		/// </summary>
-		View* getView(uint32_t p_viewIndex)
+		View* getChild(uint32_t p_viewIndex)
 		{
 			return m_views[p_viewIndex];
 		}
@@ -2581,7 +2712,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Returns the number of child views.</para>
 		/// </summary>
-		uint32_t getNumberOfViews()
+		uint32_t getNumberOfChildren()
 		{
 			return m_views.size();
 		}
@@ -2814,10 +2945,11 @@ namespace AvoGUI
 		void setPadding(float p_leftPadding, float p_rightPadding, float p_topPadding, float p_bottomPadding)
 		{
 			Rectangle<float> contentBounds(calculateContentBounds());
-			Point<float> offset(p_leftPadding - contentBounds.left, p_topPadding - contentBounds.top);
+			float offsetX = p_leftPadding - contentBounds.left;
+			float offsetY = p_topPadding - contentBounds.top;
 			for (uint32_t a = 0; a < m_views.size(); a++)
 			{
-				m_views[a]->move(offset);
+				m_views[a]->move(offsetX, offsetY);
 			}
 			setSize(contentBounds.getWidth() + p_leftPadding + p_rightPadding, contentBounds.getHeight() + p_topPadding + p_bottomPadding);
 		}
@@ -2901,115 +3033,192 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Calculates the bounds of the view shadow relative to the top left corner of the GUI.</para>
+		/// <para>This is only used by the library to update the point variable representing the position of the view relative to the GUI,</para>
+		/// <para>without affecting the actual position of the view. This is called when any parent, grandparent and so on has been moved.</para>
 		/// </summary>
-		Rectangle<float> calculateAbsoluteShadowBounds() const
+		void moveAbsolutePosition(float p_x, float p_y)
 		{
-			return Rectangle<float>(calculateAbsolutePositionRelativeTo(getTopLeft() + m_shadowBounds.getTopLeft()), m_shadowBounds.getSize());
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Calculates the bounds of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
-		Rectangle<float> calculateAbsoluteBounds() const
-		{
-			return Rectangle<float>(calculateAbsoluteTopLeft(), getSize());
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Calculates the top left position of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
-		Point<float> calculateAbsoluteTopLeft() const
-		{
-			return calculateAbsolutePositionRelativeTo(getTopLeft());
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Calculates the top right position of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
-		Point<float> calculateAbsoluteTopRight() const
-		{
-			return calculateAbsolutePositionRelativeTo(getTopRight());
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Calculates the bottom left position of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
-		Point<float> calculateAbsoluteBottomLeft() const
-		{
-			return calculateAbsolutePositionRelativeTo(getBottomLeft());
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Calculates the bottom right position of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
-		Point<float> calculateAbsoluteBottomRight() const
-		{
-			return calculateAbsolutePositionRelativeTo(getBottomRight());
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Calculates the center position of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
-		Point<float> calculateAbsoluteCenter() const
-		{
-			return calculateAbsolutePositionRelativeTo(getCenter());
+			m_absolutePosition.x += p_x;
+			m_absolutePosition.y += p_y;
 		}
 
 		//------------------------------
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the rectangle representing the bounds of this view.</para>
+		/// <para>Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.</para>
 		/// </summary>
 		void setBounds(const Rectangle<float>& p_rectangle) override
 		{
+			bool hasSizeChanged = p_rectangle.getWidth() != m_bounds.getWidth() || p_rectangle.getHeight() != m_bounds.getHeight();
+
+			float offsetX = p_rectangle.left - m_bounds.left;
+			float offsetY = p_rectangle.top - m_bounds.top;
+			if (offsetX || offsetY)
+			{
+				moveAbsolutePositions(offsetX, offsetY);
+			}
+
 			m_bounds = p_rectangle;
-			if (p_rectangle.right - p_rectangle.left != m_bounds.right - m_bounds.left ||
-				p_rectangle.bottom - p_rectangle.top != m_bounds.bottom - m_bounds.top)
+
+			if (hasSizeChanged)
 			{
 				sendSizeChangedEvents();
 			}
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the rectangle representing the bounds of this view.</para>
+		/// <para>Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		void setAbsoluteBounds(const Rectangle<float>& p_rectangle)
+		{
+			bool hasSizeChanged = p_rectangle.getWidth() != m_bounds.getWidth() || p_rectangle.getHeight() != m_bounds.getHeight();
+
+			float offsetX = p_rectangle.left - m_absolutePosition.x;
+			float offsetY = p_rectangle.top - m_absolutePosition.y;
+			if (offsetX || offsetY)
+			{
+				moveAbsolutePositions(offsetX, offsetY);
+				m_bounds.left += offsetX;
+				m_bounds.top += offsetY;
+			}
+
+			m_bounds.right = m_bounds.left + p_rectangle.getWidth();
+			m_bounds.bottom = m_bounds.top + p_rectangle.getHeight();
+
+			if (hasSizeChanged)
+			{
+				sendSizeChangedEvents();
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.</para>
 		/// </summary>
 		void setBounds(float p_left, float p_top, float p_right, float p_bottom) override
 		{
+			bool hasSizeChanged = p_right - p_left != m_bounds.getWidth() || p_bottom - p_top != m_bounds.getHeight();
+
+			float offsetX = p_left - m_bounds.left;
+			float offsetY = p_top - m_bounds.top;
+			if (offsetX || offsetY)
+			{
+				moveAbsolutePositions(offsetX, offsetY);
+			}
+
 			m_bounds.left = p_left;
 			m_bounds.top = p_top;
 			m_bounds.right = p_right;
 			m_bounds.bottom = p_bottom;
-			if (p_right - p_left != m_bounds.right - m_bounds.left ||
-				p_bottom - p_top != m_bounds.bottom - m_bounds.top)
+
+			if (hasSizeChanged)
 			{
 				sendSizeChangedEvents();
 			}
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the rectangle representing the bounds of this view.</para>
+		/// <para>Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		void setAbsoluteBounds(float p_left, float p_top, float p_right, float p_bottom)
+		{
+			bool hasSizeChanged = p_right - p_left != m_bounds.getWidth() || p_bottom - p_top != m_bounds.getHeight();
+
+			float offsetX = p_left - m_absolutePosition.x;
+			float offsetY = p_top - m_absolutePosition.y;
+			if (offsetX || offsetY)
+			{
+				moveAbsolutePositions(offsetX, offsetY);
+				m_bounds.left += offsetX;
+				m_bounds.top += offsetY;
+			}
+
+			m_bounds.right = m_bounds.left + p_right - p_left;
+			m_bounds.bottom = m_bounds.top + p_bottom - p_top;
+
+			if (hasSizeChanged)
+			{
+				sendSizeChangedEvents();
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.</para>
 		/// </summary>
 		void setBounds(const Point<float>& p_position, const Point<float>& p_size) override
 		{
+			bool hasSizeChanged = p_size.x != m_bounds.getWidth() || p_size.y != m_bounds.getHeight();
+
+			float offsetX = p_position.x - m_bounds.left;
+			float offsetY = p_position.y - m_bounds.top;
+			if (offsetX || offsetY)
+			{
+				moveAbsolutePositions(offsetX, offsetY);
+			}
+
 			m_bounds.left = p_position.x;
 			m_bounds.top = p_position.y;
 			m_bounds.right = p_position.x + p_size.x;
 			m_bounds.bottom = p_position.y + p_size.y;
-			if (p_size.x != m_bounds.right - m_bounds.left ||
-				p_size.y != m_bounds.bottom - m_bounds.top)
+
+			if (hasSizeChanged)
 			{
 				sendSizeChangedEvents();
 			}
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns a rectangle representing the bounds of this view.</para>
+		/// <para>Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		void setAbsoluteBounds(const Point<float>& p_position, const Point<float>& p_size)
+		{
+			bool hasSizeChanged = p_size.x != m_bounds.getWidth() || p_size.y != m_bounds.getHeight();
+
+			float offsetX = p_position.x - m_absolutePosition.x;
+			float offsetY = p_position.y - m_absolutePosition.y;
+			if (offsetX || offsetY)
+			{
+				moveAbsolutePositions(offsetX, offsetY);
+				m_bounds.left += offsetX;
+				m_bounds.top += offsetY;
+			}
+
+			m_bounds.right = m_bounds.left + p_size.x;
+			m_bounds.bottom = m_bounds.top + p_size.y;
+
+			if (hasSizeChanged)
+			{
+				sendSizeChangedEvents();
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns a rectangle representing the bounds of this view relative to the top left corner of the parent.</para>
 		/// </summary>
 		const Rectangle<float>& getBounds() const override
 		{
 			return m_bounds;
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the bounds of the view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		Rectangle<float> getAbsoluteBounds() const
+		{
+			return Rectangle<float>(m_absolutePosition, m_bounds.getSize());
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the bounds of the view shadow relative to the top left corner of the GUI.</para>
+		/// </summary>
+		Rectangle<float> getAbsoluteShadowBounds() const
+		{
+			Rectangle<float> bounds;
+			bounds.left = m_absolutePosition.x + (m_bounds.getWidth() - m_shadowBounds.getWidth())*0.5f;
+			bounds.top = m_absolutePosition.y + (m_bounds.getHeight() - m_shadowBounds.getHeight())*0.5f;
+			bounds.right = bounds.left + m_shadowBounds.getWidth();
+			bounds.bottom = bounds.top + m_shadowBounds.getHeight();
+			return bounds;
 		}
 
 		//------------------------------
@@ -3020,6 +3229,7 @@ namespace AvoGUI
 		/// </summary>
 		void move(const Point<float>& p_offset) override
 		{
+			moveAbsolutePositions(p_offset.x, p_offset.y);
 			m_bounds += p_offset;
 		}
 		/// <summary>
@@ -3028,6 +3238,7 @@ namespace AvoGUI
 		/// </summary>
 		void move(float p_offsetX, float p_offsetY) override
 		{
+			moveAbsolutePositions(p_offsetX, p_offsetY);
 			m_bounds.move(p_offsetX, p_offsetY);
 		}
 
@@ -3035,13 +3246,14 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top left coordinates of the view.</para> 
+		/// <para>Sets the top left coordinates of the view relative to the top left corner of the parent.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
 		void setTopLeft(const Point<float>& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.left || p_position.y != m_bounds.top)
 			{
+				moveAbsolutePositions(p_position.x - m_bounds.left, p_position.y - m_bounds.top);
 				m_bounds.setTopLeft(p_position, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
@@ -3051,13 +3263,33 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top left coordinates of the view.</para> 
+		/// <para>Sets the top left coordinates of the view relative to the top left corner of the GUI.</para> 
+		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
+		/// </summary>
+		void setAbsoluteTopLeft(const Point<float>& p_position, bool p_willKeepSize = true)
+		{
+			float offsetX = p_position.x - m_absolutePosition.x;
+			float offsetY = p_position.y - m_absolutePosition.y;
+			if (offsetX || offsetY)
+			{
+				m_bounds.setTopLeft(m_bounds.left + offsetX, m_bounds.top + offsetY, p_willKeepSize);
+				moveAbsolutePositions(offsetX, offsetY);
+				if (!p_willKeepSize)
+				{
+					sendSizeChangedEvents();
+				}
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the top left coordinates of the view relative to the top left corner of the parent.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
 		void setTopLeft(float p_left, float p_top, bool p_willKeepSize = true) override
 		{
 			if (p_left != m_bounds.left || p_top != m_bounds.top)
 			{
+				moveAbsolutePositions(p_left - m_bounds.left, p_top - m_bounds.top);
 				m_bounds.setTopLeft(p_left, p_top, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
@@ -3067,173 +3299,440 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinates of the top left corner of the view.</para>
+		/// <para>Sets the top left coordinates of the view relative to the top left corner of the GUI.</para> 
+		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
+		/// </summary>
+		void setAbsoluteTopLeft(float p_left, float p_top, bool p_willKeepSize = true)
+		{
+			float offsetX = p_left - m_absolutePosition.x;
+			float offsetY = p_top - m_absolutePosition.y;
+			if (offsetX || offsetY)
+			{
+				m_bounds.setTopLeft(m_bounds.left + offsetX, m_bounds.top + offsetY, p_willKeepSize);
+				moveAbsolutePositions(offsetX, offsetY);
+				if (!p_willKeepSize)
+				{
+					sendSizeChangedEvents();
+				}
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinates of the top left corner of the view relative to the top left corner of the parent.</para>
 		/// </summary>
 		Point<float> getTopLeft() const override
 		{
 			return Point<float>(m_bounds.left, m_bounds.top);
 		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinates of the top left corner of the view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		const Point<float>& getAbsoluteTopLeft() const
+		{
+			return m_absolutePosition;
+		}
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top right coordinates of the view.</para> 
+		/// <para>Sets the top right coordinates of the view relative to the top left corner of the parent.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
 		void setTopRight(const Point<float>& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.right || p_position.y != m_bounds.top)
 			{
-				m_bounds.setTopRight(p_position, p_willKeepSize);
-				if (!p_willKeepSize)
+				if (p_willKeepSize)
 				{
+					moveAbsolutePositions(p_position.x - m_bounds.right, p_position.y - m_bounds.top);
+					m_bounds.setTopRight(p_position, p_willKeepSize);
+				}
+				else
+				{
+					moveAbsolutePositions(0, p_position.y - m_bounds.top);
+					m_bounds.setTopRight(p_position, p_willKeepSize);
 					sendSizeChangedEvents();
 				}
 			}
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top right coordinates of the view.</para> 
+		/// <para>Sets the top right coordinates of the view relative to the top left corner of the GUI.</para> 
+		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
+		/// </summary>
+		void setAbsoluteTopRight(const Point<float>& p_position, bool p_willKeepSize = true)
+		{
+			float offsetX = p_position.x - m_absolutePosition.x + m_bounds.left - m_bounds.right;
+			float offsetY = p_position.y - m_absolutePosition.y;
+			if (offsetX || offsetY)
+			{
+				m_bounds.setTopRight(m_bounds.right + offsetX, m_bounds.top + offsetY, p_willKeepSize);
+				if (p_willKeepSize)
+				{
+					moveAbsolutePositions(offsetX, offsetY);
+				}
+				else
+				{
+					moveAbsolutePositions(0, offsetY);
+					sendSizeChangedEvents();
+				}
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the top right coordinates of the view relative to the top left corner of the parent.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
 		void setTopRight(float p_right, float p_top, bool p_willKeepSize = true) override
 		{
 			if (p_right != m_bounds.right || p_top != m_bounds.top)
 			{
-				m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
-				if (!p_willKeepSize)
+				if (p_willKeepSize)
 				{
+					moveAbsolutePositions(p_right - m_bounds.right, p_top - m_bounds.top);
+					m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
+				}
+				else
+				{
+					moveAbsolutePositions(0, p_top - m_bounds.top);
+					m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
 					sendSizeChangedEvents();
 				}
 			}
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinates of the top right corner of the view.</para>
+		/// <para>Sets the top right coordinates of the view relative to the top left corner of the GUI.</para> 
+		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
+		/// </summary>
+		void setAbsoluteTopRight(float p_right, float p_top, bool p_willKeepSize = true)
+		{
+			float offsetX = p_right - m_absolutePosition.x + m_bounds.left - m_bounds.right;
+			float offsetY = p_top - m_absolutePosition.y;
+			if (offsetX || offsetY)
+			{
+				m_bounds.setTopRight(m_bounds.right + offsetX, m_bounds.top + offsetY, p_willKeepSize);
+				if (p_willKeepSize)
+				{
+					moveAbsolutePositions(offsetX, offsetY);
+				}
+				else
+				{
+					moveAbsolutePositions(0, offsetY);
+					sendSizeChangedEvents();
+				}
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinates of the top right corner of the view relative to the top left corner of the parent.</para>
 		/// </summary>
 		Point<float> getTopRight() const override
 		{
 			return Point<float>(m_bounds.right, m_bounds.top);
 		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinates of the top right corner of the view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		Point<float> getAbsoluteTopRight() const
+		{
+			return Point<float>(m_absolutePosition.x + m_bounds.right - m_bounds.left, m_bounds.top);
+		}
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom left coordinates of the view.</para> 
+		/// <para>Sets the bottom left coordinates of the view relative to the top left corner of the parent.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
 		void setBottomLeft(const Point<float>& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.left || p_position.y != m_bounds.bottom)
 			{
-				m_bounds.setBottomLeft(p_position, p_willKeepSize);
-				if (!p_willKeepSize)
+				if (p_willKeepSize)
 				{
+					moveAbsolutePositions(p_position.x - m_bounds.left, p_position.y - m_bounds.bottom);
+					m_bounds.setBottomLeft(p_position, p_willKeepSize);
+				}
+				else
+				{
+					moveAbsolutePositions(p_position.x - m_bounds.left, 0);
+					m_bounds.setBottomLeft(p_position, p_willKeepSize);
 					sendSizeChangedEvents();
 				}
 			}
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom left coordinates of the view.</para> 
+		/// <para>Sets the bottom left coordinates of the view relative to the top left corner of the GUI.</para> 
+		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
+		/// </summary>
+		void setAbsoluteBottomLeft(const Point<float>& p_position, bool p_willKeepSize = true)
+		{
+			float offsetX = p_position.x - m_absolutePosition.x;
+			float offsetY = p_position.y - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
+			if (offsetX || offsetY)
+			{
+				m_bounds.setBottomLeft(m_bounds.left + offsetX, m_bounds.bottom + offsetY, p_willKeepSize);
+				if (p_willKeepSize)
+				{
+					moveAbsolutePositions(offsetX, offsetY);
+				}
+				else
+				{
+					moveAbsolutePositions(offsetX, 0);
+					sendSizeChangedEvents();
+				}
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the bottom left coordinates of the view relative to the top left corner of the parent.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
 		void setBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true) override
 		{
 			if (p_left != m_bounds.left || p_bottom != m_bounds.bottom)
 			{
-				m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
-				if (!p_willKeepSize)
+				if (p_willKeepSize)
 				{
+					moveAbsolutePositions(p_left - m_bounds.left, p_bottom - m_bounds.bottom);
+					m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
+				}
+				else
+				{
+					moveAbsolutePositions(p_left - m_bounds.left, 0);
+					m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
 					sendSizeChangedEvents();
 				}
 			}
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinates of the bottom left corner of the view.</para>
+		/// <para>Sets the bottom left coordinates of the view relative to the top left corner of the GUI.</para> 
+		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
+		/// </summary>
+		void setAbsoluteBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true)
+		{
+			float offsetX = p_left - m_absolutePosition.x;
+			float offsetY = p_bottom - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
+			if (offsetX || offsetY)
+			{
+				m_bounds.setBottomLeft(m_bounds.left + offsetX, m_bounds.bottom + offsetY, p_willKeepSize);
+				if (p_willKeepSize)
+				{
+					moveAbsolutePositions(offsetX, offsetY);
+				}
+				else
+				{
+					moveAbsolutePositions(offsetX, 0);
+					sendSizeChangedEvents();
+				}
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinates of the bottom left corner of the view relative to the top left corner of the parent.</para>
 		/// </summary>
 		Point<float> getBottomLeft() const override
 		{
 			return Point<float>(m_bounds.left, m_bounds.bottom);
 		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinates of the bottom left corner of the view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		Point<float> getAbsoluteBottomLeft() const
+		{
+			return Point<float>(m_absolutePosition.x, m_absolutePosition.y + m_bounds.bottom - m_bounds.top);
+		}
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom right coordinates of the view.</para> 
+		/// <para>Sets the bottom right coordinates of the view relative to the top left corner of the parent.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
 		void setBottomRight(const Point<float>& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.right || p_position.y != m_bounds.bottom)
 			{
-				m_bounds.setBottomRight(p_position, p_willKeepSize);
-				if (!p_willKeepSize)
+				if (p_willKeepSize)
 				{
+					moveAbsolutePositions(p_position.x - m_bounds.right, p_position.y - m_bounds.bottom);
+					m_bounds.setBottomRight(p_position, p_willKeepSize);
+				}
+				else
+				{
+					m_bounds.setBottomRight(p_position, p_willKeepSize);
 					sendSizeChangedEvents();
 				}
 			}
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom right coordinates of the view.</para> 
+		/// <para>Sets the bottom right coordinates of the view relative to the top left corner of the GUI.</para> 
+		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
+		/// </summary>
+		void setAbsoluteBottomRight(const Point<float>& p_position, bool p_willKeepSize = true)
+		{
+			float offsetX = p_position.x - m_absolutePosition.x + m_bounds.left - m_bounds.right;
+			float offsetY = p_position.y - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
+			if (offsetX || offsetY)
+			{
+				if (p_willKeepSize)
+				{
+					m_bounds.move(offsetX, offsetY);
+					moveAbsolutePositions(offsetX, offsetY);
+				}
+				else
+				{
+					m_bounds.moveBottomRight(offsetX, offsetY);
+					sendSizeChangedEvents();
+				}
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the bottom right coordinates of the view relative to the top left corner of the parent.</para> 
 		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
 		/// </summary>
 		void setBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true) override
 		{
 			if (p_right != m_bounds.right || p_bottom != m_bounds.bottom)
 			{
-				m_bounds.setBottomRight(p_right, p_bottom, p_willKeepSize);
-				if (!p_willKeepSize)
+				if (p_willKeepSize)
 				{
+					moveAbsolutePositions(p_right - m_bounds.right, p_bottom - m_bounds.bottom);
+					m_bounds.setBottomRight(p_right, p_bottom, p_willKeepSize);
+				}
+				else
+				{
+					m_bounds.setBottomRight(p_right, p_bottom, p_willKeepSize);
 					sendSizeChangedEvents();
 				}
 			}
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinates of the bottom right corner of the view.</para>
+		/// <para>Sets the bottom right coordinates of the view relative to the top left corner of the GUI.</para> 
+		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
+		/// </summary>
+		void setAbsoluteBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true)
+		{
+			float offsetX = p_right - m_absolutePosition.x + m_bounds.left - m_bounds.right;
+			float offsetY = p_bottom - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
+			if (offsetX || offsetY)
+			{
+				if (p_willKeepSize)
+				{
+					m_bounds.move(offsetX, offsetY);
+					moveAbsolutePositions(offsetX, offsetY);
+				}
+				else
+				{
+					m_bounds.moveBottomRight(offsetX, offsetY);
+					sendSizeChangedEvents();
+				}
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinates of the bottom right corner of the view relative to the top left corner of the parent.</para>
 		/// </summary>
 		Point<float> getBottomRight() const override
 		{
 			return Point<float>(m_bounds.right, m_bounds.bottom);
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinates of the bottom right corner of the view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		Point<float> getAbsoluteBottomRight() const 
+		{
+			return Point<float>(m_absolutePosition.x + m_bounds.right - m_bounds.left, m_absolutePosition.y + m_bounds.bottom - m_bounds.top);
 		}
 
 		//------------------------------
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the center coordinates of the view.</para> 
+		/// <para>Sets the center coordinates of the view relative to the top left corner of the parent.</para> 
 		/// </summary>
 		void setCenter(const Point<float>& p_position) override
 		{
+			moveAbsolutePositions(p_position.x - m_bounds.getCenterX(), p_position.y - m_bounds.getCenterY());
 			m_bounds.setCenter(p_position.x, p_position.y);
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the center coordinates of the view.</para> 
+		/// <para>Sets the center coordinates of the view relative to the top left corner of the GUI.</para> 
+		/// </summary>
+		void setAbsoluteCenter(const Point<float>& p_position)
+		{
+			float offsetX = p_position.x - m_absolutePosition.x - getWidth()*0.5f;
+			float offsetY = p_position.y - m_absolutePosition.y - getHeight()*0.5f;
+			m_bounds.move(offsetX, offsetY);
+			moveAbsolutePositions(offsetX, offsetY);
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the center coordinates of the view relative to the top left corner of the parent.</para> 
 		/// </summary>
 		void setCenter(float p_x, float p_y) override
 		{
+			moveAbsolutePositions(p_x - m_bounds.getCenterX(), p_y - m_bounds.getCenterY());
 			m_bounds.setCenter(p_x, p_y);
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the horizontal center coordinate of the view.</para>
+		/// <para>Sets the center coordinates of the view relative to the top left corner of the GUI.</para> 
+		/// </summary>
+		void setAbsoluteCenter(float p_x, float p_y)
+		{
+			float offsetX = p_x - m_absolutePosition.x - getWidth()*0.5f;
+			float offsetY = p_y - m_absolutePosition.y - getHeight()*0.5f;
+			m_bounds.move(offsetX, offsetY);
+			moveAbsolutePositions(offsetX, offsetY);
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the horizontal center coordinate of the view relative to the top left corner of the parent.</para>
 		/// </summary>
 		void setCenterX(float p_x) override
 		{
+			moveAbsolutePositions(p_x - m_bounds.getCenterX(), 0);
 			m_bounds.setCenterX(p_x);
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the vertical center coordinate of the view.</para>
+		/// <para>Sets the horizontal center coordinate of the view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		void setAbsoluteCenterX(float p_x)
+		{
+			m_bounds.moveX(p_x - m_absolutePosition.x - getWidth()*0.5f);
+			moveAbsolutePositions(p_x - m_absolutePosition.x - getWidth()*0.5f, 0);
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the vertical center coordinate of the view relative to the top left corner of the parent.</para>
 		/// </summary>
 		void setCenterY(float p_y) override
 		{
+			moveAbsolutePositions(0, p_y - m_bounds.getCenterY());
 			m_bounds.setCenterY(p_y);
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the center coordinates of the view.</para>
+		/// <para>Sets the vertical center coordinate of the view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		void setAbsoluteCenterY(float p_y)
+		{
+			m_bounds.moveY(p_y - m_absolutePosition.y - getHeight()*0.5f);
+			moveAbsolutePositions(0, p_y - m_absolutePosition.y - getHeight()*0.5f);
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the center coordinates of the view relative to the top left corner of the parent.</para>
 		/// </summary>
 		Point<float> getCenter() const override
 		{
@@ -3241,7 +3740,15 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the x-axis center coordinate of the view.</para>
+		/// <para>Returns the center coordinates of the view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		Point<float> getAbsoluteCenter() const
+		{
+			return Point<float>(m_absolutePosition.x + getWidth()*0.5f, m_absolutePosition.y + getHeight()*0.5f);
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the x-axis center coordinate of the view relative to the top left corner of the parent.</para>
 		/// </summary>
 		float getCenterX() const override
 		{
@@ -3249,24 +3756,41 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the y-axis center coordinate of the view.</para>
+		/// <para>Returns the x-axis center coordinate of the view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		float getAbsoluteCenterX() const
+		{
+			return m_absolutePosition.x + getWidth()*0.5f;
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the y-axis center coordinate of the view relative to the top left corner of the parent.</para>
 		/// </summary>
 		float getCenterY() const override
 		{
 			return m_bounds.getCenterY();
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the y-axis center coordinate of the view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		float getAbsoluteCenterY() const
+		{
+			return m_absolutePosition.y + getHeight()*0.5f;
 		}
 
 		//------------------------------
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the left coordinate of this view and updates the layout. If p_willKeepWidth is</para>
+		/// <para>Sets the left coordinate of this view and updates the layout relative to the top left corner of the parent. If p_willKeepWidth is</para>
 		/// <para>true, the right coordinate will be changed so that the width of the view stays the same.</para>
 		/// </summary>
 		void setLeft(float p_left, bool p_willKeepWidth = false) override
 		{
 			if (p_left != m_bounds.left)
 			{
+				moveAbsolutePositions(p_left - m_bounds.left, 0);
 				m_bounds.setLeft(p_left, p_willKeepWidth);
 				if (!p_willKeepWidth)
 				{
@@ -3276,22 +3800,48 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the left coordinate of this view.</para>
+		/// <para>Sets the left coordinate of this view and updates the layout relative to the top left corner of the GUI. If p_willKeepWidth is</para>
+		/// <para>true, the right coordinate will be changed so that the width of the view stays the same.</para>
+		/// </summary>
+		void setAbsoluteLeft(float p_left, bool p_willKeepWidth = false)
+		{
+			if (p_left != m_absolutePosition.x)
+			{
+				m_bounds.setLeft(p_left - m_absolutePosition.x + m_bounds.left, p_willKeepWidth);
+				moveAbsolutePositions(p_left - m_absolutePosition.x, 0);
+				if (!p_willKeepWidth)
+				{
+					sendSizeChangedEvents();
+				}
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the left coordinate of this view relative to the top left corner of the parent.</para>
 		/// </summary>
 		float getLeft() const override
 		{
 			return m_bounds.left;
 		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the left coordinate of this view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		float getAbsoluteLeft() const 
+		{
+			return m_absolutePosition.x;
+		}
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top coordinate of this view. If p_willKeepHeight is true, the bottom </para>
+		/// <para>Sets the top coordinate of this view relative to the top left corner of the parent. If p_willKeepHeight is true, the bottom </para>
 		/// <para>coordinate will be changed so that the height of the view stays the same.</para>
 		/// </summary>
 		void setTop(float p_top, bool p_willKeepHeight = false) override
 		{
 			if (p_top != m_bounds.top)
 			{
+				moveAbsolutePositions(0, p_top - m_bounds.top);
 				m_bounds.setTop(p_top, p_willKeepHeight);
 				if (!p_willKeepHeight)
 				{
@@ -3301,48 +3851,15 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the top coordinate of this view.</para>
-		/// </summary>
-		float getTop() const override
-		{
-			return m_bounds.top;
-		}
-
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the right coordinate of this view. If p_willKeepWidth is true, the left</para>
-		/// <para>coordinate will be changed so that the width of the view stays the same.</para>
-		/// </summary>
-		void setRight(float p_right, bool p_willKeepWidth = false) override
-		{
-			if (p_right != m_bounds.right)
-			{
-				m_bounds.setRight(p_right, p_willKeepWidth);
-				if (!p_willKeepWidth)
-				{
-					sendSizeChangedEvents();
-				}
-			}
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinate of the right edge of this view.</para>
-		/// </summary>
-		float getRight() const override
-		{
-			return m_bounds.right;
-		}
-
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom coordinate of this view and updates the layout. If p_willKeepHeight is true, the top</para>
+		/// <para>Sets the top coordinate of this view relative to the top left corner of the GUI. If p_willKeepHeight is true, the bottom </para>
 		/// <para>coordinate will be changed so that the height of the view stays the same.</para>
 		/// </summary>
-		void setBottom(float p_bottom, bool p_willKeepHeight = false) override
+		void setAbsoluteTop(float p_top, bool p_willKeepHeight = false)
 		{
-			if (p_bottom != m_bounds.bottom)
+			if (p_top != m_absolutePosition.y)
 			{
-				m_bounds.setBottom(p_bottom, p_willKeepHeight);
+				m_bounds.setTop(p_top - m_absolutePosition.y + m_bounds.top, p_willKeepHeight);
+				moveAbsolutePositions(0, p_top - m_absolutePosition.y);
 				if (!p_willKeepHeight)
 				{
 					sendSizeChangedEvents();
@@ -3351,18 +3868,146 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinate of the bottom edge of this view.</para>
+		/// <para>Returns the top coordinate of this view relative to the top left corner of the parent.</para>
+		/// </summary>
+		float getTop() const override
+		{
+			return m_bounds.top;
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the top coordinate of this view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		float getAbsoluteTop() const
+		{
+			return m_absolutePosition.y;
+		}
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the right coordinate of this view relative to the top left corner of the parent. If p_willKeepWidth is true, the left</para>
+		/// <para>coordinate will be changed so that the width of the view stays the same.</para>
+		/// </summary>
+		void setRight(float p_right, bool p_willKeepWidth = false) override
+		{
+			if (p_right != m_bounds.right)
+			{
+				if (p_willKeepWidth)
+				{
+					moveAbsolutePositions(p_right - m_bounds.right, 0);
+					m_bounds.setRight(p_right, p_willKeepWidth);
+				}
+				else
+				{
+					m_bounds.setRight(p_right, p_willKeepWidth);
+					sendSizeChangedEvents();
+				}
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the right coordinate of this view relative to the top left corner of the GUI. If p_willKeepWidth is true, the left</para>
+		/// <para>coordinate will be changed so that the width of the view stays the same.</para>
+		/// </summary>
+		void setAbsoluteRight(float p_right, bool p_willKeepWidth = false) 
+		{
+			float offset = p_right - m_absolutePosition.x + m_bounds.left - m_bounds.right;
+			if (offset)
+			{
+				if (p_willKeepWidth)
+				{
+					m_bounds.moveX(offset);
+					moveAbsolutePositions(offset, 0);
+				}
+				else 
+				{
+					m_bounds.right += offset;
+					sendSizeChangedEvents();
+				}
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinate of the right edge of this view relative to the top left corner of the parent.</para>
+		/// </summary>
+		float getRight() const override
+		{
+			return m_bounds.right;
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinate of the right edge of this view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		float getAbsoluteRight() const
+		{
+			return m_absolutePosition.x + m_bounds.right - m_bounds.left;
+		}
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the bottom coordinate of this view relative to the top left corner of the parent and updates the layout. If p_willKeepHeight is true, the top</para>
+		/// <para>coordinate will be changed so that the height of the view stays the same.</para>
+		/// </summary>
+		void setBottom(float p_bottom, bool p_willKeepHeight = false) override
+		{
+			if (p_bottom != m_bounds.bottom)
+			{
+				if (p_willKeepHeight)
+				{
+					moveAbsolutePositions(0, p_bottom - m_bounds.bottom);
+					m_bounds.setBottom(p_bottom, p_willKeepHeight);
+				}
+				else
+				{
+					m_bounds.setBottom(p_bottom, p_willKeepHeight);
+					sendSizeChangedEvents();
+				}
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the bottom coordinate of this view relative to the top left corner of the GUI and updates the layout. If p_willKeepHeight is true, the top</para>
+		/// <para>coordinate will be changed so that the height of the view stays the same.</para>
+		/// </summary>
+		void setAbsoluteBottom(float p_bottom, bool p_willKeepHeight = false)
+		{
+			float offset = p_bottom - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
+			if (offset)
+			{
+				if (p_willKeepHeight)
+				{
+					m_bounds.moveY(offset);
+					moveAbsolutePositions(0, offset);
+				}
+				else
+				{
+					m_bounds.bottom += offset;
+					sendSizeChangedEvents();
+				}
+			}
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinate of the bottom edge of this view relative to the top left corner of the parent.</para>
 		/// </summary>
 		float getBottom() const override
 		{
 			return m_bounds.bottom;
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the coordinate of the bottom edge of this view relative to the top left corner of the GUI.</para>
+		/// </summary>
+		float getAbsoluteBottom() const 
+		{
+			return m_absolutePosition.y + m_bounds.bottom - m_bounds.top;
 		}
 
 		//------------------------------
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the width of this view in pixels and updates the layout.</para>
+		/// <para>Sets the width of this view and updates the layout.</para>
 		/// </summary>
 		void setWidth(float p_width) override
 		{
@@ -3374,7 +4019,6 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the height of this view in pixels.</para>
 		/// </summary>
 		float getWidth() const override
 		{
@@ -3383,7 +4027,7 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the height of this view in pixels and updates the layout.</para>
+		/// <para>Sets the height of this view and updates the layout.</para>
 		/// </summary>
 		void setHeight(float p_height) override
 		{
@@ -3395,7 +4039,6 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the height of this view in pixels.</para>
 		/// </summary>
 		float getHeight() const override
 		{
@@ -3404,7 +4047,7 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the size of this view in pixels and updates the layout.</para>
+		/// <para>Sets the size of this view and updates the layout.</para>
 		/// </summary>
 		void setSize(const Point<float>& p_size) override
 		{
@@ -3416,7 +4059,7 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the size of this view in pixels and updates the layout.</para>
+		/// <para>Sets the size of this view and updates the layout.</para>
 		/// </summary>
 		void setSize(float p_width, float p_height) override
 		{
@@ -3428,7 +4071,7 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the size of this view in pixels.</para>
+		/// <para>Returns the size of this view.</para>
 		/// </summary>
 		Point<float> getSize() const override
 		{
@@ -3439,7 +4082,7 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns if this view intersects/overlaps a rectangle.</para>
+		/// <para>Returns whether this view intersects/overlaps a rectangle relative to the top left corner of the parent or not.</para>
 		/// </summary>
 		bool getIsIntersecting(const Rectangle<float>& p_rectangle) const override
 		{
@@ -3477,7 +4120,7 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns if this view intersects/overlaps another protected rectangle.</para>
+		/// <para>Returns whether this view intersects/overlaps another protected rectangle relative to the top left corner of the parent or not.</para>
 		/// </summary>
 		bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const override
 		{
@@ -3485,7 +4128,7 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns if this view intersects/overlaps another view. Takes rounded corners of both views into account.</para>
+		/// <para>Returns whether this view intersects/overlaps another view or not. Takes rounded corners of both views into account.</para>
 		/// </summary>
 		bool getIsIntersecting(View* p_view) const;
 
@@ -3493,7 +4136,7 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns if this view contains a rectangle. The rectangle is relative to the parent of the view.</para>
+		/// <para>Returns whether this view contains a rectangle or not. The rectangle is relative to the parent of the view.</para>
 		/// </summary>
 		bool getIsContaining(const Rectangle<float>& p_rectangle) const override
 		{
@@ -3531,7 +4174,7 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns if this view contains another protected rectangle. The rectangle is relative to the parent of this view.</para>
+		/// <para>Returns whether this view contains another protected rectangle or not. The rectangle is relative to the parent of this view.</para>
 		/// </summary>
 		bool getIsContaining(ProtectedRectangle* p_rectangle) const override
 		{
@@ -3539,13 +4182,13 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns if this view contains another view. Takes rounded corners of both views into account.</para>
+		/// <para>Returns whether this view contains another view or not. Takes rounded corners of both views into account.</para>
 		/// </summary>
 		bool getIsContaining(View* p_view) const;
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns if this view contains a point. The point is relative to the parent of the view.</para>
+		/// <para>Returns whether this view contains a point or not. The point is relative to the parent of the view.</para>
 		/// </summary>
 		bool getIsContaining(float p_x, float p_y) const override
 		{
@@ -3583,7 +4226,7 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns if this view contains a point. The point is relative to the parent of the view.</para>
+		/// <para>Returns whether this view contains a point or not. The point is relative to the parent of the view.</para>
 		/// </summary>
 		bool getIsContaining(const Point<float>& p_point) const override
 		{
@@ -3594,7 +4237,7 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets if the view is visible and can receive events.</para>
+		/// <para>Sets whether or not the view is visible and can receive events.</para>
 		/// </summary>
 		void setIsVisible(bool p_isVisible)
 		{
@@ -3602,7 +4245,7 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns if the view is visible and can receive events.</para>
+		/// <para>Returns whether or not the view is visible and can receive events.</para>
 		/// </summary>
 		bool getIsVisible() const
 		{
@@ -3758,8 +4401,72 @@ namespace AvoGUI
 		/// </summary>
 		void removeEventListener(ViewEventListener* p_eventListener)
 		{
-			removeVectorElement(m_viewEventListeners, p_eventListener);
+			removeVectorElementWhileKeepingOrder(m_viewEventListeners, p_eventListener);
 		}
+
+		//------------------------------
+		
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// </summary>
+		virtual void enableMouseEvents();
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// </summary>
+		virtual void disableMouseEvents();
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// </summary>
+		virtual bool getAreMouseEventsEnabled()
+		{
+			return m_areMouseEventsEnabled;
+		}
+
+		/// <summary>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a mouse button has been pressed down while the pointer is above the view.</para>
+		/// </summary>
+		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		virtual void handleMouseDown(const MouseEvent& p_event) { }
+		/// <summary>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a mouse button has been released after having been pressed down when the mouse pointer was above the view.</para>
+		/// <para>The mouse cursor may have left the view during the time the button is pressed, but it will still recieve the event.</para>
+		/// </summary>
+		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		virtual void handleMouseUp(const MouseEvent& p_event) { }
+		/// <summary>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a mouse button has been double clicked while the mouse pointer is above the view.</para>
+		/// </summary>
+		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		virtual void handleMouseDoubleClick(const MouseEvent& p_event) { }
+
+		/// <summary>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when the mouse pointer has been moved within the bounds of the view. If it has entered the view, a mouse enter event</para>
+		/// <para>is sent, and if it has left the view, a mouse leave event is sent.</para>
+		/// </summary>
+		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		virtual void handleMouseMove(const MouseEvent& p_event) { }
+		/// <summary>
+		/// LIBRARY IMPLEMENTED (only default behavior)
+		/// <para>Gets called when the mouse pointer has entered the view.</para>
+		/// </summary>
+		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		virtual void handleMouseEnter(const MouseEvent& p_event);
+		/// <summary>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when the mouse pointer has left the view.</para>
+		/// </summary>
+		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		virtual void handleMouseLeave(const MouseEvent& p_event) { }
+		/// <summary>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when the mouse wheel has been moved/scrolled while the mouse pointer is above the view.</para>
+		/// </summary>
+		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		virtual void handleMouseScroll(const MouseEvent& p_event) { }
 
 		//------------------------------
 
@@ -3996,122 +4703,46 @@ namespace AvoGUI
 		/// The modifier keys and mouse buttons that were down when the event ocurred.
 		/// </summary>
 		ModifierKeyFlags modifierKeys = ModifierKeyFlags::None;
-		/// <summary>
-		/// <para>If this is true, the event is targeted at the view that is currently getting the event. A mouse event is</para>
-		/// <para>targeted at a view if the mouse either moved from, moved to, or hovered over the view when the event</para>
-		/// <para>ocurred. If it is a mouse up event, isTarget is only true if the last mouse down was above the view.</para>
-		/// <para>You usually only want to do anything if isTarget is true. But if indirect mouse events are disabled</para>
-		/// <para>in the GUI, isTarget is always true because events are not sent to the untargeted views.</para>
-		/// <para>Multiple views can be targeted in one event since mouse event listeners can be overlaid.</para>
-		/// </summary>
-		bool isTarget = false;
 	};
 
 	/// <summary>
-	/// <para>Represents an object that gets notified when the user does things with the mouse. It is supposed to be inherited by views or other classes.</para>
-	/// <para>If the listener is not a view, it only recieves events if indirect mouse events are enabled in the GUI. This is because a listener is only</para>
-	/// <para>targeted if the mouse was interacting with it.</para>
+	/// This can be inherited by any class. Remember to register it to the GUI by calling the addGlobalMouseEventListener() method on it.
 	/// </summary>
-	class MouseEventListener
+	class GlobalMouseEventListener
 	{
-	private:
-		Cursor m_cursor;
-		bool m_isOverlay;
-
 	public:
-		MouseEventListener() :
-			m_isOverlay(false), m_cursor(Cursor::Arrow)
-		{
-		}
-
-		//------------------------------------
-
 		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the cursor that will by default be shown when the mouse enters the view (if this mouse listener is a view).</para>
-		/// <para>The default implementation of handleMouseEnter sets the cursor to this one, but you can override this behaviour.</para>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a mouse button has been pressed down while the mouse cursor is inside the window.</para>
 		/// </summary>
-		void setCursor(Cursor p_cursor)
-		{
-			m_cursor = p_cursor;
-		}
+		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		virtual void handleGlobalMouseDown(const MouseEvent& p_event) { }
 		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the cursor that will by default be shown when the mouse enters the view (if this mouse listener is a view).</para>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a mouse button has been released after having been pressed down when the mouse pointer was inside the window.</para>
+		/// <para>The mouse cursor may have left the window during the time the button is pressed, but it will still recieve the event.</para>
 		/// </summary>
-		Cursor getCursor()
-		{
-			return m_cursor;
-		}
-
-		//------------------------------------
-
+		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		virtual void handleGlobalMouseUp(const MouseEvent& p_event) { }
 		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>If you set this to true, any mouse events that are directed to this view are also sent to the view below.</para>
+		/// USER IMPLEMENTED
+		/// <para>Gets called when a mouse button has been double clicked while the mouse pointer is inside the window.</para>
 		/// </summary>
-		void setIsOverlay(bool p_isOverlay)
-		{
-			m_isOverlay = p_isOverlay;
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns if this view is a mouse event overlay. If it is true, it means that any mouse events directed to this</para>
-		/// <para>view are also directed to the view below.</para>
-		/// </summary>
-		/// <returns></returns>
-		bool getIsOverlay()
-		{
-			return m_isOverlay;
-		}
-
-		//------------------------------------
+		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		virtual void handleGlobalMouseDoubleClick(const MouseEvent& p_event) { }
 
 		/// <summary>
 		/// USER IMPLEMENTED
-		/// <para>Gets called when a mouse button has been pressed down.</para>
+		/// <para>Gets called when the mouse has been moved while the mouse cursor is inside the window.</para>
 		/// </summary>
 		/// <param name="p_event">An object that contains information about the mouse event.</param>
-		virtual void handleMouseDown(const MouseEvent& p_event) { }
+		virtual void handleGlobalMouseMove(const MouseEvent& p_event) { }
 		/// <summary>
 		/// USER IMPLEMENTED
-		/// <para>Gets called when a mouse button has been released.</para>
+		/// <para>Gets called when the mouse wheel has been scrolled while the mouse pointer is inside the window.</para>
 		/// </summary>
 		/// <param name="p_event">An object that contains information about the mouse event.</param>
-		virtual void handleMouseUp(const MouseEvent& p_event) { }
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a mouse button has been double clicked.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
-		virtual void handleMouseDoubleClick(const MouseEvent& p_event) { }
-
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when the mouse pointer has been moved. The isTarget property of the event is only true</para>
-		/// <para>if the mouse has been moved inside of the view. If it has entered the view, a mouse enter event is</para>
-		/// <para>sent, and if it has left the view, a mouse leave event is sent.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
-		virtual void handleMouseMove(const MouseEvent& p_event) { }
-		/// <summary>
-		/// LIBRARY IMPLEMENTED (only default behaviour)
-		/// <para>Gets called when the mouse pointer has entered the view, if this mouse listener is a view, that is.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
-		virtual void handleMouseEnter(const MouseEvent& p_event);
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when the mouse pointer has left the view, if this mouse listener is a view, that is.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
-		virtual void handleMouseLeave(const MouseEvent& p_event) { }
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when the mouse wheel has been moved/scrolled.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
-		virtual void handleMouseScroll(const MouseEvent& p_event) { }
+		virtual void handleGlobalMouseScroll(const MouseEvent& p_event) { }
 	};
 
 	//------------------------------
@@ -4435,7 +5066,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Adds a rectangle to the region that currently needs to be redrawn.
 		/// </summary>
-		virtual void invalidateRect(const Rectangle<float>& p_rectangle) = 0;
+		virtual void invalidateRectangle(const Rectangle<float>& p_rectangle) = 0;
 
 		//------------------------------
 
@@ -5267,11 +5898,13 @@ namespace AvoGUI
 
 	//------------------------------
 
+	class Tooltip;
+
 	/// <summary>
 	/// <para>The highest view in the view hierarchy.</para>
 	/// <para>Is connected to a window (which it holds) and recieves events from it.</para>
 	/// </summary>
-	class GUI : public View, public WindowEventListener
+	class GUI : public View, public WindowEventListener, public GlobalMouseEventListener
 	{
 	private:
 		Window* m_window;
@@ -5281,21 +5914,20 @@ namespace AvoGUI
 
 		//------------------------------
 
-		std::vector<MouseEventListener*> m_mouseEventListeners;
-		std::vector<MouseEventListener*> m_pressedMouseEventListeners;
+		Tooltip* m_tooltip;
 
-		std::vector<MouseEventListener*> getTopMouseListenersAt(const Point<float>& p_coordinates);
-		std::vector<MouseEventListener*> getTopMouseListenersAt(float p_x, float p_y);
+		//------------------------------
+
+		std::vector<GlobalMouseEventListener*> m_globalMouseEventListeners;
+		std::vector<View*> m_pressedMouseEventListeners;
+
+		void getTopMouseListenersAt(const Point<float>& p_coordinates, std::vector<View*>& p_result);
+		void getTopMouseListenersAt(float p_x, float p_y, std::vector<View*>& p_result);
 
 		//------------------------------
 
 		std::vector<KeyboardEventListener*> m_keyboardEventListeners;
 		KeyboardEventListener* m_keyboardFocus;
-
-		//------------------------------
-
-		bool m_areIndirectMouseEventsEnabled;
-		bool m_areIndirectKeyboardEventsEnabled;
 
 	public:
 		GUI();
@@ -5362,21 +5994,21 @@ namespace AvoGUI
 		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
 		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
-		virtual void handleMouseDown(const MouseEvent& p_event);
+		virtual void handleGlobalMouseDown(const MouseEvent& p_event) override;
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Handles a mouse up event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
 		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
 		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
-		virtual void handleMouseUp(const MouseEvent& p_event);
+		virtual void handleGlobalMouseUp(const MouseEvent& p_event) override;
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Handles a double click event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
 		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
 		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
-		virtual void handleMouseDoubleClick(const MouseEvent& p_event);
+		virtual void handleGlobalMouseDoubleClick(const MouseEvent& p_event) override;
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
@@ -5384,14 +6016,14 @@ namespace AvoGUI
 		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
 		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
-		virtual void handleMouseMove(const MouseEvent& p_event);
+		virtual void handleGlobalMouseMove(const MouseEvent& p_event) override;
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Handles a mouse scroll event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
 		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
 		/// <para>lets them know if the event is targeted at them.</para>
 		/// </summary>
-		virtual void handleMouseScroll(const MouseEvent& p_event);
+		virtual void handleGlobalMouseScroll(const MouseEvent& p_event) override;
 
 		//------------------------------
 
@@ -5432,61 +6064,51 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Adds an event listener that will recieve events about the window.</para>
+		/// <para>Enables a window event listener to recieve events.</para>
 		/// </summary>
-		void addWindowEventListener(WindowEventListener* p_listener);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Adds an event listener that will recieve mouse events.</para>
-		/// </summary>
-		void addMouseEventListener(MouseEventListener* p_listener);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Adds an event listener that will recieve keyboard events.</para>
-		/// </summary>
-		void addKeyboardEventListener(KeyboardEventListener* p_listener);
-
-		//------------------------------
-
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>After this method has been called, mouse events will not only be sent to the view</para>
-		/// <para>that has been clicked or scrolled over, but to all of the registered mouse event</para>
-		/// <para>listeners. The isTarget property in the mouse event tells you if the event is</para>
-		/// <para>directed to the view that receives the event.</para>
-		/// </summary>
-		void enableIndirectMouseEvents()
+		void addWindowEventListener(WindowEventListener* p_listener)
 		{
-			m_areIndirectMouseEventsEnabled = true;
+			m_windowEventListeners.push_back(p_listener);
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>After this method has been called, mouse events will only be sent to the view</para>
-		/// <para>that has been clicked or scrolled over, and no other mouse event listeners.</para>
+		/// <para>Disables a window event listener to recieve events.</para>
 		/// </summary>
-		void disableIndirectMouseEvents()
+		void removeWindowEventListener(WindowEventListener* p_listener)
 		{
-			m_areIndirectMouseEventsEnabled = false;
-		}
-
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>After this method has been called, keyboard events will not only be sent to the view</para>
-		/// <para>with keyboard focus, but to all of the registered keyboard listeners. The isTarget property</para>
-		/// <para>in the keyboard event tells you if the event is directed to the view that receives the event.</para>
-		/// </summary>
-		void enableIndirectKeyboardEvents()
-		{
-			m_areIndirectKeyboardEventsEnabled = true;
+			removeVectorElementWithoutKeepingOrder(m_windowEventListeners, p_listener);
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>After this method has been called, keyboard events will only be sent to the view</para>
-		/// <para>with keyboard focus, and no other keyboard event listeners.</para>
+		/// <para>Enables a keyboard event listener to recieve events.</para>
 		/// </summary>
-		void disableIndirectKeyboardEvents()
+		void addKeyboardEventListener(KeyboardEventListener* p_listener)
 		{
-			m_areIndirectKeyboardEventsEnabled = false;
+			m_keyboardEventListeners.push_back(p_listener);
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Disables a keyboard event listener to recieve events.</para>
+		/// </summary>
+		void removeKeyboardEventListener(KeyboardEventListener* p_listener)
+		{
+			removeVectorElementWithoutKeepingOrder(m_keyboardEventListeners, p_listener);
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Enables a global mouse event listener to recieve events.</para>
+		/// </summary>
+		void addGlobalMouseEventListener(GlobalMouseEventListener* p_listener)
+		{
+			m_globalMouseEventListeners.push_back(p_listener);
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Disables a global mouse event listener to recieve events.</para>
+		/// </summary>
+		void removeGlobalMouseEventListener(GlobalMouseEventListener* p_listener)
+		{
+			removeVectorElementWithoutKeepingOrder(m_globalMouseEventListeners, p_listener);
 		}
 
 		//------------------------------
@@ -5511,6 +6133,20 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sets the view used for showing tooltips. This can be your own view inheriting Tooltip.</para>
+		/// </summary>
+		/// <param name="p_tooltip"></param>
+		void setTooltipView(Tooltip* p_tooltip);
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the view used for showing tooltips.</para>
+		/// </summary>
+		Tooltip* getTooltipView();
+
+		//------------------------------
+
+		/// <summary>
 		/// USER IMPLEMENTED
 		/// <para>This is called after the window and drawing context have been created. You should initialize your GUI in this method,</para>
 		/// <para>but it is easiest to do the layout in handleSizeChange() - it is called right after creation too.</para>
@@ -5523,7 +6159,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Invalidates a region of the GUI that has been changed, and therefore needs to be redrawn.</para>
 		/// </summary>
-		void invalidateRect(const Rectangle<float>& p_rectangle);
+		void invalidateRectangle(const Rectangle<float>& p_rectangle);
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
@@ -5544,12 +6180,81 @@ namespace AvoGUI
 	//------------------------------
 
 	/// <summary>
+	/// <para>Shows a short info message about a view. This is a virtual class with standard implementation.</para>
+	/// <para>You can create your own tooltip that inherits this class, and then give it to the GUI.</para>
+	/// </summary>
+	class Tooltip : public View
+	{
+	private:
+		Text* m_text;
+		float m_opacityAnimationTime;
+		float m_opacity;
+		bool m_isShowing;
+
+	public:
+		Tooltip(View* p_parent) : View(p_parent), m_text(0), m_opacityAnimationTime(0.f), m_opacity(0.f), m_isShowing(false)
+		{
+			setHasShadow(false);
+			setElevation(FLT_MAX);
+			setCornerRadius(3.f);
+		}
+		~Tooltip()
+		{
+			if (m_text)
+			{
+				m_text->forget();
+			}
+		}
+
+		//------------------------------
+
+		/// <summary>
+		/// Makes the tooltip appear.
+		/// </summary>
+		/// <param name="p_text">The text to be shown on the tooltip.</param>
+		/// <param name="p_targetBounds">The area that the tooltip points to, relative to the parent of this tooltip. The tooltip decides the exact positioning.</param>
+		virtual void show(const char* p_string, const Rectangle<float>& p_targetRectangle);
+
+		/// <summary>
+		/// Makes the tooltip disappear.
+		/// </summary>
+		virtual void hide();
+
+		//------------------------------
+
+		virtual void updateAnimations() override
+		{
+			m_opacity = m_theme->easings["in out symmetrical"].easeValue(m_opacityAnimationTime);
+			if (m_isShowing)
+			{
+				if (m_opacity < 1.f)
+				{
+					queueAnimationUpdate();
+				}
+				m_opacityAnimationTime += 0.2f;
+			}
+			else
+			{
+				if (m_opacity > 0.f)
+				{
+					queueAnimationUpdate();
+				}
+				m_opacityAnimationTime -= 0.2f;
+			}
+
+			invalidate();
+		}
+
+		virtual void draw(DrawingContext* p_drawingContext) override;
+	};
+
+	//------------------------------
+
+	/// <summary>
 	/// <para>A view that shows a ripple effect when you click it and optionally shows a hover effect when the mouse hovers over it.</para>
 	/// <para>It is a mouse event overlay which means views behind this view are targeted as if this view didn't exist.</para>
 	/// </summary>
-	class Ripple : 
-		public View, public ViewEventListener, 
-		public MouseEventListener
+	class Ripple : public View, public ViewEventListener
 	{
 	private:
 		Color m_color;
@@ -5597,7 +6302,7 @@ namespace AvoGUI
 			m_isEnabled = true;
 		}
 		/// <summary>
-		/// Returns if the ripple and hover effects are enabled or not.
+		/// Returns whether the ripple and hover effects are enabled or not.
 		/// </summary>
 		bool getIsEnabled()
 		{
@@ -5667,7 +6372,7 @@ namespace AvoGUI
 
 	//------------------------------
 
-	class Button : public View, public MouseEventListener
+	class Button : public View
 	{
 	public:
 		enum class Emphasis
@@ -5680,6 +6385,8 @@ namespace AvoGUI
 	private:
 		Text* m_text;
 		float m_fontSize;
+
+		const char* m_tooltipString;
 
 		Image* m_icon;
 
@@ -5722,7 +6429,7 @@ namespace AvoGUI
 		void enable();
 
 		/// <summary>
-		/// Returns if the user can use the button or not.
+		/// Returns whether the user can use the button or not.
 		/// </summary>
 		bool getIsEnabled()
 		{
@@ -5732,13 +6439,13 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Sets the text that the button displays.
+		/// Sets the string that the button displays.
 		/// </summary>
-		void setText(const char* p_text);
+		void setString(const char* p_string);
 		/// <summary>
-		/// Returns the text that the button displays.
+		/// Returns the string that the button displays.
 		/// </summary>
-		const char* getText();
+		const char* getString();
 
 		//------------------------------
 
@@ -5758,13 +6465,34 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void handleMouseEnter(const MouseEvent& p_event) override { }
+		/// <summary>
+		/// <para>Sets a string to be shown as a tooltip when the mouse hovers over the button. Should give the user extra information about the button's purpose.</para>
+		/// <para>An empty string disables the tooltip.</para>
+		/// </summary>
+		void setTooltip(const char* p_info)
+		{
+			m_tooltipString = p_info;
+		}
+
+		//------------------------------
+
+		void handleMouseEnter(const MouseEvent& p_event) override 
+		{ 
+			if (m_tooltipString != "")
+			{
+				getGUI()->getTooltipView()->show(m_tooltipString, getAbsoluteBounds());
+			}
+		}
 		void handleMouseMove(const MouseEvent& p_event) override
 		{
 			m_isMouseHovering = true;
 		}
 		void handleMouseLeave(const MouseEvent& p_event) override
 		{
+			if (m_tooltipString != "")
+			{
+				getGUI()->getTooltipView()->hide();
+			}
 			m_isMouseHovering = false;
 		}
 		void handleMouseDown(const MouseEvent& p_event) override;
