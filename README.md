@@ -24,7 +24,7 @@ class MyApplication : public AvoGUI::GUI
   //------------------------------
   // Events recieved from the window
   
-  inline void handleMouseDown(const MouseEvent& p_event) override
+  void handleMouseDown(const MouseEvent& p_event) override
   {
     // Calls the standard implementation that sends the event down to event listeners. It is recommended to do this since any
     // other views won't be able to react to mouse events otherwise. (note that this call is specific to this instance and is
@@ -41,11 +41,11 @@ class MyApplication : public AvoGUI::GUI
   
   //------------------------------
   
-  inline void createContent() override
+  void createContent() override
   {
     // Here you can create your views, set up your theme and initialize other things. This method has no default implementation.
   }
-  inline void handleSizeChange() override
+  void handleSizeChange() override
   {
     // This is called when the GUI has changed size due to window resizing. This method has no default implementation.
     // Note that this method belongs to the View class (which AvoGUI::GUI inherits) and can be implemented on any view.
@@ -54,7 +54,7 @@ class MyApplication : public AvoGUI::GUI
 ```
 
 ### Creating a custom view
-First of all, what exactly is a view? A view is a rectangle that can draw itself, and is used to create GUI components. If you want your view to react to mouse interactions, inherit AvoGUI::MouseEventListener, register it with getGUI()->addMouseEventListener(this) and override the mouse event methods that you want to use. If you want your view to react to keyboard events, inherit AvoGUI::KeyboardEventListener, register it with getGUI()->addKeyboardEventListener(this) and override the keyboard event methods. Look at the documentation in AvoGUI.hpp for more information. 
+First of all, what exactly is a view? A view is a rectangle that can draw itself, and is used to create GUI components. If you want your view to react to keyboard events, inherit AvoGUI::KeyboardEventListener, register it with getGUI()->addKeyboardEventListener(this) and override the keyboard event methods. Look at the documentation in AvoGUI.hpp for more information. 
 
 This is the structure of a custom View class. Every method that can be overridden by your view (assuming it only inherits AvoGUI::View) is shown here.
 ```cpp
@@ -73,7 +73,7 @@ class MyView : public AvoGUI::View
   
   //------------------------------
   
-  inline void updateAnimations() override
+  void updateAnimations() override
   {
     // This method is used when you want to animate things. It is never called more frequently than a certain frequency
     // that you can change in the window (getGUI()->getWindow()->setAnimationTimerInterval(...)). To add the view to the
@@ -82,7 +82,7 @@ class MyView : public AvoGUI::View
     // since you only need to call queueAnimationUpdate() when you know that your animation isn't done.
   }
   
-  inline void handleSizeChange() override
+  void handleSizeChange() override
   {
     // This is called when the size of the view has changed. You can update your layout here. There is no standard 
     // implementation.
@@ -90,25 +90,36 @@ class MyView : public AvoGUI::View
   
   //------------------------------
   
-  inline void draw(AvoGUI::DrawingContext* p_drawingContext) override
+  void handleMouseDown(const MouseEvent& p_event) override
+  {
+    // Override this if you want to react to mouse button press events. You also need to call enableMouseEvents(), in
+    // the constructor or something. Otherwise, no mouse events will be recieved.
+  }
+  
+  // Other mouse events that you can override in your view are: handleMouseUp, handleDoubleClick, handleMouseMove, 
+  // handleMouseScroll
+  
+  //------------------------------
+  
+  void draw(AvoGUI::DrawingContext* p_drawingContext) override
   {
     // Draw your view here! If this view has children, do not draw them yourself. They are always drawn by the GUI, on
     // top of what is drawn here. Now, how do you decide that you want your view to get drawn? Do NOT call this method
     // directly, instead call invalidate() or getGUI()->invalidateRect(...) to tell the system that a portion of the
     // GUI has been updated and wants to be redrawn.
   }
-  inline void draw(AvoGUI::DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
+  void draw(AvoGUI::DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
   {
     // This can be implemented instead of the other draw method if you want to know the rectangle that is going to be drawn. 
     // The default implementation only calls draw(AvoGUI::DrawingContext* p_drawingContext).
   }
   
-  inline void drawUnclipped(AvoGUI::DrawingContext* p_drawingContext) override
+  void drawUnclipped(AvoGUI::DrawingContext* p_drawingContext) override
   {
     // Here, you can draw anything that you do not want to get affected by any view clipping. Anything drawn here
     // is on top of what was drawn in draw().
   }
-  inline void drawUnclipped(AvoGUI::DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
+  void drawUnclipped(AvoGUI::DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
   {
     // Default implementation only calls drawUnclipped(AvoGUI::DrawingContext* p_drawingContext).
   }
