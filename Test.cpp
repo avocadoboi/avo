@@ -44,7 +44,6 @@ class MyGUI : public AvoGUI::GUI, public AvoGUI::ButtonListener
 private:
 	AvoGUI::View* m_buttonContainer;
 	AvoGUI::Button* m_button_readMore;
-	Sprite* m_sprite;
 
 	bool m_areButtonsEnabled = true;
 

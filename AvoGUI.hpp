@@ -2612,7 +2612,8 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>If you set this to true, any mouse events that are directed to this view are also sent to the view below.</para>
+		/// <para>If you set this to true, this view will not block any mouse events from reaching views below this one.</para>
+		/// <para>Whether this view is a mouse listener or not has no effect on this.</para>
 		/// </summary>
 		void setIsOverlay(bool p_isOverlay)
 		{
@@ -2620,8 +2621,8 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view is a mouse event overlay or not. If it is true, it means that any mouse events sent to this</para>
-		/// <para>view are also sent to the view below.</para>
+		/// <para>Returns whether this view blocks mouse events from reaching views below this one or not. False means it</para>
+		/// <para>blocks, true means it does not.</para>
 		/// </summary>
 		bool getIsOverlay()
 		{
@@ -4503,7 +4504,7 @@ namespace AvoGUI
 		/// </summary>
 		/// <param name="p_drawingContext">Object used to draw graphics to the window.</param>
 		/// <param name="p_targetRectangle">
-		/// The rectangle that needs to be drawn. To optimize your application, you can make sure to only draw stuff in this region.
+		/// The rectangle that needs to be drawn, relative to the top-left corner of the GUI. To optimize your application, you can make sure to only draw stuff in this region.
 		/// </param>
 		virtual void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
 		{
@@ -4525,7 +4526,7 @@ namespace AvoGUI
 		/// </summary>
 		/// <param name="p_drawingContext">Object used to draw graphics to the window.</param>
 		/// <param name="p_targetRectangle">
-		/// The rectangle that needs to be drawn. To optimize your application, you can make sure to only draw stuff in this region.
+		/// The rectangle that needs to be drawn, relative to the top-left corner of the GUI. To optimize your application, you can make sure to only draw stuff in this region.
 		/// </param>
 		virtual void drawUnclipped(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
 		{
@@ -5514,6 +5515,128 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// <para>Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.</para>
+		/// <para>Everything will be scaled towards the origin.</para>
+		/// </summary>
+		virtual void scale(float p_scale) = 0;
+		/// <summary>
+		/// <para>Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics</para>
+		/// <para>drawing so that it is bigger or smaller. Everything will be scaled towards the origin.</para>
+		/// </summary>
+		/// <param name="p_scaleX">Horizontal scaling</param>
+		/// <param name="p_scaleY">Vertical scaling</param>
+		virtual void scale(float p_scaleX, float p_scaleY) = 0;
+		/// <summary>
+		/// <para>Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.</para>
+		/// <para>Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.</para>
+		/// </summary>
+		virtual void scale(float p_scale, const Point<float>& p_origin) = 0;
+		/// <summary>
+		/// <para>Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics</para>
+		/// <para>drawing so that it is bigger or smaller. Everything will be scaled towards the origin parameter, which is relative</para>
+		/// <para>to the top-left corner of the window.</para>
+		/// </summary>
+		/// <param name="p_scaleX">Horizontal scaling</param>
+		/// <param name="p_scaleY">Vertical scaling</param>
+		virtual void scale(float p_scaleX, float p_scaleY, const Point<float>& p_origin) = 0;
+		/// <summary>
+		/// <para>Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.</para>
+		/// <para>Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.</para>
+		/// </summary>
+		virtual void scale(float p_scale, float p_originX, float p_originY) = 0;
+		/// <summary>
+		/// <para>Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics</para>
+		/// <para>drawing so that it is bigger or smaller. The origin is shifted so that everything is scaled towards the origin</para>
+		/// <para>parameter, which is relative to the top-left corner of the window.</para>
+		/// </summary>
+		/// <param name="p_scaleX">Horizontal scaling</param>
+		/// <param name="p_scaleY">Vertical scaling</param>
+		virtual void scale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) = 0;
+		/// <summary>
+		/// <para>sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.</para>
+		/// <para>Everything will be scaled towards the origin.</para>
+		/// </summary>
+		virtual void setScale(float p_scale) = 0;
+		/// <summary>
+		/// <para>Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics</para>
+		/// <para>drawing so that it is bigger or smaller than normal. Everything will be scaled towards the origin.</para>
+		/// </summary>
+		/// <param name="p_scaleX">Horizontal scaling</param>
+		/// <param name="p_scaleY">Vertical scaling</param>
+		virtual void setScale(float p_scaleX, float p_scaleY) = 0;
+		/// <summary>
+		/// <para>Sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.</para>
+		/// <para>Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.</para>
+		/// </summary>
+		virtual void setScale(float p_scale, const Point<float>& p_origin) = 0;
+		/// <summary>
+		/// <para>Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics drawing so that</para>
+		/// <para>it is bigger or smaller than normal. Everything will be scaled towards the origin parameter, which is relative</para>
+		/// <para>to the top-left corner of the window.</para>
+		/// </summary>
+		/// <param name="p_scaleX">Horizontal scaling</param>
+		/// <param name="p_scaleY">Vertical scaling</param>
+		virtual void setScale(float p_scaleX, float p_scaleY, const Point<float>& p_origin) = 0;
+		/// <summary>
+		/// <para>Sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.</para>
+		/// <para>Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.</para>
+		/// </summary>
+		virtual void setScale(float p_scale, float p_originX, float p_originY) = 0;
+		/// <summary>
+		/// <para>Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics</para>
+		/// <para>drawing so that it is bigger or smaller. The origin is shifted so that everything is scaled towards the origin</para>
+		/// <para>parameter, which is relative to the top-left corner of the window.</para>
+		/// </summary>
+		/// <param name="p_scaleX">Horizontal scaling</param>
+		/// <param name="p_scaleY">Vertical scaling</param>
+		virtual void setScale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) = 0;
+		/// <summary>
+		/// <para>Returns the sizing factor which is transforming graphics drawing so that it is bigger or smaller. If it is 2,</para>
+		/// <para>graphics is drawn double as big as normal. 0.5 is half as big as normal.</para>
+		/// </summary>
+		virtual const Point<float>& getScale() = 0;
+		/// <summary>
+		/// <para>Returns the sizing factor for the x-axis which is transforming graphics drawing so that it is bigger or smaller.</para>
+		/// <para>If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.</para>
+		/// </summary>
+		virtual float getScaleX() = 0;
+		/// <summary>
+		/// <para>Returns the sizing factor for the y-axis which is transforming graphics drawing so that it is bigger or smaller.</para>
+		/// <para>If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.</para>
+		/// </summary>
+		virtual float getScaleY() = 0;
+
+		//------------------------------
+
+		/// <summary>
+		/// Rotates all future graphics drawing, with an angle in radians. Graphics will be rotated relative to the origin.
+		/// </summary>
+		/// <param name="p_radians">Angle to rotate, in radians.</param>
+		virtual void rotate(float p_radians) = 0;
+		/// <summary>
+		/// <para>Rotates all future graphics drawing, with an angle in radians. Graphics will be rotated relative to the origin parameter,</para>
+		/// <para>which itself is relative to the current origin.</para>
+		/// </summary>
+		/// <param name="p_radians">Angle to rotate, in radians.</param>
+		virtual void rotate(float p_radians, const Point<float>& p_origin) = 0;
+		/// <summary>
+		/// <para>Rotates all future graphics drawing, with an angle in radians. Graphics will be rotated relative to the origin parameter,</para>
+		/// <para>which itself is relative to the current origin.</para>
+		/// </summary>
+		/// <param name="p_radians">Angle to rotate, in radians.</param>
+		virtual void rotate(float p_radians, float p_originX, float p_originY) = 0;
+
+		//------------------------------
+
+		/// <summary>
+		/// <para>Resets all graphics drawing transformations, so that every coordinate used in any drawing operation is unaltered, and</para>
+		/// <para>relative to the top-left corner of the window.</para>
+		/// </summary>
+		virtual void resetTransformations() = 0;
+
+		//------------------------------
+
+		/// <summary>
 		/// <para>Resizes the drawing buffers.</para>
 		/// <para>The GUI calls this for you when it is being resized.</para>
 		/// </summary>
@@ -6190,13 +6313,15 @@ namespace AvoGUI
 		float m_opacityAnimationTime;
 		float m_opacity;
 		bool m_isShowing;
+		uint32_t m_timeSinceShow;
 
 	public:
-		Tooltip(View* p_parent) : View(p_parent), m_text(0), m_opacityAnimationTime(0.f), m_opacity(0.f), m_isShowing(false)
+		Tooltip(View* p_parent) : View(p_parent), m_text(0), m_opacityAnimationTime(0.f), m_opacity(0.f), m_isShowing(false), m_timeSinceShow(0U)
 		{
 			setHasShadow(false);
 			setElevation(FLT_MAX);
-			setCornerRadius(3.f);
+			setCornerRadius(2.f);
+			setIsOverlay(true); // Don't want to block any events from reaching views below the tooltip, especially not when it has faded away.
 		}
 		~Tooltip()
 		{
@@ -6224,22 +6349,31 @@ namespace AvoGUI
 
 		virtual void updateAnimations() override
 		{
-			m_opacity = m_theme->easings["in out symmetrical"].easeValue(m_opacityAnimationTime);
 			if (m_isShowing)
 			{
-				if (m_opacity < 1.f)
+				if (m_timeSinceShow > 6U)
 				{
+					m_opacity = m_theme->easings["out"].easeValue(m_opacityAnimationTime);
+					if (m_opacity < 1.f)
+					{
+						m_opacityAnimationTime = min(m_opacityAnimationTime + 0.08f, 1.f);
+						queueAnimationUpdate();
+					}
+				}
+				else
+				{
+					m_timeSinceShow++;
 					queueAnimationUpdate();
 				}
-				m_opacityAnimationTime += 0.2f;
 			}
 			else
 			{
+				m_opacity = m_theme->easings["in out"].easeValue(m_opacityAnimationTime);
 				if (m_opacity > 0.f)
 				{
+					m_opacityAnimationTime = max(m_opacityAnimationTime - 0.2f, 0.f);
 					queueAnimationUpdate();
 				}
-				m_opacityAnimationTime -= 0.2f;
 			}
 
 			invalidate();

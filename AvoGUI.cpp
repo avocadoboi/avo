@@ -2811,6 +2811,7 @@ namespace AvoGUI
 
 		ID2D1SolidColorBrush* m_solidColorBrush;
 		D2D1_STROKE_STYLE_PROPERTIES m_strokeStyle;
+		Point<float> m_scale;
 
 		IDWriteTextFormat* m_textFormat;
 		IDWriteFontCollection* m_fontCollection;
@@ -2830,7 +2831,7 @@ namespace AvoGUI
 
 	public:
 		WindowsDrawingContext(Window* p_window) :
-			m_window(p_window), m_textFormat(0), m_fontCollection(0)
+			m_window(p_window), m_scale(1.f, 1.f), m_textFormat(0), m_fontCollection(0)
 		{
 			if (!s_imagingFactory)
 			{
@@ -3075,31 +3076,150 @@ namespace AvoGUI
 		{
 			D2D1_MATRIX_3X2_F transform;
 			m_context->GetTransform(&transform);
-			transform._31 += p_offset.x;
-			transform._32 += p_offset.y;
+			transform.dx += p_offset.x;
+			transform.dy += p_offset.y;
 			m_context->SetTransform(transform);
 		}
 		void moveOrigin(float p_offsetX, float p_offsetY) override
 		{
 			D2D1_MATRIX_3X2_F transform;
 			m_context->GetTransform(&transform);
-			transform._31 += p_offsetX;
-			transform._32 += p_offsetY;
+			transform.dx += p_offsetX;
+			transform.dy += p_offsetY;
 			m_context->SetTransform(transform);
 		}
 		void setOrigin(const Point<float>& p_origin) override
 		{
-			m_context->SetTransform(D2D1::Matrix3x2F::Translation(p_origin.x, p_origin.y));
+			D2D1_MATRIX_3X2_F transform;
+			m_context->GetTransform(&transform);
+			transform.dx = p_origin.x;
+			transform.dy = p_origin.y;
+			m_context->SetTransform(transform);
 		}
 		void setOrigin(float p_x, float p_y) override
 		{
-			m_context->SetTransform(D2D1::Matrix3x2F::Translation(p_x, p_y));
+			D2D1_MATRIX_3X2_F transform;
+			m_context->GetTransform(&transform);
+			transform.dx = p_x;
+			transform.dy = p_y;
+			m_context->SetTransform(transform);
 		}
 		Point<float> getOrigin() override
 		{
 			D2D1_MATRIX_3X2_F transform;
 			m_context->GetTransform(&transform);
-			return Point<float>(transform._31, transform._32);
+			return Point<float>(transform.dx, transform.dy);
+		}
+
+		//------------------------------
+
+		void scale(float p_scale) override
+		{
+			scale(p_scale, p_scale);
+		}
+		void scale(float p_scaleX, float p_scaleY) override
+		{
+			D2D1::Matrix3x2F transform;
+			m_context->GetTransform(&transform);
+			transform.m11 *= p_scaleX;
+			transform.m22 *= p_scaleY;
+			transform.m21 *= p_scaleX;
+			transform.m12 *= p_scaleY;
+			m_scale.x *= p_scaleX;
+			m_scale.y *= p_scaleY;
+			m_context->SetTransform(transform);
+		}
+		void scale(float p_scale, const Point<float>& p_origin) override
+		{
+			scale(p_scale, p_scale, p_origin.x, p_origin.y);
+		}
+		void scale(float p_scaleX, float p_scaleY, const Point<float>& p_origin) override
+		{
+			scale(p_scaleX, p_scaleY, p_origin.x, p_origin.y);
+		}
+		void scale(float p_scale, float p_originX, float p_originY) override
+		{
+			scale(p_scale, p_scale, p_originX, p_originY);
+		}
+		void scale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) override
+		{
+			D2D1::Matrix3x2F transform;
+			m_context->GetTransform(&transform);
+			transform.m11 *= p_scaleX;
+			transform.m22 *= p_scaleY;
+			transform.m21 *= p_scaleX;
+			transform.m12 *= p_scaleY;
+			m_scale.x *= p_scaleX;
+			m_scale.y *= p_scaleY;
+			transform.dx += (p_originX - transform.dx) * (1.f - p_scaleX);
+			transform.dy += (p_originY - transform.dy) * (1.f - p_scaleY);
+			m_context->SetTransform(transform);
+		}
+		void setScale(float p_scale) override
+		{
+			scale(p_scale/m_scale.x, p_scale/m_scale.x);
+		}
+		void setScale(float p_scaleX, float p_scaleY) override
+		{
+			scale(p_scaleX / m_scale.x, p_scaleY / m_scale.x);
+		}
+		void setScale(float p_scale, const Point<float>& p_origin) override
+		{
+			scale(p_scale/m_scale.x, p_scale/m_scale.y, p_origin.x, p_origin.y);
+		}
+		void setScale(float p_scaleX, float p_scaleY, const Point<float>& p_origin) override
+		{
+			scale(p_scaleX/m_scale.x, p_scaleY/m_scale.y, p_origin.x, p_origin.y);
+		}
+		void setScale(float p_scale, float p_originX, float p_originY) override
+		{
+			scale(p_scale/m_scale.x, p_scale/m_scale.y, p_originX, p_originY);
+		}
+		void setScale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) override
+		{
+			scale(p_scaleX / m_scale.x, p_scaleY / m_scale.y, p_originX, p_originY);
+		}
+		const Point<float>& getScale() override
+		{
+			return m_scale;
+		}
+		float getScaleX() override
+		{
+			return m_scale.x;
+		}
+		float getScaleY() override
+		{
+			return m_scale.y;
+		}
+
+		//------------------------------
+
+		void rotate(float p_radians) override
+		{
+			D2D1::Matrix3x2F transform;
+			m_context->GetTransform(&transform);
+			m_context->SetTransform(transform * D2D1::Matrix3x2F::Rotation(p_radians));
+		}
+		void rotate(float p_radians, const Point<float>& p_origin) override
+		{
+			D2D1::Matrix3x2F transform;
+			m_context->GetTransform(&transform);
+			m_context->SetTransform(transform * D2D1::Matrix3x2F::Rotation(p_radians, D2D1::Point2F(p_origin.x, p_origin.y)));
+		}
+		void rotate(float p_radians, float p_originX, float p_originY) override
+		{
+			D2D1::Matrix3x2F transform;
+			m_context->GetTransform(&transform);
+			m_context->SetTransform(transform * D2D1::Matrix3x2F::Rotation(p_radians, D2D1::Point2F(p_originX, p_originY)));
+		}
+
+		//------------------------------
+
+		void resetTransformations() override
+		{
+			m_context->SetTransform(D2D1::Matrix3x2F::Identity());
+			m_scale.x = 1.f;
+			m_scale.y = 1.f;
 		}
 
 		//------------------------------
@@ -4141,22 +4261,18 @@ namespace AvoGUI
 					if (currentContainer->getAreMouseEventsEnabled())
 					{
 						p_result.push_back(currentContainer);
-						if (currentContainer->getIsOverlay())
+					}
+					if (currentContainer->getIsOverlay())
+					{
+						if (currentContainer->getParent() == this)
 						{
-							if (currentContainer->getParent() == this)
-							{
-								willContinue = false;
-							}
-							else
-							{
-								startPosition = currentContainer->getIndex() - 1;
-								currentContainer = currentContainer->getParent();
-								viewOffset -= currentContainer->getTopLeft();
-							}
+							willContinue = false;
 						}
 						else
 						{
-							willContinue = false;
+							startPosition = currentContainer->getIndex() - 1;
+							currentContainer = currentContainer->getParent();
+							viewOffset -= currentContainer->getTopLeft();
 						}
 					}
 					else
@@ -4176,22 +4292,14 @@ namespace AvoGUI
 							viewOffset += currentContainer->getTopLeft();
 							break;
 						}
-						else
+						if (view->getAreMouseEventsEnabled())
 						{
-							if (view->getAreMouseEventsEnabled())
-							{
-								p_result.push_back(view);
-								if (!view->getIsOverlay())
-								{
-									willContinue = false;
-									break;
-								}
-							}
-							else
-							{
-								willContinue = false;
-								break;
-							}
+							p_result.push_back(view);
+						}
+						if (!view->getIsOverlay())
+						{
+							willContinue = false;
+							break;
 						}
 					}
 				}
@@ -4342,13 +4450,10 @@ namespace AvoGUI
 	}
 	void GUI::handleGlobalMouseUp(const MouseEvent& p_event)
 	{
-		std::vector<View*> targets;
-		getTopMouseListenersAt(p_event.x, p_event.y, targets);
-
 		MouseEvent event = p_event;
-		if (targets.size())
+		if (m_pressedMouseEventListeners.size())
 		{
-			for (auto view = targets.begin(); view != targets.end(); view++)
+			for (auto view = m_pressedMouseEventListeners.begin(); view != m_pressedMouseEventListeners.end(); view++)
 			{
 				Point<float> position = (*view)->getAbsoluteBounds().getTopLeft();
 				event.x = p_event.x - position.x;
@@ -4539,8 +4644,6 @@ namespace AvoGUI
 		View* currentContainer = this;
 		uint32_t startPosition = 0;
 
-		Rectangle<float> movedTargetRectangle(p_targetRectangle);
-
 		m_drawingContext->beginDrawing();
 
 		m_drawingContext->setOrigin(0, 0);
@@ -4554,10 +4657,9 @@ namespace AvoGUI
 			{
 				View* view = currentContainer->getChild(a);
 
-				if (view->getIsIntersecting(movedTargetRectangle) && view->getIsVisible())
+				if (view->getWidth() > 0.f && view->getHeight() > 0.f && view->getAbsoluteBounds().getIsIntersecting(p_targetRectangle) && view->getIsVisible())
 				{
 					m_drawingContext->moveOrigin(view->getTopLeft());
-					movedTargetRectangle -= view->getTopLeft();
 
 					view->drawShadow(m_drawingContext);
 
@@ -4570,7 +4672,7 @@ namespace AvoGUI
 						m_drawingContext->pushClipRectangle(view->getSize());
 					}
 
-					view->draw(m_drawingContext, movedTargetRectangle);
+					view->draw(m_drawingContext, p_targetRectangle);
 
 					if (view->getNumberOfChildren())
 					{
@@ -4590,13 +4692,12 @@ namespace AvoGUI
 							m_drawingContext->popClipRectangle();
 						}
 
-						view->drawUnclipped(m_drawingContext, movedTargetRectangle);
+						view->drawUnclipped(m_drawingContext, p_targetRectangle);
 
 						m_drawingContext->moveOrigin(-view->getTopLeft());
-						movedTargetRectangle += view->getTopLeft();
 					}
 				}
-				else if (view->getShadowBounds().getIsIntersecting(movedTargetRectangle))
+				else if (view->getAbsoluteShadowBounds().getIsIntersecting(p_targetRectangle))
 				{
 					m_drawingContext->moveOrigin(view->getTopLeft());
 					view->drawShadow(m_drawingContext);
@@ -4619,10 +4720,9 @@ namespace AvoGUI
 					m_drawingContext->popClipRectangle();
 				}
 
-				currentContainer->drawUnclipped(m_drawingContext, movedTargetRectangle);
+				currentContainer->drawUnclipped(m_drawingContext, p_targetRectangle);
 
 				m_drawingContext->moveOrigin(-currentContainer->getTopLeft());
-				movedTargetRectangle += currentContainer->getTopLeft();
 
 				startPosition = currentContainer->getIndex() + 1;
 				currentContainer = currentContainer->getParent();
@@ -4679,7 +4779,10 @@ namespace AvoGUI
 			}
 			setCenterX(max(1.f + getWidth()*0.5f, min(getGUI()->getWidth() - getWidth()*0.5 - 1.f, p_targetRectangle.getCenterX())));
 
+			m_opacityAnimationTime = 0.f;
+			m_opacity = 0.f;
 			m_isShowing = true;
+			m_timeSinceShow = 0U;
 			queueAnimationUpdate();
 		}
 	}
@@ -4694,9 +4797,15 @@ namespace AvoGUI
 
 	void Tooltip::draw(DrawingContext* p_drawingContext)
 	{
-		p_drawingContext->clear(Color(0.f, m_opacity*0.7f));
-		p_drawingContext->setColor(Color(1.f, m_opacity*0.9f));
-		p_drawingContext->drawText(m_text);
+		if (m_text)
+		{
+			p_drawingContext->scale(m_opacity*0.3f + 0.7f, getAbsoluteCenter());
+			p_drawingContext->setColor(Color(0.f, m_opacity*0.7f));
+			p_drawingContext->fillRoundedRectangle(getSize(), getCornerRadius());
+			p_drawingContext->setColor(Color(1.f, m_opacity*0.9f));
+			p_drawingContext->drawText(m_text);
+			p_drawingContext->scale(1.f / (m_opacity*0.3f + 0.7f), getAbsoluteCenter());
+		}
 	}
 
 	//------------------------------
