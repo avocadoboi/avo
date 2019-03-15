@@ -4,6 +4,8 @@
 
 #include <stack>
 #include <iostream>
+#include <random>
+#include <time.h>
 
 //------------------------------
 
@@ -31,6 +33,16 @@
 
 namespace AvoGUI
 {
+	std::default_random_engine randomEngine(time(0));
+	std::uniform_real_distribution<double> uniformDistribution(0.0, 1.0);
+
+	double random()
+	{
+		return uniformDistribution(randomEngine);
+	}
+
+	//------------------------------
+
 	wchar_t* widenString(const char* p_string)
 	{
 #ifdef _WIN32
@@ -4203,7 +4215,7 @@ namespace AvoGUI
 			m_context->DrawTextA(
 				wideString, numberOfCharacters, m_textFormat,
 				D2D1::RectF(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom),
-				m_solidColorBrush
+				m_solidColorBrush, D2D1_DRAW_TEXT_OPTIONS::D2D1_DRAW_TEXT_OPTIONS_NONE
 			);
 
 			delete[] wideString;
@@ -4218,11 +4230,11 @@ namespace AvoGUI
 		}
 		void drawText(const char* p_string, float p_x, float p_y) override
 		{
-			drawText(p_string, Rectangle<float>(p_x, p_y, p_x, p_y));
+			drawText(p_string, Rectangle<float>(p_x, p_y, m_context->GetSize().width, m_context->GetSize().height));
 		}
 		void drawText(const char* p_string, const Point<float>& p_position) override
 		{
-			drawText(p_string, Rectangle<float>(p_position.x, p_position.y, p_position.x, p_position.y));
+			drawText(p_string, Rectangle<float>(p_position.x, p_position.y, m_context->GetSize().width * 2, m_context->GetSize().height * 2));
 		}
 	};
 	ID2D1Factory1* WindowsDrawingContext::s_direct2DFactory = 0;

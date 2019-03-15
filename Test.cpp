@@ -127,4 +127,5 @@ int main()
 {
 	MyGUI* gui = new MyGUI();
 	AvoGUI::GUI::run();
+	gui->forget();
 }

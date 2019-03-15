@@ -61,6 +61,11 @@ namespace AvoGUI
 	}
 
 	/// <summary>
+	/// Returns a random double between 0 and 1. It uses the standard library random header.
+	/// </summary>
+	double random();
+
+	/// <summary>
 	/// Returns the biggest of two numbers.
 	/// </summary>
 	template<typename Type>
@@ -4844,7 +4849,8 @@ namespace AvoGUI
 		MinimizeBox = 0x20UL,
 		MaximizeBox = 0x40UL,
 		ResizeBorder = 0x80UL,
-		Default = Border | Visible | MinimizeBox | MaximizeBox | ResizeBorder
+		Default = Border | Visible | MinimizeBox | MaximizeBox | ResizeBorder,
+		DefaultNoResize = Border | Visible | MinimizeBox
 	};
 
 	constexpr WindowStyleFlags operator&(WindowStyleFlags p_left, WindowStyleFlags p_right)
@@ -5446,7 +5452,7 @@ namespace AvoGUI
 		Custom
 	};
 
-	class TextProperties : public ReferenceCounted
+	class TextProperties
 	{
 	public:
 		const char* fontFamilyName = "arial";
@@ -5454,7 +5460,7 @@ namespace AvoGUI
 		FontWeight fontWeight = FontWeight::Medium;
 		FontStyle fontStyle = FontStyle::Normal;
 		FontStretch fontStretch = FontStretch::Medium;
-		float fontSize = 11.f;
+		float fontSize = 22.f;
 	};
 
 	/// <summary>
@@ -6058,8 +6064,7 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>This method creates the window and drawing context as well as</para>
-		/// <para>creates the content of the GUI and lays it out.</para>
+		/// <para>This method creates the window and drawing context as well as creates the content of the GUI and lays it out.</para>
 		/// </summary>
 		/// <param name="p_title">The name of the window.</param>
 		/// <param name="p_x">X coordinate of the window in desktop coordinates.</param>
@@ -6072,8 +6077,7 @@ namespace AvoGUI
 		void create(const char* p_title, uint32_t p_x, uint32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, bool p_isFullscreen = false, GUI* p_parent = 0);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>This method creates the window and drawing context as well as</para>
-		/// <para>creates the content of the GUI and lays it out.</para>
+		/// <para>This method creates the window and drawing context as well as creates the content of the GUI and lays it out.</para>
 		/// </summary>
 		/// <param name="p_title">The name of the window.</param>
 		/// <param name="p_width">Width of the window.</param>
