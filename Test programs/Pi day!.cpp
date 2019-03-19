@@ -1,9 +1,9 @@
-#include "AvoGUI.hpp"
+#include "../AvoGUI.hpp"
 
 //------------------------------
 
-long double const NUMBER_OF_DIGITS = 8.0L;
-long double const START_VELOCITY = 0.4L;
+long double const NUMBER_OF_DIGITS = 7.0L;
+long double const START_VELOCITY = 1.0L;
 float windowWidth = 800.f;
 float windowHeight = 350.f;
 
@@ -18,41 +18,69 @@ public:
 	long double width;
 	AvoGUI::Color color;
 
+	Block()
+	{
+		color.setHSBA(AvoGUI::random(), 0.95f, 0.8f);
+	}
 	Block(long double p_position, long double p_velocity, long double p_inverseMass, long double p_width) :
 		position(p_position), velocity(p_velocity), inverseMass(p_inverseMass), width(p_width)
 	{
 		color.setHSBA(AvoGUI::random(), 0.95f, 0.8f);
 	}
 
-	void draw(AvoGUI::DrawingContext* p_context, long double p_min)
+	void draw(AvoGUI::DrawingContext* p_context)
 	{
 		p_context->setColor(color);
-		p_context->fillRectangle(AvoGUI::max(p_min, position), windowHeight - width, AvoGUI::max(p_min, position) + width, windowHeight);
+		p_context->fillRectangle(position, windowHeight - width, position + width, windowHeight);
 	}
 };
 
 //------------------------------
 
-class Canvas : public AvoGUI::View
+class Canvas : public AvoGUI::View, public AvoGUI::ButtonListener
 {
 private:
 	Block m_firstBlock;
 	Block m_secondBlock;
 	uint32_t m_numberOfCollisions;
+	AvoGUI::Button* m_restartButton;
+	AvoGUI::TextField* m_testTextField;
+
+	void startSimulation()
+	{
+		m_firstBlock = Block(500.0L, 0.0L, 1.0L, 70.0L);
+		m_secondBlock = Block(600.0L, -START_VELOCITY, pow(100.0L, -NUMBER_OF_DIGITS + 1.0L), 200.0L);
+		m_numberOfCollisions = 0U;
+	}
 
 public:
-	Canvas(View* p_parent) : 
-		View(p_parent, p_parent->getBounds()),
-		m_firstBlock(500.0L, 0.0L, 1.0L, 70.0L), 
-		m_secondBlock(600.0L, -START_VELOCITY, pow(100.0L, -NUMBER_OF_DIGITS + 1.0L), 200.0L)
+	Canvas(View* p_parent) : View(p_parent, p_parent->getBounds())
 	{
 		windowWidth = getWidth();
 		windowHeight = getHeight();
 
+		m_restartButton = new AvoGUI::Button(this, "RESTART", AvoGUI::Button::Emphasis::High);
+		m_restartButton->setIcon(getGUI()->getDrawingContext()->createImage("test icon.png"));
+		m_restartButton->setTopRight(getRight() - 10.f, 10.f);
+		m_restartButton->addButtonListener(this);
+
+		m_testTextField = new AvoGUI::TextField(this, AvoGUI::TextField::Type::Filled, "Test!");
+		m_testTextField->setTopRight(getRight() - 10.f, m_restartButton->getBottom() + 10.f);
+
 		AvoGUI::TextProperties textProperties;
 		textProperties.fontSize = 35.f;
 		getGUI()->getDrawingContext()->setDefaultTextProperties(textProperties);
+
+		startSimulation();
+
 		queueAnimationUpdate();
+	}
+
+	//------------------------------
+
+	void handleButtonClick(AvoGUI::Button* p_button) override
+	{
+		startSimulation();
 	}
 
 	void updateAnimations() override
@@ -60,7 +88,7 @@ public:
 		m_firstBlock.position += m_firstBlock.velocity;
 		m_secondBlock.position += m_secondBlock.velocity;
 
-		// Trace back and resolve all collisions that have happened in the last timestep.
+		// Trace back and resolve all collisions that have happened in the last timestep/frame.
 		while (true)
 		{
 			// We can only predict the earliest collision in the last timestep using the current velocity and position. It's an iterative process.
@@ -92,8 +120,8 @@ public:
 
 	void draw(AvoGUI::DrawingContext* p_context) override
 	{
-		m_firstBlock.draw(p_context, 0.0L);
-		m_secondBlock.draw(p_context, m_firstBlock.width);
+		m_firstBlock.draw(p_context);
+		m_secondBlock.draw(p_context);
 		p_context->setColor(0xff111111);
 		p_context->drawText(std::to_string(m_numberOfCollisions).c_str(), 20.f, 10.f);
 	}
@@ -105,7 +133,7 @@ int main()
 {
 	AvoGUI::GUI* gui = new AvoGUI::GUI();
 	gui->create("Pi day!", windowWidth, windowHeight, AvoGUI::WindowStyleFlags::DefaultNoResize);
-	new Canvas(gui); // I know this looks scary but it's 100% valid.
+	new Canvas(gui); // I know this looks scary but it's 100% valid. It adds it as a child to the GUI.
 	AvoGUI::GUI::run();
 	gui->forget();
 }

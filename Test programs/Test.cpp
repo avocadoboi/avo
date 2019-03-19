@@ -1,4 +1,4 @@
-#include "AvoGUI.hpp"
+#include "../AvoGUI.hpp"
 #include <iostream>
 
 //------------------------------

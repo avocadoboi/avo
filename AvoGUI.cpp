@@ -1831,13 +1831,30 @@ namespace AvoGUI
 				mouseEvent.modifierKeys = modifierKeys;
 				m_GUI->handleGlobalMouseMove(mouseEvent);
 
-				m_mousePosition.set(x, y);
+				m_mousePosition.x = x;
+				m_mousePosition.y = y;
 
 				return true;
 			}
 			case WM_MOUSELEAVE:
 			{
 				m_isMouseOutsideWindow = true;
+				if (GetCapture() != m_windowHandle)
+				{
+					POINT mousePosition;
+					GetCursorPos(&mousePosition);
+					ScreenToClient(m_windowHandle, &mousePosition);
+
+					MouseEvent mouseEvent;
+					mouseEvent.x = mousePosition.x;
+					mouseEvent.y = mousePosition.y;
+					mouseEvent.movementX = mousePosition.x - m_mousePosition.x;
+					mouseEvent.movementY = mousePosition.y - m_mousePosition.y;
+					m_GUI->handleGlobalMouseMove(mouseEvent);
+
+					m_mousePosition.x = mousePosition.x;
+					m_mousePosition.y = mousePosition.y;
+				}
 				return true;
 			}
 			case WM_KEYDOWN:
@@ -2093,6 +2110,41 @@ namespace AvoGUI
 			DWRITE_TEXT_METRICS metrics;
 			HRESULT result = m_handle->GetMetrics(&metrics);
 			m_bounds.setSize(metrics.width, metrics.height);
+		}
+
+		//------------------------------
+
+		void setTextAlign(TextAlign p_textAlign) override
+		{
+			switch (p_textAlign)
+			{
+			case TextAlign::Left:
+				m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING);
+				break;
+			case TextAlign::Center:
+				m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_CENTER);
+				break;
+			case TextAlign::Right:
+				m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_TRAILING);
+				break;
+			case TextAlign::Fill:
+				m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED);
+				break;
+			}
+		}
+		TextAlign getTextAlign() override
+		{
+			switch (m_handle->GetTextAlignment())
+			{
+			case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING:
+				return TextAlign::Left;
+			case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_CENTER:
+				return TextAlign::Center;
+			case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_TRAILING:
+				return TextAlign::Right;
+			case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED:
+				return TextAlign::Fill;
+			}
 		}
 
 		//------------------------------
@@ -4174,6 +4226,22 @@ namespace AvoGUI
 				p_textProperties.fontSize, fontLocale,
 				(IDWriteTextFormat**)&m_textFormat
 			);
+			switch (p_textProperties.textAlign)
+			{
+			case TextAlign::Left:
+				m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING);
+				break;
+			case TextAlign::Center:
+				m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_CENTER);
+				break;
+			case TextAlign::Right:
+				m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_TRAILING);
+				break;
+			case TextAlign::Fill:
+				m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED);
+			}
+
+			m_textProperties = p_textProperties;
 
 			delete[] fontLocale;
 			delete[] fontFamily;
@@ -4826,7 +4894,8 @@ namespace AvoGUI
 
 	Ripple::Ripple(View* p_parent, const Color& p_color) :
 		View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(0.f, 0.45f),
-		m_isEnabled(true), m_isMouseDown(false), m_isMouseHovering(false), m_hasHoverEffect(true)
+		m_isEnabled(true), m_circleAnimationTime(1.f), m_isMouseDown(false), m_isMouseHovering(false), 
+		m_hasHoverEffect(true)
 	{
 		setIsOverlay(true); // Mouse events should be sent through
 		setHasShadow(false);
@@ -5080,6 +5149,7 @@ namespace AvoGUI
 					m_text->setLeft(38.f, true);
 					setWidth(round(m_text->getWidth()) + 16.f + 38.f);
 					m_icon = p_icon;
+					m_icon->setBoundsSizing(ImageBoundsSizing::Contain);
 					m_icon->setSize(16.f, 16.f);
 					m_icon->setCenter(38.f*0.5f, getHeight()*0.5f);
 				}
@@ -5220,6 +5290,89 @@ namespace AvoGUI
 			p_context->setColor(m_currentColor);
 		}
 
+		if (m_icon)
+		{
+			p_context->drawImage(m_icon);
+		}
+
 		p_context->drawText(m_text);
+	}
+
+	//------------------------------
+
+	TextField::TextField(View* p_parent, Type p_type, const char* p_label, float p_width, float p_fontSize) : 
+		View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*2.5f)), m_type(p_type), m_fontSize(p_fontSize)
+	{
+		setLabel(p_label);
+		setCursor(Cursor::Ibeam);
+		enableMouseEvents();
+	}
+
+	//------------------------------
+
+	void TextField::setLabel(const char* p_label)
+	{
+		if (p_label != "")
+		{
+			m_labelText = getGUI()->getDrawingContext()->createText(p_label, m_fontSize);
+			m_labelText->setTopLeft((getHeight() - m_fontSize)*0.5f, (getHeight() - m_fontSize)*0.5f);
+		}
+	}
+	const char* TextField::getLabel()
+	{
+
+	}
+
+	//------------------------------
+
+	void TextField::setString(const char* p_string)
+	{
+
+	}
+	const char* TextField::getString()
+	{
+	}
+
+	//------------------------------
+
+	void TextField::handleMouseDown(const MouseEvent& p_event)
+	{
+		getGUI()->setKeyboardFocus(this);
+	}
+	void TextField::handleKeyboardFocusLost()
+	{
+
+	}
+
+	//------------------------------
+
+	void TextField::handleCharacterInput(const KeyboardEvent& p_event)
+	{
+
+	}
+
+	//------------------------------
+
+	void TextField::updateAnimations()
+	{
+
+	}
+
+	void TextField::draw(DrawingContext* p_context)
+	{
+		if (m_type == Type::Filled)
+		{
+			p_context->setColor(0xffdbdbdb);
+			p_context->fillRoundedRectangle(getSize(), 5.f);
+			p_context->fillRectangle(Rectangle<float>(0.f, getHeight() - 5.f, getWidth(), getHeight()));
+			p_context->setColor(0xffa0a0a0);
+			p_context->drawLine(0.f, getHeight() - 1.f, getWidth(), getHeight() - 1.f, 1.f);
+		}
+
+		if (m_labelText)
+		{
+			p_context->setColor(0xff909090);
+			p_context->drawText(m_labelText);
+		}
 	}
 };

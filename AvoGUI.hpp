@@ -678,6 +678,14 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// <para>Creates a copy of this rectangle, with a new top and left edge coordinate.</para>
+		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
+		/// </summary>
+		Rectangle<RectangleType> createCopyWithTopLeft(RectangleType p_topAndLeft, bool p_willKeepSize = true) const
+		{
+			return Rectangle<RectangleType>(p_topAndLeft, p_topAndLeft, p_willKeepSize*(p_topAndLeft - left) + right, p_willKeepSize*(p_topAndLeft - top) + bottom);
+		}
+		/// <summary>
 		/// <para>Creates a copy of this rectangle, with a new top-left corner.</para>
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
@@ -693,6 +701,15 @@ namespace AvoGUI
 		Rectangle<RectangleType> createCopyWithTopLeft(RectangleType p_left, RectangleType p_top, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_left, p_top, p_willKeepSize*(p_left - left) + right, p_willKeepSize*(p_top - top) + bottom);
+		}
+
+		/// <summary>
+		/// <para>Sets the same position for the top and left edge of the rectangle.</para>
+		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
+		/// </summary>
+		Rectangle<RectangleType>& setTopLeft(RectangleType p_topAndLeft, bool p_willKeepSize = true)
+		{
+			return setTopLeft(p_topAndLeft, p_topAndLeft, p_willKeepSize);
 		}
 		/// <summary>
 		/// <para>Sets the top left coordinates of the rectangle.</para> 
@@ -729,6 +746,14 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// <para>Creates a copy of this rectangle, with a new top and right edge coordinate.</para>
+		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
+		/// </summary>
+		Rectangle<RectangleType> createCopyWithTopRight(RectangleType p_topAndRight, bool p_willKeepSize = true) const
+		{
+			return Rectangle<RectangleType>(p_willKeepSize*(p_topAndRight - right) + left, p_topAndRight, p_topAndRight, p_willKeepSize*(p_topAndRight - top) + bottom);
+		}
+		/// <summary>
 		/// <para>Creates a copy of this rectangle, with a new top-right corner.</para>
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
@@ -744,6 +769,14 @@ namespace AvoGUI
 		Rectangle<RectangleType> createCopyWithTopRight(RectangleType p_right, RectangleType p_top, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_right - right) + left, p_top, p_right, p_willKeepSize*(p_top - top) + bottom);
+		}
+		/// <summary>
+		/// <para>Sets the same position for the top and right edge of the rectangle.</para>
+		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
+		/// </summary>
+		Rectangle<RectangleType>& setTopRight(RectangleType p_topAndRight, bool p_willKeepSize = true)
+		{
+			return setTopRight(p_topAndRight, p_topAndRight, p_willKeepSize);
 		}
 		/// <summary>
 		/// <para>Sets the top right coordinates of the rectangle.</para> 
@@ -780,6 +813,14 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// <para>Creates a copy of this rectangle, with a new bottom and left edge coordinate.</para>
+		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
+		/// </summary>
+		Rectangle<RectangleType> createCopyWithBottomLeft(RectangleType p_bottomAndLeft, bool p_willKeepSize = true) const
+		{
+			return Rectangle<RectangleType>(p_bottomAndLeft, p_willKeepSize*(p_bottomAndLeft - bottom) + top, (p_bottomAndLeft - left) + right, p_bottomAndLeft);
+		}
+		/// <summary>
 		/// <para>Creates a copy of this rectangle, with a new bottom-left corner.</para>
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
@@ -795,6 +836,14 @@ namespace AvoGUI
 		Rectangle<RectangleType> createCopyWithBottomLeft(RectangleType p_left, RectangleType p_bottom, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_left, p_willKeepSize*(p_bottom - bottom) + top, (p_left - left) + right, p_bottom);
+		}
+		/// <summary>
+		/// <para>Sets the same position for the bottom and left edge of the rectangle.</para>
+		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
+		/// </summary>
+		Rectangle<RectangleType>& setBottomLeft(RectangleType p_bottomAndLeft, bool p_willKeepSize = true)
+		{
+			return setBottomLeft(p_bottomAndLeft, p_bottomAndLeft, p_willKeepSize);
 		}
 		/// <summary>
 		/// <para>Sets the bottom left coordinates of the rectangle.</para> 
@@ -831,6 +880,14 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// <para>Creates a copy of this rectangle, with a new bottom and right edge coordinate.</para>
+		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
+		/// </summary>
+		Rectangle<RectangleType> createCopyWithBottomRight(RectangleType p_bottomAndRight, bool p_willKeepSize = true) const
+		{
+			return Rectangle<RectangleType>(p_willKeepSize*(p_bottomAndRight - right) + left, p_willKeepSize*(p_bottomAndRight - bottom) + top, p_bottomAndRight, p_bottomAndRight);
+		}
+		/// <summary>
 		/// <para>Creates a copy of this rectangle, with a new bottom-right corner.</para>
 		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
 		/// </summary>
@@ -846,6 +903,14 @@ namespace AvoGUI
 		Rectangle<RectangleType> createCopyWithBottomRight(RectangleType p_right, RectangleType p_bottom, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_right - right) + left, p_willKeepSize*(p_bottom - bottom) + top, p_right, p_bottom);
+		}
+		/// <summary>
+		/// <para>Sets the same position for the bottom and right edge of the rectangle.</para>
+		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
+		/// </summary>
+		Rectangle<RectangleType>& setBottomRight(RectangleType p_bottomAndRight, bool p_willKeepSize = true)
+		{
+			return setBottomRight(p_bottomAndRight, p_bottomAndRight, p_willKeepSize);
 		}
 		/// <summary>
 		/// <para>Sets the bottom right coordinates of the rectangle.</para> 
@@ -967,23 +1032,39 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new center position.</para>
+		/// <para>Creates a copy of this rectangle, with a center coordinate for both the x-axis and the y-axis.</para>
 		/// </summary>
-		template<typename PositionType>
-		Rectangle<RectangleType> createCopyWithCenter(const Point<PositionType>& p_position) const
+		Rectangle<RectangleType> createCopyWithCenter(RectangleType p_centerXY) const
 		{
-			RectangleType offsetX = (RectangleType)p_position.x - (left + right)*0.5;
-			RectangleType offsetY = (RectangleType)p_position.y - (top + bottom)*0.5;
+			RectangleType offsetX = (RectangleType)p_centerXY - (left + right) / 2;
+			RectangleType offsetY = (RectangleType)p_centerXY - (top + bottom) / 2;
 			return Rectangle<RectangleType>(offsetX + left, offsetY + top, offsetX + right, offsetY + bottom);
 		}
 		/// <summary>
 		/// <para>Creates a copy of this rectangle, with a new center position.</para>
 		/// </summary>
-		Rectangle<RectangleType> createCopyWithBottomRight(RectangleType p_centerX, RectangleType p_centerY) const
+		template<typename PositionType>
+		Rectangle<RectangleType> createCopyWithCenter(const Point<PositionType>& p_position) const
 		{
-			RectangleType offsetX = p_centerX - (left + right)*0.5;
-			RectangleType offsetY = p_centerY - (top + bottom)*0.5;
+			RectangleType offsetX = (RectangleType)p_position.x - (left + right)/2;
+			RectangleType offsetY = (RectangleType)p_position.y - (top + bottom)/2;
 			return Rectangle<RectangleType>(offsetX + left, offsetY + top, offsetX + right, offsetY + bottom);
+		}
+		/// <summary>
+		/// <para>Creates a copy of this rectangle, with a new center position.</para>
+		/// </summary>
+		Rectangle<RectangleType> createCopyWithCenter(RectangleType p_centerX, RectangleType p_centerY) const
+		{
+			RectangleType offsetX = p_centerX - (left + right)/2;
+			RectangleType offsetY = p_centerY - (top + bottom)/2;
+			return Rectangle<RectangleType>(offsetX + left, offsetY + top, offsetX + right, offsetY + bottom);
+		}
+		/// <summary>
+		/// <para>Sets the same center coordinates of the rectangle for the x-axis and the y-axis.</para> 
+		/// </summary>
+		Rectangle<RectangleType>& setCenter(RectangleType p_centerXY)
+		{
+			return setCenter(p_centerXY, p_centerXY);
 		}
 		/// <summary>
 		/// <para>Sets the center coordinates of the rectangle.</para> 
@@ -1424,6 +1505,10 @@ namespace AvoGUI
 
 		//------------------------------
 
+		virtual void setTopLeft(float p_topAndLeft, bool p_willKeepSize = true)
+		{
+			m_bounds.setTopLeft(p_topAndLeft, p_willKeepSize);
+		}
 		virtual void setTopLeft(const Point<float>& p_position, bool p_willKeepSize = true)
 		{
 			m_bounds.setTopLeft(p_position, p_willKeepSize);
@@ -1437,6 +1522,10 @@ namespace AvoGUI
 			return m_bounds.getTopLeft();
 		}
 
+		virtual void setTopRight(float p_topAndRight, bool p_willKeepSize = true)
+		{
+			m_bounds.setTopRight(p_topAndRight, p_willKeepSize);
+		}
 		virtual void setTopRight(const Point<float>& p_topRight, bool p_willKeepSize = true)
 		{
 			m_bounds.setTopRight(p_topRight, p_willKeepSize);
@@ -1450,6 +1539,10 @@ namespace AvoGUI
 			return m_bounds.getTopRight();
 		}
 
+		virtual void setBottomLeft(float p_bottomAndLeft, bool p_willKeepSize = true)
+		{
+			m_bounds.setBottomLeft(p_bottomAndLeft, p_willKeepSize);
+		}
 		virtual void setBottomLeft(const Point<float>& p_bottomLeft, bool p_willKeepSize = true)
 		{
 			m_bounds.setBottomLeft(p_bottomLeft, p_willKeepSize);
@@ -1463,6 +1556,10 @@ namespace AvoGUI
 			return m_bounds.getBottomLeft();
 		}
 
+		virtual void setBottomRight(float p_bottomAndRight, bool p_willKeepSize = true)
+		{
+			m_bounds.setBottomRight(p_bottomAndRight, p_willKeepSize);
+		}
 		virtual void setBottomRight(const Point<float>& p_bottomRight, bool p_willKeepSize = true)
 		{
 			m_bounds.setBottomRight(p_bottomRight, p_willKeepSize);
@@ -1478,6 +1575,10 @@ namespace AvoGUI
 
 		//------------------------------
 
+		virtual void setCenter(float p_centerXY)
+		{
+			m_bounds.setCenter(p_centerXY);
+		}
 		virtual void setCenter(const Point<float>& p_position)
 		{
 			m_bounds.setCenter(p_position);
@@ -4835,6 +4936,10 @@ namespace AvoGUI
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
 		virtual void handleKeyboardKeyUp(const KeyboardEvent& p_event) { }
+		/// <summary>
+		/// Gets called when another keyboard event listener is the target of keyboard events.
+		/// </summary>
+		virtual void handleKeyboardFocusLost() { }
 	};
 
 	//------------------------------
@@ -5250,6 +5355,14 @@ namespace AvoGUI
 		UltraStretched = 9 // Most stretched
 	};
 
+	enum class TextAlign
+	{
+		Left,
+		Center,
+		Right,
+		Fill // Stretches the spaces of the text to make the left and right edges of the text line up with the bounds of the text.
+	};
+
 	/// <summary>
 	/// Represents a text block which can be calculated once and drawn any number of times by a DrawingContext. Notice that this is not a view, but should be treated as a drawable object created by a DrawingContext.
 	/// </summary>
@@ -5269,6 +5382,17 @@ namespace AvoGUI
 		/// Sets the size of the bounding box to fit the text.
 		/// </summary>
 		virtual void minimizeSize() = 0;
+
+		//------------------------------
+
+		/// <summary>
+		/// Sets how the text is placed within the bounds.
+		/// </summary>
+		virtual void setTextAlign(TextAlign p_textAlign) = 0;
+		/// <summary>
+		/// Returns how the text is placed within the bounds.
+		/// </summary>
+		virtual TextAlign getTextAlign() = 0;
 
 		//------------------------------
 
@@ -5460,6 +5584,8 @@ namespace AvoGUI
 		FontWeight fontWeight = FontWeight::Medium;
 		FontStyle fontStyle = FontStyle::Normal;
 		FontStretch fontStretch = FontStretch::Medium;
+		TextAlign textAlign = TextAlign::Left;
+		
 		float fontSize = 22.f;
 	};
 
@@ -6117,38 +6243,28 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a mouse down event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
-		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
-		/// <para>lets them know if the event is targeted at them.</para>
+		/// <para>Handles a mouse down event that has been sent directly from the window to the GUI.</para>
 		/// </summary>
 		virtual void handleGlobalMouseDown(const MouseEvent& p_event) override;
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a mouse up event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
-		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
-		/// <para>lets them know if the event is targeted at them.</para>
+		/// <para>Handles a mouse up event that has been sent directly from the window to the GUI.</para>
 		/// </summary>
 		virtual void handleGlobalMouseUp(const MouseEvent& p_event) override;
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a double click event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
-		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
-		/// <para>lets them know if the event is targeted at them.</para>
+		/// <para>Handles a double click event that has been sent directly from the window to the GUI.</para>
 		/// </summary>
 		virtual void handleGlobalMouseDoubleClick(const MouseEvent& p_event) override;
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a mouse move event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
-		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
-		/// <para>lets them know if the event is targeted at them.</para>
+		/// <para>Handles a mouse move event that has been sent directly from the window to the GUI.</para>
 		/// </summary>
 		virtual void handleGlobalMouseMove(const MouseEvent& p_event) override;
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a mouse scroll event that has been sent directly from the window to the GUI. If indirect mouse events are disabled, the event is only</para>
-		/// <para>sent to the targeted mouse event listeners. If indirect mouse events are enabled, this sends the event down to all mouse event listeners but</para>
-		/// <para>lets them know if the event is targeted at them.</para>
+		/// <para>Handles a mouse scroll event that has been sent directly from the window to the GUI.</para>
 		/// </summary>
 		virtual void handleGlobalMouseScroll(const MouseEvent& p_event) override;
 
@@ -6162,6 +6278,10 @@ namespace AvoGUI
 		/// </summary>
 		void setKeyboardFocus(KeyboardEventListener* p_keyboardFocus)
 		{
+			if (m_keyboardFocus)
+			{
+				m_keyboardFocus->handleKeyboardFocusLost();
+			}
 			m_keyboardFocus = p_keyboardFocus;
 		}
 
@@ -6588,8 +6708,8 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// <para>Sets an image to be shown together with the text. It is best to keep a text label with the icon, unless it is</para>
-		/// <para>very clear to all users what the button does with the icon alone, or if you have set a tooltip.</para>
+		/// <para>Sets an image to be shown together with the text. Unless you have remembered the image yourself, your are transferring ownership of the image to the button.</para>
+		/// <para>It is best to keep a text label with the icon, unless it is very clear to all users what the button does with the icon alone, or if you have set a tooltip.</para>
 		/// </summary>
 		/// <param name="p_icon">The image to be shown as an icon. If this is 0, the icon is removed.</param>
 		void setIcon(Image* p_icon);
@@ -6604,7 +6724,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// <para>Sets a string to be shown as a tooltip when the mouse hovers over the button. Should give the user extra information about the button's purpose.</para>
+		/// <para>Sets a string to be shown as a tooltip when the mouse hovers over the button. Should give the user additional information about the button's purpose.</para>
 		/// <para>An empty string disables the tooltip.</para>
 		/// </summary>
 		void setTooltip(const char* p_info)
@@ -6645,6 +6765,53 @@ namespace AvoGUI
 		void drawUnclipped(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override;
 
 		void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override;
+	};
+
+	//------------------------------
+
+	class TextField : public View, public KeyboardEventListener
+	{
+	public:
+		enum Type
+		{
+			Outlined,
+			Filled
+		};
+
+	private:
+		Text* m_labelText;
+		Text* m_text;
+		float m_fontSize;
+
+		Type m_type;
+
+	public:
+		TextField(View* p_parent, Type p_type = Type::Filled, const char* p_labelString = "", float p_width = 120.f, float fontSize = 16.f);
+
+		//------------------------------
+
+		void setLabel(const char* p_label);
+		const char* getLabel();
+
+		//------------------------------
+
+		void setString(const char* p_string);
+		const char* getString();
+
+		//------------------------------
+
+		void handleMouseDown(const MouseEvent& p_event) override;
+		void handleKeyboardFocusLost() override;
+
+		//------------------------------
+
+		void handleCharacterInput(const KeyboardEvent& p_event) override;
+
+		//------------------------------
+
+		void updateAnimations() override;
+
+		void draw(DrawingContext* p_context) override;
 	};
 
 	//------------------------------
