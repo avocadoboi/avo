@@ -1,11 +1,11 @@
 # AvoGUI
-A GUI library in c++ that is inspired by Google's Material Design guidelines. It was created because I wanted a high level GUI library with as much control as possible while keeping a logical and smooth workflow and doesn't make you write tons of unnecessary code, and that also has clear, readable and detailed documentation. It's basically my dream library.
+A GUI library in c++ that is inspired by Google's Material Design guidelines. It was created because I wanted a high level GUI library with as much control as possible while keeping a logical and smooth workflow and doesn't make you write tons of unnecessary code, and that also has clear, readable and detailed documentation. It's basically my dream library - that's the goal, at least.
 
 ## Getting started
 All you need to do is add AvoGUI.hpp and AvoGUI.cpp to your project, and you're ready to start.
 
 ### Creating your GUI class
-You first need to create a class that inherits AvoGUI::GUI. The GUI is made up of a view tree structure, where every view has a parent, some have one or more children and some have one or more siblings. The GUI is the only view that doesn't have a parent, and is the topmost view in the tree (depending on how you think about a tree, hmmm).
+It is a good idea to create a class that inherits AvoGUI::GUI. The GUI is made up of a view tree structure, where every view has a parent, some have one or more children and some have one or more siblings. The GUI is the only view that doesn't have a parent, and is the topmost view in the tree (depending on how you think about a tree, hmmm).
 
 This is the structure of a GUI class. Every method that can be overridden by your GUI (assuming it only inherits AvoGUI::GUI) is shown here.
 ```cpp
@@ -24,7 +24,7 @@ class MyApplication : public AvoGUI::GUI
   //------------------------------
   // Events recieved from the window
   
-  void handleMouseDown(const MouseEvent& p_event) override
+  void handleMouseDown(const AvoGUI::MouseEvent& p_event) override
   {
     // Calls the standard implementation that sends the event down to event listeners. It is recommended to do this since any
     // other views won't be able to react to mouse events otherwise. (note that this call is specific to this instance and is
@@ -50,6 +50,19 @@ class MyApplication : public AvoGUI::GUI
     // This is called when the GUI has changed size due to window resizing. This method has no default implementation.
     // Note that this method belongs to the View class (which AvoGUI::GUI inherits) and can be implemented on any view.
   }
+  
+  //------------------------------
+  
+  void draw(AvoGUI::DrawingContext* p_drawingContext) override
+  {
+    // Here you can draw directly in your GUI. It will appear behind child views. There is no default implementation.
+  }
+  void draw(AvoGUI::DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
+  {
+    // By default, this method just calls the other draw method. You can use this one instead if you want to optimize drawing
+    // using the target rectangle, which is a rectangle specifying where drawing is needed (relative to the top-left corner
+    // of the GUI)
+  }
 }
 ```
 
@@ -60,7 +73,7 @@ This is the structure of a custom View class. Every method that can be overridde
 ```cpp
 class MyView : public AvoGUI::View
 {
-  MyView(AvoGUI::View* p_parent, const Rectangle<float>& p_bounds) : 
+  MyView(AvoGUI::View* p_parent, const AvoGUI::Rectangle<float>& p_bounds) : 
     View(p_parent, p_bounds) // If you don't specify the bounds, it will be initialized with a size of (0, 0) and position of (0, 0)
   {
     // Here you can initialize the view, add child views, do whatever you want. To add a child view, all you need to do
@@ -90,9 +103,9 @@ class MyView : public AvoGUI::View
   
   //------------------------------
   
-  void handleMouseDown(const MouseEvent& p_event) override
+  void handleMouseDown(const AvoGUI::MouseEvent& p_event) override
   {
-    // Override this if you want to react to mouse button press events. You also need to call enableMouseEvents(), in
+    // Override this if you want to react to mouse button press events. You first need to call enableMouseEvents(), in
     // the constructor or something. Otherwise, no mouse events will be recieved.
   }
   
@@ -106,9 +119,10 @@ class MyView : public AvoGUI::View
     // Draw your view here! If this view has children, do not draw them yourself. They are always drawn by the GUI, on
     // top of what is drawn here. Now, how do you decide that you want your view to get drawn? Do NOT call this method
     // directly, instead call invalidate() or getGUI()->invalidateRect(...) to tell the system that a portion of the
-    // GUI has been updated and wants to be redrawn.
+    // GUI has been updated and wants to be redrawn. Note that invalidate() cleans up if the view has been moved, by
+    // also invalidating the last rectangle.
   }
-  void draw(AvoGUI::DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
+  void draw(AvoGUI::DrawingContext* p_drawingContext, const AvoGUI::Rectangle<float>& p_targetRectangle) override
   {
     // This can be implemented instead of the other draw method if you want to know the rectangle that is going to be drawn. 
     // The default implementation only calls draw(AvoGUI::DrawingContext* p_drawingContext).
@@ -119,7 +133,7 @@ class MyView : public AvoGUI::View
     // Here, you can draw anything that you do not want to get affected by any view clipping. Anything drawn here
     // is on top of what was drawn in draw().
   }
-  void drawUnclipped(AvoGUI::DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
+  void drawUnclipped(AvoGUI::DrawingContext* p_drawingContext, const AvoGUI::Rectangle<float>& p_targetRectangle) override
   {
     // Default implementation only calls drawUnclipped(AvoGUI::DrawingContext* p_drawingContext).
   }
