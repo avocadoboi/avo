@@ -4,7 +4,7 @@
 //------------------------------
 // Example of a view that draws an image
 
-class Sprite : public AvoGUI::View, public AvoGUI::ViewEventListener
+class Sprite : public AvoGUI::View, public AvoGUI::ViewListener
 {
 private:
 	AvoGUI::Image* m_image;
@@ -97,7 +97,7 @@ public:
 
 		m_theme->colors["shadow"] = 0x70000000U;
 
-		//------------------------------
+		------------------------------
 
 		m_buttonContainer = new AvoGUI::View(this, AvoGUI::Rectangle<float>());
 

@@ -3,9 +3,9 @@
 //------------------------------
 
 #include <stack>
-#include <iostream>
 #include <random>
 #include <time.h>
+#include <chrono>
 
 //------------------------------
 
@@ -21,6 +21,7 @@
 #include <dwrite.h>
 #include <dwrite_1.h>
 #include <wincodec.h>
+#include <UIAnimation.h>
 
 #pragma comment(lib, "d2d1")
 #pragma comment(lib, "d3d11")
@@ -460,9 +461,9 @@ namespace AvoGUI
 	{
 		p_elevation = float(p_elevation < 0.f)*FLT_MAX + p_elevation;
 
-		if (m_elevation != p_elevation || m_hasSizeChangedSinceLastElevationChange)
+		if (m_hasSizeChangedSinceLastElevationChange || m_elevation != p_elevation)
 		{
-			if (m_hasShadow && p_elevation < 400.f && p_elevation > 0.00001f)
+			if (p_elevation > 0.00001f && m_hasShadow && p_elevation < 400.f)
 			{
 				if (m_shadowImage)
 				{
@@ -473,8 +474,8 @@ namespace AvoGUI
 					Point<float>(
 						0.5f*(m_bounds.right - m_bounds.left - (float)m_shadowImage->getWidth()),
 						0.35f*(m_bounds.bottom - m_bounds.top - (float)m_shadowImage->getHeight())
-					), m_shadowImage->getSize()
-				);
+						), m_shadowImage->getSize()
+					);
 				m_shadowImage->setTopLeft(m_shadowBounds.getTopLeft());
 			}
 			else
@@ -517,7 +518,7 @@ namespace AvoGUI
 	{
 		if (!m_isInAnimationUpdateQueue && m_GUI && m_isVisible)
 		{
-			m_GUI->getWindow()->queueAnimationUpdateForView(this);
+			m_GUI->queueAnimationUpdateForView(this);
 			m_isInAnimationUpdateQueue = true;
 		}
 	}
@@ -578,13 +579,18 @@ namespace AvoGUI
 
 #pragma region Platform-specific window implementations
 #ifdef _WIN32
+
+	void runAnimationLoop(GUI* p_gui);
+
 	class WindowsWindow : public Window
 	{
 	private:
 		HWND m_windowHandle;
 
-		bool m_isMouseOutsideWindow;
+		Point<uint32_t> m_minSize;
+		Point<uint32_t> m_maxSize;
 
+		bool m_isMouseOutsideWindow;
 		HCURSOR m_cursorHandle;
 		Cursor m_cursorType;
 
@@ -994,9 +1000,6 @@ namespace AvoGUI
 			m_GUI = p_GUI;
 			m_isFullscreen = false;
 
-			m_size.x = 0;
-			m_size.y = 0;
-
 			create(p_title, p_width, p_height, p_styleFlags, p_parent);
 
 			m_cursorType = (Cursor)-1;
@@ -1065,10 +1068,12 @@ namespace AvoGUI
 				styles |= WS_THICKFRAME;
 			}
 
-			// m_windowHandle is initialized by the WM_CREATE event,
-			// before CreateWindowEx returns. This is because the GUI
-			// needs to create the drawing context before the first WM_PAINT
-			// message is recieved.
+			RECT windowRect = { 0, 0, p_width, p_height };
+			AdjustWindowRectEx(&windowRect, styles, 0, extendedStyles);
+
+			m_size.set(p_width, p_height);
+
+			// m_windowHandle is initialized by the WM_CREATE event, before CreateWindowEx returns.
 			CreateWindowEx(
 				extendedStyles,
 				WINDOW_CLASS_NAME,
@@ -1076,8 +1081,8 @@ namespace AvoGUI
 				styles,
 				p_x,
 				p_y,
-				p_width,
-				p_height,
+				windowRect.right - windowRect.left,
+				windowRect.bottom - windowRect.top,
 				p_parent ? (HWND)p_parent->getWindowHandle() : 0,
 				0, // No menu
 				GetModuleHandle(0),
@@ -1097,15 +1102,9 @@ namespace AvoGUI
 		{
 			if (m_windowHandle)
 			{
+				m_isOpen = false;
 				DestroyWindow(m_windowHandle);
 				m_windowHandle = 0;
-				s_numberOfWindows--;
-
-				if (!s_numberOfWindows)
-				{
-					UnregisterClass(WINDOW_CLASS_NAME, GetModuleHandle(0));
-					PostQuitMessage(0);
-				}
 			}
 		}
 
@@ -1173,6 +1172,52 @@ namespace AvoGUI
 		{
 			SetWindowPos(m_windowHandle, 0, 0, 0, p_width, p_height, SWP_NOMOVE);
 			m_size.set(p_width, p_height);
+		}
+
+		//------------------------------
+
+		void setMinSize(const Point<uint32_t>& p_minSize) override
+		{
+			m_minSize = p_minSize;
+		}
+		void setMinSize(uint32_t p_minWidth, uint32_t p_minHeight) override
+		{
+			m_minSize.x = p_minWidth;
+			m_minSize.y = p_minHeight;
+		}
+		Point<uint32_t> getMinSize() override
+		{
+			return m_minSize;
+		}
+		uint32_t getMinWidth() override
+		{
+			return m_minSize.x;
+		}
+		uint32_t getMinHeight() override
+		{
+			return m_minSize.y;
+		}
+
+		void setMaxSize(const Point<uint32_t>& p_maxSize) override
+		{
+			m_maxSize = p_maxSize;
+		}
+		void setMaxSize(uint32_t p_maxWidth, uint32_t p_maxHeight) override
+		{
+			m_maxSize.x = p_maxWidth;
+			m_maxSize.y = p_maxHeight;
+		}
+		Point<uint32_t> getMaxSize() override
+		{
+			return m_maxSize;
+		}
+		uint32_t getMaxWidth() override
+		{
+			return m_maxSize.x;
+		}
+		uint32_t getMaxHeight() override
+		{
+			return m_maxSize.y;
 		}
 
 		//------------------------------
@@ -1474,28 +1519,6 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setAnimationTimerInterval(uint32_t p_interval) override
-		{
-			SetTimer(m_windowHandle, 1, p_interval, 0);
-		}
-		void queueAnimationUpdateForView(View* p_view) override
-		{
-			m_animationUpdateQueue.push_back(p_view);
-		}
-
-		void invalidateRectangle(const Rectangle<float>& p_rectangle) override
-		{
-			RECT rect;
-			rect.left = p_rectangle.left;
-			rect.top = p_rectangle.top;
-			rect.right = p_rectangle.right;
-			rect.bottom = p_rectangle.bottom;
-
-			InvalidateRect(m_windowHandle, &rect, false);
-		}
-
-		//------------------------------
-
 		void setCursor(Cursor p_cursor) override
 		{
 			if (p_cursor == m_cursorType) return;
@@ -1559,37 +1582,22 @@ namespace AvoGUI
 			{
 			case WM_CREATE:
 			{
-				SetTimer(m_windowHandle, 1, 17, 0);
+				m_isOpen = true;
 
 				WindowEvent windowEvent;
 				windowEvent.window = this;
-				m_GUI->handleWindowCreated(windowEvent);
+				m_GUI->handleWindowCreate(windowEvent);
 
-				return true;
-			}
-			case WM_PAINT:
-			{
-				PAINTSTRUCT paintStructure;
-				BeginPaint(m_windowHandle, &paintStructure);
-
-				m_GUI->draw(
-					m_GUI->getDrawingContext(),
-					Rectangle<float>(
-						paintStructure.rcPaint.left, paintStructure.rcPaint.top,
-						paintStructure.rcPaint.right, paintStructure.rcPaint.bottom
-						)
-				);
-
-				EndPaint(m_windowHandle, &paintStructure);
 				return true;
 			}
 			case WM_SIZE:
 			{
+				m_GUI->excludeAnimationThread();
 				WindowEvent windowEvent;
 				windowEvent.window = this;
 				if (p_data_a == SIZE_MINIMIZED)
 				{
-					m_GUI->handleWindowMinimized(windowEvent);
+					m_GUI->handleWindowMinimize(windowEvent);
 				}
 				else
 				{
@@ -1602,15 +1610,28 @@ namespace AvoGUI
 
 					if (p_data_a == SIZE_MAXIMIZED)
 					{
-						m_GUI->handleWindowMaximized(windowEvent);
+						m_GUI->handleWindowMaximize(windowEvent);
 					}
 					else if (p_data_a == SIZE_RESTORED)
 					{
-						m_GUI->handleWindowRestored(windowEvent);
+						m_GUI->handleWindowRestore(windowEvent);
 					}
-					m_GUI->handleWindowSizeChanged(windowEvent);
+					m_GUI->handleWindowSizeChange(windowEvent);
 				}
+				m_GUI->includeAnimationThread();
 
+				return true;
+			}
+			case WM_GETMINMAXINFO:
+			{
+				MINMAXINFO* minMaxInfo = (MINMAXINFO*)p_data_b;
+				if (m_maxSize.x > 0U || m_maxSize.y > 0U)
+				{
+					minMaxInfo->ptMinTrackSize.x = m_minSize.x;
+					minMaxInfo->ptMinTrackSize.y = m_minSize.y;
+					minMaxInfo->ptMaxTrackSize.x = m_maxSize.x;
+					minMaxInfo->ptMaxTrackSize.y = m_maxSize.y;
+				}
 				return true;
 			}
 			case WM_MOVE:
@@ -1620,17 +1641,6 @@ namespace AvoGUI
 
 				m_position.set(x, y);
 
-				return true;
-			}
-			case WM_TIMER:
-			{
-				uint32_t sizeBefore = m_animationUpdateQueue.size();
-				for (uint32_t a = 0; a < sizeBefore; a++)
-				{
-					m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval(); // We do this before updateAnimation() because it should be able to queue the next animation update.
-					m_animationUpdateQueue.front()->updateAnimations();
-					m_animationUpdateQueue.pop_front();
-				}
 				return true;
 			}
 			case WM_MOUSEWHEEL:
@@ -1650,7 +1660,10 @@ namespace AvoGUI
 				mouseEvent.y = mousePosition.y;
 				mouseEvent.scrollDelta = delta;
 				mouseEvent.modifierKeys = modifierKeyFlags;
+
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseScroll(mouseEvent);
+				m_GUI->includeAnimationThread();
 
 				return true;
 			}
@@ -1666,7 +1679,10 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Left;
 				mouseEvent.modifierKeys = modifierFlags;
+
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseDown(mouseEvent);
+				m_GUI->includeAnimationThread();
 
 				SetCapture(m_windowHandle);
 
@@ -1684,7 +1700,10 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Left;
 				mouseEvent.modifierKeys = modifierFlags;
+
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseUp(mouseEvent);
+				m_GUI->includeAnimationThread();
 
 				ReleaseCapture();
 
@@ -1702,7 +1721,9 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Left;
 				mouseEvent.modifierKeys = modifierFlags;
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseDoubleClick(mouseEvent);
+				m_GUI->includeAnimationThread();
 
 				return true;
 			}
@@ -1718,7 +1739,9 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Right;
 				mouseEvent.modifierKeys = modifierFlags;
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseDown(mouseEvent);
+				m_GUI->includeAnimationThread();
 
 				return true;
 			}
@@ -1734,7 +1757,9 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Right;
 				mouseEvent.modifierKeys = modifierFlags;
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseUp(mouseEvent);
+				m_GUI->includeAnimationThread();
 
 				return true;
 			}
@@ -1750,7 +1775,9 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Right;
 				mouseEvent.modifierKeys = modifierFlags;
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseDoubleClick(mouseEvent);
+				m_GUI->includeAnimationThread();
 
 				return true;
 			}
@@ -1766,7 +1793,9 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Middle;
 				mouseEvent.modifierKeys = modifierFlags;
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseDown(mouseEvent);
+				m_GUI->includeAnimationThread();
 
 				return true;
 			}
@@ -1782,7 +1811,9 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Middle;
 				mouseEvent.modifierKeys = modifierFlags;
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseUp(mouseEvent);
+				m_GUI->includeAnimationThread();
 
 				return true;
 			}
@@ -1798,7 +1829,9 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.mouseButton = MouseButton::Middle;
 				mouseEvent.modifierKeys = modifierFlags;
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseDoubleClick(mouseEvent);
+				m_GUI->includeAnimationThread();
 
 				return true;
 			}
@@ -1829,7 +1862,9 @@ namespace AvoGUI
 				mouseEvent.movementX = x - m_mousePosition.x;
 				mouseEvent.movementY = y - m_mousePosition.y;
 				mouseEvent.modifierKeys = modifierKeys;
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseMove(mouseEvent);
+				m_GUI->includeAnimationThread();
 
 				m_mousePosition.x = x;
 				m_mousePosition.y = y;
@@ -1850,7 +1885,9 @@ namespace AvoGUI
 					mouseEvent.y = mousePosition.y;
 					mouseEvent.movementX = mousePosition.x - m_mousePosition.x;
 					mouseEvent.movementY = mousePosition.y - m_mousePosition.y;
+					m_GUI->excludeAnimationThread();
 					m_GUI->handleGlobalMouseMove(mouseEvent);
+					m_GUI->includeAnimationThread();
 
 					m_mousePosition.x = mousePosition.x;
 					m_mousePosition.y = mousePosition.y;
@@ -1865,7 +1902,9 @@ namespace AvoGUI
 				KeyboardEvent keyboardEvent;
 				keyboardEvent.key = key;
 				keyboardEvent.isRepeated = isRepeated;
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleKeyboardKeyDown(keyboardEvent);
+				m_GUI->includeAnimationThread();
 
 				return true;
 			}
@@ -1875,7 +1914,9 @@ namespace AvoGUI
 
 				KeyboardEvent keyboardEvent;
 				keyboardEvent.key = key;
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleKeyboardKeyUp(keyboardEvent);
+				m_GUI->includeAnimationThread();
 
 				return true;
 			}
@@ -1887,18 +1928,33 @@ namespace AvoGUI
 				KeyboardEvent keyboardEvent;
 				keyboardEvent.character = character;
 				keyboardEvent.isRepeated = isRepeated;
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleCharacterInput(keyboardEvent);
+				m_GUI->includeAnimationThread();
 
+				return true;
+			}
+			case WM_CLOSE:
+			{
+				WindowEvent windowEvent;
+				windowEvent.window = this;
+				m_GUI->excludeAnimationThread();
+				bool willClose = m_GUI->handleWindowClose(windowEvent);
+				m_GUI->includeAnimationThread();
+				if (willClose)
+				{
+					close();
+				}
 				return true;
 			}
 			case WM_DESTROY:
 			{
-				close();
-
-				WindowEvent windowEvent;
-				windowEvent.window = this;
-				m_GUI->handleWindowDestroyed(windowEvent);
-
+				s_numberOfWindows--;
+				if (!s_numberOfWindows)
+				{
+					UnregisterClass(WINDOW_CLASS_NAME, GetModuleHandle(0));
+					PostQuitMessage(0);
+				}
 				return true;
 			}
 			}
@@ -2860,13 +2916,14 @@ namespace AvoGUI
 
 	class WindowsDrawingContext : public DrawingContext
 	{
-	private:
+	public:
 		static ID2D1Factory1* s_direct2DFactory;
 		static IDWriteFactory1* s_directWriteFactory;
 		static FontCollectionLoader* s_fontCollectionLoader;
 		static FontFileLoader* s_fontFileLoader;
 		static IWICImagingFactory2* s_imagingFactory;
 
+	private:
 		Window* m_window;
 
 		ID2D1DeviceContext* m_context;
@@ -2907,7 +2964,7 @@ namespace AvoGUI
 
 			if (!s_direct2DFactory)
 			{
-				D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &s_direct2DFactory);
+				D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &s_direct2DFactory);
 			}
 
 			//------------------------------
@@ -3100,21 +3157,37 @@ namespace AvoGUI
 		{
 			m_context->BeginDraw();
 		}
-		void finishDrawing(const Rectangle<float>& p_updatedRectangle) override
+		void finishDrawing(std::vector<Rectangle<float>>& p_updatedRectangles) override
 		{
 			m_context->EndDraw();
 
-			DXGI_PRESENT_PARAMETERS presentParameters = { };
-			presentParameters.DirtyRectsCount = 1;
+			DXGI_PRESENT_PARAMETERS presentParameters;
+			presentParameters.DirtyRectsCount = p_updatedRectangles.size();
 
-			RECT updatedRectangle;
-			updatedRectangle.left = p_updatedRectangle.left;
-			updatedRectangle.right = p_updatedRectangle.right;
-			updatedRectangle.top = p_updatedRectangle.top;
-			updatedRectangle.bottom = p_updatedRectangle.bottom;
-			presentParameters.pDirtyRects = &updatedRectangle;
+			//RECT* updatedRects = new RECT[p_updatedRectangles.size()];
+			RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
+
+			// If you're getting an exception below, you have three options; 
+			// 1. don't invalidate thousands of rectangles
+			// 2. increase the size of the static array above
+			// 3. make the array above dynamic
+			for (uint32_t a = 0; a < p_updatedRectangles.size(); a++)
+			{
+				updatedRects[a].left = p_updatedRectangles[a].left;
+				updatedRects[a].right = p_updatedRectangles[a].right;
+				updatedRects[a].top = p_updatedRectangles[a].top;
+				updatedRects[a].bottom = p_updatedRectangles[a].bottom;
+			}
+
+			presentParameters.pDirtyRects = updatedRects;
+			presentParameters.pScrollOffset = 0;
+			presentParameters.pScrollRect = 0;
+
+			p_updatedRectangles.clear();
 
 			m_swapChain->Present1(1, 0, &presentParameters);
+
+			//delete[] updatedRects;
 		}
 
 		//------------------------------
@@ -3221,7 +3294,7 @@ namespace AvoGUI
 		}
 		void setScale(float p_scale) override
 		{
-			scale(p_scale/m_scale.x, p_scale/m_scale.x);
+			scale(p_scale / m_scale.x, p_scale / m_scale.x);
 		}
 		void setScale(float p_scaleX, float p_scaleY) override
 		{
@@ -3229,15 +3302,15 @@ namespace AvoGUI
 		}
 		void setScale(float p_scale, const Point<float>& p_origin) override
 		{
-			scale(p_scale/m_scale.x, p_scale/m_scale.y, p_origin.x, p_origin.y);
+			scale(p_scale / m_scale.x, p_scale / m_scale.y, p_origin.x, p_origin.y);
 		}
 		void setScale(float p_scaleX, float p_scaleY, const Point<float>& p_origin) override
 		{
-			scale(p_scaleX/m_scale.x, p_scaleY/m_scale.y, p_origin.x, p_origin.y);
+			scale(p_scaleX / m_scale.x, p_scaleY / m_scale.y, p_origin.x, p_origin.y);
 		}
 		void setScale(float p_scale, float p_originX, float p_originY) override
 		{
-			scale(p_scale/m_scale.x, p_scale/m_scale.y, p_originX, p_originY);
+			scale(p_scale / m_scale.x, p_scale / m_scale.y, p_originX, p_originY);
 		}
 		void setScale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) override
 		{
@@ -3298,6 +3371,10 @@ namespace AvoGUI
 			m_context->SetTarget(0);
 			m_targetWindowBitmap->Release();
 
+			ID2D1Multithread* threadLock;
+			s_direct2DFactory->QueryInterface(IID_PPV_ARGS(&threadLock));
+			threadLock->Enter();
+
 			// Resize buffers, creating new ones
 			HRESULT result = m_swapChain->ResizeBuffers(0, p_width, p_height, DXGI_FORMAT_UNKNOWN, 0);
 
@@ -3312,7 +3389,11 @@ namespace AvoGUI
 				),
 				&m_targetWindowBitmap
 			);
+
 			dxgiBackBuffer->Release();
+
+			threadLock->Leave();
+			threadLock->Release();
 
 			m_context->SetTarget(m_targetWindowBitmap);
 
@@ -4311,6 +4392,27 @@ namespace AvoGUI
 	FontFileLoader* WindowsDrawingContext::s_fontFileLoader = 0;
 	IWICImagingFactory2* WindowsDrawingContext::s_imagingFactory = 0;
 
+	void runAnimationLoop(GUI* p_gui)
+	{
+		HWND windowHandle = (HWND)p_gui->getWindow()->getWindowHandle();
+
+		while (p_gui->getWindow()->getIsOpen())
+		{
+			p_gui->excludeAnimationThread(); // These three methods are the same length :O
+			p_gui->updateQueuedAnimations();
+			p_gui->includeAnimationThread();
+
+			if (p_gui->getNeedsRedrawing())
+			{
+				p_gui->drawViews(); // Drawing is synced to the refresh rate of the monitor.
+			}
+			else
+			{
+				Sleep(17);
+			}
+		}
+	}
+
 #endif
 #pragma endregion
 
@@ -4449,18 +4551,17 @@ namespace AvoGUI
 			for (int32_t a = currentContainer->getNumberOfChildren() - 1; a >= 0; a--)
 			{
 				View* view = currentContainer->getChild(a);
-				if (view->getIsContaining(p_coordinates))
+				if (view->getAbsoluteBounds().getIsContaining(p_coordinates))
 				{
 					if (view->getNumberOfChildren())
 					{
 						currentContainer = view;
-						break;
 					}
 					else
 					{
 						result = view;
-						break;
 					}
+					break;
 				}
 				else if (a == 0)
 				{
@@ -4478,7 +4579,7 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void GUI::handleWindowCreated(const WindowEvent& p_event)
+	void GUI::handleWindowCreate(const WindowEvent& p_event)
 	{
 #ifdef _WIN32
 		if (m_drawingContext)
@@ -4488,13 +4589,76 @@ namespace AvoGUI
 		m_drawingContext = new WindowsDrawingContext(m_window);
 #endif
 		createContent();
+
+		for (auto listener : m_windowEventListeners)
+		{
+			listener->handleWindowCreate(p_event);
+		}
 	}
-	void GUI::handleWindowSizeChanged(const WindowEvent& p_event)
+	bool GUI::handleWindowClose(const WindowEvent& p_event)
 	{
-		m_drawingContext->setSize(p_event.width, p_event.height);
-		setSize(p_event.width, p_event.height);
-		invalidateRectangle(getBounds().createCopyAtOrigin());
-		m_tooltip->hide();
+		bool willClose = true;
+		for (auto listener : m_windowEventListeners)
+		{
+			if (!listener->handleWindowClose(p_event))
+			{
+				willClose = false;
+			}
+		}
+		return willClose;
+	}
+	void GUI::handleWindowMinimize(const WindowEvent& p_event)
+	{
+		for (auto listener : m_windowEventListeners)
+		{
+			listener->handleWindowMinimize(p_event);
+		}
+	}
+	void GUI::handleWindowMaximize(const WindowEvent& p_event)
+	{
+		for (auto listener : m_windowEventListeners)
+		{
+			listener->handleWindowMaximize(p_event);
+		}
+	}
+	void GUI::handleWindowRestore(const WindowEvent& p_event)
+	{
+		for (auto listener : m_windowEventListeners)
+		{
+			listener->handleWindowRestore(p_event);
+		}
+	}
+	void GUI::handleWindowSizeChange(const WindowEvent& p_event)
+	{
+		m_newSize.set(p_event.width, p_event.height);
+		m_hasChangedSize = true;
+
+		for (auto listener : m_windowEventListeners)
+		{
+			listener->handleWindowSizeChange(p_event);
+		}
+
+		if (!m_hasAnimationLoopStarted)
+		{
+			std::thread animationThread(runAnimationLoop, this);
+			m_animationThreadID = animationThread.get_id();
+			animationThread.detach();
+			m_hasAnimationLoopStarted = true;
+		}
+	}
+	void GUI::handleWindowFocus(const WindowEvent& p_event)
+	{
+		for (auto listener : m_windowEventListeners)
+		{
+			listener->handleWindowFocus(p_event);
+		}
+	}
+	void GUI::handleWindowUnfocus(const WindowEvent& p_event)
+	{
+		for (auto listener : m_windowEventListeners)
+		{
+			listener->handleWindowUnfocus(p_event);
+		}
 	}
 
 	//------------------------------
@@ -4509,22 +4673,22 @@ namespace AvoGUI
 		MouseEvent event = p_event;
 		if (targets.size())
 		{
-			for (auto view = targets.begin(); view != targets.end(); view++)
+			for (auto view : targets)
 			{
-				Point<float> position = (*view)->getAbsoluteBounds().getTopLeft();
+				Point<float> position = view->getAbsoluteBounds().getTopLeft();
 				event.x = p_event.x - position.x;
 				event.y = p_event.y - position.y;
 
-				(*view)->handleMouseDown(event);
-				m_pressedMouseEventListeners.push_back(*view);
+				view->handleMouseDown(event);
+				m_pressedMouseEventListeners.push_back(view);
 			}
 		}
 
 		if (m_globalMouseEventListeners.size())
 		{
-			for (auto listener = m_globalMouseEventListeners.begin(); listener != m_globalMouseEventListeners.end(); listener++)
+			for (auto listener : m_globalMouseEventListeners)
 			{
-				(*listener)->handleGlobalMouseDown(p_event);
+				listener->handleGlobalMouseDown(p_event);
 			}
 		}
 	}
@@ -4533,21 +4697,21 @@ namespace AvoGUI
 		MouseEvent event = p_event;
 		if (m_pressedMouseEventListeners.size())
 		{
-			for (auto view = m_pressedMouseEventListeners.begin(); view != m_pressedMouseEventListeners.end(); view++)
+			for (auto view : m_pressedMouseEventListeners)
 			{
-				Point<float> position = (*view)->getAbsoluteBounds().getTopLeft();
+				Point<float> position = view->getAbsoluteBounds().getTopLeft();
 				event.x = p_event.x - position.x;
 				event.y = p_event.y - position.y;
 
-				(*view)->handleMouseUp(event);
+				view->handleMouseUp(event);
 			}
 		}
 
 		if (m_globalMouseEventListeners.size())
 		{
-			for (auto listener = m_globalMouseEventListeners.begin(); listener != m_globalMouseEventListeners.end(); listener++)
+			for (auto listener : m_globalMouseEventListeners)
 			{
-				(*listener)->handleGlobalMouseUp(p_event);
+				listener->handleGlobalMouseUp(p_event);
 			}
 		}
 	}
@@ -4559,21 +4723,21 @@ namespace AvoGUI
 		MouseEvent event = p_event;
 		if (targets.size())
 		{
-			for (auto view = targets.begin(); view != targets.end(); view++)
+			for (auto view : targets)
 			{
-				Point<float> position = (*view)->getAbsoluteBounds().getTopLeft();
+				Point<float> position = view->getAbsoluteBounds().getTopLeft();
 				event.x = p_event.x - position.x;
 				event.y = p_event.y - position.y;
 
-				(*view)->handleMouseDoubleClick(event);
+				view->handleMouseDoubleClick(event);
 			}
 		}
 
 		if (m_globalMouseEventListeners.size())
 		{
-			for (auto listener = m_globalMouseEventListeners.begin(); listener != m_globalMouseEventListeners.end(); listener++)
+			for (auto listener : m_globalMouseEventListeners)
 			{
-				(*listener)->handleGlobalMouseDoubleClick(p_event);
+				listener->handleGlobalMouseDoubleClick(p_event);
 			}
 		}
 	}
@@ -4633,9 +4797,9 @@ namespace AvoGUI
 
 		if (m_globalMouseEventListeners.size())
 		{
-			for (auto listener = m_globalMouseEventListeners.begin(); listener != m_globalMouseEventListeners.end(); listener++)
+			for (auto listener : m_globalMouseEventListeners)
 			{
-				(*listener)->handleGlobalMouseMove(p_event);
+				listener->handleGlobalMouseMove(p_event);
 			}
 		}
 	}
@@ -4647,21 +4811,21 @@ namespace AvoGUI
 		MouseEvent event = p_event;
 		if (targets.size())
 		{
-			for (auto view = targets.begin(); view != targets.end(); view++)
+			for (auto view : targets)
 			{
-				Point<float> position = (*view)->getAbsoluteBounds().getTopLeft();
+				Point<float> position = view->getAbsoluteBounds().getTopLeft();
 				event.x = p_event.x - position.x;
 				event.y = p_event.y - position.y;
 
-				(*view)->handleMouseScroll(event);
+				view->handleMouseScroll(event);
 			}
 		}
 
 		if (m_globalMouseEventListeners.size())
 		{
-			for (auto listener = m_globalMouseEventListeners.begin(); listener != m_globalMouseEventListeners.end(); listener++)
+			for (auto listener : m_globalMouseEventListeners)
 			{
-				(*listener)->handleGlobalMouseScroll(p_event);
+				listener->handleGlobalMouseScroll(p_event);
 			}
 		}
 	}
@@ -4671,28 +4835,28 @@ namespace AvoGUI
 	void GUI::handleCharacterInput(const KeyboardEvent& p_event)
 	{
 		KeyboardEvent event = p_event;
-		for (uint32_t a = 0; a < m_keyboardEventListeners.size(); a++)
+		for (auto listener : m_keyboardEventListeners)
 		{
-			event.isTarget = m_keyboardEventListeners[a] == m_keyboardFocus;
-			m_keyboardEventListeners[a]->handleCharacterInput(p_event);
+			event.isTarget = listener == m_keyboardFocus;
+			listener->handleCharacterInput(p_event);
 		}
 	}
 	void GUI::handleKeyboardKeyDown(const KeyboardEvent& p_event)
 	{
 		KeyboardEvent event = p_event;
-		for (uint32_t a = 0; a < m_keyboardEventListeners.size(); a++)
+		for (auto listener : m_keyboardEventListeners)
 		{
-			event.isTarget = m_keyboardEventListeners[a] == m_keyboardFocus;
-			m_keyboardEventListeners[a]->handleKeyboardKeyDown(event);
+			event.isTarget = listener == m_keyboardFocus;
+			listener->handleKeyboardKeyDown(event);
 		}
 	}
 	void GUI::handleKeyboardKeyUp(const KeyboardEvent& p_event)
 	{
 		KeyboardEvent event = p_event;
-		for (uint32_t a = 0; a < m_keyboardEventListeners.size(); a++)
+		for (auto listener : m_keyboardEventListeners)
 		{
-			event.isTarget = m_keyboardEventListeners[a] == m_keyboardFocus;
-			m_keyboardEventListeners[a]->handleKeyboardKeyUp(event);
+			event.isTarget = listener == m_keyboardFocus;
+			listener->handleKeyboardKeyUp(event);
 		}
 	}
 
@@ -4714,104 +4878,209 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void GUI::invalidateRectangle(const Rectangle<float>& p_rectangle)
+	void GUI::queueAnimationUpdateForView(View* p_view)
 	{
-		m_window->invalidateRectangle(p_rectangle);
+		m_animationUpdateQueue.push_back(p_view);
+	}
+	void GUI::updateQueuedAnimations()
+	{
+		if (m_hasChangedSize)
+		{
+			m_drawingContext->setSize(m_newSize);
+			m_bounds.set(0, 0, m_newSize.x, m_newSize.y);
+			sendSizeChangedEvents();
+
+			m_tooltip->hide();
+
+			m_pendingInvalidRectangles.clear();
+			m_hasChangedSize = false;
+			invalidate();
+			m_hasChangedSize = true;
+		}
+
+		uint32_t sizeBefore = m_animationUpdateQueue.size();
+		for (uint32_t a = 0; a < sizeBefore; a++)
+		{
+			m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval(); // We do this before updateAnimation() because it should be able to queue the next animation update.
+			m_animationUpdateQueue.front()->updateAnimations();
+			m_animationUpdateQueue.pop_front();
+		}
+
+		for (uint32_t a = 0; a < m_pendingInvalidRectangles.size(); a++)
+		{
+			invalidateRectangle(m_pendingInvalidRectangles[a]);
+		}
+		m_pendingInvalidRectangles.clear();
+
+		m_hasChangedSize = false;
 	}
 
-	void GUI::draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
+	//------------------------------
+
+	void GUI::invalidateRectangle(Rectangle<float> p_rectangle)
 	{
-		View* currentContainer = this;
-		uint32_t startPosition = 0;
+		if (m_hasChangedSize) return; // No invalidation is needed if the GUI window has been resized. Just a small optimization, works without it.
 
-		m_drawingContext->beginDrawing();
-
-		m_drawingContext->setOrigin(0, 0);
-		m_drawingContext->pushClipRectangle(p_targetRectangle);
-		m_drawingContext->clear(m_theme->colors["background"]);
-
-		while (true)
+		if (std::this_thread::get_id() == m_animationThreadID)
 		{
-			bool isDoneWithContainer = true;
-			for (uint32_t a = startPosition; a < currentContainer->getNumberOfChildren(); a++)
+			p_rectangle.bound(m_bounds);
+			
+			int32_t rectangleIndex = -1;
+			Rectangle<float>* rectangle = 0;
+
+			bool willAdd = true;
+			bool isDone = false;
+			while (!isDone)
 			{
-				View* view = currentContainer->getChild(a);
-
-				if (view->getWidth() > 0.f && view->getHeight() > 0.f && view->getAbsoluteBounds().getIsIntersecting(p_targetRectangle) && view->getIsVisible())
+				if (rectangle)
 				{
-					m_drawingContext->moveOrigin(view->getTopLeft());
-
-					view->drawShadow(m_drawingContext);
-
-					if (view->getCornerRadius())
+					isDone = true;
+					for (uint32_t a = 0; a < m_invalidRectangles.size(); a++)
 					{
-						m_drawingContext->pushRoundedClipRectangle(view->getSize(), view->getCornerRadius());
-					}
-					else
-					{
-						m_drawingContext->pushClipRectangle(view->getSize());
-					}
-
-					view->draw(m_drawingContext, p_targetRectangle);
-
-					if (view->getNumberOfChildren())
-					{
-						currentContainer = view;
-						startPosition = 0;
-						isDoneWithContainer = false;
-						break;
-					}
-					else
-					{
-						if (view->getCornerRadius())
+						if (a != rectangleIndex)
 						{
-							m_drawingContext->popRoundedClipRectangle();
+							if (m_invalidRectangles[a].getIsIntersecting(*rectangle))
+							{
+								m_invalidRectangles[a].contain(*rectangle);
+								m_invalidRectangles.erase(m_invalidRectangles.begin() + rectangleIndex);
+								if (rectangleIndex < a)
+								{
+									a--;
+								}
+								rectangle = &m_invalidRectangles[a];
+								rectangleIndex = a;
+								isDone = false;
+								break;
+							}
 						}
-						else
-						{
-							m_drawingContext->popClipRectangle();
-						}
-
-						view->drawUnclipped(m_drawingContext, p_targetRectangle);
-
-						m_drawingContext->moveOrigin(-view->getTopLeft());
 					}
-				}
-				else if (view->getAbsoluteShadowBounds().getIsIntersecting(p_targetRectangle))
-				{
-					m_drawingContext->moveOrigin(view->getTopLeft());
-					view->drawShadow(m_drawingContext);
-					m_drawingContext->moveOrigin(-view->getTopLeft());
-				}
-			}
-			if (isDoneWithContainer)
-			{
-				if (currentContainer == this)
-				{
-					break;
-				}
-
-				if (currentContainer->getCornerRadius())
-				{
-					m_drawingContext->popRoundedClipRectangle();
 				}
 				else
 				{
-					m_drawingContext->popClipRectangle();
+					isDone = true;
+					for (uint32_t a = 0; a < m_invalidRectangles.size(); a++)
+					{
+						if (m_invalidRectangles[a].getIsIntersecting(p_rectangle))
+						{
+							rectangleIndex = a;
+							rectangle = m_invalidRectangles.data() + a;
+							rectangle->contain(p_rectangle);
+							willAdd = false;
+							isDone = false;
+							break;
+						}
+					}
 				}
-
-				currentContainer->drawUnclipped(m_drawingContext, p_targetRectangle);
-
-				m_drawingContext->moveOrigin(-currentContainer->getTopLeft());
-
-				startPosition = currentContainer->getIndex() + 1;
-				currentContainer = currentContainer->getParent();
+			}
+			if (willAdd)
+			{
+				m_invalidRectangles.push_back(p_rectangle);
 			}
 		}
+		else
+		{
+			m_pendingInvalidRectangles.push_back(p_rectangle);
+		}
+	}
 
-		m_drawingContext->popClipRectangle();
+	void GUI::drawViews()
+	{
+		m_drawingContext->beginDrawing();
 
-		m_drawingContext->finishDrawing(p_targetRectangle);
+		for (const auto& targetRectangle : m_invalidRectangles)
+		{
+			View* currentContainer = this;
+			uint32_t startPosition = 0;
+
+			m_drawingContext->setOrigin(0, 0);
+			m_drawingContext->pushClipRectangle(targetRectangle);
+			m_drawingContext->clear(m_theme->colors["background"]);
+
+			draw(m_drawingContext, targetRectangle);
+
+			while (true)
+			{
+				bool isDoneWithContainer = true;
+				for (uint32_t a = startPosition; a < currentContainer->getNumberOfChildren(); a++)
+				{
+					View* view = currentContainer->getChild(a);
+
+					if (view->getWidth() > 0.f && view->getHeight() > 0.f && view->getAbsoluteBounds().getIsIntersecting(targetRectangle) && view->getIsVisible())
+					{
+						m_drawingContext->moveOrigin(view->getTopLeft());
+
+						view->drawShadow(m_drawingContext);
+
+						if (view->getCornerRadius())
+						{
+							m_drawingContext->pushRoundedClipRectangle(view->getSize(), view->getCornerRadius());
+						}
+						else
+						{
+							m_drawingContext->pushClipRectangle(view->getSize());
+						}
+
+						view->draw(m_drawingContext, targetRectangle);
+
+						if (view->getNumberOfChildren())
+						{
+							currentContainer = view;
+							startPosition = 0;
+							isDoneWithContainer = false;
+							break;
+						}
+						else
+						{
+							if (view->getCornerRadius())
+							{
+								m_drawingContext->popRoundedClipRectangle();
+							}
+							else
+							{
+								m_drawingContext->popClipRectangle();
+							}
+
+							view->drawUnclipped(m_drawingContext, targetRectangle);
+
+							m_drawingContext->moveOrigin(-view->getTopLeft());
+						}
+					}
+					else if (view->getAbsoluteShadowBounds().getIsIntersecting(targetRectangle))
+					{
+						m_drawingContext->moveOrigin(view->getTopLeft());
+						view->drawShadow(m_drawingContext);
+						m_drawingContext->moveOrigin(-view->getTopLeft());
+					}
+				}
+				if (isDoneWithContainer)
+				{
+					if (currentContainer == this)
+					{
+						break;
+					}
+
+					if (currentContainer->getCornerRadius())
+					{
+						m_drawingContext->popRoundedClipRectangle();
+					}
+					else
+					{
+						m_drawingContext->popClipRectangle();
+					}
+
+					currentContainer->drawUnclipped(m_drawingContext, targetRectangle);
+
+					m_drawingContext->moveOrigin(-currentContainer->getTopLeft());
+
+					startPosition = currentContainer->getIndex() + 1U;
+					currentContainer = currentContainer->getParent();
+				}
+			}
+
+			m_drawingContext->popClipRectangle();
+		}
+
+		m_drawingContext->finishDrawing(m_invalidRectangles);
 	}
 
 	//------------------------------
@@ -4821,6 +5090,7 @@ namespace AvoGUI
 	{
 #ifdef _WIN32
 		MSG message = { };
+
 		while (GetMessage(&message, 0, 0, 0))
 		{
 			TranslateMessage(&message);
@@ -4894,7 +5164,7 @@ namespace AvoGUI
 
 	Ripple::Ripple(View* p_parent, const Color& p_color) :
 		View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(0.f, 0.45f),
-		m_isEnabled(true), m_circleAnimationTime(1.f), m_isMouseDown(false), m_isMouseHovering(false), 
+		m_isEnabled(true), m_circleAnimationTime(1.f), m_isMouseDown(false), m_isMouseHovering(false),
 		m_hasHoverEffect(true)
 	{
 		setIsOverlay(true); // Mouse events should be sent through
@@ -4966,13 +5236,13 @@ namespace AvoGUI
 			{
 				if (m_overlayAlphaFactor < 1.f)
 				{
-					m_overlayAnimationTime = min(m_overlayAnimationTime + 0.21f, 1.f);
+					m_overlayAnimationTime = min(m_overlayAnimationTime + 0.2f, 1.f);
 					queueAnimationUpdate();
 				}
 			}
 			else if (m_overlayAlphaFactor > 0.f)
 			{
-				m_overlayAnimationTime = max(m_overlayAnimationTime - 0.21f, 0.f);
+				m_overlayAnimationTime = max(m_overlayAnimationTime - 0.2f, 0.f);
 				queueAnimationUpdate();
 			}
 		}
@@ -4981,7 +5251,7 @@ namespace AvoGUI
 		if (m_circleAnimationTime < 1.f)
 		{
 			circleAnimationValue = m_theme->easings["ripple"].easeValue(m_circleAnimationTime);
-			m_circleAnimationTime += 0.07f;
+			m_circleAnimationTime += 0.05f;
 			m_size = interpolate(m_maxSize * 0.4f, m_maxSize, circleAnimationValue);
 		}
 
@@ -4997,7 +5267,7 @@ namespace AvoGUI
 			if (m_alphaAnimationTime < 1.f)
 			{
 				m_alphaFactor = 1.f - m_theme->easings["symmetrical in out"].easeValue(m_alphaAnimationTime);
-				m_alphaAnimationTime = min(1.f, m_alphaAnimationTime + 0.06f);
+				m_alphaAnimationTime = min(1.f, m_alphaAnimationTime + 0.05f);
 
 				queueAnimationUpdate();
 			}
@@ -5033,7 +5303,7 @@ namespace AvoGUI
 
 	Button::Button(View* p_parent, const char* p_text, Emphasis p_emphasis, float p_x, float p_y) :
 		View(p_parent, Rectangle<float>(p_x, p_y, p_x, p_y)), m_text(0), m_fontSize(14.f), m_tooltipString(""),
-		m_icon(0), m_pressAnimationTime(1.f), m_isPressed(false), m_emphasis(p_emphasis), m_isEnabled(true), 
+		m_icon(0), m_pressAnimationTime(1.f), m_isPressed(false), m_emphasis(p_emphasis), m_isEnabled(true),
 		m_colorAnimationTime(1.f), m_isMouseHovering(false)
 	{
 		setString(p_text);
@@ -5194,7 +5464,7 @@ namespace AvoGUI
 			m_isPressed = false;
 			queueAnimationUpdate();
 		}
-		if (m_isEnabled)
+		if (m_isEnabled && m_isMouseHovering)
 		{
 			for (uint32_t a = 0; a < m_buttonListeners.size(); a++)
 			{
@@ -5241,7 +5511,7 @@ namespace AvoGUI
 		if (m_emphasis == Emphasis::High)
 		{
 			float pressAnimationValue = m_theme->easings["in out"].easeValue(m_pressAnimationTime);
-			m_pressAnimationTime += 0.08f;
+			m_pressAnimationTime += 0.06f;
 
 			if (m_isRaising || m_isPressed)
 			{
@@ -5300,19 +5570,38 @@ namespace AvoGUI
 
 	//------------------------------
 
-	TextField::TextField(View* p_parent, Type p_type, const char* p_label, float p_width, float p_fontSize) : 
+	TextField::TextField(View* p_parent, Type p_type, const char* p_label, float p_width, float p_fontSize) :
 		View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*2.5f)), m_type(p_type), m_fontSize(p_fontSize)
 	{
 		setLabel(p_label);
 		setCursor(Cursor::Ibeam);
 		enableMouseEvents();
 	}
+	TextField::~TextField()
+	{
+		if (m_labelText)
+		{
+			m_labelText->forget();
+		}
+		if (m_text)
+		{
+			m_text->forget();
+		}
+	}
 
 	//------------------------------
 
 	void TextField::setLabel(const char* p_label)
 	{
-		if (p_label != "")
+		if (m_labelText)
+		{
+			m_labelText->forget();
+		}
+		if (p_label == "")
+		{
+			m_labelText = 0;
+		}
+		else
 		{
 			m_labelText = getGUI()->getDrawingContext()->createText(p_label, m_fontSize);
 			m_labelText->setTopLeft((getHeight() - m_fontSize)*0.5f, (getHeight() - m_fontSize)*0.5f);
@@ -5320,17 +5609,30 @@ namespace AvoGUI
 	}
 	const char* TextField::getLabel()
 	{
-
+		if (m_labelText)
+		{
+			return m_labelText->getString().c_str();
+		}
+		return "";
 	}
 
 	//------------------------------
 
 	void TextField::setString(const char* p_string)
 	{
-
+		if (m_text)
+		{
+			m_text->forget();
+		}
+		m_text = getGUI()->getDrawingContext()->createText(p_string, m_fontSize);
 	}
 	const char* TextField::getString()
 	{
+		if (m_text)
+		{
+			return m_text->getString().c_str();
+		}
+		return "";
 	}
 
 	//------------------------------

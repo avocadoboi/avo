@@ -37,7 +37,7 @@ public:
 
 //------------------------------
 
-class Canvas : public AvoGUI::View, public AvoGUI::ButtonListener
+class PiDay : public AvoGUI::GUI, public AvoGUI::ButtonListener
 {
 private:
 	Block m_firstBlock;
@@ -54,11 +54,15 @@ private:
 	}
 
 public:
-	Canvas(View* p_parent) : View(p_parent, p_parent->getBounds())
+	PiDay()
 	{
-		windowWidth = getWidth();
-		windowHeight = getHeight();
+		create("Pi day!", windowWidth, windowHeight, AvoGUI::WindowStyleFlags::DefaultNoResize);
+	}
 
+	//------------------------------
+
+	void createContent()
+	{
 		m_restartButton = new AvoGUI::Button(this, "RESTART", AvoGUI::Button::Emphasis::High);
 		m_restartButton->setIcon(getGUI()->getDrawingContext()->createImage("test icon.png"));
 		m_restartButton->setTopRight(getRight() - 10.f, 10.f);
@@ -131,9 +135,7 @@ public:
 
 int main()
 {
-	AvoGUI::GUI* gui = new AvoGUI::GUI();
-	gui->create("Pi day!", windowWidth, windowHeight, AvoGUI::WindowStyleFlags::DefaultNoResize);
-	new Canvas(gui); // I know this looks scary but it's 100% valid. It adds it as a child to the GUI.
-	AvoGUI::GUI::run();
-	gui->forget();
+	PiDay* application = new PiDay();
+	application->run();
+	application->forget();
 }

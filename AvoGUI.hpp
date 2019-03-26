@@ -33,6 +33,8 @@
 #include <vector>
 #include <deque>
 #include <map>
+#include <thread>
+#include <mutex>
 
 // For debugging.
 #include <iostream>
@@ -388,13 +390,13 @@ namespace AvoGUI
 		Point<PointType>& operator*=(const Point<T>& p_point)
 		{
 			x *= (PointType)p_point.x;
-			x *= (PointType)p_point.y;
+			y *= (PointType)p_point.y;
 			return *this;
 		}
 		Point<PointType>& operator*=(double p_factor)
 		{
 			x *= p_factor;
-			x *= p_factor;
+			y *= p_factor;
 			return *this;
 		}
 
@@ -469,6 +471,36 @@ namespace AvoGUI
 		{
 			return fastSqrt(x*x + y * y);
 		}
+
+		template<typename T>
+		double getDistanceSquared(const Point<T>& p_point)
+		{
+			return (x - p_point.x)*(x - p_point.x) + (y - p_point.y)*(y - p_point.y);
+		}
+		double getDistanceSquared(PointType p_x, PointType p_y)
+		{
+			return (x - p_x)*(x - p_x) + (y - p_y)*(y - p_y);
+		}
+		template<typename T>
+		double getDistance(const Point<T>& p_point)
+		{
+			return sqrt((x - p_point.x)*(x - p_point.x) + (y - p_point.y)*(y - p_point.y));
+		}
+		double getDistance(PointType p_x, PointType p_y)
+		{
+			return sqrt((x - p_x)*(x - p_x) + (y - p_y)*(y - p_y));
+		}
+		template<typename T>
+		double getDistanceFast(const Point<T>& p_point)
+		{
+			return sqrtFast((x - p_point.x)*(x - p_point.x) + (y - p_point.y)*(y - p_point.y));
+		}
+		double getDistanceFast(PointType p_x, PointType p_y)
+		{
+			return sqrtFast((x - p_x)*(x - p_x) + (y - p_y)*(y - p_y));
+		}
+
+		//------------------------------
 
 		static double getLengthSquared(float p_x, float p_y)
 		{
@@ -1956,6 +1988,34 @@ namespace AvoGUI
 			alpha = constrain(p_alpha);
 		}
 		/// <summary>
+		/// Sets the same values for the red, green, blue and alpha channels. They are floats in the range of [0, 1].
+		/// </summary>
+		void setRGBA(float p_grayscale, float p_alpha = 1.f)
+		{
+			red = constrain(p_grayscale);
+			green = constrain(p_grayscale);
+			blue = constrain(p_grayscale);
+			alpha = constrain(p_alpha);
+		}
+		/// <summary>
+		/// Sets the values for the red, green and blue channels. They are all floats in the range of [0, 1].
+		/// </summary>
+		void setRGB(float p_red, float p_green, float p_blue)
+		{
+			red = constrain(p_red);
+			green = constrain(p_green);
+			blue = constrain(p_blue);
+		}
+		/// <summary>
+		/// Sets the same values for the red, green and blue channels. They are floats in the range of [0, 1].
+		/// </summary>
+		void setRGB(float p_grayscale)
+		{
+			red = constrain(p_grayscale);
+			green = constrain(p_grayscale);
+			blue = constrain(p_grayscale);
+		}
+		/// <summary>
 		/// Sets the values for the red, green, blue and alpha channels. The parameters are bytes, in the range of [0, 255].
 		/// </summary>
 		void setRGBA(unsigned char p_red, unsigned char p_green, unsigned char p_blue, unsigned char p_alpha = 255)
@@ -1964,6 +2024,34 @@ namespace AvoGUI
 			green = float(p_green) / 255.f;
 			blue = float(p_blue) / 255.f;
 			alpha = float(p_alpha) / 255.f;
+		}
+		/// <summary>
+		/// Sets the same values for the red, green, blue and alpha channels. The parameters are bytes, in the range of [0, 255].
+		/// </summary>
+		void setRGBA(unsigned char p_grayscale, unsigned char p_alpha = 255)
+		{
+			red = float(p_grayscale) / 255.f;
+			green = float(p_grayscale) / 255.f;
+			blue = float(p_grayscale) / 255.f;
+			alpha = float(p_alpha) / 255.f;
+		}
+		/// <summary>
+		/// Sets the values for the red, green and blue channels. The parameters are bytes, in the range of [0, 255].
+		/// </summary>
+		void setRGB(unsigned char p_red, unsigned char p_green, unsigned char p_blue)
+		{
+			red = float(p_red) / 255.f;
+			green = float(p_green) / 255.f;
+			blue = float(p_blue) / 255.f;
+		}
+		/// <summary>
+		/// Sets the same values for the red, green and blue channels. The parameters are bytes, in the range of [0, 255].
+		/// </summary>
+		void setRGB(unsigned char p_grayscale)
+		{
+			red = float(p_grayscale) / 255.f;
+			green = float(p_grayscale) / 255.f;
+			blue = float(p_grayscale) / 255.f;
 		}
 
 		//------------------------------
@@ -2605,7 +2693,7 @@ namespace AvoGUI
 
 	class View;
 
-	class ViewEventListener
+	class ViewListener
 	{
 	public:
 		/// <summary>
@@ -2633,7 +2721,7 @@ namespace AvoGUI
 	class View : public ReferenceCounted, public ProtectedRectangle
 	{
 	private:
-		std::vector<ViewEventListener*> m_viewEventListeners;
+		std::vector<ViewListener*> m_viewEventListeners;
 		bool m_isInAnimationUpdateQueue;
 		bool m_isVisible;
 		bool m_isOverlay;
@@ -4498,7 +4586,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Adds an event listener to the view that recieves events about when the view has changed size.</para>
 		/// </summary>
-		void addEventListener(ViewEventListener* p_eventListener)
+		void addEventListener(ViewListener* p_eventListener)
 		{
 			m_viewEventListeners.push_back(p_eventListener);
 		}
@@ -4506,7 +4594,7 @@ namespace AvoGUI
 		/// LIBRARY IMPLEMENTED
 		/// <para>Removes an event listener from the view.</para>
 		/// </summary>
-		void removeEventListener(ViewEventListener* p_eventListener)
+		void removeEventListener(ViewListener* p_eventListener)
 		{
 			removeVectorElementWhileKeepingOrder(m_viewEventListeners, p_eventListener);
 		}
@@ -4670,33 +4758,33 @@ namespace AvoGUI
 		/// <para>Gets called when a window has been created.</para>
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
-		virtual void handleWindowCreated(const WindowEvent& p_event) { }
+		virtual void handleWindowCreate(const WindowEvent& p_event) { }
 		/// <summary>
 		/// USER IMPLEMENTED
-		/// <para>Gets called when a window has been closed.</para>
+		/// <para>Gets called when a window has been requested to be closed. If the handler returns true, the window will close and get destroyed.</para>
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
-		virtual void handleWindowDestroyed(const WindowEvent& p_event) { }
+		virtual bool handleWindowClose(const WindowEvent& p_event) { return true; }
 
 		/// <summary>
 		/// USER IMPLEMENTED
 		/// <para>Gets called when a window has been minimized in the taskbar. The width and height properties of the event tell you the new size of the window.</para>
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
-		virtual void handleWindowMinimized(const WindowEvent& p_event) { }
+		virtual void handleWindowMinimize(const WindowEvent& p_event) { }
 		/// <summary>
 		/// USER IMPLEMENTED
 		/// <para>Gets called when a window has been maximized so that it is as big as possible while still showing the border.</para>
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
-		virtual void handleWindowMaximized(const WindowEvent& p_event) { }
+		virtual void handleWindowMaximize(const WindowEvent& p_event) { }
 		/// <summary>
 		/// USER IMPLEMENTED
 		/// <para>Gets called when a window has been restored so that it is shown again after being minimized in the taskbar.</para>
 		/// <para>The width and height properties of the event tell you the size of the window.</para>
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
-		virtual void handleWindowRestored(const WindowEvent& p_event) { }
+		virtual void handleWindowRestore(const WindowEvent& p_event) { }
 
 		/// <summary>
 		/// USER IMPLEMENTED
@@ -4705,20 +4793,20 @@ namespace AvoGUI
 		/// <para>the event tell you the new size of the window.</para>
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
-		virtual void handleWindowSizeChanged(const WindowEvent& p_event) { }
+		virtual void handleWindowSizeChange(const WindowEvent& p_event) { }
 
 		/// <summary>
 		/// USER IMPLEMENTED
 		/// <para>Gets called when a window has been focused, meaning it has been interacted with so that another window loses focus.</para>
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
-		virtual void handleWindowFocused(const WindowEvent& p_event) { }
+		virtual void handleWindowFocus(const WindowEvent& p_event) { }
 		/// <summary>
 		/// USER IMPLEMENTED
 		/// <para>Gets called when a window has been unfocused, meaning another window is interacted with.</para>
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
-		virtual void handleWindowUnfocused(const WindowEvent& p_event) { }
+		virtual void handleWindowUnfocus(const WindowEvent& p_event) { }
 	};
 
 	//------------------------------
@@ -4982,11 +5070,11 @@ namespace AvoGUI
 	{
 	protected:
 		GUI* m_GUI;
-		std::deque<View*> m_animationUpdateQueue;
 
 		Point<int32_t> m_position;
 		Point<uint32_t> m_size;
 		bool m_isFullscreen;
+		bool m_isOpen;
 
 		Point<int32_t> m_mousePosition;
 
@@ -5018,6 +5106,11 @@ namespace AvoGUI
 		/// Closes the window. To recreate it, use create(...).
 		/// </summary>
 		virtual void close() = 0;
+
+		bool getIsOpen()
+		{
+			return m_isOpen;
+		}
 
 		//------------------------------
 
@@ -5126,6 +5219,48 @@ namespace AvoGUI
 			return m_size.y;
 		}
 
+		/// <summary>
+		/// Sets the smallest allowed size for the window when the user is resizing it.
+		/// </summary>
+		virtual void setMinSize(const Point<uint32_t>& p_minSize) = 0;
+		/// <summary>
+		/// Sets the smallest allowed size for the window when the user is resizing it.
+		/// </summary>
+		virtual void setMinSize(uint32_t p_minWidth, uint32_t p_minHeight) = 0;
+		/// <summary>
+		/// Returns the smallest allowed size for the window when the user is resizing it.
+		/// </summary>
+		virtual Point<uint32_t> getMinSize() = 0;
+		/// <summary>
+		/// Returns the smallest allowed width for the window when the user is resizing it.
+		/// </summary>
+		virtual uint32_t getMinWidth() = 0;
+		/// <summary>
+		/// Returns the smallest allowed height for the window when the user is resizing it.
+		/// </summary>
+		virtual uint32_t getMinHeight() = 0;
+
+		/// <summary>
+		/// Sets the biggest allowed size for the window when the user is resizing it.
+		/// </summary>
+		virtual void setMaxSize(const Point<uint32_t>& p_maxSize) = 0;
+		/// <summary>
+		/// Sets the biggest allowed size for the window when the user is resizing it.
+		/// </summary>
+		virtual void setMaxSize(uint32_t p_maxWidth, uint32_t p_maxHeight) = 0;
+		/// <summary>
+		/// Returns the biggest allowed size for the window when the user is resizing it.
+		/// </summary>
+		virtual Point<uint32_t> getMaxSize() = 0;
+		/// <summary>
+		/// Returns the biggest allowed width for the window when the user is resizing it.
+		/// </summary>
+		virtual uint32_t getMaxWidth() = 0;
+		/// <summary>
+		/// Returns the biggest allowed height for the window when the user is resizing it.
+		/// </summary>
+		virtual uint32_t getMaxHeight() = 0;
+
 		//------------------------------
 
 		/// <summary>
@@ -5161,24 +5296,6 @@ namespace AvoGUI
 		{
 			return m_mousePosition;
 		}
-
-		//------------------------------
-
-		/// <summary>
-		/// Sets how frequently animations are updated, in milliseconds.
-		/// </summary>
-		virtual void setAnimationTimerInterval(uint32_t p_interval) = 0;
-		/// <summary>
-		/// <para>Adds a view to the animation update queue. Views that are in the animation update queue will be updated after a certain interval.</para>
-		/// <para>This is called by the GUI when you call queueAnimationUpdate() from a view.</para>
-		/// </summary>
-		/// <param name="p_view"></param>
-		virtual void queueAnimationUpdateForView(View* p_view) = 0;
-
-		/// <summary>
-		/// Adds a rectangle to the region that currently needs to be redrawn.
-		/// </summary>
-		virtual void invalidateRectangle(const Rectangle<float>& p_rectangle) = 0;
 
 		//------------------------------
 
@@ -5600,15 +5717,13 @@ namespace AvoGUI
 
 	public:
 		/// <summary>
-		/// <para>Initializes drawing.</para>
-		/// <para>The GUI calls this for you.</para>
+		/// <para>Initializes drawing. The GUI calls this for you.</para>
 		/// </summary>
 		virtual void beginDrawing() = 0;
 		/// <summary>
-		/// <para>Finishes the drawing and shows it.</para>
-		/// <para>The GUI calls this for you.</para>
+		/// <para>Finishes the drawing and shows it. The GUI calls this for you.</para>
 		/// </summary>
-		virtual void finishDrawing(const Rectangle<float>& p_updatedRectangle) = 0;
+		virtual void finishDrawing(std::vector<Rectangle<float>>& p_updatedRectangles) = 0;
 
 		//------------------------------
 
@@ -6169,6 +6284,19 @@ namespace AvoGUI
 
 		//------------------------------
 
+		std::deque<View*> m_animationUpdateQueue;
+		std::vector<Rectangle<float>> m_invalidRectangles;
+		std::vector<Rectangle<float>> m_pendingInvalidRectangles;
+
+		bool m_hasChangedSize;
+		Point<uint32_t> m_newSize; // Pending size change
+
+		std::thread::id m_animationThreadID;
+		std::mutex m_animationThreadMutex;
+		bool m_hasAnimationLoopStarted;
+
+		//------------------------------
+
 		Tooltip* m_tooltip;
 
 		//------------------------------
@@ -6230,14 +6358,44 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Creates a new drawing context and calls createContent() to initialize the layout.</para>
+		/// <para>Creates a new drawing context and calls createContent() to initialize the layout, as well as sends the event down to all window listeners.</para>
 		/// </summary>
-		void handleWindowCreated(const WindowEvent& p_event) override;
+		void handleWindowCreate(const WindowEvent& p_event) override;
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Resizes the drawing context and updates the size of the GUI.</para>
+		/// <para>Sends the event down to all window listeners and returns whether the window will close or not.</para>
 		/// </summary>
-		void handleWindowSizeChanged(const WindowEvent& p_event) override;
+		bool handleWindowClose(const WindowEvent& p_event) override;
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sends the event down to all window listeners.</para>
+		/// </summary>
+		void handleWindowMinimize(const WindowEvent& p_event) override;
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sends the event down to all window listeners.</para>
+		/// </summary>
+		void handleWindowMaximize(const WindowEvent& p_event) override;
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sends the event down to all window listeners.</para>
+		/// </summary>
+		void handleWindowRestore(const WindowEvent& p_event) override;
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Resizes the drawing context and updates the size of the GUI, as well as sends the event down to all window listeners.</para>
+		/// </summary>
+		void handleWindowSizeChange(const WindowEvent& p_event) override;
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sends the event down to all window listeners.</para>
+		/// </summary>
+		void handleWindowFocus(const WindowEvent& p_event) override;
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Sends the event down to all window listeners.</para>
+		/// </summary>
+		void handleWindowUnfocus(const WindowEvent& p_event) override;
 
 		//------------------------------
 
@@ -6404,22 +6562,64 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Invalidates a region of the GUI that has been changed, and therefore needs to be redrawn.</para>
+		/// <para>Adds a view to the animation update queue. Views that are in the animation update queue will be updated after a certain interval.</para>
+		/// <para>Do not use this method, because it is possible to add a view twice to the queue. Instead use queueAnimationUpdate() from the view.</para>
 		/// </summary>
-		void invalidateRectangle(const Rectangle<float>& p_rectangle);
-
+		/// <param name="p_view"></param>
+		void queueAnimationUpdateForView(View* p_view);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Draws a portion of the GUI. This method should only be called by the window. You cannot draw directly from the GUI by</para>
-		/// <para>overriding this method, you need to create a custom view and attach it to the GUI, which is simple :^).</para>
+		/// <para>Updates the animations of views which have been queued.</para>
 		/// </summary>
-		void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_rectangle);
+		void updateQueuedAnimations();
 
 		//------------------------------
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Runs the global window event loop.</para>
+		/// <para>Should only need to be used internally. This locks the animation thread mutex, so that the critical section in the animation thread</para>
+		/// <para>does not run until the mutex is unlocked again. (or the other way around)</para>
+		/// </summary>
+		void excludeAnimationThread()
+		{
+			m_animationThreadMutex.lock();
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Should only need to be used internally. This unlocks the animation thread mutex, so that the critical section in the animation thread</para>
+		/// <para>is allowed to run.</para>
+		/// </summary>
+		void includeAnimationThread()
+		{
+			m_animationThreadMutex.unlock();
+		}
+
+		//------------------------------
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Invalidates a part of the GUI that has been changed, and therefore needs to be redrawn.</para>
+		/// </summary>
+		void invalidateRectangle(Rectangle<float> p_rectangle);
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns whether the GUi has invalid rectangles or not.</para>
+		/// </summary>
+		bool getNeedsRedrawing()
+		{
+			return m_invalidRectangles.size();
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// Draws the invalid rectangles of the GUI. This method should only be called by the library. Use draw() to draw things directly on the GUI.
+		/// </summary>
+		void drawViews();
+
+		//------------------------------
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>This runs the global event loop.</para>
 		/// </summary>
 		static void run();
 	};
@@ -6512,7 +6712,7 @@ namespace AvoGUI
 	/// <para>A view that shows a ripple effect when you click it and optionally shows a hover effect when the mouse hovers over it.</para>
 	/// <para>It is a mouse event overlay which means views behind this view are targeted as if this view didn't exist.</para>
 	/// </summary>
-	class Ripple : public View, public ViewEventListener
+	class Ripple : public View, public ViewListener
 	{
 	private:
 		Color m_color;
@@ -6787,6 +6987,7 @@ namespace AvoGUI
 
 	public:
 		TextField(View* p_parent, Type p_type = Type::Filled, const char* p_labelString = "", float p_width = 120.f, float fontSize = 16.f);
+		~TextField();
 
 		//------------------------------
 
