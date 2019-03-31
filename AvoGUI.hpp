@@ -35,6 +35,7 @@
 #include <map>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 
 // For debugging.
 #include <iostream>
@@ -2787,7 +2788,7 @@ namespace AvoGUI
 		View* m_parent;
 		Theme* m_theme;
 
-		void sendSizeChangedEvents()
+		virtual void sendSizeChangeEvents()
 		{
 			m_hasSizeChangedSinceLastElevationChange = true;
 
@@ -3258,7 +3259,7 @@ namespace AvoGUI
 
 			if (hasSizeChanged)
 			{
-				sendSizeChangedEvents();
+				sendSizeChangeEvents();
 			}
 		}
 		/// <summary>
@@ -3283,7 +3284,7 @@ namespace AvoGUI
 
 			if (hasSizeChanged)
 			{
-				sendSizeChangedEvents();
+				sendSizeChangeEvents();
 			}
 		}
 		/// <summary>
@@ -3308,7 +3309,7 @@ namespace AvoGUI
 
 			if (hasSizeChanged)
 			{
-				sendSizeChangedEvents();
+				sendSizeChangeEvents();
 			}
 		}
 		/// <summary>
@@ -3333,7 +3334,7 @@ namespace AvoGUI
 
 			if (hasSizeChanged)
 			{
-				sendSizeChangedEvents();
+				sendSizeChangeEvents();
 			}
 		}
 		/// <summary>
@@ -3358,7 +3359,7 @@ namespace AvoGUI
 
 			if (hasSizeChanged)
 			{
-				sendSizeChangedEvents();
+				sendSizeChangeEvents();
 			}
 		}
 		/// <summary>
@@ -3383,7 +3384,7 @@ namespace AvoGUI
 
 			if (hasSizeChanged)
 			{
-				sendSizeChangedEvents();
+				sendSizeChangeEvents();
 			}
 		}
 		/// <summary>
@@ -3452,7 +3453,7 @@ namespace AvoGUI
 				m_bounds.setTopLeft(p_position, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3471,7 +3472,7 @@ namespace AvoGUI
 				moveAbsolutePositions(offsetX, offsetY);
 				if (!p_willKeepSize)
 				{
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3488,7 +3489,7 @@ namespace AvoGUI
 				m_bounds.setTopLeft(p_left, p_top, p_willKeepSize);
 				if (!p_willKeepSize)
 				{
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3507,7 +3508,7 @@ namespace AvoGUI
 				moveAbsolutePositions(offsetX, offsetY);
 				if (!p_willKeepSize)
 				{
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3546,7 +3547,7 @@ namespace AvoGUI
 				{
 					moveAbsolutePositions(0, p_position.y - m_bounds.top);
 					m_bounds.setTopRight(p_position, p_willKeepSize);
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3569,7 +3570,7 @@ namespace AvoGUI
 				else
 				{
 					moveAbsolutePositions(0, offsetY);
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3591,7 +3592,7 @@ namespace AvoGUI
 				{
 					moveAbsolutePositions(0, p_top - m_bounds.top);
 					m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3614,7 +3615,7 @@ namespace AvoGUI
 				else
 				{
 					moveAbsolutePositions(0, offsetY);
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3653,7 +3654,7 @@ namespace AvoGUI
 				{
 					moveAbsolutePositions(p_position.x - m_bounds.left, 0);
 					m_bounds.setBottomLeft(p_position, p_willKeepSize);
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3676,7 +3677,7 @@ namespace AvoGUI
 				else
 				{
 					moveAbsolutePositions(offsetX, 0);
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3698,7 +3699,7 @@ namespace AvoGUI
 				{
 					moveAbsolutePositions(p_left - m_bounds.left, 0);
 					m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3721,7 +3722,7 @@ namespace AvoGUI
 				else
 				{
 					moveAbsolutePositions(offsetX, 0);
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3759,7 +3760,7 @@ namespace AvoGUI
 				else
 				{
 					m_bounds.setBottomRight(p_position, p_willKeepSize);
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3782,7 +3783,7 @@ namespace AvoGUI
 				else
 				{
 					m_bounds.moveBottomRight(offsetX, offsetY);
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3803,7 +3804,7 @@ namespace AvoGUI
 				else
 				{
 					m_bounds.setBottomRight(p_right, p_bottom, p_willKeepSize);
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3826,7 +3827,7 @@ namespace AvoGUI
 				else
 				{
 					m_bounds.moveBottomRight(offsetX, offsetY);
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -3989,7 +3990,7 @@ namespace AvoGUI
 				m_bounds.setLeft(p_left, p_willKeepWidth);
 				if (!p_willKeepWidth)
 				{
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -4006,7 +4007,7 @@ namespace AvoGUI
 				moveAbsolutePositions(p_left - m_absolutePosition.x, 0);
 				if (!p_willKeepWidth)
 				{
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -4040,7 +4041,7 @@ namespace AvoGUI
 				m_bounds.setTop(p_top, p_willKeepHeight);
 				if (!p_willKeepHeight)
 				{
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -4057,7 +4058,7 @@ namespace AvoGUI
 				moveAbsolutePositions(0, p_top - m_absolutePosition.y);
 				if (!p_willKeepHeight)
 				{
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -4095,7 +4096,7 @@ namespace AvoGUI
 				else
 				{
 					m_bounds.setRight(p_right, p_willKeepWidth);
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -4117,7 +4118,7 @@ namespace AvoGUI
 				else 
 				{
 					m_bounds.right += offset;
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -4155,7 +4156,7 @@ namespace AvoGUI
 				else
 				{
 					m_bounds.setBottom(p_bottom, p_willKeepHeight);
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -4177,7 +4178,7 @@ namespace AvoGUI
 				else
 				{
 					m_bounds.bottom += offset;
-					sendSizeChangedEvents();
+					sendSizeChangeEvents();
 				}
 			}
 		}
@@ -4209,7 +4210,7 @@ namespace AvoGUI
 			if (p_width != m_bounds.right - m_bounds.left)
 			{
 				m_bounds.setWidth(p_width);
-				sendSizeChangedEvents();
+				sendSizeChangeEvents();
 			}
 		}
 		/// <summary>
@@ -4229,7 +4230,7 @@ namespace AvoGUI
 			if (p_height != m_bounds.bottom - m_bounds.top)
 			{
 				m_bounds.setHeight(p_height);
-				sendSizeChangedEvents();
+				sendSizeChangeEvents();
 			}
 		}
 		/// <summary>
@@ -4249,7 +4250,7 @@ namespace AvoGUI
 			if (p_size.x != m_bounds.right - m_bounds.left || p_size.y != m_bounds.bottom - m_bounds.top)
 			{
 				m_bounds.setSize(p_size);
-				sendSizeChangedEvents();
+				sendSizeChangeEvents();
 			}
 		}
 		/// <summary>
@@ -4261,7 +4262,7 @@ namespace AvoGUI
 			if (p_width != m_bounds.right - m_bounds.left || p_height != m_bounds.bottom - m_bounds.top)
 			{
 				m_bounds.setSize(p_width, p_height);
-				sendSizeChangedEvents();
+				sendSizeChangeEvents();
 			}
 		}
 		/// <summary>
@@ -4741,11 +4742,11 @@ namespace AvoGUI
 		/// </summary>
 		Window* window = 0;
 		/// <summary>
-		/// The new width of the window if it has changed size (includes restore/maximize events).
+		/// The new width of the window if it has changed size (includes sizeChange/maximize events).
 		/// </summary>
 		uint32_t width = 0U;
 		/// <summary>
-		/// The new height of the window if it has changed size (includes restore/maximize events).
+		/// The new height of the window if it has changed size (includes sizeChange/maximize events).
 		/// </summary>
 		uint32_t height = 0U;
 	};
@@ -4778,19 +4779,12 @@ namespace AvoGUI
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
 		virtual void handleWindowMaximize(const WindowEvent& p_event) { }
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a window has been restored so that it is shown again after being minimized in the taskbar.</para>
-		/// <para>The width and height properties of the event tell you the size of the window.</para>
-		/// </summary>
-		/// <param name="p_event">Object containing information about the event.</param>
-		virtual void handleWindowRestore(const WindowEvent& p_event) { }
 
 		/// <summary>
 		/// USER IMPLEMENTED
 		/// <para>Gets called when the size of a window has changed. This includes if it has been maximized,</para>
-		/// <para>restored or if the border has been dragged to resize it. The width and height properties of</para>
-		/// <para>the event tell you the new size of the window.</para>
+		/// <para>or if the border has been dragged to resize it. The width and height properties of the</para>
+		/// <para>event tell you the new size of the window.</para>
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
 		virtual void handleWindowSizeChange(const WindowEvent& p_event) { }
@@ -5481,7 +5475,8 @@ namespace AvoGUI
 	};
 
 	/// <summary>
-	/// Represents a text block which can be calculated once and drawn any number of times by a DrawingContext. Notice that this is not a view, but should be treated as a drawable object created by a DrawingContext.
+	/// <para>Represents a text block which can be calculated once and drawn any number of times by a DrawingContext.</para> 
+	/// <para>Notice that this is not a view, but should be treated as a drawable object created by a DrawingContext.</para>
 	/// </summary>
 	class Text : public ProtectedRectangle, public ReferenceCounted
 	{
@@ -5567,6 +5562,17 @@ namespace AvoGUI
 		/// Returns the spacing after one of the characters.
 		/// </summary>
 		virtual float getTrailingCharacterSpacing(int32_t p_characterIndex = 0) = 0;
+
+		//------------------------------
+
+		/// <summary>
+		/// Sets the distance between the baseline of lines in the text, as a factor of the default.
+		/// </summary>
+		virtual void setLineHeight(float p_lineHeight) = 0;
+		/// <summary>
+		/// Returns the distance between the baseline of lines in the text, as a factor of the default.
+		/// </summary>
+		virtual float getLineHeight() = 0;
 
 		//------------------------------
 
@@ -6291,8 +6297,9 @@ namespace AvoGUI
 		bool m_hasChangedSize;
 		Point<uint32_t> m_newSize; // Pending size change
 
+		std::recursive_mutex m_animationThreadMutex;
+		std::condition_variable_any m_animationThreadEventWaiter;
 		std::thread::id m_animationThreadID;
-		std::mutex m_animationThreadMutex;
 		bool m_hasAnimationLoopStarted;
 
 		//------------------------------
@@ -6311,6 +6318,20 @@ namespace AvoGUI
 
 		std::vector<KeyboardEventListener*> m_keyboardEventListeners;
 		KeyboardEventListener* m_keyboardFocus;
+
+		//------------------------------
+
+		void sendSizeChangeEvents() override
+		{
+			if ((uint32_t)getWidth() != m_window->getWidth() || (uint32_t)getHeight() != m_window->getHeight())
+			{
+				m_window->setSize(getSize()); // This will result in this method being called again.
+			}
+			else
+			{
+				View::sendSizeChangeEvents();
+			}
+		}
 
 	public:
 		GUI();
@@ -6376,11 +6397,6 @@ namespace AvoGUI
 		/// <para>Sends the event down to all window listeners.</para>
 		/// </summary>
 		void handleWindowMaximize(const WindowEvent& p_event) override;
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sends the event down to all window listeners.</para>
-		/// </summary>
-		void handleWindowRestore(const WindowEvent& p_event) override;
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Resizes the drawing context and updates the size of the GUI, as well as sends the event down to all window listeners.</para>
@@ -6575,6 +6591,24 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Waits until an event from the window occurs. This should only need to be used by the animation thread.</para>
+		/// </summary>
+		/// <param name="p_timeout">Maximum time to wait, in milliseconds</param>
+		void waitForNextEvent(uint32_t p_timeout)
+		{
+			std::unique_lock<std::recursive_mutex> lock(m_animationThreadMutex);
+			m_animationThreadEventWaiter.wait_for(lock, std::chrono::milliseconds(p_timeout));
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Notifies the event thread to let it know that a new event from the window has occurred. This should only need to be used by the window.</para>
+		/// </summary>
+		void notifyAnimationThreadAboutNewEvent()
+		{
+			m_animationThreadEventWaiter.notify_one();
+		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Should only need to be used internally. This locks the animation thread mutex, so that the critical section in the animation thread</para>
