@@ -3418,8 +3418,8 @@ namespace AvoGUI
 			m_targetWindowBitmap->Release();
 
 			// Resize buffers, creating new ones
-			HRESULT result = m_swapChain->ResizeBuffers(0, p_width, p_height, DXGI_FORMAT_UNKNOWN, 0);
-
+			m_swapChain->ResizeBuffers(0, p_width, p_height, DXGI_FORMAT_UNKNOWN, 0);
+			
 			// Get the new back buffer and create new bitmap connected to it
 			IDXGISurface* dxgiBackBuffer;
 			m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
@@ -3435,8 +3435,6 @@ namespace AvoGUI
 			dxgiBackBuffer->Release();
 
 			m_context->SetTarget(m_targetWindowBitmap);
-
-			return;
 		}
 
 		//------------------------------
@@ -4658,6 +4656,8 @@ namespace AvoGUI
 		m_bounds.set(0, 0, p_event.width, p_event.height);
 		sendSizeChangeEvents();
 		m_tooltip->hide();
+
+		m_invalidRectangles.clear();
 		invalidate();
 
 		for (auto listener : m_windowEventListeners)
@@ -4901,7 +4901,7 @@ namespace AvoGUI
 	{
 #ifdef _WIN32
 		void* event = new WindowsEvent(1000U, 0, (long long)p_view);
-		m_eventQueue.push_back(event);
+		m_eventQueue.push_front(event);
 #endif
 	}
 	void GUI::handleQueuedEvents()
@@ -4946,7 +4946,6 @@ namespace AvoGUI
 
 			m_eventQueue.pop_back();
 		}
-
 		m_animationThreadMutex.unlock();
 
 		if (lastResizeEvent)
@@ -4972,6 +4971,7 @@ namespace AvoGUI
 			}
 			delete lastResizeEvent;
 		}
+
 #endif
 	}
 
