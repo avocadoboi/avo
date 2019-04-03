@@ -6290,8 +6290,12 @@ namespace AvoGUI
 
 		//------------------------------
 
-		std::deque<void*> m_eventQueue; // Holds both events from the OS and library defined ones, like animation updates.
+		std::deque<View*> m_animationUpdateQueue;
 		std::vector<Rectangle<float>> m_invalidRectangles;
+		std::vector<Rectangle<float>> m_pendingInvalidRectangles;
+
+		bool m_hasChangedSize;
+		Point<uint32_t> m_newSize; // Pending size change
 
 		std::recursive_mutex m_animationThreadMutex;
 		std::condition_variable_any m_animationThreadEventWaiter;
@@ -6321,7 +6325,7 @@ namespace AvoGUI
 		{
 			if ((uint32_t)getWidth() != m_window->getWidth() || (uint32_t)getHeight() != m_window->getHeight())
 			{
-				m_window->setSize(getSize()); // This will result in this method being called again. Recursively on windows.
+				m_window->setSize(getSize()); // This will result in this method being called again.
 			}
 			else
 			{
@@ -6372,8 +6376,6 @@ namespace AvoGUI
 		View* getViewAt(float p_x, float p_y);
 
 		//------------------------------
-
-		void initializeAnimationLoop();
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
@@ -6581,21 +6583,11 @@ namespace AvoGUI
 		/// </summary>
 		/// <param name="p_view"></param>
 		void queueAnimationUpdateForView(View* p_view);
-
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Queues an event in the form of an OS-specific data structure, for the animation thread to handle. This should only need to be used by the window.</para>
+		/// <para>Updates the animations of views which have been queued.</para>
 		/// </summary>
-		void queueEvent(void* p_event)
-		{
-			m_eventQueue.push_front(p_event);
-		}
-
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Handles all currently queued events and empties the queue. Should only need to be called by the animation thread.</para>
-		/// </summary>
-		void handleQueuedEvents();
+		void updateQueuedAnimations();
 
 		//------------------------------
 
@@ -6617,7 +6609,6 @@ namespace AvoGUI
 		{
 			m_animationThreadEventWaiter.notify_one();
 		}
-
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Should only need to be used internally. This locks the animation thread mutex, so that the critical section in the animation thread</para>

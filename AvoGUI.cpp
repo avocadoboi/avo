@@ -579,38 +579,8 @@ namespace AvoGUI
 
 #pragma region Platform-specific window implementations
 #ifdef _WIN32
-	class WindowsWindow;
 
-	struct WindowsEvent
-	{
-		unsigned int message;
-		unsigned long long data_a;
-		long long data_b;
-		WindowsWindow* sender;
-
-		WindowsEvent(unsigned int p_message, unsigned long long p_data_a, long long p_data_b, WindowsWindow* p_sender = 0) :
-			message(p_message), data_a(p_data_a), data_b(p_data_b), sender(p_sender)
-		{ }
-	};
-
-	void runAnimationLoop(GUI* p_gui)
-	{
-		HWND windowHandle = (HWND)p_gui->getWindow()->getWindowHandle();
-
-		while (p_gui->getWindow()->getIsOpen())
-		{
-			p_gui->handleQueuedEvents();
-
-			if (p_gui->getNeedsRedrawing())
-			{
-				p_gui->drawViews(); // Drawing is synced to the refresh rate of the monitor.
-			}
-			else
-			{
-				p_gui->waitForNextEvent(17U);
-			}
-		}
-	}
+	void runAnimationLoop(GUI* p_gui);
 
 	class WindowsWindow : public Window
 	{
@@ -1620,22 +1590,37 @@ namespace AvoGUI
 			{
 				m_isOpen = true;
 
-				WindowsEvent* event = new WindowsEvent(WM_CREATE, 0, 0, this);
-				m_GUI->queueEvent(event);
+				WindowEvent windowEvent;
+				windowEvent.window = this;
+				m_GUI->handleWindowCreate(windowEvent);
 
 				return true;
 			}
 			case WM_SIZE:
 			{
-				m_size.set(p_data_b & 0xffff, p_data_b >> 16 & 0xffff);
-
 				m_GUI->excludeAnimationThread();
-				WindowsEvent* event = new WindowsEvent(WM_SIZE, p_data_a, p_data_b, this);
-				m_GUI->queueEvent(event);
+				WindowEvent windowEvent;
+				windowEvent.window = this;
+				if (p_data_a == SIZE_MINIMIZED)
+				{
+					m_GUI->handleWindowMinimize(windowEvent);
+				}
+				else
+				{
+					uint32_t width = p_data_b & 0xffff;
+					uint32_t height = p_data_b >> 16 & 0xffff;
+					m_size.set(width, height);
+					windowEvent.width = width;
+					windowEvent.height = height;
+
+					if (p_data_a == SIZE_MAXIMIZED)
+					{
+						m_GUI->handleWindowMaximize(windowEvent);
+					}
+					m_GUI->handleWindowSizeChange(windowEvent);
+				}
 				m_GUI->includeAnimationThread();
 				m_GUI->notifyAnimationThreadAboutNewEvent();
-
-				m_GUI->initializeAnimationLoop();
 
 				return true;
 			}
@@ -4429,6 +4414,27 @@ namespace AvoGUI
 	FontFileLoader* WindowsDrawingContext::s_fontFileLoader = 0;
 	IWICImagingFactory2* WindowsDrawingContext::s_imagingFactory = 0;
 
+	void runAnimationLoop(GUI* p_gui)
+	{
+		HWND windowHandle = (HWND)p_gui->getWindow()->getWindowHandle();
+
+		while (p_gui->getWindow()->getIsOpen())
+		{
+			p_gui->excludeAnimationThread();
+			p_gui->updateQueuedAnimations();
+			p_gui->includeAnimationThread();
+
+			if (p_gui->getNeedsRedrawing())
+			{
+				p_gui->drawViews(); // Drawing is synced to the refresh rate of the monitor.
+			}
+			else
+			{
+				p_gui->waitForNextEvent(17U);
+			}
+		}
+	}
+
 #endif
 #pragma endregion
 
@@ -4595,18 +4601,6 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void GUI::initializeAnimationLoop()
-	{
-		if (!m_hasAnimationLoopStarted)
-		{
-			m_hasAnimationLoopStarted = true;
-
-			std::thread animationThread(runAnimationLoop, this);
-			m_animationThreadID = animationThread.get_id();
-			animationThread.detach();
-		}
-	}
-
 	void GUI::handleWindowCreate(const WindowEvent& p_event)
 	{
 #ifdef _WIN32
@@ -4616,8 +4610,6 @@ namespace AvoGUI
 		}
 		m_drawingContext = new WindowsDrawingContext(m_window);
 #endif
-
-		createContent();
 
 		for (auto listener : m_windowEventListeners)
 		{
@@ -4652,6 +4644,7 @@ namespace AvoGUI
 	}
 	void GUI::handleWindowSizeChange(const WindowEvent& p_event)
 	{
+<<<<<<< HEAD
 		m_drawingContext->setSize(p_event.width, p_event.height);
 		m_bounds.set(0, 0, p_event.width, p_event.height);
 		sendSizeChangeEvents();
@@ -4659,10 +4652,25 @@ namespace AvoGUI
 
 		m_invalidRectangles.clear();
 		invalidate();
+=======
+		m_newSize.set(p_event.width, p_event.height);
+		m_hasChangedSize = true;
+>>>>>>> parent of cb647ca... Still trying to improve the animation system
 
 		for (auto listener : m_windowEventListeners)
 		{
 			listener->handleWindowSizeChange(p_event);
+		}
+
+		if (!m_hasAnimationLoopStarted)
+		{
+			m_hasAnimationLoopStarted = true;
+
+			createContent(); // This call may cause this handleWindowSizeChange to be called again if the user resizes the window in createContent.
+
+			std::thread animationThread(runAnimationLoop, this);
+			m_animationThreadID = animationThread.get_id();
+			animationThread.detach();
 		}
 	}
 	void GUI::handleWindowFocus(const WindowEvent& p_event)
@@ -4899,138 +4907,125 @@ namespace AvoGUI
 
 	void GUI::queueAnimationUpdateForView(View* p_view)
 	{
+<<<<<<< HEAD
 #ifdef _WIN32
 		void* event = new WindowsEvent(1000U, 0, (long long)p_view);
 		m_eventQueue.push_front(event);
 #endif
+=======
+		m_animationUpdateQueue.push_back(p_view);
+>>>>>>> parent of cb647ca... Still trying to improve the animation system
 	}
-	void GUI::handleQueuedEvents()
+	void GUI::updateQueuedAnimations()
 	{
-#ifdef _WIN32
-		WindowsEvent* lastResizeEvent = 0;
-
-		m_animationThreadMutex.lock();
-		uint32_t numberOfEventsToProcess = m_eventQueue.size();
-		for (uint32_t a = 0; a < numberOfEventsToProcess; a++)
+		if (m_hasChangedSize)
 		{
-			WindowsEvent* windowsEvent = (WindowsEvent*)m_eventQueue.back();
+			m_drawingContext->setSize(m_newSize);
 
-			switch (windowsEvent->message)
-			{
-			case 1000U:
-			{
-				View* view = (View*)windowsEvent->data_b;
-				view->informAboutAnimationUpdateQueueRemoval();
-				view->updateAnimations();
-				delete windowsEvent;
-				break;
-			}
-			case WM_CREATE:
-			{
-				WindowEvent event;
-				event.window = windowsEvent->sender;
-				handleWindowCreate(event);
-				delete windowsEvent;
-				break;
-			}
-			case WM_SIZE:
-			{
-				if (lastResizeEvent)
-				{
-					delete lastResizeEvent;
-				}
-				lastResizeEvent = windowsEvent;
-				break;
-			}
-			}
+			m_bounds.set(0, 0, m_newSize.x, m_newSize.y);
+			sendSizeChangeEvents();
+			m_tooltip->hide();
 
-			m_eventQueue.pop_back();
+			m_pendingInvalidRectangles.clear();
+			m_hasChangedSize = false;
+			invalidate();
+			m_hasChangedSize = true;
 		}
+<<<<<<< HEAD
 		m_animationThreadMutex.unlock();
 
 		if (lastResizeEvent)
-		{
-			WindowEvent event;
-			event.window = lastResizeEvent->sender;
-			if (lastResizeEvent->data_a == SIZE_MINIMIZED)
-			{
-				handleWindowMinimize(event);
-			}
-			else
-			{
-				uint32_t width = lastResizeEvent->data_b & 0xffff;
-				uint32_t height = lastResizeEvent->data_b >> 16 & 0xffff;
-				event.width = width;
-				event.height = height;
+=======
 
-				if (lastResizeEvent->data_a == SIZE_MAXIMIZED)
-				{
-					handleWindowMaximize(event);
-				}
-				handleWindowSizeChange(event);
-			}
-			delete lastResizeEvent;
+		uint32_t sizeBefore = m_animationUpdateQueue.size();
+		for (uint32_t a = 0; a < sizeBefore; a++)
+>>>>>>> parent of cb647ca... Still trying to improve the animation system
+		{
+			m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval(); // We do this before updateAnimation() because it should be able to queue the next animation update.
+			m_animationUpdateQueue.front()->updateAnimations();
+			m_animationUpdateQueue.pop_front();
 		}
 
+		for (uint32_t a = 0; a < m_pendingInvalidRectangles.size(); a++)
+		{
+			invalidateRectangle(m_pendingInvalidRectangles[a]);
+		}
+<<<<<<< HEAD
+
 #endif
+=======
+		m_pendingInvalidRectangles.clear();
+
+		m_hasChangedSize = false;
+>>>>>>> parent of cb647ca... Still trying to improve the animation system
 	}
 
 	//------------------------------
 
 	void GUI::invalidateRectangle(Rectangle<float> p_rectangle)
 	{
-		p_rectangle.bound(m_bounds);
-			
-		int32_t rectangleIndex = -1;
-		Rectangle<float>* rectangle = 0;
+		if (m_hasChangedSize) return; // No invalidation is needed if the GUI window has been resized. Just a small optimization, works without it.
 
-		bool willAdd = true;
-		bool isDone = false;
-		while (!isDone)
+		std::thread::id id = std::this_thread::get_id();
+		if (std::this_thread::get_id() == m_animationThreadID)
 		{
-			if (rectangle)
+			p_rectangle.bound(m_bounds);
+			
+			int32_t rectangleIndex = -1;
+			Rectangle<float>* rectangle = 0;
+
+			bool willAdd = true;
+			bool isDone = false;
+			while (!isDone)
 			{
-				isDone = true;
-				for (uint32_t a = 0; a < m_invalidRectangles.size(); a++)
+				if (rectangle)
 				{
-					if (a != rectangleIndex)
+					isDone = true;
+					for (uint32_t a = 0; a < m_invalidRectangles.size(); a++)
 					{
-						if (m_invalidRectangles[a].getIsIntersecting(*rectangle))
+						if (a != rectangleIndex)
 						{
-							m_invalidRectangles[a].contain(*rectangle);
-							m_invalidRectangles.erase(m_invalidRectangles.begin() + rectangleIndex);
-							if (rectangleIndex < a)
+							if (m_invalidRectangles[a].getIsIntersecting(*rectangle))
 							{
-								a--;
+								m_invalidRectangles[a].contain(*rectangle);
+								m_invalidRectangles.erase(m_invalidRectangles.begin() + rectangleIndex);
+								if (rectangleIndex < a)
+								{
+									a--;
+								}
+								rectangle = &m_invalidRectangles[a];
+								rectangleIndex = a;
+								isDone = false;
+								break;
 							}
-							rectangle = &m_invalidRectangles[a];
+						}
+					}
+				}
+				else
+				{
+					isDone = true;
+					for (uint32_t a = 0; a < m_invalidRectangles.size(); a++)
+					{
+						if (m_invalidRectangles[a].getIsIntersecting(p_rectangle))
+						{
 							rectangleIndex = a;
+							rectangle = m_invalidRectangles.data() + a;
+							rectangle->contain(p_rectangle);
+							willAdd = false;
 							isDone = false;
 							break;
 						}
 					}
 				}
 			}
-			else
+			if (willAdd)
 			{
-				isDone = true;
-				for (uint32_t a = 0; a < m_invalidRectangles.size(); a++)
-				{
-					if (m_invalidRectangles[a].getIsIntersecting(p_rectangle))
-					{
-						rectangleIndex = a;
-						rectangle = m_invalidRectangles.data() + a;
-						rectangle->contain(p_rectangle);
-						willAdd = false;
-						isDone = false;
-						break;
-					}
-				}
+				m_invalidRectangles.push_back(p_rectangle);
 			}
 		}
-		if (willAdd)
+		else
 		{
-			m_invalidRectangles.push_back(p_rectangle);
+			m_pendingInvalidRectangles.push_back(p_rectangle);
 		}
 	}
 
