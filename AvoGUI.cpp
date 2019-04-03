@@ -4644,18 +4644,8 @@ namespace AvoGUI
 	}
 	void GUI::handleWindowSizeChange(const WindowEvent& p_event)
 	{
-<<<<<<< HEAD
-		m_drawingContext->setSize(p_event.width, p_event.height);
-		m_bounds.set(0, 0, p_event.width, p_event.height);
-		sendSizeChangeEvents();
-		m_tooltip->hide();
-
-		m_invalidRectangles.clear();
-		invalidate();
-=======
 		m_newSize.set(p_event.width, p_event.height);
 		m_hasChangedSize = true;
->>>>>>> parent of cb647ca... Still trying to improve the animation system
 
 		for (auto listener : m_windowEventListeners)
 		{
@@ -4907,14 +4897,7 @@ namespace AvoGUI
 
 	void GUI::queueAnimationUpdateForView(View* p_view)
 	{
-<<<<<<< HEAD
-#ifdef _WIN32
-		void* event = new WindowsEvent(1000U, 0, (long long)p_view);
-		m_eventQueue.push_front(event);
-#endif
-=======
 		m_animationUpdateQueue.push_back(p_view);
->>>>>>> parent of cb647ca... Still trying to improve the animation system
 	}
 	void GUI::updateQueuedAnimations()
 	{
@@ -4931,15 +4914,9 @@ namespace AvoGUI
 			invalidate();
 			m_hasChangedSize = true;
 		}
-<<<<<<< HEAD
-		m_animationThreadMutex.unlock();
-
-		if (lastResizeEvent)
-=======
 
 		uint32_t sizeBefore = m_animationUpdateQueue.size();
 		for (uint32_t a = 0; a < sizeBefore; a++)
->>>>>>> parent of cb647ca... Still trying to improve the animation system
 		{
 			m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval(); // We do this before updateAnimation() because it should be able to queue the next animation update.
 			m_animationUpdateQueue.front()->updateAnimations();
@@ -4950,14 +4927,9 @@ namespace AvoGUI
 		{
 			invalidateRectangle(m_pendingInvalidRectangles[a]);
 		}
-<<<<<<< HEAD
-
-#endif
-=======
 		m_pendingInvalidRectangles.clear();
 
 		m_hasChangedSize = false;
->>>>>>> parent of cb647ca... Still trying to improve the animation system
 	}
 
 	//------------------------------
