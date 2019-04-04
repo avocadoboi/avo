@@ -5318,6 +5318,15 @@ namespace AvoGUI
 	};
 
 	/// <summary>
+	/// This specifies how the pixels of an image are interpolated when it is scaled.
+	/// </summary>
+	enum class ImageScalingMethod
+	{
+		Pixelated, // Uses nearest neighbor interpolation
+		Smooth // Uses linear interpolation
+	};
+
+	/// <summary>
 	/// Represents an image on the GPU which can be created and drawn by a DrawingContext. Notice that this is not a view but should be treated as a drawable object.
 	/// </summary>
 	class Image : public ReferenceCounted, public ProtectedRectangle
@@ -5400,6 +5409,17 @@ namespace AvoGUI
 		/// Returns the way the image is positioned within its bounds on the y-axis. See setBoundsPositioning for more info.
 		/// </summary>
 		virtual float getBoundsPositioningY() const = 0;
+
+		//------------------------------
+
+		/// <summary>
+		/// Sets how the pixels of the image are interpolated when the image is scaled.
+		/// </summary>
+		virtual void setScalingMethod(ImageScalingMethod p_scalingMethod) = 0;
+		/// <summary>
+		/// Returns how the pixels of the image are interpolated when the image is scaled.
+		/// </summary>
+		virtual ImageScalingMethod getScalingMethod() const = 0;
 
 		//------------------------------
 

@@ -2012,6 +2012,7 @@ namespace AvoGUI
 	private:
 		ID2D1Bitmap* m_image;
 
+		ImageScalingMethod m_scalingMethod;
 		ImageBoundsSizing m_boundsSizing;
 		Point<float> m_boundsPositioning;
 
@@ -2020,8 +2021,8 @@ namespace AvoGUI
 
 	public:
 		WindowsImage(ID2D1Bitmap* p_image) :
-			m_image(p_image), m_boundsSizing(ImageBoundsSizing::Stretch), m_boundsPositioning(0.5f, 0.5f),
-			m_cropRectangle(0.f, 0.f, p_image->GetSize().width, p_image->GetSize().height),
+			m_image(p_image), m_scalingMethod(ImageScalingMethod::Smooth), m_boundsSizing(ImageBoundsSizing::Stretch),
+			m_boundsPositioning(0.5f, 0.5f), m_cropRectangle(0.f, 0.f, p_image->GetSize().width, p_image->GetSize().height),
 			m_opacity(1.f)
 		{
 			m_bounds = m_cropRectangle;
@@ -2089,6 +2090,17 @@ namespace AvoGUI
 		float getBoundsPositioningY() const override
 		{
 			return m_boundsPositioning.x;
+		}
+
+		//------------------------------
+
+		void setScalingMethod(ImageScalingMethod p_scalingMethod) override
+		{
+			m_scalingMethod = p_scalingMethod;
+		}
+		ImageScalingMethod getScalingMethod() const override
+		{
+			return m_scalingMethod;
 		}
 
 		//------------------------------
@@ -4286,7 +4298,7 @@ namespace AvoGUI
 				(ID2D1Bitmap*)p_image->getHandle(),
 				D2D1::RectF(left, top, left + width, top + height),
 				p_image->getOpacity(),
-				D2D1_BITMAP_INTERPOLATION_MODE::D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
+				p_image->getScalingMethod() == ImageScalingMethod::Pixelated ? D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR : D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
 				D2D1::RectF(cropRectangle.left, cropRectangle.top, cropRectangle.right, cropRectangle.bottom)
 			);
 		}
