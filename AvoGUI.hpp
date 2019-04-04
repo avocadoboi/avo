@@ -163,9 +163,8 @@ namespace AvoGUI
 
 	/// <summary>
 	/// <para>Converts a const char* string to a wchar* string.</para>
-	/// <para>Remember to delete[] the result when you're done!</para>
 	/// </summary>
-	wchar_t* widenString(const char* p_string);
+	void widenString(const char* p_string, wchar_t* p_result, uint32_t p_numberOfCharactersInResult);
 
 	//------------------------------
 

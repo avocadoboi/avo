@@ -44,14 +44,11 @@ namespace AvoGUI
 
 	//------------------------------
 
-	wchar_t* widenString(const char* p_string)
+	void widenString(const char* p_string, wchar_t* p_result, uint32_t p_numberOfCharactersInResult)
 	{
 #ifdef _WIN32
 		int32_t numberOfCharacters = MultiByteToWideChar(CP_ACP, 0, p_string, -1, 0, 0);
-		wchar_t* wideString = new wchar_t[numberOfCharacters];
-		MultiByteToWideChar(CP_ACP, 0, p_string, -1, wideString, numberOfCharacters);
-
-		return wideString;
+		MultiByteToWideChar(CP_ACP, 0, p_string, -1, p_result, p_numberOfCharactersInResult);
 #endif
 	}
 
@@ -2586,11 +2583,11 @@ namespace AvoGUI
 
 		void setFontFamily(const char* p_name, int32_t p_startPosition, int32_t p_length) override
 		{
-			wchar_t* wideName = widenString(p_name);
+			wchar_t wideName[100];
+			widenString(p_name, wideName, 100);
 
 			m_handle->SetFontFamilyName(wideName, createTextRange(p_startPosition, p_length));
 
-			delete[] wideName;
 		}
 
 		//------------------------------
@@ -4228,12 +4225,11 @@ namespace AvoGUI
 		}
 		Image* createImage(const char* p_filePath) override
 		{
-			wchar_t* wideFilePath = widenString(p_filePath);
+			wchar_t wideFilePath[100];
+			widenString(p_filePath, wideFilePath, 100);
 
 			IWICBitmapDecoder* decoder = 0;
 			s_imagingFactory->CreateDecoderFromFilename(wideFilePath, 0, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &decoder);
-
-			delete[] wideFilePath;
 
 			IWICBitmapFrameDecode* frame = 0;
 			decoder->GetFrame(0, &frame);
@@ -4322,8 +4318,10 @@ namespace AvoGUI
 
 		void setDefaultTextProperties(const TextProperties& p_textProperties) override
 		{
-			wchar_t* fontFamily = widenString(p_textProperties.fontFamilyName);
-			wchar_t* fontLocale = widenString(p_textProperties.fontLocaleName);
+			wchar_t fontFamily[100];
+			widenString(p_textProperties.fontFamilyName, fontFamily, 100);
+			wchar_t fontLocale[100];
+			widenString(p_textProperties.fontLocaleName, fontLocale, 100);
 
 			DWRITE_FONT_STYLE fontStyle = DWRITE_FONT_STYLE_NORMAL;
 			if (p_textProperties.fontStyle == FontStyle::Italic)
@@ -4357,9 +4355,6 @@ namespace AvoGUI
 			}
 
 			m_textProperties = p_textProperties;
-
-			delete[] fontLocale;
-			delete[] fontFamily;
 		}
 		TextProperties getDefaultTextProperties() override
 		{
