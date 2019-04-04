@@ -2,35 +2,99 @@
 
 //------------------------------
 
+float const BACKGROUND_TILE_WIDTH = 30.f;
+float const ANIMATION_SPEED = 0.2f;
+
+//------------------------------
+
 class ImageViewer : public AvoGUI::GUI
 {
 private:
 	AvoGUI::Image* m_image;
 	const char* m_filePath;
 
+	AvoGUI::Rectangle<float> m_targetImageBounds;
+
 public:
 	ImageViewer(const char* p_filePath) : 
 		m_filePath(p_filePath)
 	{
 		create("Image viewer", 600U, 500U, AvoGUI::WindowStyleFlags::Default);
+		enableMouseEvents();
+		queueAnimationUpdate();
 	}
 
 	//------------------------------
 
 	void createContent() override
 	{
+		m_theme->colors["background"] = AvoGUI::Color(0.3f);
+
 		m_image = getDrawingContext()->createImage(m_filePath);
+		m_image->setCenter(getCenter());
+		m_targetImageBounds = m_image->getBounds();
 	}
 
 	void handleSizeChange() override
 	{
-		m_image->setCenter(getCenter());
+		m_targetImageBounds.setCenter(getCenter());
+	}
+
+	//------------------------------
+
+	void handleMouseScroll(const AvoGUI::MouseEvent& p_event) override
+	{
+		float factor = 1.f;
+		if (p_event.scrollDelta > 0.f)
+		{
+			factor = 1.f + p_event.scrollDelta*0.1f;
+		}
+		else
+		{
+			factor = 1.f / (1.f - p_event.scrollDelta*0.1f);
+		}
+		m_targetImageBounds.setSize(m_targetImageBounds.getSize()*factor);
+		if (m_targetImageBounds.getWidth() > getWidth() || m_targetImageBounds.getHeight() > getHeight())
+		{
+			m_targetImageBounds.move((p_event.x - m_targetImageBounds.left)*(1.f - factor), (p_event.y - m_targetImageBounds.top)*(1.f - factor));
+		}
+		else
+		{
+			m_targetImageBounds.setCenter(getCenter());
+		}
+	}
+	void handleMouseMove(const AvoGUI::MouseEvent& p_event) override
+	{
+		if (p_event.modifierKeys == AvoGUI::ModifierKeyFlags::LeftMouse)
+		{
+			m_targetImageBounds.move(p_event.movementX, p_event.movementY);
+		}
+	}
+
+	void updateAnimations() override
+	{
+		m_image->setBounds(
+			m_image->getLeft() + (m_targetImageBounds.left - m_image->getLeft())*ANIMATION_SPEED,
+			m_image->getTop() + (m_targetImageBounds.top - m_image->getTop())*ANIMATION_SPEED,
+			m_image->getRight() + (m_targetImageBounds.right - m_image->getRight())*ANIMATION_SPEED,
+			m_image->getBottom() + (m_targetImageBounds.bottom - m_image->getBottom())*ANIMATION_SPEED
+		);
+		invalidate();
+		queueAnimationUpdate();
 	}
 
 	//------------------------------
 
 	void draw(AvoGUI::DrawingContext* p_context) override
 	{
+		for (uint32_t a = 0; a < ceil(getWidth() / BACKGROUND_TILE_WIDTH); a++)
+		{
+			for (uint32_t b = a & 1; b < ceil(getHeight() / BACKGROUND_TILE_WIDTH); b += 2)
+			{
+				p_context->setColor(AvoGUI::Color(0.7f));
+				p_context->fillRectangle(AvoGUI::Point<float>(a*BACKGROUND_TILE_WIDTH, b*BACKGROUND_TILE_WIDTH), AvoGUI::Point<float>(BACKGROUND_TILE_WIDTH, BACKGROUND_TILE_WIDTH));
+			}
+		}
 		p_context->drawImage(m_image);
 	}
 };

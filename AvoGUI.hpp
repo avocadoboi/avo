@@ -4604,6 +4604,7 @@ namespace AvoGUI
 		
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
+		/// <para>By default, mouse events are disabled.</para>
 		/// </summary>
 		virtual void enableMouseEvents();
 		/// <summary>
