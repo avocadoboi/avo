@@ -3655,6 +3655,67 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void strokeShape(Point<float> const* p_vertices, uint32_t p_numberOfVertices, float p_lineThickness, bool p_isClosed) override
+		{
+			if (!p_numberOfVertices) return;
+
+			ID2D1PathGeometry1* path;
+			s_direct2DFactory->CreatePathGeometry(&path);
+			ID2D1GeometrySink* sink;
+			path->Open(&sink);
+
+			sink->BeginFigure(D2D1::Point2F(p_vertices[0].x, p_vertices[0].y), D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_HOLLOW);
+			for (uint32_t a = 1; a < p_numberOfVertices; a++)
+			{
+				sink->AddLine(D2D1::Point2F(p_vertices[a].x, p_vertices[a].y));
+			}
+			sink->EndFigure(p_isClosed ? D2D1_FIGURE_END::D2D1_FIGURE_END_CLOSED : D2D1_FIGURE_END::D2D1_FIGURE_END_OPEN);
+
+			sink->Close();
+
+			ID2D1StrokeStyle* strokeStyle;
+			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
+			m_context->DrawGeometry(path, m_solidColorBrush, p_lineThickness, strokeStyle);
+			strokeStyle->Release();
+
+			sink->Release();
+			path->Release();
+		}
+		void strokeShape(const std::vector<Point<float>>& p_vertices, float p_lineThickness, bool p_isClosed) override
+		{
+			strokeShape(p_vertices.data(), p_vertices.size(), p_lineThickness, p_isClosed);
+		}
+
+		void fillShape(Point<float> const* p_vertices, uint32_t p_numberOfVertices) override
+		{
+			if (!p_numberOfVertices) return;
+
+			ID2D1PathGeometry1* path;
+			s_direct2DFactory->CreatePathGeometry(&path);
+			ID2D1GeometrySink* sink;
+			path->Open(&sink);
+
+			sink->BeginFigure(D2D1::Point2F(p_vertices[0].x, p_vertices[0].y), D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_FILLED);
+			for (uint32_t a = 1; a < p_numberOfVertices; a++)
+			{
+				sink->AddLine(D2D1::Point2F(p_vertices[a].x, p_vertices[a].y));
+			}
+			sink->EndFigure(D2D1_FIGURE_END::D2D1_FIGURE_END_CLOSED);
+
+			sink->Close();
+
+			m_context->FillGeometry(path, m_solidColorBrush);
+
+			sink->Release();
+			path->Release();
+		}
+		void fillShape(const std::vector<Point<float>>& p_vertices) override
+		{
+			fillShape(p_vertices.data(), p_vertices.size());
+		}
+
+		//------------------------------
+
 		void setLineCap(LineCap p_lineCap) override
 		{
 			switch (p_lineCap)

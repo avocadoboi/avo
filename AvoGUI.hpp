@@ -6066,6 +6066,35 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// Draws the edge of a custom shape.
+		/// </summary>
+		/// <param name="p_vertices">The points that make up the shape.</param>
+		/// <param name="p_lineThickness">How thicc the edges of the shape are.</param>
+		/// <param name="p_isClosed">Whether the last vertex will be connected to the first one to close the shape.</param>
+		virtual void strokeShape(const std::vector<Point<float>>& p_vertices, float p_lineThickness, bool p_isClosed = false) = 0;
+		/// <summary>
+		/// Draws the edge of a custom shape.
+		/// </summary>
+		/// <param name="p_vertices">An array of points that make up the shape.</param>
+		/// <param name="p_numberOfVertices">The number of points that make up the shape.</param>
+		/// <param name="p_lineThickness">How thicc the edges of the shape are.</param>
+		/// <param name="p_isClosed">Whether the last vertex will be connected to the first one to close the shape.</param>
+		virtual void strokeShape(Point<float> const* p_vertices, uint32_t p_numberOfVertices, float p_lineThickness, bool p_isClosed = false) = 0;
+		/// <summary>
+		/// Fills a custom shape with the current color.
+		/// </summary>
+		/// <param name="p_shape">The points that make up the shape.</param>
+		virtual void fillShape(const std::vector<Point<float>>& p_vertices) = 0;
+		/// <summary>
+		/// Fills a custom shape with the current color.
+		/// </summary>
+		/// <param name="p_vertices">An array of points that make up the shape.</param>
+		/// <param name="p_numberOfVertices">The number of points that make up the shape.</param>
+		virtual void fillShape(Point<float> const* p_vertices, uint32_t p_numberOfVertices) = 0;
+
+		//------------------------------
+
+		/// <summary>
 		/// Changes the way both start- and endpoints of lines are drawn.
 		/// </summary>
 		virtual void setLineCap(LineCap p_lineCap) = 0;
