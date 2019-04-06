@@ -108,8 +108,15 @@ namespace AvoGUI
 	/// Returns a value between p_start and p_end depending on p_progress. This is linear interpolation.
 	/// <param name="p_progress">If this is below 0 or above 1, the returned value will not be within the start and end position.</param>
 	/// </summary>
-	template<typename Type>
-	Type interpolate(Type p_start, Type p_end, double p_progress)
+	inline float interpolate(float p_start, float p_end, float p_progress)
+	{
+		return p_start * (1.0 - p_progress) + p_end * p_progress;
+	}
+	/// <summary>
+	/// Returns a value between p_start and p_end depending on p_progress. This is linear interpolation.
+	/// <param name="p_progress">If this is below 0 or above 1, the returned value will not be within the start and end position.</param>
+	/// </summary>
+	inline double interpolate(double p_start, double p_end, double p_progress)
 	{
 		return p_start * (1.0 - p_progress) + p_end * p_progress;
 	}
@@ -2335,301 +2342,311 @@ namespace AvoGUI
 		}
 	};
 
+	inline Color interpolate(const Color& p_start, const Color& p_end, float p_progress)
+	{
+		return Color(
+			p_start.red * (1.f - p_progress) + p_end.red*p_progress, 
+			p_start.green * (1.f - p_progress) + p_end.green*p_progress, 
+			p_start.blue * (1.f - p_progress) + p_end.blue*p_progress, 
+			p_start.alpha * (1.f - p_progress) + p_end.alpha*p_progress
+		);
+	}
+
 	//
 	// Material design 2014 colors
 	//
 
 	colorInt const
-		COLOR_RED_50 = 0xFFEBEE,
-		COLOR_RED_100 = 0xFFCDD2,
-		COLOR_RED_200 = 0xEF9A9A,
-		COLOR_RED_300 = 0xE57373,
-		COLOR_RED_400 = 0xEF5350,
-		COLOR_RED_500 = 0xF44336,
-		COLOR_RED_600 = 0xE53935,
-		COLOR_RED_700 = 0xD32F2F,
-		COLOR_RED_800 = 0xC62828,
-		COLOR_RED_900 = 0xB71C1C,
-		COLOR_RED_A100 = 0xFF8A80,
-		COLOR_RED_A200 = 0xFF5252,
-		COLOR_RED_A400 = 0xFF1744,
-		COLOR_RED_A700 = 0xD50000;
+		COLOR_RED_50 = 0xFFFFEBEE,
+		COLOR_RED_100 = 0xFFFFCDD2,
+		COLOR_RED_200 = 0xFFEF9A9A,
+		COLOR_RED_300 = 0xFFE57373,
+		COLOR_RED_400 = 0xFFEF5350,
+		COLOR_RED_500 = 0xFFF44336,
+		COLOR_RED_600 = 0xFFE53935,
+		COLOR_RED_700 = 0xFFD32F2F,
+		COLOR_RED_800 = 0xFFC62828,
+		COLOR_RED_900 = 0xFFB71C1C,
+		COLOR_RED_A100 = 0xFFFF8A80,
+		COLOR_RED_A200 = 0xFFFF5252,
+		COLOR_RED_A400 = 0xFFFF1744,
+		COLOR_RED_A700 = 0xFFD50000;
 
 	colorInt const
-		COLOR_PINK_50 = 0xFCE4EC,
-		COLOR_PINK_100 = 0xF8BBD0,
-		COLOR_PINK_200 = 0xF48FB1,
-		COLOR_PINK_300 = 0xF06292,
-		COLOR_PINK_400 = 0xEC407A,
-		COLOR_PINK_500 = 0xE91E63,
-		COLOR_PINK_600 = 0xD81B60,
-		COLOR_PINK_700 = 0xC2185B,
-		COLOR_PINK_800 = 0xAD1457,
-		COLOR_PINK_900 = 0x880E4F,
-		COLOR_PINK_A100 = 0xFF80AB,
-		COLOR_PINK_A200 = 0xFF4081,
-		COLOR_PINK_A400 = 0xF50057,
-		COLOR_PINK_A700 = 0xC51162;
+		COLOR_PINK_50 = 0xFFFCE4EC,
+		COLOR_PINK_100 = 0xFFF8BBD0,
+		COLOR_PINK_200 = 0xFFF48FB1,
+		COLOR_PINK_300 = 0xFFF06292,
+		COLOR_PINK_400 = 0xFFEC407A,
+		COLOR_PINK_500 = 0xFFE91E63,
+		COLOR_PINK_600 = 0xFFD81B60,
+		COLOR_PINK_700 = 0xFFC2185B,
+		COLOR_PINK_800 = 0xFFAD1457,
+		COLOR_PINK_900 = 0xFF880E4F,
+		COLOR_PINK_A100 = 0xFFFF80AB,
+		COLOR_PINK_A200 = 0xFFFF4081,
+		COLOR_PINK_A400 = 0xFFF50057,
+		COLOR_PINK_A700 = 0xFFC51162;
 
 	colorInt const
-		COLOR_PURPLE_50 = 0xF3E5F5,
-		COLOR_PURPLE_100 = 0xE1BEE7,
-		COLOR_PURPLE_200 = 0xCE93D8,
-		COLOR_PURPLE_300 = 0xBA68C8,
-		COLOR_PURPLE_400 = 0xAB47BC,
-		COLOR_PURPLE_500 = 0x9C27B0,
-		COLOR_PURPLE_600 = 0x8E24AA,
-		COLOR_PURPLE_700 = 0x7B1FA2,
-		COLOR_PURPLE_800 = 0x6A1B9A,
-		COLOR_PURPLE_900 = 0x4A148C,
-		COLOR_PURPLE_A100 = 0xEA80FC,
-		COLOR_PURPLE_A200 = 0xE040FB,
-		COLOR_PURPLE_A400 = 0xD500F9,
-		COLOR_PURPLE_A700 = 0xAA00FF;
+		COLOR_PURPLE_50 = 0xFFF3E5F5,
+		COLOR_PURPLE_100 = 0xFFE1BEE7,
+		COLOR_PURPLE_200 = 0xFFCE93D8,
+		COLOR_PURPLE_300 = 0xFFBA68C8,
+		COLOR_PURPLE_400 = 0xFFAB47BC,
+		COLOR_PURPLE_500 = 0xFF9C27B0,
+		COLOR_PURPLE_600 = 0xFF8E24AA,
+		COLOR_PURPLE_700 = 0xFF7B1FA2,
+		COLOR_PURPLE_800 = 0xFF6A1B9A,
+		COLOR_PURPLE_900 = 0xFF4A148C,
+		COLOR_PURPLE_A100 = 0xFFEA80FC,
+		COLOR_PURPLE_A200 = 0xFFE040FB,
+		COLOR_PURPLE_A400 = 0xFFD500F9,
+		COLOR_PURPLE_A700 = 0xFFAA00FF;
 
 	colorInt const
-		COLOR_DEEP_PURPLE_50 = 0xEDE7F6,
-		COLOR_DEEP_PURPLE_100 = 0xD1C4E9,
-		COLOR_DEEP_PURPLE_200 = 0xB39DDB,
-		COLOR_DEEP_PURPLE_300 = 0x9579CD,
-		COLOR_DEEP_PURPLE_400 = 0x7E57C2,
-		COLOR_DEEP_PURPLE_500 = 0x673AB7,
-		COLOR_DEEP_PURPLE_600 = 0x5E35B1,
-		COLOR_DEEP_PURPLE_700 = 0x512DA8,
-		COLOR_DEEP_PURPLE_800 = 0x4527A0,
-		COLOR_DEEP_PURPLE_900 = 0x311B92,
-		COLOR_DEEP_PURPLE_A100 = 0xB388FF,
-		COLOR_DEEP_PURPLE_A200 = 0x7C4DFF,
-		COLOR_DEEP_PURPLE_A400 = 0x651FFF,
-		COLOR_DEEP_PURPLE_A700 = 0x6200EA;
+		COLOR_DEEP_PURPLE_50 = 0xFFEDE7F6,
+		COLOR_DEEP_PURPLE_100 = 0xFFD1C4E9,
+		COLOR_DEEP_PURPLE_200 = 0xFFB39DDB,
+		COLOR_DEEP_PURPLE_300 = 0xFF9579CD,
+		COLOR_DEEP_PURPLE_400 = 0xFF7E57C2,
+		COLOR_DEEP_PURPLE_500 = 0xFF673AB7,
+		COLOR_DEEP_PURPLE_600 = 0xFF5E35B1,
+		COLOR_DEEP_PURPLE_700 = 0xFF512DA8,
+		COLOR_DEEP_PURPLE_800 = 0xFF4527A0,
+		COLOR_DEEP_PURPLE_900 = 0xFF311B92,
+		COLOR_DEEP_PURPLE_A100 = 0xFFB388FF,
+		COLOR_DEEP_PURPLE_A200 = 0xFF7C4DFF,
+		COLOR_DEEP_PURPLE_A400 = 0xFF651FFF,
+		COLOR_DEEP_PURPLE_A700 = 0xFF6200EA;
 
 	colorInt const
-		COLOR_INDIGO_50 = 0xE8EAF6,
-		COLOR_INDIGO_100 = 0xC5CAE9,
-		COLOR_INDIGO_200 = 0x9FA8DA,
-		COLOR_INDIGO_300 = 0x7986CB,
-		COLOR_INDIGO_400 = 0x5C6BC0,
-		COLOR_INDIGO_500 = 0x3F51B5,
-		COLOR_INDIGO_600 = 0x3949AB,
-		COLOR_INDIGO_700 = 0x303F9F,
-		COLOR_INDIGO_800 = 0x283593,
-		COLOR_INDIGO_900 = 0x1A237E,
-		COLOR_INDIGO_A100 = 0x8C9EFF,
-		COLOR_INDIGO_A200 = 0x536DFE,
-		COLOR_INDIGO_A400 = 0x3D5AFE,
-		COLOR_INDIGO_A700 = 0x304FFE;
+		COLOR_INDIGO_50 = 0xFFE8EAF6,
+		COLOR_INDIGO_100 = 0xFFC5CAE9,
+		COLOR_INDIGO_200 = 0xFF9FA8DA,
+		COLOR_INDIGO_300 = 0xFF7986CB,
+		COLOR_INDIGO_400 = 0xFF5C6BC0,
+		COLOR_INDIGO_500 = 0xFF3F51B5,
+		COLOR_INDIGO_600 = 0xFF3949AB,
+		COLOR_INDIGO_700 = 0xFF303F9F,
+		COLOR_INDIGO_800 = 0xFF283593,
+		COLOR_INDIGO_900 = 0xFF1A237E,
+		COLOR_INDIGO_A100 = 0xFF8C9EFF,
+		COLOR_INDIGO_A200 = 0xFF536DFE,
+		COLOR_INDIGO_A400 = 0xFF3D5AFE,
+		COLOR_INDIGO_A700 = 0xFF304FFE;
 
 	colorInt const
-		COLOR_BLUE_50 = 0xE3F2FD,
-		COLOR_BLUE_100 = 0xBBDEFB,
-		COLOR_BLUE_200 = 0x90CAF9,
-		COLOR_BLUE_300 = 0x64B5F6,
-		COLOR_BLUE_400 = 0x42A5F5,
-		COLOR_BLUE_500 = 0x2196F3,
-		COLOR_BLUE_600 = 0x1E88E5,
-		COLOR_BLUE_700 = 0x1976D2,
-		COLOR_BLUE_800 = 0x1565C0,
-		COLOR_BLUE_900 = 0x0D47A1,
-		COLOR_BLUE_A100 = 0x82B1FF,
-		COLOR_BLUE_A200 = 0x448AFF,
-		COLOR_BLUE_A400 = 0x2979FF,
-		COLOR_BLUE_A700 = 0x2962FF;
+		COLOR_BLUE_50 = 0xFFE3F2FD,
+		COLOR_BLUE_100 = 0xFFBBDEFB,
+		COLOR_BLUE_200 = 0xFF90CAF9,
+		COLOR_BLUE_300 = 0xFF64B5F6,
+		COLOR_BLUE_400 = 0xFF42A5F5,
+		COLOR_BLUE_500 = 0xFF2196F3,
+		COLOR_BLUE_600 = 0xFF1E88E5,
+		COLOR_BLUE_700 = 0xFF1976D2,
+		COLOR_BLUE_800 = 0xFF1565C0,
+		COLOR_BLUE_900 = 0xFF0D47A1,
+		COLOR_BLUE_A100 = 0xFF82B1FF,
+		COLOR_BLUE_A200 = 0xFF448AFF,
+		COLOR_BLUE_A400 = 0xFF2979FF,
+		COLOR_BLUE_A700 = 0xFF2962FF;
 
 	colorInt const
-		COLOR_LIGHT_BLUE_50 = 0xE1F5FE,
-		COLOR_LIGHT_BLUE_100 = 0xB3E5FC,
-		COLOR_LIGHT_BLUE_200 = 0x81D4FA,
-		COLOR_LIGHT_BLUE_300 = 0x4FC3F7,
-		COLOR_LIGHT_BLUE_400 = 0x29B6F6,
-		COLOR_LIGHT_BLUE_500 = 0x03A9F4,
-		COLOR_LIGHT_BLUE_600 = 0x039BE5,
-		COLOR_LIGHT_BLUE_700 = 0x0288D1,
-		COLOR_LIGHT_BLUE_800 = 0x0277BD,
-		COLOR_LIGHT_BLUE_900 = 0x01579B,
-		COLOR_LIGHT_BLUE_A100 = 0x80D8FF,
-		COLOR_LIGHT_BLUE_A200 = 0x40C4FF,
-		COLOR_LIGHT_BLUE_A400 = 0x00B0FF,
-		COLOR_LIGHT_BLUE_A700 = 0x0091EA;
+		COLOR_LIGHT_BLUE_50 = 0xFFE1F5FE,
+		COLOR_LIGHT_BLUE_100 = 0xFFB3E5FC,
+		COLOR_LIGHT_BLUE_200 = 0xFF81D4FA,
+		COLOR_LIGHT_BLUE_300 = 0xFF4FC3F7,
+		COLOR_LIGHT_BLUE_400 = 0xFF29B6F6,
+		COLOR_LIGHT_BLUE_500 = 0xFF03A9F4,
+		COLOR_LIGHT_BLUE_600 = 0xFF039BE5,
+		COLOR_LIGHT_BLUE_700 = 0xFF0288D1,
+		COLOR_LIGHT_BLUE_800 = 0xFF0277BD,
+		COLOR_LIGHT_BLUE_900 = 0xFF01579B,
+		COLOR_LIGHT_BLUE_A100 = 0xFF80D8FF,
+		COLOR_LIGHT_BLUE_A200 = 0xFF40C4FF,
+		COLOR_LIGHT_BLUE_A400 = 0xFF00B0FF,
+		COLOR_LIGHT_BLUE_A700 = 0xFF0091EA;
 
 	colorInt const
-		COLOR_CYAN_50 = 0xE0F7FA,
-		COLOR_CYAN_100 = 0xB2EBF2,
-		COLOR_CYAN_200 = 0x80DEEA,
-		COLOR_CYAN_300 = 0x4DD0E1,
-		COLOR_CYAN_400 = 0x26C6DA,
-		COLOR_CYAN_500 = 0x00BCD4,
-		COLOR_CYAN_600 = 0x00ACC1,
-		COLOR_CYAN_700 = 0x0097A7,
-		COLOR_CYAN_800 = 0x00838F,
-		COLOR_CYAN_900 = 0x006064,
-		COLOR_CYAN_A100 = 0x84FFFF,
-		COLOR_CYAN_A200 = 0x18FFFF,
-		COLOR_CYAN_A400 = 0x00E5FF,
-		COLOR_CYAN_A700 = 0x00B8D4;
+		COLOR_CYAN_50 = 0xFFE0F7FA,
+		COLOR_CYAN_100 = 0xFFB2EBF2,
+		COLOR_CYAN_200 = 0xFF80DEEA,
+		COLOR_CYAN_300 = 0xFF4DD0E1,
+		COLOR_CYAN_400 = 0xFF26C6DA,
+		COLOR_CYAN_500 = 0xFF00BCD4,
+		COLOR_CYAN_600 = 0xFF00ACC1,
+		COLOR_CYAN_700 = 0xFF0097A7,
+		COLOR_CYAN_800 = 0xFF00838F,
+		COLOR_CYAN_900 = 0xFF006064,
+		COLOR_CYAN_A100 = 0xFF84FFFF,
+		COLOR_CYAN_A200 = 0xFF18FFFF,
+		COLOR_CYAN_A400 = 0xFF00E5FF,
+		COLOR_CYAN_A700 = 0xFF00B8D4;
 
 	colorInt const
-		COLOR_TEAL_50 = 0xE0F2F1,
-		COLOR_TEAL_100 = 0xB2DFDB,
-		COLOR_TEAL_200 = 0x80CBC4,
-		COLOR_TEAL_300 = 0x4DB6AC,
-		COLOR_TEAL_400 = 0x26A69A,
-		COLOR_TEAL_500 = 0x009688,
-		COLOR_TEAL_600 = 0x00897B,
-		COLOR_TEAL_700 = 0x00796B,
-		COLOR_TEAL_800 = 0x00695C,
-		COLOR_TEAL_900 = 0x004D40,
-		COLOR_TEAL_A100 = 0xA7FFEB,
-		COLOR_TEAL_A200 = 0x64FFDA,
-		COLOR_TEAL_A400 = 0x1DE9B6,
-		COLOR_TEAL_A700 = 0x00BFA5;
+		COLOR_TEAL_50 = 0xFFE0F2F1,
+		COLOR_TEAL_100 = 0xFFB2DFDB,
+		COLOR_TEAL_200 = 0xFF80CBC4,
+		COLOR_TEAL_300 = 0xFF4DB6AC,
+		COLOR_TEAL_400 = 0xFF26A69A,
+		COLOR_TEAL_500 = 0xFF009688,
+		COLOR_TEAL_600 = 0xFF00897B,
+		COLOR_TEAL_700 = 0xFF00796B,
+		COLOR_TEAL_800 = 0xFF00695C,
+		COLOR_TEAL_900 = 0xFF004D40,
+		COLOR_TEAL_A100 = 0xFFA7FFEB,
+		COLOR_TEAL_A200 = 0xFF64FFDA,
+		COLOR_TEAL_A400 = 0xFF1DE9B6,
+		COLOR_TEAL_A700 = 0xFF00BFA5;
 
 	colorInt const
-		COLOR_GREEN_50 = 0xE8F5E9,
-		COLOR_GREEN_100 = 0xC8E6C9,
-		COLOR_GREEN_200 = 0xA5D6A7,
-		COLOR_GREEN_300 = 0x81C784,
-		COLOR_GREEN_400 = 0x66BB6A,
-		COLOR_GREEN_500 = 0x4CAF50,
-		COLOR_GREEN_600 = 0x43A047,
-		COLOR_GREEN_700 = 0xE88E3C,
-		COLOR_GREEN_800 = 0x2E7D32,
-		COLOR_GREEN_900 = 0x1B5E20,
-		COLOR_GREEN_A100 = 0xB9F6CA,
-		COLOR_GREEN_A200 = 0x69F0AE,
-		COLOR_GREEN_A400 = 0x00E676,
-		COLOR_GREEN_A700 = 0x00C853;
+		COLOR_GREEN_50 = 0xFFE8F5E9,
+		COLOR_GREEN_100 = 0xFFC8E6C9,
+		COLOR_GREEN_200 = 0xFFA5D6A7,
+		COLOR_GREEN_300 = 0xFF81C784,
+		COLOR_GREEN_400 = 0xFF66BB6A,
+		COLOR_GREEN_500 = 0xFF4CAF50,
+		COLOR_GREEN_600 = 0xFF43A047,
+		COLOR_GREEN_700 = 0xFFE88E3C,
+		COLOR_GREEN_800 = 0xFF2E7D32,
+		COLOR_GREEN_900 = 0xFF1B5E20,
+		COLOR_GREEN_A100 = 0xFFB9F6CA,
+		COLOR_GREEN_A200 = 0xFF69F0AE,
+		COLOR_GREEN_A400 = 0xFF00E676,
+		COLOR_GREEN_A700 = 0xFF00C853;
 
 	colorInt const
-		COLOR_LIGHT_GREEN_50 = 0xF1F8E9,
-		COLOR_LIGHT_GREEN_100 = 0xDCEDC8,
-		COLOR_LIGHT_GREEN_200 = 0xC5E1A5,
-		COLOR_LIGHT_GREEN_300 = 0xAED581,
-		COLOR_LIGHT_GREEN_400 = 0x9CCC65,
-		COLOR_LIGHT_GREEN_500 = 0x8BC34A,
-		COLOR_LIGHT_GREEN_600 = 0x7CB342,
-		COLOR_LIGHT_GREEN_700 = 0x689F38,
-		COLOR_LIGHT_GREEN_800 = 0x558B2F,
-		COLOR_LIGHT_GREEN_900 = 0x33691E,
-		COLOR_LIGHT_GREEN_A100 = 0xCCFF90,
-		COLOR_LIGHT_GREEN_A200 = 0xB2FF59,
-		COLOR_LIGHT_GREEN_A400 = 0x76FF03,
-		COLOR_LIGHT_GREEN_A700 = 0x64DD17;
+		COLOR_LIGHT_GREEN_50 = 0xFFF1F8E9,
+		COLOR_LIGHT_GREEN_100 = 0xFFDCEDC8,
+		COLOR_LIGHT_GREEN_200 = 0xFFC5E1A5,
+		COLOR_LIGHT_GREEN_300 = 0xFFAED581,
+		COLOR_LIGHT_GREEN_400 = 0xFF9CCC65,
+		COLOR_LIGHT_GREEN_500 = 0xFF8BC34A,
+		COLOR_LIGHT_GREEN_600 = 0xFF7CB342,
+		COLOR_LIGHT_GREEN_700 = 0xFF689F38,
+		COLOR_LIGHT_GREEN_800 = 0xFF558B2F,
+		COLOR_LIGHT_GREEN_900 = 0xFF33691E,
+		COLOR_LIGHT_GREEN_A100 = 0xFFCCFF90,
+		COLOR_LIGHT_GREEN_A200 = 0xFFB2FF59,
+		COLOR_LIGHT_GREEN_A400 = 0xFF76FF03,
+		COLOR_LIGHT_GREEN_A700 = 0xFF64DD17;
 
 	colorInt const
-		COLOR_LIME_50 = 0xF9FBE7,
-		COLOR_LIME_100 = 0xF0F4C3,
-		COLOR_LIME_200 = 0xE6EE9C,
-		COLOR_LIME_300 = 0xDCE775,
-		COLOR_LIME_400 = 0xD4E157,
-		COLOR_LIME_500 = 0xCDDC39,
-		COLOR_LIME_600 = 0xC0CA33,
-		COLOR_LIME_700 = 0xAFB42B,
-		COLOR_LIME_800 = 0x9E9D24,
-		COLOR_LIME_900 = 0x827717,
-		COLOR_LIME_A100 = 0xF4FF81,
-		COLOR_LIME_A200 = 0xEEFF41,
-		COLOR_LIME_A400 = 0xC6FF00,
-		COLOR_LIME_A700 = 0xAEEA00;
+		COLOR_LIME_50 = 0xFFF9FBE7,
+		COLOR_LIME_100 = 0xFFF0F4C3,
+		COLOR_LIME_200 = 0xFFE6EE9C,
+		COLOR_LIME_300 = 0xFFDCE775,
+		COLOR_LIME_400 = 0xFFD4E157,
+		COLOR_LIME_500 = 0xFFCDDC39,
+		COLOR_LIME_600 = 0xFFC0CA33,
+		COLOR_LIME_700 = 0xFFAFB42B,
+		COLOR_LIME_800 = 0xFF9E9D24,
+		COLOR_LIME_900 = 0xFF827717,
+		COLOR_LIME_A100 = 0xFFF4FF81,
+		COLOR_LIME_A200 = 0xFFEEFF41,
+		COLOR_LIME_A400 = 0xFFC6FF00,
+		COLOR_LIME_A700 = 0xFFAEEA00;
 
 	colorInt const
-		COLOR_YELLOW_50 = 0xFFFDE7,
-		COLOR_YELLOW_100 = 0xFFF9C4,
-		COLOR_YELLOW_200 = 0xFFF59D,
-		COLOR_YELLOW_300 = 0xFFF176,
-		COLOR_YELLOW_400 = 0xFFEE58,
-		COLOR_YELLOW_500 = 0xFFEB3B,
-		COLOR_YELLOW_600 = 0xFDD835,
-		COLOR_YELLOW_700 = 0xFBC02D,
-		COLOR_YELLOW_800 = 0xF9A825,
-		COLOR_YELLOW_900 = 0xF57F17,
-		COLOR_YELLOW_A100 = 0xFFFF8D,
-		COLOR_YELLOW_A200 = 0xFFFF00,
-		COLOR_YELLOW_A400 = 0xFFEA00,
-		COLOR_YELLOW_A700 = 0xFFD600;
+		COLOR_YELLOW_50 = 0xFFFFFDE7,
+		COLOR_YELLOW_100 = 0xFFFFF9C4,
+		COLOR_YELLOW_200 = 0xFFFFF59D,
+		COLOR_YELLOW_300 = 0xFFFFF176,
+		COLOR_YELLOW_400 = 0xFFFFEE58,
+		COLOR_YELLOW_500 = 0xFFFFEB3B,
+		COLOR_YELLOW_600 = 0xFFFDD835,
+		COLOR_YELLOW_700 = 0xFFFBC02D,
+		COLOR_YELLOW_800 = 0xFFF9A825,
+		COLOR_YELLOW_900 = 0xFFF57F17,
+		COLOR_YELLOW_A100 = 0xFFFFFF8D,
+		COLOR_YELLOW_A200 = 0xFFFFFF00,
+		COLOR_YELLOW_A400 = 0xFFFFEA00,
+		COLOR_YELLOW_A700 = 0xFFFFD600;
 
 	colorInt const
-		COLOR_AMBER_50 = 0xFFF8E1,
-		COLOR_AMBER_100 = 0xFFECB3,
-		COLOR_AMBER_200 = 0xFFE082,
-		COLOR_AMBER_300 = 0xFFD54F,
-		COLOR_AMBER_400 = 0xFFCA28,
-		COLOR_AMBER_500 = 0xFFC107,
-		COLOR_AMBER_600 = 0xFFB300,
-		COLOR_AMBER_700 = 0xFFA000,
-		COLOR_AMBER_800 = 0xFF8F00,
-		COLOR_AMBER_900 = 0xFF7F00,
-		COLOR_AMBER_A100 = 0xFFE57F,
-		COLOR_AMBER_A200 = 0xFFD740,
-		COLOR_AMBER_A400 = 0xFFC400,
-		COLOR_AMBER_A700 = 0xFFAB00;
+		COLOR_AMBER_50 = 0xFFFFF8E1,
+		COLOR_AMBER_100 = 0xFFFFECB3,
+		COLOR_AMBER_200 = 0xFFFFE082,
+		COLOR_AMBER_300 = 0xFFFFD54F,
+		COLOR_AMBER_400 = 0xFFFFCA28,
+		COLOR_AMBER_500 = 0xFFFFC107,
+		COLOR_AMBER_600 = 0xFFFFB300,
+		COLOR_AMBER_700 = 0xFFFFA000,
+		COLOR_AMBER_800 = 0xFFFF8F00,
+		COLOR_AMBER_900 = 0xFFFF7F00,
+		COLOR_AMBER_A100 = 0xFFFFE57F,
+		COLOR_AMBER_A200 = 0xFFFFD740,
+		COLOR_AMBER_A400 = 0xFFFFC400,
+		COLOR_AMBER_A700 = 0xFFFFAB00;
 
 	colorInt const
-		COLOR_ORANGE_50 = 0xFFF3E0,
-		COLOR_ORANGE_100 = 0xFFE0B2,
-		COLOR_ORANGE_200 = 0xFFCC80,
-		COLOR_ORANGE_300 = 0xFFB74D,
-		COLOR_ORANGE_400 = 0xFFA726,
-		COLOR_ORANGE_500 = 0xFF9800,
-		COLOR_ORANGE_600 = 0xFB8C00,
-		COLOR_ORANGE_700 = 0xF57C00,
-		COLOR_ORANGE_800 = 0xEF6C00,
-		COLOR_ORANGE_900 = 0xE65100,
-		COLOR_ORANGE_A100 = 0xFFD180,
-		COLOR_ORANGE_A200 = 0xFFAB40,
-		COLOR_ORANGE_A400 = 0xFF9100,
-		COLOR_ORANGE_A700 = 0xFF6D00;
+		COLOR_ORANGE_50 = 0xFFFFF3E0,
+		COLOR_ORANGE_100 = 0xFFFFE0B2,
+		COLOR_ORANGE_200 = 0xFFFFCC80,
+		COLOR_ORANGE_300 = 0xFFFFB74D,
+		COLOR_ORANGE_400 = 0xFFFFA726,
+		COLOR_ORANGE_500 = 0xFFFF9800,
+		COLOR_ORANGE_600 = 0xFFFB8C00,
+		COLOR_ORANGE_700 = 0xFFF57C00,
+		COLOR_ORANGE_800 = 0xFFEF6C00,
+		COLOR_ORANGE_900 = 0xFFE65100,
+		COLOR_ORANGE_A100 = 0xFFFFD180,
+		COLOR_ORANGE_A200 = 0xFFFFAB40,
+		COLOR_ORANGE_A400 = 0xFFFF9100,
+		COLOR_ORANGE_A700 = 0xFFFF6D00;
 
 	colorInt const
-		COLOR_DEEP_ORANGE_50 = 0xFBE9E7,
-		COLOR_DEEP_ORANGE_100 = 0xFFCCBC,
-		COLOR_DEEP_ORANGE_200 = 0xFFAB91,
-		COLOR_DEEP_ORANGE_300 = 0xFF8A65,
-		COLOR_DEEP_ORANGE_400 = 0xFF7043,
-		COLOR_DEEP_ORANGE_500 = 0xFF5722,
-		COLOR_DEEP_ORANGE_600 = 0xF4511E,
-		COLOR_DEEP_ORANGE_700 = 0xE64A19,
-		COLOR_DEEP_ORANGE_800 = 0xD84315,
-		COLOR_DEEP_ORANGE_900 = 0xBF360C,
-		COLOR_DEEP_ORANGE_A100 = 0xFF9E80,
-		COLOR_DEEP_ORANGE_A200 = 0xFF6E40,
-		COLOR_DEEP_ORANGE_A400 = 0xFF3D00,
-		COLOR_DEEP_ORANGE_A700 = 0xDD2C00;
+		COLOR_DEEP_ORANGE_50 = 0xFFFBE9E7,
+		COLOR_DEEP_ORANGE_100 = 0xFFFFCCBC,
+		COLOR_DEEP_ORANGE_200 = 0xFFFFAB91,
+		COLOR_DEEP_ORANGE_300 = 0xFFFF8A65,
+		COLOR_DEEP_ORANGE_400 = 0xFFFF7043,
+		COLOR_DEEP_ORANGE_500 = 0xFFFF5722,
+		COLOR_DEEP_ORANGE_600 = 0xFFF4511E,
+		COLOR_DEEP_ORANGE_700 = 0xFFE64A19,
+		COLOR_DEEP_ORANGE_800 = 0xFFD84315,
+		COLOR_DEEP_ORANGE_900 = 0xFFBF360C,
+		COLOR_DEEP_ORANGE_A100 = 0xFFFF9E80,
+		COLOR_DEEP_ORANGE_A200 = 0xFFFF6E40,
+		COLOR_DEEP_ORANGE_A400 = 0xFFFF3D00,
+		COLOR_DEEP_ORANGE_A700 = 0xFFDD2C00;
 
 	colorInt const
-		COLOR_BROWN_50 = 0xEFEBE9,
-		COLOR_BROWN_100 = 0xD7CCC8,
-		COLOR_BROWN_200 = 0xBCAAA4,
-		COLOR_BROWN_300 = 0xA1887F,
-		COLOR_BROWN_400 = 0x8D6E63,
-		COLOR_BROWN_500 = 0x795548,
-		COLOR_BROWN_600 = 0x6D4C41,
-		COLOR_BROWN_700 = 0x5D4037,
-		COLOR_BROWN_800 = 0x4E342E,
-		COLOR_BROWN_900 = 0x3E2723;
+		COLOR_BROWN_50 = 0xFFEFEBE9,
+		COLOR_BROWN_100 = 0xFFD7CCC8,
+		COLOR_BROWN_200 = 0xFFBCAAA4,
+		COLOR_BROWN_300 = 0xFFA1887F,
+		COLOR_BROWN_400 = 0xFF8D6E63,
+		COLOR_BROWN_500 = 0xFF795548,
+		COLOR_BROWN_600 = 0xFF6D4C41,
+		COLOR_BROWN_700 = 0xFF5D4037,
+		COLOR_BROWN_800 = 0xFF4E342E,
+		COLOR_BROWN_900 = 0xFF3E2723;
 
 	colorInt const
-		COLOR_GRAY_50 = 0xFAFAFA,
-		COLOR_GRAY_100 = 0xF5F5F5,
-		COLOR_GRAY_200 = 0xEEEEEE,
-		COLOR_GRAY_300 = 0xE0E0E0,
-		COLOR_GRAY_400 = 0xBDBDBD,
-		COLOR_GRAY_500 = 0x9E9E9E,
-		COLOR_GRAY_600 = 0x757575,
-		COLOR_GRAY_700 = 0x616161,
-		COLOR_GRAY_800 = 0x424242,
-		COLOR_GRAY_900 = 0x212121;
+		COLOR_GRAY_50 = 0xFFFAFAFA,
+		COLOR_GRAY_100 = 0xFFF5F5F5,
+		COLOR_GRAY_200 = 0xFFEEEEEE,
+		COLOR_GRAY_300 = 0xFFE0E0E0,
+		COLOR_GRAY_400 = 0xFFBDBDBD,
+		COLOR_GRAY_500 = 0xFF9E9E9E,
+		COLOR_GRAY_600 = 0xFF757575,
+		COLOR_GRAY_700 = 0xFF616161,
+		COLOR_GRAY_800 = 0xFF424242,
+		COLOR_GRAY_900 = 0xFF212121;
 
 	colorInt const
-		COLOR_BLUE_GRAY_50 = 0xECEFF1,
-		COLOR_BLUE_GRAY_100 = 0xCFD8DC,
-		COLOR_BLUE_GRAY_200 = 0xB0BEC5,
-		COLOR_BLUE_GRAY_300 = 0x90A4AE,
-		COLOR_BLUE_GRAY_400 = 0x78909C,
-		COLOR_BLUE_GRAY_500 = 0x607D8B,
-		COLOR_BLUE_GRAY_600 = 0x546E7A,
-		COLOR_BLUE_GRAY_700 = 0x455A64,
-		COLOR_BLUE_GRAY_800 = 0x37474F,
-		COLOR_BLUE_GRAY_900 = 0x263238;
+		COLOR_BLUE_GRAY_50 = 0xFFECEFF1,
+		COLOR_BLUE_GRAY_100 = 0xFFCFD8DC,
+		COLOR_BLUE_GRAY_200 = 0xFFB0BEC5,
+		COLOR_BLUE_GRAY_300 = 0xFF90A4AE,
+		COLOR_BLUE_GRAY_400 = 0xFF78909C,
+		COLOR_BLUE_GRAY_500 = 0xFF607D8B,
+		COLOR_BLUE_GRAY_600 = 0xFF546E7A,
+		COLOR_BLUE_GRAY_700 = 0xFF455A64,
+		COLOR_BLUE_GRAY_800 = 0xFF37474F,
+		COLOR_BLUE_GRAY_900 = 0xFF263238;
 
 	class Theme : public ReferenceCounted
 	{
@@ -2667,15 +2684,15 @@ namespace AvoGUI
 			colors["background"] = 0xfffefefe;
 			colors["on background"] = 0xff070707;
 
-			colors["primary"] = 0xff630eec;
-			colors["primary on background"] = 0xff630eec;
-			colors["on primary"] = 0xfffefefe;
+			colors["primary"] = 0xff8df000;
+			colors["primary on background"] = 0xff4c9100;
+			colors["on primary"] = 0xff000000;
 
-			colors["secondary"] = COLOR_PINK_A200;
-			colors["secondary on background"] = COLOR_PINK_A200;
+			colors["secondary"] = 0xff420099;
+			colors["secondary on background"] = 0xff420099;
 			colors["on secondary"] = 0xfffefefe;
 
-			colors["shadow"] = 0x70000000;
+			colors["shadow"] = 0x68000000;
 
 			//------------------------------
 
@@ -5514,6 +5531,49 @@ namespace AvoGUI
 		/// Sets the size of the bounding box to fit the text.
 		/// </summary>
 		virtual void minimizeSize() = 0;
+		/// <summary>
+		/// Returns the smallest size to contain the actual text.
+		/// </summary>
+		virtual Point<float> getMinimumSize() = 0;
+
+		//------------------------------
+
+		/// <summary>
+		/// Returns the 2d position of a character in the text, specified by its index in the string.
+		/// </summary>
+		/// <param name="p_isRelativeToOrigin">Whether the position returned is relative to the origin or not. If not, it is relative to the bounds of the text.</param>
+		virtual Point<float> getCharacterPosition(uint32_t p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
+		/// <summary>
+		/// Returns the width and height of a character in the text, specified by its index in the string.
+		/// </summary>
+		virtual Point<float> getCharacterSize(uint32_t p_characterIndex) = 0;
+		/// <summary>
+		/// Returns a rectangle enclosing a character in the text, specified by its index in the string.
+		/// </summary>
+		/// <param name="p_isRelativeToOrigin">Whether the position of the bounds returned is relative to the origin or not. If not, it is relative to the bounds of the text.</param>
+		virtual Rectangle<float> getCharacterBounds(uint32_t p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
+		
+		/// <summary>
+		/// Returns the index of the character which is nearest to a point.
+		/// </summary>
+		/// <param name="p_isRelativeToOrigin">Whether the position given is relative to the origin or not. If not, it is relative to the bounds of the text.</param>
+		/// <returns></returns>
+		virtual uint32_t getNearestCharacterIndex(const Point<float>& p_point, bool p_isRelativeToOrigin = false) = 0;
+		/// <summary>
+		/// Returns the index and position of the character which is nearest to a point.
+		/// </summary>
+		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
+		/// <param name="p_outCharacterPosition">Pointer to the 2d position to be returned.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin or not. If not, they are relative to the bounds of the text.</param>
+		virtual void getNearestCharacterIndexAndPosition(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
+		/// <summary>
+		/// Returns the index and bounds of the character which is nearest to a point.
+		/// </summary>
+		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
+		/// <param name="p_outCharacterBounds">Pointer to the bounding rectangle to be returned.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin or not. If not, they are relative to the bounds of the text.</param>
+		virtual void getNearestCharacterIndexAndBounds(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
+
 
 		//------------------------------
 
@@ -6282,7 +6342,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Creates a new Text object which represents a pre-calculated text layout.
+		/// Creates a new Text object which represents a pre-calculated text layout, using the current text properties.
 		/// </summary>
 		/// <param name="p_string">The content of the text.</param>
 		/// <param name="p_fontSize">The font size of the text.</param>
@@ -6506,6 +6566,14 @@ namespace AvoGUI
 				m_keyboardFocus->handleKeyboardFocusLost();
 			}
 			m_keyboardFocus = p_keyboardFocus;
+		}
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Returns the keyboard event listener that keyboard events are directed to.</para>
+		/// </summary>
+		KeyboardEventListener* getKeyboardFocus()
+		{
+			return m_keyboardFocus;
 		}
 
 		/// <summary>
@@ -6939,6 +7007,7 @@ namespace AvoGUI
 		bool m_isEnabled;
 		Color m_currentColor;
 		float m_colorAnimationTime;
+		bool m_isPrimary;
 
 		bool m_isMouseHovering;
 
@@ -6975,6 +7044,23 @@ namespace AvoGUI
 		bool getIsEnabled()
 		{
 			return m_isEnabled;
+		}
+
+		//------------------------------
+
+		/// <summary>
+		/// Sets whether the button has an accent/primary color or not. If not, it has a secondary color. The button uses primary color by default.
+		/// </summary>
+		void setIsPrimary(bool p_isPrimary)
+		{
+			m_isPrimary = p_isPrimary;
+		}
+		/// <summary>
+		/// Returns whether the button has an accent/primary color or not. If not, it has a secondary color.
+		/// </summary>
+		bool getIsPrimary()
+		{
+			return m_isPrimary;
 		}
 
 		//------------------------------
@@ -7063,8 +7149,16 @@ namespace AvoGUI
 
 	private:
 		Text* m_labelText;
+		float m_labelAnimationTime;
+		Color m_labelColor;
+		float m_focusAnimationValue;
+
 		Text* m_text;
 		float m_fontSize;
+		uint32_t m_caretIndex;
+		Point<float> m_caretPosition;
+		bool m_isCaretVisible;
+		uint32_t m_frameCount;
 
 		Type m_type;
 
@@ -7080,7 +7174,8 @@ namespace AvoGUI
 		//------------------------------
 
 		void setString(const char* p_string);
-		const char* getString();
+		void setString(const std::string& p_string);
+		const std::string& getString();
 
 		//------------------------------
 
@@ -7090,6 +7185,7 @@ namespace AvoGUI
 		//------------------------------
 
 		void handleCharacterInput(const KeyboardEvent& p_event) override;
+		void handleKeyboardKeyDown(const KeyboardEvent& p_event) override;
 
 		//------------------------------
 

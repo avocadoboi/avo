@@ -2192,6 +2192,78 @@ namespace AvoGUI
 			HRESULT result = m_handle->GetMetrics(&metrics);
 			m_bounds.setSize(metrics.width, metrics.height);
 		}
+		Point<float> getMinimumSize() override
+		{
+			DWRITE_TEXT_METRICS metrics;
+			HRESULT result = m_handle->GetMetrics(&metrics);
+			return Point<float>(metrics.width, metrics.height);
+		}
+
+		//------------------------------
+
+		Point<float> getCharacterPosition(uint32_t p_characterIndex, bool p_isRelativeToOrigin) override
+		{
+			Point<float> result;
+			DWRITE_HIT_TEST_METRICS metrics;
+			m_handle->HitTestTextPosition(p_characterIndex, false, &result.x, &result.y, &metrics);
+			if (p_isRelativeToOrigin)
+			{
+				result.x += getLeft();
+				result.y += getTop();
+			}
+			return result;
+		}
+		Point<float> getCharacterSize(uint32_t p_characterIndex) override
+		{
+			float x;
+			float y;
+			DWRITE_HIT_TEST_METRICS metrics;
+			m_handle->HitTestTextPosition(p_characterIndex, false, &x, &y, &metrics);
+			return Point<float>(metrics.width, metrics.height);
+		}
+		Rectangle<float> getCharacterBounds(uint32_t p_characterIndex, bool p_isRelativeToOrigin) override 
+		{
+			Rectangle<float> result;
+			DWRITE_HIT_TEST_METRICS metrics;
+			m_handle->HitTestTextPosition(p_characterIndex, false, &result.left, &result.top, &metrics);
+			if (p_isRelativeToOrigin)
+			{
+				result.left += getLeft();
+				result.top += getTop();
+			}
+			result.right = result.left + metrics.width;
+			result.bottom = result.top + metrics.height;
+			return result;
+		}
+		uint32_t getNearestCharacterIndex(const Point<float>& p_point, bool p_isRelativeToOrigin) override
+		{
+			int isTrailingHit;
+			int isInside;
+			DWRITE_HIT_TEST_METRICS metrics;
+			m_handle->HitTestPoint(p_point.x - p_isRelativeToOrigin*getLeft(), p_point.y - p_isRelativeToOrigin*getTop(), &isTrailingHit, &isInside, &metrics);
+			return metrics.textPosition + isTrailingHit*isInside;
+		}
+		void getNearestCharacterIndexAndPosition(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) override
+		{
+			int isTrailingHit;
+			int isInside;
+			DWRITE_HIT_TEST_METRICS metrics;
+			m_handle->HitTestPoint(p_point.x - p_isRelativeToOrigin * getLeft(), p_point.y - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
+			*p_outCharacterIndex = metrics.textPosition + isTrailingHit*isInside;
+			p_outCharacterPosition->set(metrics.left + isTrailingHit*metrics.width + p_isRelativeToOrigin*getLeft(), metrics.top + p_isRelativeToOrigin*getTop());
+		}
+		void getNearestCharacterIndexAndBounds(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) override
+		{
+			int isTrailingHit;
+			int isInside;
+			DWRITE_HIT_TEST_METRICS metrics;
+			m_handle->HitTestPoint(p_point.x - p_isRelativeToOrigin * getLeft(), p_point.y - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
+			*p_outCharacterIndex = metrics.textPosition + isTrailingHit*isInside;
+			p_outCharacterBounds->left = metrics.left + isTrailingHit*metrics.width + p_isRelativeToOrigin * getLeft();
+			p_outCharacterBounds->top = metrics.top + p_isRelativeToOrigin * getTop();
+			p_outCharacterBounds->right = p_outCharacterBounds->left + metrics.width;
+			p_outCharacterBounds->bottom = p_outCharacterBounds->top + metrics.height;
+		}
 
 		//------------------------------
 
@@ -2617,7 +2689,7 @@ namespace AvoGUI
 
 		void setLineHeight(float p_lineHeight)
 		{
-			m_handle->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_lineHeight, p_lineHeight*0.8f);
+			m_handle->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_lineHeight, p_lineHeight*0.9f);
 		}
 		float getLineHeight()
 		{
@@ -4447,6 +4519,8 @@ namespace AvoGUI
 		}
 		void drawText(const char* p_string, const Rectangle<float>& p_rectangle) override
 		{
+			if (p_string == "") return;
+
 			int32_t numberOfCharacters = MultiByteToWideChar(CP_ACP, 0, p_string, -1, 0, 0);
 			wchar_t* wideString = new wchar_t[numberOfCharacters];
 			MultiByteToWideChar(CP_ACP, 0, p_string, -1, wideString, numberOfCharacters);
@@ -4923,7 +4997,7 @@ namespace AvoGUI
 		for (auto listener : m_keyboardEventListeners)
 		{
 			event.isTarget = listener == m_keyboardFocus;
-			listener->handleCharacterInput(p_event);
+			listener->handleCharacterInput(event);
 		}
 	}
 	void GUI::handleKeyboardKeyDown(const KeyboardEvent& p_event)
@@ -5249,7 +5323,7 @@ namespace AvoGUI
 	//------------------------------
 
 	Ripple::Ripple(View* p_parent, const Color& p_color) :
-		View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(0.f, 0.45f),
+		View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(p_color, 0.45f),
 		m_isEnabled(true), m_circleAnimationTime(1.f), m_isMouseDown(false), m_isMouseHovering(false),
 		m_hasHoverEffect(true)
 	{
@@ -5372,12 +5446,12 @@ namespace AvoGUI
 	{
 		if (m_isEnabled)
 		{
-			p_drawingContext->setColor(Color(m_color, m_color.alpha*m_overlayAlphaFactor*0.4f));
+			p_drawingContext->setColor(Color(m_color, m_color.alpha*m_overlayAlphaFactor*0.3f));
 			p_drawingContext->fillRectangle(getSize());
 
 			if (m_color.alpha*m_alphaFactor >= 0.f)
 			{
-				p_drawingContext->setColor(Color(m_color, m_color.alpha*m_alphaFactor));
+				p_drawingContext->setColor(Color(m_color, m_color.alpha*m_alphaFactor*0.8f));
 				p_drawingContext->fillCircle(m_position, m_size*0.5f);
 			}
 		}
@@ -5389,8 +5463,8 @@ namespace AvoGUI
 
 	Button::Button(View* p_parent, const char* p_text, Emphasis p_emphasis, float p_x, float p_y) :
 		View(p_parent, Rectangle<float>(p_x, p_y, p_x, p_y)), m_text(0), m_fontSize(14.f), m_tooltipString(""),
-		m_icon(0), m_pressAnimationTime(1.f), m_isPressed(false), m_emphasis(p_emphasis), m_isEnabled(true),
-		m_colorAnimationTime(1.f), m_isMouseHovering(false)
+		m_icon(0), m_pressAnimationTime(1.f), m_emphasis(p_emphasis), m_isEnabled(true), m_isPrimary(false),
+		m_colorAnimationTime(1.f)
 	{
 		setString(p_text);
 
@@ -5401,13 +5475,13 @@ namespace AvoGUI
 		if (p_emphasis == Emphasis::High)
 		{
 			setElevation(2.f);
-			m_ripple->setColor(Color(m_theme->colors["on primary"], 0.3f));
-			m_currentColor = m_theme->colors["primary"];
+			m_ripple->setColor(Color(m_theme->colors["on secondary"], 0.3f));
+			m_currentColor = m_theme->colors["secondary"];
 		}
 		else
 		{
-			m_ripple->setColor(Color(m_theme->colors["primary on background"], 0.3f));
-			m_currentColor = m_theme->colors["primary on background"];
+			m_ripple->setColor(Color(m_theme->colors["secondary on background"], 0.3f));
+			m_currentColor = m_theme->colors["secondary on background"];
 		}
 
 		enableMouseEvents();
@@ -5568,11 +5642,11 @@ namespace AvoGUI
 			float colorAnimationValue = m_theme->easings["symmetrical in out"].easeValue(m_colorAnimationTime);
 			if (m_emphasis == Emphasis::High)
 			{
-				m_currentColor = m_theme->colors["primary"];
+				m_currentColor = m_isPrimary ? m_theme->colors["primary"] : m_theme->colors["secondary"];
 			}
 			else
 			{
-				m_currentColor = m_theme->colors["primary on background"];
+				m_currentColor = m_isPrimary ? m_theme->colors["primary on background"] : m_theme->colors["secondary on background"];
 			}
 			m_currentColor.setSaturationHSL(colorAnimationValue);
 
@@ -5639,7 +5713,7 @@ namespace AvoGUI
 		if (m_emphasis == Emphasis::High)
 		{
 			p_context->clear(m_currentColor);
-			p_context->setColor(m_theme->colors["on primary"]);
+			p_context->setColor(m_isPrimary ? m_theme->colors["on primary"] : m_theme->colors["on secondary"]);
 		}
 		else
 		{
@@ -5657,11 +5731,14 @@ namespace AvoGUI
 	//------------------------------
 
 	TextField::TextField(View* p_parent, Type p_type, const char* p_label, float p_width, float p_fontSize) :
-		View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*2.5f)), m_type(p_type), m_fontSize(p_fontSize)
+		View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*3.2f)), m_labelColor(0.5f), m_type(p_type), m_fontSize(p_fontSize)
 	{
 		setLabel(p_label);
 		setCursor(Cursor::Ibeam);
 		enableMouseEvents();
+		getGUI()->addKeyboardEventListener(this);
+
+		setString("");
 	}
 	TextField::~TextField()
 	{
@@ -5690,7 +5767,9 @@ namespace AvoGUI
 		else
 		{
 			m_labelText = getGUI()->getDrawingContext()->createText(p_label, m_fontSize);
-			m_labelText->setTopLeft((getHeight() - m_fontSize)*0.5f, (getHeight() - m_fontSize)*0.5f);
+			m_labelText->setFontWeight(AvoGUI::FontWeight::Regular);
+			m_labelText->setTopLeft((getHeight() - m_fontSize)*0.5f);
+			queueAnimationUpdate();
 		}
 	}
 	const char* TextField::getLabel()
@@ -5708,15 +5787,37 @@ namespace AvoGUI
 	{
 		if (m_text)
 		{
+			if (p_string == m_text->getString()) return;
+			if (p_string == "")
+			{
+				m_caretIndex = 0;
+				m_caretPosition = m_text->getTopLeft();
+				m_text->forget();
+				m_text = 0;
+				return;
+			}
 			m_text->forget();
 		}
+		else if (p_string != "")
+		{
+			m_focusAnimationValue = 1.f;
+			queueAnimationUpdate();
+		}
 		m_text = getGUI()->getDrawingContext()->createText(p_string, m_fontSize);
+		m_text->setFontWeight(AvoGUI::FontWeight::Regular);
+		m_text->setBottomLeft(14.f, getHeight() - 7.f);
+		m_caretIndex = min(m_caretIndex, m_text->getString().size());
+		m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
 	}
-	const char* TextField::getString()
+	void TextField::setString(const std::string& p_string)
+	{
+		setString(p_string.c_str());
+	}
+	const std::string& TextField::getString()
 	{
 		if (m_text)
 		{
-			return m_text->getString().c_str();
+			return m_text->getString();
 		}
 		return "";
 	}
@@ -5725,42 +5826,134 @@ namespace AvoGUI
 
 	void TextField::handleMouseDown(const MouseEvent& p_event)
 	{
+		if (m_text)
+		{
+			m_text->getNearestCharacterIndexAndPosition(Point<float>(p_event.x, p_event.y), &m_caretIndex, &m_caretPosition, true);
+		}
+		m_isCaretVisible = true;
 		getGUI()->setKeyboardFocus(this);
+		queueAnimationUpdate();
 	}
 	void TextField::handleKeyboardFocusLost()
 	{
-
+		queueAnimationUpdate();
 	}
 
 	//------------------------------
 
 	void TextField::handleCharacterInput(const KeyboardEvent& p_event)
 	{
+		if (p_event.isTarget && p_event.character >= 32 && p_event.character <= 126)
+		{
+			std::string string = m_text->getString();
+			string.insert(m_caretIndex, 1U, p_event.character);
+			setString(string);
+			m_caretIndex++;
+			m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
 
+			invalidate();
+		}
+	}
+	void TextField::handleKeyboardKeyDown(const KeyboardEvent& p_event)
+	{
+		switch (p_event.key)
+		{
+		case KeyboardKey::Backspace:
+			if (m_caretIndex > 0)
+			{
+				std::string string = m_text->getString();
+				m_caretIndex--;
+				string.erase(m_caretIndex, 1);
+				setString(string);
+				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+			}
+			break;
+		case KeyboardKey::Delete:
+			if (m_caretIndex < m_text->getString().size())
+			{
+				setString(std::string(m_text->getString()).erase(m_caretIndex, 1));
+			}
+			break;
+		case KeyboardKey::Left:
+			if (m_caretIndex > 0)
+			{
+				m_caretIndex--;
+				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+			}
+			break;
+		case KeyboardKey::Right:
+			if (m_caretIndex < m_text->getString().size())
+			{
+				m_caretIndex++;
+				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+			}
+			break;
+		}
+		m_isCaretVisible = true;
 	}
 
 	//------------------------------
 
 	void TextField::updateAnimations()
 	{
-
+		m_focusAnimationValue = m_theme->easings["in out"].easeValue(m_labelAnimationTime);
+		if (getGUI()->getKeyboardFocus() == this)
+		{
+			if (m_labelAnimationTime < 1.f)
+			{
+				m_labelAnimationTime = min(1.f, m_labelAnimationTime + 0.08f);
+				invalidate();
+			}
+			else if (m_frameCount % 30 == 0)
+			{
+				m_isCaretVisible = !m_isCaretVisible;
+				invalidate();
+			}
+			m_frameCount++;
+			queueAnimationUpdate();
+		}
+		else if (m_labelAnimationTime > 0.f && m_text->getString().size() == 0)
+		{
+			m_labelAnimationTime = max(0.f, m_labelAnimationTime - 0.08f);
+			invalidate();
+			queueAnimationUpdate();
+		}
+		m_labelColor = interpolate(Color(0.5f), m_theme->colors["primary on background"], m_focusAnimationValue);
 	}
 
 	void TextField::draw(DrawingContext* p_context)
 	{
 		if (m_type == Type::Filled)
 		{
-			p_context->setColor(0xffdbdbdb);
+			p_context->setColor(0xffebebeb);
 			p_context->fillRoundedRectangle(getSize(), 5.f);
 			p_context->fillRectangle(Rectangle<float>(0.f, getHeight() - 5.f, getWidth(), getHeight()));
 			p_context->setColor(0xffa0a0a0);
 			p_context->drawLine(0.f, getHeight() - 1.f, getWidth(), getHeight() - 1.f, 1.f);
+			if (m_focusAnimationValue > 0.01f)
+			{
+				p_context->setColor(m_theme->colors["primary on background"]);
+				p_context->drawLine((1.f - m_focusAnimationValue)*getWidth()*0.5f, getHeight() - 1.f, (1.f + m_focusAnimationValue)*getWidth()*0.5f, getHeight() - 1.f);
+			}
+			if (m_labelText)
+			{
+				p_context->moveOrigin(4.f*m_focusAnimationValue, -3.f*m_focusAnimationValue);
+				p_context->setScale(1.f - m_focusAnimationValue * 0.3f);
+				p_context->setColor(m_labelColor);
+				p_context->drawText(m_labelText);
+				p_context->moveOrigin(-4.f*m_focusAnimationValue, 3.f*m_focusAnimationValue);
+				p_context->setScale(1.f);
+			}
+			if (m_focusAnimationValue == 1.f)
+			{
+				p_context->setColor(Color(0.1f));
+				p_context->drawText(m_text);
+				if (m_isCaretVisible)
+				{
+					p_context->drawLine(m_caretPosition.x, m_caretPosition.y, m_caretPosition.x, m_caretPosition.y + m_fontSize*1.2f, 1.f);
+				}
+			}
 		}
 
-		if (m_labelText)
-		{
-			p_context->setColor(0xff909090);
-			p_context->drawText(m_labelText);
-		}
 	}
 };

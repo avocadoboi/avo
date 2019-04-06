@@ -64,7 +64,6 @@ public:
 	void createContent()
 	{
 		m_restartButton = new AvoGUI::Button(this, "RESTART", AvoGUI::Button::Emphasis::High);
-		m_restartButton->setIcon(getGUI()->getDrawingContext()->createImage("test icon.png"));
 		m_restartButton->setTopRight(getRight() - 10.f, 10.f);
 		m_restartButton->addButtonListener(this);
 
@@ -75,12 +74,19 @@ public:
 		textProperties.fontSize = 35.f;
 		getGUI()->getDrawingContext()->setDefaultTextProperties(textProperties);
 
+		enableMouseEvents();
+
 		startSimulation();
 
 		queueAnimationUpdate();
 	}
 
 	//------------------------------
+
+	void handleMouseDown(const AvoGUI::MouseEvent& p_event) override
+	{
+		setKeyboardFocus(0);
+	}
 
 	void handleButtonClick(AvoGUI::Button* p_button) override
 	{
