@@ -5809,7 +5809,22 @@ namespace AvoGUI
 		/// <summary>
 		/// <para>Finishes the drawing and shows it. The GUI calls this for you.</para>
 		/// </summary>
-		virtual void finishDrawing(std::vector<Rectangle<float>>& p_updatedRectangles) = 0;
+		virtual void finishDrawing(const std::vector<Rectangle<float>>& p_updatedRectangles) = 0;
+
+		//------------------------------
+
+		/// <summary>
+		/// Enables synchronization with the monitor.
+		/// </summary>
+		virtual void enableVsync() = 0;
+		/// <summary>
+		/// Disables synchronization with the monitor.
+		/// </summary>
+		virtual void disableVsync() = 0;
+		/// <summary>
+		/// Returns whether presentation is synchronized with the monitor or not.
+		/// </summary>
+		virtual bool getIsVsyncEnabled() = 0;
 
 		//------------------------------
 
@@ -6399,15 +6414,13 @@ namespace AvoGUI
 
 		//------------------------------
 
+		Point<uint32_t> m_lastWindowSize;
+		Point<uint32_t> m_newSize;
+		bool m_hasNewSize;
 		std::deque<View*> m_animationUpdateQueue;
 		std::vector<Rectangle<float>> m_invalidRectangles;
-		std::vector<Rectangle<float>> m_pendingInvalidRectangles;
 
-		bool m_hasChangedSize;
-		Point<uint32_t> m_newSize; // Pending size change
-
-		std::recursive_mutex m_animationThreadMutex;
-		std::condition_variable_any m_animationThreadEventWaiter;
+		std::mutex m_animationThreadMutex;
 		std::thread::id m_animationThreadID;
 		bool m_hasAnimationLoopStarted;
 
@@ -6432,9 +6445,9 @@ namespace AvoGUI
 
 		void sendSizeChangeEvents() override
 		{
-			if ((uint32_t)getWidth() != m_window->getWidth() || (uint32_t)getHeight() != m_window->getHeight())
+			if ((uint32_t)getWidth() != m_lastWindowSize.x || (uint32_t)getHeight() != m_lastWindowSize.y)
 			{
-				m_window->setSize(getSize()); // This will result in this method being called again.
+				m_window->setSize(getSize());
 			}
 			else
 			{
@@ -6700,32 +6713,9 @@ namespace AvoGUI
 		/// </summary>
 		/// <param name="p_view"></param>
 		void queueAnimationUpdateForView(View* p_view);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Updates the animations of views which have been queued.</para>
-		/// </summary>
-		void updateQueuedAnimations();
 
-		//------------------------------
+		void handleQueuedEvents();
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Waits until an event from the window occurs. This should only need to be used by the animation thread.</para>
-		/// </summary>
-		/// <param name="p_timeout">Maximum time to wait, in milliseconds</param>
-		void waitForNextEvent(uint32_t p_timeout)
-		{
-			std::unique_lock<std::recursive_mutex> lock(m_animationThreadMutex);
-			m_animationThreadEventWaiter.wait_for(lock, std::chrono::milliseconds(p_timeout));
-		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Notifies the event thread to let it know that a new event from the window has occurred. This should only need to be used by the window.</para>
-		/// </summary>
-		void notifyAnimationThreadAboutNewEvent()
-		{
-			m_animationThreadEventWaiter.notify_one();
-		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Should only need to be used internally. This locks the animation thread mutex, so that the critical section in the animation thread</para>

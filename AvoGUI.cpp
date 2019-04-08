@@ -576,7 +576,6 @@ namespace AvoGUI
 
 #pragma region Platform-specific window implementations
 #ifdef _WIN32
-
 	void runAnimationLoop(GUI* p_gui);
 
 	class WindowsWindow : public Window
@@ -1587,9 +1586,9 @@ namespace AvoGUI
 			{
 				m_isOpen = true;
 
-				WindowEvent windowEvent;
-				windowEvent.window = this;
-				m_GUI->handleWindowCreate(windowEvent);
+				WindowEvent event;
+				event.window = this;
+				m_GUI->handleWindowCreate(event);
 
 				return true;
 			}
@@ -1606,7 +1605,6 @@ namespace AvoGUI
 				{
 					uint32_t width = p_data_b & 0xffff;
 					uint32_t height = p_data_b >> 16 & 0xffff;
-					m_size.set(width, height);
 					windowEvent.width = width;
 					windowEvent.height = height;
 
@@ -1617,8 +1615,6 @@ namespace AvoGUI
 					m_GUI->handleWindowSizeChange(windowEvent);
 				}
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
-
 				return true;
 			}
 			case WM_GETMINMAXINFO:
@@ -1662,7 +1658,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseScroll(mouseEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 
 				return true;
 			}
@@ -1682,7 +1677,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseDown(mouseEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 
 				SetCapture(m_windowHandle);
 
@@ -1704,7 +1698,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseUp(mouseEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 
 				ReleaseCapture();
 
@@ -1725,7 +1718,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseDoubleClick(mouseEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 
 				return true;
 			}
@@ -1744,7 +1736,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseDown(mouseEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 
 				return true;
 			}
@@ -1763,7 +1754,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseUp(mouseEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 
 				return true;
 			}
@@ -1782,7 +1772,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseDoubleClick(mouseEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 
 				return true;
 			}
@@ -1801,7 +1790,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseDown(mouseEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 
 				return true;
 			}
@@ -1820,7 +1808,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseUp(mouseEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 
 				return true;
 			}
@@ -1839,7 +1826,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseDoubleClick(mouseEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 
 				return true;
 			}
@@ -1873,7 +1859,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseMove(mouseEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 
 				m_mousePosition.x = x;
 				m_mousePosition.y = y;
@@ -1897,7 +1882,6 @@ namespace AvoGUI
 					m_GUI->excludeAnimationThread();
 					m_GUI->handleGlobalMouseMove(mouseEvent);
 					m_GUI->includeAnimationThread();
-					m_GUI->notifyAnimationThreadAboutNewEvent();
 
 					m_mousePosition.x = mousePosition.x;
 					m_mousePosition.y = mousePosition.y;
@@ -1915,7 +1899,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleKeyboardKeyDown(keyboardEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 
 				return true;
 			}
@@ -1928,7 +1911,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleKeyboardKeyUp(keyboardEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 
 				return true;
 			}
@@ -1943,7 +1925,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleCharacterInput(keyboardEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 
 				return true;
 			}
@@ -1954,7 +1935,6 @@ namespace AvoGUI
 				m_GUI->excludeAnimationThread();
 				bool willClose = m_GUI->handleWindowClose(windowEvent);
 				m_GUI->includeAnimationThread();
-				m_GUI->notifyAnimationThreadAboutNewEvent();
 				if (willClose)
 				{
 					close();
@@ -3041,6 +3021,7 @@ namespace AvoGUI
 		ID2D1DeviceContext* m_context;
 		IDXGISwapChain1* m_swapChain;
 		ID2D1Bitmap1* m_targetWindowBitmap;
+		bool m_isVsyncEnabled;
 
 		ID2D1SolidColorBrush* m_solidColorBrush;
 		D2D1_STROKE_STYLE_PROPERTIES m_strokeStyle;
@@ -3129,7 +3110,7 @@ namespace AvoGUI
 
 			ID2D1Device* direct2DDevice = 0;
 			s_direct2DFactory->CreateDevice(dxgiDevice, &direct2DDevice);
-			direct2DDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &m_context);
+			direct2DDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_ENABLE_MULTITHREADED_OPTIMIZATIONS, &m_context);
 
 			//------------------------------
 			// Create swap chain, which holds the back buffer and is connected to the window.
@@ -3269,7 +3250,7 @@ namespace AvoGUI
 		{
 			m_context->BeginDraw();
 		}
-		void finishDrawing(std::vector<Rectangle<float>>& p_updatedRectangles) override
+		void finishDrawing(const std::vector<Rectangle<float>>& p_updatedRectangles) override
 		{
 			m_context->EndDraw();
 
@@ -3295,11 +3276,24 @@ namespace AvoGUI
 			presentParameters.pScrollOffset = 0;
 			presentParameters.pScrollRect = 0;
 
-			p_updatedRectangles.clear();
-
-			m_swapChain->Present1(1, 0, &presentParameters);
+			m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : DXGI_PRESENT_DO_NOT_WAIT, &presentParameters);
 
 			//delete[] updatedRects;
+		}
+
+		//------------------------------
+
+		void enableVsync()
+		{
+			m_isVsyncEnabled = true;
+		}
+		void disableVsync()
+		{
+			m_isVsyncEnabled = false;
+		}
+		bool getIsVsyncEnabled()
+		{
+			return m_isVsyncEnabled;
 		}
 
 		//------------------------------
@@ -4560,20 +4554,23 @@ namespace AvoGUI
 	{
 		HWND windowHandle = (HWND)p_gui->getWindow()->getWindowHandle();
 
+		int32_t syncInterval = 16666667;
 		while (p_gui->getWindow()->getIsOpen())
 		{
-			p_gui->excludeAnimationThread();
-			p_gui->updateQueuedAnimations();
-			p_gui->includeAnimationThread();
+			//auto timeBefore = std::chrono::steady_clock::now();
+			p_gui->handleQueuedEvents();
 
 			if (p_gui->getNeedsRedrawing())
 			{
-				p_gui->drawViews(); // Drawing is synced to the refresh rate of the monitor.
+				p_gui->drawViews();
 			}
 			else
 			{
-				p_gui->waitForNextEvent(17U);
+				std::this_thread::sleep_for(std::chrono::nanoseconds(syncInterval));
 			}
+			//std::cout << float(syncInterval) / 1000000 << std::endl;
+			//auto timeAfter = std::chrono::steady_clock::now();
+			//syncInterval = max(10, syncInterval + (16666667 - (timeAfter - timeBefore).count())/100);
 		}
 	}
 
@@ -4753,6 +4750,9 @@ namespace AvoGUI
 		m_drawingContext = new WindowsDrawingContext(m_window);
 #endif
 
+		m_lastWindowSize = m_window->getSize();
+		createContent();
+
 		for (auto listener : m_windowEventListeners)
 		{
 			listener->handleWindowCreate(p_event);
@@ -4787,7 +4787,7 @@ namespace AvoGUI
 	void GUI::handleWindowSizeChange(const WindowEvent& p_event)
 	{
 		m_newSize.set(p_event.width, p_event.height);
-		m_hasChangedSize = true;
+		m_hasNewSize = true;
 
 		for (auto listener : m_windowEventListeners)
 		{
@@ -4797,8 +4797,6 @@ namespace AvoGUI
 		if (!m_hasAnimationLoopStarted)
 		{
 			m_hasAnimationLoopStarted = true;
-
-			createContent(); // This call may cause this handleWindowSizeChange to be called again if the user resizes the window in createContent.
 
 			std::thread animationThread(runAnimationLoop, this);
 			m_animationThreadID = animationThread.get_id();
@@ -5041,105 +5039,96 @@ namespace AvoGUI
 	{
 		m_animationUpdateQueue.push_back(p_view);
 	}
-	void GUI::updateQueuedAnimations()
-	{
-		if (m_hasChangedSize)
-		{
-			m_drawingContext->setSize(m_newSize);
 
-			m_bounds.set(0, 0, m_newSize.x, m_newSize.y);
+	void GUI::handleQueuedEvents()
+	{
+		excludeAnimationThread();
+		if (m_hasNewSize)
+		{
+			Point<float> newSize = m_newSize;
+			m_hasNewSize = false;
+			includeAnimationThread();
+
+			m_drawingContext->setSize(newSize.x, newSize.y);
+			m_bounds.set(0, 0, newSize.x, newSize.y);
+			m_lastWindowSize = newSize;
 			sendSizeChangeEvents();
 			m_tooltip->hide();
-
-			m_pendingInvalidRectangles.clear();
-			m_hasChangedSize = false;
+			m_invalidRectangles.clear();
 			invalidate();
-			m_hasChangedSize = true;
 		}
-
-		uint32_t sizeBefore = m_animationUpdateQueue.size();
-		for (uint32_t a = 0; a < sizeBefore; a++)
+		else
 		{
-			m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval(); // We do this before updateAnimation() because it should be able to queue the next animation update.
+			includeAnimationThread();
+		}
+		
+		excludeAnimationThread();
+		uint32_t numberOfEventsToProcess = m_animationUpdateQueue.size();
+		for (uint32_t a = 0; a < numberOfEventsToProcess; a++)
+		{
+			m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval();
 			m_animationUpdateQueue.front()->updateAnimations();
 			m_animationUpdateQueue.pop_front();
 		}
-
-		for (uint32_t a = 0; a < m_pendingInvalidRectangles.size(); a++)
-		{
-			invalidateRectangle(m_pendingInvalidRectangles[a]);
-		}
-		m_pendingInvalidRectangles.clear();
-
-		m_hasChangedSize = false;
+		includeAnimationThread();
 	}
 
 	//------------------------------
 
 	void GUI::invalidateRectangle(Rectangle<float> p_rectangle)
 	{
-		if (m_hasChangedSize) return; // No invalidation is needed if the GUI window has been resized. Just a small optimization, works without it.
-
-		std::thread::id id = std::this_thread::get_id();
-		if (std::this_thread::get_id() == m_animationThreadID)
-		{
-			p_rectangle.bound(m_bounds);
+		p_rectangle.bound(m_bounds);
 			
-			int32_t rectangleIndex = -1;
-			Rectangle<float>* rectangle = 0;
+		int32_t rectangleIndex = -1;
+		Rectangle<float>* rectangle = 0;
 
-			bool willAdd = true;
-			bool isDone = false;
-			while (!isDone)
+		bool willAdd = true;
+		bool isDone = false;
+		while (!isDone)
+		{
+			if (rectangle)
 			{
-				if (rectangle)
+				isDone = true;
+				for (uint32_t a = 0; a < m_invalidRectangles.size(); a++)
 				{
-					isDone = true;
-					for (uint32_t a = 0; a < m_invalidRectangles.size(); a++)
+					if (a != rectangleIndex)
 					{
-						if (a != rectangleIndex)
+						if (m_invalidRectangles[a].getIsIntersecting(*rectangle))
 						{
-							if (m_invalidRectangles[a].getIsIntersecting(*rectangle))
+							m_invalidRectangles[a].contain(*rectangle);
+							m_invalidRectangles.erase(m_invalidRectangles.begin() + rectangleIndex);
+							if (rectangleIndex < a)
 							{
-								m_invalidRectangles[a].contain(*rectangle);
-								m_invalidRectangles.erase(m_invalidRectangles.begin() + rectangleIndex);
-								if (rectangleIndex < a)
-								{
-									a--;
-								}
-								rectangle = &m_invalidRectangles[a];
-								rectangleIndex = a;
-								isDone = false;
-								break;
+								a--;
 							}
-						}
-					}
-				}
-				else
-				{
-					isDone = true;
-					for (uint32_t a = 0; a < m_invalidRectangles.size(); a++)
-					{
-						if (m_invalidRectangles[a].getIsIntersecting(p_rectangle))
-						{
+							rectangle = &m_invalidRectangles[a];
 							rectangleIndex = a;
-							rectangle = m_invalidRectangles.data() + a;
-							rectangle->contain(p_rectangle);
-							willAdd = false;
 							isDone = false;
 							break;
 						}
 					}
 				}
 			}
-			if (willAdd)
+			else
 			{
-				m_invalidRectangles.push_back(p_rectangle);
+				isDone = true;
+				for (uint32_t a = 0; a < m_invalidRectangles.size(); a++)
+				{
+					if (m_invalidRectangles[a].getIsIntersecting(p_rectangle))
+					{
+						rectangleIndex = a;
+						rectangle = m_invalidRectangles.data() + a;
+						rectangle->contain(p_rectangle);
+						willAdd = false;
+						isDone = false;
+						break;
+					}
+				}
 			}
 		}
-		else
+		if (willAdd)
 		{
-			m_pendingInvalidRectangles.push_back(p_rectangle);
+			m_invalidRectangles.push_back(p_rectangle);
 		}
 	}
 
@@ -5147,7 +5136,12 @@ namespace AvoGUI
 	{
 		m_drawingContext->beginDrawing();
 
-		for (const auto& targetRectangle : m_invalidRectangles)
+		excludeAnimationThread();
+		std::vector<Rectangle<float>> invalidRectangles = std::move(m_invalidRectangles);
+		m_invalidRectangles.clear();
+		includeAnimationThread();
+
+		for (const auto& targetRectangle : invalidRectangles)
 		{
 			View* currentContainer = this;
 			uint32_t startPosition = 0;
@@ -5156,7 +5150,9 @@ namespace AvoGUI
 			m_drawingContext->pushClipRectangle(targetRectangle);
 			m_drawingContext->clear(m_theme->colors["background"]);
 
+			excludeAnimationThread();
 			draw(m_drawingContext, targetRectangle);
+			includeAnimationThread();
 
 			while (true)
 			{
@@ -5169,7 +5165,9 @@ namespace AvoGUI
 					{
 						m_drawingContext->moveOrigin(view->getTopLeft());
 
+						excludeAnimationThread();
 						view->drawShadow(m_drawingContext);
+						includeAnimationThread();
 
 						if (view->getCornerRadius())
 						{
@@ -5180,7 +5178,9 @@ namespace AvoGUI
 							m_drawingContext->pushClipRectangle(view->getSize());
 						}
 
+						excludeAnimationThread();
 						view->draw(m_drawingContext, targetRectangle);
+						includeAnimationThread();
 
 						if (view->getNumberOfChildren())
 						{
@@ -5200,7 +5200,9 @@ namespace AvoGUI
 								m_drawingContext->popClipRectangle();
 							}
 
+							excludeAnimationThread();
 							view->drawUnclipped(m_drawingContext, targetRectangle);
+							includeAnimationThread();
 
 							m_drawingContext->moveOrigin(-view->getTopLeft());
 						}
@@ -5208,7 +5210,9 @@ namespace AvoGUI
 					else if (view->getAbsoluteShadowBounds().getIsIntersecting(targetRectangle))
 					{
 						m_drawingContext->moveOrigin(view->getTopLeft());
+						excludeAnimationThread();
 						view->drawShadow(m_drawingContext);
+						includeAnimationThread();
 						m_drawingContext->moveOrigin(-view->getTopLeft());
 					}
 				}
@@ -5228,7 +5232,9 @@ namespace AvoGUI
 						m_drawingContext->popClipRectangle();
 					}
 
+					excludeAnimationThread();
 					currentContainer->drawUnclipped(m_drawingContext, targetRectangle);
+					includeAnimationThread();
 
 					m_drawingContext->moveOrigin(-currentContainer->getTopLeft());
 
@@ -5240,7 +5246,7 @@ namespace AvoGUI
 			m_drawingContext->popClipRectangle();
 		}
 
-		m_drawingContext->finishDrawing(m_invalidRectangles);
+		m_drawingContext->finishDrawing(invalidRectangles);
 	}
 
 	//------------------------------
