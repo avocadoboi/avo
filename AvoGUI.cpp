@@ -3276,7 +3276,7 @@ namespace AvoGUI
 			presentParameters.pScrollOffset = 0;
 			presentParameters.pScrollRect = 0;
 
-			m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : DXGI_PRESENT_DO_NOT_WAIT, &presentParameters);
+			m_swapChain->Present1(1, (m_isVsyncEnabled ? 0 : DXGI_PRESENT_DO_NOT_WAIT) | DXGI_PRESENT_RESTART, &presentParameters);
 
 			//delete[] updatedRects;
 		}
@@ -4554,23 +4554,33 @@ namespace AvoGUI
 	{
 		HWND windowHandle = (HWND)p_gui->getWindow()->getWindowHandle();
 
-		int32_t syncInterval = 16666667;
+		//int32_t syncInterval = 16666667;
 		while (p_gui->getWindow()->getIsOpen())
 		{
-			//auto timeBefore = std::chrono::steady_clock::now();
-			p_gui->handleQueuedEvents();
+			auto timeBefore = std::chrono::steady_clock::now();
+			if (p_gui->getHasNewWindowSize())
+			{
+				//p_gui->getDrawingContext()->disableVsync();
+			}
+
+			p_gui->updateQueuedAnimations();
 
 			if (p_gui->getNeedsRedrawing())
 			{
 				p_gui->drawViews();
+				if (!p_gui->getDrawingContext()->getIsVsyncEnabled())
+				{
+					std::this_thread::sleep_for(std::chrono::microseconds(16667));
+					p_gui->getDrawingContext()->enableVsync();
+				}
 			}
 			else
 			{
-				std::this_thread::sleep_for(std::chrono::nanoseconds(syncInterval));
+				std::this_thread::sleep_for(std::chrono::microseconds(16667));
 			}
 			//std::cout << float(syncInterval) / 1000000 << std::endl;
 			//auto timeAfter = std::chrono::steady_clock::now();
-			//syncInterval = max(10, syncInterval + (16666667 - (timeAfter - timeBefore).count())/100);
+			//syncInterval = max(5000000, syncInterval + (16666667 - (timeAfter - timeBefore).count())/100);
 		}
 	}
 
@@ -4786,8 +4796,8 @@ namespace AvoGUI
 	}
 	void GUI::handleWindowSizeChange(const WindowEvent& p_event)
 	{
-		m_newSize.set(p_event.width, p_event.height);
-		m_hasNewSize = true;
+		m_newWindowSize.set(p_event.width, p_event.height);
+		m_hasNewWindowSize = true;
 
 		for (auto listener : m_windowEventListeners)
 		{
@@ -5040,13 +5050,13 @@ namespace AvoGUI
 		m_animationUpdateQueue.push_back(p_view);
 	}
 
-	void GUI::handleQueuedEvents()
+	void GUI::updateQueuedAnimations()
 	{
 		excludeAnimationThread();
-		if (m_hasNewSize)
+		if (m_hasNewWindowSize)
 		{
-			Point<float> newSize = m_newSize;
-			m_hasNewSize = false;
+			Point<float> newSize = m_newWindowSize;
+			m_hasNewWindowSize = false;
 			includeAnimationThread();
 
 			m_drawingContext->setSize(newSize.x, newSize.y);

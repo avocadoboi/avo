@@ -6415,8 +6415,8 @@ namespace AvoGUI
 		//------------------------------
 
 		Point<uint32_t> m_lastWindowSize;
-		Point<uint32_t> m_newSize;
-		bool m_hasNewSize;
+		Point<uint32_t> m_newWindowSize;
+		bool m_hasNewWindowSize;
 		std::deque<View*> m_animationUpdateQueue;
 		std::vector<Rectangle<float>> m_invalidRectangles;
 
@@ -6708,13 +6708,30 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
+		/// <para>Returns whether the window has been resized since the last GUI size update. Used internally.</para>
+		/// </summary>
+		/// <returns></returns>
+		bool getHasNewWindowSize()
+		{
+			return m_hasNewWindowSize;
+		}
+
+		//------------------------------
+
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
 		/// <para>Adds a view to the animation update queue. Views that are in the animation update queue will be updated after a certain interval.</para>
 		/// <para>Do not use this method, because it is possible to add a view twice to the queue. Instead use queueAnimationUpdate() from the view.</para>
 		/// </summary>
 		/// <param name="p_view"></param>
 		void queueAnimationUpdateForView(View* p_view);
 
-		void handleQueuedEvents();
+		/// <summary>
+		/// LIBRARY IMPLEMENTED
+		/// <para>Should only need to be used internally. Updates the animations of views which have been requested to get an animation update.</para>
+		/// <para>Also resizes the GUI if the window has changed size.</para>
+		/// </summary>
+		void updateQueuedAnimations();
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
