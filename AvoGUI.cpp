@@ -3045,7 +3045,7 @@ namespace AvoGUI
 
 	public:
 		WindowsDrawingContext(Window* p_window) :
-			m_window(p_window), m_scale(1.f, 1.f), m_textFormat(0), m_fontCollection(0)
+			m_window(p_window), m_isVsyncEnabled(true), m_scale(1.f, 1.f), m_textFormat(0), m_fontCollection(0)
 		{
 			if (!s_imagingFactory)
 			{
@@ -4557,17 +4557,17 @@ namespace AvoGUI
 		//int32_t syncInterval = 16666667;
 		while (p_gui->getWindow()->getIsOpen())
 		{
-			auto timeBefore = std::chrono::steady_clock::now();
+			//auto timeBefore = std::chrono::steady_clock::now();
 			if (p_gui->getHasNewWindowSize())
 			{
-				//p_gui->getDrawingContext()->disableVsync();
+				p_gui->getDrawingContext()->disableVsync();
 			}
-
 			p_gui->updateQueuedAnimations();
 
 			if (p_gui->getNeedsRedrawing())
 			{
 				p_gui->drawViews();
+				
 				if (!p_gui->getDrawingContext()->getIsVsyncEnabled())
 				{
 					std::this_thread::sleep_for(std::chrono::microseconds(16667));
@@ -5846,8 +5846,10 @@ namespace AvoGUI
 		{
 			m_text->getNearestCharacterIndexAndPosition(Point<float>(p_event.x, p_event.y), &m_caretIndex, &m_caretPosition, true);
 		}
-		m_isCaretVisible = true;
 		getGUI()->setKeyboardFocus(this);
+		m_frameCount = 1;
+		m_isCaretVisible = true;
+		invalidate();
 		queueAnimationUpdate();
 	}
 	void TextField::handleKeyboardFocusLost()
@@ -5859,14 +5861,13 @@ namespace AvoGUI
 
 	void TextField::handleCharacterInput(const KeyboardEvent& p_event)
 	{
-		if (p_event.isTarget && p_event.character >= 32 && p_event.character <= 126)
+		if (p_event.isTarget && (p_event.character >= 32 && p_event.character < 126 || p_event.character < 0))
 		{
 			std::string string = m_text->getString();
 			string.insert(m_caretIndex, 1U, p_event.character);
 			setString(string);
 			m_caretIndex++;
 			m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-
 			invalidate();
 		}
 	}
@@ -5906,18 +5907,19 @@ namespace AvoGUI
 			break;
 		}
 		m_isCaretVisible = true;
+		invalidate();
 	}
 
 	//------------------------------
 
 	void TextField::updateAnimations()
 	{
-		m_focusAnimationValue = m_theme->easings["in out"].easeValue(m_labelAnimationTime);
+		m_focusAnimationValue = m_theme->easings["in out"].easeValue(m_focusAnimationTime);
 		if (getGUI()->getKeyboardFocus() == this)
 		{
-			if (m_labelAnimationTime < 1.f)
+			if (m_focusAnimationTime < 1.f)
 			{
-				m_labelAnimationTime = min(1.f, m_labelAnimationTime + 0.08f);
+				m_focusAnimationTime = min(1.f, m_focusAnimationTime + 0.08f);
 				invalidate();
 			}
 			else if (m_frameCount % 30 == 0)
@@ -5928,9 +5930,9 @@ namespace AvoGUI
 			m_frameCount++;
 			queueAnimationUpdate();
 		}
-		else if (m_labelAnimationTime > 0.f && m_text->getString().size() == 0)
+		else if (m_focusAnimationTime > 0.f && m_text->getString().size() == 0)
 		{
-			m_labelAnimationTime = max(0.f, m_labelAnimationTime - 0.08f);
+			m_focusAnimationTime = max(0.f, m_focusAnimationTime - 0.08f);
 			invalidate();
 			queueAnimationUpdate();
 		}

@@ -42,9 +42,7 @@ public:
 class MyGUI : public AvoGUI::GUI, public AvoGUI::ButtonListener
 {
 private:
-	AvoGUI::View* m_buttonContainer;
-	AvoGUI::Button* m_button_readMore;
-	AvoGUI::TextField* m_textField_name;
+	AvoGUI::View* m_viewContainer;
 
 	bool m_areButtonsEnabled = true;
 
@@ -63,30 +61,6 @@ public:
 
 	//------------------------------
 
-	void handleKeyboardKeyDown(const AvoGUI::KeyboardEvent& p_event) override
-	{
-		GUI::handleKeyboardKeyDown(p_event);
-
-		if (p_event.key == AvoGUI::KeyboardKey::Spacebar)
-		{
-			if (m_areButtonsEnabled)
-			{
-				((AvoGUI::Button*)m_buttonContainer->getChild(0))->disable();
-				((AvoGUI::Button*)m_buttonContainer->getChild(1))->disable();
-				((AvoGUI::Button*)m_buttonContainer->getChild(2))->disable();
-			}
-			else
-			{
-				((AvoGUI::Button*)m_buttonContainer->getChild(0))->enable();
-				((AvoGUI::Button*)m_buttonContainer->getChild(1))->enable();
-				((AvoGUI::Button*)m_buttonContainer->getChild(2))->enable();
-			}
-			m_areButtonsEnabled = !m_areButtonsEnabled;
-		}
-	}
-
-	//------------------------------
-
 	void createContent() override
 	{
 		m_theme->colors["background"] = 0xfffefefeU;
@@ -100,27 +74,31 @@ public:
 
 		//------------------------------
 
-		m_buttonContainer = new AvoGUI::View(this);
+		m_viewContainer = new AvoGUI::View(this);
 
-		AvoGUI::Button* button_yes = new AvoGUI::Button(m_buttonContainer, "YES");
+		AvoGUI::Button* button_yes = new AvoGUI::Button(m_viewContainer, "YES");
 		button_yes->setTooltip("Tooltip 0");
 		button_yes->addButtonListener(this);
 
-		AvoGUI::Button* button_no = new AvoGUI::Button(m_buttonContainer, "NO", AvoGUI::Button::Emphasis::Medium, button_yes->getRight() + 10.f);
+		AvoGUI::Button* button_no = new AvoGUI::Button(m_viewContainer, "NO", AvoGUI::Button::Emphasis::Medium, button_yes->getRight() + 10.f);
 		button_no->setTooltip("Tooltip 1");
 		button_no->addButtonListener(this);
 
-		AvoGUI::Button* button_readMore = new AvoGUI::Button(m_buttonContainer, "READ MORE", AvoGUI::Button::Emphasis::Low, 0.f, button_no->getBottom() + 15.f);
+		AvoGUI::Button* button_readMore = new AvoGUI::Button(m_viewContainer, "READ MORE", AvoGUI::Button::Emphasis::Low, 0.f, button_no->getBottom() + 15.f);
 		button_readMore->setCenterX(button_no->getRight()*0.5f);
 		button_readMore->setTooltip("tooltip 2");
 		button_readMore->addButtonListener(this);
 
-		m_buttonContainer->setPadding(30.f);
+		AvoGUI::TextField* textField_name = new AvoGUI::TextField(m_viewContainer, AvoGUI::TextField::Type::Filled, "Name");
+		textField_name->setLeft(button_no->getRight() + 15.f, true);
+		textField_name->setCenterY(button_readMore->getBottom()*0.5f);
+
+		m_viewContainer->setPadding(30.f);
 
 	}
 	void handleSizeChange() override
 	{
-		m_buttonContainer->setCenter(getCenterX(), getCenterY());
+		m_viewContainer->setCenter(getCenterX(), getCenterY());
 	}
 };
 

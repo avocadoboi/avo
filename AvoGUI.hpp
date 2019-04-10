@@ -7156,7 +7156,7 @@ namespace AvoGUI
 
 	private:
 		Text* m_labelText;
-		float m_labelAnimationTime;
+		float m_focusAnimationTime;
 		Color m_labelColor;
 		float m_focusAnimationValue;
 
