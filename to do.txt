@@ -1,0 +1,1 @@
+make widenString() use an array parameter to return the result instead, to allow for use of static arrays instead of dynamic.

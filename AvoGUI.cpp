@@ -1031,6 +1031,8 @@ namespace AvoGUI
 				RegisterClass(&windowClass);
 			}
 
+			m_isFullscreen = p_isFullscreen;
+
 			m_extendedStyles = 0;
 			m_styles = WS_POPUP | WS_SYSMENU;
 			if (uint32_t(p_styleFlags & WindowStyleFlags::Border))
@@ -1620,12 +1622,19 @@ namespace AvoGUI
 			case WM_GETMINMAXINFO:
 			{
 				MINMAXINFO* minMaxInfo = (MINMAXINFO*)p_data_b;
+				if (m_minSize.x > 0U || m_minSize.y > 0U)
+				{
+					RECT rect = { 0, 0, m_minSize.x, m_minSize.y };
+					AdjustWindowRectEx(&rect, m_styles, 0, m_extendedStyles);
+					minMaxInfo->ptMinTrackSize.x = rect.right - rect.left;
+					minMaxInfo->ptMinTrackSize.y = rect.bottom - rect.top;
+				}
 				if (m_maxSize.x > 0U || m_maxSize.y > 0U)
 				{
-					minMaxInfo->ptMinTrackSize.x = m_minSize.x;
-					minMaxInfo->ptMinTrackSize.y = m_minSize.y;
-					minMaxInfo->ptMaxTrackSize.x = m_maxSize.x;
-					minMaxInfo->ptMaxTrackSize.y = m_maxSize.y;
+					RECT rect = { 0, 0, m_maxSize.x, m_maxSize.y };
+					AdjustWindowRectEx(&rect, m_styles, 0, m_extendedStyles);
+					minMaxInfo->ptMaxTrackSize.x = rect.right - rect.left;
+					minMaxInfo->ptMaxTrackSize.y = rect.bottom - rect.top;
 				}
 				return true;
 			}
@@ -3116,8 +3125,11 @@ namespace AvoGUI
 			// Create swap chain, which holds the back buffer and is connected to the window.
 
 			DXGI_SWAP_CHAIN_DESC1 swapChainDescription = { };
-			swapChainDescription.Width = 0; // Automatic width.
-			swapChainDescription.Height = 0; // Automatic height.
+			if (p_window->getIsFullscreen())
+			{
+				swapChainDescription.Width = p_window->getMonitorSize().x;
+				swapChainDescription.Height = p_window->getMonitorSize().y;
+			}
 			swapChainDescription.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 			swapChainDescription.Stereo = false;
 			swapChainDescription.SampleDesc.Count = 1;
@@ -3131,17 +3143,20 @@ namespace AvoGUI
 			DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreenSwapChainDescription = { };
 			// The documentation says the refresh rate is expressed in hertz, so I guess it's just 60/1 = 60 hertz?
 			// Why is this a rational object then? Wouldn't it be more logical to express it in seconds? Then it would be 1/60
+
+			//dxgiFactory->EnumAdapters1()
 			fullscreenSwapChainDescription.RefreshRate.Numerator = 60;
 			fullscreenSwapChainDescription.RefreshRate.Denominator = 1;
-			fullscreenSwapChainDescription.Scaling = DXGI_MODE_SCALING::DXGI_MODE_SCALING_UNSPECIFIED;
+			fullscreenSwapChainDescription.Scaling = DXGI_MODE_SCALING::DXGI_MODE_SCALING_CENTERED;
 			fullscreenSwapChainDescription.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER::DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
-			fullscreenSwapChainDescription.Windowed = !p_window->getIsFullscreen();
+			fullscreenSwapChainDescription.Windowed = false;
 
 			dxgiFactory->CreateSwapChainForHwnd(
 				d3dDevice, (HWND)p_window->getWindowHandle(),
 				&swapChainDescription, &fullscreenSwapChainDescription,
 				0, &m_swapChain
 			);
+			m_swapChain->SetFullscreenState(true, 0);
 
 			//------------------------------
 			// Create a target bitmap which is connected to the back buffer of the window.
@@ -3267,8 +3282,8 @@ namespace AvoGUI
 			for (uint32_t a = 0; a < p_updatedRectangles.size(); a++)
 			{
 				updatedRects[a].left = p_updatedRectangles[a].left;
-				updatedRects[a].right = p_updatedRectangles[a].right;
 				updatedRects[a].top = p_updatedRectangles[a].top;
+				updatedRects[a].right = p_updatedRectangles[a].right;
 				updatedRects[a].bottom = p_updatedRectangles[a].bottom;
 			}
 
@@ -3276,9 +3291,10 @@ namespace AvoGUI
 			presentParameters.pScrollOffset = 0;
 			presentParameters.pScrollRect = 0;
 
-			m_swapChain->Present1(1, (m_isVsyncEnabled ? 0 : DXGI_PRESENT_DO_NOT_WAIT) | DXGI_PRESENT_RESTART, &presentParameters);
-
+			//HRESULT result = m_swapChain->Present(1, 0/*(m_isVsyncEnabled ? 0 : DXGI_PRESENT_DO_NOT_WAIT) | DXGI_PRESENT_RESTART*/ /*&presentParameters*/);
+			HRESULT result = m_swapChain->Present1(1, (m_isVsyncEnabled ? 0 : DXGI_PRESENT_DO_NOT_WAIT) | DXGI_PRESENT_RESTART, &presentParameters);
 			//delete[] updatedRects;
+			std::cout << std::hex << result << std::endl;
 		}
 
 		//------------------------------
@@ -4352,11 +4368,15 @@ namespace AvoGUI
 		}
 		Image* createImage(const char* p_filePath) override
 		{
-			wchar_t wideFilePath[100];
-			widenString(p_filePath, wideFilePath, 100);
+			wchar_t wideFilePath[200];
+			widenString(p_filePath, wideFilePath, 200);
 
 			IWICBitmapDecoder* decoder = 0;
 			s_imagingFactory->CreateDecoderFromFilename(wideFilePath, 0, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &decoder);
+			if (!decoder)
+			{
+				return 0;
+			}
 
 			IWICBitmapFrameDecode* frame = 0;
 			decoder->GetFrame(0, &frame);
@@ -4804,7 +4824,7 @@ namespace AvoGUI
 			listener->handleWindowSizeChange(p_event);
 		}
 
-		if (!m_hasAnimationLoopStarted)
+		if (!m_hasAnimationLoopStarted && m_drawingContext)
 		{
 			m_hasAnimationLoopStarted = true;
 

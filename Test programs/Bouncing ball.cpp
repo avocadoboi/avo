@@ -4,7 +4,7 @@
 //------------------------------
 
 double const BALL_RADIUS = 60.0;
-double const BALL_RESTITUTION = 0.5;
+double const BALL_RESTITUTION = 0.8;
 double const GRAVITATIONAL_ACCELERATION = 9.8;
 double const PIXELS_PER_METER = 400.0;
 AvoGUI::Color const WALL_COLOR(0.2f);

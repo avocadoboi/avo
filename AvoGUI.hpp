@@ -6420,7 +6420,7 @@ namespace AvoGUI
 		std::deque<View*> m_animationUpdateQueue;
 		std::vector<Rectangle<float>> m_invalidRectangles;
 
-		std::mutex m_animationThreadMutex;
+		std::recursive_mutex m_animationThreadMutex;
 		std::thread::id m_animationThreadID;
 		bool m_hasAnimationLoopStarted;
 

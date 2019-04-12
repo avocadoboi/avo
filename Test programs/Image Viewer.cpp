@@ -19,7 +19,7 @@ public:
 	ImageViewer(const char* p_filePath) : 
 		m_filePath(p_filePath)
 	{
-		create("Image viewer", 600U, 500U, AvoGUI::WindowStyleFlags::Default);
+		create("Image viewer", 600U, 500U, AvoGUI::WindowStyleFlags::Default, true);
 		enableMouseEvents();
 		queueAnimationUpdate();
 	}
@@ -28,6 +28,8 @@ public:
 
 	void createContent() override
 	{
+		getWindow()->setMinSize(250, 200);
+
 		m_theme->colors["background"] = AvoGUI::Color(0.3f);
 
 		m_image = getDrawingContext()->createImage(m_filePath);
@@ -87,11 +89,14 @@ public:
 
 	void draw(AvoGUI::DrawingContext* p_context) override
 	{
-		for (uint32_t a = 0; a < ceil(getWidth() / BACKGROUND_TILE_WIDTH); a++)
+		uint32_t width = ceil(getWidth() / BACKGROUND_TILE_WIDTH);
+		uint32_t height = ceil(getHeight() / BACKGROUND_TILE_WIDTH);
+		AvoGUI::Color tileColor(0.7f);
+		for (uint32_t a = 0; a < width; a++)
 		{
-			for (uint32_t b = a & 1; b < ceil(getHeight() / BACKGROUND_TILE_WIDTH); b += 2)
+			for (uint32_t b = a & 1; b < height; b += 2)
 			{
-				p_context->setColor(AvoGUI::Color(0.7f));
+				p_context->setColor(tileColor);
 				p_context->fillRectangle(AvoGUI::Point<float>(a*BACKGROUND_TILE_WIDTH, b*BACKGROUND_TILE_WIDTH), AvoGUI::Point<float>(BACKGROUND_TILE_WIDTH, BACKGROUND_TILE_WIDTH));
 			}
 		}
