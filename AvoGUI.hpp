@@ -40,6 +40,17 @@
 // For debugging.
 #include <iostream>
 
+// Memory leak detection
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+
+#ifdef _DEBUG
+#define debugNew new(_NORMAL_BLOCK, __FILE__, __LINE__)
+#else
+#define debugNew new
+#endif
+
 //------------------------------
 
 namespace AvoGUI
@@ -1842,24 +1853,26 @@ namespace AvoGUI
 		virtual ~ReferenceCounted() { };
 
 		/// <summary>
-		/// Increments the reference count.
+		/// Increments the reference count and returns the new reference count.
 		/// </summary>
-		void remember()
+		uint32_t remember()
 		{
-			m_referenceCount++;
+			return ++m_referenceCount;
 		}
 
 		/// <summary>
-		/// <para>Decrements the reference count and deletes the</para>
-		/// <para>object if the reference count has reached 0.</para>
+		/// <para>Decrements the reference count, deletes the object if the reference count</para>
+		/// <para>has reached 0 and returns the new reference count.</para>
 		/// </summary>
-		void forget()
+		uint32_t forget()
 		{
 			m_referenceCount--;
 			if (!m_referenceCount)
 			{
 				delete this;
+				return 0;
 			}
+			return m_referenceCount;
 		}
 
 		uint32_t getReferenceCount()
@@ -5101,7 +5114,7 @@ namespace AvoGUI
 		/// <param name="p_styleFlags">Styling options for the window.</param>
 		/// <param name="p_isFullscreen">If the client area fills the whole screen without anything else showing.</param>
 		/// <param name="p_parent">An optional parent window that is behind this window.</param>
-		virtual void create(const char* p_title, int32_t p_x, int32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, bool p_isFullscreen = false, Window* p_parent = 0) = 0;
+		virtual void create(const char* p_title, int32_t p_x, int32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
 		/// <summary>
 		/// Creates the window in the center of the screen. To close it, use close().
 		/// </summary>
@@ -5111,7 +5124,7 @@ namespace AvoGUI
 		/// <param name="p_styleFlags">Styling options for the window.</param>
 		/// <param name="p_isFullscreen">If the client area fills the whole screen without anything else showing.</param>
 		/// <param name="p_parent">An optional parent window that is behind this window.</param>
-		virtual void create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, bool p_isFullscreen = false, Window* p_parent = 0) = 0;
+		virtual void create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
 
 		/// <summary>
 		/// Closes the window. To recreate it, use create(...).
@@ -5136,6 +5149,10 @@ namespace AvoGUI
 		/// Changes whether the client area of the window fills the whole screen or not.
 		/// </summary>
 		virtual void setIsFullscreen(bool p_isFullscreen) = 0;
+		/// <summary>
+		/// Switches between fullscreen and windowed mode. If the window is currently windowed, it will become fullscreen, and the other way around.
+		/// </summary>
+		virtual void switchFullscreen() = 0;
 		/// <summary>
 		/// Returns whether the client area of the window fills the whole screen or not.
 		/// </summary>
@@ -5275,20 +5292,25 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// <para>Returns the bounds of the current monitor used</para>
-		/// <para>by the window</para>
+		/// <para>Returns the bounds of the current monitor used by the window</para>
 		/// </summary>
 		virtual Rectangle<uint32_t> getMonitorBounds() = 0;
 		/// <summary>
-		/// <para>Returns the size of the current monitor used</para>
-		/// <para>by the window.</para>
+		/// <para>Returns the size of the current monitor used by the window.</para>
 		/// </summary>
 		virtual Point<uint32_t> getMonitorPosition() = 0;
 		/// <summary>
-		/// <para>Returns the size of the current monitor used</para>
-		/// <para>by the window.</para>
+		/// <para>Returns the size of the current monitor used by the window.</para>
 		/// </summary>
 		virtual Point<uint32_t> getMonitorSize() = 0;
+		/// <summary>
+		/// <para>Returns the width of the current monitor used by the window.</para>
+		/// </summary>
+		virtual uint32_t getMonitorWidth() = 0;
+		/// <summary>
+		/// <para>Returns the height of the current monitor used by the window.</para>
+		/// </summary>
+		virtual uint32_t getMonitorHeight() = 0;
 
 		//------------------------------
 
@@ -5810,6 +5832,21 @@ namespace AvoGUI
 		/// <para>Finishes the drawing and shows it. The GUI calls this for you.</para>
 		/// </summary>
 		virtual void finishDrawing(const std::vector<Rectangle<float>>& p_updatedRectangles) = 0;
+
+		//------------------------------
+
+		/// <summary>
+		/// Sets whether the target is fullscreen or windowed.
+		/// </summary>
+		virtual void setIsFullscreen(bool p_isFullscreen) = 0;
+		/// <summary>
+		/// Switches between windowed and fullscreen mode. If it is currently windowed, it switches to fullscreen, and the other way around.
+		/// </summary>
+		virtual void switchFullscreen() = 0;
+		/// <summary>
+		/// Returns whether the target is fullscreen or windowed.
+		/// </summary>
+		virtual bool getIsFullscreen() = 0;
 
 		//------------------------------
 
@@ -6471,7 +6508,7 @@ namespace AvoGUI
 		/// <param name="p_windowFlags">Flags which change how the window appears.</param>
 		/// <param name="p_isFullscreen">If this is true, no window will be shown and graphics will be drawn in fullscreen.</param>
 		/// <param name="p_parent">Parent GUI, is only used if the Child flag is turned on in p_windowFlags.</param>
-		void create(const char* p_title, uint32_t p_x, uint32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, bool p_isFullscreen = false, GUI* p_parent = 0);
+		void create(const char* p_title, uint32_t p_x, uint32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>This method creates the window and drawing context as well as creates the content of the GUI and lays it out.</para>
@@ -6482,7 +6519,7 @@ namespace AvoGUI
 		/// <param name="p_windowFlags">Flags which change how the window appears.</param>
 		/// <param name="p_isFullscreen">If this is true, no window will be shown and graphics will be drawn in fullscreen.</param>
 		/// <param name="p_parent">Parent GUI, is only used if the Child flag is turned on in p_windowFlags.</param>
-		void create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, bool p_isFullscreen = false, GUI* p_parent = 0);
+		void create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
 
 		//------------------------------
 

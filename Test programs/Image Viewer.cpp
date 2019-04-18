@@ -7,7 +7,7 @@ float const ANIMATION_SPEED = 0.2f;
 
 //------------------------------
 
-class ImageViewer : public AvoGUI::GUI
+class ImageViewer : public AvoGUI::GUI, public AvoGUI::KeyboardEventListener
 {
 private:
 	AvoGUI::Image* m_image;
@@ -19,9 +19,11 @@ public:
 	ImageViewer(const char* p_filePath) : 
 		m_filePath(p_filePath)
 	{
-		create("Image viewer", 600U, 500U, AvoGUI::WindowStyleFlags::Default, true);
-		enableMouseEvents();
-		queueAnimationUpdate();
+		create("Image viewer", 600U, 500U, AvoGUI::WindowStyleFlags::Default);
+	}
+	~ImageViewer()
+	{
+		m_image->forget();
 	}
 
 	//------------------------------
@@ -29,17 +31,39 @@ public:
 	void createContent() override
 	{
 		getWindow()->setMinSize(250, 200);
+		enableMouseEvents();
+		setKeyboardFocus(this);
 
 		m_theme->colors["background"] = AvoGUI::Color(0.3f);
 
 		m_image = getDrawingContext()->createImage(m_filePath);
 		m_image->setCenter(getCenter());
 		m_targetImageBounds = m_image->getBounds();
+		queueAnimationUpdate();
 	}
 
 	void handleSizeChange() override
 	{
 		m_targetImageBounds.setCenter(getCenter());
+		queueAnimationUpdate();
+	}
+
+	//------------------------------
+
+	void handleKeyboardKeyDown(const AvoGUI::KeyboardEvent& p_event) override
+	{
+		if (p_event.isRepeated)
+		{
+			return;
+		}
+		if (p_event.key == AvoGUI::KeyboardKey::Escape)
+		{
+			getWindow()->setIsFullscreen(false);
+		}
+		else if (p_event.key == AvoGUI::KeyboardKey::F4)
+		{
+			getWindow()->switchFullscreen();
+		}
 	}
 
 	//------------------------------
@@ -64,25 +88,34 @@ public:
 		{
 			m_targetImageBounds.setCenter(getCenter());
 		}
+		queueAnimationUpdate();
 	}
 	void handleMouseMove(const AvoGUI::MouseEvent& p_event) override
 	{
 		if (p_event.modifierKeys == AvoGUI::ModifierKeyFlags::LeftMouse)
 		{
 			m_targetImageBounds.move(p_event.movementX, p_event.movementY);
+			queueAnimationUpdate();
 		}
 	}
 
 	void updateAnimations() override
 	{
-		m_image->setBounds(
-			m_image->getLeft() + (m_targetImageBounds.left - m_image->getLeft())*ANIMATION_SPEED,
-			m_image->getTop() + (m_targetImageBounds.top - m_image->getTop())*ANIMATION_SPEED,
-			m_image->getRight() + (m_targetImageBounds.right - m_image->getRight())*ANIMATION_SPEED,
-			m_image->getBottom() + (m_targetImageBounds.bottom - m_image->getBottom())*ANIMATION_SPEED
-		);
-		invalidate();
-		queueAnimationUpdate();
+		float offsetLeft = m_targetImageBounds.left - m_image->getLeft();
+		float offsetTop = m_targetImageBounds.top - m_image->getTop();
+		float offsetRight = m_targetImageBounds.right - m_image->getRight();
+		float offsetBottom = m_targetImageBounds.bottom - m_image->getBottom();
+		if (abs(offsetLeft) > 0.1f || abs(offsetTop) > 0.1f || abs(offsetRight) > 0.1f || abs(offsetBottom) > 0.1f)
+		{
+			m_image->setBounds(
+				m_image->getLeft() + offsetLeft * ANIMATION_SPEED,
+				m_image->getTop() + offsetTop * ANIMATION_SPEED,
+				m_image->getRight() + offsetRight * ANIMATION_SPEED,
+				m_image->getBottom() + offsetBottom * ANIMATION_SPEED
+			);
+			invalidate();
+			queueAnimationUpdate();
+		}
 	}
 
 	//------------------------------
@@ -154,6 +187,8 @@ public:
 
 int main(int p_numberOfArguments, char** p_arguments)
 {
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+
 	if (p_numberOfArguments > 1)
 	{
 		ImageViewer* viewer = new ImageViewer(p_arguments[1]);

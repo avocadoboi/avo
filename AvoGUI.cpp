@@ -21,7 +21,7 @@
 #include <dwrite.h>
 #include <dwrite_1.h>
 #include <wincodec.h>
-#include <UIAnimation.h>
+#include <comdef.h>
 
 #pragma comment(lib, "d2d1")
 #pragma comment(lib, "d3d11")
@@ -151,18 +151,14 @@ namespace AvoGUI
 
 	View::View(View* p_parent, const Rectangle<float>& p_bounds) :
 		ProtectedRectangle(p_bounds), m_isVisible(true), m_cornerRadius(0.f), m_hasShadow(true), m_elevation(0.f),
-		m_hasSizeChangedSinceLastElevationChange(true), m_shadowImage(0), m_shadowBounds(p_bounds), m_userData(0)
+		m_hasSizeChangedSinceLastElevationChange(true), m_shadowImage(0), m_shadowBounds(p_bounds), m_userData(0),
+		m_parent(0)
 	{
-		if (p_parent)
+		if (p_parent && p_parent != this)
 		{
 			setParent(p_parent);
 
 			m_GUI = m_parent->getGUI();
-
-			m_absolutePosition.x = m_parent->getAbsoluteLeft() + m_bounds.left;
-			m_absolutePosition.y = m_parent->getAbsoluteTop() + m_bounds.top;
-
-			//------------------------------
 
 			m_theme = m_parent->getTheme();
 			m_theme->remember();
@@ -175,12 +171,12 @@ namespace AvoGUI
 			m_layerIndex = 0U;
 			m_index = 0U;
 
-			m_theme = new Theme();
+			m_theme = debugNew Theme();
 		}
 	}
 	View::~View()
 	{
-		m_theme->forget();
+		uint32_t referenceCount = m_theme->forget();
 		removeAllChildren();
 	}
 
@@ -1011,7 +1007,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void create(const char* p_title, int32_t p_x, int32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, bool p_isFullscreen = false, Window* p_parent = 0) override
+		void create(const char* p_title, int32_t p_x, int32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
 		{
 			if (m_windowHandle)
 			{
@@ -1030,8 +1026,6 @@ namespace AvoGUI
 
 				RegisterClass(&windowClass);
 			}
-
-			m_isFullscreen = p_isFullscreen;
 
 			m_extendedStyles = 0;
 			m_styles = WS_POPUP | WS_SYSMENU;
@@ -1093,9 +1087,9 @@ namespace AvoGUI
 
 			s_numberOfWindows++;
 		}
-		void create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, bool p_isFullscreen = false, Window* p_parent = 0) override
+		void create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
 		{
-			create(p_title, (GetSystemMetrics(SM_CXSCREEN) - p_width) / 2, (GetSystemMetrics(SM_CYSCREEN) - p_height) / 2, p_width, p_height, p_styleFlags, p_isFullscreen, p_parent);
+			create(p_title, (GetSystemMetrics(SM_CXSCREEN) - p_width) / 2, (GetSystemMetrics(SM_CYSCREEN) - p_height) / 2, p_width, p_height, p_styleFlags, p_parent);
 		}
 
 		void close() override
@@ -1123,7 +1117,16 @@ namespace AvoGUI
 
 		void setIsFullscreen(bool p_isFullscreen) override
 		{
-			m_isFullscreen = p_isFullscreen;
+			if (p_isFullscreen != m_isFullscreen)
+			{
+				m_isFullscreen = p_isFullscreen;
+				m_GUI->getDrawingContext()->setIsFullscreen(p_isFullscreen);
+			}
+		}
+		void switchFullscreen() override
+		{
+			m_isFullscreen = !m_isFullscreen;
+			m_GUI->getDrawingContext()->switchFullscreen();
 		}
 
 		//------------------------------
@@ -1246,6 +1249,20 @@ namespace AvoGUI
 			info.cbSize = sizeof(MONITORINFO);
 			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
 			return Point<uint32_t>(info.rcMonitor.right - info.rcMonitor.left, info.rcMonitor.bottom - info.rcMonitor.top);
+		}
+		uint32_t getMonitorWidth() override
+		{
+			MONITORINFO info = { };
+			info.cbSize = sizeof(MONITORINFO);
+			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
+			return info.rcMonitor.right - info.rcMonitor.left;
+		}
+		uint32_t getMonitorHeight() override
+		{
+			MONITORINFO info = { };
+			info.cbSize = sizeof(MONITORINFO);
+			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
+			return info.rcMonitor.bottom - info.rcMonitor.top;
 		}
 
 		//------------------------------
@@ -1580,7 +1597,7 @@ namespace AvoGUI
 		//------------------------------
 
 		// Returns true if the event was handled
-		bool handleEvent(UINT p_message, WPARAM p_data_a, LPARAM p_data_b)
+		long long handleEvent(UINT p_message, WPARAM p_data_a, LPARAM p_data_b)
 		{
 			switch (p_message)
 			{
@@ -1592,7 +1609,7 @@ namespace AvoGUI
 				event.window = this;
 				m_GUI->handleWindowCreate(event);
 
-				return true;
+				return 0;
 			}
 			case WM_SIZE:
 			{
@@ -1617,7 +1634,7 @@ namespace AvoGUI
 					m_GUI->handleWindowSizeChange(windowEvent);
 				}
 				m_GUI->includeAnimationThread();
-				return true;
+				return 0;
 			}
 			case WM_GETMINMAXINFO:
 			{
@@ -1636,7 +1653,7 @@ namespace AvoGUI
 					minMaxInfo->ptMaxTrackSize.x = rect.right - rect.left;
 					minMaxInfo->ptMaxTrackSize.y = rect.bottom - rect.top;
 				}
-				return true;
+				return 0;
 			}
 			case WM_MOVE:
 			{
@@ -1644,7 +1661,7 @@ namespace AvoGUI
 				GetWindowRect(m_windowHandle, &rect);
 				m_position.set(rect.left, rect.top);
 
-				return true;
+				return 0;
 			}
 			case WM_MOUSEWHEEL:
 			{
@@ -1668,7 +1685,7 @@ namespace AvoGUI
 				m_GUI->handleGlobalMouseScroll(mouseEvent);
 				m_GUI->includeAnimationThread();
 
-				return true;
+				return 0;
 			}
 			case WM_LBUTTONDOWN:
 			{
@@ -1689,7 +1706,7 @@ namespace AvoGUI
 
 				SetCapture(m_windowHandle);
 
-				return true;
+				return 0;
 			}
 			case WM_LBUTTONUP:
 			{
@@ -1710,7 +1727,7 @@ namespace AvoGUI
 
 				ReleaseCapture();
 
-				return true;
+				return 0;
 			}
 			case WM_LBUTTONDBLCLK:
 			{
@@ -1728,7 +1745,7 @@ namespace AvoGUI
 				m_GUI->handleGlobalMouseDoubleClick(mouseEvent);
 				m_GUI->includeAnimationThread();
 
-				return true;
+				return 0;
 			}
 			case WM_RBUTTONDOWN:
 			{
@@ -1746,7 +1763,7 @@ namespace AvoGUI
 				m_GUI->handleGlobalMouseDown(mouseEvent);
 				m_GUI->includeAnimationThread();
 
-				return true;
+				return 0;
 			}
 			case WM_RBUTTONUP:
 			{
@@ -1764,7 +1781,7 @@ namespace AvoGUI
 				m_GUI->handleGlobalMouseUp(mouseEvent);
 				m_GUI->includeAnimationThread();
 
-				return true;
+				return 0;
 			}
 			case WM_RBUTTONDBLCLK:
 			{
@@ -1782,7 +1799,7 @@ namespace AvoGUI
 				m_GUI->handleGlobalMouseDoubleClick(mouseEvent);
 				m_GUI->includeAnimationThread();
 
-				return true;
+				return 0;
 			}
 			case WM_MBUTTONDOWN:
 			{
@@ -1800,7 +1817,7 @@ namespace AvoGUI
 				m_GUI->handleGlobalMouseDown(mouseEvent);
 				m_GUI->includeAnimationThread();
 
-				return true;
+				return 0;
 			}
 			case WM_MBUTTONUP:
 			{
@@ -1818,7 +1835,7 @@ namespace AvoGUI
 				m_GUI->handleGlobalMouseUp(mouseEvent);
 				m_GUI->includeAnimationThread();
 
-				return true;
+				return 0;
 			}
 			case WM_MBUTTONDBLCLK:
 			{
@@ -1836,7 +1853,7 @@ namespace AvoGUI
 				m_GUI->handleGlobalMouseDoubleClick(mouseEvent);
 				m_GUI->includeAnimationThread();
 
-				return true;
+				return 0;
 			}
 
 			case WM_MOUSEMOVE:
@@ -1872,7 +1889,7 @@ namespace AvoGUI
 				m_mousePosition.x = x;
 				m_mousePosition.y = y;
 
-				return true;
+				return 0;
 			}
 			case WM_MOUSELEAVE:
 			{
@@ -1895,7 +1912,7 @@ namespace AvoGUI
 					m_mousePosition.x = mousePosition.x;
 					m_mousePosition.y = mousePosition.y;
 				}
-				return true;
+				return 0;
 			}
 			case WM_KEYDOWN:
 			{
@@ -1909,7 +1926,7 @@ namespace AvoGUI
 				m_GUI->handleKeyboardKeyDown(keyboardEvent);
 				m_GUI->includeAnimationThread();
 
-				return true;
+				return 0;
 			}
 			case WM_KEYUP:
 			{
@@ -1921,7 +1938,7 @@ namespace AvoGUI
 				m_GUI->handleKeyboardKeyUp(keyboardEvent);
 				m_GUI->includeAnimationThread();
 
-				return true;
+				return 0;
 			}
 			case WM_CHAR:
 			{
@@ -1935,7 +1952,11 @@ namespace AvoGUI
 				m_GUI->handleCharacterInput(keyboardEvent);
 				m_GUI->includeAnimationThread();
 
-				return true;
+				return 0;
+			}
+			case WM_MENUCHAR:
+			{
+				return 1 << 16;
 			}
 			case WM_CLOSE:
 			{
@@ -1948,7 +1969,7 @@ namespace AvoGUI
 				{
 					close();
 				}
-				return true;
+				return 0;
 			}
 			case WM_DESTROY:
 			{
@@ -1958,10 +1979,11 @@ namespace AvoGUI
 					UnregisterClass(WINDOW_CLASS_NAME, GetModuleHandle(0));
 					PostQuitMessage(0);
 				}
-				return true;
+
+				return 0;
 			}
 			}
-			return false;
+			return ~0LL;
 		}
 
 		//------------------------------
@@ -1980,9 +2002,13 @@ namespace AvoGUI
 			{
 				window = (WindowsWindow*)GetWindowLongPtr(p_windowHandle, GWLP_USERDATA);
 			}
-			if (window && window->handleEvent(p_message, p_data_a, p_data_b))
+			if (window)
 			{
-				return 0;
+				long long result = window->handleEvent(p_message, p_data_a, p_data_b);
+				if (result != ~0LL)
+				{
+					return result;
+				}
 			}
 			return DefWindowProc(p_windowHandle, p_message, p_data_a, p_data_b);
 		}
@@ -2012,10 +2038,6 @@ namespace AvoGUI
 			m_opacity(1.f)
 		{
 			m_bounds = m_cropRectangle;
-		}
-		~WindowsImage()
-		{
-			m_image->Release();
 		}
 
 		//------------------------------
@@ -2648,7 +2670,6 @@ namespace AvoGUI
 			widenString(p_name, wideName, 100);
 
 			m_handle->SetFontFamilyName(wideName, createTextRange(p_startPosition, p_length));
-
 		}
 
 		//------------------------------
@@ -2883,7 +2904,7 @@ namespace AvoGUI
 				*p_stream = 0;
 				return E_INVALIDARG;
 			}
-			*p_stream = new FontFileStream(*((FontData**)p_data));
+			*p_stream = debugNew FontFileStream(*((FontData**)p_data));
 			(*p_stream)->AddRef();
 			return S_OK;
 		}
@@ -3009,7 +3030,7 @@ namespace AvoGUI
 
 		HRESULT __stdcall CreateEnumeratorFromKey(IDWriteFactory* p_factory, const void* p_data, UINT32 p_dataSize, IDWriteFontFileEnumerator** p_fontFileEnumerator)
 		{
-			*p_fontFileEnumerator = new FontFileEnumerator(p_factory, m_fontFileLoader, *((std::vector<FontData*>**)p_data));
+			*p_fontFileEnumerator = debugNew FontFileEnumerator(p_factory, m_fontFileLoader, *((std::vector<FontData*>**)p_data));
 			(*p_fontFileEnumerator)->AddRef();
 			return S_OK;
 		}
@@ -3089,10 +3110,10 @@ namespace AvoGUI
 			};
 			D3D_FEATURE_LEVEL featureLevel;
 			D3D11CreateDevice(
-				nullptr,
+				0,
 				D3D_DRIVER_TYPE_HARDWARE,
 				0,
-				D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+				D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG,
 				featureLevels,
 				sizeof(featureLevels) / sizeof(D3D_FEATURE_LEVEL),
 				D3D11_SDK_VERSION,
@@ -3125,11 +3146,8 @@ namespace AvoGUI
 			// Create swap chain, which holds the back buffer and is connected to the window.
 
 			DXGI_SWAP_CHAIN_DESC1 swapChainDescription = { };
-			if (p_window->getIsFullscreen())
-			{
-				swapChainDescription.Width = p_window->getMonitorSize().x;
-				swapChainDescription.Height = p_window->getMonitorSize().y;
-			}
+			swapChainDescription.Width = 0;
+			swapChainDescription.Height = 0;
 			swapChainDescription.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 			swapChainDescription.Stereo = false;
 			swapChainDescription.SampleDesc.Count = 1;
@@ -3140,23 +3158,29 @@ namespace AvoGUI
 			swapChainDescription.SwapEffect = DXGI_SWAP_EFFECT::DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 			swapChainDescription.Flags = 0;
 
-			DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreenSwapChainDescription = { };
-			// The documentation says the refresh rate is expressed in hertz, so I guess it's just 60/1 = 60 hertz?
-			// Why is this a rational object then? Wouldn't it be more logical to express it in seconds? Then it would be 1/60
+			//DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreenSwapChainDescription = { };
 
-			//dxgiFactory->EnumAdapters1()
-			fullscreenSwapChainDescription.RefreshRate.Numerator = 60;
-			fullscreenSwapChainDescription.RefreshRate.Denominator = 1;
-			fullscreenSwapChainDescription.Scaling = DXGI_MODE_SCALING::DXGI_MODE_SCALING_CENTERED;
-			fullscreenSwapChainDescription.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER::DXGI_MODE_SCANLINE_ORDER_PROGRESSIVE;
-			fullscreenSwapChainDescription.Windowed = false;
+			//IDXGIOutput* output;
+			//dxgiAdapter->EnumOutputs(0, &output);
+
+			//UINT numberOfModes;
+			//DXGI_MODE_DESC modes[100];
+			//output->GetDisplayModeList(DXGI_FORMAT_B8G8R8A8_UNORM, 0, &numberOfModes, modes);
+
+			//fullscreenSwapChainDescription.RefreshRate = modes[numberOfModes - 1].RefreshRate;
+			//fullscreenSwapChainDescription.Scaling = modes[numberOfModes - 1].Scaling;
+			//fullscreenSwapChainDescription.ScanlineOrdering = modes[numberOfModes - 1].ScanlineOrdering;
+			//fullscreenSwapChainDescription.Windowed = true;
 
 			dxgiFactory->CreateSwapChainForHwnd(
 				d3dDevice, (HWND)p_window->getWindowHandle(),
-				&swapChainDescription, &fullscreenSwapChainDescription,
+				&swapChainDescription, 0,
 				0, &m_swapChain
 			);
-			m_swapChain->SetFullscreenState(true, 0);
+
+			dxgiFactory->MakeWindowAssociation((HWND)p_window->getWindowHandle(), DXGI_MWA_NO_WINDOW_CHANGES);
+
+			//output->Release();
 
 			//------------------------------
 			// Create a target bitmap which is connected to the back buffer of the window.
@@ -3174,6 +3198,13 @@ namespace AvoGUI
 			);
 
 			m_context->SetTarget(m_targetWindowBitmap);
+
+			DXGI_RGBA color;
+			color.r = 0.5f;
+			color.g = 0.5f;
+			color.b = 0.5f;
+			color.a = 1.f;
+			m_swapChain->SetBackgroundColor(&color);
 
 			//------------------------------
 
@@ -3199,19 +3230,20 @@ namespace AvoGUI
 					__uuidof(s_directWriteFactory), (IUnknown**)&s_directWriteFactory
 				);
 
-				s_fontFileLoader = new FontFileLoader();
+				s_fontFileLoader = debugNew FontFileLoader();
 				s_fontFileLoader->AddRef();
 				s_directWriteFactory->RegisterFontFileLoader(s_fontFileLoader);
 
-				s_fontCollectionLoader = new FontCollectionLoader(s_fontFileLoader);
+				s_fontCollectionLoader = debugNew FontCollectionLoader(s_fontFileLoader);
 				s_fontCollectionLoader->AddRef();
 				s_directWriteFactory->RegisterFontCollectionLoader(s_fontCollectionLoader);
 			}
 
-			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_LIGHT, FONT_DATA_SIZE_ROBOTO_LIGHT));
-			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_SIZE_ROBOTO_REGULAR));
-			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_MEDIUM, FONT_DATA_SIZE_ROBOTO_MEDIUM));
-			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_BOLD, FONT_DATA_SIZE_ROBOTO_BOLD));
+			m_fontData.reserve(8);
+			m_fontData.push_back(debugNew FontData(FONT_DATA_ROBOTO_LIGHT, FONT_DATA_SIZE_ROBOTO_LIGHT));
+			m_fontData.push_back(debugNew FontData(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_SIZE_ROBOTO_REGULAR));
+			m_fontData.push_back(debugNew FontData(FONT_DATA_ROBOTO_MEDIUM, FONT_DATA_SIZE_ROBOTO_MEDIUM));
+			m_fontData.push_back(debugNew FontData(FONT_DATA_ROBOTO_BOLD, FONT_DATA_SIZE_ROBOTO_BOLD));
 			updateFontCollection();
 
 			// Just for debugging...
@@ -3222,7 +3254,7 @@ namespace AvoGUI
 			//	m_fontCollection->GetFontFamily(a, &fontFamily);
 			//	IDWriteLocalizedStrings* names;
 			//	fontFamily->GetFamilyNames(&names);
-			//	wchar_t* buffer = new wchar_t[30];
+			//	wchar_t* buffer = debugNew wchar_t[30];
 			//	names->GetString(0, buffer, 30);
 			//	fontFamilyNames.push_back(buffer);
 			//}
@@ -3252,9 +3284,7 @@ namespace AvoGUI
 				s_fontFileLoader->Release();
 
 				s_directWriteFactory->Release();
-
 				s_direct2DFactory->Release();
-
 				s_imagingFactory->Release();
 			}
 		}
@@ -3269,32 +3299,75 @@ namespace AvoGUI
 		{
 			m_context->EndDraw();
 
-			DXGI_PRESENT_PARAMETERS presentParameters;
-			presentParameters.DirtyRectsCount = p_updatedRectangles.size();
-
-			//RECT* updatedRects = new RECT[p_updatedRectangles.size()];
-			RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
-
-			// If you're getting an exception below, you have three options; 
-			// 1. don't invalidate thousands of rectangles
-			// 2. increase the size of the static array above
-			// 3. make the array above dynamic
-			for (uint32_t a = 0; a < p_updatedRectangles.size(); a++)
+			// I can't get Present1 to work with fullscreen.
+			if (m_window->getIsFullscreen())
 			{
-				updatedRects[a].left = p_updatedRectangles[a].left;
-				updatedRects[a].top = p_updatedRectangles[a].top;
-				updatedRects[a].right = p_updatedRectangles[a].right;
-				updatedRects[a].bottom = p_updatedRectangles[a].bottom;
+				m_swapChain->Present(1, 0);
 			}
+			else
+			{
+				DXGI_PRESENT_PARAMETERS presentParameters;
+				presentParameters.DirtyRectsCount = p_updatedRectangles.size();
 
-			presentParameters.pDirtyRects = updatedRects;
-			presentParameters.pScrollOffset = 0;
-			presentParameters.pScrollRect = 0;
+				//RECT* updatedRects = debugNew RECT[p_updatedRectangles.size()];
+				RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
 
-			//HRESULT result = m_swapChain->Present(1, 0/*(m_isVsyncEnabled ? 0 : DXGI_PRESENT_DO_NOT_WAIT) | DXGI_PRESENT_RESTART*/ /*&presentParameters*/);
-			HRESULT result = m_swapChain->Present1(1, (m_isVsyncEnabled ? 0 : DXGI_PRESENT_DO_NOT_WAIT) | DXGI_PRESENT_RESTART, &presentParameters);
-			//delete[] updatedRects;
-			std::cout << std::hex << result << std::endl;
+				// If you're getting an exception below, you have three options; 
+				// 1. don't invalidate thousands of rectangles
+				// 2. increase the size of the static array above
+				// 3. make the array above dynamic
+				for (uint32_t a = 0; a < p_updatedRectangles.size(); a++)
+				{
+					updatedRects[a].left = p_updatedRectangles[a].left;
+					updatedRects[a].top = p_updatedRectangles[a].top;
+					updatedRects[a].right = p_updatedRectangles[a].right;
+					updatedRects[a].bottom = p_updatedRectangles[a].bottom;
+					//if (updatedRects[a].right - updatedRects[a].left != m_swapChain->)
+				}
+
+				presentParameters.pDirtyRects = updatedRects;
+				presentParameters.pScrollOffset = 0;
+				presentParameters.pScrollRect = 0;
+
+				m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
+				//delete[] updatedRects;
+			}
+		}
+
+		//------------------------------
+
+		void setIsFullscreen(bool p_isFullscreen) override
+		{
+			if (m_window->getIsFullscreen() != p_isFullscreen)
+			{
+				m_window->setIsFullscreen(p_isFullscreen);
+			}
+			else
+			{
+				m_swapChain->SetFullscreenState(p_isFullscreen, 0);
+			}
+		}
+		void switchFullscreen() override
+		{
+			int isFullscreen;
+			IDXGIOutput* output = 0;
+			m_swapChain->GetFullscreenState(&isFullscreen, &output);
+			if (output)
+			{
+				output->Release();
+			}
+			if (m_window->getIsFullscreen() != !isFullscreen)
+			{
+				m_window->switchFullscreen();
+			}
+			else
+			{
+				m_swapChain->SetFullscreenState(!isFullscreen, 0);
+			}
+		}
+		bool getIsFullscreen() override
+		{
+			return m_window->getIsFullscreen();
 		}
 
 		//------------------------------
@@ -3489,15 +3562,26 @@ namespace AvoGUI
 		}
 		void setSize(uint32_t p_width, uint32_t p_height) override
 		{
+			if (m_context->GetSize().width == p_width && m_context->GetSize().height == p_height)
+			{
+				return;
+			}
+
 			// Release the old target bitmap
 			m_context->SetTarget(0);
 			m_targetWindowBitmap->Release();
 
+			//IDXGISurface* dxgiBackBuffer;
+			//m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
+			//DXGI_SURFACE_DESC description;
+			//dxgiBackBuffer->GetDesc(&description);
+			//dxgiBackBuffer->Release();
+
 			// Resize buffers, creating new ones
 			m_swapChain->ResizeBuffers(0, p_width, p_height, DXGI_FORMAT_UNKNOWN, 0);
-			
+		
 			// Get the new back buffer and create new bitmap connected to it
-			IDXGISurface* dxgiBackBuffer;
+			IDXGISurface* dxgiBackBuffer = 0;
 			m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
 			m_context->CreateBitmapFromDxgiSurface(
 				dxgiBackBuffer,
@@ -3509,7 +3593,7 @@ namespace AvoGUI
 			);
 
 			dxgiBackBuffer->Release();
-
+			
 			m_context->SetTarget(m_targetWindowBitmap);
 		}
 
@@ -4110,7 +4194,7 @@ namespace AvoGUI
 				p_color |= 0xff000000;
 			}
 
-			uint32_t* pixels = new uint32_t[p_width*p_height];
+			uint32_t* pixels = debugNew uint32_t[p_width*p_height];
 			for (uint32_t a = 0; a < p_width*p_height; a++)
 			{
 				pixels[a] = p_color;
@@ -4208,7 +4292,7 @@ namespace AvoGUI
 
 			delete[] pixels;
 
-			return new WindowsImage(outputBitmap);
+			return debugNew WindowsImage(outputBitmap);
 			*/
 
 			if (!p_width || !p_height || !p_color.alpha) return 0;
@@ -4274,7 +4358,7 @@ namespace AvoGUI
 			shadowEffect->Release();
 			inputBitmap->Release();
 
-			return new WindowsImage(outputBitmap);
+			return debugNew WindowsImage(outputBitmap);
 		}
 
 		Image* createRoundedRectangleShadowImage(const Point<uint32_t>& p_size, float p_radius, float p_blur, const Color& p_color)
@@ -4348,7 +4432,7 @@ namespace AvoGUI
 			shadowEffect->Release();
 			inputBitmap->Release();
 
-			return new WindowsImage(outputBitmap);
+			return debugNew WindowsImage(outputBitmap);
 		}
 
 		//------------------------------
@@ -4364,7 +4448,7 @@ namespace AvoGUI
 					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
 				), &bitmap
 			);
-			return new WindowsImage(bitmap);
+			return debugNew WindowsImage(bitmap);
 		}
 		Image* createImage(const char* p_filePath) override
 		{
@@ -4392,7 +4476,7 @@ namespace AvoGUI
 			frame->Release();
 			decoder->Release();
 
-			return new WindowsImage(bitmap);
+			return debugNew WindowsImage(bitmap);
 		}
 
 		//------------------------------
@@ -4457,7 +4541,7 @@ namespace AvoGUI
 
 		void addFont(const void* p_data, uint32_t p_dataSize)
 		{
-			m_fontData.push_back(new FontData(p_data, p_dataSize));
+			m_fontData.push_back(debugNew FontData(p_data, p_dataSize));
 			updateFontCollection();
 		}
 
@@ -4513,7 +4597,7 @@ namespace AvoGUI
 		Text* createText(const char* p_string, float p_fontSize, const Rectangle<float>& p_bounds = Rectangle<float>()) override
 		{
 			int32_t numberOfCharacters = MultiByteToWideChar(CP_ACP, 0, p_string, -1, 0, 0);
-			wchar_t* wideString = new wchar_t[numberOfCharacters];
+			wchar_t* wideString = debugNew wchar_t[numberOfCharacters];
 			MultiByteToWideChar(CP_ACP, 0, p_string, -1, wideString, numberOfCharacters);
 
 			IDWriteTextLayout1* textLayout;
@@ -4525,7 +4609,7 @@ namespace AvoGUI
 
 			delete[] wideString;
 
-			return new WindowsText(textLayout, p_string, p_bounds);
+			return debugNew WindowsText(textLayout, p_string, p_bounds);
 		}
 		void drawText(Text* p_text) override
 		{
@@ -4536,7 +4620,7 @@ namespace AvoGUI
 			if (p_string == "") return;
 
 			int32_t numberOfCharacters = MultiByteToWideChar(CP_ACP, 0, p_string, -1, 0, 0);
-			wchar_t* wideString = new wchar_t[numberOfCharacters];
+			wchar_t* wideString = debugNew wchar_t[numberOfCharacters];
 			MultiByteToWideChar(CP_ACP, 0, p_string, -1, wideString, numberOfCharacters);
 
 			m_context->DrawTextA(
@@ -4693,13 +4777,12 @@ namespace AvoGUI
 		m_keyboardFocus(0)
 	{
 #ifdef _WIN32
-		m_window = new WindowsWindow(this);
+		m_window = debugNew WindowsWindow(this);
 #endif
 
 		m_GUI = this;
-		m_theme = new Theme();
 
-		m_tooltip = new Tooltip(this);
+		m_tooltip = debugNew Tooltip(this);
 
 		//------------------------------
 
@@ -4718,16 +4801,16 @@ namespace AvoGUI
 		}
 	}
 
-	void GUI::create(const char* p_title, uint32_t p_x, uint32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags, bool p_isFullscreen, GUI* p_parent)
+	void GUI::create(const char* p_title, uint32_t p_x, uint32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
 	{
 		m_bounds = Rectangle<float>(0, 0, p_width, p_height);
 		setAbsoluteBounds(m_bounds);
-		m_window->create(p_title, p_width, p_height, p_windowFlags, p_isFullscreen, p_parent ? p_parent->getWindow() : 0);
+		m_window->create(p_title, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
 	}
-	void GUI::create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags, bool p_isFullscreen, GUI* p_parent)
+	void GUI::create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
 	{
 		m_bounds = Rectangle<float>(0, 0, p_width, p_height);
-		m_window->create(p_title, p_width, p_height, p_windowFlags, p_isFullscreen, p_parent ? p_parent->getWindow() : 0);
+		m_window->create(p_title, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
 	}
 
 	//------------------------------
@@ -4777,7 +4860,7 @@ namespace AvoGUI
 		{
 			m_drawingContext->forget();
 		}
-		m_drawingContext = new WindowsDrawingContext(m_window);
+		m_drawingContext = debugNew WindowsDrawingContext(m_window);
 #endif
 
 		m_lastWindowSize = m_window->getSize();
@@ -5506,7 +5589,7 @@ namespace AvoGUI
 
 		setCornerRadius(4.f);
 
-		m_ripple = new Ripple(this);
+		m_ripple = debugNew Ripple(this);
 
 		if (p_emphasis == Emphasis::High)
 		{
