@@ -1643,17 +1643,16 @@ namespace AvoGUI
 			case WM_GETMINMAXINFO:
 			{
 				MINMAXINFO* minMaxInfo = (MINMAXINFO*)p_data_b;
+				RECT rect = { 0, 0, m_minSize.x, m_minSize.y };
+				AdjustWindowRectEx(&rect, m_styles, 0, m_extendedStyles);
+
 				if (m_minSize.x > 0U || m_minSize.y > 0U)
 				{
-					RECT rect = { 0, 0, m_minSize.x, m_minSize.y };
-					AdjustWindowRectEx(&rect, m_styles, 0, m_extendedStyles);
 					minMaxInfo->ptMinTrackSize.x = rect.right - rect.left;
 					minMaxInfo->ptMinTrackSize.y = rect.bottom - rect.top;
 				}
 				if (m_maxSize.x > 0U || m_maxSize.y > 0U)
 				{
-					RECT rect = { 0, 0, m_maxSize.x, m_maxSize.y };
-					AdjustWindowRectEx(&rect, m_styles, 0, m_extendedStyles);
 					minMaxInfo->ptMaxTrackSize.x = rect.right - rect.left;
 					minMaxInfo->ptMaxTrackSize.y = rect.bottom - rect.top;
 				}
