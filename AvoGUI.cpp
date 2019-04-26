@@ -152,7 +152,7 @@ namespace AvoGUI
 	View::View(View* p_parent, const Rectangle<float>& p_bounds) :
 		ProtectedRectangle(p_bounds), m_isVisible(true), m_cornerRadius(0.f), m_hasShadow(true), m_elevation(0.f),
 		m_hasSizeChangedSinceLastElevationChange(true), m_shadowImage(0), m_shadowBounds(p_bounds), m_userData(0),
-		m_parent(0)
+		m_parent(0), m_isInAnimationUpdateQueue(false)
 	{
 		if (p_parent && p_parent != this)
 		{
@@ -176,7 +176,11 @@ namespace AvoGUI
 	}
 	View::~View()
 	{
-		uint32_t referenceCount = m_theme->forget();
+		m_theme->forget();
+		if (m_shadowImage)
+		{
+			m_shadowImage->forget();
+		}
 		removeAllChildren();
 	}
 
@@ -2815,6 +2819,7 @@ namespace AvoGUI
 			if (!m_referenceCount)
 			{
 				delete this;
+				return 0;
 			}
 			return m_referenceCount;
 		}
@@ -2880,6 +2885,7 @@ namespace AvoGUI
 			if (!m_referenceCount)
 			{
 				delete this;
+				return 0;
 			}
 			return m_referenceCount;
 		}
@@ -2943,6 +2949,7 @@ namespace AvoGUI
 			if (!m_referenceCount)
 			{
 				delete this;
+				return 0;
 			}
 			return m_referenceCount;
 		}
@@ -3011,6 +3018,7 @@ namespace AvoGUI
 			if (!m_referenceCount)
 			{
 				delete this;
+				return 0;
 			}
 			return m_referenceCount;
 		}
@@ -3113,7 +3121,7 @@ namespace AvoGUI
 				0,
 				D3D_DRIVER_TYPE_HARDWARE,
 				0,
-				D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_DEBUG,
+				D3D11_CREATE_DEVICE_BGRA_SUPPORT,
 				featureLevels,
 				sizeof(featureLevels) / sizeof(D3D_FEATURE_LEVEL),
 				D3D11_SDK_VERSION,
@@ -4791,6 +4799,10 @@ namespace AvoGUI
 	}
 	GUI::~GUI()
 	{
+		if (m_tooltip)
+		{
+			m_tooltip->forget();
+		}
 		if (m_window)
 		{
 			m_window->forget();
@@ -5177,6 +5189,10 @@ namespace AvoGUI
 		
 		excludeAnimationThread();
 		uint32_t numberOfEventsToProcess = m_animationUpdateQueue.size();
+		if (numberOfEventsToProcess)
+		{
+			std::cout << numberOfEventsToProcess << std::endl;
+		}
 		for (uint32_t a = 0; a < numberOfEventsToProcess; a++)
 		{
 			m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval();
@@ -5444,7 +5460,7 @@ namespace AvoGUI
 	Ripple::Ripple(View* p_parent, const Color& p_color) :
 		View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(p_color, 0.45f),
 		m_isEnabled(true), m_circleAnimationTime(1.f), m_isMouseDown(false), m_isMouseHovering(false),
-		m_hasHoverEffect(true)
+		m_hasHoverEffect(true), m_size(0.f), m_overlayAnimationTime(0.f)
 	{
 		setIsOverlay(true); // Mouse events should be sent through
 		setHasShadow(false);

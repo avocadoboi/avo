@@ -150,6 +150,10 @@ public:
 	{
 		create("No image", 400U, 160U, AvoGUI::WindowStyleFlags::DefaultNoResize);
 	}
+	~MessageBox()
+	{
+		m_message->forget();
+	}
 
 	void createContent() override
 	{
