@@ -2042,6 +2042,10 @@ namespace AvoGUI
 		{
 			m_bounds = m_cropRectangle;
 		}
+		~WindowsImage()
+		{
+			m_image->Release();
+		}
 
 		//------------------------------
 
@@ -2163,6 +2167,10 @@ namespace AvoGUI
 			{
 				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_EMERGENCY_BREAK);
 			}
+		}
+		~WindowsText()
+		{
+			m_handle->Release();
 		}
 
 		//------------------------------
@@ -3094,7 +3102,13 @@ namespace AvoGUI
 
 			if (!s_direct2DFactory)
 			{
+#ifdef _DEBUG
+				D2D1_FACTORY_OPTIONS options;
+				options.debugLevel = D2D1_DEBUG_LEVEL::D2D1_DEBUG_LEVEL_INFORMATION;
 				D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &s_direct2DFactory);
+#else
+				D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &s_direct2DFactory);
+#endif
 			}
 
 			//------------------------------
@@ -3120,7 +3134,11 @@ namespace AvoGUI
 				0,
 				D3D_DRIVER_TYPE_HARDWARE,
 				0,
-				D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+				D3D11_CREATE_DEVICE_BGRA_SUPPORT 
+#ifdef _DEBUG 
+				| D3D11_CREATE_DEVICE_DEBUG 
+#endif
+				,
 				featureLevels,
 				sizeof(featureLevels) / sizeof(D3D_FEATURE_LEVEL),
 				D3D11_SDK_VERSION,
@@ -3220,8 +3238,8 @@ namespace AvoGUI
 			//------------------------------
 
 			dxgiBackBuffer->Release();
-			dxgiFactory->Release();
 			direct2DDevice->Release();
+			dxgiFactory->Release();
 			dxgiAdapter->Release();
 			dxgiDevice->Release();
 			d3dDeviceContext->Release();
@@ -3277,22 +3295,60 @@ namespace AvoGUI
 				delete m_fontData[a];
 			}
 
-			m_solidColorBrush->Release();
-			m_targetWindowBitmap->Release();
-			m_swapChain->Release();
-			m_context->Release();
+			if (m_solidColorBrush)
+			{
+				m_solidColorBrush->Release();
+			}
+			if (m_targetWindowBitmap)
+			{
+				m_targetWindowBitmap->Release();
+			}
+			if (m_swapChain)
+			{
+				m_swapChain->Release();
+			}
+			if (m_context)
+			{
+				m_context->Release();
+			}
 
 			if (!WindowsWindow::s_numberOfWindows)
 			{
-				s_directWriteFactory->UnregisterFontCollectionLoader(s_fontCollectionLoader);
-				s_fontCollectionLoader->Release();
+				if (s_fontCollectionLoader)
+				{
+					if (s_directWriteFactory)
+					{
+						s_directWriteFactory->UnregisterFontCollectionLoader(s_fontCollectionLoader);
+					}
+					s_fontCollectionLoader->Release();
+					s_fontCollectionLoader = 0;
+				}
 
-				s_directWriteFactory->UnregisterFontFileLoader(s_fontFileLoader);
-				s_fontFileLoader->Release();
+				if (s_fontFileLoader)
+				{
+					if (s_directWriteFactory)
+					{
+						s_directWriteFactory->UnregisterFontFileLoader(s_fontFileLoader);
+					}
+					s_fontFileLoader->Release();
+					s_fontFileLoader = 0;
+				}
 
-				s_directWriteFactory->Release();
-				s_direct2DFactory->Release();
-				s_imagingFactory->Release();
+				if (s_directWriteFactory)
+				{
+					s_directWriteFactory->Release();
+					s_directWriteFactory = 0;
+				}
+				if (s_direct2DFactory)
+				{
+					s_direct2DFactory->Release();
+					s_direct2DFactory = 0;
+				}
+				if (s_imagingFactory)
+				{
+					s_imagingFactory->Release();
+					s_imagingFactory = 0;
+				}
 			}
 		}
 
@@ -3329,7 +3385,6 @@ namespace AvoGUI
 					updatedRects[a].top = p_updatedRectangles[a].top;
 					updatedRects[a].right = p_updatedRectangles[a].right;
 					updatedRects[a].bottom = p_updatedRectangles[a].bottom;
-					//if (updatedRects[a].right - updatedRects[a].left != m_swapChain->)
 				}
 
 				presentParameters.pDirtyRects = updatedRects;
@@ -4666,9 +4721,10 @@ namespace AvoGUI
 		HWND windowHandle = (HWND)p_gui->getWindow()->getWindowHandle();
 
 		//int32_t syncInterval = 16666667;
-		while (p_gui->getWindow()->getIsOpen())
+		while (p_gui->getWindow() && p_gui->getWindow()->getIsOpen())
 		{
 			//auto timeBefore = std::chrono::steady_clock::now();
+
 			if (p_gui->getHasNewWindowSize())
 			{
 				p_gui->getDrawingContext()->disableVsync();
@@ -5188,10 +5244,6 @@ namespace AvoGUI
 		
 		excludeAnimationThread();
 		uint32_t numberOfEventsToProcess = m_animationUpdateQueue.size();
-		if (numberOfEventsToProcess)
-		{
-			std::cout << numberOfEventsToProcess << std::endl;
-		}
 		for (uint32_t a = 0; a < numberOfEventsToProcess; a++)
 		{
 			m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval();

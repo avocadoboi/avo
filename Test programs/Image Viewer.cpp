@@ -1,4 +1,5 @@
 #include "../AvoGUI.hpp"
+#include <chrono>
 
 //------------------------------
 
@@ -23,7 +24,10 @@ public:
 	}
 	~ImageViewer()
 	{
-		m_image->forget();
+		if (m_image)
+		{
+			m_image->forget();
+		}
 	}
 
 	//------------------------------
@@ -191,7 +195,7 @@ public:
 
 int main(int p_numberOfArguments, char** p_arguments)
 {
-	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+	//_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
 	if (p_numberOfArguments > 1)
 	{

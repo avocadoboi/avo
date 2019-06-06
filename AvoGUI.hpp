@@ -2661,6 +2661,11 @@ namespace AvoGUI
 		COLOR_BLUE_GRAY_800 = 0xFF37474F,
 		COLOR_BLUE_GRAY_900 = 0xFF263238;
 
+	/// <summary>
+	/// <para>A theme consists of different constants which change the look and feel of the parts</para>
+	/// <para>of the GUI which are using this theme. See View::setTheme() for details about how</para>
+	/// <para>it works with the views.</para>
+	/// </summary>
 	class Theme : public ReferenceCounted
 	{
 	public:
@@ -3234,7 +3239,7 @@ namespace AvoGUI
 		/// <para>-</para>
 		/// <para>Child views inherit their parent's theme, unless they make a new one.</para>
 		/// <para>In that way, different sections of the GUI can have different themes.</para>
-		/// <para>Only children created after this function is called will inherit the new theme.</para>
+		/// <para>Only children created after this method is called will inherit the new theme.</para>
 		/// </summary>
 		/// <param name="p_newTheme">A pointer to a newly allocated theme on the heap.</param>
 		void setTheme(Theme* p_newTheme)
