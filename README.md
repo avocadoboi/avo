@@ -88,11 +88,10 @@ class MyView : public AvoGUI::View
   
   void updateAnimations() override
   {
-    // This method is used when you want to animate things. It is never called more frequently than a certain frequency
-    // that you can change in the window (getGUI()->getWindow()->setAnimationTimerInterval(...)). To add the view to the
-    // animation update queue, call queueAnimationUpdate(). If you would call queueAnimationUpdate() from this method
-    // every time, animations would be updated constantly at the frequency set in the window. This system is efficient
-    // since you only need to call queueAnimationUpdate() when you know that your animation isn't done.
+    // This method is used when you want to animate things. It is never called more frequently than the monitor refresh
+    // rate. To add the view to the animation update queue, call queueAnimationUpdate(). If you would call 
+    // queueAnimationUpdate() from this method every time, animations would be updated constantly at the refresh rate. 
+    // This system is efficient since you only need to call queueAnimationUpdate() when you know that your animation isn't done.
   }
   
   void handleSizeChange() override
