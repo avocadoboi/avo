@@ -585,6 +585,8 @@ namespace AvoGUI
 		uint32_t m_styles;
 		uint32_t m_extendedStyles;
 
+		RECT m_windowRectBeforeFullscreen;
+
 		Point<uint32_t> m_minSize;
 		Point<uint32_t> m_maxSize;
 
@@ -1121,16 +1123,37 @@ namespace AvoGUI
 
 		void setIsFullscreen(bool p_isFullscreen) override
 		{
-			if (p_isFullscreen != m_isFullscreen)
+			if (p_isFullscreen) 
 			{
+				GetWindowRect(m_windowHandle, &m_windowRectBeforeFullscreen);
+
+				MONITORINFO info = { };
+				info.cbSize = sizeof(MONITORINFO);
+				GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
+				SetWindowLongPtr(m_windowHandle, GWL_STYLE, WS_VISIBLE);
+				SetWindowPos(m_windowHandle, HWND_TOPMOST, info.rcMonitor.left, info.rcMonitor.top, info.rcMonitor.right - info.rcMonitor.left, info.rcMonitor.bottom - info.rcMonitor.top, 0);
+
 				m_isFullscreen = p_isFullscreen;
-				m_GUI->getDrawingContext()->setIsFullscreen(p_isFullscreen);
 			}
+			else
+			{
+				SetWindowLongPtr(m_windowHandle, GWL_STYLE, m_styles);
+				SetWindowPos(m_windowHandle, HWND_TOPMOST, m_windowRectBeforeFullscreen.left, m_windowRectBeforeFullscreen.top, m_windowRectBeforeFullscreen.right - m_windowRectBeforeFullscreen.left, m_windowRectBeforeFullscreen.bottom - m_windowRectBeforeFullscreen.top, 0);
+
+				m_isFullscreen = p_isFullscreen;
+			}
+
+			//if (p_isFullscreen != m_isFullscreen)
+			//{
+			//	m_isFullscreen = p_isFullscreen;
+			//	m_GUI->getDrawingContext()->setIsFullscreen(p_isFullscreen);
+			//}
 		}
 		void switchFullscreen() override
 		{
-			m_isFullscreen = !m_isFullscreen;
-			m_GUI->getDrawingContext()->switchFullscreen();
+			setIsFullscreen(!m_isFullscreen);
+			//m_isFullscreen = !m_isFullscreen;
+			//m_GUI->getDrawingContext()->switchFullscreen();
 		}
 
 		//------------------------------
@@ -3400,32 +3423,34 @@ namespace AvoGUI
 
 		void setIsFullscreen(bool p_isFullscreen) override
 		{
-			if (m_window->getIsFullscreen() != p_isFullscreen)
-			{
-				m_window->setIsFullscreen(p_isFullscreen);
-			}
-			else
-			{
-				m_swapChain->SetFullscreenState(p_isFullscreen, 0);
-			}
+			m_window->setIsFullscreen(p_isFullscreen);
+			//if (m_window->getIsFullscreen() != p_isFullscreen)
+			//{
+			//	m_window->setIsFullscreen(p_isFullscreen);
+			//}
+			//else
+			//{
+			//	m_swapChain->SetFullscreenState(p_isFullscreen, 0);
+			//}
 		}
 		void switchFullscreen() override
 		{
-			int isFullscreen;
-			IDXGIOutput* output = 0;
-			m_swapChain->GetFullscreenState(&isFullscreen, &output);
-			if (output)
-			{
-				output->Release();
-			}
-			if (m_window->getIsFullscreen() != !isFullscreen)
-			{
-				m_window->switchFullscreen();
-			}
-			else
-			{
-				m_swapChain->SetFullscreenState(!isFullscreen, 0);
-			}
+			m_window->switchFullscreen();
+			//int isFullscreen;
+			//IDXGIOutput* output = 0;
+			//m_swapChain->GetFullscreenState(&isFullscreen, &output);
+			//if (output)
+			//{
+			//	output->Release();
+			//}
+			//if (m_window->getIsFullscreen() != !isFullscreen)
+			//{
+			//	m_window->switchFullscreen();
+			//}
+			//else
+			//{
+			//	m_swapChain->SetFullscreenState(!isFullscreen, 0);
+			//}
 		}
 		bool getIsFullscreen() override
 		{
