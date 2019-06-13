@@ -44,10 +44,8 @@ class MyGUI : public AvoGUI::GUI, public AvoGUI::ButtonListener
 private:
 	AvoGUI::View* m_viewContainer;
 
-	bool m_areButtonsEnabled = true;
-
 public:
-	MyGUI() : m_areButtonsEnabled(true)
+	MyGUI()
 	{
 		create("My GUI", 450, 300, AvoGUI::WindowStyleFlags::Default);
 	}
@@ -57,6 +55,18 @@ public:
 	void handleButtonClick(AvoGUI::Button* p_button)
 	{
 		std::cout << "A button saying '" << p_button->getString() << "' was pressed!" << std::endl;
+	}
+
+	void handleKeyboardKeyDown(const AvoGUI::KeyboardEvent& p_event) override
+	{
+		if (p_event.key == AvoGUI::KeyboardKey::F4)
+		{
+			getWindow()->switchFullscreen();
+		}
+		else if (p_event.key == AvoGUI::KeyboardKey::Escape)
+		{
+			getWindow()->setIsFullscreen(false);
+		}
 	}
 
 	//------------------------------

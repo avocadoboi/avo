@@ -1126,6 +1126,10 @@ namespace AvoGUI
 
 		void setIsFullscreen(bool p_isFullscreen) override
 		{
+			if (m_isFullscreen == p_isFullscreen)
+			{
+				return;
+			}
 			if (p_isFullscreen) 
 			{
 				GetWindowRect(m_windowHandle, &m_windowRectBeforeFullscreen);
@@ -1135,16 +1139,13 @@ namespace AvoGUI
 				GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
 				SetWindowLongPtr(m_windowHandle, GWL_STYLE, WS_VISIBLE);
 				SetWindowPos(m_windowHandle, HWND_TOPMOST, info.rcMonitor.left, info.rcMonitor.top, info.rcMonitor.right - info.rcMonitor.left, info.rcMonitor.bottom - info.rcMonitor.top, 0);
-
-				m_isFullscreen = p_isFullscreen;
 			}
 			else
 			{
 				SetWindowLongPtr(m_windowHandle, GWL_STYLE, m_styles);
 				SetWindowPos(m_windowHandle, HWND_TOPMOST, m_windowRectBeforeFullscreen.left, m_windowRectBeforeFullscreen.top, m_windowRectBeforeFullscreen.right - m_windowRectBeforeFullscreen.left, m_windowRectBeforeFullscreen.bottom - m_windowRectBeforeFullscreen.top, 0);
-
-				m_isFullscreen = p_isFullscreen;
 			}
+			m_isFullscreen = p_isFullscreen;
 
 			//if (p_isFullscreen != m_isFullscreen)
 			//{
@@ -3396,38 +3397,30 @@ namespace AvoGUI
 		{
 			m_context->EndDraw();
 
-			// I can't get Present1 to work with fullscreen.
-			if (m_window->getIsFullscreen())
+			DXGI_PRESENT_PARAMETERS presentParameters;
+			presentParameters.DirtyRectsCount = p_updatedRectangles.size();
+
+			//RECT* updatedRects = debugNew RECT[p_updatedRectangles.size()];
+			RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
+
+			// If you're getting an exception below, you have three options; 
+			// 1. don't invalidate thousands of rectangles
+			// 2. increase the size of the static array above
+			// 3. make the array above dynamic
+			for (uint32_t a = 0; a < p_updatedRectangles.size(); a++)
 			{
-				m_swapChain->Present(1, 0);
+				updatedRects[a].left = p_updatedRectangles[a].left;
+				updatedRects[a].top = p_updatedRectangles[a].top;
+				updatedRects[a].right = p_updatedRectangles[a].right;
+				updatedRects[a].bottom = p_updatedRectangles[a].bottom;
 			}
-			else
-			{
-				DXGI_PRESENT_PARAMETERS presentParameters;
-				presentParameters.DirtyRectsCount = p_updatedRectangles.size();
 
-				//RECT* updatedRects = debugNew RECT[p_updatedRectangles.size()];
-				RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
+			presentParameters.pDirtyRects = updatedRects;
+			presentParameters.pScrollOffset = 0;
+			presentParameters.pScrollRect = 0;
 
-				// If you're getting an exception below, you have three options; 
-				// 1. don't invalidate thousands of rectangles
-				// 2. increase the size of the static array above
-				// 3. make the array above dynamic
-				for (uint32_t a = 0; a < p_updatedRectangles.size(); a++)
-				{
-					updatedRects[a].left = p_updatedRectangles[a].left;
-					updatedRects[a].top = p_updatedRectangles[a].top;
-					updatedRects[a].right = p_updatedRectangles[a].right;
-					updatedRects[a].bottom = p_updatedRectangles[a].bottom;
-				}
-
-				presentParameters.pDirtyRects = updatedRects;
-				presentParameters.pScrollOffset = 0;
-				presentParameters.pScrollRect = 0;
-
-				m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
-				//delete[] updatedRects;
-			}
+			m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
+			//delete[] updatedRects;
 		}
 
 		//------------------------------
