@@ -2670,7 +2670,7 @@ namespace AvoGUI
 	{
 	public:
 		/// <summary>
-		/// <para>These are the colors that are used by all default views.</para>
+		/// <para>These are the colors that are used by default views.</para>
 		/// <para>You can change them and add your own.</para>
 		/// <para>Built-in colors:</para>
 		/// <para>"background"</para>
@@ -2681,6 +2681,7 @@ namespace AvoGUI
 		/// <para>"secondary"</para>
 		/// <para>"secondary on background"</para>
 		/// <para>"on secondary"</para>
+		/// <para>"selection"</para>
 		/// <para>"shadow"</para>
 		/// </summary>
 		std::map<const char*, Color> colors;
@@ -2709,6 +2710,8 @@ namespace AvoGUI
 			colors["secondary"] = 0xff420099;
 			colors["secondary on background"] = 0xff420099;
 			colors["on secondary"] = 0xfffefefe;
+
+			colors["selection"] = 0x90488db5;
 
 			colors["shadow"] = 0x68000000;
 
@@ -5092,8 +5095,10 @@ namespace AvoGUI
 	class GUI;
 
 	/// <summary>
-	/// An abstract window.
-	/// Only intended to be created by a GUI.
+	/// <para>An abstract window which has an OS-specific implementation. The window is responsible</para>
+	/// <para>for recieving events from the OS and sending them to the GUI. It's like a portal between</para>
+	/// <para>your application and the operating system. It is only intended to be created by a GUI,</para>
+	/// <para>and you can access and use it from there.</para>
 	/// </summary>
 	class Window : public ReferenceCounted
 	{
@@ -5568,7 +5573,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the 2d position of a character in the text, specified by its index in the string.
 		/// </summary>
-		/// <param name="p_isRelativeToOrigin">Whether the position returned is relative to the origin or not. If not, it is relative to the bounds of the text.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the position returned is relative to the origin of the drawing context or not. If not, it is relative to the bounds of the text.</param>
 		virtual Point<float> getCharacterPosition(uint32_t p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
 		/// <summary>
 		/// Returns the width and height of a character in the text, specified by its index in the string.
@@ -5577,13 +5582,13 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns a rectangle enclosing a character in the text, specified by its index in the string.
 		/// </summary>
-		/// <param name="p_isRelativeToOrigin">Whether the position of the bounds returned is relative to the origin or not. If not, it is relative to the bounds of the text.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the position of the bounds returned is relative to the origin of the drawing context or not. If not, it is relative to the bounds of the text.</param>
 		virtual Rectangle<float> getCharacterBounds(uint32_t p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
 		
 		/// <summary>
 		/// Returns the index of the character which is nearest to a point.
 		/// </summary>
-		/// <param name="p_isRelativeToOrigin">Whether the position given is relative to the origin or not. If not, it is relative to the bounds of the text.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the position given is relative to the origin of the drawing context or not. If not, it is relative to the bounds of the text.</param>
 		/// <returns></returns>
 		virtual uint32_t getNearestCharacterIndex(const Point<float>& p_point, bool p_isRelativeToOrigin = false) = 0;
 		/// <summary>
@@ -5591,16 +5596,15 @@ namespace AvoGUI
 		/// </summary>
 		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
 		/// <param name="p_outCharacterPosition">Pointer to the 2d position to be returned.</param>
-		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin or not. If not, they are relative to the bounds of the text.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context or not. If not, they are relative to the bounds of the text.</param>
 		virtual void getNearestCharacterIndexAndPosition(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
 		/// <summary>
 		/// Returns the index and bounds of the character which is nearest to a point.
 		/// </summary>
 		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
 		/// <param name="p_outCharacterBounds">Pointer to the bounding rectangle to be returned.</param>
-		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin or not. If not, they are relative to the bounds of the text.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context or not. If not, they are relative to the bounds of the text.</param>
 		virtual void getNearestCharacterIndexAndBounds(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
-
 
 		//------------------------------
 
@@ -7198,16 +7202,22 @@ namespace AvoGUI
 
 	private:
 		Text* m_labelText;
-		float m_focusAnimationTime;
 		Color m_labelColor;
+		float m_focusAnimationTime;
 		float m_focusAnimationValue;
 
 		Text* m_text;
 		float m_fontSize;
+
 		uint32_t m_caretIndex;
 		Point<float> m_caretPosition;
 		bool m_isCaretVisible;
 		uint32_t m_frameCount;
+
+		bool m_isSelectingWithMouse;
+		bool m_isSelectionVisible;
+		uint32_t m_selectionEndIndex;
+		Point<float> m_selectionEndPosition;
 
 		Type m_type;
 
@@ -7229,6 +7239,8 @@ namespace AvoGUI
 		//------------------------------
 
 		void handleMouseDown(const MouseEvent& p_event) override;
+		void handleMouseMove(const MouseEvent& p_event) override;
+		void handleMouseUp(const MouseEvent& p_event) override;
 		void handleKeyboardFocusLost() override;
 
 		//------------------------------

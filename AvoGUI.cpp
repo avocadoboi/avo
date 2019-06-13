@@ -89,17 +89,20 @@ namespace AvoGUI
 	float Easing::easeValue(float p_value, float p_precision) const
 	{
 
-		if (p_value <= 0.f) {
+		if (p_value <= 0.f)
+		{
 			return 0.f;
 		}
-		if (p_value >= 1.f) {
+		if (p_value >= 1.f) 
+		{
 			return 1.f;
 		}
 
 		float t = p_value < 0.5f ? 0.25f : 0.75f;
 
 		float error = 1;
-		while (abs(error) > p_precision) {
+		while (abs(error) > p_precision) 
+		{
 			error = p_value - t * ((1.f - t)*(3.f*(1.f - t)*x0 + 3.f*t*x1) + t * t);
 			t += error / (x0*(3.f - 12.f*t + 9.f*t*t) + x1 * (6.f*t - 9.f*t*t) + 3.f*t*t);
 		}
@@ -152,7 +155,7 @@ namespace AvoGUI
 	View::View(View* p_parent, const Rectangle<float>& p_bounds) :
 		ProtectedRectangle(p_bounds), m_isVisible(true), m_cornerRadius(0.f), m_hasShadow(true), m_elevation(0.f),
 		m_hasSizeChangedSinceLastElevationChange(true), m_shadowImage(0), m_shadowBounds(p_bounds), m_userData(0),
-		m_parent(0), m_isInAnimationUpdateQueue(false)
+		m_parent(0), m_isInAnimationUpdateQueue(false), m_cursor(Cursor::Arrow)
 	{
 		if (p_parent && p_parent != this)
 		{
@@ -1299,251 +1302,251 @@ namespace AvoGUI
 			switch (p_key)
 			{
 			case KeyboardKey::A:
-				return GetAsyncKeyState(0x41);
+				return GetAsyncKeyState(0x41) & (1 << 16);
 			case KeyboardKey::B:
-				return GetAsyncKeyState(0x42);
+				return GetAsyncKeyState(0x42) & (1 << 16);
 			case KeyboardKey::C:
-				return GetAsyncKeyState(0x43);
+				return GetAsyncKeyState(0x43) & (1 << 16);
 			case KeyboardKey::D:
-				return GetAsyncKeyState(0x44);
+				return GetAsyncKeyState(0x44) & (1 << 16);
 			case KeyboardKey::E:
-				return GetAsyncKeyState(0x45);
+				return GetAsyncKeyState(0x45) & (1 << 16);
 			case KeyboardKey::F:
-				return GetAsyncKeyState(0x46);
+				return GetAsyncKeyState(0x46) & (1 << 16);
 			case KeyboardKey::G:
-				return GetAsyncKeyState(0x47);
+				return GetAsyncKeyState(0x47) & (1 << 16);
 			case KeyboardKey::H:
-				return GetAsyncKeyState(0x48);
+				return GetAsyncKeyState(0x48) & (1 << 16);
 			case KeyboardKey::I:
-				return GetAsyncKeyState(0x49);
+				return GetAsyncKeyState(0x49) & (1 << 16);
 			case KeyboardKey::J:
-				return GetAsyncKeyState(0x4A);
+				return GetAsyncKeyState(0x4A) & (1 << 16);
 			case KeyboardKey::K:
-				return GetAsyncKeyState(0x4B);
+				return GetAsyncKeyState(0x4B) & (1 << 16);
 			case KeyboardKey::L:
-				return GetAsyncKeyState(0x4C);
+				return GetAsyncKeyState(0x4C) & (1 << 16);
 			case KeyboardKey::M:
-				return GetAsyncKeyState(0x4D);
+				return GetAsyncKeyState(0x4D) & (1 << 16);
 			case KeyboardKey::N:
-				return GetAsyncKeyState(0x4E);
+				return GetAsyncKeyState(0x4E) & (1 << 16);
 			case KeyboardKey::O:
-				return GetAsyncKeyState(0x4F);
+				return GetAsyncKeyState(0x4F) & (1 << 16);
 			case KeyboardKey::P:
-				return GetAsyncKeyState(0x50);
+				return GetAsyncKeyState(0x50) & (1 << 16);
 			case KeyboardKey::Q:
-				return GetAsyncKeyState(0x51);
+				return GetAsyncKeyState(0x51) & (1 << 16);
 			case KeyboardKey::R:
-				return GetAsyncKeyState(0x52);
+				return GetAsyncKeyState(0x52) & (1 << 16);
 			case KeyboardKey::S:
-				return GetAsyncKeyState(0x53);
+				return GetAsyncKeyState(0x53) & (1 << 16);
 			case KeyboardKey::T:
-				return GetAsyncKeyState(0x54);
+				return GetAsyncKeyState(0x54) & (1 << 16);
 			case KeyboardKey::U:
-				return GetAsyncKeyState(0x55);
+				return GetAsyncKeyState(0x55) & (1 << 16);
 			case KeyboardKey::V:
-				return GetAsyncKeyState(0x56);
+				return GetAsyncKeyState(0x56) & (1 << 16);
 			case KeyboardKey::W:
-				return GetAsyncKeyState(0x57);
+				return GetAsyncKeyState(0x57) & (1 << 16);
 			case KeyboardKey::X:
-				return GetAsyncKeyState(0x58);
+				return GetAsyncKeyState(0x58) & (1 << 16);
 			case KeyboardKey::Y:
-				return GetAsyncKeyState(0x59);
+				return GetAsyncKeyState(0x59) & (1 << 16);
 			case KeyboardKey::Z:
-				return GetAsyncKeyState(0x5A);
+				return GetAsyncKeyState(0x5A) & (1 << 16);
 			case KeyboardKey::Add:
-				return GetAsyncKeyState(VK_ADD);
+				return GetAsyncKeyState(VK_ADD) & (1 << 16);
 			case KeyboardKey::Alt:
-				return GetAsyncKeyState(VK_MENU);
+				return GetAsyncKeyState(VK_MENU) & (1 << 16);
 			case KeyboardKey::Backspace:
-				return GetAsyncKeyState(VK_BACK);
+				return GetAsyncKeyState(VK_BACK) & (1 << 16);
 			case KeyboardKey::CapsLock:
-				return GetAsyncKeyState(VK_CAPITAL);
+				return GetAsyncKeyState(VK_CAPITAL) & (1 << 16);
 			case KeyboardKey::Clear:
-				return GetAsyncKeyState(VK_CLEAR);
+				return GetAsyncKeyState(VK_CLEAR) & (1 << 16);
 			case KeyboardKey::Comma:
-				return GetAsyncKeyState(VK_OEM_COMMA);
+				return GetAsyncKeyState(VK_OEM_COMMA) & (1 << 16);
 			case KeyboardKey::Control:
-				return GetAsyncKeyState(VK_CONTROL);
+				return GetAsyncKeyState(VK_CONTROL) & (1 << 16);
 			case KeyboardKey::ControlLeft:
-				return GetAsyncKeyState(VK_LCONTROL);
+				return GetAsyncKeyState(VK_LCONTROL) & (1 << 16);
 			case KeyboardKey::ControlRight:
-				return GetAsyncKeyState(VK_RCONTROL);
+				return GetAsyncKeyState(VK_RCONTROL) & (1 << 16);
 			case KeyboardKey::Decimal:
-				return GetAsyncKeyState(VK_DECIMAL);
+				return GetAsyncKeyState(VK_DECIMAL) & (1 << 16);
 			case KeyboardKey::Delete:
-				return GetAsyncKeyState(VK_DELETE);
+				return GetAsyncKeyState(VK_DELETE) & (1 << 16);
 			case KeyboardKey::Divide:
-				return GetAsyncKeyState(VK_DIVIDE);
+				return GetAsyncKeyState(VK_DIVIDE) & (1 << 16);
 			case KeyboardKey::Down:
-				return GetAsyncKeyState(VK_DOWN);
+				return GetAsyncKeyState(VK_DOWN) & (1 << 16);
 			case KeyboardKey::End:
-				return GetAsyncKeyState(VK_END);
+				return GetAsyncKeyState(VK_END) & (1 << 16);
 			case KeyboardKey::Enter:
-				return GetAsyncKeyState(VK_RETURN);
+				return GetAsyncKeyState(VK_RETURN) & (1 << 16);
 			case KeyboardKey::Escape:
-				return GetAsyncKeyState(VK_ESCAPE);
+				return GetAsyncKeyState(VK_ESCAPE) & (1 << 16);
 			case KeyboardKey::F1:
-				return GetAsyncKeyState(VK_F1);
+				return GetAsyncKeyState(VK_F1) & (1 << 16);
 			case KeyboardKey::F2:
-				return GetAsyncKeyState(VK_F2);
+				return GetAsyncKeyState(VK_F2) & (1 << 16);
 			case KeyboardKey::F3:
-				return GetAsyncKeyState(VK_F3);
+				return GetAsyncKeyState(VK_F3) & (1 << 16);
 			case KeyboardKey::F4:
-				return GetAsyncKeyState(VK_F4);
+				return GetAsyncKeyState(VK_F4) & (1 << 16);
 			case KeyboardKey::F5:
-				return GetAsyncKeyState(VK_F5);
+				return GetAsyncKeyState(VK_F5) & (1 << 16);
 			case KeyboardKey::F6:
-				return GetAsyncKeyState(VK_F6);
+				return GetAsyncKeyState(VK_F6) & (1 << 16);
 			case KeyboardKey::F7:
-				return GetAsyncKeyState(VK_F7);
+				return GetAsyncKeyState(VK_F7) & (1 << 16);
 			case KeyboardKey::F8:
-				return GetAsyncKeyState(VK_F8);
+				return GetAsyncKeyState(VK_F8) & (1 << 16);
 			case KeyboardKey::F9:
-				return GetAsyncKeyState(VK_F9);
+				return GetAsyncKeyState(VK_F9) & (1 << 16);
 			case KeyboardKey::F10:
-				return GetAsyncKeyState(VK_F10);
+				return GetAsyncKeyState(VK_F10) & (1 << 16);
 			case KeyboardKey::F11:
-				return GetAsyncKeyState(VK_F11);
+				return GetAsyncKeyState(VK_F11) & (1 << 16);
 			case KeyboardKey::F12:
-				return GetAsyncKeyState(VK_F12);
+				return GetAsyncKeyState(VK_F12) & (1 << 16);
 			case KeyboardKey::F13:
-				return GetAsyncKeyState(VK_F13);
+				return GetAsyncKeyState(VK_F13) & (1 << 16);
 			case KeyboardKey::F14:
-				return GetAsyncKeyState(VK_F14);
+				return GetAsyncKeyState(VK_F14) & (1 << 16);
 			case KeyboardKey::F15:
-				return GetAsyncKeyState(VK_F15);
+				return GetAsyncKeyState(VK_F15) & (1 << 16);
 			case KeyboardKey::F16:
-				return GetAsyncKeyState(VK_F16);
+				return GetAsyncKeyState(VK_F16) & (1 << 16);
 			case KeyboardKey::F17:
-				return GetAsyncKeyState(VK_F17);
+				return GetAsyncKeyState(VK_F17) & (1 << 16);
 			case KeyboardKey::F18:
-				return GetAsyncKeyState(VK_F18);
+				return GetAsyncKeyState(VK_F18) & (1 << 16);
 			case KeyboardKey::F19:
-				return GetAsyncKeyState(VK_F19);
+				return GetAsyncKeyState(VK_F19) & (1 << 16);
 			case KeyboardKey::F20:
-				return GetAsyncKeyState(VK_F20);
+				return GetAsyncKeyState(VK_F20) & (1 << 16);
 			case KeyboardKey::F21:
-				return GetAsyncKeyState(VK_F21);
+				return GetAsyncKeyState(VK_F21) & (1 << 16);
 			case KeyboardKey::F22:
-				return GetAsyncKeyState(VK_F22);
+				return GetAsyncKeyState(VK_F22) & (1 << 16);
 			case KeyboardKey::F23:
-				return GetAsyncKeyState(VK_F23);
+				return GetAsyncKeyState(VK_F23) & (1 << 16);
 			case KeyboardKey::F24:
-				return GetAsyncKeyState(VK_F24);
+				return GetAsyncKeyState(VK_F24) & (1 << 16);
 			case KeyboardKey::Help:
-				return GetAsyncKeyState(VK_HELP);
+				return GetAsyncKeyState(VK_HELP) & (1 << 16);
 			case KeyboardKey::Home:
-				return GetAsyncKeyState(VK_HOME);
+				return GetAsyncKeyState(VK_HOME) & (1 << 16);
 			case KeyboardKey::Insert:
-				return GetAsyncKeyState(VK_INSERT);
+				return GetAsyncKeyState(VK_INSERT) & (1 << 16);
 			case KeyboardKey::Left:
-				return GetAsyncKeyState(VK_LEFT);
+				return GetAsyncKeyState(VK_LEFT) & (1 << 16);
 			case KeyboardKey::MenuLeft:
-				return GetAsyncKeyState(VK_LMENU);
+				return GetAsyncKeyState(VK_LMENU) & (1 << 16);
 			case KeyboardKey::MenuRight:
-				return GetAsyncKeyState(VK_RMENU);
+				return GetAsyncKeyState(VK_RMENU) & (1 << 16);
 			case KeyboardKey::Minus:
-				return GetAsyncKeyState(VK_OEM_MINUS);
+				return GetAsyncKeyState(VK_OEM_MINUS) & (1 << 16);
 			case KeyboardKey::Multiply:
-				return GetAsyncKeyState(VK_MULTIPLY);
+				return GetAsyncKeyState(VK_MULTIPLY) & (1 << 16);
 			case KeyboardKey::NextTrack:
-				return GetAsyncKeyState(VK_MEDIA_NEXT_TRACK);
+				return GetAsyncKeyState(VK_MEDIA_NEXT_TRACK) & (1 << 16);
 			case KeyboardKey::Number0:
-				return GetAsyncKeyState(0x30);
+				return GetAsyncKeyState(0x30) & (1 << 16);
 			case KeyboardKey::Number1:
-				return GetAsyncKeyState(0x31);
+				return GetAsyncKeyState(0x31) & (1 << 16);
 			case KeyboardKey::Number2:
-				return GetAsyncKeyState(0x32);
+				return GetAsyncKeyState(0x32) & (1 << 16);
 			case KeyboardKey::Number3:
-				return GetAsyncKeyState(0x33);
+				return GetAsyncKeyState(0x33) & (1 << 16);
 			case KeyboardKey::Number4:
-				return GetAsyncKeyState(0x34);
+				return GetAsyncKeyState(0x34) & (1 << 16);
 			case KeyboardKey::Number5:
-				return GetAsyncKeyState(0x35);
+				return GetAsyncKeyState(0x35) & (1 << 16);
 			case KeyboardKey::Number6:
-				return GetAsyncKeyState(0x36);
+				return GetAsyncKeyState(0x36) & (1 << 16);
 			case KeyboardKey::Number7:
-				return GetAsyncKeyState(0x37);
+				return GetAsyncKeyState(0x37) & (1 << 16);
 			case KeyboardKey::Number8:
-				return GetAsyncKeyState(0x38);
+				return GetAsyncKeyState(0x38) & (1 << 16);
 			case KeyboardKey::Number9:
-				return GetAsyncKeyState(0x39);
+				return GetAsyncKeyState(0x39) & (1 << 16);
 			case KeyboardKey::NumLock:
-				return GetAsyncKeyState(VK_NUMLOCK);
+				return GetAsyncKeyState(VK_NUMLOCK) & (1 << 16);
 			case KeyboardKey::Numpad0:
-				return GetAsyncKeyState(VK_NUMPAD0);
+				return GetAsyncKeyState(VK_NUMPAD0) & (1 << 16);
 			case KeyboardKey::Numpad1:
-				return GetAsyncKeyState(VK_NUMPAD1);
+				return GetAsyncKeyState(VK_NUMPAD1) & (1 << 16);
 			case KeyboardKey::Numpad2:
-				return GetAsyncKeyState(VK_NUMPAD2);
+				return GetAsyncKeyState(VK_NUMPAD2) & (1 << 16);
 			case KeyboardKey::Numpad3:
-				return GetAsyncKeyState(VK_NUMPAD3);
+				return GetAsyncKeyState(VK_NUMPAD3) & (1 << 16);
 			case KeyboardKey::Numpad4:
-				return GetAsyncKeyState(VK_NUMPAD4);
+				return GetAsyncKeyState(VK_NUMPAD4) & (1 << 16);
 			case KeyboardKey::Numpad5:
-				return GetAsyncKeyState(VK_NUMPAD5);
+				return GetAsyncKeyState(VK_NUMPAD5) & (1 << 16);
 			case KeyboardKey::Numpad6:
-				return GetAsyncKeyState(VK_NUMPAD6);
+				return GetAsyncKeyState(VK_NUMPAD6) & (1 << 16);
 			case KeyboardKey::Numpad7:
-				return GetAsyncKeyState(VK_NUMPAD7);
+				return GetAsyncKeyState(VK_NUMPAD7) & (1 << 16);
 			case KeyboardKey::Numpad8:
-				return GetAsyncKeyState(VK_NUMPAD8);
+				return GetAsyncKeyState(VK_NUMPAD8) & (1 << 16);
 			case KeyboardKey::Numpad9:
-				return GetAsyncKeyState(VK_NUMPAD9);
+				return GetAsyncKeyState(VK_NUMPAD9) & (1 << 16);
 			case KeyboardKey::PageDown:
-				return GetAsyncKeyState(VK_NEXT);
+				return GetAsyncKeyState(VK_NEXT) & (1 << 16);
 			case KeyboardKey::PageUp:
-				return GetAsyncKeyState(VK_PRIOR);
+				return GetAsyncKeyState(VK_PRIOR) & (1 << 16);
 			case KeyboardKey::Pause:
-				return GetAsyncKeyState(VK_PAUSE);
+				return GetAsyncKeyState(VK_PAUSE) & (1 << 16);
 			case KeyboardKey::Period:
-				return GetAsyncKeyState(VK_OEM_PERIOD);
+				return GetAsyncKeyState(VK_OEM_PERIOD) & (1 << 16);
 			case KeyboardKey::Play:
-				return GetAsyncKeyState(VK_PLAY);
+				return GetAsyncKeyState(VK_PLAY) & (1 << 16);
 			case KeyboardKey::PlayPauseTrack:
-				return GetAsyncKeyState(VK_MEDIA_PLAY_PAUSE);
+				return GetAsyncKeyState(VK_MEDIA_PLAY_PAUSE) & (1 << 16);
 			case KeyboardKey::Plus:
-				return GetAsyncKeyState(VK_OEM_PLUS);
+				return GetAsyncKeyState(VK_OEM_PLUS) & (1 << 16);
 			case KeyboardKey::PreviousTrack:
-				return GetAsyncKeyState(VK_MEDIA_PREV_TRACK);
+				return GetAsyncKeyState(VK_MEDIA_PREV_TRACK) & (1 << 16);
 			case KeyboardKey::PrintScreen:
-				return GetAsyncKeyState(VK_SNAPSHOT);
+				return GetAsyncKeyState(VK_SNAPSHOT) & (1 << 16);
 			case KeyboardKey::Regional1:
-				return GetAsyncKeyState(VK_OEM_1);
+				return GetAsyncKeyState(VK_OEM_1) & (1 << 16);
 			case KeyboardKey::Regional2:
-				return GetAsyncKeyState(VK_OEM_2);
+				return GetAsyncKeyState(VK_OEM_2) & (1 << 16);
 			case KeyboardKey::Regional3:
-				return GetAsyncKeyState(VK_OEM_3);
+				return GetAsyncKeyState(VK_OEM_3) & (1 << 16);
 			case KeyboardKey::Regional4:
-				return GetAsyncKeyState(VK_OEM_4);
+				return GetAsyncKeyState(VK_OEM_4) & (1 << 16);
 			case KeyboardKey::Regional5:
-				return GetAsyncKeyState(VK_OEM_5);
+				return GetAsyncKeyState(VK_OEM_5) & (1 << 16);
 			case KeyboardKey::Regional6:
-				return GetAsyncKeyState(VK_OEM_6);
+				return GetAsyncKeyState(VK_OEM_6) & (1 << 16);
 			case KeyboardKey::Regional7:
-				return GetAsyncKeyState(VK_OEM_7);
+				return GetAsyncKeyState(VK_OEM_7) & (1 << 16);
 			case KeyboardKey::Regional8:
-				return GetAsyncKeyState(VK_OEM_8);
+				return GetAsyncKeyState(VK_OEM_8) & (1 << 16);
 			case KeyboardKey::Right:
-				return GetAsyncKeyState(VK_RIGHT);
+				return GetAsyncKeyState(VK_RIGHT) & (1 << 16);
 			case KeyboardKey::Separator:
-				return GetAsyncKeyState(VK_SEPARATOR);
+				return GetAsyncKeyState(VK_SEPARATOR) & (1 << 16);
 			case KeyboardKey::Shift:
-				return GetAsyncKeyState(VK_SHIFT);
+				return GetAsyncKeyState(VK_SHIFT) & (1 << 16);
 			case KeyboardKey::ShiftLeft:
-				return GetAsyncKeyState(VK_LSHIFT);
+				return GetAsyncKeyState(VK_LSHIFT) & (1 << 16);
 			case KeyboardKey::ShiftRight:
-				return GetAsyncKeyState(VK_RSHIFT);
+				return GetAsyncKeyState(VK_RSHIFT) & (1 << 16);
 			case KeyboardKey::Spacebar:
-				return GetAsyncKeyState(VK_SPACE);
+				return GetAsyncKeyState(VK_SPACE) & (1 << 16);
 			case KeyboardKey::StopTrack:
-				return GetAsyncKeyState(VK_MEDIA_STOP);
+				return GetAsyncKeyState(VK_MEDIA_STOP) & (1 << 16);
 			case KeyboardKey::Subtract:
-				return GetAsyncKeyState(VK_SUBTRACT);
+				return GetAsyncKeyState(VK_SUBTRACT) & (1 << 16);
 			case KeyboardKey::Tab:
-				return GetAsyncKeyState(VK_TAB);
+				return GetAsyncKeyState(VK_TAB) & (1 << 16);
 			case KeyboardKey::Up:
-				return GetAsyncKeyState(VK_UP);
+				return GetAsyncKeyState(VK_UP) & (1 << 16);
 			}
 			return false;
 		}
@@ -1552,15 +1555,15 @@ namespace AvoGUI
 			switch (p_button)
 			{
 			case MouseButton::Left:
-				return GetAsyncKeyState(VK_LBUTTON);
+				return GetAsyncKeyState(VK_LBUTTON) & (1 << 16);
 			case MouseButton::Middle:
-				return GetAsyncKeyState(VK_MBUTTON);
+				return GetAsyncKeyState(VK_MBUTTON) & (1 << 16);
 			case MouseButton::Right:
-				return GetAsyncKeyState(VK_RBUTTON);
+				return GetAsyncKeyState(VK_RBUTTON) & (1 << 16);
 			case MouseButton::X0:
-				return GetAsyncKeyState(VK_XBUTTON1);
+				return GetAsyncKeyState(VK_XBUTTON1) & (1 << 16);
 			case MouseButton::X1:
-				return GetAsyncKeyState(VK_XBUTTON2);
+				return GetAsyncKeyState(VK_XBUTTON2) & (1 << 16);
 			}
 			return false;
 		}
@@ -3256,10 +3259,6 @@ namespace AvoGUI
 
 			//------------------------------
 
-			m_context->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), &m_solidColorBrush);
-
-			//------------------------------
-
 			dxgiBackBuffer->Release();
 			direct2DDevice->Release();
 			dxgiFactory->Release();
@@ -3267,6 +3266,18 @@ namespace AvoGUI
 			dxgiDevice->Release();
 			d3dDeviceContext->Release();
 			d3dDevice->Release();
+
+			//------------------------------
+
+			m_context->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), &m_solidColorBrush);
+
+			m_strokeStyle.dashCap = D2D1_CAP_STYLE_FLAT;
+			m_strokeStyle.dashOffset = 1.f;
+			m_strokeStyle.dashStyle = D2D1_DASH_STYLE_SOLID;
+			m_strokeStyle.lineJoin = D2D1_LINE_JOIN_ROUND;
+			m_strokeStyle.miterLimit = 0.f;
+			m_strokeStyle.startCap = D2D1_CAP_STYLE_FLAT;
+			m_strokeStyle.endCap = D2D1_CAP_STYLE_FLAT;
 
 			//------------------------------
 			// Create text stuff
@@ -5942,7 +5953,8 @@ namespace AvoGUI
 	//------------------------------
 
 	TextField::TextField(View* p_parent, Type p_type, const char* p_label, float p_width, float p_fontSize) :
-		View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*3.2f)), m_labelColor(0.5f), m_type(p_type), m_fontSize(p_fontSize)
+		View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*3.2f)), m_labelColor(0.5f), m_type(p_type), 
+		m_fontSize(p_fontSize), m_caretIndex(0), m_selectionEndIndex(0), m_isSelectionVisible(false)
 	{
 		setLabel(p_label);
 		setCursor(Cursor::Ibeam);
@@ -6040,12 +6052,30 @@ namespace AvoGUI
 		if (m_text)
 		{
 			m_text->getNearestCharacterIndexAndPosition(Point<float>(p_event.x, p_event.y), &m_caretIndex, &m_caretPosition, true);
+			m_isSelectingWithMouse = true;
 		}
+
 		getGUI()->setKeyboardFocus(this);
+		
 		m_frameCount = 1;
 		m_isCaretVisible = true;
+		m_isSelectionVisible = false;
+
 		invalidate();
 		queueAnimationUpdate();
+	}
+	void TextField::handleMouseMove(const MouseEvent& p_event)
+	{
+		if (m_isSelectingWithMouse)
+		{
+			m_text->getNearestCharacterIndexAndPosition(Point<float>(p_event.x, p_event.y), &m_selectionEndIndex, &m_selectionEndPosition, true);
+			m_isSelectionVisible = m_selectionEndIndex != m_caretIndex;
+		}
+		invalidate();
+	}
+	void TextField::handleMouseUp(const MouseEvent& p_event)
+	{
+		m_isSelectingWithMouse = false;
 	}
 	void TextField::handleKeyboardFocusLost()
 	{
@@ -6061,47 +6091,149 @@ namespace AvoGUI
 			std::string string = m_text->getString();
 			string.insert(m_caretIndex, 1U, p_event.character);
 			setString(string);
+
 			m_caretIndex++;
 			m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+			m_isSelectionVisible = false;
+
+			m_frameCount = 1;
+			m_isCaretVisible = true;
+
 			invalidate();
 		}
 	}
 	void TextField::handleKeyboardKeyDown(const KeyboardEvent& p_event)
 	{
+		if (m_isSelectionVisible && (p_event.key == KeyboardKey::Backspace || p_event.key == KeyboardKey::Delete))
+		{
+			uint32_t minIndex = min(m_caretIndex, m_selectionEndIndex);
+			uint32_t maxIndex = max(m_caretIndex, m_selectionEndIndex);
+
+			std::string string = m_text->getString();
+			string.erase(minIndex, maxIndex - minIndex);
+			setString(string);
+
+			m_caretPosition = minIndex == m_caretIndex ? m_caretPosition : m_selectionEndPosition;
+			m_caretIndex = minIndex;
+
+			m_frameCount = 1;
+			m_isCaretVisible = true;
+		}
 		switch (p_event.key)
 		{
 		case KeyboardKey::Backspace:
-			if (m_caretIndex > 0)
+			if (!m_isSelectionVisible && m_caretIndex > 0)
 			{
 				std::string string = m_text->getString();
 				m_caretIndex--;
 				string.erase(m_caretIndex, 1);
 				setString(string);
 				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+
+				m_frameCount = 1;
+				m_isCaretVisible = true;
 			}
+			m_isSelectionVisible = false;
 			break;
 		case KeyboardKey::Delete:
-			if (m_caretIndex < m_text->getString().size())
+			if (!m_isSelectionVisible && m_caretIndex < m_text->getString().size())
 			{
 				setString(std::string(m_text->getString()).erase(m_caretIndex, 1));
+
+				m_frameCount = 1;
+				m_isCaretVisible = true;
 			}
+			m_isSelectionVisible = false;
 			break;
 		case KeyboardKey::Left:
-			if (m_caretIndex > 0)
+			if (getGUI()->getWindow()->getIsKeyDown(KeyboardKey::Shift))
 			{
-				m_caretIndex--;
-				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+				if (!m_isSelectionVisible)
+				{
+					m_selectionEndIndex = m_caretIndex;
+				}
+				if (m_selectionEndIndex > 0)
+				{
+					m_selectionEndIndex--;
+					if (m_selectionEndIndex == m_caretIndex)
+					{
+						m_isSelectionVisible = false;
+					}
+					else
+					{
+						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+						m_isSelectionVisible = true;
+					}
+				}
+			}
+			else
+			{
+				if (m_isSelectionVisible)
+				{
+					if (m_caretIndex > m_selectionEndIndex)
+					{
+						m_caretIndex = m_selectionEndIndex;
+						m_caretPosition = m_selectionEndPosition;
+					}
+					m_isSelectionVisible = false;
+				}
+				else
+				{
+					if (m_caretIndex > 0)
+					{
+						m_caretIndex--;
+						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+					}
+				}
+				m_frameCount = 1;
+				m_isCaretVisible = true;
 			}
 			break;
 		case KeyboardKey::Right:
-			if (m_caretIndex < m_text->getString().size())
+			if (getGUI()->getWindow()->getIsKeyDown(KeyboardKey::Shift))
 			{
-				m_caretIndex++;
-				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+				if (!m_isSelectionVisible)
+				{
+					m_selectionEndIndex = m_caretIndex;
+				}
+				if (m_selectionEndIndex < m_text->getString().size())
+				{
+					m_selectionEndIndex++;
+					if (m_selectionEndIndex == m_caretIndex)
+					{
+						m_isSelectionVisible = false;
+					}
+					else
+					{
+						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+						m_isSelectionVisible = true;
+					}
+				}
+			}
+			else
+			{
+				if (m_isSelectionVisible)
+				{
+					if (m_caretIndex < m_selectionEndIndex)
+					{
+						m_caretIndex = m_selectionEndIndex;
+						m_caretPosition = m_selectionEndPosition;
+					}
+					m_isSelectionVisible = false;
+				}
+				else
+				{
+					if (m_caretIndex < m_text->getString().size())
+					{
+						m_caretIndex++;
+						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+					}
+				}
+				m_frameCount = 1;
+				m_isCaretVisible = true;
 			}
 			break;
 		}
-		m_isCaretVisible = true;
 		invalidate();
 	}
 
@@ -6161,7 +6293,12 @@ namespace AvoGUI
 			{
 				p_context->setColor(Color(0.1f));
 				p_context->drawText(m_text);
-				if (m_isCaretVisible)
+				if (m_isSelectionVisible)
+				{
+					p_context->setColor(m_theme->colors["selection"]);
+					p_context->fillRectangle(m_caretPosition.x, m_caretPosition.y, m_selectionEndPosition.x, m_selectionEndPosition.y + m_fontSize*1.2f);
+				}
+				else if (m_isCaretVisible)
 				{
 					p_context->drawLine(m_caretPosition.x, m_caretPosition.y, m_caretPosition.x, m_caretPosition.y + m_fontSize*1.2f, 1.f);
 				}
