@@ -59,6 +59,8 @@ public:
 
 	void handleKeyboardKeyDown(const AvoGUI::KeyboardEvent& p_event) override
 	{
+		GUI::handleKeyboardKeyDown(p_event);
+
 		if (p_event.key == AvoGUI::KeyboardKey::F4)
 		{
 			getWindow()->switchFullscreen();
@@ -80,7 +82,7 @@ public:
 		m_theme->colors["primary on background"] = m_theme->colors["primary"];
 		m_theme->colors["on primary"] = AvoGUI::Color(1.f);
 
-		m_theme->colors["shadow"] = 0x70000000U;
+		m_theme->colors["shadow"] = 0x90000000U;
 
 		//------------------------------
 
@@ -99,7 +101,7 @@ public:
 		button_readMore->setTooltip("tooltip 2");
 		button_readMore->addButtonListener(this);
 
-		AvoGUI::TextField* textField_name = new AvoGUI::TextField(m_viewContainer, AvoGUI::TextField::Type::Filled, "Name");
+		AvoGUI::TextField* textField_name = new AvoGUI::TextField(m_viewContainer, AvoGUI::TextField::Type::Filled, "Name", 200.f);
 		textField_name->setLeft(button_no->getRight() + 15.f, true);
 		textField_name->setCenterY(button_readMore->getBottom()*0.5f);
 

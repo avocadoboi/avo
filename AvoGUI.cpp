@@ -89,11 +89,11 @@ namespace AvoGUI
 	float Easing::easeValue(float p_value, float p_precision) const
 	{
 
-		if (p_value <= 0.f)
+		if (p_value <= 0.0001f)
 		{
 			return 0.f;
 		}
-		if (p_value >= 1.f) 
+		if (p_value >= 0.9999f) 
 		{
 			return 1.f;
 		}
@@ -174,7 +174,7 @@ namespace AvoGUI
 			m_layerIndex = 0U;
 			m_index = 0U;
 
-			m_theme = debugNew Theme();
+			m_theme = new Theme();
 		}
 	}
 	View::~View()
@@ -545,7 +545,7 @@ namespace AvoGUI
 	{
 		if (m_GUI)
 		{
-			setElevation(m_elevation);
+			setElevation(m_elevation); // This is to update the shadow bounds. This isn't expensive at all, because we aren't changing the elevation.
 
 			Rectangle<float> shadowBounds(getAbsoluteShadowBounds().roundCoordinatesOutwards());
 			if (shadowBounds == m_lastInvalidatedShadowBounds || (!m_lastInvalidatedShadowBounds.getWidth() && !m_lastInvalidatedShadowBounds.getHeight()))
@@ -585,10 +585,13 @@ namespace AvoGUI
 	{
 	private:
 		HWND m_windowHandle;
+		WindowStyleFlags m_crossPlatformStyles;
 		uint32_t m_styles;
-		uint32_t m_extendedStyles;
 
 		RECT m_windowRectBeforeFullscreen;
+		bool m_wasWindowMaximizedBeforeFullscreen;
+
+		WindowState m_state;
 
 		Point<uint32_t> m_minSize;
 		Point<uint32_t> m_maxSize;
@@ -597,389 +600,287 @@ namespace AvoGUI
 		HCURSOR m_cursorHandle;
 		Cursor m_cursorType;
 
+		uint32_t convertWindowStyleFlagsToWindowsWindowStyleFlags(WindowStyleFlags p_styleFlags)
+		{
+			uint32_t styles = WS_SYSMENU;
+
+			if (uint32_t(p_styleFlags & WindowStyleFlags::Visible))
+				styles |= WS_VISIBLE;
+			if (uint32_t(p_styleFlags & WindowStyleFlags::Border))
+				styles |= WS_CAPTION;
+			if (uint32_t(p_styleFlags & WindowStyleFlags::Child))
+				styles |= WS_CHILD;
+
+			if (uint32_t(p_styleFlags & WindowStyleFlags::Minimized))
+				styles |= WS_MINIMIZE;
+			else if (uint32_t(p_styleFlags & WindowStyleFlags::Maximized))
+				styles |= WS_MAXIMIZE;
+
+			if (uint32_t(p_styleFlags & WindowStyleFlags::MinimizeBox))
+				styles |= WS_MINIMIZEBOX;
+			if (uint32_t(p_styleFlags & WindowStyleFlags::MaximizeBox))
+				styles |= WS_MAXIMIZEBOX;
+			if (uint32_t(p_styleFlags & WindowStyleFlags::ResizeBorder))
+				styles |= WS_THICKFRAME;
+
+			return styles;
+		}
 		ModifierKeyFlags convertWindowsKeyStateToModifierKeyFlags(unsigned short p_keyState)
 		{
 			ModifierKeyFlags modifierFlags = ModifierKeyFlags::None;
+
 			if (p_keyState & MK_CONTROL)
-			{
 				modifierFlags |= ModifierKeyFlags::Ctrl;
-			}
 			if (p_keyState & MK_SHIFT)
-			{
 				modifierFlags |= ModifierKeyFlags::Shift;
-			}
 			if (p_keyState & MK_LBUTTON)
-			{
 				modifierFlags |= ModifierKeyFlags::LeftMouse;
-			}
 			if (p_keyState & MK_MBUTTON)
-			{
 				modifierFlags |= ModifierKeyFlags::MiddleMouse;
-			}
 			if (p_keyState & MK_RBUTTON)
-			{
 				modifierFlags |= ModifierKeyFlags::RightMouse;
-			}
 			if (p_keyState & MK_XBUTTON1)
-			{
 				modifierFlags |= ModifierKeyFlags::X0Mouse;
-			}
 			if (p_keyState & MK_XBUTTON2)
-			{
 				modifierFlags |= ModifierKeyFlags::X1Mouse;
-			}
 			if (GetKeyState(VK_MENU) < 0)
-			{
 				modifierFlags |= ModifierKeyFlags::Alt;
-			}
+
 			return modifierFlags;
 		}
 		KeyboardKey convertWindowsDataToKeyboardKey(uint64_t p_data)
 		{
-			KeyboardKey key = KeyboardKey::None;
 			switch (p_data)
 			{
 			case VK_BACK:
-				key = KeyboardKey::Backspace;
-				break;
+				return KeyboardKey::Backspace;
 			case VK_CLEAR:
-				key = KeyboardKey::Clear;
-				break;
+				return KeyboardKey::Clear;
 			case VK_TAB:
-				key = KeyboardKey::Tab;
-				break;
+				return KeyboardKey::Tab;
 			case VK_RETURN:
-				key = KeyboardKey::Return;
-				break;
+				return KeyboardKey::Return;
 			case VK_SHIFT:
-				key = KeyboardKey::Shift;
-				break;
+				return KeyboardKey::Shift;
 			case VK_CONTROL:
-				key = KeyboardKey::Control;
-				break;
+				return KeyboardKey::Control;
 			case VK_MENU:
-				key = KeyboardKey::Alt;
-				break;
+				return KeyboardKey::Alt;
 			case VK_PAUSE:
-				key = KeyboardKey::Pause;
-				break;
+				return KeyboardKey::Pause;
 			case VK_PLAY:
-				key = KeyboardKey::Play;
-				break;
+				return KeyboardKey::Play;
 			case VK_CAPITAL:
-				key = KeyboardKey::CapsLock;
-				break;
+				return KeyboardKey::CapsLock;
 			case VK_ESCAPE:
-				key = KeyboardKey::Escape;
-				break;
+				return KeyboardKey::Escape;
 			case VK_SPACE:
-				key = KeyboardKey::Spacebar;
-				break;
+				return KeyboardKey::Spacebar;
 			case VK_PRIOR:
-				key = KeyboardKey::PageUp;
-				break;
+				return KeyboardKey::PageUp;
 			case VK_NEXT:
-				key = KeyboardKey::PageDown;
-				break;
+				return KeyboardKey::PageDown;
 			case VK_END:
-				key = KeyboardKey::End;
-				break;
+				return KeyboardKey::End;
 			case VK_HOME:
-				key = KeyboardKey::Home;
-				break;
+				return KeyboardKey::Home;
 			case VK_LEFT:
-				key = KeyboardKey::Left;
-				break;
+				return KeyboardKey::Left;
 			case VK_RIGHT:
-				key = KeyboardKey::Right;
-				break;
+				return KeyboardKey::Right;
 			case VK_UP:
-				key = KeyboardKey::Up;
-				break;
+				return KeyboardKey::Up;
 			case VK_DOWN:
-				key = KeyboardKey::Down;
-				break;
+				return KeyboardKey::Down;
 			case VK_SNAPSHOT:
-				key = KeyboardKey::PrintScreen;
-				break;
+				return KeyboardKey::PrintScreen;
 			case VK_INSERT:
-				key = KeyboardKey::Insert;
-				break;
+				return KeyboardKey::Insert;
 			case VK_DELETE:
-				key = KeyboardKey::Delete;
-				break;
+				return KeyboardKey::Delete;
 			case VK_HELP:
-				key = KeyboardKey::Help;
-				break;
+				return KeyboardKey::Help;
 			case VK_NUMPAD0:
-				key = KeyboardKey::Numpad0;
-				break;
+				return KeyboardKey::Numpad0;
 			case VK_NUMPAD1:
-				key = KeyboardKey::Numpad1;
-				break;
+				return KeyboardKey::Numpad1;
 			case VK_NUMPAD2:
-				key = KeyboardKey::Numpad2;
-				break;
+				return KeyboardKey::Numpad2;
 			case VK_NUMPAD3:
-				key = KeyboardKey::Numpad3;
-				break;
+				return KeyboardKey::Numpad3;
 			case VK_NUMPAD4:
-				key = KeyboardKey::Numpad4;
-				break;
+				return KeyboardKey::Numpad4;
 			case VK_NUMPAD5:
-				key = KeyboardKey::Numpad5;
-				break;
+				return KeyboardKey::Numpad5;
 			case VK_NUMPAD6:
-				key = KeyboardKey::Numpad6;
-				break;
+				return KeyboardKey::Numpad6;
 			case VK_NUMPAD7:
-				key = KeyboardKey::Numpad7;
-				break;
+				return KeyboardKey::Numpad7;
 			case VK_NUMPAD8:
-				key = KeyboardKey::Numpad8;
-				break;
+				return KeyboardKey::Numpad8;
 			case VK_NUMPAD9:
-				key = KeyboardKey::Numpad9;
-				break;
+				return KeyboardKey::Numpad9;
 			case VK_F1:
-				key = KeyboardKey::F1;
-				break;
+				return KeyboardKey::F1;
 			case VK_F2:
-				key = KeyboardKey::F2;
-				break;
+				return KeyboardKey::F2;
 			case VK_F3:
-				key = KeyboardKey::F3;
-				break;
+				return KeyboardKey::F3;
 			case VK_F4:
-				key = KeyboardKey::F4;
-				break;
+				return KeyboardKey::F4;
 			case VK_F5:
-				key = KeyboardKey::F5;
-				break;
+				return KeyboardKey::F5;
 			case VK_F6:
-				key = KeyboardKey::F6;
-				break;
+				return KeyboardKey::F6;
 			case VK_F7:
-				key = KeyboardKey::F7;
-				break;
+				return KeyboardKey::F7;
 			case VK_F8:
-				key = KeyboardKey::F8;
-				break;
+				return KeyboardKey::F8;
 			case VK_F9:
-				key = KeyboardKey::F9;
-				break;
+				return KeyboardKey::F9;
 			case VK_F10:
-				key = KeyboardKey::F10;
-				break;
+				return KeyboardKey::F10;
 			case VK_F11:
-				key = KeyboardKey::F11;
-				break;
+				return KeyboardKey::F11;
 			case VK_F12:
-				key = KeyboardKey::F12;
-				break;
+				return KeyboardKey::F12;
 			case VK_F13:
-				key = KeyboardKey::F13;
-				break;
+				return KeyboardKey::F13;
 			case VK_F14:
-				key = KeyboardKey::F14;
-				break;
+				return KeyboardKey::F14;
 			case VK_F15:
-				key = KeyboardKey::F15;
-				break;
+				return KeyboardKey::F15;
 			case VK_F16:
-				key = KeyboardKey::F16;
-				break;
+				return KeyboardKey::F16;
 			case VK_F17:
-				key = KeyboardKey::F17;
-				break;
+				return KeyboardKey::F17;
 			case VK_F18:
-				key = KeyboardKey::F18;
-				break;
+				return KeyboardKey::F18;
 			case VK_F19:
-				key = KeyboardKey::F19;
-				break;
+				return KeyboardKey::F19;
 			case VK_F20:
-				key = KeyboardKey::F20;
-				break;
+				return KeyboardKey::F20;
 			case VK_F21:
-				key = KeyboardKey::F21;
-				break;
+				return KeyboardKey::F21;
 			case VK_F22:
-				key = KeyboardKey::F22;
-				break;
+				return KeyboardKey::F22;
 			case VK_F23:
-				key = KeyboardKey::F23;
-				break;
+				return KeyboardKey::F23;
 			case VK_F24:
-				key = KeyboardKey::F24;
-				break;
+				return KeyboardKey::F24;
 			case VK_NUMLOCK:
-				key = KeyboardKey::NumLock;
-				break;
+				return KeyboardKey::NumLock;
 			case VK_LSHIFT:
-				key = KeyboardKey::ShiftLeft;
-				break;
+				return KeyboardKey::ShiftLeft;
 			case VK_RSHIFT:
-				key = KeyboardKey::ShiftRight;
-				break;
+				return KeyboardKey::ShiftRight;
 			case VK_LCONTROL:
-				key = KeyboardKey::ControlLeft;
-				break;
+				return KeyboardKey::ControlLeft;
 			case VK_RCONTROL:
-				key = KeyboardKey::ControlRight;
-				break;
+				return KeyboardKey::ControlRight;
 			case VK_LMENU:
-				key = KeyboardKey::MenuLeft;
-				break;
+				return KeyboardKey::MenuLeft;
 			case VK_RMENU:
-				key = KeyboardKey::MenuRight;
-				break;
+				return KeyboardKey::MenuRight;
 			case VK_MEDIA_PREV_TRACK:
-				key = KeyboardKey::PreviousTrack;
-				break;
+				return KeyboardKey::PreviousTrack;
 			case VK_MEDIA_NEXT_TRACK:
-				key = KeyboardKey::NextTrack;
-				break;
+				return KeyboardKey::NextTrack;
 			case VK_MEDIA_PLAY_PAUSE:
-				key = KeyboardKey::PlayPauseTrack;
-				break;
+				return KeyboardKey::PlayPauseTrack;
 			case VK_MEDIA_STOP:
-				key = KeyboardKey::StopTrack;
-				break;
+				return KeyboardKey::StopTrack;
 			case 0x30:
-				key = KeyboardKey::Number0;
-				break;
+				return KeyboardKey::Number0;
 			case 0x31:
-				key = KeyboardKey::Number1;
-				break;
+				return KeyboardKey::Number1;
 			case 0x32:
-				key = KeyboardKey::Number2;
-				break;
+				return KeyboardKey::Number2;
 			case 0x33:
-				key = KeyboardKey::Number3;
-				break;
+				return KeyboardKey::Number3;
 			case 0x34:
-				key = KeyboardKey::Number4;
-				break;
+				return KeyboardKey::Number4;
 			case 0x35:
-				key = KeyboardKey::Number5;
-				break;
+				return KeyboardKey::Number5;
 			case 0x36:
-				key = KeyboardKey::Number6;
-				break;
+				return KeyboardKey::Number6;
 			case 0x37:
-				key = KeyboardKey::Number7;
-				break;
+				return KeyboardKey::Number7;
 			case 0x38:
-				key = KeyboardKey::Number8;
-				break;
+				return KeyboardKey::Number8;
 			case 0x39:
-				key = KeyboardKey::Number9;
-				break;
+				return KeyboardKey::Number9;
 			case 0x41:
-				key = KeyboardKey::A;
-				break;
+				return KeyboardKey::A;
 			case 0x42:
-				key = KeyboardKey::B;
-				break;
+				return KeyboardKey::B;
 			case 0x43:
-				key = KeyboardKey::C;
-				break;
+				return KeyboardKey::C;
 			case 0x44:
-				key = KeyboardKey::D;
-				break;
+				return KeyboardKey::D;
 			case 0x45:
-				key = KeyboardKey::E;
-				break;
+				return KeyboardKey::E;
 			case 0x46:
-				key = KeyboardKey::F;
-				break;
+				return KeyboardKey::F;
 			case 0x47:
-				key = KeyboardKey::G;
-				break;
+				return KeyboardKey::G;
 			case 0x48:
-				key = KeyboardKey::H;
-				break;
+				return KeyboardKey::H;
 			case 0x49:
-				key = KeyboardKey::I;
-				break;
+				return KeyboardKey::I;
 			case 0x4A:
-				key = KeyboardKey::J;
-				break;
+				return KeyboardKey::J;
 			case 0x4B:
-				key = KeyboardKey::K;
-				break;
+				return KeyboardKey::K;
 			case 0x4C:
-				key = KeyboardKey::L;
-				break;
+				return KeyboardKey::L;
 			case 0x4D:
-				key = KeyboardKey::M;
-				break;
+				return KeyboardKey::M;
 			case 0x4E:
-				key = KeyboardKey::N;
-				break;
+				return KeyboardKey::N;
 			case 0x4F:
-				key = KeyboardKey::O;
-				break;
+				return KeyboardKey::O;
 			case 0x50:
-				key = KeyboardKey::P;
-				break;
+				return KeyboardKey::P;
 			case 0x51:
-				key = KeyboardKey::Q;
-				break;
+				return KeyboardKey::Q;
 			case 0x52:
-				key = KeyboardKey::R;
-				break;
+				return KeyboardKey::R;
 			case 0x53:
-				key = KeyboardKey::S;
-				break;
+				return KeyboardKey::S;
 			case 0x54:
-				key = KeyboardKey::T;
-				break;
+				return KeyboardKey::T;
 			case 0x55:
-				key = KeyboardKey::U;
-				break;
+				return KeyboardKey::U;
 			case 0x56:
-				key = KeyboardKey::V;
-				break;
+				return KeyboardKey::V;
 			case 0x57:
-				key = KeyboardKey::W;
-				break;
+				return KeyboardKey::W;
 			case 0x58:
-				key = KeyboardKey::X;
-				break;
+				return KeyboardKey::X;
 			case 0x59:
-				key = KeyboardKey::Y;
-				break;
+				return KeyboardKey::Y;
 			case 0x5A:
-				key = KeyboardKey::Z;
-				break;
+				return KeyboardKey::Z;
 			case VK_OEM_1:
-				key = KeyboardKey::Regional1;
-				break;
+				return KeyboardKey::Regional1;
 			case VK_OEM_2:
-				key = KeyboardKey::Regional2;
-				break;
+				return KeyboardKey::Regional2;
 			case VK_OEM_3:
-				key = KeyboardKey::Regional3;
-				break;
+				return KeyboardKey::Regional3;
 			case VK_OEM_4:
-				key = KeyboardKey::Regional4;
-				break;
+				return KeyboardKey::Regional4;
 			case VK_OEM_5:
-				key = KeyboardKey::Regional5;
-				break;
+				return KeyboardKey::Regional5;
 			case VK_OEM_6:
-				key = KeyboardKey::Regional6;
-				break;
+				return KeyboardKey::Regional6;
 			case VK_OEM_7:
-				key = KeyboardKey::Regional7;
-				break;
+				return KeyboardKey::Regional7;
 			case VK_OEM_8:
-				key = KeyboardKey::Regional8;
-				break;
+				return KeyboardKey::Regional8;
+			default:
+				return KeyboardKey::None;
 			}
-			return key;
 		}
 
 	public:
@@ -989,7 +890,8 @@ namespace AvoGUI
 		//------------------------------
 
 		WindowsWindow(GUI* p_GUI) :
-			m_windowHandle(0), m_isMouseOutsideWindow(true), m_cursorHandle(0)
+			m_windowHandle(0), m_isMouseOutsideWindow(true), m_cursorHandle(0), 
+			m_styles(0), m_crossPlatformStyles((WindowStyleFlags)0)
 		{
 			m_GUI = p_GUI;
 			m_isFullscreen = false;
@@ -1036,49 +938,22 @@ namespace AvoGUI
 				RegisterClass(&windowClass);
 			}
 
-			m_extendedStyles = 0;
-			m_styles = WS_POPUP | WS_SYSMENU;
-			if (uint32_t(p_styleFlags & WindowStyleFlags::Border))
-			{
-				m_styles |= WS_CAPTION;
-			}
-			if (uint32_t(p_styleFlags & WindowStyleFlags::Visible))
-			{
-				m_styles |= WS_VISIBLE;
-			}
-			if (uint32_t(p_styleFlags & WindowStyleFlags::Child))
-			{
-				m_styles |= WS_CHILD;
-			}
-			if (uint32_t(p_styleFlags & WindowStyleFlags::Minimized))
-			{
-				m_styles |= WS_MINIMIZE;
-			}
-			if (uint32_t(p_styleFlags & WindowStyleFlags::Maximized))
-			{
-				m_styles |= WS_MAXIMIZE;
-			}
-			if (uint32_t(p_styleFlags & WindowStyleFlags::MinimizeBox))
-			{
-				m_styles |= WS_MINIMIZEBOX;
-			}
-			if (uint32_t(p_styleFlags & WindowStyleFlags::MaximizeBox))
-			{
-				m_styles |= WS_MAXIMIZEBOX;
-			}
-			if (uint32_t(p_styleFlags & WindowStyleFlags::ResizeBorder))
-			{
-				m_styles |= WS_THICKFRAME;
-			}
+			m_styles = convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styleFlags);
+
+			//if (uint32_t(p_styleFlags & WindowStyleFlags::Maximized))
+			//	m_state = WindowState::Maximized;
+			//else if (uint32_t(p_styleFlags & WindowStyleFlags::Minimized))
+			//	m_state = WindowState::Minimized;
+			//else
+			//	m_state = WindowState::Restored;
 
 			RECT windowRect = { 0, 0, p_width, p_height };
-			AdjustWindowRectEx(&windowRect, m_styles, 0, m_extendedStyles);
+			AdjustWindowRect(&windowRect, m_styles, 0);
 
 			m_size.set(p_width, p_height);
 
 			// m_windowHandle is initialized by the WM_CREATE event, before CreateWindowEx returns.
-			CreateWindowEx(
-				m_extendedStyles,
+			CreateWindow(
 				WINDOW_CLASS_NAME,
 				p_title,
 				m_styles,
@@ -1113,6 +988,20 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void setStyles(WindowStyleFlags p_styles) override
+		{
+			SetWindowLongPtr(m_windowHandle, GWL_STYLE, convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styles));
+			SetWindowPos(m_windowHandle, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+		}
+		WindowStyleFlags getStyles() override
+		{
+			GetWindowLongPtr(m_windowHandle, GWL_STYLE);
+			return WindowStyleFlags::Default;
+		}
+
+		//------------------------------
+
+		/// Internal method used to initialize the window handle at the right moment.
 		void setWindowHandle(HWND p_handle)
 		{
 			m_windowHandle = p_handle;
@@ -1132,32 +1021,39 @@ namespace AvoGUI
 			}
 			if (p_isFullscreen) 
 			{
-				GetWindowRect(m_windowHandle, &m_windowRectBeforeFullscreen);
+				m_wasWindowMaximizedBeforeFullscreen = false;
+				if (m_state == WindowState::Restored)
+				{
+					GetWindowRect(m_windowHandle, &m_windowRectBeforeFullscreen);
+				}
+				else if (m_state == WindowState::Maximized)
+				{
+					m_wasWindowMaximizedBeforeFullscreen = true;
+				}
 
 				MONITORINFO info = { };
 				info.cbSize = sizeof(MONITORINFO);
 				GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
-				SetWindowLongPtr(m_windowHandle, GWL_STYLE, WS_VISIBLE);
-				SetWindowPos(m_windowHandle, HWND_TOPMOST, info.rcMonitor.left, info.rcMonitor.top, info.rcMonitor.right - info.rcMonitor.left, info.rcMonitor.bottom - info.rcMonitor.top, 0);
+				SetWindowLongPtr(m_windowHandle, GWL_STYLE, WS_VISIBLE | WS_MAXIMIZE);
+				SetWindowPos(m_windowHandle, 0, info.rcMonitor.left, info.rcMonitor.top, info.rcMonitor.right - info.rcMonitor.left, info.rcMonitor.bottom - info.rcMonitor.top, SWP_NOZORDER | SWP_NOOWNERZORDER);
 			}
 			else
 			{
-				SetWindowLongPtr(m_windowHandle, GWL_STYLE, m_styles);
-				SetWindowPos(m_windowHandle, HWND_TOPMOST, m_windowRectBeforeFullscreen.left, m_windowRectBeforeFullscreen.top, m_windowRectBeforeFullscreen.right - m_windowRectBeforeFullscreen.left, m_windowRectBeforeFullscreen.bottom - m_windowRectBeforeFullscreen.top, 0);
+				SetWindowLongPtr(m_windowHandle, GWL_STYLE, (m_wasWindowMaximizedBeforeFullscreen*WS_MAXIMIZE) | (m_styles & ~(WS_MAXIMIZE | WS_MINIMIZE)));
+				if (m_wasWindowMaximizedBeforeFullscreen)
+				{
+					SetWindowPos(m_windowHandle, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+				}
+				else
+				{
+					SetWindowPos(m_windowHandle, 0, m_windowRectBeforeFullscreen.left, m_windowRectBeforeFullscreen.top, m_windowRectBeforeFullscreen.right - m_windowRectBeforeFullscreen.left, m_windowRectBeforeFullscreen.bottom - m_windowRectBeforeFullscreen.top, SWP_NOZORDER | SWP_NOOWNERZORDER);
+				}
 			}
 			m_isFullscreen = p_isFullscreen;
-
-			//if (p_isFullscreen != m_isFullscreen)
-			//{
-			//	m_isFullscreen = p_isFullscreen;
-			//	m_GUI->getDrawingContext()->setIsFullscreen(p_isFullscreen);
-			//}
 		}
 		void switchFullscreen() override
 		{
 			setIsFullscreen(!m_isFullscreen);
-			//m_isFullscreen = !m_isFullscreen;
-			//m_GUI->getDrawingContext()->switchFullscreen();
 		}
 
 		//------------------------------
@@ -1184,6 +1080,21 @@ namespace AvoGUI
 			ShowWindow(m_windowHandle, SW_RESTORE);
 		}
 
+		void setState(WindowState p_state) override
+		{
+			m_state = p_state;
+			if (p_state == WindowState::Maximized)
+				ShowWindow(m_windowHandle, SW_MAXIMIZE);
+			else if (p_state == WindowState::Minimized)
+				ShowWindow(m_windowHandle, SW_MINIMIZE);
+			else if (p_state == WindowState::Restored)
+				ShowWindow(m_windowHandle, SW_RESTORE);
+		}
+		WindowState getState() override
+		{
+			return m_state;
+		}
+
 		//------------------------------
 
 		void setPosition(const Point<int32_t>& p_position) override
@@ -1200,14 +1111,14 @@ namespace AvoGUI
 		void setSize(const Point<uint32_t>& p_size) override
 		{
 			RECT windowRect = { 0, 0, p_size.x, p_size.y };
-			AdjustWindowRectEx(&windowRect, m_styles, 0, m_extendedStyles);
+			AdjustWindowRect(&windowRect, m_styles, 0);
 			SetWindowPos(m_windowHandle, 0, 0, 0, windowRect.right - windowRect.left, windowRect.bottom - windowRect.top, SWP_NOMOVE | SWP_NOZORDER);
 			m_size = p_size;
 		}
 		void setSize(uint32_t p_width, uint32_t p_height) override
 		{
 			RECT windowRect = { 0, 0, p_width, p_height };
-			AdjustWindowRectEx(&windowRect, m_styles, 0, m_extendedStyles);
+			AdjustWindowRect(&windowRect, m_styles, 0);
 			SetWindowPos(m_windowHandle, 0, 0, 0, windowRect.right - windowRect.left, windowRect.bottom - windowRect.top, SWP_NOMOVE | SWP_NOZORDER);
 			m_size.set(p_width, p_height);
 		}
@@ -1650,6 +1561,7 @@ namespace AvoGUI
 				if (p_data_a == SIZE_MINIMIZED)
 				{
 					m_GUI->handleWindowMinimize(windowEvent);
+					m_state = WindowState::Minimized;
 				}
 				else
 				{
@@ -1661,6 +1573,12 @@ namespace AvoGUI
 					if (p_data_a == SIZE_MAXIMIZED)
 					{
 						m_GUI->handleWindowMaximize(windowEvent);
+						m_state = WindowState::Maximized;
+					}
+					else if (p_data_a == SIZE_RESTORED)
+					{
+						m_state = WindowState::Restored;
+
 					}
 					m_GUI->handleWindowSizeChange(windowEvent);
 				}
@@ -1671,7 +1589,7 @@ namespace AvoGUI
 			{
 				MINMAXINFO* minMaxInfo = (MINMAXINFO*)p_data_b;
 				RECT rect = { 0, 0, m_minSize.x, m_minSize.y };
-				AdjustWindowRectEx(&rect, m_styles, 0, m_extendedStyles);
+				AdjustWindowRect(&rect, m_styles, 0);
 
 				if (m_minSize.x > 0U || m_minSize.y > 0U)
 				{
@@ -1885,7 +1803,6 @@ namespace AvoGUI
 
 				return 0;
 			}
-
 			case WM_MOUSEMOVE:
 			{
 				if (m_isMouseOutsideWindow)
@@ -2944,7 +2861,7 @@ namespace AvoGUI
 				*p_stream = 0;
 				return E_INVALIDARG;
 			}
-			*p_stream = debugNew FontFileStream(*((FontData**)p_data));
+			*p_stream = new FontFileStream(*((FontData**)p_data));
 			(*p_stream)->AddRef();
 			return S_OK;
 		}
@@ -3072,7 +2989,7 @@ namespace AvoGUI
 
 		HRESULT __stdcall CreateEnumeratorFromKey(IDWriteFactory* p_factory, const void* p_data, UINT32 p_dataSize, IDWriteFontFileEnumerator** p_fontFileEnumerator)
 		{
-			*p_fontFileEnumerator = debugNew FontFileEnumerator(p_factory, m_fontFileLoader, *((std::vector<FontData*>**)p_data));
+			*p_fontFileEnumerator = new FontFileEnumerator(p_factory, m_fontFileLoader, *((std::vector<FontData*>**)p_data));
 			(*p_fontFileEnumerator)->AddRef();
 			return S_OK;
 		}
@@ -3290,20 +3207,20 @@ namespace AvoGUI
 					__uuidof(s_directWriteFactory), (IUnknown**)&s_directWriteFactory
 				);
 
-				s_fontFileLoader = debugNew FontFileLoader();
+				s_fontFileLoader = new FontFileLoader();
 				s_fontFileLoader->AddRef();
 				s_directWriteFactory->RegisterFontFileLoader(s_fontFileLoader);
 
-				s_fontCollectionLoader = debugNew FontCollectionLoader(s_fontFileLoader);
+				s_fontCollectionLoader = new FontCollectionLoader(s_fontFileLoader);
 				s_fontCollectionLoader->AddRef();
 				s_directWriteFactory->RegisterFontCollectionLoader(s_fontCollectionLoader);
 			}
 
 			m_fontData.reserve(8);
-			m_fontData.push_back(debugNew FontData(FONT_DATA_ROBOTO_LIGHT, FONT_DATA_SIZE_ROBOTO_LIGHT));
-			m_fontData.push_back(debugNew FontData(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_SIZE_ROBOTO_REGULAR));
-			m_fontData.push_back(debugNew FontData(FONT_DATA_ROBOTO_MEDIUM, FONT_DATA_SIZE_ROBOTO_MEDIUM));
-			m_fontData.push_back(debugNew FontData(FONT_DATA_ROBOTO_BOLD, FONT_DATA_SIZE_ROBOTO_BOLD));
+			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_LIGHT, FONT_DATA_SIZE_ROBOTO_LIGHT));
+			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_SIZE_ROBOTO_REGULAR));
+			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_MEDIUM, FONT_DATA_SIZE_ROBOTO_MEDIUM));
+			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_BOLD, FONT_DATA_SIZE_ROBOTO_BOLD));
 			updateFontCollection();
 
 			// Just for debugging...
@@ -3314,7 +3231,7 @@ namespace AvoGUI
 			//	m_fontCollection->GetFontFamily(a, &fontFamily);
 			//	IDWriteLocalizedStrings* names;
 			//	fontFamily->GetFamilyNames(&names);
-			//	wchar_t* buffer = debugNew wchar_t[30];
+			//	wchar_t* buffer = new wchar_t[30];
 			//	names->GetString(0, buffer, 30);
 			//	fontFamilyNames.push_back(buffer);
 			//}
@@ -3356,7 +3273,7 @@ namespace AvoGUI
 						s_directWriteFactory->UnregisterFontCollectionLoader(s_fontCollectionLoader);
 					}
 					s_fontCollectionLoader->Release();
-					s_fontCollectionLoader = 0;
+					s_fontCollectionLoader = 0; // Important to zero these because they're static and may be reallocated
 				}
 
 				if (s_fontFileLoader)
@@ -3400,7 +3317,7 @@ namespace AvoGUI
 			DXGI_PRESENT_PARAMETERS presentParameters;
 			presentParameters.DirtyRectsCount = p_updatedRectangles.size();
 
-			//RECT* updatedRects = debugNew RECT[p_updatedRectangles.size()];
+			//RECT* updatedRects = new RECT[p_updatedRectangles.size()];
 			RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
 
 			// If you're getting an exception below, you have three options; 
@@ -3419,7 +3336,11 @@ namespace AvoGUI
 			presentParameters.pScrollOffset = 0;
 			presentParameters.pScrollRect = 0;
 
-			m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
+			HRESULT result = m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
+			if (result != S_OK)
+			{
+				std::cout << "oOps" << std::endl;
+			}
 			//delete[] updatedRects;
 		}
 
@@ -3428,33 +3349,10 @@ namespace AvoGUI
 		void setIsFullscreen(bool p_isFullscreen) override
 		{
 			m_window->setIsFullscreen(p_isFullscreen);
-			//if (m_window->getIsFullscreen() != p_isFullscreen)
-			//{
-			//	m_window->setIsFullscreen(p_isFullscreen);
-			//}
-			//else
-			//{
-			//	m_swapChain->SetFullscreenState(p_isFullscreen, 0);
-			//}
 		}
 		void switchFullscreen() override
 		{
 			m_window->switchFullscreen();
-			//int isFullscreen;
-			//IDXGIOutput* output = 0;
-			//m_swapChain->GetFullscreenState(&isFullscreen, &output);
-			//if (output)
-			//{
-			//	output->Release();
-			//}
-			//if (m_window->getIsFullscreen() != !isFullscreen)
-			//{
-			//	m_window->switchFullscreen();
-			//}
-			//else
-			//{
-			//	m_swapChain->SetFullscreenState(!isFullscreen, 0);
-			//}
 		}
 		bool getIsFullscreen() override
 		{
@@ -3686,6 +3584,15 @@ namespace AvoGUI
 			dxgiBackBuffer->Release();
 			
 			m_context->SetTarget(m_targetWindowBitmap);
+		}
+		Point<uint32_t> getSize() override
+		{
+			IDXGISurface* dxgiBackBuffer;
+			m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
+			DXGI_SURFACE_DESC description;
+			dxgiBackBuffer->GetDesc(&description);
+			dxgiBackBuffer->Release();
+			return Point<uint32_t>(description.Width, description.Height);
 		}
 
 		//------------------------------
@@ -4285,7 +4192,7 @@ namespace AvoGUI
 				p_color |= 0xff000000;
 			}
 
-			uint32_t* pixels = debugNew uint32_t[p_width*p_height];
+			uint32_t* pixels = new uint32_t[p_width*p_height];
 			for (uint32_t a = 0; a < p_width*p_height; a++)
 			{
 				pixels[a] = p_color;
@@ -4383,7 +4290,7 @@ namespace AvoGUI
 
 			delete[] pixels;
 
-			return debugNew WindowsImage(outputBitmap);
+			return new WindowsImage(outputBitmap);
 			*/
 
 			if (!p_width || !p_height || !p_color.alpha) return 0;
@@ -4449,7 +4356,7 @@ namespace AvoGUI
 			shadowEffect->Release();
 			inputBitmap->Release();
 
-			return debugNew WindowsImage(outputBitmap);
+			return new WindowsImage(outputBitmap);
 		}
 
 		Image* createRoundedRectangleShadowImage(const Point<uint32_t>& p_size, float p_radius, float p_blur, const Color& p_color)
@@ -4523,7 +4430,7 @@ namespace AvoGUI
 			shadowEffect->Release();
 			inputBitmap->Release();
 
-			return debugNew WindowsImage(outputBitmap);
+			return new WindowsImage(outputBitmap);
 		}
 
 		//------------------------------
@@ -4539,7 +4446,7 @@ namespace AvoGUI
 					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
 				), &bitmap
 			);
-			return debugNew WindowsImage(bitmap);
+			return new WindowsImage(bitmap);
 		}
 		Image* createImage(const char* p_filePath) override
 		{
@@ -4567,7 +4474,7 @@ namespace AvoGUI
 			frame->Release();
 			decoder->Release();
 
-			return debugNew WindowsImage(bitmap);
+			return new WindowsImage(bitmap);
 		}
 
 		//------------------------------
@@ -4632,7 +4539,7 @@ namespace AvoGUI
 
 		void addFont(const void* p_data, uint32_t p_dataSize)
 		{
-			m_fontData.push_back(debugNew FontData(p_data, p_dataSize));
+			m_fontData.push_back(new FontData(p_data, p_dataSize));
 			updateFontCollection();
 		}
 
@@ -4688,7 +4595,7 @@ namespace AvoGUI
 		Text* createText(const char* p_string, float p_fontSize, const Rectangle<float>& p_bounds = Rectangle<float>()) override
 		{
 			int32_t numberOfCharacters = MultiByteToWideChar(CP_ACP, 0, p_string, -1, 0, 0);
-			wchar_t* wideString = debugNew wchar_t[numberOfCharacters];
+			wchar_t* wideString = new wchar_t[numberOfCharacters];
 			MultiByteToWideChar(CP_ACP, 0, p_string, -1, wideString, numberOfCharacters);
 
 			IDWriteTextLayout1* textLayout;
@@ -4700,7 +4607,7 @@ namespace AvoGUI
 
 			delete[] wideString;
 
-			return debugNew WindowsText(textLayout, p_string, p_bounds);
+			return new WindowsText(textLayout, p_string, p_bounds);
 		}
 		void drawText(Text* p_text) override
 		{
@@ -4711,7 +4618,7 @@ namespace AvoGUI
 			if (p_string == "") return;
 
 			int32_t numberOfCharacters = MultiByteToWideChar(CP_ACP, 0, p_string, -1, 0, 0);
-			wchar_t* wideString = debugNew wchar_t[numberOfCharacters];
+			wchar_t* wideString = new wchar_t[numberOfCharacters];
 			MultiByteToWideChar(CP_ACP, 0, p_string, -1, wideString, numberOfCharacters);
 
 			m_context->DrawTextA(
@@ -4754,10 +4661,10 @@ namespace AvoGUI
 		{
 			//auto timeBefore = std::chrono::steady_clock::now();
 
-			if (p_gui->getHasNewWindowSize())
-			{
-				p_gui->getDrawingContext()->disableVsync();
-			}
+			//if (p_gui->getHasNewWindowSize())
+			//{
+			//	p_gui->getDrawingContext()->disableVsync();
+			//}
 			p_gui->updateQueuedAnimations();
 
 			if (p_gui->getNeedsRedrawing())
@@ -4767,7 +4674,7 @@ namespace AvoGUI
 				if (!p_gui->getDrawingContext()->getIsVsyncEnabled())
 				{
 					std::this_thread::sleep_for(std::chrono::microseconds(16667));
-					p_gui->getDrawingContext()->enableVsync();
+					//p_gui->getDrawingContext()->enableVsync();
 				}
 			}
 			else
@@ -4869,17 +4776,17 @@ namespace AvoGUI
 		m_keyboardFocus(0)
 	{
 #ifdef _WIN32
-		m_window = debugNew WindowsWindow(this);
+		m_window = new WindowsWindow(this);
 #endif
 
 		m_GUI = this;
 
-		m_tooltip = debugNew Tooltip(this);
+		m_tooltip = new Tooltip(this);
 
 		//------------------------------
 
 		m_windowEventListeners.reserve(5);
-		m_keyboardEventListeners.reserve(20);
+		m_globalKeyboardEventListeners.reserve(20);
 	}
 	GUI::~GUI()
 	{
@@ -4956,7 +4863,7 @@ namespace AvoGUI
 		{
 			m_drawingContext->forget();
 		}
-		m_drawingContext = debugNew WindowsDrawingContext(m_window);
+		m_drawingContext = new WindowsDrawingContext(m_window);
 #endif
 
 		m_lastWindowSize = m_window->getSize();
@@ -5200,29 +5107,35 @@ namespace AvoGUI
 
 	void GUI::handleCharacterInput(const KeyboardEvent& p_event)
 	{
-		KeyboardEvent event = p_event;
-		for (auto listener : m_keyboardEventListeners)
+		if (m_keyboardFocus)
 		{
-			event.isTarget = listener == m_keyboardFocus;
-			listener->handleCharacterInput(event);
+			m_keyboardFocus->handleCharacterInput(p_event);
+		}
+		for (auto listener : m_globalKeyboardEventListeners)
+		{
+			listener->handleCharacterInput(p_event);
 		}
 	}
 	void GUI::handleKeyboardKeyDown(const KeyboardEvent& p_event)
 	{
-		KeyboardEvent event = p_event;
-		for (auto listener : m_keyboardEventListeners)
+		if (m_keyboardFocus)
 		{
-			event.isTarget = listener == m_keyboardFocus;
-			listener->handleKeyboardKeyDown(event);
+			m_keyboardFocus->handleKeyboardKeyDown(p_event);
+		}
+		for (auto listener : m_globalKeyboardEventListeners)
+		{
+			listener->handleKeyboardKeyDown(p_event);
 		}
 	}
 	void GUI::handleKeyboardKeyUp(const KeyboardEvent& p_event)
 	{
-		KeyboardEvent event = p_event;
-		for (auto listener : m_keyboardEventListeners)
+		if (m_keyboardFocus)
 		{
-			event.isTarget = listener == m_keyboardFocus;
-			listener->handleKeyboardKeyUp(event);
+			m_keyboardFocus->handleKeyboardKeyUp(p_event);
+		}
+		for (auto listener : m_globalKeyboardEventListeners)
+		{
+			listener->handleKeyboardKeyUp(p_event);
 		}
 	}
 
@@ -5251,9 +5164,9 @@ namespace AvoGUI
 
 	void GUI::updateQueuedAnimations()
 	{
-		excludeAnimationThread();
 		if (m_hasNewWindowSize)
 		{
+			excludeAnimationThread();
 			Point<float> newSize = m_newWindowSize;
 			m_hasNewWindowSize = false;
 			includeAnimationThread();
@@ -5265,10 +5178,6 @@ namespace AvoGUI
 			m_tooltip->hide();
 			m_invalidRectangles.clear();
 			invalidate();
-		}
-		else
-		{
-			includeAnimationThread();
 		}
 		
 		excludeAnimationThread();
@@ -5287,7 +5196,12 @@ namespace AvoGUI
 	void GUI::invalidateRectangle(Rectangle<float> p_rectangle)
 	{
 		p_rectangle.bound(m_bounds);
-			
+		
+		if (p_rectangle.getWidth() == 0.f || p_rectangle.getHeight() == 0.f)
+		{
+			return;
+		}
+
 		int32_t rectangleIndex = -1;
 		Rectangle<float>* rectangle = 0;
 
@@ -5350,6 +5264,7 @@ namespace AvoGUI
 		m_invalidRectangles.clear();
 		includeAnimationThread();
 
+		Point<uint32_t> size(m_drawingContext->getSize());
 		for (const auto& targetRectangle : invalidRectangles)
 		{
 			View* currentContainer = this;
@@ -5540,7 +5455,7 @@ namespace AvoGUI
 	Ripple::Ripple(View* p_parent, const Color& p_color) :
 		View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(p_color, 0.45f),
 		m_isEnabled(true), m_circleAnimationTime(1.f), m_isMouseDown(false), m_isMouseHovering(false),
-		m_hasHoverEffect(true), m_size(0.f), m_overlayAnimationTime(0.f)
+		m_hasHoverEffect(true), m_size(0.f), m_overlayAnimationTime(0.f), m_alphaAnimationTime(0.f)
 	{
 		setIsOverlay(true); // Mouse events should be sent through
 		setHasShadow(false);
@@ -5685,7 +5600,7 @@ namespace AvoGUI
 
 		setCornerRadius(4.f);
 
-		m_ripple = debugNew Ripple(this);
+		m_ripple = new Ripple(this);
 
 		if (p_emphasis == Emphasis::High)
 		{
@@ -5952,7 +5867,6 @@ namespace AvoGUI
 		setLabel(p_label);
 		setCursor(Cursor::Ibeam);
 		enableMouseEvents();
-		getGUI()->addKeyboardEventListener(this);
 
 		setString("");
 	}
@@ -6050,7 +5964,7 @@ namespace AvoGUI
 
 		getGUI()->setKeyboardFocus(this);
 		
-		m_frameCount = 1;
+		m_caretFrameCount = 1;
 		m_isCaretVisible = true;
 		m_isSelectionVisible = false;
 
@@ -6063,8 +5977,8 @@ namespace AvoGUI
 		{
 			m_text->getNearestCharacterIndexAndPosition(Point<float>(p_event.x, p_event.y), &m_selectionEndIndex, &m_selectionEndPosition, true);
 			m_isSelectionVisible = m_selectionEndIndex != m_caretIndex;
+			invalidate();
 		}
-		invalidate();
 	}
 	void TextField::handleMouseUp(const MouseEvent& p_event)
 	{
@@ -6079,7 +5993,7 @@ namespace AvoGUI
 
 	void TextField::handleCharacterInput(const KeyboardEvent& p_event)
 	{
-		if (p_event.isTarget && (p_event.character >= 32 && p_event.character < 126 || p_event.character < 0))
+		if ((p_event.character >= 32 && p_event.character < 126 || p_event.character < 0))
 		{
 			std::string string = m_text->getString();
 			string.insert(m_caretIndex, 1U, p_event.character);
@@ -6089,7 +6003,7 @@ namespace AvoGUI
 			m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
 			m_isSelectionVisible = false;
 
-			m_frameCount = 1;
+			m_caretFrameCount = 1;
 			m_isCaretVisible = true;
 
 			invalidate();
@@ -6097,6 +6011,7 @@ namespace AvoGUI
 	}
 	void TextField::handleKeyboardKeyDown(const KeyboardEvent& p_event)
 	{
+		Window* window = getGUI()->getWindow();
 		if (m_isSelectionVisible && (p_event.key == KeyboardKey::Backspace || p_event.key == KeyboardKey::Delete))
 		{
 			uint32_t minIndex = min(m_caretIndex, m_selectionEndIndex);
@@ -6109,37 +6024,115 @@ namespace AvoGUI
 			m_caretPosition = minIndex == m_caretIndex ? m_caretPosition : m_selectionEndPosition;
 			m_caretIndex = minIndex;
 
-			m_frameCount = 1;
+			m_caretFrameCount = 1;
 			m_isCaretVisible = true;
 		}
 		switch (p_event.key)
 		{
 		case KeyboardKey::Backspace:
+		{
 			if (!m_isSelectionVisible && m_caretIndex > 0)
 			{
-				std::string string = m_text->getString();
-				m_caretIndex--;
-				string.erase(m_caretIndex, 1);
-				setString(string);
-				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-
-				m_frameCount = 1;
-				m_isCaretVisible = true;
+				if (window->getIsKeyDown(KeyboardKey::Control))
+				{
+					std::string string = m_text->getString();
+					for (int32_t a = m_caretIndex - 1; a >= 0; a--)
+					{
+						if (!a || (string[a - 1] == ' ' && string[a] != ' '))
+						{
+							string.erase(a, m_caretIndex - a);
+							setString(string);
+							m_caretIndex = a;
+							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+							break;
+						}
+					}
+				}
+				else
+				{
+					std::string string = m_text->getString();
+					m_caretIndex--;
+					string.erase(m_caretIndex, 1);
+					setString(string);
+					m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+				}
 			}
+			m_caretFrameCount = 1;
+			m_isCaretVisible = true;
 			m_isSelectionVisible = false;
 			break;
+		}
 		case KeyboardKey::Delete:
+		{
 			if (!m_isSelectionVisible && m_caretIndex < m_text->getString().size())
 			{
-				setString(std::string(m_text->getString()).erase(m_caretIndex, 1));
-
-				m_frameCount = 1;
-				m_isCaretVisible = true;
+				if (window->getIsKeyDown(KeyboardKey::Control))
+				{
+					std::string string = m_text->getString();
+					for (int32_t a = m_caretIndex; a < string.size(); a++)
+					{
+						if (a == string.size() - 1 || (string[a + 1] == ' ' && string[a] != ' '))
+						{
+							string.erase(m_caretIndex, a - m_caretIndex + 1);
+							setString(string);
+							break;
+						}
+					}
+				}
+				else 
+				{
+					setString(std::string(m_text->getString()).erase(m_caretIndex, 1));
+				}
 			}
+			m_caretFrameCount = 1;
+			m_isCaretVisible = true;
 			m_isSelectionVisible = false;
 			break;
+		}
 		case KeyboardKey::Left:
-			if (getGUI()->getWindow()->getIsKeyDown(KeyboardKey::Shift))
+		{
+			if (window->getIsKeyDown(KeyboardKey::Control))
+			{
+				std::string string = m_text->getString();
+				if (window->getIsKeyDown(KeyboardKey::Shift))
+				{
+					if (!m_isSelectionVisible)
+					{
+						m_selectionEndIndex = m_caretIndex;
+					}
+					for (int32_t a = m_selectionEndIndex - 1; a >= 0; a--)
+					{
+						if (!a || (string[a - 1] == ' ' && string[a] != ' '))
+						{
+							m_selectionEndIndex = a;
+							if (m_selectionEndIndex == m_caretIndex)
+							{
+								m_isSelectionVisible = false;
+							}
+							else
+							{
+								m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+								m_isSelectionVisible = true;
+							}
+							break;
+						}
+					}
+				}
+				else
+				{
+					for (int32_t a = m_caretIndex - 1; a >= 0; a--)
+					{
+						if (!a || (string[a - 1] == ' ' && string[a] != ' '))
+						{
+							m_caretIndex = a;
+							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+							m_isSelectionVisible = false;
+							break;
+						}
+					}
+				}
+			}
+			else if (window->getIsKeyDown(KeyboardKey::Shift))
 			{
 				if (!m_isSelectionVisible)
 				{
@@ -6178,12 +6171,55 @@ namespace AvoGUI
 						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
 					}
 				}
-				m_frameCount = 1;
-				m_isCaretVisible = true;
 			}
+			m_caretFrameCount = 1;
+			m_isCaretVisible = true;
 			break;
+		}
 		case KeyboardKey::Right:
-			if (getGUI()->getWindow()->getIsKeyDown(KeyboardKey::Shift))
+		{
+			if (window->getIsKeyDown(KeyboardKey::Control))
+			{
+				std::string string = m_text->getString();
+				if (window->getIsKeyDown(KeyboardKey::Shift))
+				{
+					if (!m_isSelectionVisible)
+					{
+						m_selectionEndIndex = m_caretIndex;
+					}
+					for (uint32_t a = m_selectionEndIndex; a < string.size(); a++)
+					{
+						if (a == string.size() - 1 || (string[a + 1] == ' ' && string[a] != ' '))
+						{
+							m_selectionEndIndex = a + 1;
+							if (m_selectionEndIndex == m_caretIndex)
+							{
+								m_isSelectionVisible = false;
+							}
+							else
+							{
+								m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+								m_isSelectionVisible = true;
+							}
+							break;
+						}
+					}
+				}
+				else
+				{
+					for (uint32_t a = m_caretIndex; a < string.size(); a++)
+					{
+						if (a == string.size() - 1 || (string[a + 1] == ' ' && string[a] != ' '))
+						{
+							m_caretIndex = a + 1;
+							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+							m_isSelectionVisible = false;
+							break;
+						}
+					}
+				}
+			}
+			else if (window->getIsKeyDown(KeyboardKey::Shift))
 			{
 				if (!m_isSelectionVisible)
 				{
@@ -6222,10 +6258,11 @@ namespace AvoGUI
 						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
 					}
 				}
-				m_frameCount = 1;
-				m_isCaretVisible = true;
 			}
+			m_caretFrameCount = 1;
+			m_isCaretVisible = true;
 			break;
+		}
 		}
 		invalidate();
 	}
@@ -6240,14 +6277,15 @@ namespace AvoGUI
 			if (m_focusAnimationTime < 1.f)
 			{
 				m_focusAnimationTime = min(1.f, m_focusAnimationTime + 0.08f);
+				m_caretFrameCount = 0;
 				invalidate();
 			}
-			else if (m_frameCount % 30 == 0)
+			else if (m_caretFrameCount % 30 == 0)
 			{
 				m_isCaretVisible = !m_isCaretVisible;
 				invalidate();
 			}
-			m_frameCount++;
+			m_caretFrameCount++;
 			queueAnimationUpdate();
 		}
 		else if (m_focusAnimationTime > 0.f && m_text->getString().size() == 0)
@@ -6282,7 +6320,7 @@ namespace AvoGUI
 				p_context->moveOrigin(-4.f*m_focusAnimationValue, 3.f*m_focusAnimationValue);
 				p_context->setScale(1.f);
 			}
-			if (m_focusAnimationValue == 1.f)
+			if (m_focusAnimationValue >= 0.95f)
 			{
 				p_context->setColor(Color(0.1f));
 				p_context->drawText(m_text);

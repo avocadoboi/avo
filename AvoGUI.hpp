@@ -45,12 +45,6 @@
 #include <stdlib.h>
 #include <crtdbg.h>
 
-#ifdef _DEBUG
-#define debugNew new(_NORMAL_BLOCK, __FILE__, __LINE__)
-#else
-#define debugNew new
-#endif
-
 //------------------------------
 
 namespace AvoGUI
@@ -1358,10 +1352,11 @@ namespace AvoGUI
 		Rectangle<RectangleType> createBoundedCopy(const Rectangle<ParameterRectangleType>& p_bounds) const
 		{
 			Rectangle<RectangleType> bounded;
-			bounded.left = max(left, min(right, p_bounds.left));
-			bounded.top = max(top, min(bottom, p_bounds.top));
-			bounded.right = min(right, max(left, p_bounds.right));
-			bounded.bottom = min(bottom, max(top, p_bounds.bottom));
+			bounded.left = constrain(left, p_bounds.left, p_bounds.right);
+			bounded.top = constrain(top, p_bounds.top, p_bounds.bottom);
+			bounded.right = constrain(right, p_bounds.left, p_bounds.right);
+			bounded.bottom = constrain(bottom, p_bounds.top, p_bounds.bottom);
+
 			return bounded;
 		}
 		/// <summary>
@@ -1370,10 +1365,11 @@ namespace AvoGUI
 		Rectangle<RectangleType> createBoundedCopy(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom) const
 		{
 			Rectangle<RectangleType> bounded;
-			bounded.left = max(left, min(right, p_left));
-			bounded.top = max(top, min(bottom, p_top));
-			bounded.right = min(right, max(left, p_right));
-			bounded.bottom = min(bottom, max(top, p_bottom));
+			bounded.left = constrain(left, p_left, p_right);
+			bounded.top = constrain(top, p_top, p_bottom);
+			bounded.right = constrain(right, p_left, p_right);
+			bounded.bottom = constrain(bottom, p_top, p_bottom);
+
 			return bounded;
 		}
 
@@ -1383,10 +1379,11 @@ namespace AvoGUI
 		template<typename ParameterRectangleType>
 		Rectangle<RectangleType>& bound(const Rectangle<ParameterRectangleType>& p_bounds)
 		{
-			if (left < p_bounds.left) left = p_bounds.left;
-			if (top < p_bounds.top) top = p_bounds.top;
-			if (right > p_bounds.right) right = p_bounds.right;
-			if (bottom > p_bounds.bottom) bottom = p_bounds.bottom;
+			left = constrain(left, p_bounds.left, p_bounds.right);
+			top = constrain(top, p_bounds.top, p_bounds.bottom);
+			right = constrain(right, p_bounds.left, p_bounds.right);
+			bottom = constrain(bottom, p_bounds.top, p_bounds.bottom);
+
 			return *this;
 		}
 		/// <summary>
@@ -1394,10 +1391,11 @@ namespace AvoGUI
 		/// </summary>
 		Rectangle<RectangleType>& bound(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
 		{
-			if (left < p_left) left = p_left;
-			if (top < p_top) top = p_top;
-			if (right > p_right) right = p_right;
-			if (bottom > p_bottom) bottom = p_bottom;
+			left = constrain(left, p_left, p_right);
+			top = constrain(top, p_top, p_bottom);
+			right = constrain(right, p_left, p_right);
+			bottom = constrain(bottom, p_top, p_bottom);
+
 			return *this;
 		}
 
@@ -1435,10 +1433,14 @@ namespace AvoGUI
 		template<typename ParameterRectangleType>
 		Rectangle<RectangleType>& contain(const Rectangle<ParameterRectangleType>& p_rectangle)
 		{
-			if (p_rectangle.left < left) left = p_rectangle.left;
-			if (p_rectangle.top < top) top = p_rectangle.top;
-			if (p_rectangle.right > right) right = p_rectangle.right;
-			if (p_rectangle.bottom > bottom) bottom = p_rectangle.bottom;
+			if (p_rectangle.left < left) 
+				left = p_rectangle.left;
+			if (p_rectangle.top < top) 
+				top = p_rectangle.top;
+			if (p_rectangle.right > right) 
+				right = p_rectangle.right;
+			if (p_rectangle.bottom > bottom) 
+				bottom = p_rectangle.bottom;
 			return *this;
 		}
 
@@ -1447,17 +1449,21 @@ namespace AvoGUI
 		/// </summary>
 		Rectangle<RectangleType>& contain(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
 		{
-			if (p_left < left) left = p_left;
-			if (p_top < top) top = p_top;
-			if (p_right > right) right = p_right;
-			if (p_bottom > bottom) bottom = p_bottom;
+			if (p_left < left) 
+				left = p_left;
+			if (p_top < top) 
+				top = p_top;
+			if (p_right > right) 
+				right = p_right;
+			if (p_bottom > bottom) 
+				bottom = p_bottom;
 			return *this;
 		}
 
 		//------------------------------
 
 		/// <summary>
-		/// <para>Returns if a point lies within this rectangle.</para>
+		/// <para>Returns whether a point lies within this rectangle.</para>
 		/// </summary>
 		template<typename PointType>
 		bool getIsContaining(const Point<PointType>& p_point) const
@@ -1466,7 +1472,7 @@ namespace AvoGUI
 				&& p_point.y >= top && p_point.y <= bottom;
 		}
 		/// <summary>
-		/// <para>Returns if a point lies within this rectangle.</para>
+		/// <para>Returns whether a point lies within this rectangle.</para>
 		/// </summary>
 		bool getIsContaining(RectangleType p_x, RectangleType p_y) const
 		{
@@ -1475,7 +1481,7 @@ namespace AvoGUI
 		}
 
 		/// <summary>
-		/// <para>Returns if another rectangle is fully inside this rectangle.</para>
+		/// <para>Returns whether another rectangle is fully inside this rectangle.</para>
 		/// </summary>
 		template<typename ParameterRectangleType>
 		bool getIsContaining(const Rectangle<ParameterRectangleType>& p_rectangle) const
@@ -1484,11 +1490,11 @@ namespace AvoGUI
 				&& p_rectangle.top >= top && p_rectangle.bottom <= bottom;
 		}
 		/// <summary>
-		/// Returns if a protected rectangle is fully inside this rectangle.
+		/// Returns whether a protected rectangle is fully inside this rectangle.
 		/// </summary>
 		bool getIsContaining(ProtectedRectangle* p_protectedRectangle) const;
 		/// <summary>
-		/// <para>Returns if this rectangle intersects/overlaps/touches another rectangle.</para>
+		/// <para>Returns whether this rectangle intersects/overlaps/touches another rectangle.</para>
 		/// </summary>
 		template<typename ParameterRectangleType>
 		bool getIsIntersecting(const Rectangle<ParameterRectangleType>& p_rectangle) const
@@ -1497,7 +1503,7 @@ namespace AvoGUI
 				&& p_rectangle.left <= right && p_rectangle.top <= bottom;
 		}
 		/// <summary>
-		/// Returns if this rectangle intersects/overlaps/touches a protected rectangle.
+		/// Returns whether this rectangle intersects/overlaps/touches a protected rectangle.
 		/// </summary>
 		bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const;
 	};
@@ -4820,6 +4826,13 @@ namespace AvoGUI
 
 		/// <summary>
 		/// USER IMPLEMENTED
+		/// <para>Gets called when a window has been restored after being in a minimized or maximized state.</para>
+		/// </summary>
+		/// <param name="p_event">Object containing information about the event.</param>
+		virtual void handleWindowRestore(const WindowEvent& p_event) { }
+
+		/// <summary>
+		/// USER IMPLEMENTED
 		/// <para>Gets called when the size of a window has changed. This includes if it has been maximized,</para>
 		/// <para>or if the border has been dragged to resize it. The width and height properties of the</para>
 		/// <para>event tell you the new size of the window.</para>
@@ -5026,13 +5039,6 @@ namespace AvoGUI
 		/// <para>the key is being held down.</para>
 		/// </summary>
 		bool isRepeated = false;
-		/// <summary>
-		/// <para>If this is true, the event is targeted at the listener that is currently getting the event.</para>
-		/// <para>A keyboard event listener is targeted if it has keyboard focus in the GUI. Call setKeyboardFocus() on the</para>
-		/// <para>GUI to switch keyborad focus. You usually only want to do anything if isTarget is true. But if indirect</para>
-		/// <para>keyboard events are disabled in the GUI, isTarget is always true because events are not sent to the untargeted listeners.</para>
-		/// </summary>
-		bool isTarget = false;
 	};
 
 	class KeyboardEventListener
@@ -5092,6 +5098,13 @@ namespace AvoGUI
 		return p_left;
 	}
 
+	enum class WindowState
+	{
+		Minimized,
+		Maximized,
+		Restored
+	};
+
 	class GUI;
 
 	/// <summary>
@@ -5149,6 +5162,19 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
+		/// <para>Changes the styles that determine how the window is drawn by the OS. These are set when the window is created,</para>
+		/// <para>and you can change them afterwards here.</para>
+		/// </summary>
+		/// <param name="p_styles"></param>
+		virtual void setStyles(WindowStyleFlags p_styles) = 0;
+		/// <summary>
+		/// <para>Returns the current styles that determine how the window is drawn by the OS.</para>
+		/// </summary>
+		virtual WindowStyleFlags getStyles() = 0;
+
+		//------------------------------
+
+		/// <summary>
 		/// Returns the OS-specific window object associated with this window.
 		/// </summary>
 		virtual void* getWindowHandle() = 0;
@@ -5194,6 +5220,20 @@ namespace AvoGUI
 		/// Shows/opens the window as it was before it was minimized.
 		/// </summary>
 		virtual void restore() = 0;
+
+		/// <summary>
+		/// <para>Changes the window state, which determines how the window is viewed; hidden in the taskbar,</para>
+		/// <para>maximized so it fills the client area of the screen, or restored which is the default window</para>
+		/// <para>state where the window can overlap other windows and be resized normally.</para>
+		/// <para>Methods maximize(), minimize() and restore() do the same thing.</para>
+		/// </summary>
+		virtual void setState(WindowState p_state) = 0;
+		/// <summary>
+		/// <para>Returns the window state, which determines how the window is viewed; hidden in the taskbar,</para>
+		/// <para>maximized so it fills the client area of the screen, or restored which is the default window</para>
+		/// <para>state where the window can overlap other windows and be resized normally.</para>
+		/// </summary>
+		virtual WindowState getState() = 0;
 
 		//------------------------------
 
@@ -6040,6 +6080,10 @@ namespace AvoGUI
 		/// <para>The GUI calls this for you when it is being resized.</para>
 		/// </summary>
 		virtual void setSize(uint32_t p_width, uint32_t p_height) = 0;
+		/// <summary>
+		/// Returns the size of the drawing buffers.
+		/// </summary>
+		virtual Point<uint32_t> getSize() = 0;
 
 		//------------------------------
 
@@ -6484,7 +6528,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		std::vector<KeyboardEventListener*> m_keyboardEventListeners;
+		std::vector<KeyboardEventListener*> m_globalKeyboardEventListeners;
 		KeyboardEventListener* m_keyboardFocus;
 
 		//------------------------------
@@ -6614,9 +6658,7 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the keyboard event listener that keyboard events are directed to.</para>
-		/// <para>If indirect keyboard events are enabled, listeners that do not have keyboard focus will also receive</para>
-		/// <para>the events, but the isTarget property of the keyboard event will tell you if it does have keyboard focus.</para>
+		/// <para>Sets the keyboard event listener that keyboard events are sent to.</para>
 		/// </summary>
 		void setKeyboardFocus(KeyboardEventListener* p_keyboardFocus)
 		{
@@ -6628,7 +6670,7 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the keyboard event listener that keyboard events are directed to.</para>
+		/// <para>Returns the keyboard event listener that keyboard events are sent to.</para>
 		/// </summary>
 		KeyboardEventListener* getKeyboardFocus()
 		{
@@ -6637,23 +6679,20 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a character pressed event that has been sent directly from the window to the GUI. If indirect keyboard events are disabled, the event is only</para>
-		/// <para>sent to the keyboard focus. If indirect keyboard events are enabled, this sends the event down to all keyboard event listeners but lets them know if</para>
-		/// <para>the event is targeted at them.</para>
+		/// <para>Handles a character pressed event that has been sent directly from the window to the GUI. If there are no global keyboard listeners, the event is only</para>
+		/// <para>sent to the keyboard focus.</para>
 		/// </summary>
 		virtual void handleCharacterInput(const KeyboardEvent& p_event);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a key pressed event that has been sent directly from the window to the GUI. If indirect keyboard events are disabled, the event is only</para>
-		/// <para>sent to the keyboard focus. If indirect keyboard events are enabled, this sends the event down to all keyboard event listeners but lets them know if</para>
-		/// <para>the event is targeted at them.</para>
+		/// <para>Handles a key pressed event that has been sent directly from the window to the GUI. If there are no global keyboard listeners, the event is only</para>
+		/// <para>sent to the keyboard focus.</para>
 		/// </summary>
 		virtual void handleKeyboardKeyDown(const KeyboardEvent& p_event);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a key released event that has been sent directly from the window to the GUI. If indirect keyboard events are disabled, the event is only</para>
-		/// <para>sent to the keyboard focus. If indirect keyboard events are enabled, this sends the event down to all keyboard event listeners but lets them know if</para>
-		/// <para>the event is targeted at them.</para>
+		/// <para>Handles a key released event that has been sent directly from the window to the GUI. If there are no global keyboard listeners, the event is only</para>
+		/// <para>sent to the keyboard focus.</para>
 		/// </summary>
 		virtual void handleKeyboardKeyUp(const KeyboardEvent& p_event);
 
@@ -6677,19 +6716,19 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Enables a keyboard event listener to recieve events.</para>
+		/// <para>Enables a keyboard event listener to recieve events even if it is not the keyboard focus.</para>
 		/// </summary>
-		void addKeyboardEventListener(KeyboardEventListener* p_listener)
+		void addGlobalKeyboardEventListener(KeyboardEventListener* p_listener)
 		{
-			m_keyboardEventListeners.push_back(p_listener);
+			m_globalKeyboardEventListeners.push_back(p_listener);
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Disables a keyboard event listener to recieve events.</para>
+		/// <para>Disables a keyboard event listener to recieve events when it is not the keyboard focus.</para>
 		/// </summary>
-		void removeKeyboardEventListener(KeyboardEventListener* p_listener)
+		void removeGlobalKeyboardEventListener(KeyboardEventListener* p_listener)
 		{
-			removeVectorElementWithoutKeepingOrder(m_keyboardEventListeners, p_listener);
+			removeVectorElementWithoutKeepingOrder(m_globalKeyboardEventListeners, p_listener);
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
@@ -7212,7 +7251,7 @@ namespace AvoGUI
 		uint32_t m_caretIndex;
 		Point<float> m_caretPosition;
 		bool m_isCaretVisible;
-		uint32_t m_frameCount;
+		uint32_t m_caretFrameCount;
 
 		bool m_isSelectingWithMouse;
 		bool m_isSelectionVisible;
