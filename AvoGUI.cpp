@@ -59,30 +59,6 @@ namespace AvoGUI
 	/*
 	f(x) = 3*t*(1-t)*(1-t)*x0 + 3*t*t*(1-t)*x1 + t*t*t
 
-	f0(x) = 3*t*(1-t)*(1-t)*x0
-	f0'(x) = (3*x0*(t+h)*(1-t-h)*(1-t-h) - 3*t*(1-t)*(1-t)*x0)/h =
-	(3*x0*(t+h)*(1-t-h)*(1-t-h) - 3*t*x0 + 6*t*t*x0 - 3*t*t*t*x0)/h =
-	(3*x0*(t + h)*(1 - 2*t - 2*h + t*t + h*h + 2*t*h) - 3*t*x0 + 6*t*t*x0 - 3*t*t*t*x0)/h =
-	(3*x0*(t + h - 2*t*t - 2*t*h - 2*t*h - 2*h*h + t*t*t + t*t*h + t*h*h + h*h*h + 2*t*t*h + 2*t*h*h) - 3*t*x0 + 6*t*t*x0 - 3*t*t*t*x0)/h =
-	(3*t*x0 + 3*h*x0 - 6*t*t*x0 - 6*t*h*x0 - 6*t*h*x0 - 6*h*h*x0 + 3*t*t*t*x0 + 3*t*t*h*x0 + 3*t*h*h*x0 + 3*h*h*h*x0 + 6*t*t*h*x0 + 6*t*h*h*x0 - 3*t*x0 + 6*t*t*x0 - 3*t*t*t*x0)/h =
-	(3*h*x0 - 6*h*h*x0 + 3*h*h*h*x0 - 12*t*h*x0 + 9*t*t*h*x0 + 9*t*h*h*x0)/h =
-	3*x0 - 6*h*x0 + 3*h*h*x0 - 12*t*x0 + 9*t*t*x0 + 9*t*h*x0 =
-	3*x0 - 12*t*x0 + 9*t*t*x0 =
-	x0*(3 - 12*t + 9*t*t)
-
-	f1(x) = 3*t*t*(1-t)*x1
-	f1'(x) = (3*(t + h)*(t + h)*(1 - t - h)*x1 - 3*t*t*(1-t)*x1)/h =
-	(3*(t + h)*(t + h)*(1 - t - h)*x1 - 3*t*t*x1 + 3*t*t*t*x1)/h =
-	(3*(t*t + 2*t*h + h*h)*(1 - t - h)*x1 - 3*t*t*x1 + 3*t*t*t*x1)/h =
-	((3*t*t*x1 + 6*t*h*x1 + 3*h*h*x1) - (3*t*t*x1 + 6*t*h*x1 + 3*h*h*x1)*t - (3*t*t*x1 + 6*t*h*x1 + 3*h*h*x1)*h - 3*t*t*x1 + 3*t*t*t*x1)/h =
-	(3*t*t*x1 + 6*t*h*x1 + 3*h*h*x1 - 3*t*t*t*x1 - 6*t*t*h*x1 - 3*t*h*h*x1 - 3*t*t*h*x1 - 6*t*h*h*x1 - 3*h*h*h*x1 - 3*t*t*x1 + 3*t*t*t*x1)/h =
-	(6*t*h*x1 - 9*t*t*h*x1 - 9*t*h*h*x1 + 3*h*h*x1 - 3*h*h*h*x1)/h =
-	6*t*x1 - 9*t*t*x1 - 9*t*h*x1 + 3*h*x1 - 3*h*h*x1 =
-	x1(6*t - 9*t*t)
-
-	f2(x) = t*t*t
-	f2'(x) = 3*t*t
-
 	f'(x) = x0*(3 - 12*t + 9*t*t) + x1(6*t - 9*t*t) + 3*t*t
 	*/
 
@@ -1534,6 +1510,38 @@ namespace AvoGUI
 		Cursor getCursor() override
 		{
 			return m_cursorType;
+		}
+
+		//------------------------------
+
+		void setClipboardString(const std::string& p_string) override
+		{
+			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, p_string.size() + 1);
+			memcpy(GlobalLock(clipboardData), p_string.c_str(), p_string.size());
+			clipboardData[p_string.size()] = '\0';
+			GlobalUnlock(clipboardData);
+
+			OpenClipboard(m_windowHandle);
+			EmptyClipboard();
+			//SetClipboardData(CF_UNICODETEXT, clipboardData);
+			SetClipboardData(CF_TEXT, clipboardData);
+			SetClipboardData(CF_OEMTEXT, clipboardData);
+			CloseClipboard();
+		}
+		void setClipboardString(const char* p_string, int32_t p_length) override
+		{
+			uint32_t size = strlen(p_string);
+			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, p_length >= 0 ? p_length + 1 : strlen(p_string) + 1);
+			memcpy(GlobalLock(clipboardData), p_string, p_string.size());
+			clipboardData[p_string.size()] = '\0';
+			GlobalUnlock(clipboardData);
+
+			OpenClipboard(m_windowHandle);
+			EmptyClipboard();
+			//SetClipboardData(CF_UNICODETEXT, clipboardData);
+			SetClipboardData(CF_TEXT, clipboardData);
+			SetClipboardData(CF_OEMTEXT, clipboardData);
+			CloseClipboard();
 		}
 
 		//------------------------------
@@ -6261,6 +6269,34 @@ namespace AvoGUI
 			}
 			m_caretFrameCount = 1;
 			m_isCaretVisible = true;
+			break;
+		}
+		case KeyboardKey::X:
+		{
+			if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
+			{
+				uint32_t selectionStart;
+				uint32_t selectionLength;
+				if (m_caretIndex < m_selectionEndIndex)
+				{
+					selectionStart = m_caretIndex;
+					selectionLength = m_selectionEndIndex - selectionStart;
+				}
+				else
+				{
+					selectionStart = m_selectionEndIndex;
+					selectionLength = m_caretIndex - selectionStart;
+				}
+				
+				window->setClipboardString(m_text->getString().substr(selectionStart, selectionLength));
+				
+				std::string string = m_text->getString();
+				string.erase(selectionStart, selectionLength);
+				setString(string);
+			
+				m_caretFrameCount = 1;
+				m_isCaretVisible = true;
+			}
 			break;
 		}
 		}

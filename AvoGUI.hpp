@@ -2678,6 +2678,7 @@ namespace AvoGUI
 		/// <summary>
 		/// <para>These are the colors that are used by default views.</para>
 		/// <para>You can change them and add your own.</para>
+		/// <para>-</para>
 		/// <para>Built-in colors:</para>
 		/// <para>"background"</para>
 		/// <para>"on background"</para>
@@ -2695,6 +2696,7 @@ namespace AvoGUI
 		/// <summary>
 		/// <para>These are the animation easings used by the default views.</para>
 		/// <para>You can change them and add your own.</para>
+		/// <para>-</para>
 		/// <para>Built-in easings:</para>
 		/// <para>"in"</para>
 		/// <para>"out"</para>
@@ -2703,6 +2705,19 @@ namespace AvoGUI
 		/// <para>"ripple"</para>
 		/// </summary>
 		std::map<const char*, Easing> easings;
+
+		/// <summary>
+		/// <para>These are the font family names which are used by views which use this theme.</para>
+		/// <para>Add your own or change the existing one. Remember that this doesn't mean the</para>
+		/// <para>same fonts need to be used in your whole GUI; simply set the theme of your </para>
+		/// <para>view as a copy of its parent, but change the font families. This changes the </para>
+		/// <para>fonts used by that view and its children (if they haven't been created yet - </para>
+		/// <para>they inherit the theme of their parent).</para>
+		/// <para>-</para>
+		/// <para>Built-in font families:</para>
+		/// <para>"main"</para>
+		/// </summary>
+		std::map<const char*, const char*> fontFamilies;
 
 		Theme()
 		{
@@ -2728,6 +2743,10 @@ namespace AvoGUI
 			easings["in out"] = Easing(0.4, 0.0, 0.0, 1.0);
 			easings["symmetrical in out"] = Easing(0.6, 0.0, 0.4, 1.0);
 			easings["ripple"] = Easing(0.1, 0.8, 0.2, 0.95);
+
+			//------------------------------
+
+			fontFamilies["main"] = "Roboto";
 		}
 	};
 
@@ -3245,7 +3264,6 @@ namespace AvoGUI
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>Sets a new theme to be used by this view and upcoming children of this view.</para>
-		/// <para>-</para>
 		/// <para>Child views inherit their parent's theme, unless they make a new one.</para>
 		/// <para>In that way, different sections of the GUI can have different themes.</para>
 		/// <para>Only children created after this method is called will inherit the new theme.</para>
@@ -5105,6 +5123,13 @@ namespace AvoGUI
 		Restored
 	};
 
+	enum class ClipboardDataType
+	{
+		// TODO: add more data types!
+		String,
+		Unknown
+	};
+
 	class GUI;
 
 	/// <summary>
@@ -5390,6 +5415,22 @@ namespace AvoGUI
 		/// Returns the current mouse cursor.
 		/// </summary>
 		virtual Cursor getCursor() = 0;
+
+		//------------------------------
+
+		virtual void setClipboardWideString(const std::wstring& p_string) = 0;
+		virtual void setClipboardWideString(const wchar_t* p_string, int32_t p_length = -1) = 0;
+
+		virtual void setClipboardString(const std::string& p_string) = 0;
+		/// <summary>
+		/// <para>Gives a string for the OS to store globally. Other programs, or this one, can then access it.</para>
+		/// <para>The data currently stored on the clipboard is freed and replaced by this string.</para>
+		/// </summary>
+		/// <param name="p_string"></param>
+		/// <param name="p_length">Number of characters in the string. If it is -1 then it assumes the string is null-terminated.</param>
+		virtual void setClipboardString(const char* p_string, int32_t p_length = -1) = 0;
+		//virtual std::string getClipboardString() = 0;
+		//virtual ClipboardDataType getClipboardDataType() = 0;
 	};
 #pragma endregion
 

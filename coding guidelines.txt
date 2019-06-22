@@ -1,0 +1,21 @@
+Braces are written on their own lines. This was decided because it makes the code less cluttered for example after member initialization in a constructor, or multi-line conditions in if statements.
+
+Braces are always used with loops and if-statements, even for single-line instructions. The only exception to this is when it is repetitive to write them out and it is obvious from the context that only one line is needed within the loop or statement. This is because you don't always know when you will need more lines within your condition or loop, and it is annoying to add and remove braces afterwards.
+
+Braces are not used for case statements when it is obvious that a scope is unneeded for any of the case statements in the switch statement.
+
+Methods that are not big and do not depend on yet undefined types are defined in the header, inline. The inline keyword is only used where it is needed; namespace-global functions defined in the header.
+
+The override keyword is always used for overridden methods, even if it is not needed. This makes the code clearer and easier to understand.
+
+The only methods which do not need documentation are those which are pretty much objectively obvious, for example multiplication between a factor and a point or subtraction of two points. Documentation is meant to clarify or explain things which need to be clarified or explained to avoid the possibility that a person misunderstands anything. It needs to tell more than the method name tells. Method parameters only need to be documented when they could be misinterpreted or when some explaining related to the parameter may be needed. The user of the library should never need to guess details.
+
+Because methods do things, all methods are named like commands, and they are never simply a noun or adjective. The only functions that can break this rule are some global mathematical ones like min, max and random. This is because they are names that are almost always used in any standard library. 
+
+Most methods whose main purpose is to return something should begin their names with "get". However, methods that do something big like for example calculate or search something can begin their names with the relevant verb because that is the purpose of the method, even if it does return the result. 
+
+Methods that mainly set the state or some value of an object should begin their names with "set". This rule only applies if the parameters specify the state that the object will change to - methods that add to a property or multiply a property of the object should be named beginning with the appropriate verb.
+
+Contractions in any name at all anywhere in the library are forbidden. This is because it makes the code harder to read and you're less likely to remember what the methods/variables do/represent when you come up with stupid contractions. Remember that the time taken to actually write code is a very small part of the time spent while programming - the main time is spent thinking. The only contractions which are allowed are those that are more often than not used by the general public or in the field, like "GUI" which means "graphical user interface". 
+
+Variables are things.
