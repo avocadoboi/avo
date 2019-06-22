@@ -129,9 +129,10 @@ namespace AvoGUI
 	//
 
 	View::View(View* p_parent, const Rectangle<float>& p_bounds) :
-		ProtectedRectangle(p_bounds), m_isVisible(true), m_cornerRadius(0.f), m_hasShadow(true), m_elevation(0.f),
-		m_hasSizeChangedSinceLastElevationChange(true), m_shadowImage(0), m_shadowBounds(p_bounds), m_userData(0),
-		m_parent(0), m_isInAnimationUpdateQueue(false), m_cursor(Cursor::Arrow)
+		ProtectedRectangle(p_bounds), m_isInAnimationUpdateQueue(false), m_isVisible(true), m_isOverlay(false),
+		m_areMouseEventsEnabled(false), m_cornerRadius(0.f), m_cursor(Cursor::Arrow), m_userData(0),
+		m_shadowBounds(p_bounds), m_shadowImage(0), m_hasShadow(true), m_elevation(0.f), m_hasSizeChangedSinceLastElevationChange(true),
+		m_parent(0)
 	{
 		if (p_parent && p_parent != this)
 		{
@@ -1514,34 +1515,85 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void setClipboardWideString(const std::wstring& p_string) override
+		{
+			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, p_string.size() + 1);
+			if (!clipboardData)
+			{
+				return;
+			}
+			memcpy(GlobalLock(clipboardData), (char*)p_string.c_str(), p_string.size());
+			clipboardData[p_string.size()] = '\0';
+			GlobalUnlock(clipboardData);
+
+			OpenClipboard(m_windowHandle);
+			EmptyClipboard();
+			SetClipboardData(CF_UNICODETEXT, clipboardData);
+			CloseClipboard();
+		}
+		void setClipboardWideString(const wchar_t* p_string, int32_t p_length) override
+		{
+			uint32_t size = p_length >= 0 ? p_length : wcslen(p_string);
+			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, size + 1);
+			if (!clipboardData)
+			{
+				return;
+			}
+			memcpy(GlobalLock(clipboardData), (char*)p_string, size);
+			clipboardData[size] = '\0';
+			GlobalUnlock(clipboardData);
+
+			OpenClipboard(m_windowHandle);
+			EmptyClipboard();
+			SetClipboardData(CF_UNICODETEXT, clipboardData);
+			CloseClipboard();
+		}
+		
 		void setClipboardString(const std::string& p_string) override
 		{
 			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, p_string.size() + 1);
+			if (!clipboardData)
+			{
+				return;
+			}
 			memcpy(GlobalLock(clipboardData), p_string.c_str(), p_string.size());
 			clipboardData[p_string.size()] = '\0';
 			GlobalUnlock(clipboardData);
 
 			OpenClipboard(m_windowHandle);
 			EmptyClipboard();
-			//SetClipboardData(CF_UNICODETEXT, clipboardData);
 			SetClipboardData(CF_TEXT, clipboardData);
 			SetClipboardData(CF_OEMTEXT, clipboardData);
 			CloseClipboard();
 		}
 		void setClipboardString(const char* p_string, int32_t p_length) override
 		{
-			uint32_t size = strlen(p_string);
-			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, p_length >= 0 ? p_length + 1 : strlen(p_string) + 1);
-			memcpy(GlobalLock(clipboardData), p_string, p_string.size());
-			clipboardData[p_string.size()] = '\0';
+			uint32_t size = p_length >= 0 ? p_length : strlen(p_string);
+			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, size + 1);
+			if (!clipboardData)
+			{
+				return;
+			}
+			memcpy(GlobalLock(clipboardData), p_string, size);
+			clipboardData[size] = '\0';
 			GlobalUnlock(clipboardData);
 
 			OpenClipboard(m_windowHandle);
 			EmptyClipboard();
-			//SetClipboardData(CF_UNICODETEXT, clipboardData);
 			SetClipboardData(CF_TEXT, clipboardData);
 			SetClipboardData(CF_OEMTEXT, clipboardData);
 			CloseClipboard();
+		}
+
+		std::string getClipboardString() override
+		{
+			OpenClipboard(m_windowHandle);
+			
+			GetClipboardData()
+		}
+		ClipboardDataType getClipboardDataType()
+		{
+
 		}
 
 		//------------------------------
@@ -6294,10 +6346,56 @@ namespace AvoGUI
 				string.erase(selectionStart, selectionLength);
 				setString(string);
 			
+				m_isSelectionVisible = false;
+				if (m_caretIndex != selectionStart)
+				{
+					m_caretIndex = selectionStart;
+					m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+				}
+
 				m_caretFrameCount = 1;
 				m_isCaretVisible = true;
 			}
 			break;
+		}
+		case KeyboardKey::V:
+		{
+			if (window->getIsKeyDown(KeyboardKey::Control))
+			{
+				if (m_isSelectionVisible)
+				{
+					uint32_t selectionStart;
+					uint32_t selectionLength;
+					if (m_caretIndex < m_selectionEndIndex)
+					{
+						selectionStart = m_caretIndex;
+						selectionLength = m_selectionEndIndex - selectionStart;
+					}
+					else
+					{
+						selectionStart = m_selectionEndIndex;
+						selectionLength = m_caretIndex - selectionStart;
+					}
+
+					std::string string(m_text->getString());
+					string.erase(selectionStart, selectionLength);
+					setString(string);
+
+					m_isSelectionVisible = false;
+					m_caretIndex = selectionStart;
+					m_selectionEndIndex = selectionStart;
+				}
+
+				std::string string(m_text->getString());
+				std::string clipboardString = window->getClipboardString();
+				string.insert(m_caretIndex, clipboardString);
+				setString(string);
+
+				m_caretIndex += clipboardString.size();
+				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+				m_caretFrameCount = 1;
+				m_isCaretVisible = true;
+			}
 		}
 		}
 		invalidate();

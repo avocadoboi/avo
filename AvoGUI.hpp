@@ -115,7 +115,7 @@ namespace AvoGUI
 	/// </summary>
 	inline float interpolate(float p_start, float p_end, float p_progress)
 	{
-		return p_start * (1.0 - p_progress) + p_end * p_progress;
+		return p_start * (1.f - p_progress) + p_end * p_progress;
 	}
 	/// <summary>
 	/// Returns a value between p_start and p_end depending on p_progress. This is linear interpolation.
@@ -527,30 +527,33 @@ namespace AvoGUI
 			return fastSqrt(p_x * p_x + p_y * p_y);
 		}
 
-		template<typename T0, typename T1>
-		static double getDistanceSquared(const Point<T0>& p_point_0, const Point<T1>& p_point_1)
+		template<typename T>
+		static T getDistanceSquared(const Point<T>& p_point_0, const Point<T>& p_point_1)
 		{
 			return (p_point_1.x - p_point_0.x)*(p_point_1.x - p_point_0.x) + (p_point_1.y - p_point_0.y)*(p_point_1.y - p_point_0.y);
 		}
-		static double getDistanceSquared(double p_x0, double p_y0, double p_x1, double p_y1)
+		template<typename T>
+		static T getDistanceSquared(T p_x0, T p_y0, T p_x1, T p_y1)
 		{
-			return (p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0);
+			return double((p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0));
 		}
 		template<typename T0, typename T1>
 		static double getDistance(const Point<T0>& p_point_0, const Point<T1>& p_point_1)
 		{
 			return sqrt((p_point_1.x - p_point_0.x)*(p_point_1.x - p_point_0.x) + (p_point_1.y - p_point_0.y)*(p_point_1.y - p_point_0.y));
 		}
-		static double getDistance(double p_x0, double p_y0, double p_x1, double p_y1)
+		template<typename T>
+		static double getDistance(T p_x0, T p_y0, T p_x1, T p_y1)
 		{
 			return sqrt((p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0));
 		}
 		template<typename T0, typename T1>
-		static double getDistanceFast(const Point<T0>& p_point_0, const Point<T1>& p_point_1)
+		static float getDistanceFast(const Point<T0>& p_point_0, const Point<T1>& p_point_1)
 		{
 			return fastSqrt((p_point_1.x - p_point_0.x)*(p_point_1.x - p_point_0.x) + (p_point_1.y - p_point_0.y)*(p_point_1.y - p_point_0.y));
 		}
-		static double getDistanceFast(double p_x0, double p_y0, double p_x1, double p_y1)
+		template<typename T>
+		static float getDistanceFast(T p_x0, T p_y0, T p_x1, T p_y1)
 		{
 			return fastSqrt((p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0));
 		}
@@ -1787,7 +1790,7 @@ namespace AvoGUI
 		{
 			*this = p_easing;
 		}
-		Easing(Easing&& p_easing)
+		Easing(Easing&& p_easing) noexcept
 		{
 			*this = p_easing;
 		}
@@ -1820,7 +1823,7 @@ namespace AvoGUI
 			y1 = p_easing.y1;
 			return *this;
 		}
-		Easing& operator=(Easing&& p_easing)
+		Easing& operator=(Easing&& p_easing) noexcept
 		{
 			x0 = p_easing.x0;
 			y0 = p_easing.y0;
@@ -1971,7 +1974,7 @@ namespace AvoGUI
 		{
 			operator=(p_color);
 		}
-		Color(Color&& p_color)
+		Color(Color&& p_color) noexcept
 		{
 			operator=(p_color);
 		}
@@ -1992,7 +1995,7 @@ namespace AvoGUI
 			alpha = p_color.alpha;
 			return *this;
 		}
-		Color& operator=(Color&& p_color)
+		Color& operator=(Color&& p_color) noexcept
 		{
 			red = p_color.red;
 			green = p_color.green;
@@ -2111,7 +2114,7 @@ namespace AvoGUI
 			p_hue -= floor(p_hue);
 			p_lightness = constrain(p_lightness);
 			float factor = 2.f*constrain(p_saturation)*(p_lightness < 0.5f ? p_lightness : (1.f - p_lightness));
-			red = p_lightness + factor * (constrain(1.f - (p_hue - 1.f / 6.f)*6.f) + constrain((p_hue - 4.f / 6.f)*6.f) - 0.5);
+			red = p_lightness + factor * (constrain(1.f - (p_hue - 1.f / 6.f)*6.f) + constrain((p_hue - 4.f / 6.f)*6.f) - 0.5f);
 			green = p_lightness + factor * (min(1.f, p_hue*6.f) - constrain((p_hue - 3.f / 6.f)*6.f) - 0.5f);
 			blue = p_lightness + factor * (constrain((p_hue - 2.f / 6.f)*6.f) - constrain((p_hue - 5.f / 6.f)*6.f) - 0.5f);
 			return *this;
@@ -5418,19 +5421,32 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/// <summary>
+		/// <para>Gives a wide string for the OS to store globally. Other programs, or this one, can then access it.</para>
+		/// <para>The data currently stored on the clipboard is freed and replaced by this string.</para>
+		/// </summary>
 		virtual void setClipboardWideString(const std::wstring& p_string) = 0;
+		/// <summary>
+		/// <para>Gives a wide string for the OS to store globally. Other programs, or this one, can then access it.</para>
+		/// <para>The data currently stored on the clipboard is freed and replaced by this string.</para>
+		/// </summary>
+		/// <param name="p_length">Number of characters in the string. If it is -1 then it assumes the string is null-terminated.</param>
 		virtual void setClipboardWideString(const wchar_t* p_string, int32_t p_length = -1) = 0;
 
+		/// <summary>
+		/// <para>Gives a string for the OS to store globally. Other programs, or this one, can then access it.</para>
+		/// <para>The data currently stored on the clipboard is freed and replaced by this string.</para>
+		/// </summary>
 		virtual void setClipboardString(const std::string& p_string) = 0;
 		/// <summary>
 		/// <para>Gives a string for the OS to store globally. Other programs, or this one, can then access it.</para>
 		/// <para>The data currently stored on the clipboard is freed and replaced by this string.</para>
 		/// </summary>
-		/// <param name="p_string"></param>
 		/// <param name="p_length">Number of characters in the string. If it is -1 then it assumes the string is null-terminated.</param>
 		virtual void setClipboardString(const char* p_string, int32_t p_length = -1) = 0;
-		//virtual std::string getClipboardString() = 0;
-		//virtual ClipboardDataType getClipboardDataType() = 0;
+
+		virtual std::string getClipboardString() = 0;
+		virtual ClipboardDataType getClipboardDataType() = 0;
 	};
 #pragma endregion
 

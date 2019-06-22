@@ -18,7 +18,8 @@ public:
 	long double width;
 	AvoGUI::Color color;
 
-	Block()
+	Block() :
+		position(0.), velocity(0.), inverseMass(0.), width(0.)
 	{
 		color.setHSBA(AvoGUI::random(), 0.95f, 0.8f);
 	}
@@ -31,7 +32,7 @@ public:
 	void draw(AvoGUI::DrawingContext* p_context)
 	{
 		p_context->setColor(color);
-		p_context->fillRectangle(position, windowHeight - width, position + width, windowHeight);
+		p_context->fillRectangle((float)position, float(windowHeight - width), float(position + width), (float)windowHeight);
 	}
 };
 
@@ -54,9 +55,10 @@ private:
 	}
 
 public:
-	PiDay()
+	PiDay() :
+		m_numberOfCollisions(0), m_restartButton(0), m_testTextField(0)
 	{
-		create("Pi day!", windowWidth, windowHeight, AvoGUI::WindowStyleFlags::DefaultNoResize);
+		create("Pi day!", (uint32_t)windowWidth, (uint32_t)windowHeight, AvoGUI::WindowStyleFlags::DefaultNoResize);
 	}
 
 	//------------------------------
