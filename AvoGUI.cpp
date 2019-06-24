@@ -1522,7 +1522,7 @@ namespace AvoGUI
 			{
 				return;
 			}
-			memcpy(GlobalLock(clipboardData), (char*)p_string.c_str(), p_string.size());
+			memcpy(GlobalLock(clipboardData), (char*)p_string.c_str(), p_string.size() + 1);
 			clipboardData[p_string.size()] = '\0';
 			GlobalUnlock(clipboardData);
 
@@ -1539,8 +1539,7 @@ namespace AvoGUI
 			{
 				return;
 			}
-			memcpy(GlobalLock(clipboardData), (char*)p_string, size);
-			clipboardData[size] = '\0';
+			memcpy(GlobalLock(clipboardData), (char*)p_string, size + 1);
 			GlobalUnlock(clipboardData);
 
 			OpenClipboard(m_windowHandle);
@@ -1556,8 +1555,7 @@ namespace AvoGUI
 			{
 				return;
 			}
-			memcpy(GlobalLock(clipboardData), p_string.c_str(), p_string.size());
-			clipboardData[p_string.size()] = '\0';
+			memcpy(GlobalLock(clipboardData), p_string.c_str(), p_string.size() + 1);
 			GlobalUnlock(clipboardData);
 
 			OpenClipboard(m_windowHandle);
@@ -1574,8 +1572,7 @@ namespace AvoGUI
 			{
 				return;
 			}
-			memcpy(GlobalLock(clipboardData), p_string, size);
-			clipboardData[size] = '\0';
+			memcpy(GlobalLock(clipboardData), p_string, size + 1);
 			GlobalUnlock(clipboardData);
 
 			OpenClipboard(m_windowHandle);
@@ -1585,15 +1582,55 @@ namespace AvoGUI
 			CloseClipboard();
 		}
 
+		std::wstring getClipboardWideString() override
+		{
+			std::wstring string = L"";
+
+			OpenClipboard(m_windowHandle);
+
+			void* handle = GetClipboardData(CF_UNICODETEXT);
+			if (handle)
+			{
+				string = (wchar_t*)GlobalLock(handle);
+				GlobalUnlock(handle);
+			}
+
+			CloseClipboard();
+
+			return string;
+		}
 		std::string getClipboardString() override
 		{
+			std::string string = "";
+
 			OpenClipboard(m_windowHandle);
 			
-			GetClipboardData()
+			void* handle = GetClipboardData(CF_TEXT);
+			if (!handle)
+			{
+				handle = GetClipboardData(CF_OEMTEXT);
+			}
+			if (handle)
+			{
+				string = (char*)GlobalLock(handle);
+				GlobalUnlock(handle);
+			}
+
+			CloseClipboard();
+
+			return string;
 		}
 		ClipboardDataType getClipboardDataType()
 		{
+			OpenClipboard(m_windowHandle);
+			uint32_t format = EnumClipboardFormats(0);
+			CloseClipboard();
 
+			if (format == CF_TEXT || format == CF_OEMTEXT || format == CF_UNICODETEXT)
+			{
+				return ClipboardDataType::String;
+			}
+			return ClipboardDataType::Unknown;
 		}
 
 		//------------------------------
@@ -2227,7 +2264,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		Point<float> getCharacterPosition(uint32_t p_characterIndex, bool p_isRelativeToOrigin) override
+		Point<float> getCharacterPosition(uint32_t p_characterIndex, bool p_isRelativeToOrigin = false) override
 		{
 			Point<float> result;
 			DWRITE_HIT_TEST_METRICS metrics;
@@ -2247,7 +2284,7 @@ namespace AvoGUI
 			m_handle->HitTestTextPosition(p_characterIndex, false, &x, &y, &metrics);
 			return Point<float>(metrics.width, metrics.height);
 		}
-		Rectangle<float> getCharacterBounds(uint32_t p_characterIndex, bool p_isRelativeToOrigin) override 
+		Rectangle<float> getCharacterBounds(uint32_t p_characterIndex, bool p_isRelativeToOrigin = false) override 
 		{
 			Rectangle<float> result;
 			DWRITE_HIT_TEST_METRICS metrics;
@@ -2261,31 +2298,43 @@ namespace AvoGUI
 			result.bottom = result.top + metrics.height;
 			return result;
 		}
-		uint32_t getNearestCharacterIndex(const Point<float>& p_point, bool p_isRelativeToOrigin) override
+		uint32_t getNearestCharacterIndex(const Point<float>& p_point, bool p_isRelativeToOrigin = false) override
+		{
+			return getNearestCharacterIndex(p_point.x, p_point.y, p_isRelativeToOrigin);
+		}
+		uint32_t getNearestCharacterIndex(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false) override
 		{
 			int isTrailingHit;
 			int isInside;
 			DWRITE_HIT_TEST_METRICS metrics;
-			m_handle->HitTestPoint(p_point.x - p_isRelativeToOrigin*getLeft(), p_point.y - p_isRelativeToOrigin*getTop(), &isTrailingHit, &isInside, &metrics);
-			return metrics.textPosition + isTrailingHit*isInside;
+			m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * getLeft(), p_pointY - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
+			return metrics.textPosition + isTrailingHit * isInside;
 		}
 		void getNearestCharacterIndexAndPosition(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) override
 		{
-			int isTrailingHit;
-			int isInside;
-			DWRITE_HIT_TEST_METRICS metrics;
-			m_handle->HitTestPoint(p_point.x - p_isRelativeToOrigin * getLeft(), p_point.y - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
-			*p_outCharacterIndex = metrics.textPosition + isTrailingHit*isInside;
-			p_outCharacterPosition->set(metrics.left + isTrailingHit*metrics.width + p_isRelativeToOrigin*getLeft(), metrics.top + p_isRelativeToOrigin*getTop());
+			getNearestCharacterIndexAndPosition(p_point.x, p_point.y, p_outCharacterIndex, p_outCharacterPosition, p_isRelativeToOrigin);
 		}
-		void getNearestCharacterIndexAndBounds(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) override
+		void getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) override
 		{
 			int isTrailingHit;
 			int isInside;
 			DWRITE_HIT_TEST_METRICS metrics;
-			m_handle->HitTestPoint(p_point.x - p_isRelativeToOrigin * getLeft(), p_point.y - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
-			*p_outCharacterIndex = metrics.textPosition + isTrailingHit*isInside;
-			p_outCharacterBounds->left = metrics.left + isTrailingHit*metrics.width + p_isRelativeToOrigin * getLeft();
+			m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * getLeft(), p_pointY - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
+			*p_outCharacterIndex = metrics.textPosition + isTrailingHit * isInside;
+			p_outCharacterPosition->set(metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * getLeft(), metrics.top + p_isRelativeToOrigin * getTop());
+		}
+		void getNearestCharacterIndexAndBounds(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) override
+		{
+			getNearestCharacterIndexAndBounds(p_point.x, p_point.y, p_outCharacterIndex, p_outCharacterBounds, p_isRelativeToOrigin);
+		}
+		void getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) override
+		{
+			int isTrailingHit;
+			int isInside;
+			DWRITE_HIT_TEST_METRICS metrics;
+			m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * getLeft(), p_pointY - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
+			*p_outCharacterIndex = metrics.textPosition + isTrailingHit * isInside;
+			p_outCharacterBounds->left = metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * getLeft();
 			p_outCharacterBounds->top = metrics.top + p_isRelativeToOrigin * getTop();
 			p_outCharacterBounds->right = p_outCharacterBounds->left + metrics.width;
 			p_outCharacterBounds->bottom = p_outCharacterBounds->top + metrics.height;
@@ -5500,7 +5549,7 @@ namespace AvoGUI
 		if (m_text)
 		{
 			p_drawingContext->scale(m_opacity*0.3f + 0.7f, getAbsoluteCenter());
-			p_drawingContext->setColor(Color(0.f, m_opacity*0.7f));
+			p_drawingContext->setColor(Color(0.f, m_opacity*0.6f));
 			p_drawingContext->fillRoundedRectangle(getSize(), getCornerRadius());
 			p_drawingContext->setColor(Color(1.f, m_opacity*0.9f));
 			p_drawingContext->drawText(m_text);
@@ -5514,8 +5563,9 @@ namespace AvoGUI
 
 	Ripple::Ripple(View* p_parent, const Color& p_color) :
 		View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(p_color, 0.45f),
-		m_isEnabled(true), m_circleAnimationTime(1.f), m_isMouseDown(false), m_isMouseHovering(false),
-		m_hasHoverEffect(true), m_size(0.f), m_overlayAnimationTime(0.f), m_alphaAnimationTime(0.f)
+		m_isEnabled(true), m_maxSize(0.f), m_size(0.f), m_circleAnimationTime(1.f), m_alphaFactor(0.f), 
+		m_alphaAnimationTime(0.f), m_isMouseDown(false), m_overlayAlphaFactor(0.f), m_overlayAnimationTime(0.f), 
+		m_isMouseHovering(false), m_hasHoverEffect(true)
 	{
 		setIsOverlay(true); // Mouse events should be sent through
 		setHasShadow(false);
@@ -5994,6 +6044,7 @@ namespace AvoGUI
 			queueAnimationUpdate();
 		}
 		m_text = getGUI()->getDrawingContext()->createText(p_string, m_fontSize);
+		m_text->setFontFamily(m_theme->fontFamilies["main"]);
 		m_text->setFontWeight(AvoGUI::FontWeight::Regular);
 		m_text->setBottomLeft(14.f, getHeight() - 7.f);
 		m_caretIndex = min(m_caretIndex, m_text->getString().size());
@@ -6014,11 +6065,48 @@ namespace AvoGUI
 
 	//------------------------------
 
+	void TextField::handleMouseDoubleClick(const MouseEvent& p_event)
+	{
+		if (m_text)
+		{
+			uint32_t clickCharacterIndex = m_text->getNearestCharacterIndex(p_event.x, p_event.y, true);
+			const std::string& string = m_text->getString();
+			for (int32_t a = clickCharacterIndex; a >= 0; a--)
+			{
+				if (!a || string[a - 1] == ' ')
+				{
+					if (a != m_caretIndex)
+					{
+						m_caretPosition = m_text->getCharacterPosition(a, true);
+					}
+					m_caretIndex = a;
+					break;
+				}
+			}
+			for (int32_t a = clickCharacterIndex; a <= string.size(); a++)
+			{
+				if (a == string.size() || string[a] == ' ')
+				{
+					if (a != m_selectionEndIndex)
+					{
+						m_selectionEndPosition = m_text->getCharacterPosition(a, true);
+					}
+					m_selectionEndIndex = a;
+					break;
+				}
+			}
+			if (m_caretIndex != m_selectionEndIndex)
+			{
+				m_isSelectionVisible = true;
+				invalidate();
+			}
+		}
+	}
 	void TextField::handleMouseDown(const MouseEvent& p_event)
 	{
 		if (m_text)
 		{
-			m_text->getNearestCharacterIndexAndPosition(Point<float>(p_event.x, p_event.y), &m_caretIndex, &m_caretPosition, true);
+			m_text->getNearestCharacterIndexAndPosition(p_event.x, p_event.y, &m_caretIndex, &m_caretPosition, true);
 			m_isSelectingWithMouse = true;
 		}
 
@@ -6035,7 +6123,7 @@ namespace AvoGUI
 	{
 		if (m_isSelectingWithMouse)
 		{
-			m_text->getNearestCharacterIndexAndPosition(Point<float>(p_event.x, p_event.y), &m_selectionEndIndex, &m_selectionEndPosition, true);
+			m_text->getNearestCharacterIndexAndPosition(p_event.x, p_event.y, &m_selectionEndIndex, &m_selectionEndPosition, true);
 			m_isSelectionVisible = m_selectionEndIndex != m_caretIndex;
 			invalidate();
 		}
@@ -6055,12 +6143,26 @@ namespace AvoGUI
 	{
 		if ((p_event.character >= 32 && p_event.character < 126 || p_event.character < 0))
 		{
-			std::string string = m_text->getString();
+			std::string string(m_text ? m_text->getString() : "");
+			if (m_isSelectionVisible)
+			{
+				if (m_caretIndex <= m_selectionEndIndex)
+				{
+					string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
+				}
+				else
+				{
+					string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
+					m_caretIndex = m_selectionEndIndex;
+				}
+			}
+
 			string.insert(m_caretIndex, 1U, p_event.character);
 			setString(string);
 
 			m_caretIndex++;
 			m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+
 			m_isSelectionVisible = false;
 
 			m_caretFrameCount = 1;
@@ -6074,15 +6176,18 @@ namespace AvoGUI
 		Window* window = getGUI()->getWindow();
 		if (m_isSelectionVisible && (p_event.key == KeyboardKey::Backspace || p_event.key == KeyboardKey::Delete))
 		{
-			uint32_t minIndex = min(m_caretIndex, m_selectionEndIndex);
-			uint32_t maxIndex = max(m_caretIndex, m_selectionEndIndex);
-
 			std::string string = m_text->getString();
-			string.erase(minIndex, maxIndex - minIndex);
+			if (m_caretIndex <= m_selectionEndIndex)
+			{
+				string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
+			}
+			else
+			{
+				string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
+				m_caretIndex = m_selectionEndIndex;
+				m_caretPosition = m_selectionEndPosition;
+			}
 			setString(string);
-
-			m_caretPosition = minIndex == m_caretIndex ? m_caretPosition : m_selectionEndPosition;
-			m_caretIndex = minIndex;
 
 			m_caretFrameCount = 1;
 			m_isCaretVisible = true;
@@ -6098,9 +6203,9 @@ namespace AvoGUI
 					std::string string = m_text->getString();
 					for (int32_t a = m_caretIndex - 1; a >= 0; a--)
 					{
-						if (!a || (string[a - 1] == ' ' && string[a] != ' '))
+						if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
 						{
-							string.erase(a, m_caretIndex - a);
+							string.erase(a, (int32_t)m_caretIndex - a);
 							setString(string);
 							m_caretIndex = a;
 							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
@@ -6131,15 +6236,15 @@ namespace AvoGUI
 					std::string string = m_text->getString();
 					for (int32_t a = m_caretIndex; a < string.size(); a++)
 					{
-						if (a == string.size() - 1 || (string[a + 1] == ' ' && string[a] != ' '))
+						if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
 						{
-							string.erase(m_caretIndex, a - m_caretIndex + 1);
+							string.erase(m_caretIndex, a - (int32_t)m_caretIndex + 1);
 							setString(string);
 							break;
 						}
 					}
 				}
-				else 
+				else
 				{
 					setString(std::string(m_text->getString()).erase(m_caretIndex, 1));
 				}
@@ -6162,7 +6267,7 @@ namespace AvoGUI
 					}
 					for (int32_t a = m_selectionEndIndex - 1; a >= 0; a--)
 					{
-						if (!a || (string[a - 1] == ' ' && string[a] != ' '))
+						if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
 						{
 							m_selectionEndIndex = a;
 							if (m_selectionEndIndex == m_caretIndex)
@@ -6182,7 +6287,7 @@ namespace AvoGUI
 				{
 					for (int32_t a = m_caretIndex - 1; a >= 0; a--)
 					{
-						if (!a || (string[a - 1] == ' ' && string[a] != ' '))
+						if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
 						{
 							m_caretIndex = a;
 							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
@@ -6249,7 +6354,7 @@ namespace AvoGUI
 					}
 					for (uint32_t a = m_selectionEndIndex; a < string.size(); a++)
 					{
-						if (a == string.size() - 1 || (string[a + 1] == ' ' && string[a] != ' '))
+						if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
 						{
 							m_selectionEndIndex = a + 1;
 							if (m_selectionEndIndex == m_caretIndex)
@@ -6269,7 +6374,7 @@ namespace AvoGUI
 				{
 					for (uint32_t a = m_caretIndex; a < string.size(); a++)
 					{
-						if (a == string.size() - 1 || (string[a + 1] == ' ' && string[a] != ' '))
+						if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
 						{
 							m_caretIndex = a + 1;
 							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
@@ -6323,35 +6428,40 @@ namespace AvoGUI
 			m_isCaretVisible = true;
 			break;
 		}
+		case KeyboardKey::C:
+		{
+			if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
+			{
+				if (m_caretIndex < m_selectionEndIndex)
+				{
+					window->setClipboardString(m_text->getString().substr(m_caretIndex, m_selectionEndIndex - m_caretIndex));
+				}
+				else
+				{
+					window->setClipboardString(m_text->getString().substr(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex));
+				}
+			}
+			break;
+		}
 		case KeyboardKey::X:
 		{
 			if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
 			{
-				uint32_t selectionStart;
-				uint32_t selectionLength;
+				std::string string(m_text->getString());
 				if (m_caretIndex < m_selectionEndIndex)
 				{
-					selectionStart = m_caretIndex;
-					selectionLength = m_selectionEndIndex - selectionStart;
+					window->setClipboardString(string.substr(m_caretIndex, m_selectionEndIndex - m_caretIndex));
+					string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
 				}
-				else
-				{
-					selectionStart = m_selectionEndIndex;
-					selectionLength = m_caretIndex - selectionStart;
+				else {
+					window->setClipboardString(string.substr(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex));
+					string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
+					m_caretIndex = m_selectionEndIndex;
+					m_caretPosition = m_selectionEndPosition;
 				}
-				
-				window->setClipboardString(m_text->getString().substr(selectionStart, selectionLength));
-				
-				std::string string = m_text->getString();
-				string.erase(selectionStart, selectionLength);
 				setString(string);
-			
+
 				m_isSelectionVisible = false;
-				if (m_caretIndex != selectionStart)
-				{
-					m_caretIndex = selectionStart;
-					m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-				}
 
 				m_caretFrameCount = 1;
 				m_isCaretVisible = true;
@@ -6362,31 +6472,20 @@ namespace AvoGUI
 		{
 			if (window->getIsKeyDown(KeyboardKey::Control))
 			{
+				std::string string(m_text->getString());
 				if (m_isSelectionVisible)
 				{
-					uint32_t selectionStart;
-					uint32_t selectionLength;
 					if (m_caretIndex < m_selectionEndIndex)
 					{
-						selectionStart = m_caretIndex;
-						selectionLength = m_selectionEndIndex - selectionStart;
+						string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
 					}
 					else
 					{
-						selectionStart = m_selectionEndIndex;
-						selectionLength = m_caretIndex - selectionStart;
+						string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
+						m_caretIndex = m_selectionEndIndex;
 					}
-
-					std::string string(m_text->getString());
-					string.erase(selectionStart, selectionLength);
-					setString(string);
-
 					m_isSelectionVisible = false;
-					m_caretIndex = selectionStart;
-					m_selectionEndIndex = selectionStart;
 				}
-
-				std::string string(m_text->getString());
 				std::string clipboardString = window->getClipboardString();
 				string.insert(m_caretIndex, clipboardString);
 				setString(string);
@@ -6396,6 +6495,26 @@ namespace AvoGUI
 				m_caretFrameCount = 1;
 				m_isCaretVisible = true;
 			}
+			break;
+		}
+		case KeyboardKey::A:
+		{
+			uint32_t stringLength = m_text->getString().size();
+			if (window->getIsKeyDown(KeyboardKey::Control) && stringLength)
+			{
+				m_isSelectionVisible = true;
+				if (m_caretIndex)
+				{
+					m_caretIndex = 0;
+					m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+				}
+				if (m_selectionEndIndex != stringLength)
+				{
+					m_selectionEndIndex = stringLength;
+					m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+				}
+			}
+			break;
 		}
 		}
 		invalidate();
@@ -6414,7 +6533,7 @@ namespace AvoGUI
 				m_caretFrameCount = 0;
 				invalidate();
 			}
-			else if (m_caretFrameCount % 30 == 0)
+			else if (m_caretFrameCount % 30 == 0 && !m_isSelectionVisible)
 			{
 				m_isCaretVisible = !m_isCaretVisible;
 				invalidate();
@@ -6468,6 +6587,10 @@ namespace AvoGUI
 					p_context->drawLine(m_caretPosition.x, m_caretPosition.y, m_caretPosition.x, m_caretPosition.y + m_fontSize*1.2f, 1.f);
 				}
 			}
+		}
+		else if (m_type == Type::Outlined)
+		{
+
 		}
 
 	}

@@ -22,6 +22,9 @@
 	can choose to keep the library implementation and only add to it (by calling Parent::method(...) from
 	inside your overridden method()), or you can completely override it (although that can sometimes remove
 	important functionality).
+
+	Submit issues at GitHub!
+	https://github.com/avocadoboi/AvoGUI
 */
 
 #pragma once
@@ -69,7 +72,8 @@ namespace AvoGUI
 	}
 
 	/// <summary>
-	/// Returns a random double between 0 and 1. It uses the standard library random header.
+	/// <para>Returns a random double between 0 and 1. It just uses the standard library random header.</para>
+	/// <para>Convenient function.</para>
 	/// </summary>
 	double random();
 
@@ -2715,7 +2719,8 @@ namespace AvoGUI
 		/// <para>same fonts need to be used in your whole GUI; simply set the theme of your </para>
 		/// <para>view as a copy of its parent, but change the font families. This changes the </para>
 		/// <para>fonts used by that view and its children (if they haven't been created yet - </para>
-		/// <para>they inherit the theme of their parent).</para>
+		/// <para>they inherit the theme of their parent). Views are also technically free to use</para>
+		/// <para>whatever fonts they like.</para>
 		/// <para>-</para>
 		/// <para>Built-in font families:</para>
 		/// <para>"main"</para>
@@ -5128,8 +5133,7 @@ namespace AvoGUI
 
 	enum class ClipboardDataType
 	{
-		// TODO: add more data types!
-		String,
+		String, // Could be both 8-bit or 16-bit string.
 		Unknown
 	};
 
@@ -5445,7 +5449,20 @@ namespace AvoGUI
 		/// <param name="p_length">Number of characters in the string. If it is -1 then it assumes the string is null-terminated.</param>
 		virtual void setClipboardString(const char* p_string, int32_t p_length = -1) = 0;
 
+		/// <summary>
+		/// <para>Returns the 16-bit string which is currently stored on the OS clipboard, if there is any. Otherwhise the returned</para>
+		/// <para>string is empty.</para>
+		/// </summary>
+		virtual std::wstring getClipboardWideString() = 0;
+		/// <summary>
+		/// <para>Returns the 8-bit string which is currently stored on the OS clipboard, if there is any. Otherwhise the returned</para>
+		/// <para>string is empty.</para>
+		/// </summary>
 		virtual std::string getClipboardString() = 0;
+		
+		/// <summary>
+		/// <para>Returns the main type of the current data that is on the OS clipboard.</para>
+		/// </summary>
 		virtual ClipboardDataType getClipboardDataType() = 0;
 	};
 #pragma endregion
@@ -5686,8 +5703,12 @@ namespace AvoGUI
 		/// Returns the index of the character which is nearest to a point.
 		/// </summary>
 		/// <param name="p_isRelativeToOrigin">Whether the position given is relative to the origin of the drawing context or not. If not, it is relative to the bounds of the text.</param>
-		/// <returns></returns>
 		virtual uint32_t getNearestCharacterIndex(const Point<float>& p_point, bool p_isRelativeToOrigin = false) = 0;
+		/// <summary>
+		/// Returns the index of the character which is nearest to a point.
+		/// </summary>
+		/// <param name="p_isRelativeToOrigin">Whether the position given is relative to the origin of the drawing context or not. If not, it is relative to the bounds of the text.</param>
+		virtual uint32_t getNearestCharacterIndex(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false) = 0;
 		/// <summary>
 		/// Returns the index and position of the character which is nearest to a point.
 		/// </summary>
@@ -5696,12 +5717,26 @@ namespace AvoGUI
 		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context or not. If not, they are relative to the bounds of the text.</param>
 		virtual void getNearestCharacterIndexAndPosition(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
 		/// <summary>
+		/// Returns the index and position of the character which is nearest to a point.
+		/// </summary>
+		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
+		/// <param name="p_outCharacterPosition">Pointer to the 2d position to be returned.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context or not. If not, they are relative to the bounds of the text.</param>
+		virtual void getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
+		/// <summary>
 		/// Returns the index and bounds of the character which is nearest to a point.
 		/// </summary>
 		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
 		/// <param name="p_outCharacterBounds">Pointer to the bounding rectangle to be returned.</param>
 		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context or not. If not, they are relative to the bounds of the text.</param>
 		virtual void getNearestCharacterIndexAndBounds(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
+		/// <summary>
+		/// Returns the index and bounds of the character which is nearest to a point.
+		/// </summary>
+		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
+		/// <param name="p_outCharacterBounds">Pointer to the bounding rectangle to be returned.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context or not. If not, they are relative to the bounds of the text.</param>
+		virtual void getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
 
 		//------------------------------
 
@@ -6467,7 +6502,8 @@ namespace AvoGUI
 		virtual Image* createImage(const void* p_pixelData, uint32_t p_width, uint32_t p_height) = 0;
 
 		/// <summary>
-		/// Loads an image from a file. Most standard image formats/codecs are supported.
+		/// <para>Loads an image from a file. Most standard image formats/codecs are supported.</para>
+		/// <para>If this returns 0, then the file path is probably incorrect.</para>
 		/// </summary>
 		/// <param name="p_filePath">The path, relative or absolute, to the image file to be loaded.</param>
 		virtual Image* createImage(const char* p_filePath) = 0;
@@ -7293,7 +7329,8 @@ namespace AvoGUI
 		enum Type
 		{
 			Outlined,
-			Filled
+			Filled,
+			OnlyText // The text field consists only of editable text
 		};
 
 	private:
@@ -7334,6 +7371,7 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void handleMouseDoubleClick(const MouseEvent& p_event) override;
 		void handleMouseDown(const MouseEvent& p_event) override;
 		void handleMouseMove(const MouseEvent& p_event) override;
 		void handleMouseUp(const MouseEvent& p_event) override;
