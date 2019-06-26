@@ -45,7 +45,8 @@ private:
 	AvoGUI::View* m_viewContainer;
 
 public:
-	MyGUI()
+	MyGUI() :
+		m_viewContainer(0)
 	{
 		create("My GUI", 450, 300, AvoGUI::WindowStyleFlags::Default);
 	}
@@ -78,7 +79,7 @@ public:
 		m_theme->colors["background"] = 0xfffefefeU;
 		m_theme->colors["on background"] = 0xff202020U;
 
-		m_theme->colors["primary"] = AvoGUI::Color(31.f/255.f, 115.f/255.f, 230.f/255.f);
+		m_theme->colors["primary"] = AvoGUI::Color(31, 115, 230);
 		m_theme->colors["primary on background"] = m_theme->colors["primary"];
 		m_theme->colors["on primary"] = AvoGUI::Color(1.f);
 

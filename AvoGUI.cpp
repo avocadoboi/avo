@@ -561,10 +561,17 @@ namespace AvoGUI
 	class WindowsWindow : public Window
 	{
 	private:
+		GUI* m_GUI;
+
 		HWND m_windowHandle;
 		WindowStyleFlags m_crossPlatformStyles;
 		uint32_t m_styles;
 
+		bool m_isOpen;
+		Point<int32_t> m_position;
+		Point<uint32_t> m_size;
+
+		bool m_isFullscreen;
 		RECT m_windowRectBeforeFullscreen;
 		bool m_wasWindowMaximizedBeforeFullscreen;
 
@@ -574,6 +581,7 @@ namespace AvoGUI
 		Point<uint32_t> m_maxSize;
 
 		bool m_isMouseOutsideWindow;
+		Point<int32_t> m_mousePosition;
 		HCURSOR m_cursorHandle;
 		Cursor m_cursorType;
 
@@ -867,17 +875,17 @@ namespace AvoGUI
 		//------------------------------
 
 		WindowsWindow(GUI* p_GUI) :
-			m_windowHandle(0), m_isMouseOutsideWindow(true), m_cursorHandle(0), 
-			m_styles(0), m_crossPlatformStyles((WindowStyleFlags)0)
+			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0), 
+			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
+			m_state(WindowState::Restored), m_isMouseOutsideWindow(true), m_cursorHandle(0)
 		{
-			m_GUI = p_GUI;
-			m_isFullscreen = false;
-
 			m_cursorType = (Cursor)-1;
 			setCursor(Cursor::Arrow);
 		}
 		WindowsWindow(GUI* p_GUI, const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) :
-			m_windowHandle(0), m_isMouseOutsideWindow(true), m_cursorHandle(0)
+			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0),
+			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
+			m_state(WindowState::Restored), m_isMouseOutsideWindow(true), m_cursorHandle(0)
 		{
 			m_GUI = p_GUI;
 			m_isFullscreen = false;
@@ -962,6 +970,10 @@ namespace AvoGUI
 				m_windowHandle = 0;
 			}
 		}
+		bool getIsOpen() const override
+		{
+			return m_isOpen;
+		}
 
 		//------------------------------
 
@@ -970,7 +982,7 @@ namespace AvoGUI
 			SetWindowLongPtr(m_windowHandle, GWL_STYLE, convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styles));
 			SetWindowPos(m_windowHandle, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
 		}
-		WindowStyleFlags getStyles() override
+		WindowStyleFlags getStyles() const override
 		{
 			GetWindowLongPtr(m_windowHandle, GWL_STYLE);
 			return WindowStyleFlags::Default;
@@ -983,7 +995,7 @@ namespace AvoGUI
 		{
 			m_windowHandle = p_handle;
 		}
-		void* getWindowHandle() override
+		void* getWindowHandle() const override
 		{
 			return m_windowHandle;
 		}
@@ -1032,6 +1044,10 @@ namespace AvoGUI
 		{
 			setIsFullscreen(!m_isFullscreen);
 		}
+		bool getIsFullscreen() const override
+		{
+			return m_isFullscreen;
+		}
 
 		//------------------------------
 
@@ -1067,7 +1083,7 @@ namespace AvoGUI
 			else if (p_state == WindowState::Restored)
 				ShowWindow(m_windowHandle, SW_RESTORE);
 		}
-		WindowState getState() override
+		WindowState getState() const override
 		{
 			return m_state;
 		}
@@ -1083,6 +1099,18 @@ namespace AvoGUI
 		{
 			SetWindowPos(m_windowHandle, 0, p_x, p_y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 			m_position.set(p_x, p_y);
+		}
+		const Point<int32_t>& getPosition() const override
+		{
+			return m_position;
+		}
+		int32_t getPositionX() const override
+		{
+			return m_position.x;
+		}
+		int32_t getPositionY() const override
+		{
+			return m_position.y;
 		}
 
 		void setSize(const Point<uint32_t>& p_size) override
@@ -1100,6 +1128,19 @@ namespace AvoGUI
 			m_size.set(p_width, p_height);
 		}
 
+		const Point<uint32_t>& getSize() const override
+		{
+			return m_size;
+		}
+		uint32_t getWidth() const override
+		{
+			return m_size.x;
+		}
+		uint32_t getHeight() const override
+		{
+			return m_size.y;
+		}
+
 		//------------------------------
 
 		void setMinSize(const Point<uint32_t>& p_minSize) override
@@ -1111,15 +1152,15 @@ namespace AvoGUI
 			m_minSize.x = p_minWidth;
 			m_minSize.y = p_minHeight;
 		}
-		Point<uint32_t> getMinSize() override
+		Point<uint32_t> getMinSize() const override
 		{
 			return m_minSize;
 		}
-		uint32_t getMinWidth() override
+		uint32_t getMinWidth() const override
 		{
 			return m_minSize.x;
 		}
-		uint32_t getMinHeight() override
+		uint32_t getMinHeight() const override
 		{
 			return m_minSize.y;
 		}
@@ -1133,50 +1174,50 @@ namespace AvoGUI
 			m_maxSize.x = p_maxWidth;
 			m_maxSize.y = p_maxHeight;
 		}
-		Point<uint32_t> getMaxSize() override
+		Point<uint32_t> getMaxSize() const override
 		{
 			return m_maxSize;
 		}
-		uint32_t getMaxWidth() override
+		uint32_t getMaxWidth() const override
 		{
 			return m_maxSize.x;
 		}
-		uint32_t getMaxHeight() override
+		uint32_t getMaxHeight() const override
 		{
 			return m_maxSize.y;
 		}
 
 		//------------------------------
 
-		Rectangle<uint32_t> getMonitorBounds() override
+		Rectangle<uint32_t> getMonitorBounds() const override
 		{
 			MONITORINFO info = { };
 			info.cbSize = sizeof(MONITORINFO);
 			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
 			return Rectangle<uint32_t>(info.rcMonitor.left, info.rcMonitor.top, info.rcMonitor.right, info.rcMonitor.bottom);
 		}
-		Point<uint32_t> getMonitorPosition() override
+		Point<uint32_t> getMonitorPosition() const override
 		{
 			MONITORINFO info = { };
 			info.cbSize = sizeof(MONITORINFO);
 			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
 			return Point<uint32_t>(info.rcMonitor.left, info.rcMonitor.top);
 		}
-		Point<uint32_t> getMonitorSize() override
+		Point<uint32_t> getMonitorSize() const override
 		{
 			MONITORINFO info = { };
 			info.cbSize = sizeof(MONITORINFO);
 			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
 			return Point<uint32_t>(info.rcMonitor.right - info.rcMonitor.left, info.rcMonitor.bottom - info.rcMonitor.top);
 		}
-		uint32_t getMonitorWidth() override
+		uint32_t getMonitorWidth() const override
 		{
 			MONITORINFO info = { };
 			info.cbSize = sizeof(MONITORINFO);
 			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
 			return info.rcMonitor.right - info.rcMonitor.left;
 		}
-		uint32_t getMonitorHeight() override
+		uint32_t getMonitorHeight() const override
 		{
 			MONITORINFO info = { };
 			info.cbSize = sizeof(MONITORINFO);
@@ -1186,7 +1227,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		bool getIsKeyDown(KeyboardKey p_key)
+		bool getIsKeyDown(KeyboardKey p_key) const override
 		{
 			switch (p_key)
 			{
@@ -1439,7 +1480,7 @@ namespace AvoGUI
 			}
 			return false;
 		}
-		bool getIsMouseButtonDown(MouseButton p_button) override
+		bool getIsMouseButtonDown(MouseButton p_button) const override
 		{
 			switch (p_button)
 			{
@@ -1455,6 +1496,10 @@ namespace AvoGUI
 				return GetAsyncKeyState(VK_XBUTTON2) & (1 << 16);
 			}
 			return false;
+		}
+		const Point<int32_t>& getMousePosition() const override
+		{
+			return m_mousePosition;
 		}
 
 		//------------------------------
@@ -1508,7 +1553,7 @@ namespace AvoGUI
 				SetCursor(m_cursorHandle);
 			}
 		}
-		Cursor getCursor() override
+		Cursor getCursor() const override
 		{
 			return m_cursorType;
 		}
@@ -1517,12 +1562,12 @@ namespace AvoGUI
 
 		void setClipboardWideString(const std::wstring& p_string) override
 		{
-			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, p_string.size() + 1);
+			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, p_string.size() + 1LL);
 			if (!clipboardData)
 			{
 				return;
 			}
-			memcpy(GlobalLock(clipboardData), (char*)p_string.c_str(), p_string.size() + 1);
+			memcpy(GlobalLock(clipboardData), (char*)p_string.c_str(), p_string.size() + 1LL);
 			clipboardData[p_string.size()] = '\0';
 			GlobalUnlock(clipboardData);
 
@@ -1533,13 +1578,13 @@ namespace AvoGUI
 		}
 		void setClipboardWideString(const wchar_t* p_string, int32_t p_length) override
 		{
-			uint32_t size = p_length >= 0 ? p_length : wcslen(p_string);
-			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, size + 1);
+			size_t size = p_length >= 0 ? p_length : wcslen(p_string);
+			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, size + 1LL);
 			if (!clipboardData)
 			{
 				return;
 			}
-			memcpy(GlobalLock(clipboardData), (char*)p_string, size + 1);
+			memcpy(GlobalLock(clipboardData), (char*)p_string, size + 1LL);
 			GlobalUnlock(clipboardData);
 
 			OpenClipboard(m_windowHandle);
@@ -1550,12 +1595,12 @@ namespace AvoGUI
 		
 		void setClipboardString(const std::string& p_string) override
 		{
-			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, p_string.size() + 1);
+			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, p_string.size() + 1LL);
 			if (!clipboardData)
 			{
 				return;
 			}
-			memcpy(GlobalLock(clipboardData), p_string.c_str(), p_string.size() + 1);
+			memcpy(GlobalLock(clipboardData), p_string.c_str(), p_string.size() + 1LL);
 			GlobalUnlock(clipboardData);
 
 			OpenClipboard(m_windowHandle);
@@ -1566,13 +1611,13 @@ namespace AvoGUI
 		}
 		void setClipboardString(const char* p_string, int32_t p_length) override
 		{
-			uint32_t size = p_length >= 0 ? p_length : strlen(p_string);
-			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, size + 1);
+			size_t size = p_length >= 0 ? p_length : strlen(p_string);
+			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, size + 1LL);
 			if (!clipboardData)
 			{
 				return;
 			}
-			memcpy(GlobalLock(clipboardData), p_string, size + 1);
+			memcpy(GlobalLock(clipboardData), p_string, size + 1LL);
 			GlobalUnlock(clipboardData);
 
 			OpenClipboard(m_windowHandle);
@@ -1582,7 +1627,7 @@ namespace AvoGUI
 			CloseClipboard();
 		}
 
-		std::wstring getClipboardWideString() override
+		std::wstring getClipboardWideString() const override
 		{
 			std::wstring string = L"";
 
@@ -1599,7 +1644,7 @@ namespace AvoGUI
 
 			return string;
 		}
-		std::string getClipboardString() override
+		std::string getClipboardString() const override
 		{
 			std::string string = "";
 
@@ -1620,7 +1665,7 @@ namespace AvoGUI
 
 			return string;
 		}
-		ClipboardDataType getClipboardDataType()
+		ClipboardDataType getClipboardDataType() const override
 		{
 			OpenClipboard(m_windowHandle);
 			uint32_t format = EnumClipboardFormats(0);
@@ -5786,6 +5831,7 @@ namespace AvoGUI
 		}
 
 		m_text = getGUI()->getDrawingContext()->createText(p_text, m_fontSize);
+		m_text->setFontFamily(m_theme->fontFamilies["main"]);
 		m_text->setWordWrapping(WordWrapping::Never);
 		m_text->setCharacterSpacing(1.2f);
 		m_text->setFontWeight(FontWeight::Medium);
@@ -5969,6 +6015,54 @@ namespace AvoGUI
 	}
 
 	//------------------------------
+	// class TextField
+	//------------------------------
+
+	//
+	// Private
+	//
+
+	void TextField::updateCaretTracking()
+	{
+		if (m_caretPosition.x + m_textDrawingOffsetX > getWidth() - TEXT_FIELD_PADDING_RIGHT)
+		{
+			m_textDrawingOffsetX = getWidth() - TEXT_FIELD_PADDING_RIGHT - m_caretPosition.x;
+		}
+		else if (m_caretPosition.x + m_textDrawingOffsetX < TEXT_FIELD_PADDING_LEFT)
+		{
+			m_textDrawingOffsetX = TEXT_FIELD_PADDING_LEFT - m_caretPosition.x;
+		}
+		if (m_text->getRight() > getWidth() - TEXT_FIELD_PADDING_RIGHT)
+		{
+			if (m_text->getRight() + m_textDrawingOffsetX < getWidth() - TEXT_FIELD_PADDING_RIGHT)
+			{
+				m_textDrawingOffsetX = getWidth() - TEXT_FIELD_PADDING_RIGHT - m_text->getRight();
+			}
+		}
+		else
+		{
+			m_textDrawingOffsetX = 0.f;
+		}
+	}
+	void TextField::updateSelectionEndTracking()
+	{
+		if (m_selectionEndPosition.x + m_textDrawingOffsetX > getWidth() - TEXT_FIELD_PADDING_RIGHT)
+		{
+			m_textDrawingOffsetX = getWidth() - TEXT_FIELD_PADDING_RIGHT - m_selectionEndPosition.x;
+		}
+		else if (m_selectionEndPosition.x + m_textDrawingOffsetX < TEXT_FIELD_PADDING_LEFT)
+		{
+			m_textDrawingOffsetX = TEXT_FIELD_PADDING_LEFT - m_selectionEndPosition.x;
+		}
+		//if (m_selectionEndPosition.x > TEXT_FIELD_PADDING_LEFT + 0.5f*(getWidth() - TEXT_FIELD_PADDING_LEFT - TEXT_FIELD_PADDING_RIGHT) && m_selectionEndPosition.x < m_text->getRight() - 0.5f * (getWidth() - TEXT_FIELD_PADDING_LEFT - TEXT_FIELD_PADDING_RIGHT))
+		//{
+		//	m_textDrawingOffsetX = getWidth() * 0.5f - m_selectionEndPosition.x;
+		//}
+	}
+
+	//
+	// Public
+	//
 
 	TextField::TextField(View* p_parent, Type p_type, const char* p_label, float p_width, float p_fontSize) :
 		View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*3.2f)), m_labelColor(0.5f), m_type(p_type), 
@@ -6007,6 +6101,7 @@ namespace AvoGUI
 		else
 		{
 			m_labelText = getGUI()->getDrawingContext()->createText(p_label, m_fontSize);
+			m_labelText->setFontFamily(m_theme->fontFamilies["main"]);
 			m_labelText->setFontWeight(AvoGUI::FontWeight::Regular);
 			m_labelText->setTopLeft((getHeight() - m_fontSize)*0.5f);
 			queueAnimationUpdate();
@@ -6032,6 +6127,7 @@ namespace AvoGUI
 			{
 				m_caretIndex = 0;
 				m_caretPosition = m_text->getTopLeft();
+				updateCaretTracking();
 				m_text->forget();
 				m_text = 0;
 				return;
@@ -6046,9 +6142,10 @@ namespace AvoGUI
 		m_text = getGUI()->getDrawingContext()->createText(p_string, m_fontSize);
 		m_text->setFontFamily(m_theme->fontFamilies["main"]);
 		m_text->setFontWeight(AvoGUI::FontWeight::Regular);
-		m_text->setBottomLeft(14.f, getHeight() - 7.f);
+		m_text->setBottomLeft(TEXT_FIELD_PADDING_LEFT, getHeight() - 7.f);
 		m_caretIndex = min(m_caretIndex, m_text->getString().size());
 		m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+		updateCaretTracking();
 	}
 	void TextField::setString(const std::string& p_string)
 	{
@@ -6069,7 +6166,7 @@ namespace AvoGUI
 	{
 		if (m_text)
 		{
-			uint32_t clickCharacterIndex = m_text->getNearestCharacterIndex(p_event.x, p_event.y, true);
+			uint32_t clickCharacterIndex = m_text->getNearestCharacterIndex(p_event.x - m_textDrawingOffsetX, p_event.y, true);
 			const std::string& string = m_text->getString();
 			for (int32_t a = clickCharacterIndex; a >= 0; a--)
 			{
@@ -6078,6 +6175,7 @@ namespace AvoGUI
 					if (a != m_caretIndex)
 					{
 						m_caretPosition = m_text->getCharacterPosition(a, true);
+						updateCaretTracking();
 					}
 					m_caretIndex = a;
 					break;
@@ -6090,6 +6188,7 @@ namespace AvoGUI
 					if (a != m_selectionEndIndex)
 					{
 						m_selectionEndPosition = m_text->getCharacterPosition(a, true);
+						updateSelectionEndTracking();
 					}
 					m_selectionEndIndex = a;
 					break;
@@ -6106,16 +6205,37 @@ namespace AvoGUI
 	{
 		if (m_text)
 		{
-			m_text->getNearestCharacterIndexAndPosition(p_event.x, p_event.y, &m_caretIndex, &m_caretPosition, true);
-			m_isSelectingWithMouse = true;
+			if (p_event.modifierKeys & ModifierKeyFlags::Shift)
+			{
+				m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_selectionEndIndex, &m_selectionEndPosition, true);
+
+				if (m_selectionEndIndex == m_caretIndex)
+				{
+					m_caretFrameCount = 1;
+					m_isCaretVisible = true;
+					m_isSelectionVisible = false;
+				}
+				else
+				{
+					updateSelectionEndTracking();
+					m_isSelectionVisible = true;
+				}
+				m_isSelectingWithMouse = true;
+			}
+			else
+			{
+				m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_caretIndex, &m_caretPosition, true);
+
+				updateCaretTracking();
+				m_caretFrameCount = 1;
+				m_isCaretVisible = true;
+
+				m_isSelectingWithMouse = true;
+				m_isSelectionVisible = false;
+			}
 		}
 
 		getGUI()->setKeyboardFocus(this);
-		
-		m_caretFrameCount = 1;
-		m_isCaretVisible = true;
-		m_isSelectionVisible = false;
-
 		invalidate();
 		queueAnimationUpdate();
 	}
@@ -6123,7 +6243,8 @@ namespace AvoGUI
 	{
 		if (m_isSelectingWithMouse)
 		{
-			m_text->getNearestCharacterIndexAndPosition(p_event.x, p_event.y, &m_selectionEndIndex, &m_selectionEndPosition, true);
+			m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_selectionEndIndex, &m_selectionEndPosition, true);
+			updateSelectionEndTracking();
 			m_isSelectionVisible = m_selectionEndIndex != m_caretIndex;
 			invalidate();
 		}
@@ -6162,6 +6283,7 @@ namespace AvoGUI
 
 			m_caretIndex++;
 			m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+			updateCaretTracking();
 
 			m_isSelectionVisible = false;
 
@@ -6186,6 +6308,7 @@ namespace AvoGUI
 				string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
 				m_caretIndex = m_selectionEndIndex;
 				m_caretPosition = m_selectionEndPosition;
+				updateCaretTracking();
 			}
 			setString(string);
 
@@ -6209,6 +6332,7 @@ namespace AvoGUI
 							setString(string);
 							m_caretIndex = a;
 							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+							updateCaretTracking();
 							break;
 						}
 					}
@@ -6220,6 +6344,7 @@ namespace AvoGUI
 					string.erase(m_caretIndex, 1);
 					setString(string);
 					m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+					updateCaretTracking();
 				}
 			}
 			m_caretFrameCount = 1;
@@ -6277,6 +6402,7 @@ namespace AvoGUI
 							else
 							{
 								m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+								updateSelectionEndTracking();
 								m_isSelectionVisible = true;
 							}
 							break;
@@ -6291,6 +6417,7 @@ namespace AvoGUI
 						{
 							m_caretIndex = a;
 							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+							updateCaretTracking();
 							m_isSelectionVisible = false;
 							break;
 						}
@@ -6313,6 +6440,7 @@ namespace AvoGUI
 					else
 					{
 						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+						updateSelectionEndTracking();
 						m_isSelectionVisible = true;
 					}
 				}
@@ -6325,6 +6453,7 @@ namespace AvoGUI
 					{
 						m_caretIndex = m_selectionEndIndex;
 						m_caretPosition = m_selectionEndPosition;
+						updateCaretTracking();
 					}
 					m_isSelectionVisible = false;
 				}
@@ -6334,6 +6463,7 @@ namespace AvoGUI
 					{
 						m_caretIndex--;
 						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+						updateCaretTracking();
 					}
 				}
 			}
@@ -6364,6 +6494,7 @@ namespace AvoGUI
 							else
 							{
 								m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+								updateSelectionEndTracking();
 								m_isSelectionVisible = true;
 							}
 							break;
@@ -6378,6 +6509,7 @@ namespace AvoGUI
 						{
 							m_caretIndex = a + 1;
 							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+							updateCaretTracking();
 							m_isSelectionVisible = false;
 							break;
 						}
@@ -6400,6 +6532,7 @@ namespace AvoGUI
 					else
 					{
 						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+						updateSelectionEndTracking();
 						m_isSelectionVisible = true;
 					}
 				}
@@ -6412,6 +6545,7 @@ namespace AvoGUI
 					{
 						m_caretIndex = m_selectionEndIndex;
 						m_caretPosition = m_selectionEndPosition;
+						updateCaretTracking();
 					}
 					m_isSelectionVisible = false;
 				}
@@ -6421,6 +6555,7 @@ namespace AvoGUI
 					{
 						m_caretIndex++;
 						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+						updateCaretTracking();
 					}
 				}
 			}
@@ -6458,6 +6593,7 @@ namespace AvoGUI
 					string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
 					m_caretIndex = m_selectionEndIndex;
 					m_caretPosition = m_selectionEndPosition;
+					updateCaretTracking();
 				}
 				setString(string);
 
@@ -6492,6 +6628,7 @@ namespace AvoGUI
 
 				m_caretIndex += clipboardString.size();
 				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+				updateCaretTracking();
 				m_caretFrameCount = 1;
 				m_isCaretVisible = true;
 			}
@@ -6517,6 +6654,7 @@ namespace AvoGUI
 			break;
 		}
 		}
+
 		invalidate();
 	}
 
@@ -6524,30 +6662,46 @@ namespace AvoGUI
 
 	void TextField::updateAnimations()
 	{
-		m_focusAnimationValue = m_theme->easings["in out"].easeValue(m_focusAnimationTime);
-		if (getGUI()->getKeyboardFocus() == this)
+		if (m_type == Type::OnlyText)
 		{
-			if (m_focusAnimationTime < 1.f)
+			if (getGUI()->getKeyboardFocus() == this)
 			{
-				m_focusAnimationTime = min(1.f, m_focusAnimationTime + 0.08f);
-				m_caretFrameCount = 0;
-				invalidate();
+				if (m_caretFrameCount % 30 == 0 && !m_isSelectionVisible)
+				{
+					m_isCaretVisible = !m_isCaretVisible;
+					invalidate();
+				}
+				m_caretFrameCount++;
+				queueAnimationUpdate();
 			}
-			else if (m_caretFrameCount % 30 == 0 && !m_isSelectionVisible)
-			{
-				m_isCaretVisible = !m_isCaretVisible;
-				invalidate();
-			}
-			m_caretFrameCount++;
-			queueAnimationUpdate();
 		}
-		else if (m_focusAnimationTime > 0.f && m_text->getString().size() == 0)
+		else
 		{
-			m_focusAnimationTime = max(0.f, m_focusAnimationTime - 0.08f);
-			invalidate();
-			queueAnimationUpdate();
+			m_focusAnimationValue = m_theme->easings["in out"].easeValue(m_focusAnimationTime);
+			if (getGUI()->getKeyboardFocus() == this)
+			{
+				if (m_focusAnimationTime < 1.f)
+				{
+					m_focusAnimationTime = min(1.f, m_focusAnimationTime + 0.08f);
+					m_caretFrameCount = 0;
+					invalidate();
+				}
+				else if (m_caretFrameCount % 30 == 0 && !m_isSelectionVisible)
+				{
+					m_isCaretVisible = !m_isCaretVisible;
+					invalidate();
+				}
+				m_caretFrameCount++;
+				queueAnimationUpdate();
+			}
+			else if (m_focusAnimationTime > 0.f && m_text->getString().size() == 0)
+			{
+				m_focusAnimationTime = max(0.f, m_focusAnimationTime - 0.08f);
+				invalidate();
+				queueAnimationUpdate();
+			}
+			m_labelColor = interpolate(Color(0.5f), m_theme->colors["primary on background"], m_focusAnimationValue);
 		}
-		m_labelColor = interpolate(Color(0.5f), m_theme->colors["primary on background"], m_focusAnimationValue);
 	}
 
 	void TextField::draw(DrawingContext* p_context)
@@ -6573,10 +6727,13 @@ namespace AvoGUI
 				p_context->moveOrigin(-4.f*m_focusAnimationValue, 3.f*m_focusAnimationValue);
 				p_context->setScale(1.f);
 			}
-			if (m_focusAnimationValue >= 0.95f)
+			if (m_focusAnimationValue >= 0.95f && m_text)
 			{
+				p_context->pushClipRectangle(Rectangle<float>(TEXT_FIELD_PADDING_LEFT, 0, getWidth() - TEXT_FIELD_PADDING_RIGHT, getHeight()));
+				p_context->moveOrigin(m_textDrawingOffsetX, 0.f);
 				p_context->setColor(Color(0.1f));
 				p_context->drawText(m_text);
+
 				if (m_isSelectionVisible)
 				{
 					p_context->setColor(m_theme->colors["selection"]);
@@ -6586,9 +6743,15 @@ namespace AvoGUI
 				{
 					p_context->drawLine(m_caretPosition.x, m_caretPosition.y, m_caretPosition.x, m_caretPosition.y + m_fontSize*1.2f, 1.f);
 				}
+				p_context->moveOrigin(-m_textDrawingOffsetX, 0.f);
+				p_context->popClipRectangle();
 			}
 		}
 		else if (m_type == Type::Outlined)
+		{
+
+		}
+		else if (m_type == Type::OnlyText)
 		{
 
 		}

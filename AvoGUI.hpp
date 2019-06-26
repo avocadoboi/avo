@@ -1903,19 +1903,19 @@ namespace AvoGUI
 	/// </summary>
 	typedef uint32_t colorInt;
 
-	inline unsigned char getRed(colorInt p_color)
+	inline uint8_t getRed(colorInt p_color)
 	{
 		return (p_color >> 16) & 0xff;
 	}
-	inline unsigned char getGreen(colorInt p_color)
+	inline uint8_t getGreen(colorInt p_color)
 	{
 		return (p_color >> 8) & 0xff;
 	}
-	inline unsigned char getBlue(colorInt p_color)
+	inline uint8_t getBlue(colorInt p_color)
 	{
 		return p_color & 0xff;
 	}
-	inline unsigned char getAlpha(colorInt p_color)
+	inline uint8_t getAlpha(colorInt p_color)
 	{
 		return (p_color >> 24) & 0xff;
 	}
@@ -1943,7 +1943,22 @@ namespace AvoGUI
 		Color(float p_red, float p_green, float p_blue, float p_alpha = 1.f) :
 			red(p_red), green(p_green), blue(p_blue), alpha(p_alpha)
 		{ }
-		Color(unsigned char p_red, unsigned char p_green, unsigned char p_blue, unsigned char p_alpha = 255) :
+		/// <summary>
+		/// The channels are in the range [0, 255]
+		/// </summary>
+		Color(uint8_t p_red, uint8_t p_green, uint8_t p_blue, uint8_t p_alpha = (uint8_t)255) :
+			red(float(p_red) / 255.f), green(float(p_green) / 255.f), blue(float(p_blue) / 255.f), alpha(float(p_alpha) / 255.f)
+		{ }
+		/// <summary>
+		/// The channels are in the range [0, 255]
+		/// </summary>
+		Color(uint32_t p_red, uint32_t p_green, uint32_t p_blue, uint32_t p_alpha = (uint32_t)255) :
+			red(float(p_red) / 255.f), green(float(p_green) / 255.f), blue(float(p_blue) / 255.f), alpha(float(p_alpha) / 255.f)
+		{ }
+		/// <summary>
+		/// The channels are in the range [0, 255]
+		/// </summary>
+		Color(int32_t p_red, int32_t p_green, int32_t p_blue, int32_t p_alpha = (int32_t)255) :
 			red(float(p_red) / 255.f), green(float(p_green) / 255.f), blue(float(p_blue) / 255.f), alpha(float(p_alpha) / 255.f)
 		{ }
 		/// <summary>
@@ -1956,20 +1971,25 @@ namespace AvoGUI
 			blue = red;
 			alpha = constrain(p_alpha);
 		}
-		Color(unsigned char p_lightness, unsigned char p_alpha = 255)
+		/// <summary>
+		/// Initializes the color with a grayscale value. The values are bytes in the range [0, 255].
+		/// </summary>
+		Color(uint8_t p_lightness, uint8_t p_alpha = (uint8_t)255)
 		{
 			red = float(p_lightness) / 255.f;
 			green = red;
 			blue = red;
 			alpha = float(p_alpha) / 255.f;
 		}
-		Color(const Color& p_color, float p_alpha)
-		{
-			red = p_color.red;
-			green = p_color.green;
-			blue = p_color.blue;
-			alpha = p_alpha;
-		}
+		/// <summary>
+		/// Creates a copy of another color but with a new alpha.
+		/// </summary>
+		Color(const Color& p_color, float p_alpha) :
+			red(p_color.red), green(p_color.green), blue(p_color.blue), alpha(p_alpha)
+		{ }
+		/// <summary>
+		/// Initializes with a 4-byte packed RGBA color.
+		/// </summary>
 		Color(const colorInt& p_color)
 		{
 			operator=(p_color);
@@ -2051,7 +2071,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Sets the values for the red, green, blue and alpha channels. The parameters are bytes, in the range of [0, 255].
 		/// </summary>
-		void setRGBA(unsigned char p_red, unsigned char p_green, unsigned char p_blue, unsigned char p_alpha = 255)
+		void setRGBA(uint8_t p_red, uint8_t p_green, uint8_t p_blue, uint8_t p_alpha = (uint8_t)255)
 		{
 			red = float(p_red) / 255.f;
 			green = float(p_green) / 255.f;
@@ -2061,7 +2081,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Sets the same values for the red, green, blue and alpha channels. The parameters are bytes, in the range of [0, 255].
 		/// </summary>
-		void setRGBA(unsigned char p_grayscale, unsigned char p_alpha = 255)
+		void setRGBA(uint8_t p_grayscale, uint8_t p_alpha = 255)
 		{
 			red = float(p_grayscale) / 255.f;
 			green = float(p_grayscale) / 255.f;
@@ -2071,7 +2091,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Sets the values for the red, green and blue channels. The parameters are bytes, in the range of [0, 255].
 		/// </summary>
-		void setRGB(unsigned char p_red, unsigned char p_green, unsigned char p_blue)
+		void setRGB(uint8_t p_red, uint8_t p_green, uint8_t p_blue)
 		{
 			red = float(p_red) / 255.f;
 			green = float(p_green) / 255.f;
@@ -2080,7 +2100,83 @@ namespace AvoGUI
 		/// <summary>
 		/// Sets the same values for the red, green and blue channels. The parameters are bytes, in the range of [0, 255].
 		/// </summary>
-		void setRGB(unsigned char p_grayscale)
+		void setRGB(uint8_t p_grayscale)
+		{
+			red = float(p_grayscale) / 255.f;
+			green = float(p_grayscale) / 255.f;
+			blue = float(p_grayscale) / 255.f;
+		}
+		/// <summary>
+		/// Sets the values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
+		/// </summary>
+		void setRGBA(uint32_t p_red, uint32_t p_green, uint32_t p_blue, uint32_t p_alpha = 255U)
+		{
+			red = float(p_red) / 255.f;
+			green = float(p_green) / 255.f;
+			blue = float(p_blue) / 255.f;
+			alpha = float(p_alpha) / 255.f;
+		}
+		/// <summary>
+		/// Sets the same values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
+		/// </summary>
+		void setRGBA(uint32_t p_grayscale, uint32_t p_alpha = 255)
+		{
+			red = float(p_grayscale) / 255.f;
+			green = float(p_grayscale) / 255.f;
+			blue = float(p_grayscale) / 255.f;
+			alpha = float(p_alpha) / 255.f;
+		}
+		/// <summary>
+		/// Sets the values for the red, green and blue channels. The parameters are in the range [0, 255].
+		/// </summary>
+		void setRGB(uint32_t p_red, uint32_t p_green, uint32_t p_blue)
+		{
+			red = float(p_red) / 255.f;
+			green = float(p_green) / 255.f;
+			blue = float(p_blue) / 255.f;
+		}
+		/// <summary>
+		/// Sets the same values for the red, green and blue channels. The parameters are in the range [0, 255].
+		/// </summary>
+		void setRGB(uint32_t p_grayscale)
+		{
+			red = float(p_grayscale) / 255.f;
+			green = float(p_grayscale) / 255.f;
+			blue = float(p_grayscale) / 255.f;
+		}
+		/// <summary>
+		/// Sets the values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
+		/// </summary>
+		void setRGBA(int32_t p_red, int32_t p_green, int32_t p_blue, int32_t p_alpha = 255U)
+		{
+			red = float(p_red) / 255.f;
+			green = float(p_green) / 255.f;
+			blue = float(p_blue) / 255.f;
+			alpha = float(p_alpha) / 255.f;
+		}
+		/// <summary>
+		/// Sets the same values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
+		/// </summary>
+		void setRGBA(int32_t p_grayscale, int32_t p_alpha = 255)
+		{
+			red = float(p_grayscale) / 255.f;
+			green = float(p_grayscale) / 255.f;
+			blue = float(p_grayscale) / 255.f;
+			alpha = float(p_alpha) / 255.f;
+		}
+		/// <summary>
+		/// Sets the values for the red, green and blue channels. The parameters are in the range [0, 255].
+		/// </summary>
+		void setRGB(int32_t p_red, int32_t p_green, int32_t p_blue)
+		{
+			red = float(p_red) / 255.f;
+			green = float(p_green) / 255.f;
+			blue = float(p_blue) / 255.f;
+		}
+		/// <summary>
+		/// Sets the same values for the red, green and blue channels. The parameters are in the range [0, 255].
+		/// </summary>
+		void setRGB(int32_t p_grayscale)
 		{
 			red = float(p_grayscale) / 255.f;
 			green = float(p_grayscale) / 255.f;
@@ -2878,7 +2974,7 @@ namespace AvoGUI
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
 		/// <para>If you set this to true, this view will not block any mouse events from reaching views below this one.</para>
-		/// <para>Whether this view is a mouse listener or not has no effect on this.</para>
+		/// <para>Whether this view is a mouse listener has no effect on this.</para>
 		/// </summary>
 		void setIsOverlay(bool p_isOverlay)
 		{
@@ -2886,7 +2982,7 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view blocks mouse events from reaching views below this one or not. False means it</para>
+		/// <para>Returns whether this view blocks mouse events from reaching views below this one. False means it</para>
 		/// <para>blocks, true means it does not.</para>
 		/// </summary>
 		bool getIsOverlay()
@@ -4347,7 +4443,7 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view intersects/overlaps a rectangle relative to the top left corner of the parent or not.</para>
+		/// <para>Returns whether this view intersects/overlaps a rectangle relative to the top left corner of the parent.</para>
 		/// </summary>
 		bool getIsIntersecting(const Rectangle<float>& p_rectangle) const override
 		{
@@ -4385,7 +4481,7 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view intersects/overlaps another protected rectangle relative to the top left corner of the parent or not.</para>
+		/// <para>Returns whether this view intersects/overlaps another protected rectangle relative to the top left corner of the parent.</para>
 		/// </summary>
 		bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const override
 		{
@@ -4393,7 +4489,7 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view intersects/overlaps another view or not. Takes rounded corners of both views into account.</para>
+		/// <para>Returns whether this view intersects/overlaps another view. Takes rounded corners of both views into account.</para>
 		/// </summary>
 		bool getIsIntersecting(View* p_view) const;
 
@@ -4401,7 +4497,7 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view contains a rectangle or not. The rectangle is relative to the parent of the view.</para>
+		/// <para>Returns whether this view contains a rectangle. The rectangle is relative to the parent of the view.</para>
 		/// </summary>
 		bool getIsContaining(const Rectangle<float>& p_rectangle) const override
 		{
@@ -4439,7 +4535,7 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view contains another protected rectangle or not. The rectangle is relative to the parent of this view.</para>
+		/// <para>Returns whether this view contains another protected rectangle. The rectangle is relative to the parent of this view.</para>
 		/// </summary>
 		bool getIsContaining(ProtectedRectangle* p_rectangle) const override
 		{
@@ -4447,13 +4543,13 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view contains another view or not. Takes rounded corners of both views into account.</para>
+		/// <para>Returns whether this view contains another view. Takes rounded corners of both views into account.</para>
 		/// </summary>
 		bool getIsContaining(View* p_view) const;
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view contains a point or not. The point is relative to the parent of the view.</para>
+		/// <para>Returns whether this view contains a point. The point is relative to the parent of the view.</para>
 		/// </summary>
 		bool getIsContaining(float p_x, float p_y) const override
 		{
@@ -4491,7 +4587,7 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view contains a point or not. The point is relative to the parent of the view.</para>
+		/// <para>Returns whether this view contains a point. The point is relative to the parent of the view.</para>
 		/// </summary>
 		bool getIsContaining(const Point<float>& p_point) const override
 		{
@@ -4502,7 +4598,7 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets whether or not the view is visible and can receive events.</para>
+		/// <para>Sets whether the view is visible and can receive events.</para>
 		/// </summary>
 		void setIsVisible(bool p_isVisible)
 		{
@@ -4510,7 +4606,7 @@ namespace AvoGUI
 		}
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether or not the view is visible and can receive events.</para>
+		/// <para>Returns whether the view is visible and can receive events.</para>
 		/// </summary>
 		bool getIsVisible() const
 		{
@@ -4557,12 +4653,12 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets whether the elevation is shown with a shadow or not.</para>
+		/// <para>Sets whether the elevation is shown with a shadow.</para>
 		/// </summary>
 		void setHasShadow(bool p_hasShadow);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether the elevation is shown with a shadow or not.</para>
+		/// <para>Returns whether the elevation is shown with a shadow.</para>
 		/// </summary>
 		bool getHasShadow() const
 		{
@@ -4610,7 +4706,7 @@ namespace AvoGUI
 
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sets some arbitrary data you can use yourself to keep track of the view, or not.</para>
+		/// <para>Sets some arbitrary data you can use yourself to keep track of the view,.</para>
 		/// </summary>
 		/// <param name="p_userData"></param>
 		void setUserData(void* p_userData)
@@ -5072,13 +5168,13 @@ namespace AvoGUI
 	public:
 		/// <summary>
 		/// <para>This method is called when a character key has been pressed. The event contains the character</para>
-		/// <para>that was pressed, and whether it's a repeated character or not.</para>
+		/// <para>that was pressed, and whether it's a repeated character.</para>
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
 		virtual void handleCharacterInput(const KeyboardEvent& p_event) { }
 		/// <summary>
 		/// <para>This method is called when a keyboard key has been pressed. The event contains the virtual key</para>
-		/// <para>that was pressed, and whether it's a repeated key event or not.</para>
+		/// <para>that was pressed, and whether it's a repeated key event.</para>
 		/// </summary>
 		/// <param name="p_event">Object containing information about the event.</param>
 		virtual void handleKeyboardKeyDown(const KeyboardEvent& p_event) { }
@@ -5147,16 +5243,6 @@ namespace AvoGUI
 	/// </summary>
 	class Window : public ReferenceCounted
 	{
-	protected:
-		GUI* m_GUI;
-
-		Point<int32_t> m_position;
-		Point<uint32_t> m_size;
-		bool m_isFullscreen;
-		bool m_isOpen;
-
-		Point<int32_t> m_mousePosition;
-
 	public:
 		/// <summary>
 		/// Creates the window. To close it, use close().
@@ -5186,10 +5272,10 @@ namespace AvoGUI
 		/// </summary>
 		virtual void close() = 0;
 
-		bool getIsOpen()
-		{
-			return m_isOpen;
-		}
+		/// <summary>
+		/// Returns whether the OS window has been created and exists.
+		/// <summary>
+		virtual bool getIsOpen() const = 0;
 
 		//------------------------------
 
@@ -5202,19 +5288,19 @@ namespace AvoGUI
 		/// <summary>
 		/// <para>Returns the current styles that determine how the window is drawn by the OS.</para>
 		/// </summary>
-		virtual WindowStyleFlags getStyles() = 0;
+		virtual WindowStyleFlags getStyles() const = 0;
 
 		//------------------------------
 
 		/// <summary>
 		/// Returns the OS-specific window object associated with this window.
 		/// </summary>
-		virtual void* getWindowHandle() = 0;
+		virtual void* getWindowHandle() const = 0;
 
 		//------------------------------
 
 		/// <summary>
-		/// Changes whether the client area of the window fills the whole screen or not.
+		/// Changes whether the client area of the window fills the whole screen.
 		/// </summary>
 		virtual void setIsFullscreen(bool p_isFullscreen) = 0;
 		/// <summary>
@@ -5222,12 +5308,9 @@ namespace AvoGUI
 		/// </summary>
 		virtual void switchFullscreen() = 0;
 		/// <summary>
-		/// Returns whether the client area of the window fills the whole screen or not.
+		/// Returns whether the client area of the window fills the whole screen.
 		/// </summary>
-		bool getIsFullscreen()
-		{
-			return m_isFullscreen;
-		}
+		virtual bool getIsFullscreen() const = 0;
 
 		//------------------------------
 
@@ -5265,7 +5348,7 @@ namespace AvoGUI
 		/// <para>maximized so it fills the client area of the screen, or restored which is the default window</para>
 		/// <para>state where the window can overlap other windows and be resized normally.</para>
 		/// </summary>
-		virtual WindowState getState() = 0;
+		virtual WindowState getState() const = 0;
 
 		//------------------------------
 
@@ -5280,24 +5363,15 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the position of the window relative to the top-left corner of the screen.
 		/// </summary>
-		const Point<int32_t>& getPosition() const
-		{
-			return m_position;
-		}
+		virtual const Point<int32_t>& getPosition() const = 0;
 		/// <summary>
 		/// Returns the position of the left edge of the window relative to the top-left corner of the screen.
 		/// </summary>
-		int32_t getPositionX() const
-		{
-			return m_position.x;
-		}
+		virtual int32_t getPositionX() const = 0;
 		/// <summary>
 		/// Returns the position of the left edge of the window relative to the top-left corner of the screen.
 		/// </summary>
-		int32_t getPositionY() const
-		{
-			return m_position.y;
-		}
+		virtual int32_t getPositionY() const = 0;
 
 		/// <summary>
 		/// Sets the size of the client area of the window, in pixels.
@@ -5310,24 +5384,15 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the size of the client area of the window, in pixels.
 		/// </summary>
-		const Point<uint32_t>& getSize() const
-		{
-			return m_size;
-		}
+		virtual const Point<uint32_t>& getSize() const = 0;
 		/// <summary>
 		/// Returns the width of the client area of the window, in pixels.
 		/// </summary>
-		uint32_t getWidth() const
-		{
-			return m_size.x;
-		}
+		virtual uint32_t getWidth() const = 0;
 		/// <summary>
 		/// Returns the height of the client area of the window, in pixels.
 		/// </summary>
-		uint32_t getHeight() const
-		{
-			return m_size.y;
-		}
+		virtual uint32_t getHeight() const = 0;
 
 		/// <summary>
 		/// Sets the smallest allowed size for the window when the user is resizing it.
@@ -5340,15 +5405,15 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the smallest allowed size for the window when the user is resizing it.
 		/// </summary>
-		virtual Point<uint32_t> getMinSize() = 0;
+		virtual Point<uint32_t> getMinSize() const = 0;
 		/// <summary>
 		/// Returns the smallest allowed width for the window when the user is resizing it.
 		/// </summary>
-		virtual uint32_t getMinWidth() = 0;
+		virtual uint32_t getMinWidth() const = 0;
 		/// <summary>
 		/// Returns the smallest allowed height for the window when the user is resizing it.
 		/// </summary>
-		virtual uint32_t getMinHeight() = 0;
+		virtual uint32_t getMinHeight() const = 0;
 
 		/// <summary>
 		/// Sets the biggest allowed size for the window when the user is resizing it.
@@ -5361,56 +5426,53 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the biggest allowed size for the window when the user is resizing it.
 		/// </summary>
-		virtual Point<uint32_t> getMaxSize() = 0;
+		virtual Point<uint32_t> getMaxSize() const = 0;
 		/// <summary>
 		/// Returns the biggest allowed width for the window when the user is resizing it.
 		/// </summary>
-		virtual uint32_t getMaxWidth() = 0;
+		virtual uint32_t getMaxWidth() const = 0;
 		/// <summary>
 		/// Returns the biggest allowed height for the window when the user is resizing it.
 		/// </summary>
-		virtual uint32_t getMaxHeight() = 0;
+		virtual uint32_t getMaxHeight() const = 0;
 
 		//------------------------------
 
 		/// <summary>
 		/// <para>Returns the bounds of the current monitor used by the window</para>
 		/// </summary>
-		virtual Rectangle<uint32_t> getMonitorBounds() = 0;
+		virtual Rectangle<uint32_t> getMonitorBounds() const = 0;
 		/// <summary>
 		/// <para>Returns the size of the current monitor used by the window.</para>
 		/// </summary>
-		virtual Point<uint32_t> getMonitorPosition() = 0;
+		virtual Point<uint32_t> getMonitorPosition() const = 0;
 		/// <summary>
 		/// <para>Returns the size of the current monitor used by the window.</para>
 		/// </summary>
-		virtual Point<uint32_t> getMonitorSize() = 0;
+		virtual Point<uint32_t> getMonitorSize() const = 0;
 		/// <summary>
 		/// <para>Returns the width of the current monitor used by the window.</para>
 		/// </summary>
-		virtual uint32_t getMonitorWidth() = 0;
+		virtual uint32_t getMonitorWidth() const = 0;
 		/// <summary>
 		/// <para>Returns the height of the current monitor used by the window.</para>
 		/// </summary>
-		virtual uint32_t getMonitorHeight() = 0;
+		virtual uint32_t getMonitorHeight() const = 0;
 
 		//------------------------------
 
 		/// <summary>
-		/// Returns whether a key is currently pressed down or not.
+		/// Returns whether a key is currently pressed down.
 		/// </summary>
-		virtual bool getIsKeyDown(KeyboardKey p_key) = 0;
+		virtual bool getIsKeyDown(KeyboardKey p_key) const = 0;
 		/// <summary>
-		/// Returns whether a mouse button is currently pressed down or not.
+		/// Returns whether a mouse button is currently pressed down.
 		/// </summary>
-		virtual bool getIsMouseButtonDown(MouseButton p_button) = 0;
+		virtual bool getIsMouseButtonDown(MouseButton p_button) const = 0;
 		/// <summary>
 		/// Returns the position of the mouse cursor, relative to the top-left corner of the window.
 		/// </summary>
-		const Point<int32_t>& getMousePosition()
-		{
-			return m_mousePosition;
-		}
+		virtual const Point<int32_t>& getMousePosition() const = 0;
 
 		//------------------------------
 
@@ -5421,7 +5483,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the current mouse cursor.
 		/// </summary>
-		virtual Cursor getCursor() = 0;
+		virtual Cursor getCursor() const = 0;
 
 		//------------------------------
 
@@ -5453,17 +5515,17 @@ namespace AvoGUI
 		/// <para>Returns the 16-bit string which is currently stored on the OS clipboard, if there is any. Otherwhise the returned</para>
 		/// <para>string is empty.</para>
 		/// </summary>
-		virtual std::wstring getClipboardWideString() = 0;
+		virtual std::wstring getClipboardWideString() const = 0;
 		/// <summary>
 		/// <para>Returns the 8-bit string which is currently stored on the OS clipboard, if there is any. Otherwhise the returned</para>
 		/// <para>string is empty.</para>
 		/// </summary>
-		virtual std::string getClipboardString() = 0;
+		virtual std::string getClipboardString() const = 0;
 		
 		/// <summary>
 		/// <para>Returns the main type of the current data that is on the OS clipboard.</para>
 		/// </summary>
-		virtual ClipboardDataType getClipboardDataType() = 0;
+		virtual ClipboardDataType getClipboardDataType() const = 0;
 	};
 #pragma endregion
 
@@ -5687,7 +5749,7 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns the 2d position of a character in the text, specified by its index in the string.
 		/// </summary>
-		/// <param name="p_isRelativeToOrigin">Whether the position returned is relative to the origin of the drawing context or not. If not, it is relative to the bounds of the text.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the position returned is relative to the origin of the drawing context. If not, it is relative to the bounds of the text.</param>
 		virtual Point<float> getCharacterPosition(uint32_t p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
 		/// <summary>
 		/// Returns the width and height of a character in the text, specified by its index in the string.
@@ -5696,46 +5758,46 @@ namespace AvoGUI
 		/// <summary>
 		/// Returns a rectangle enclosing a character in the text, specified by its index in the string.
 		/// </summary>
-		/// <param name="p_isRelativeToOrigin">Whether the position of the bounds returned is relative to the origin of the drawing context or not. If not, it is relative to the bounds of the text.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the position of the bounds returned is relative to the origin of the drawing context. If not, it is relative to the bounds of the text.</param>
 		virtual Rectangle<float> getCharacterBounds(uint32_t p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
 		
 		/// <summary>
 		/// Returns the index of the character which is nearest to a point.
 		/// </summary>
-		/// <param name="p_isRelativeToOrigin">Whether the position given is relative to the origin of the drawing context or not. If not, it is relative to the bounds of the text.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the position given is relative to the origin of the drawing context. If not, it is relative to the bounds of the text.</param>
 		virtual uint32_t getNearestCharacterIndex(const Point<float>& p_point, bool p_isRelativeToOrigin = false) = 0;
 		/// <summary>
 		/// Returns the index of the character which is nearest to a point.
 		/// </summary>
-		/// <param name="p_isRelativeToOrigin">Whether the position given is relative to the origin of the drawing context or not. If not, it is relative to the bounds of the text.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the position given is relative to the origin of the drawing context. If not, it is relative to the bounds of the text.</param>
 		virtual uint32_t getNearestCharacterIndex(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false) = 0;
 		/// <summary>
 		/// Returns the index and position of the character which is nearest to a point.
 		/// </summary>
 		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
 		/// <param name="p_outCharacterPosition">Pointer to the 2d position to be returned.</param>
-		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context or not. If not, they are relative to the bounds of the text.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.</param>
 		virtual void getNearestCharacterIndexAndPosition(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
 		/// <summary>
 		/// Returns the index and position of the character which is nearest to a point.
 		/// </summary>
 		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
 		/// <param name="p_outCharacterPosition">Pointer to the 2d position to be returned.</param>
-		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context or not. If not, they are relative to the bounds of the text.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.</param>
 		virtual void getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
 		/// <summary>
 		/// Returns the index and bounds of the character which is nearest to a point.
 		/// </summary>
 		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
 		/// <param name="p_outCharacterBounds">Pointer to the bounding rectangle to be returned.</param>
-		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context or not. If not, they are relative to the bounds of the text.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.</param>
 		virtual void getNearestCharacterIndexAndBounds(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
 		/// <summary>
 		/// Returns the index and bounds of the character which is nearest to a point.
 		/// </summary>
 		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
 		/// <param name="p_outCharacterBounds">Pointer to the bounding rectangle to be returned.</param>
-		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context or not. If not, they are relative to the bounds of the text.</param>
+		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.</param>
 		virtual void getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
 
 		//------------------------------
@@ -6000,7 +6062,7 @@ namespace AvoGUI
 		/// </summary>
 		virtual void disableVsync() = 0;
 		/// <summary>
-		/// Returns whether presentation is synchronized with the monitor or not.
+		/// Returns whether presentation is synchronized with the monitor.
 		/// </summary>
 		virtual bool getIsVsyncEnabled() = 0;
 
@@ -6689,7 +6751,7 @@ namespace AvoGUI
 		void handleWindowCreate(const WindowEvent& p_event) override;
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Sends the event down to all window listeners and returns whether the window will close or not.</para>
+		/// <para>Sends the event down to all window listeners and returns whether the window will close.</para>
 		/// </summary>
 		bool handleWindowClose(const WindowEvent& p_event) override;
 		/// <summary>
@@ -6939,7 +7001,7 @@ namespace AvoGUI
 		void invalidateRectangle(Rectangle<float> p_rectangle);
 		/// <summary>
 		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether the GUi has invalid rectangles or not.</para>
+		/// <para>Returns whether the GUi has invalid rectangles.</para>
 		/// </summary>
 		bool getNeedsRedrawing()
 		{
@@ -7096,7 +7158,7 @@ namespace AvoGUI
 			m_isEnabled = true;
 		}
 		/// <summary>
-		/// Returns whether the ripple and hover effects are enabled or not.
+		/// Returns whether the ripple and hover effects are enabled.
 		/// </summary>
 		bool getIsEnabled()
 		{
@@ -7123,7 +7185,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// <para>Sets whether the view will be lightly highlighted when the mouse hovers over it or not.</para>
+		/// <para>Sets whether the view will be lightly highlighted when the mouse hovers over it.</para>
 		/// <para>This is true by default and is recommended since it indicates that the view can be pressed.</para>
 		/// </summary>
 		void setHasHoverEffect(bool p_hasHoverEffect)
@@ -7131,7 +7193,7 @@ namespace AvoGUI
 			m_hasHoverEffect = p_hasHoverEffect;
 		}
 		/// <summary>
-		/// Returns whether the view will be lightly highlighted when the mouse hovers over it or not.
+		/// Returns whether the view will be lightly highlighted when the mouse hovers over it.
 		/// </summary>
 		bool getHasHoverEffect()
 		{
@@ -7224,7 +7286,7 @@ namespace AvoGUI
 		void enable();
 
 		/// <summary>
-		/// Returns whether the user can use the button or not.
+		/// Returns whether the user can use the button.
 		/// </summary>
 		bool getIsEnabled()
 		{
@@ -7234,14 +7296,14 @@ namespace AvoGUI
 		//------------------------------
 
 		/// <summary>
-		/// Sets whether the button has an accent/primary color or not. If not, it has a secondary color. The button uses primary color by default.
+		/// Sets whether the button has an accent/primary color. If not, it has a secondary color. The button uses primary color by default.
 		/// </summary>
 		void setIsPrimary(bool p_isPrimary)
 		{
 			m_isPrimary = p_isPrimary;
 		}
 		/// <summary>
-		/// Returns whether the button has an accent/primary color or not. If not, it has a secondary color.
+		/// Returns whether the button has an accent/primary color. If not, it has a secondary color.
 		/// </summary>
 		bool getIsPrimary()
 		{
@@ -7323,6 +7385,9 @@ namespace AvoGUI
 
 	//------------------------------
 
+#define TEXT_FIELD_PADDING_LEFT 14.f
+#define TEXT_FIELD_PADDING_RIGHT 14.f
+#define TEXT_FIELD_CARET_BLINK_RATE 30 // In frames
 	class TextField : public View, public KeyboardEventListener
 	{
 	public:
@@ -7340,6 +7405,7 @@ namespace AvoGUI
 		float m_focusAnimationValue;
 
 		Text* m_text;
+		float m_textDrawingOffsetX;
 		float m_fontSize;
 
 		uint32_t m_caretIndex;
@@ -7353,6 +7419,11 @@ namespace AvoGUI
 		Point<float> m_selectionEndPosition;
 
 		Type m_type;
+
+		//------------------------------
+
+		void updateCaretTracking();
+		void updateSelectionEndTracking();
 
 	public:
 		TextField(View* p_parent, Type p_type = Type::Filled, const char* p_labelString = "", float p_width = 120.f, float fontSize = 16.f);
