@@ -26,19 +26,25 @@ class MyApplication : public AvoGUI::GUI
   
   void handleMouseDown(const AvoGUI::MouseEvent& p_event) override
   {
-    // Calls the standard implementation that sends the event down to event listeners. It is recommended to do this since any
-    // other views won't be able to react to mouse events otherwise. (note that this call is specific to this instance and is
-    // not a static method, despite the syntax. Also, you do not need to specify the namespace when you do this, as seen.)
-    GUI::handleMouseDown(p_event); 
-    
-    // If you for some reason want to react to mouse down events from your GUI, you can do it here.
-    // This is called directly from the window, and the mouse coordinates in the event are relative
-    // to the top-left corner of the window.
+    // If you want to react to mouse down events from your GUI, you can do it here.
+    // This is called from handleGlobalMouseDown, which is a method that sends the event down to all targeted views.
+    // The mouse coordinates in the event are relative to the top-left corner of the GUI.
+    // Note that only mouse events which are targeted at the GUI and aren't absorbed by children are received here.
+    // This method belongs to AvoGUI::View.
+  }
+  void handleGlobalMouseDown(const AvoGUI::MouseEvent& p_event) override
+  {
+    // Every single mouse down event that the window gets is sent here.
+    // It can be a good idea to call the default GUI implementation like this:
+    GUI::handleGlobalMouseDown(p_event); // Since it sends the event to children.
+
+    // Note that this method is called directly from the window no matter what, so never call addGlobalMouseEventListener(gui)...
   }
   
-  // Other events that you can override in your GUI are: handleMouseUp, handleDoubleClick, handleMouseMove, handleMouseScroll,
-  // handleCharacterInput, handleKeyboardKeyDown and handleKeyboardKeyUp.
-  
+  // Other event listeners that you can override in your GUI are: handleMouseUp, handleDoubleClick, handleMouseMove, handleMouseScroll,
+  // handleMouseEnter, handleMouseLeave, handleCharacterInput, handleKeyboardKeyDown and handleKeyboardKeyUp - as well as the global versions. 
+  // Mouse events and keyboard events are explained more later in this readme.
+
   //------------------------------
   
   void createContent() override
@@ -67,9 +73,9 @@ class MyApplication : public AvoGUI::GUI
 ```
 
 ### Creating a custom view
-First of all, what exactly is a view? A view is a rectangle that can draw itself, and is used to create GUI components. If you want your view to react to keyboard events, inherit AvoGUI::KeyboardEventListener, register it with getGUI()->addKeyboardEventListener(this) and override the keyboard event methods. Look at the documentation in AvoGUI.hpp for more information. 
+First of all, what exactly is a view? A view is a rectangle that can draw itself, and is used to create GUI components. If you want your view to react to keyboard events, inherit AvoGUI::KeyboardEventListener, override the keyboard event methods and use getGUI()->setKeyboardFocus(view) when you want your view to be the target of keyboard events. If you want your view to respond to all keyboard events independent of being the keyboard focus, call getGUI()->addGlobalKeyboardEventListener(view). To respond to mouse events you first need to call enableMouseEvents() and then override the mouse event listener methods (which all views have). To add global mouse event listeners, call getGUI()->addGlobalMouseEventListener(view). Look at the documentation in AvoGUI.hpp for more information. 
 
-This is the structure of a custom View class. Every method that can be overridden by your view (assuming it only inherits AvoGUI::View) is shown here.
+This is the structure of a custom View class. Every method that can be overridden by your view (assuming it only inherits AvoGUI::View) is shown here. 
 ```cpp
 class MyView : public AvoGUI::View
 {
@@ -108,8 +114,8 @@ class MyView : public AvoGUI::View
     // the constructor or something. Otherwise, no mouse events will be recieved.
   }
   
-  // Other mouse events that you can override in your view are: handleMouseUp, handleDoubleClick, handleMouseMove, 
-  // handleMouseScroll
+  // Other mouse events that you can override by default in your view are: handleMouseUp, handleDoubleClick, handleMouseMove, 
+  // handleMouseScroll, handleMouseLeave and handleMouseEnter
   
   //------------------------------
   
