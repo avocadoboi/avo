@@ -1,8 +1,9 @@
 /*
-
-	GUI library that follows Google's Material design
-	guidelines, by Björn Sundin aka Avocado Boy.
-	It is very freely themable, and easy to use.
+	GUI library by Björn Sundin aka Avocado Boy. It is designed to be logical,
+	structured and beautiful from the perspective of the user of the library -
+	while still being efficient. The library comes with some Material Design
+	components ready to use as well as the Roboto font, making it easy to
+	create good looking and feeling programs quickly.
 
 	    (me)
 		 v
@@ -20,11 +21,13 @@
 	has no default library implementation and is meant to be implemented by you, the user of the library. A 
 	method that is "LIBRARY IMPLEMENTED" can sometimes be overridden (if it is virtual) and in that case you 
 	can choose to keep the library implementation and only add to it (by calling Parent::method(...) from
-	inside your overridden method()), or you can completely override it (although that can sometimes remove
-	important functionality).
+	inside your overridden method), or you can completely override it - although that can sometimes remove
+	important functionality.
 
 	Submit issues at GitHub!
 	https://github.com/avocadoboi/AvoGUI
+
+	Started development in summer 2018.
 */
 
 #pragma once
@@ -44,26 +47,26 @@
 #include <iostream>
 
 // Memory leak detection
-#define _CRTDBG_MAP_ALLOC
-#include <stdlib.h>
-#include <crtdbg.h>
+//#define _CRTDBG_MAP_ALLOC
+//#include <stdlib.h>
+//#include <crtdbg.h>
 
 //------------------------------
 
 namespace AvoGUI
 {
-	/// <summary>
-	/// Returns the square root of a float using a fast but less accurate algorithm.
-	/// </summary>
+	/*
+		Returns the square root of a float using a fast but less accurate algorithm.
+	*/
 	inline float fastSqrt(float p_x)
 	{
 		int32_t bits = (*(int32_t*)&p_x - (1 << 23) >> 1) + (1 << 29);
 		float approximation = *(float*)&bits;
 		return (p_x / approximation + approximation) * 0.5f;
 	}
-	/// <summary>
-	/// Returns the inverse square root of a float using a fast but less accurate algorithm.
-	/// </summary>
+	/*
+		Returns the inverse square root of a float using a fast but less accurate algorithm.
+	*/
 	inline float fastInverseSqrt(float p_x)
 	{
 		int32_t bits = 0x5f375a86 - (*(int32_t*)&p_x >> 1);
@@ -71,40 +74,40 @@ namespace AvoGUI
 		return approximation * (1.5f - 0.5f*p_x*approximation*approximation);
 	}
 
-	/// <summary>
-	/// <para>Returns a random double between 0 and 1. It just uses the standard library random header.</para>
-	/// <para>Convenient function.</para>
-	/// </summary>
+	/*
+		Returns a random double between 0 and 1. It just uses the standard library random header.
+		Convenient function.
+	*/
 	double random();
 
-	/// <summary>
-	/// Returns the biggest of two numbers.
-	/// </summary>
+	/*
+		Returns the biggest of two numbers.
+	*/
 	template<typename Type>
 	Type max(Type p_a, Type p_b)
 	{
 		return p_a > p_b ? p_a : p_b;
 	}
-	/// <summary>
-	/// Returns the biggest of three numbers.
-	/// </summary>
+	/*
+		Returns the biggest of three numbers.
+	*/
 	template<typename Type>
 	Type max(Type p_a, Type p_b, Type p_c)
 	{
 		return p_a > p_b ? (p_a > p_c ? p_a : p_c) : (p_b > p_c ? p_b : p_c);
 	}
 
-	/// <summary>
-	/// Returns the smallest of two numbers.
-	/// </summary>
+	/*
+		Returns the smallest of two numbers.
+	*/
 	template<typename Type>
 	Type min(Type p_a, Type p_b)
 	{
 		return p_a < p_b ? p_a : p_b;
 	}
-	/// <summary>
-	/// Returns the smallest of three numbers.
-	/// </summary>
+	/*
+		Returns the smallest of three numbers.
+	*/
 	template<typename Type>
 	Type min(Type p_a, Type p_b, Type p_c)
 	{
@@ -113,25 +116,26 @@ namespace AvoGUI
 
 	//------------------------------
 
-	/// <summary>
-	/// Returns a value between p_start and p_end depending on p_progress. This is linear interpolation.
-	/// <param name="p_progress">If this is below 0 or above 1, the returned value will not be within the start and end position.</param>
-	/// </summary>
+	/*
+		Returns a value between p_start and p_end depending on p_progress. This is linear interpolation.
+		If p_progress is below 0 or above 1, the returned value will not be within the start and end position.
+	*/
 	inline float interpolate(float p_start, float p_end, float p_progress)
 	{
 		return p_start * (1.f - p_progress) + p_end * p_progress;
 	}
-	/// <summary>
-	/// Returns a value between p_start and p_end depending on p_progress. This is linear interpolation.
-	/// <param name="p_progress">If this is below 0 or above 1, the returned value will not be within the start and end position.</param>
-	/// </summary>
+	/*
+		Returns a value between p_start and p_end depending on p_progress. This is linear interpolation.
+		If p_progress is below 0 or above 1, the returned value will not be within the start and end position.
+	*/
 	inline double interpolate(double p_start, double p_end, double p_progress)
 	{
 		return p_start * (1.0 - p_progress) + p_end * p_progress;
 	}
-	/// <summary>
-	/// Clips p_value so that the returned value is never below p_min or above p_max. If p_min <= p_value <= p_max, then the returned value is equal to p_value.
-	/// </summary>
+	/*
+		Clips p_value so that the returned value is never below p_min or above p_max. 
+		If p_min <= p_value <= p_max, then the returned value is equal to p_value.
+	*/
 	template<typename Type>
 	Type constrain(Type p_value, Type p_min = 0, Type p_max = 1)
 	{
@@ -140,9 +144,20 @@ namespace AvoGUI
 
 	//------------------------------
 
-	/// <summary>
-	/// Removes an element from a vector. The function returns true if the element existed in the vector and was removed.
-	/// </summary>
+	/*
+		Returns -1 if the number is negative, 0 if it's 0 and 1 if it's positive.
+	*/
+	template<typename Type>
+	inline Type sign(Type p_number)
+	{
+		return (p_number > (Type)0) - (p_number < (Type)0);
+	}
+
+	//------------------------------
+
+	/*
+		Removes an element from a vector. The function returns true if the element existed in the vector and was removed.
+	*/
 	template<typename Type>
 	bool removeVectorElementWhileKeepingOrder(std::vector<Type>& p_vector, Type p_value)
 	{
@@ -157,9 +172,10 @@ namespace AvoGUI
 		return false;
 	}
 
-	/// <summary>
-	/// Removes an element from a vector efficiently without keeping the order of the elements in the vector. The function returns true if the element existed in the vector and was removed.
-	/// </summary>
+	/*
+		Removes an element from a vector without keeping the order of the elements in the vector, making it more efficient. 
+		The function returns true if the element existed in the vector and was removed (replaced by the last element).
+	*/
 	template<typename Type>
 	bool removeVectorElementWithoutKeepingOrder(std::vector<Type>& p_vector, Type p_value)
 	{
@@ -177,17 +193,19 @@ namespace AvoGUI
 
 	//------------------------------
 
-	/// <summary>
-	/// <para>Converts a const char* string to a wchar* string.</para>
-	/// </summary>
+	/*
+		Converts a const char* string to a wchar* string.
+		p_string should be null-terminated.
+		p_result should be allocated with p_numberOfCharactersInResult number of wchar_t characters.
+	*/
 	void widenString(const char* p_string, wchar_t* p_result, uint32_t p_numberOfCharactersInResult);
 
 	//------------------------------
 
-	/// <summary>
-	/// A 2D point where x is the horizontal component and y is the vertical component.
-	/// Or just a list of two numbers.
-	/// </summary>
+	/*
+		A 2D point/vector where x is the horizontal component and y is the vertical component if you were to
+		think of it graphically.
+	*/
 	template<typename PointType = float>
 	struct Point
 	{
@@ -202,10 +220,9 @@ namespace AvoGUI
 			x = p_x;
 			y = p_y;
 		}
-		/// <summary>
-		/// Initializes the point with the same x and y coordinates.
-		/// </summary>
-		/// <param name="p_coordinate">x and y coordinate</param>
+		/*
+			Initializes the point with the same x and y coordinates.
+		*/
 		Point(PointType p_coordinate)
 		{
 			x = p_coordinate;
@@ -248,10 +265,9 @@ namespace AvoGUI
 			return *this;
 		}
 
-		/// <summary>
-		/// Sets the same value for the x and the y coordinates.
-		/// </summary>
-		/// <param name="p_coordinate">x and y coordinate</param>
+		/*
+			Sets the same value for the x and the y coordinates.
+		*/
 		Point<PointType>& operator=(PointType p_coordinate)
 		{
 			x = y = p_coordinate;
@@ -308,9 +324,9 @@ namespace AvoGUI
 		{
 			return Point<PointType>(x + (PointType)p_point.x, y + (PointType)p_point.y);
 		}
-		/// <summary>
-		/// Returns this point offset by the same amount on the x and y axis.
-		/// </summary>
+		/*
+			Returns a version of this point that is offset by an equal amount on the x- and y-axis.
+		*/
 		template<typename OffsetType>
 		Point<PointType> operator+(OffsetType p_offset) const
 		{
@@ -353,11 +369,9 @@ namespace AvoGUI
 		{
 			return Point<PointType>(x - (PointType)p_point.x, y - (PointType)p_point.y);
 		}
-		/// <summary>
-		/// Returns this point offset negatively by the same amount on the x and y axis.
-		/// </summary>
-		/// <param name="p_offset"></param>
-		/// <returns></returns>
+		/*
+			Returns a version of this point that is offset negatively by the same amount on the x- and y-axis.
+		*/
 		Point<PointType> operator-(PointType p_offset) const
 		{
 			return Point<PointType>(x - p_offset, y - p_offset);
@@ -580,6 +594,9 @@ namespace AvoGUI
 		}
 	};
 
+	/*
+		Linearly interpolates between p_start and p_end. This means we are calculating a point on the line segment between the two points.
+	*/
 	template<typename Type>
 	Point<Type> interpolate(const Point<Type>& p_start, const Point<Type>& p_end, double p_progress)
 	{
@@ -590,9 +607,9 @@ namespace AvoGUI
 
 	class ProtectedRectangle;
 
-	/// <summary>
-	/// A 2D axis-aligned rectangle. right > left and bottom > top. 
-	/// </summary>
+	/*
+		A 2D axis-aligned rectangle. right > left and bottom > top. 
+	*/
 	template<typename RectangleType = float>
 	class Rectangle
 	{
@@ -664,10 +681,9 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// Offsets the position of the rectangle.
-		/// </summary>
-		/// <param name="p_point">Offset to use</param>
+		/*
+			Offsets the position of the rectangle.
+		*/
 		template<typename OffsetType>
 		Rectangle<RectangleType>& operator+=(const Point<OffsetType>& p_offset)
 		{
@@ -677,10 +693,9 @@ namespace AvoGUI
 			bottom += (RectangleType)p_offset.y;
 			return *this;
 		}
-		/// <summary>
-		/// Offsets the position of the rectangle negatively.
-		/// </summary>
-		/// <param name="p_point">Negative offset to use</param>
+		/*
+			Offsets the position of the rectangle negatively.
+		*/
 		template<typename OffsetType>
 		Rectangle<RectangleType>& operator-=(const Point<OffsetType>& p_offset)
 		{
@@ -728,53 +743,53 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new top and left edge coordinate.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a new top and left edge coordinate.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType> createCopyWithTopLeft(RectangleType p_topAndLeft, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_topAndLeft, p_topAndLeft, p_willKeepSize*(p_topAndLeft - left) + right, p_willKeepSize*(p_topAndLeft - top) + bottom);
 		}
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new top-left corner.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a new top-left corner.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		template<typename PositionType>
 		Rectangle<RectangleType> createCopyWithTopLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_position.x, p_position.y, p_willKeepSize*(p_position.x - left) + right, p_willKeepSize*(p_position.y - top) + bottom);
 		}
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new top-left corner.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a new top-left corner.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType> createCopyWithTopLeft(RectangleType p_left, RectangleType p_top, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_left, p_top, p_willKeepSize*(p_left - left) + right, p_willKeepSize*(p_top - top) + bottom);
 		}
 
-		/// <summary>
-		/// <para>Sets the same position for the top and left edge of the rectangle.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Sets the same position for the top and left edge of the rectangle.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType>& setTopLeft(RectangleType p_topAndLeft, bool p_willKeepSize = true)
 		{
 			return setTopLeft(p_topAndLeft, p_topAndLeft, p_willKeepSize);
 		}
-		/// <summary>
-		/// <para>Sets the top left coordinates of the rectangle.</para> 
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Sets the top left coordinates of the rectangle. 
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		template<typename PositionType>
 		Rectangle<RectangleType>& setTopLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true)
 		{
 			return setTopLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
-		/// <summary>
-		/// <para>Sets the top left coordinates of the rectangle.</para> 
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Sets the top left coordinates of the rectangle. 
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType>& setTopLeft(RectangleType p_left, RectangleType p_top, bool p_willKeepSize = true)
 		{
 			if (p_willKeepSize)
@@ -786,9 +801,9 @@ namespace AvoGUI
 			top = p_top;
 			return *this;
 		}
-		/// <summary>
-		/// Returns the top left coordinates of the rectangle.
-		/// </summary>
+		/*
+			Returns the top left coordinates of the rectangle.
+		*/
 		Point<RectangleType> getTopLeft() const
 		{
 			return Point<RectangleType>(left, top);
@@ -796,52 +811,52 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new top and right edge coordinate.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a new top and right edge coordinate.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType> createCopyWithTopRight(RectangleType p_topAndRight, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_topAndRight - right) + left, p_topAndRight, p_topAndRight, p_willKeepSize*(p_topAndRight - top) + bottom);
 		}
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new top-right corner.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a new top-right corner.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		template<typename PositionType>
 		Rectangle<RectangleType> createCopyWithTopRight(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_position.x - right) + left, p_position.y, p_position.x, p_willKeepSize*(p_position.y - top) + bottom);
 		}
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new top-right corner.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a new top-right corner.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType> createCopyWithTopRight(RectangleType p_right, RectangleType p_top, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_right - right) + left, p_top, p_right, p_willKeepSize*(p_top - top) + bottom);
 		}
-		/// <summary>
-		/// <para>Sets the same position for the top and right edge of the rectangle.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Sets the same position for the top and right edge of the rectangle.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType>& setTopRight(RectangleType p_topAndRight, bool p_willKeepSize = true)
 		{
 			return setTopRight(p_topAndRight, p_topAndRight, p_willKeepSize);
 		}
-		/// <summary>
-		/// <para>Sets the top right coordinates of the rectangle.</para> 
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Sets the top right coordinates of the rectangle. 
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		template<typename PositionType>
 		Rectangle<RectangleType>& setTopRight(const Point<PositionType>& p_position, bool p_willKeepSize = true)
 		{
 			return setTopRight(p_position.x, p_position.y, p_willKeepSize);
 		}
-		/// <summary>
-		/// <para>Sets the top right coordinates of the rectangle.</para> 
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Sets the top right coordinates of the rectangle. 
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType>& setTopRight(RectangleType p_right, RectangleType p_top, bool p_willKeepSize = true)
 		{
 			if (p_willKeepSize)
@@ -853,9 +868,9 @@ namespace AvoGUI
 			top = p_top;
 			return *this;
 		}
-		/// <summary>
-		/// Returns the top right coordinates of the rectangle.
-		/// </summary>
+		/*
+			Returns the top right coordinates of the rectangle.
+		*/
 		Point<RectangleType> getTopRight() const
 		{
 			return Point<RectangleType>(right, top);
@@ -863,52 +878,52 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new bottom and left edge coordinate.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a new bottom and left edge coordinate.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType> createCopyWithBottomLeft(RectangleType p_bottomAndLeft, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_bottomAndLeft, p_willKeepSize*(p_bottomAndLeft - bottom) + top, (p_bottomAndLeft - left) + right, p_bottomAndLeft);
 		}
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new bottom-left corner.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a new bottom-left corner.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		template<typename PositionType>
 		Rectangle<RectangleType> createCopyWithBottomLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_position.x, p_willKeepSize*(p_position.y - bottom) + top, (p_position.x - left) + right, p_position.y);
 		}
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new bottom-left corner.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a new bottom-left corner.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType> createCopyWithBottomLeft(RectangleType p_left, RectangleType p_bottom, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_left, p_willKeepSize*(p_bottom - bottom) + top, (p_left - left) + right, p_bottom);
 		}
-		/// <summary>
-		/// <para>Sets the same position for the bottom and left edge of the rectangle.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Sets the same position for the bottom and left edge of the rectangle.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType>& setBottomLeft(RectangleType p_bottomAndLeft, bool p_willKeepSize = true)
 		{
 			return setBottomLeft(p_bottomAndLeft, p_bottomAndLeft, p_willKeepSize);
 		}
-		/// <summary>
-		/// <para>Sets the bottom left coordinates of the rectangle.</para> 
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Sets the bottom left coordinates of the rectangle. 
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		template<typename PositionType>
 		Rectangle<RectangleType>& setBottomLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true)
 		{
 			return setBottomLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
-		/// <summary>
-		/// <para>Sets the bottom left coordinates of the rectangle.</para> 
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Sets the bottom left coordinates of the rectangle. 
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType>& setBottomLeft(RectangleType p_left, RectangleType p_bottom, bool p_willKeepSize = true)
 		{
 			if (p_willKeepSize)
@@ -920,9 +935,9 @@ namespace AvoGUI
 			bottom = p_bottom;
 			return *this;
 		}
-		/// <summary>
-		/// Returns the bottom left coordinates of the rectangle.
-		/// </summary>
+		/*
+			Returns the bottom left coordinates of the rectangle.
+		*/
 		Point<RectangleType> getBottomLeft() const
 		{
 			return Point<RectangleType>(left, bottom);
@@ -930,52 +945,52 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new bottom and right edge coordinate.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a new bottom and right edge coordinate.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType> createCopyWithBottomRight(RectangleType p_bottomAndRight, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_bottomAndRight - right) + left, p_willKeepSize*(p_bottomAndRight - bottom) + top, p_bottomAndRight, p_bottomAndRight);
 		}
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new bottom-right corner.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a new bottom-right corner.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		template<typename PositionType>
 		Rectangle<RectangleType> createCopyWithBottomRight(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_position.x - right) + left, p_willKeepSize*(p_position.y - bottom) + top, p_position.x, p_position.y);
 		}
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new bottom-right corner.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a new bottom-right corner.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType> createCopyWithBottomRight(RectangleType p_right, RectangleType p_bottom, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_right - right) + left, p_willKeepSize*(p_bottom - bottom) + top, p_right, p_bottom);
 		}
-		/// <summary>
-		/// <para>Sets the same position for the bottom and right edge of the rectangle.</para>
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Sets the same position for the bottom and right edge of the rectangle.
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType>& setBottomRight(RectangleType p_bottomAndRight, bool p_willKeepSize = true)
 		{
 			return setBottomRight(p_bottomAndRight, p_bottomAndRight, p_willKeepSize);
 		}
-		/// <summary>
-		/// <para>Sets the bottom right coordinates of the rectangle.</para> 
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Sets the bottom right coordinates of the rectangle. 
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		template<typename PositionType>
 		Rectangle<RectangleType>& setBottomRight(const Point<PositionType>& p_position, bool p_willKeepSize = true)
 		{
 			return setBottomRight(p_position.x, p_position.y, p_willKeepSize);
 		}
-		/// <summary>
-		/// <para>Sets the bottom right coordinates of the rectangle.</para> 
-		/// <para>If p_willKeepSize is true, the rectangle will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			Sets the bottom right coordinates of the rectangle. 
+			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
+		*/
 		Rectangle<RectangleType>& setBottomRight(RectangleType p_right, RectangleType p_bottom, bool p_willKeepSize = true)
 		{
 			if (p_willKeepSize)
@@ -987,9 +1002,9 @@ namespace AvoGUI
 			bottom = p_bottom;
 			return *this;
 		}
-		/// <summary>
-		/// Returns the bottom right coordinates of the rectangle.
-		/// </summary>
+		/*
+			Returns the bottom right coordinates of the rectangle.
+		*/
 		Point<RectangleType> getBottomRight() const
 		{
 			return Point<RectangleType>(right, bottom);
@@ -997,11 +1012,10 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Sets the left coordinate of the rectangle.</para>
-		/// <para>If p_willKeepWidth is true, the right coordinate will be changed</para>
-		/// <para>so that the width stays the same.</para>
-		/// </summary>
+		/*
+			Sets the left coordinate of the rectangle.
+			If p_willKeepWidth is true, the right coordinate will be changed so that the width stays the same.
+		*/
 		Rectangle<RectangleType>& setLeft(RectangleType p_left, bool p_willKeepWidth = true)
 		{
 			if (p_willKeepWidth)
@@ -1011,11 +1025,10 @@ namespace AvoGUI
 			left = p_left;
 			return *this;
 		}
-		/// <summary>
-		/// <para>Sets the top coordinate of the rectangle.</para>
-		/// <para>If p_willKeepHeight is true, the bottom coordinate will be changed</para>
-		/// <para>so that the height stays the same.</para>
-		/// </summary>
+		/*
+			Sets the top coordinate of the rectangle.
+			If p_willKeepHeight is true, the bottom coordinate will be changed so that the height stays the same.
+		*/
 		Rectangle<RectangleType>& setTop(RectangleType p_top, bool p_willKeepHeight = true)
 		{
 			if (p_willKeepHeight)
@@ -1025,11 +1038,10 @@ namespace AvoGUI
 			top = p_top;
 			return *this;
 		}
-		/// <summary>
-		/// <para>Sets the right coordinate of the rectangle.</para>
-		/// <para>If p_willKeepWidth is true, the left coordinate will be changed</para>
-		/// <para>so that the width stays the same.</para>
-		/// </summary>
+		/*
+			Sets the right coordinate of the rectangle.
+			If p_willKeepWidth is true, the left coordinate will be changed so that the width stays the same.
+		*/
 		Rectangle<RectangleType>& setRight(RectangleType p_right, bool p_willKeepWidth = true)
 		{
 			if (p_willKeepWidth)
@@ -1039,11 +1051,10 @@ namespace AvoGUI
 			right = p_right;
 			return *this;
 		}
-		/// <summary>
-		/// <para>Sets the bottom coordinate of the rectangle.</para>
-		/// <para>If p_willKeepWidth is true, the top coordinate will be changed</para>
-		/// <para>so that the height stays the same.</para>
-		/// </summary>
+		/*
+			Sets the bottom coordinate of the rectangle.
+			If p_willKeepWidth is true, the top coordinate will be changed so that the height stays the same.
+		*/
 		Rectangle<RectangleType>& setBottom(RectangleType p_bottom, bool p_willKeepHeight = true)
 		{
 			if (p_willKeepHeight)
@@ -1056,9 +1067,9 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// Returns a copy of the rectangle where the coordinates are rounded in the directions that expand the rectangle.
-		/// </summary>
+		/*
+			Returns a copy of the rectangle where the coordinates are rounded in the directions that expand the rectangle.
+		*/
 		Rectangle<RectangleType> createCopyWithOutwardsRoundedCoordinates() const
 		{
 			Rectangle<RectangleType> rounded;
@@ -1068,9 +1079,9 @@ namespace AvoGUI
 			rounded.bottom = ceil(bottom);
 			return rounded;
 		}
-		/// <summary>
-		/// Rounds the coordinates of the rectangle in the directions that expand the rectangle.
-		/// </summary>
+		/*
+			Rounds the coordinates of the rectangle in the directions that expand the rectangle.
+		*/
 		Rectangle<RectangleType>& roundCoordinatesOutwards()
 		{
 			left = floor(left);
@@ -1082,18 +1093,18 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a center coordinate for both the x-axis and the y-axis.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a center coordinate for both the x-axis and the y-axis.
+		*/
 		Rectangle<RectangleType> createCopyWithCenter(RectangleType p_centerXY) const
 		{
 			RectangleType offsetX = (RectangleType)p_centerXY - (left + right) / 2;
 			RectangleType offsetY = (RectangleType)p_centerXY - (top + bottom) / 2;
 			return Rectangle<RectangleType>(offsetX + left, offsetY + top, offsetX + right, offsetY + bottom);
 		}
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new center position.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a new center position.
+		*/
 		template<typename PositionType>
 		Rectangle<RectangleType> createCopyWithCenter(const Point<PositionType>& p_position) const
 		{
@@ -1101,33 +1112,33 @@ namespace AvoGUI
 			RectangleType offsetY = (RectangleType)p_position.y - (top + bottom)/2;
 			return Rectangle<RectangleType>(offsetX + left, offsetY + top, offsetX + right, offsetY + bottom);
 		}
-		/// <summary>
-		/// <para>Creates a copy of this rectangle, with a new center position.</para>
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, with a new center position.
+		*/
 		Rectangle<RectangleType> createCopyWithCenter(RectangleType p_centerX, RectangleType p_centerY) const
 		{
 			RectangleType offsetX = p_centerX - (left + right)/2;
 			RectangleType offsetY = p_centerY - (top + bottom)/2;
 			return Rectangle<RectangleType>(offsetX + left, offsetY + top, offsetX + right, offsetY + bottom);
 		}
-		/// <summary>
-		/// <para>Sets the same center coordinates of the rectangle for the x-axis and the y-axis.</para> 
-		/// </summary>
+		/*
+			Sets the same center coordinates of the rectangle for the x-axis and the y-axis. 
+		*/
 		Rectangle<RectangleType>& setCenter(RectangleType p_centerXY)
 		{
 			return setCenter(p_centerXY, p_centerXY);
 		}
-		/// <summary>
-		/// <para>Sets the center coordinates of the rectangle.</para> 
-		/// </summary>
+		/*
+			Sets the center coordinates of the rectangle. 
+		*/
 		template<typename PositionType>
 		Rectangle<RectangleType>& setCenter(const Point<PositionType>& p_position)
 		{
 			return setCenter(p_position.x, p_position.y);
 		}
-		/// <summary>
-		/// <para>Sets the center coordinates of the rectangle.</para> 
-		/// </summary>
+		/*
+			Sets the center coordinates of the rectangle. 
+		*/
 		Rectangle<RectangleType>& setCenter(RectangleType p_x, RectangleType p_y)
 		{
 			RectangleType halfWidth = (right - left) / 2;
@@ -1138,9 +1149,9 @@ namespace AvoGUI
 			bottom = p_y + halfHeight;
 			return *this;
 		}
-		/// <summary>
-		/// <para>Sets the horizontal center coordinate of the rectangle.</para>
-		/// </summary>
+		/*
+			Sets the horizontal center coordinate of the rectangle.
+		*/
 		Rectangle<RectangleType>& setCenterX(RectangleType p_x)
 		{
 			RectangleType halfWidth = (right - left) / 2;
@@ -1148,9 +1159,9 @@ namespace AvoGUI
 			right = p_x + halfWidth;
 			return *this;
 		}
-		/// <summary>
-		/// <para>Sets the vertical center coordinate of the rectangle.</para>
-		/// </summary>
+		/*
+			Sets the vertical center coordinate of the rectangle.
+		*/
 		Rectangle<RectangleType>& setCenterY(RectangleType p_y)
 		{
 			RectangleType halfHeight = (bottom - top) / 2;
@@ -1158,23 +1169,23 @@ namespace AvoGUI
 			bottom = p_y + halfHeight;
 			return *this;
 		}
-		/// <summary>
-		/// Returns the center coordinates of the rectangle.
-		/// </summary>
+		/*
+			Returns the center coordinates of the rectangle.
+		*/
 		Point<RectangleType> getCenter() const
 		{
 			return Point<RectangleType>((left + right) / 2, (top + bottom) / 2);
 		}
-		/// <summary>
-		/// Returns the x-axis center coordinate of the rectangle.
-		/// </summary>
+		/*
+			Returns the x-axis center coordinate of the rectangle.
+		*/
 		RectangleType getCenterX() const
 		{
 			return (left + right) / 2;
 		}
-		/// <summary>
-		/// Returns the y-axis center coordinate of the rectangle.
-		/// </summary>
+		/*
+			Returns the y-axis center coordinate of the rectangle.
+		*/
 		RectangleType getCenterY() const
 		{
 			return (top + bottom) / 2;
@@ -1182,6 +1193,9 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/*
+			Moves the left and top coordinates of the rectangle without affecting the other two.
+		*/
 		template<typename OffsetType>
 		Rectangle<RectangleType>& moveTopLeft(const Point<OffsetType>& p_offset)
 		{
@@ -1189,6 +1203,9 @@ namespace AvoGUI
 			top += p_offset.y;
 			return *this;
 		}
+		/*
+			Moves the left and top coordinates of the rectangle without affecting the other two.
+		*/
 		Rectangle<RectangleType>& moveTopLeft(RectangleType p_offsetX, RectangleType p_offsetY)
 		{
 			left += p_offsetX;
@@ -1196,6 +1213,9 @@ namespace AvoGUI
 			return *this;
 		}
 
+		/*
+			Moves the right and top coordinates of the rectangle without affecting the other two.
+		*/
 		template<typename OffsetType>
 		Rectangle<RectangleType>& moveTopRight(const Point<OffsetType>& p_offset)
 		{
@@ -1203,6 +1223,9 @@ namespace AvoGUI
 			top += p_offset.y;
 			return *this;
 		}
+		/*
+			Moves the right and top coordinates of the rectangle without affecting the other two.
+		*/
 		Rectangle<RectangleType>& moveTopRight(RectangleType p_offsetX, RectangleType p_offsetY)
 		{
 			right += p_offsetX;
@@ -1210,6 +1233,9 @@ namespace AvoGUI
 			return *this;
 		}
 
+		/*
+			Moves the left and bottom coordinates of the rectangle without affecting the other two.
+		*/
 		template<typename OffsetType>
 		Rectangle<RectangleType>& moveBottomLeft(const Point<OffsetType>& p_offset)
 		{
@@ -1217,6 +1243,9 @@ namespace AvoGUI
 			bottom += p_offset.y;
 			return *this;
 		}
+		/*
+			Moves the left and bottom coordinates of the rectangle without affecting the other two.
+		*/
 		Rectangle<RectangleType>& moveBottomLeft(RectangleType p_offsetX, RectangleType p_offsetY)
 		{
 			left += p_offsetX;
@@ -1224,6 +1253,9 @@ namespace AvoGUI
 			return *this;
 		}
 
+		/*
+			Moves the right and bottom coordinates of the rectangle without affecting the other two.
+		*/
 		template<typename OffsetType>
 		Rectangle<RectangleType>& moveBottomRight(const Point<OffsetType>& p_offset)
 		{
@@ -1231,6 +1263,9 @@ namespace AvoGUI
 			bottom += p_offset.y;
 			return *this;
 		}
+		/*
+			Moves the right and bottom coordinates of the rectangle without affecting the other two.
+		*/
 		Rectangle<RectangleType>& moveBottomRight(RectangleType p_offsetX, RectangleType p_offsetY)
 		{
 			right += p_offsetX;
@@ -1240,24 +1275,24 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// Creates a copy of this rectangle, offseted by an amount.
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, offseted by an amount.
+		*/
 		template<typename OffsetType>
 		Rectangle<RectangleType> createMovedCopy(const Point<OffsetType>& p_offset) const
 		{
 			return Rectangle<RectangleType>(left + p_offset.x, top + p_offset.y, right + p_offset.x, bottom + p_offset.y);
 		}
-		/// <summary>
-		/// Creates a copy of this rectangle, offseted by an amount.
-		/// </summary>
+		/*
+			Creates a copy of this rectangle, offseted by an amount.
+		*/
 		Rectangle<RectangleType> createMovedCopy(RectangleType p_offsetX, RectangleType p_offsetY) const
 		{
 			return Rectangle<RectangleType>(left + p_offsetX, top + p_offsetY, right + p_offsetX, bottom + p_offsetY);
 		}
-		/// <summary>
-		/// Does the same as the += operator, offsets the whole rectangle.
-		/// </summary>
+		/*
+			Does the same as the += operator, offsets the whole rectangle.
+		*/
 		template<typename OffsetType>
 		Rectangle<RectangleType>& move(const Point<OffsetType>& p_offset)
 		{
@@ -1267,9 +1302,9 @@ namespace AvoGUI
 			bottom += p_offset.y;
 			return *this;
 		}
-		/// <summary>
-		/// Does the same as the += operator, offsets the whole rectangle.
-		/// </summary>
+		/*
+			Does the same as the += operator, offsets the whole rectangle.
+		*/
 		Rectangle<RectangleType>& move(RectangleType p_offsetX, RectangleType p_offsetY)
 		{
 			left += p_offsetX;
@@ -1278,12 +1313,18 @@ namespace AvoGUI
 			bottom += p_offsetY;
 			return *this;
 		}
+		/*
+			Offsets the left and right coordinates by an amount.
+		*/
 		Rectangle<RectangleType>& moveX(RectangleType p_offsetX)
 		{
 			left += p_offsetX;
 			right += p_offsetX;
 			return *this;
 		}
+		/*
+			Offsets the top and bottom coordinates by an amount.
+		*/
 		Rectangle<RectangleType>& moveY(RectangleType p_offsetY)
 		{
 			left += p_offsetY;
@@ -1293,58 +1334,58 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the width and height of the rectangle, changing the right and bottom properties.
-		/// </summary>
+		/*
+			Sets the width and height of the rectangle, changing only the right and bottom coordinates.
+		*/
 		template<typename SizeType>
 		Rectangle<RectangleType>& setSize(const Point<SizeType>& p_size)
 		{
 			return setSize(p_size.x, p_size.y);
 		}
-		/// <summary>
-		/// Sets the width and height of the rectangle, changing the right and bottom variables.
-		/// </summary>
+		/*
+			Sets the width and height of the rectangle, changing only the right and bottom coordinates.
+		*/
 		Rectangle<RectangleType>& setSize(RectangleType p_width, RectangleType p_height)
 		{
 			right = left + p_width;
 			bottom = top + p_height;
 			return *this;
 		}
-		/// <summary>
-		/// Returns a point representing the size of the rectangle, where the x component is width and y is height.
-		/// </summary>
+		/*
+			Returns a point representing the size of the rectangle, where the x component is width and y is height.
+		*/
 		Point<RectangleType> getSize() const
 		{
 			return Point<RectangleType>(right - left, bottom - top);
 		}
 
-		/// <summary>
-		/// Sets the width of the rectangle, changing the right property.
-		/// </summary>
+		/*
+			Sets the width of the rectangle, changing only the right coordinate.
+		*/
 		Rectangle<RectangleType>& setWidth(RectangleType p_width)
 		{
 			right = left + p_width;
 			return *this;
 		}
-		/// <summary>
-		/// Returns the width of the rectangle.
-		/// </summary>
+		/*
+			Returns the distance between right and left coordinates of the rectangle.
+		*/
 		RectangleType getWidth() const
 		{
 			return right - left;
 		}
 
-		/// <summary>
-		/// Sets the height of the rectangle, changing the bottom property.
-		/// </summary>
+		/*
+			Sets the height of the rectangle, changing only the bottom coordinate.
+		*/
 		Rectangle<RectangleType>& setHeight(RectangleType p_height)
 		{
 			bottom = top + p_height;
 			return *this;
 		}
-		/// <summary>
-		/// Returns the height of the rectangle.
-		/// </summary>
+		/*
+			Returns the distance between bottom and top coordinates of the rectangle.
+		*/
 		RectangleType getHeight() const
 		{
 			return bottom - top;
@@ -1352,9 +1393,9 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// Returns a new copy of this rectangle which is clipped to fit into the parameter rectangle.
-		/// </summary>
+		/*
+			Returns a new copy of this rectangle, that is clipped to fit into the parameter rectangle.
+		*/
 		template<typename ParameterRectangleType>
 		Rectangle<RectangleType> createBoundedCopy(const Rectangle<ParameterRectangleType>& p_bounds) const
 		{
@@ -1366,9 +1407,9 @@ namespace AvoGUI
 
 			return bounded;
 		}
-		/// <summary>
-		/// Returns a new copy of this rectangle which is clipped to fit into the parameter rectangle.
-		/// </summary>
+		/*
+			Returns a new copy of this rectangle, that is clipped to fit into the parameter rectangle.
+		*/
 		Rectangle<RectangleType> createBoundedCopy(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom) const
 		{
 			Rectangle<RectangleType> bounded;
@@ -1380,9 +1421,9 @@ namespace AvoGUI
 			return bounded;
 		}
 
-		/// <summary>
-		/// Clips this rectangle to fit into the parameter rectangle.
-		/// </summary>
+		/*
+			Clips this rectangle to fit into the parameter rectangle.
+		*/
 		template<typename ParameterRectangleType>
 		Rectangle<RectangleType>& bound(const Rectangle<ParameterRectangleType>& p_bounds)
 		{
@@ -1393,9 +1434,9 @@ namespace AvoGUI
 
 			return *this;
 		}
-		/// <summary>
-		/// Clips this rectangle to fit into the parameter rectangle.
-		/// </summary>
+		/*
+			Clips this rectangle to fit into the parameter rectangle edge coordinates.
+		*/
 		Rectangle<RectangleType>& bound(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
 		{
 			left = constrain(left, p_left, p_right);
@@ -1408,9 +1449,9 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// Returns a new copy of this rectangle which is extended so that it contains another rectangle.
-		/// </summary>
+		/*
+			Returns a copy of this rectangle that is extended so that it contains the parameter rectangle.
+		*/
 		template<typename ParameterRectangleType>
 		Rectangle<RectangleType> createContainedCopy(const Rectangle<ParameterRectangleType>& p_rectangle) const
 		{
@@ -1421,9 +1462,9 @@ namespace AvoGUI
 			contained.bottom = max(bottom, p_rectangle.bottom);
 			return contained;
 		}
-		/// <summary>
-		/// Returns a new copy of this rectangle which is extended so that it contains another rectangle.
-		/// </summary>
+		/*
+			Returns a copy of this rectangle that is extended so that it contains the parameter rectangle edge coordinates.
+		*/
 		Rectangle<RectangleType> createContainedCopy(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom) const
 		{
 			Rectangle<RectangleType> contained;
@@ -1434,9 +1475,9 @@ namespace AvoGUI
 			return contained;
 		}
 
-		/// <summary>
-		/// Extends the rectangle so that it contains another rectangle.
-		/// </summary>
+		/*
+			Extends the rectangle so that it contains the parameter rectangle.
+		*/
 		template<typename ParameterRectangleType>
 		Rectangle<RectangleType>& contain(const Rectangle<ParameterRectangleType>& p_rectangle)
 		{
@@ -1451,9 +1492,9 @@ namespace AvoGUI
 			return *this;
 		}
 
-		/// <summary>
-		/// Extends the rectangle so that it contains another rectangle.
-		/// </summary>
+		/*
+			Extends the rectangle so that it contains the parameter rectangle edge coordinates.
+		*/
 		Rectangle<RectangleType>& contain(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
 		{
 			if (p_left < left) 
@@ -1469,57 +1510,57 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Returns whether a point lies within this rectangle.</para>
-		/// </summary>
+		/*
+			Returns whether a point lies within this rectangle.
+		*/
 		template<typename PointType>
 		bool getIsContaining(const Point<PointType>& p_point) const
 		{
 			return p_point.x >= left && p_point.x <= right
 				&& p_point.y >= top && p_point.y <= bottom;
 		}
-		/// <summary>
-		/// <para>Returns whether a point lies within this rectangle.</para>
-		/// </summary>
+		/*
+			Returns whether a point lies within this rectangle.
+		*/
 		bool getIsContaining(RectangleType p_x, RectangleType p_y) const
 		{
 			return p_x >= left && p_x <= right
 				&& p_y >= top && p_y <= bottom;
 		}
 
-		/// <summary>
-		/// <para>Returns whether another rectangle is fully inside this rectangle.</para>
-		/// </summary>
+		/*
+			Returns whether another rectangle is fully inside this rectangle.
+		*/
 		template<typename ParameterRectangleType>
 		bool getIsContaining(const Rectangle<ParameterRectangleType>& p_rectangle) const
 		{
 			return p_rectangle.left >= left && p_rectangle.right <= right
 				&& p_rectangle.top >= top && p_rectangle.bottom <= bottom;
 		}
-		/// <summary>
-		/// Returns whether a protected rectangle is fully inside this rectangle.
-		/// </summary>
+		/*
+			Returns whether a protected rectangle is fully inside this rectangle.
+		*/
 		bool getIsContaining(ProtectedRectangle* p_protectedRectangle) const;
-		/// <summary>
-		/// <para>Returns whether this rectangle intersects/overlaps/touches another rectangle.</para>
-		/// </summary>
+		/*
+			Returns whether this rectangle intersects/overlaps/touches another rectangle.
+		*/
 		template<typename ParameterRectangleType>
 		bool getIsIntersecting(const Rectangle<ParameterRectangleType>& p_rectangle) const
 		{
 			return p_rectangle.right >= left && p_rectangle.bottom >= top
 				&& p_rectangle.left <= right && p_rectangle.top <= bottom;
 		}
-		/// <summary>
-		/// Returns whether this rectangle intersects/overlaps/touches a protected rectangle.
-		/// </summary>
+		/*
+			Returns whether this rectangle intersects/overlaps/touches a protected rectangle.
+		*/
 		bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const;
 	};
 
-	// would be useless and too much job to make templated... floats are pretty nice anyways
+	// It would be useless and too much job to make ProtectedRectangle templated... floats are pretty nice anyways
 
-	/// <summary>
-	/// An abstract class for objects that have 2d bounds which can be changed by the user.
-	/// </summary>
+	/*
+		An abstract class for objects that have 2d bounds for which changes by the user of the object can be responded to.
+	*/
 	class ProtectedRectangle
 	{
 	protected:
@@ -1674,7 +1715,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		virtual void setLeft(float p_left, bool p_willKeepWidth = false)
+		virtual void setLeft(float p_left, bool p_willKeepWidth = true)
 		{
 			m_bounds.setLeft(p_left, p_willKeepWidth);
 		}
@@ -1683,7 +1724,7 @@ namespace AvoGUI
 			return m_bounds.left;
 		}
 
-		virtual void setTop(float p_top, bool p_willKeepHeight = false)
+		virtual void setTop(float p_top, bool p_willKeepHeight = true)
 		{
 			m_bounds.setTop(p_top, p_willKeepHeight);
 		}
@@ -1692,7 +1733,7 @@ namespace AvoGUI
 			return m_bounds.top;
 		}
 
-		virtual void setRight(float p_right, bool p_willKeepWidth = false)
+		virtual void setRight(float p_right, bool p_willKeepWidth = true)
 		{
 			m_bounds.setRight(p_right, p_willKeepWidth);
 		}
@@ -1701,7 +1742,7 @@ namespace AvoGUI
 			return m_bounds.right;
 		}
 
-		virtual void setBottom(float p_bottom, bool p_willKeepHeight = false)
+		virtual void setBottom(float p_bottom, bool p_willKeepHeight = true)
 		{
 			m_bounds.setBottom(p_bottom, p_willKeepHeight);
 		}
@@ -1774,20 +1815,24 @@ namespace AvoGUI
 
 	//------------------------------
 
-	/// <summary>
-	/// <para>Cubic bezier animation easing.</para>
-	/// <para>Try out this, can be useful for making your easing curves:</para>
-	/// <para>http://bjornsundin.com/projects/cubic-bezier-easing</para>
-	/// <para>-</para>
-	/// <para>Ease in example:</para>
-	/// <para>Easing(0.7, 0, 1, 1).easeValue(x)</para>
-	/// <para>Ease out example:</para>
-	/// <para>Easing(0, 0, 0.3, 1).easeValue(x)</para>
-	/// <para>See the constructors and easeValue() for more info.</para>
-	/// </summary>
+	/*
+		Cubic bezier animation easing.
+		Try out this, can be useful for making your easing curves:
+		http://bjornsundin.com/projects/cubic-bezier-easing
+
+		Ease in example:
+		Easing(0.7, 0, 1, 1).easeValue(x)
+		Ease out example:
+		Easing(0, 0, 0.3, 1).easeValue(x)
+		See the constructors and easeValue() for more info.
+
+		Storing Easing objects in a Theme can be a good idea.
+	*/
 	struct Easing
 	{
 		float x0, y0, x1, y1;
+
+		//------------------------------
 
 		Easing() : x0(0.f), y0(0.f), x1(1.f), y1(1.f) { }
 		Easing(const Easing& p_easing)
@@ -1798,23 +1843,17 @@ namespace AvoGUI
 		{
 			*this = p_easing;
 		}
-		/// <summary>
-		/// Initializes the control points of the bezier curve easing.
-		/// </summary>
-		/// <param name="p_x0">X value of the first control point</param>
-		/// <param name="p_y0">Y value of the first control point</param>
-		/// <param name="p_x1">X value of the second control point</param>
-		/// <param name="p_y1">Y value of the second control point</param>
+		/*
+			Initializes the control points of the bezier curve easing.
+			The parameters are the coordinates of the first and second control points, respectively.
+		*/
 		Easing(float p_x0, float p_y0, float p_x1, float p_y1) :
 			x0(p_x0), y0(p_y0), x1(p_x1), y1(p_y1)
 		{ }
-		/// <summary>
-		/// Initializes the control points of the bezier curve easing.
-		/// </summary>
-		/// <param name="p_x0">X value of the first control point</param>
-		/// <param name="p_y0">Y value of the first control point</param>
-		/// <param name="p_x1">X value of the second control point</param>
-		/// <param name="p_y1">Y value of the second control point</param>
+		/*
+			Initializes the control points of the bezier curve easing.
+			The parameters are the coordinates of the first and second control points, respectively.
+		*/
 		Easing(double p_x0, double p_y0, double p_x1, double p_y1) :
 			x0((float)p_x0), y0((float)p_y0), x1((float)p_x1), y1((float)p_y1)
 		{ }
@@ -1836,26 +1875,39 @@ namespace AvoGUI
 			return *this;
 		}
 
-		/// <summary>
-		/// <para>Transforms a normalized value according to a cubic bezier curve.</para>
-		/// </summary>
-		/// <param name="p_value">A normalized value which will be eased</param>
-		/// <param name="p_precision">Max amount of error in the output.</param>
-		/// <returns></returns>
+		//------------------------------
+
+		bool operator==(const Easing& p_easing) const
+		{
+			return x0 == p_easing.x0 && y0 == p_easing.y0 && x1 == p_easing.x1 && y1 == p_easing.y1;
+		}
+		bool operator!=(const Easing& p_easing) const
+		{
+			return x0 != p_easing.x0 || y0 != p_easing.y0 || x1 != p_easing.x1 || y1 != p_easing.y1;
+		}
+
+		//------------------------------
+
+		/*
+			Transforms a normalized value according to a cubic bezier curve.
+			p_precision is the maximum amount of error in the output value.
+
+			It calculates a quick newton's method estimation since the cubic bezier curve is defined as a calculation of points; 
+			f(t) = (x, y) where 0 <= t <= 1, and we want to ease over x (p_value is x) and not t. This why we have a precision parameter.
+		*/
 		float easeValue(float p_value, float p_precision = 0.005f) const;
 	};
 
 	//------------------------------
 
-	/// <summary>
-	/// <para>This is very useful when using a pointer in multiple places.</para>
-	/// <para>It doesn't get deleted until every remember() has a forget().</para>
-	/// <para>The constructor is the first remember(), meaning m_referenceCount</para>
-	/// <para>is initialized with 1. Don't use the delete operator with objects</para>
-	/// <para>that are ReferenceCounted, use forget() instead.</para>
-	/// <para>-</para>
-	/// <para>I just like this a lot more than using std::shared_ptr etc.</para>
-	/// </summary>
+	/*
+		This is very useful when storing pointers to dynamically allocated objects in multiple places.
+		The object doesn't get deleted until every remember() has a forget().
+		The constructor is the first remember(), meaning m_referenceCount is initialized with 1. 
+		Don't use the delete operator with objects that are ReferenceCounted, use forget() instead.
+
+		I just like this a lot more than using std::shared_ptr etc. You have more control! And it may be more efficient.
+	*/
 	class ReferenceCounted
 	{
 	private:
@@ -1865,18 +1917,19 @@ namespace AvoGUI
 		ReferenceCounted() : m_referenceCount(1U) { }
 		virtual ~ReferenceCounted() { };
 
-		/// <summary>
-		/// Increments the reference count and returns the new reference count.
-		/// </summary>
+		/*
+			Increments the reference count and returns the new reference count.
+			Remembers a pointer!
+		*/
 		uint32_t remember()
 		{
 			return ++m_referenceCount;
 		}
 
-		/// <summary>
-		/// <para>Decrements the reference count, deletes the object if the reference count</para>
-		/// <para>has reached 0 and returns the new reference count.</para>
-		/// </summary>
+		/*
+			Decrements the reference count, returns the new reference count and 
+			deletes the object if the reference count has reached 0.
+		*/
 		uint32_t forget()
 		{
 			m_referenceCount--;
@@ -1888,6 +1941,9 @@ namespace AvoGUI
 			return m_referenceCount;
 		}
 
+		/*
+			Returns the number of pointers to the dynamic object that have been remembered.
+		*/
 		uint32_t getReferenceCount()
 		{
 			return m_referenceCount;
@@ -1898,32 +1954,32 @@ namespace AvoGUI
 	// Color stuff
 
 #pragma region Color stuff
-	/// <summary>
-	/// ARGB formatted 32-bit color
-	/// </summary>
+	/*
+		ARGB formatted 32-bit packed color, where every channel has 8 bits.
+	*/
 	typedef uint32_t colorInt;
 
-	inline uint8_t getRed(colorInt p_color)
+	inline uint8_t getRedChannel(colorInt p_color)
 	{
 		return (p_color >> 16) & 0xff;
 	}
-	inline uint8_t getGreen(colorInt p_color)
+	inline uint8_t getGreenChannel(colorInt p_color)
 	{
 		return (p_color >> 8) & 0xff;
 	}
-	inline uint8_t getBlue(colorInt p_color)
+	inline uint8_t getBlueChannel(colorInt p_color)
 	{
 		return p_color & 0xff;
 	}
-	inline uint8_t getAlpha(colorInt p_color)
+	inline uint8_t getAlphaChannel(colorInt p_color)
 	{
 		return (p_color >> 24) & 0xff;
 	}
 
-	/// <summary>
-	/// <para>Object representing a color. A Color object stores the channels as 32-bit floats with a range of [0, 1].</para>
-	/// <para>This means that a Color object is 4 times as big as a packed 32-bit color.</para>
-	/// </summary>
+	/*
+		Object representing a color. A Color object stores the channels as 32-bit floats with a range of [0, 1].
+		This means that a Color object is 4 times as big as a packed 32-bit color.
+	*/
 	class Color
 	{
 	public:
@@ -1937,33 +1993,33 @@ namespace AvoGUI
 		Color() :
 			red(0.f), green(0.f), blue(0.f), alpha(0.f)
 		{ }
-		/// <summary>
-		/// The channels are floats in the range [0, 1].
-		/// </summary>
+		/*
+			The channels are floats in the range [0, 1].
+		*/
 		Color(float p_red, float p_green, float p_blue, float p_alpha = 1.f) :
 			red(p_red), green(p_green), blue(p_blue), alpha(p_alpha)
 		{ }
-		/// <summary>
-		/// The channels are in the range [0, 255]
-		/// </summary>
+		/*
+			The channels are in the range [0, 255]
+		*/
 		Color(uint8_t p_red, uint8_t p_green, uint8_t p_blue, uint8_t p_alpha = (uint8_t)255) :
 			red(float(p_red) / 255.f), green(float(p_green) / 255.f), blue(float(p_blue) / 255.f), alpha(float(p_alpha) / 255.f)
 		{ }
-		/// <summary>
-		/// The channels are in the range [0, 255]
-		/// </summary>
+		/*
+			The channels are in the range [0, 255]
+		*/
 		Color(uint32_t p_red, uint32_t p_green, uint32_t p_blue, uint32_t p_alpha = (uint32_t)255) :
 			red(float(p_red) / 255.f), green(float(p_green) / 255.f), blue(float(p_blue) / 255.f), alpha(float(p_alpha) / 255.f)
 		{ }
-		/// <summary>
-		/// The channels are in the range [0, 255]
-		/// </summary>
+		/*
+			The channels are in the range [0, 255]
+		*/
 		Color(int32_t p_red, int32_t p_green, int32_t p_blue, int32_t p_alpha = (int32_t)255) :
 			red(float(p_red) / 255.f), green(float(p_green) / 255.f), blue(float(p_blue) / 255.f), alpha(float(p_alpha) / 255.f)
 		{ }
-		/// <summary>
-		/// Initializes the color with a grayscale value. The values are floats in the range [0, 1].
-		/// </summary>
+		/*
+			Initializes the color with a grayscale value. The values are floats in the range [0, 1].
+		*/
 		Color(float p_lightness, float p_alpha = 1.f)
 		{
 			red = constrain(p_lightness);
@@ -1971,9 +2027,9 @@ namespace AvoGUI
 			blue = red;
 			alpha = constrain(p_alpha);
 		}
-		/// <summary>
-		/// Initializes the color with a grayscale value. The values are bytes in the range [0, 255].
-		/// </summary>
+		/*
+			Initializes the color with a grayscale value. The values are bytes in the range [0, 255].
+		*/
 		Color(uint8_t p_lightness, uint8_t p_alpha = (uint8_t)255)
 		{
 			red = float(p_lightness) / 255.f;
@@ -1981,15 +2037,15 @@ namespace AvoGUI
 			blue = red;
 			alpha = float(p_alpha) / 255.f;
 		}
-		/// <summary>
-		/// Creates a copy of another color but with a new alpha.
-		/// </summary>
+		/*
+			Creates a copy of another color but with a new alpha.
+		*/
 		Color(const Color& p_color, float p_alpha) :
 			red(p_color.red), green(p_color.green), blue(p_color.blue), alpha(p_alpha)
 		{ }
-		/// <summary>
-		/// Initializes with a 4-byte packed RGBA color.
-		/// </summary>
+		/*
+			Initializes with a 4-byte packed RGBA color.
+		*/
 		Color(const colorInt& p_color)
 		{
 			operator=(p_color);
@@ -2030,9 +2086,20 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the values for the red, green, blue and alpha channels. They are all floats in the range of [0, 1].
-		/// </summary>
+		bool operator==(const Color& p_color) const
+		{
+			return red == p_color.red && green == p_color.green && blue == p_color.blue && alpha == p_color.alpha;
+		}
+		bool operator!=(const Color& p_color) const
+		{
+			return red != p_color.red || green != p_color.green || blue != p_color.blue || alpha != p_color.alpha;
+		}
+
+		//------------------------------
+
+		/*
+			Sets the values for the red, green, blue and alpha channels. They are all floats in the range of [0, 1].
+		*/
 		void setRGBA(float p_red, float p_green, float p_blue, float p_alpha = 1.f)
 		{
 			red = constrain(p_red);
@@ -2040,9 +2107,9 @@ namespace AvoGUI
 			blue = constrain(p_blue);
 			alpha = constrain(p_alpha);
 		}
-		/// <summary>
-		/// Sets the same values for the red, green, blue and alpha channels. They are floats in the range of [0, 1].
-		/// </summary>
+		/*
+			Sets the same values for the red, green, blue and alpha channels. They are floats in the range of [0, 1].
+		*/
 		void setRGBA(float p_grayscale, float p_alpha = 1.f)
 		{
 			red = constrain(p_grayscale);
@@ -2050,27 +2117,27 @@ namespace AvoGUI
 			blue = constrain(p_grayscale);
 			alpha = constrain(p_alpha);
 		}
-		/// <summary>
-		/// Sets the values for the red, green and blue channels. They are all floats in the range of [0, 1].
-		/// </summary>
+		/*
+			Sets the values for the red, green and blue channels. They are all floats in the range of [0, 1].
+		*/
 		void setRGB(float p_red, float p_green, float p_blue)
 		{
 			red = constrain(p_red);
 			green = constrain(p_green);
 			blue = constrain(p_blue);
 		}
-		/// <summary>
-		/// Sets the same values for the red, green and blue channels. They are floats in the range of [0, 1].
-		/// </summary>
+		/*
+			Sets the same values for the red, green and blue channels. They are floats in the range of [0, 1].
+		*/
 		void setRGB(float p_grayscale)
 		{
 			red = constrain(p_grayscale);
 			green = constrain(p_grayscale);
 			blue = constrain(p_grayscale);
 		}
-		/// <summary>
-		/// Sets the values for the red, green, blue and alpha channels. The parameters are bytes, in the range of [0, 255].
-		/// </summary>
+		/*
+			Sets the values for the red, green, blue and alpha channels. The parameters are bytes, in the range of [0, 255].
+		*/
 		void setRGBA(uint8_t p_red, uint8_t p_green, uint8_t p_blue, uint8_t p_alpha = (uint8_t)255)
 		{
 			red = float(p_red) / 255.f;
@@ -2078,9 +2145,9 @@ namespace AvoGUI
 			blue = float(p_blue) / 255.f;
 			alpha = float(p_alpha) / 255.f;
 		}
-		/// <summary>
-		/// Sets the same values for the red, green, blue and alpha channels. The parameters are bytes, in the range of [0, 255].
-		/// </summary>
+		/*
+			Sets the same values for the red, green, blue and alpha channels. The parameters are bytes, in the range of [0, 255].
+		*/
 		void setRGBA(uint8_t p_grayscale, uint8_t p_alpha = 255)
 		{
 			red = float(p_grayscale) / 255.f;
@@ -2088,27 +2155,27 @@ namespace AvoGUI
 			blue = float(p_grayscale) / 255.f;
 			alpha = float(p_alpha) / 255.f;
 		}
-		/// <summary>
-		/// Sets the values for the red, green and blue channels. The parameters are bytes, in the range of [0, 255].
-		/// </summary>
+		/*
+			Sets the values for the red, green and blue channels. The parameters are bytes, in the range of [0, 255].
+		*/
 		void setRGB(uint8_t p_red, uint8_t p_green, uint8_t p_blue)
 		{
 			red = float(p_red) / 255.f;
 			green = float(p_green) / 255.f;
 			blue = float(p_blue) / 255.f;
 		}
-		/// <summary>
-		/// Sets the same values for the red, green and blue channels. The parameters are bytes, in the range of [0, 255].
-		/// </summary>
+		/*
+			Sets the same values for the red, green and blue channels. The parameters are bytes, in the range of [0, 255].
+		*/
 		void setRGB(uint8_t p_grayscale)
 		{
 			red = float(p_grayscale) / 255.f;
 			green = float(p_grayscale) / 255.f;
 			blue = float(p_grayscale) / 255.f;
 		}
-		/// <summary>
-		/// Sets the values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
-		/// </summary>
+		/*
+			Sets the values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
+		*/
 		void setRGBA(uint32_t p_red, uint32_t p_green, uint32_t p_blue, uint32_t p_alpha = 255U)
 		{
 			red = float(p_red) / 255.f;
@@ -2116,9 +2183,9 @@ namespace AvoGUI
 			blue = float(p_blue) / 255.f;
 			alpha = float(p_alpha) / 255.f;
 		}
-		/// <summary>
-		/// Sets the same values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
-		/// </summary>
+		/*
+			Sets the same values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
+		*/
 		void setRGBA(uint32_t p_grayscale, uint32_t p_alpha = 255)
 		{
 			red = float(p_grayscale) / 255.f;
@@ -2126,27 +2193,27 @@ namespace AvoGUI
 			blue = float(p_grayscale) / 255.f;
 			alpha = float(p_alpha) / 255.f;
 		}
-		/// <summary>
-		/// Sets the values for the red, green and blue channels. The parameters are in the range [0, 255].
-		/// </summary>
+		/*
+			Sets the values for the red, green and blue channels. The parameters are in the range [0, 255].
+		*/
 		void setRGB(uint32_t p_red, uint32_t p_green, uint32_t p_blue)
 		{
 			red = float(p_red) / 255.f;
 			green = float(p_green) / 255.f;
 			blue = float(p_blue) / 255.f;
 		}
-		/// <summary>
-		/// Sets the same values for the red, green and blue channels. The parameters are in the range [0, 255].
-		/// </summary>
+		/*
+			Sets the same values for the red, green and blue channels. The parameters are in the range [0, 255].
+		*/
 		void setRGB(uint32_t p_grayscale)
 		{
 			red = float(p_grayscale) / 255.f;
 			green = float(p_grayscale) / 255.f;
 			blue = float(p_grayscale) / 255.f;
 		}
-		/// <summary>
-		/// Sets the values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
-		/// </summary>
+		/*
+			Sets the values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
+		*/
 		void setRGBA(int32_t p_red, int32_t p_green, int32_t p_blue, int32_t p_alpha = 255U)
 		{
 			red = float(p_red) / 255.f;
@@ -2154,9 +2221,9 @@ namespace AvoGUI
 			blue = float(p_blue) / 255.f;
 			alpha = float(p_alpha) / 255.f;
 		}
-		/// <summary>
-		/// Sets the same values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
-		/// </summary>
+		/*
+			Sets the same values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
+		*/
 		void setRGBA(int32_t p_grayscale, int32_t p_alpha = 255)
 		{
 			red = float(p_grayscale) / 255.f;
@@ -2164,18 +2231,18 @@ namespace AvoGUI
 			blue = float(p_grayscale) / 255.f;
 			alpha = float(p_alpha) / 255.f;
 		}
-		/// <summary>
-		/// Sets the values for the red, green and blue channels. The parameters are in the range [0, 255].
-		/// </summary>
+		/*
+			Sets the values for the red, green and blue channels. The parameters are in the range [0, 255].
+		*/
 		void setRGB(int32_t p_red, int32_t p_green, int32_t p_blue)
 		{
 			red = float(p_red) / 255.f;
 			green = float(p_green) / 255.f;
 			blue = float(p_blue) / 255.f;
 		}
-		/// <summary>
-		/// Sets the same values for the red, green and blue channels. The parameters are in the range [0, 255].
-		/// </summary>
+		/*
+			Sets the same values for the red, green and blue channels. The parameters are in the range [0, 255].
+		*/
 		void setRGB(int32_t p_grayscale)
 		{
 			red = float(p_grayscale) / 255.f;
@@ -2185,9 +2252,9 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the hue, saturation and brightness values of the color. They are all floats in the range [0, 1].
-		/// </summary>
+		/*
+			Sets the hue, saturation and brightness values of the color. They are all floats in the range [0, 1].
+		*/
 		Color& setHSB(float p_hue, float p_saturation, float p_brightness)
 		{
 			p_hue -= floor(p_hue);
@@ -2198,17 +2265,17 @@ namespace AvoGUI
 			blue = p_brightness + factor * (constrain((p_hue - 2.f / 6.f)*6.f) - constrain((p_hue - 5.f / 6.f)*6.f) - 1.f);
 			return *this;
 		}
-		/// <summary>
-		/// Sets the hue, saturation, brightness and alpha values of the color. They are all floats in the range [0, 1].
-		/// </summary>
+		/*
+			Sets the hue, saturation, brightness and alpha values of the color. They are all floats in the range [0, 1].
+		*/
 		Color& setHSBA(float p_hue, float p_saturation, float p_brightness, float p_alpha = 1.f)
 		{
 			alpha = p_alpha;
 			return setHSB(p_hue, p_saturation, p_brightness);
 		}
-		/// <summary>
-		/// Sets the hue, saturation and lightness values of the color. They are all floats in the range [0, 1]
-		/// </summary>
+		/*
+			Sets the hue, saturation and lightness values of the color. They are all floats in the range [0, 1]
+		*/
 		Color& setHSL(float p_hue, float p_saturation, float p_lightness)
 		{
 			p_hue -= floor(p_hue);
@@ -2219,18 +2286,18 @@ namespace AvoGUI
 			blue = p_lightness + factor * (constrain((p_hue - 2.f / 6.f)*6.f) - constrain((p_hue - 5.f / 6.f)*6.f) - 0.5f);
 			return *this;
 		}
-		/// <summary>
-		/// Sets the hue, saturation, lightness and alpha values of the color. They are all floats in the range [0, 1]
-		/// </summary>
+		/*
+			Sets the hue, saturation, lightness and alpha values of the color. They are all floats in the range [0, 1]
+		*/
 		Color& setHSLA(float p_hue, float p_saturation, float p_lightness, float p_alpha = 1.f)
 		{
 			alpha = p_alpha;
 			return setHSL(p_hue, p_saturation, p_lightness);
 		}
 
-		/// <summary>
-		/// Changes the hue of the color. The hue is a float in the range [0, 1].
-		/// </summary>
+		/*
+			Changes the hue of the color. The hue is a float in the range [0, 1].
+		*/
 		Color& setHue(float p_hue)
 		{
 			p_hue -= floor(p_hue);
@@ -2241,9 +2308,9 @@ namespace AvoGUI
 			blue = minColor + (maxColor - minColor)*(constrain((p_hue - 2.f / 6.f)*6.f) - constrain((p_hue - 5.f / 6.f)*6.f));
 			return *this;
 		}
-		/// <summary>
-		/// Returns the hue of the color. The hue is a float in the range [0, 1].
-		/// </summary>
+		/*
+			Returns the hue of the color. The hue is a float in the range [0, 1].
+		*/
 		float getHue() const
 		{
 			if (red + green + blue == 0.f)
@@ -2295,11 +2362,11 @@ namespace AvoGUI
 			}
 		}
 
-		/// <summary>
-		/// <para>Sets the HSB saturation of the color. The saturation is a float in the range [0, 1].</para>
-		/// <para>HSB saturation can change lightness, and HSL saturation can change brightness.</para>
-		/// <para>Keep in mind that you can't change the saturation if the color is grayscale, because only RGBA values are stored.</para>
-		/// </summary>
+		/*
+			Sets the HSB saturation of the color. The saturation is a float in the range [0, 1].
+			HSB saturation can change lightness, and HSL saturation can change brightness.
+			Keep in mind that you can't change the saturation if the color is grayscale, because only RGBA values are stored.
+		*/
 		Color& setSaturationHSB(float p_saturation)
 		{
 			if (red == green && red == blue)
@@ -2317,9 +2384,9 @@ namespace AvoGUI
 
 			return *this;
 		}
-		/// <summary>
-		/// Returns the HSB saturation of the color. The saturation is a float in the range [0, 1].
-		/// </summary>
+		/*
+			Returns the HSB saturation of the color. The saturation is a float in the range [0, 1].
+		*/
 		float getSaturationHSB() const
 		{
 			float brightness = getBrightness();
@@ -2330,11 +2397,11 @@ namespace AvoGUI
 			return 0.f;
 		}
 
-		/// <summary>
-		/// <para>Sets the HSL saturation of the color. The saturation is a float in the range [0, 1].</para>
-		/// <para>HSB saturation can change lightness, and HSL saturation can change brightness.</para>
-		/// <para>Keep in mind that you can't change the saturation if the color is gray, since only RGBA values are stored.</para>
-		/// </summary>
+		/*
+			Sets the HSL saturation of the color. The saturation is a float in the range [0, 1].
+			HSB saturation can change lightness, and HSL saturation can change brightness.
+			Keep in mind that you can't change the saturation if the color is gray, since only RGBA values are stored.
+		*/
 		Color& setSaturationHSL(float p_saturation)
 		{
 			p_saturation = constrain(p_saturation);
@@ -2351,9 +2418,9 @@ namespace AvoGUI
 
 			return *this;
 		}
-		/// <summary>
-		/// Returns the HSL saturation of the color. The saturation is a float in the range [0, 1].
-		/// </summary>
+		/*
+			Returns the HSL saturation of the color. The saturation is a float in the range [0, 1].
+		*/
 		float getSaturationHSL() const
 		{
 			float minColor = min(red, green, blue);
@@ -2365,10 +2432,10 @@ namespace AvoGUI
 			return max((maxColor - minColor) / (maxColor + minColor), (maxColor - minColor) / (2.f - maxColor - minColor));
 		}
 
-		/// <summary>
-		/// Sets the brightness of the color. The brightness is a float in the range [0, 1]. A brightness of 0 makes the
-		/// color black, and a brightness of 1 makes the color fully bright. This only makes it white if saturation is at 0.
-		/// </summary>
+		/*
+			Sets the brightness of the color. The brightness is a float in the range [0, 1]. A brightness of 0 makes the
+			color black, and a brightness of 1 makes the color fully bright. This only makes it white if saturation is at 0.
+		*/
 		Color& setBrightness(float p_brightness)
 		{
 			p_brightness = constrain(p_brightness);
@@ -2388,18 +2455,18 @@ namespace AvoGUI
 
 			return *this;
 		}
-		/// <summary>
-		/// Returns the brightness of the color. The brightness is a float in the range [0, 1].
-		/// </summary>
+		/*
+			Returns the brightness of the color. The brightness is a float in the range [0, 1].
+		*/
 		float getBrightness() const
 		{
 			return max(red, green, blue);
 		}
 
-		/// <summary>
-		/// Changes the lightness of the color. The lightness a float in the range [0, 1]. A lightness of 0 makes the
-		/// color black, a lightness of 0.5 makes it normal and a lightness of 1 makes it white.
-		/// </summary>
+		/*
+			Changes the lightness of the color. The lightness a float in the range [0, 1]. A lightness of 0 makes the
+			color black, a lightness of 0.5 makes it normal and a lightness of 1 makes it white.
+		*/
 		Color& setLightness(float p_lightness)
 		{
 			p_lightness = constrain(p_lightness);
@@ -2445,9 +2512,9 @@ namespace AvoGUI
 			}
 			return *this;
 		}
-		/// <summary>
-		/// Returns the lightness of the color. The lightness is a float in the range [0, 1].
-		/// </summary>
+		/*
+			Returns the lightness of the color. The lightness is a float in the range [0, 1].
+		*/
 		float getLightness() const
 		{
 			return 0.5f*(min(red, green, blue) + max(red, green, blue));
@@ -2455,15 +2522,43 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// Packs the color into a 32-bit integer. ARGB format.
-		/// </summary>
+		/*
+			A contrast of 0 makes the color gray, 0.5 leaves it unchanged and 1 is maximum contrast.
+		*/
+		void setContrast(float p_contrast)
+		{
+			if (p_contrast == 0.5)
+			{
+				return;
+			}
+			if (p_contrast < 0.5f)
+			{
+				red = (red - 0.5f) * p_contrast*2.f + 0.5f;
+				green = (green - 0.5f) * p_contrast*2.f + 0.5f;
+				blue = (blue - 0.5f) * p_contrast*2.f + 0.5f;
+			}
+			else
+			{
+				red = (float(red >= 0.5f) - red)*(p_contrast * 2.f - 1.f) + red;
+				green = (float(green >= 0.5f) - green) * (p_contrast * 2.f - 1.f) + green;
+				blue = (float(blue >= 0.5f) - blue) * (p_contrast * 2.f - 1.f) + blue;
+			}
+		}
+
+		//------------------------------
+
+		/*
+			Packs the color into a 32-bit integer in ARGB format.
+		*/
 		colorInt getPacked() const
 		{
 			return (colorInt(alpha * 0xff) << 24) | (colorInt(red * 0xff) << 16) | (colorInt(green * 0xff) << 8) | (colorInt(blue * 0xff));
 		}
 	};
 
+	/*
+		Linearly interpolates a color between p_start and p_end. Each channel is faded individually.
+	*/
 	inline Color interpolate(const Color& p_start, const Color& p_end, float p_progress)
 	{
 		return Color(
@@ -2770,87 +2865,68 @@ namespace AvoGUI
 		COLOR_BLUE_GRAY_800 = 0xFF37474F,
 		COLOR_BLUE_GRAY_900 = 0xFF263238;
 
-	/// <summary>
-	/// <para>A theme consists of different constants which change the look and feel of the parts</para>
-	/// <para>of the GUI which are using this theme. See View::setTheme() for details about how</para>
-	/// <para>it works with the views.</para>
-	/// </summary>
+	/*
+		A theme consists of different variables that change the look and feel of the parts of the GUI that are using the theme.
+	*/
 	class Theme : public ReferenceCounted
 	{
 	public:
-		/// <summary>
-		/// <para>These are the colors that are used by default views.</para>
-		/// <para>You can change them and add your own.</para>
-		/// <para>-</para>
-		/// <para>Built-in colors:</para>
-		/// <para>"background"</para>
-		/// <para>"on background"</para>
-		/// <para>"primary"</para>
-		/// <para>"primary on background"</para>
-		/// <para>"on primary"</para>
-		/// <para>"secondary"</para>
-		/// <para>"secondary on background"</para>
-		/// <para>"on secondary"</para>
-		/// <para>"selection"</para>
-		/// <para>"shadow"</para>
-		/// </summary>
 		std::map<const char*, Color> colors;
-
-		/// <summary>
-		/// <para>These are the animation easings used by the default views.</para>
-		/// <para>You can change them and add your own.</para>
-		/// <para>-</para>
-		/// <para>Built-in easings:</para>
-		/// <para>"in"</para>
-		/// <para>"out"</para>
-		/// <para>"in out"</para>
-		/// <para>"symmmetrical in out"</para>
-		/// <para>"ripple"</para>
-		/// </summary>
 		std::map<const char*, Easing> easings;
-
-		/// <summary>
-		/// <para>These are the font family names which are used by views which use this theme.</para>
-		/// <para>Add your own or change the existing one. Remember that this doesn't mean the</para>
-		/// <para>same fonts need to be used in your whole GUI; simply set the theme of your </para>
-		/// <para>view as a copy of its parent, but change the font families. This changes the </para>
-		/// <para>fonts used by that view and its children (if they haven't been created yet - </para>
-		/// <para>they inherit the theme of their parent). Views are also technically free to use</para>
-		/// <para>whatever fonts they like.</para>
-		/// <para>-</para>
-		/// <para>Built-in font families:</para>
-		/// <para>"main"</para>
-		/// </summary>
 		std::map<const char*, const char*> fontFamilies;
+		std::map<const char*, float> values;
 
+		/*
+			This initializes the default theme. 
+			If you want to know the default values you can look at the definition in AvoGUI.hpp.
+		*/
 		Theme()
 		{
+			// Colors
+
 			colors["background"] = 0xfffefefe;
 			colors["on background"] = 0xff070707;
 
-			colors["primary"] = 0xff8df000;
-			colors["primary on background"] = 0xff4c9100;
-			colors["on primary"] = 0xff000000;
+			colors["primary"] = COLOR_DEEP_PURPLE_A700;
+			colors["primary on background"] = COLOR_DEEP_PURPLE_700;
+			colors["on primary"] = ~0U;
 
-			colors["secondary"] = 0xff420099;
-			colors["secondary on background"] = 0xff420099;
-			colors["on secondary"] = 0xfffefefe;
+			colors["secondary"] = COLOR_TEAL_A400;
+			colors["secondary on background"] = COLOR_TEAL_A700;
+			colors["on secondary"] = 0xff070707;
 
 			colors["selection"] = 0x90488db5;
 
 			colors["shadow"] = 0x68000000;
 
 			//------------------------------
+			// Easings
 
 			easings["in"] = Easing(0.6, 0.0, 0.8, 0.2);
 			easings["out"] = Easing(0.1, 0.9, 0.2, 1.0);
 			easings["in out"] = Easing(0.4, 0.0, 0.0, 1.0);
 			easings["symmetrical in out"] = Easing(0.6, 0.0, 0.4, 1.0);
+
 			easings["ripple"] = Easing(0.1, 0.8, 0.2, 0.95);
 
 			//------------------------------
+			// Font families
 
 			fontFamilies["main"] = "Roboto";
+
+			//------------------------------
+			// Values
+
+			// Button styles
+			values["button font size"] = 14.f;
+
+			// Text field styles
+			values["text field caret blink rate"] = 30; // This is in frames
+			values["text field font size"] = 16.f;
+			values["text field height"] = 3.2f; // This is a factor of the font size
+			values["text field padding left"] = 14.f;
+			values["text field padding right"] = 14.f;
+			values["text field filled padding bottom"] = 7.f;
 		}
 	};
 
@@ -2863,11 +2939,10 @@ namespace AvoGUI
 	class ViewListener
 	{
 	public:
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>This gets called when a view that has registered this listener has changed its size.</para>
-		/// </summary>
-		/// <param name="p_view">The view that has changed size.</param>
+		/*
+			USER IMPLEMENTED
+			This gets called when a view that has registered this listener has changed its size.
+		*/
 		virtual void handleViewSizeChange(View* p_view) = 0;
 	};
 
@@ -2881,10 +2956,9 @@ namespace AvoGUI
 	class MouseEvent;
 	enum class Cursor;
 
-	/// <summary>
-	/// <para>A rectangle which can draw itself and receive events. Used for GUI components and stuff.</para>
-	/// <para></para>
-	/// </summary>
+	/*
+		A rectangle that can draw itself and receive events. Used for GUI components and stuff.
+	*/
 	class View : public ReferenceCounted, public ProtectedRectangle
 	{
 	private:
@@ -2954,6 +3028,9 @@ namespace AvoGUI
 		View* m_parent;
 		Theme* m_theme;
 
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		virtual void sendSizeChangeEvents()
 		{
 			m_hasSizeChangedSinceLastElevationChange = true;
@@ -2965,26 +3042,47 @@ namespace AvoGUI
 			}
 		}
 
+		/*
+			USER IMPLEMENTED
+			This gets called whenever a theme color has changed, not including initialization.
+		*/
+		virtual void handleThemeColorChange(const char* p_name, const Color& p_newColor) { };
+		/*
+			USER IMPLEMENTED
+			This gets called whenever a theme easing has changed, not including initialization.
+		*/
+		virtual void handleThemeEasingChange(const char* p_name, const Easing& p_newEasing) { };
+		/*
+			USER IMPLEMENTED
+			This gets called whenever a theme font family name has changed, not including initialization.
+		*/
+		virtual void handleThemeFontFamilyChange(const char* p_name, const char* p_newFontFamilyName) { };
+		/*
+			USER IMPLEMENTED
+			This gets called whenever a theme value has changed, not including initialization.
+		*/
+		virtual void handleThemeValueChange(const char* p_name, float p_newValue) { };
+
 	public:
 		View(View* p_parent, const Rectangle<float>& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
 		virtual ~View();
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>If you set this to true, this view will not block any mouse events from reaching views below this one.</para>
-		/// <para>Whether this view is a mouse listener has no effect on this.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			If you set this to true, this view will not block any mouse events from reaching views below this one.
+			Whether this view is a mouse listener has no effect on this.
+		*/
 		void setIsOverlay(bool p_isOverlay)
 		{
 			m_isOverlay = p_isOverlay;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view blocks mouse events from reaching views below this one. False means it</para>
-		/// <para>blocks, true means it does not.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether this view blocks mouse events from reaching views below this one. 
+			False means it blocks, true means it does not.
+		*/
 		bool getIsOverlay()
 		{
 			return m_isOverlay;
@@ -2992,19 +3090,19 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the cursor that will by default be shown when the mouse enters the view.</para>
-		/// <para>The default implementation of handleMouseEnter sets the cursor to this one, and you can override this behaviour.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the cursor that will by default be shown when the mouse enters the view.
+			The default implementation of handleMouseEnter sets the cursor to this one, and you can override this behaviour.
+		*/
 		void setCursor(Cursor p_cursor)
 		{
 			m_cursor = p_cursor;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the cursor that will by default be shown when the mouse enters the view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the cursor that will by default be shown when the mouse enters the view.
+		*/
 		Cursor getCursor()
 		{
 			return m_cursor;
@@ -3012,87 +3110,86 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns a pointer to the highest view in the hierarchy, the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns a pointer to the highest view in the hierarchy, the GUI.
+		*/
 		GUI* getGUI() const
 		{
 			return m_GUI;
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Attaches this view to a new parent, which will be the owner of this view unless you've remembered it.</para>
-		/// <para>If the parameter is 0, the view is only detached from its old parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Attaches this view to a new parent, which will manage the lifetime of the view unless you've called remember() on it.
+			If the parameter is 0, the view is only detached from its old parent.
+		*/
 		void setParent(View* p_container);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns a pointer to the parent of this view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns a pointer to the parent of this view.
+		*/
 		View* getParent() const
 		{
 			return m_parent;
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Adds a child view to this view. Do not call this method yourself, it is called automatically</para>
-		/// <para>when you create a view with a parent, or set a new parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a child view to this view. 
+			DO NOT call this method yourself, it is called automatically when you create a view with a parent, or set a new parent.
+			Only calling this method would not link the parent view to the child.
+		*/
 		void addChild(View* p_view);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Removes a child view from this view. This forgets the view being removed. If you haven't remembered</para>
-		/// <para>it yourself, it will get deleted.</para>
-		/// </summary>
-		/// <param name="p_view">Pointer to view to remove from the container</param>
+		/*
+			LIBRARY IMPLEMENTED
+			Removes a child view from this view. This forgets the view being removed. 
+			If you haven't remembered it yourself, it will get deleted.
+		*/
 		void removeChild(View* p_view);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Removes a child view from this view. This forgets the view being removed. If you haven't remembered</para>
-		/// <para>it yourself, it will get deleted.</para>
-		/// </summary>
-		/// <param name="p_viewIndex">Index of the view to remove from the container</param>
+		/*
+			LIBRARY IMPLEMENTED
+			Removes a child view from this view. This forgets the view being removed. 
+			If you haven't remembered it yourself, it will get deleted.
+		*/
 		void removeChild(uint32_t p_viewIndex);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Deletes the children views and empties this view from children.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Forgets the children views and empties this view from children.
+		*/
 		void removeAllChildren();
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the child view at an index.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the child view at an index.
+		*/
 		View* getChild(uint32_t p_viewIndex)
 		{
 			return m_views[p_viewIndex];
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the number of child views.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the number of child views that are attached to this view.
+		*/
 		uint32_t getNumberOfChildren()
 		{
 			return m_views.size();
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Makes sure the view is drawn at the correct time, according to elevation. You shouldn't</para>
-		/// <para>need to use this method, it is used internally.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Makes sure the view is drawn at the correct time, according to elevation. 
+			You shouldn't need to use this method, it is used internally.
+		*/
 		void updateViewDrawingIndex(View* p_view);
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the smallest possible rectangle which contains all child views belonging to this View.</para>
-		/// <para>The rectangle is relative to the position of this view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the smallest possible rectangle that contains all child views belonging to this View.
+			The rectangle is relative to the position of this view.
+		*/
 		Rectangle<float> calculateContentBounds() const
 		{
 			if (!m_views.size())
@@ -3127,10 +3224,10 @@ namespace AvoGUI
 			return Rectangle<float>(left, top, right, bottom);
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the width of the smallest possible rectangle that contains all child views belonging to this View.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the width of the smallest possible rectangle that contains all child views belonging to this View.
+		*/
 		float calculateContentWidth() const
 		{
 			if (!m_views.size())
@@ -3153,10 +3250,10 @@ namespace AvoGUI
 			}
 			return right - left;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the hight of the smallest possible rectangle that contains all child views belonging to this View.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the hight of the smallest possible rectangle that contains all child views belonging to this View.
+		*/
 		float calculateContentHeight() const
 		{
 			if (!m_views.size())
@@ -3179,19 +3276,20 @@ namespace AvoGUI
 			}
 			return bottom - top;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the size of the smallest possible rectangle that contains all child views belonging to this View.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the size of the smallest possible rectangle that contains all child views belonging to this View.
+		*/
 		Point<float> calculateContentSize() const
 		{
 			return calculateContentBounds().getSize();
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the leftmost edge of all child views belonging to this View. The returned offset is relative to the left edge of this view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the leftmost edge of all child views belonging to this View. 
+			The returned offset is relative to the left edge of this view.
+		*/
 		float calculateContentLeft() const
 		{
 			if (!m_views.size())
@@ -3209,10 +3307,11 @@ namespace AvoGUI
 			}
 			return left;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the rightmost edge of all child views belonging to this View. The returned offset is relative to the left edge of this view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the rightmost edge of all child views belonging to this View. 
+			The returned offset is relative to the left edge of this view.
+		*/
 		float calculateContentRight() const
 		{
 			if (!m_views.size())
@@ -3230,10 +3329,11 @@ namespace AvoGUI
 			}
 			return right;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the topmost edge of all child views belonging to this View. The returned offset is relative to the top edge of this view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the topmost edge of all child views belonging to this View. 
+			The returned offset is relative to the top edge of this view.
+		*/
 		float calculateContentTop() const
 		{
 			if (!m_views.size())
@@ -3251,10 +3351,11 @@ namespace AvoGUI
 			}
 			return top;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the bottommost edge of all child views belonging to this View. The returned offset is relative to the top edge of this view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the bottommost edge of all child views belonging to this View. 
+			The returned offset is relative to the top edge of this view.
+		*/
 		float calculateContentBottom() const
 		{
 			if (!m_views.size())
@@ -3275,35 +3376,32 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets a certain spacing between the outer edges of the contents and the edges of this View.</para>
-		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets a certain spacing between the outer edges of the contents and the edges of this View.
+			This may move the child views with a uniform offset and/or change the size of this view.
+		*/
 		void setPadding(float p_padding)
 		{
 			setPadding(p_padding, p_padding, p_padding, p_padding);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets a certain spacing between the outer edges of the contents and the edges of this View.</para>
-		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
-		/// </summary>
-		/// <param name="p_horizontalPadding">Spacing at the left and right edges</param>
-		/// <param name="p_verticalPadding">Spacing at the top and bottom edges</param>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets a certain spacing between the outer edges of the contents and the edges of this View.
+			This may move the child views with a uniform offset and/or change the size of this view.
+		
+			p_horizontalPadding is the spacing at the left and right edges
+			p_verticalPadding is the spacing at the top and bottom edges
+		*/
 		void setPadding(float p_horizontalPadding, float p_verticalPadding)
 		{
 			setPadding(p_horizontalPadding, p_horizontalPadding, p_verticalPadding, p_verticalPadding);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets a certain spacing between the outer edges of the contents and the edges of this View.</para>
-		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
-		/// </summary>
-		/// <param name="p_leftPadding">Spacing at the left edge</param>
-		/// <param name="p_rightPadding">Spacing at the right edge</param>
-		/// <param name="p_topPadding">Spacing at the top edge</param>
-		/// <param name="p_bottomPadding">Spacing at the bottom edge</param>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets a certain spacing between the outer edges of the contents and the edges of this View.
+			This may move the child views with a uniform offset and change the size of this view.
+		*/
 		void setPadding(float p_leftPadding, float p_rightPadding, float p_topPadding, float p_bottomPadding)
 		{
 			Rectangle<float> contentBounds(calculateContentBounds());
@@ -3316,11 +3414,11 @@ namespace AvoGUI
 			setSize(contentBounds.getWidth() + p_leftPadding + p_rightPadding, contentBounds.getHeight() + p_topPadding + p_bottomPadding);
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the spacing between the leftmost edge of the contents and the left edge of this View.</para>
-		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the spacing between the leftmost edge of the contents and the left edge of this View.
+			This may move the child views with a uniform offset and change the width of this view.
+		*/
 		void setLeftPadding(float p_leftPadding)
 		{
 			float left = calculateContentLeft();
@@ -3331,19 +3429,20 @@ namespace AvoGUI
 			}
 			setWidth(getWidth() + offset);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the spacing between the rightmost edge of the contents and the right edge of this View. This changes the width of this view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the spacing between the rightmost edge of the contents and the right edge of this View. 
+			This changes the width of this view.
+		*/
 		void setRightPadding(float p_rightPadding)
 		{
 			setWidth(calculateContentRight() + p_rightPadding);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the spacing between the topmost edge of the contents and the top edge of this View.</para>
-		/// <para>This may move the child views with a uniform offset and/or change the size of this view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the spacing between the topmost edge of the contents and the top edge of this View.
+			This may move the child views with a uniform offset and change the height of this view.
+		*/
 		void setTopPadding(float p_topPadding)
 		{
 			float top = calculateContentTop();
@@ -3354,10 +3453,11 @@ namespace AvoGUI
 			}
 			setHeight(getHeight() + offset);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the spacing between the bottommost edge of the contents and the bottom edge of this View. This changes the height of this view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the spacing between the bottommost edge of the contents and the bottom edge of this View. 
+			This changes the height of this view.
+		*/
 		void setBottomPadding(float p_bottomPadding)
 		{
 			setHeight(calculateContentBottom() + p_bottomPadding);
@@ -3365,38 +3465,309 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets a new theme to be used by this view and upcoming children of this view.</para>
-		/// <para>Child views inherit their parent's theme, unless they make a new one.</para>
-		/// <para>In that way, different sections of the GUI can have different themes.</para>
-		/// <para>Only children created after this method is called will inherit the new theme.</para>
-		/// </summary>
-		/// <param name="p_newTheme">A pointer to a newly allocated theme on the heap.</param>
-		void setTheme(Theme* p_newTheme)
+		/*
+			LIBRARY IMPLEMENTED
+
+			If p_name is any of the strings below, it has a default color that can be changed.
+			These colors may be used by views that come with the library, but you could use them yourself too.
+
+			"background"
+			"on background"
+
+			"primary"
+			"primary on background"
+			"on primary"
+
+			"secondary"
+			"secondary on background"
+			"on secondary"
+
+			"selection"
+
+			"shadow"
+
+			If it is anything else, the color is kept in the theme and you can use it yourself.
+
+			if p_willAffectChildren is true, all children and views below those too will change this color in their themes.
+
+			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default colors and more details.
+		*/
+		void setThemeColor(const char* p_name, const Color& p_color, bool p_willAffectChildren = true)
 		{
-			if (m_theme)
+			if (!m_theme)
+			{
+				m_theme = new Theme();
+			}
+			else if (m_theme->getReferenceCount() > 1)
 			{
 				m_theme->forget();
+				m_theme = new Theme(*m_theme);
 			}
-			m_theme = p_newTheme;
+			if (m_theme->colors[p_name] != p_color)
+			{
+				m_theme->colors[p_name] = p_color;
+				handleThemeColorChange(p_name, p_color);
+			}
+
+			if (p_willAffectChildren)
+			{
+				View* view = this;
+				uint32_t startIndex = 0;
+				while (true)
+				{
+				loopStart:
+					for (uint32_t a = startIndex; a < view->getNumberOfChildren(); a++)
+					{
+						view->getChild(a)->setThemeColor(p_name, p_color, false);
+						if (view->getChild(a)->getNumberOfChildren())
+						{
+							view = view->getChild(a);
+							startIndex = 0;
+							goto loopStart;
+						}
+					}
+					if (view == this)
+					{
+						break;
+					}
+					startIndex = view->getIndex();
+					view = view->getParent();
+				}
+			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns a pointer to the theme which is used by this view.</para>
-		/// </summary>
-		Theme* getTheme() const
+		/*
+			LIBRARY IMPLEMENTED
+			See setThemeColor for names that have colors by default.
+		*/
+		const Color& getThemeColor(const char* p_name) const
+		{
+			return m_theme->colors[p_name];
+		}
+		/*
+			LIBRARY IMPLEMENTED
+
+			If p_name is any of the strings below, it has a default easing that can be changed.
+			These easings may be used by views that come with the library, but you could use them yourself too.
+
+			"in"
+			"out"
+			"in out"
+			"symmetrical in out"
+
+			"ripple"
+
+			If it is anything else, the easing is kept in the theme and you can use it yourself.
+
+			if p_willAffectChildren is true, all children and views below those too will change this easing in their themes.
+
+			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default easings and more details.
+		*/
+		void setThemeEasing(const char* p_name, const Easing& p_easing, bool p_willAffectChildren = true)
+		{
+			if (!m_theme)
+			{
+				m_theme = new Theme();
+			}
+			else if (m_theme->getReferenceCount() > 1)
+			{
+				m_theme->forget();
+				m_theme = new Theme(*m_theme);
+			}
+			if (m_theme->easings[p_name] != p_easing)
+			{
+				m_theme->easings[p_name] = p_easing;
+				handleThemeEasingChange(p_name, p_easing);
+			}
+
+			if (p_willAffectChildren)
+			{
+				View* view = this;
+				uint32_t startIndex = 0;
+				while (true)
+				{
+				loopStart:
+					for (uint32_t a = startIndex; a < view->getNumberOfChildren(); a++)
+					{
+						view->getChild(a)->setThemeEasing(p_name, p_easing, false);
+						if (view->getChild(a)->getNumberOfChildren())
+						{
+							view = view->getChild(a);
+							startIndex = 0;
+							goto loopStart;
+						}
+					}
+					if (view == this)
+					{
+						break;
+					}
+					startIndex = view->getIndex();
+					view = view->getParent();
+				}
+			}
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			See setThemeEasing for names that have easings by default.
+		*/
+		const Easing& getThemeEasing(const char* p_name) const
+		{
+			return m_theme->easings[p_name];
+		}
+		/*
+			LIBRARY IMPLEMENTED
+
+			p_name can be used to identify the usage or type of the font family, while p_fontFamilyName is the actual name of the font family.
+			If p_name is "main" it has a default font family name that can be changed.
+			That font family may be used by views that come with the library, but you can use it yourself too.
+			If p_name is anything else, the font family is kept in the theme and you can use it yourself.
+
+			if p_willAffectChildren is true, all children and views below those too will change this font family in their themes.
+
+			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default font families and more details.
+		*/
+		void setThemeFontFamily(const char* p_name, const char* p_fontFamilyName, bool p_willAffectChildren = true)
+		{
+			if (!m_theme)
+			{
+				m_theme = new Theme();
+			}
+			else if (m_theme->getReferenceCount() > 1)
+			{
+				m_theme->forget();
+				m_theme = new Theme(*m_theme);
+			}
+			if (m_theme->fontFamilies[p_name] != p_fontFamilyName)
+			{
+				m_theme->fontFamilies[p_name] = p_fontFamilyName;
+				handleThemeFontFamilyChange(p_name, p_fontFamilyName);
+			}
+
+			if (p_willAffectChildren)
+			{
+				View* view = this;
+				uint32_t startIndex = 0;
+				while (true)
+				{
+				loopStart:
+					for (uint32_t a = startIndex; a < view->getNumberOfChildren(); a++)
+					{
+						view->getChild(a)->setThemeFontFamily(p_name, p_fontFamilyName, false);
+						if (view->getChild(a)->getNumberOfChildren())
+						{
+							view = view->getChild(a);
+							startIndex = 0;
+							goto loopStart;
+						}
+					}
+					if (view == this)
+					{
+						break;
+					}
+					startIndex = view->getIndex();
+					view = view->getParent();
+				}
+			}
+
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			"main" has a font family by default, but you can also access your own font families here.
+		*/
+		const char* getThemeFontFamily(const char* p_name) const
+		{
+			return m_theme->fontFamilies[p_name];
+		}
+		
+		/*
+			LIBRARY IMPLEMENTED
+
+			If p_name is any of the strings below, it has a default value that can be changed.
+			These values may be used by views that come with the library, but you could use them yourself too.
+			
+			"button font size"
+
+			"text field caret blink rate"
+			"text field font size"
+			"text field height"
+			"text field padding left"
+			"text field padding right"
+			"text field filled padding bottom"
+
+			If it is anything else, the value is kept in the theme and you can use it yourself.
+
+			if p_willAffectChildren is true, all children and views below those too will change this value in their themes.
+
+			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default values and more details.
+		*/
+		void setThemeValue(const char* p_name, float p_value, bool p_willAffectChildren = true)
+		{
+			if (!m_theme)
+			{
+				m_theme = new Theme();
+			}
+			else if (m_theme->getReferenceCount() > 1)
+			{
+				m_theme->forget();
+				m_theme = new Theme(*m_theme);
+			}
+			if (m_theme->values[p_name] != p_value)
+			{
+				m_theme->values[p_name] = p_value;
+				handleThemeValueChange(p_name, p_value);
+			}
+
+			if (p_willAffectChildren)
+			{
+				View* view = this;
+				uint32_t startIndex = 0;
+				while (true)
+				{
+					loopStart:
+					for (uint32_t a = startIndex; a < view->getNumberOfChildren(); a++)
+					{
+						view->getChild(a)->setThemeValue(p_name, p_value, false);
+						if (view->getChild(a)->getNumberOfChildren())
+						{
+							view = view->getChild(a);
+							startIndex = 0;
+							goto loopStart;
+						}
+					}
+					if (view == this)
+					{
+						break;
+					}
+					startIndex = view->getIndex();
+					view = view->getParent();
+				}
+			}
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			See setThemeValue for names that have values by default.
+		*/
+		float getThemeValue(const char* p_name) const
+		{
+			return m_theme->values[p_name];
+		}
+
+		/*
+			LIBRARY IMPLEMENTED
+			Returns a pointer to the theme that is used by this view.
+		*/
+		const Theme* getTheme() const
 		{
 			return m_theme;
 		}
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>This is only used by the library to update the point variable representing the position of the view relative to the GUI,</para>
-		/// <para>without affecting the actual position of the view. This is called when any parent, grandparent and so on has been moved.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			This is only used by the library to update the point variable representing the position of the view relative to the GUI, without affecting the actual position of the view. 
+			This is called when any parent, grandparent and so on has been moved.
+			Use move() to actually move the view.
+		*/
 		void moveAbsolutePosition(float p_x, float p_y)
 		{
 			m_absolutePosition.x += p_x;
@@ -3405,10 +3776,10 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.
+		*/
 		void setBounds(const Rectangle<float>& p_rectangle) override
 		{
 			bool hasSizeChanged = p_rectangle.getWidth() != m_bounds.getWidth() || p_rectangle.getHeight() != m_bounds.getHeight();
@@ -3427,10 +3798,10 @@ namespace AvoGUI
 				sendSizeChangeEvents();
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.
+		*/
 		void setAbsoluteBounds(const Rectangle<float>& p_rectangle)
 		{
 			bool hasSizeChanged = p_rectangle.getWidth() != m_bounds.getWidth() || p_rectangle.getHeight() != m_bounds.getHeight();
@@ -3452,10 +3823,10 @@ namespace AvoGUI
 				sendSizeChangeEvents();
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.
+		*/
 		void setBounds(float p_left, float p_top, float p_right, float p_bottom) override
 		{
 			bool hasSizeChanged = p_right - p_left != m_bounds.getWidth() || p_bottom - p_top != m_bounds.getHeight();
@@ -3477,10 +3848,10 @@ namespace AvoGUI
 				sendSizeChangeEvents();
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.
+		*/
 		void setAbsoluteBounds(float p_left, float p_top, float p_right, float p_bottom)
 		{
 			bool hasSizeChanged = p_right - p_left != m_bounds.getWidth() || p_bottom - p_top != m_bounds.getHeight();
@@ -3502,10 +3873,10 @@ namespace AvoGUI
 				sendSizeChangeEvents();
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.
+		*/
 		void setBounds(const Point<float>& p_position, const Point<float>& p_size) override
 		{
 			bool hasSizeChanged = p_size.x != m_bounds.getWidth() || p_size.y != m_bounds.getHeight();
@@ -3527,10 +3898,10 @@ namespace AvoGUI
 				sendSizeChangeEvents();
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.
+		*/
 		void setAbsoluteBounds(const Point<float>& p_position, const Point<float>& p_size)
 		{
 			bool hasSizeChanged = p_size.x != m_bounds.getWidth() || p_size.y != m_bounds.getHeight();
@@ -3552,26 +3923,26 @@ namespace AvoGUI
 				sendSizeChangeEvents();
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns a rectangle representing the bounds of this view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns a rectangle representing the bounds of this view relative to the top left corner of the parent.
+		*/
 		const Rectangle<float>& getBounds() const override
 		{
 			return m_bounds;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the bounds of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the bounds of the view relative to the top left corner of the GUI.
+		*/
 		Rectangle<float> getAbsoluteBounds() const
 		{
 			return Rectangle<float>(m_absolutePosition, m_bounds.getSize());
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the bounds of the view shadow relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the bounds of the view shadow relative to the top left corner of the GUI.
+		*/
 		Rectangle<float> getAbsoluteShadowBounds() const
 		{
 			Rectangle<float> bounds;
@@ -3584,19 +3955,19 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Moves the whoie view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Moves the whoie view.
+		*/
 		void move(const Point<float>& p_offset) override
 		{
 			moveAbsolutePositions(p_offset.x, p_offset.y);
 			m_bounds += p_offset;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Moves the whole view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Moves the whole view.
+		*/
 		void move(float p_offsetX, float p_offsetY) override
 		{
 			moveAbsolutePositions(p_offsetX, p_offsetY);
@@ -3605,11 +3976,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top left coordinates of the view relative to the top left corner of the parent.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the top left coordinates of the view relative to the top left corner of the parent. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setTopLeft(const Point<float>& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.left || p_position.y != m_bounds.top)
@@ -3622,11 +3993,11 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top left coordinates of the view relative to the top left corner of the GUI.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the top left coordinates of the view relative to the top left corner of the GUI. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setAbsoluteTopLeft(const Point<float>& p_position, bool p_willKeepSize = true)
 		{
 			float offsetX = p_position.x - m_absolutePosition.x;
@@ -3641,11 +4012,11 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top left coordinates of the view relative to the top left corner of the parent.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the top left coordinates of the view relative to the top left corner of the parent. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setTopLeft(float p_left, float p_top, bool p_willKeepSize = true) override
 		{
 			if (p_left != m_bounds.left || p_top != m_bounds.top)
@@ -3658,11 +4029,11 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top left coordinates of the view relative to the top left corner of the GUI.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the top left coordinates of the view relative to the top left corner of the GUI. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setAbsoluteTopLeft(float p_left, float p_top, bool p_willKeepSize = true)
 		{
 			float offsetX = p_left - m_absolutePosition.x;
@@ -3677,28 +4048,28 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinates of the top left corner of the view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the coordinates of the top left corner of the view relative to the top left corner of the parent.
+		*/
 		Point<float> getTopLeft() const override
 		{
 			return Point<float>(m_bounds.left, m_bounds.top);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinates of the top left corner of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the coordinates of the top left corner of the view relative to the top left corner of the GUI.
+		*/
 		const Point<float>& getAbsoluteTopLeft() const
 		{
 			return m_absolutePosition;
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top right coordinates of the view relative to the top left corner of the parent.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the top right coordinates of the view relative to the top left corner of the parent. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setTopRight(const Point<float>& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.right || p_position.y != m_bounds.top)
@@ -3716,11 +4087,11 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top right coordinates of the view relative to the top left corner of the GUI.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the top right coordinates of the view relative to the top left corner of the GUI. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setAbsoluteTopRight(const Point<float>& p_position, bool p_willKeepSize = true)
 		{
 			float offsetX = p_position.x - m_absolutePosition.x + m_bounds.left - m_bounds.right;
@@ -3739,11 +4110,11 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top right coordinates of the view relative to the top left corner of the parent.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the top right coordinates of the view relative to the top left corner of the parent. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setTopRight(float p_right, float p_top, bool p_willKeepSize = true) override
 		{
 			if (p_right != m_bounds.right || p_top != m_bounds.top)
@@ -3761,11 +4132,11 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top right coordinates of the view relative to the top left corner of the GUI.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the top right coordinates of the view relative to the top left corner of the GUI. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setAbsoluteTopRight(float p_right, float p_top, bool p_willKeepSize = true)
 		{
 			float offsetX = p_right - m_absolutePosition.x + m_bounds.left - m_bounds.right;
@@ -3784,28 +4155,28 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinates of the top right corner of the view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the coordinates of the top right corner of the view relative to the top left corner of the parent.
+		*/
 		Point<float> getTopRight() const override
 		{
 			return Point<float>(m_bounds.right, m_bounds.top);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinates of the top right corner of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the coordinates of the top right corner of the view relative to the top left corner of the GUI.
+		*/
 		Point<float> getAbsoluteTopRight() const
 		{
 			return Point<float>(m_absolutePosition.x + m_bounds.right - m_bounds.left, m_bounds.top);
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom left coordinates of the view relative to the top left corner of the parent.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the bottom left coordinates of the view relative to the top left corner of the parent. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setBottomLeft(const Point<float>& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.left || p_position.y != m_bounds.bottom)
@@ -3823,11 +4194,11 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom left coordinates of the view relative to the top left corner of the GUI.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the bottom left coordinates of the view relative to the top left corner of the GUI. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setAbsoluteBottomLeft(const Point<float>& p_position, bool p_willKeepSize = true)
 		{
 			float offsetX = p_position.x - m_absolutePosition.x;
@@ -3846,11 +4217,11 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom left coordinates of the view relative to the top left corner of the parent.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the bottom left coordinates of the view relative to the top left corner of the parent. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true) override
 		{
 			if (p_left != m_bounds.left || p_bottom != m_bounds.bottom)
@@ -3868,11 +4239,11 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom left coordinates of the view relative to the top left corner of the GUI.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the bottom left coordinates of the view relative to the top left corner of the GUI. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setAbsoluteBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true)
 		{
 			float offsetX = p_left - m_absolutePosition.x;
@@ -3891,28 +4262,28 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinates of the bottom left corner of the view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the coordinates of the bottom left corner of the view relative to the top left corner of the parent.
+		*/
 		Point<float> getBottomLeft() const override
 		{
 			return Point<float>(m_bounds.left, m_bounds.bottom);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinates of the bottom left corner of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the coordinates of the bottom left corner of the view relative to the top left corner of the GUI.
+		*/
 		Point<float> getAbsoluteBottomLeft() const
 		{
 			return Point<float>(m_absolutePosition.x, m_absolutePosition.y + m_bounds.bottom - m_bounds.top);
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom right coordinates of the view relative to the top left corner of the parent.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the bottom right coordinates of the view relative to the top left corner of the parent. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setBottomRight(const Point<float>& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.right || p_position.y != m_bounds.bottom)
@@ -3929,11 +4300,11 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom right coordinates of the view relative to the top left corner of the GUI.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the bottom right coordinates of the view relative to the top left corner of the GUI. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setAbsoluteBottomRight(const Point<float>& p_position, bool p_willKeepSize = true)
 		{
 			float offsetX = p_position.x - m_absolutePosition.x + m_bounds.left - m_bounds.right;
@@ -3952,11 +4323,11 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom right coordinates of the view relative to the top left corner of the parent.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the bottom right coordinates of the view relative to the top left corner of the parent. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true) override
 		{
 			if (p_right != m_bounds.right || p_bottom != m_bounds.bottom)
@@ -3973,11 +4344,11 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom right coordinates of the view relative to the top left corner of the GUI.</para> 
-		/// <para>If p_willKeepSize is true, the view will only get moved, keeping its size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the bottom right coordinates of the view relative to the top left corner of the GUI. 
+			If p_willKeepSize is true, the view will only get positioned, keeping its size.
+		*/
 		void setAbsoluteBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true)
 		{
 			float offsetX = p_right - m_absolutePosition.x + m_bounds.left - m_bounds.right;
@@ -3996,18 +4367,18 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinates of the bottom right corner of the view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the coordinates of the bottom right corner of the view relative to the top left corner of the parent.
+		*/
 		Point<float> getBottomRight() const override
 		{
 			return Point<float>(m_bounds.right, m_bounds.bottom);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinates of the bottom right corner of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the coordinates of the bottom right corner of the view relative to the top left corner of the GUI.
+		*/
 		Point<float> getAbsoluteBottomRight() const 
 		{
 			return Point<float>(m_absolutePosition.x + m_bounds.right - m_bounds.left, m_absolutePosition.y + m_bounds.bottom - m_bounds.top);
@@ -4015,19 +4386,19 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the center coordinates of the view relative to the top left corner of the parent.</para> 
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the center coordinates of the view relative to the top left corner of the parent. 
+		*/
 		void setCenter(const Point<float>& p_position) override
 		{
 			moveAbsolutePositions(p_position.x - m_bounds.getCenterX(), p_position.y - m_bounds.getCenterY());
 			m_bounds.setCenter(p_position.x, p_position.y);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the center coordinates of the view relative to the top left corner of the GUI.</para> 
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the center coordinates of the view relative to the top left corner of the GUI. 
+		*/
 		void setAbsoluteCenter(const Point<float>& p_position)
 		{
 			float offsetX = p_position.x - m_absolutePosition.x - getWidth()*0.5f;
@@ -4035,19 +4406,19 @@ namespace AvoGUI
 			m_bounds.move(offsetX, offsetY);
 			moveAbsolutePositions(offsetX, offsetY);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the center coordinates of the view relative to the top left corner of the parent.</para> 
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the center coordinates of the view relative to the top left corner of the parent. 
+		*/
 		void setCenter(float p_x, float p_y) override
 		{
 			moveAbsolutePositions(p_x - m_bounds.getCenterX(), p_y - m_bounds.getCenterY());
 			m_bounds.setCenter(p_x, p_y);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the center coordinates of the view relative to the top left corner of the GUI.</para> 
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the center coordinates of the view relative to the top left corner of the GUI. 
+		*/
 		void setAbsoluteCenter(float p_x, float p_y)
 		{
 			float offsetX = p_x - m_absolutePosition.x - getWidth()*0.5f;
@@ -4055,86 +4426,86 @@ namespace AvoGUI
 			m_bounds.move(offsetX, offsetY);
 			moveAbsolutePositions(offsetX, offsetY);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the horizontal center coordinate of the view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the horizontal center coordinate of the view relative to the left edge of the parent.
+		*/
 		void setCenterX(float p_x) override
 		{
 			moveAbsolutePositions(p_x - m_bounds.getCenterX(), 0);
 			m_bounds.setCenterX(p_x);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the horizontal center coordinate of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the horizontal center coordinate of the view relative to the left edge of the GUI.
+		*/
 		void setAbsoluteCenterX(float p_x)
 		{
 			m_bounds.moveX(p_x - m_absolutePosition.x - getWidth()*0.5f);
 			moveAbsolutePositions(p_x - m_absolutePosition.x - getWidth()*0.5f, 0);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the vertical center coordinate of the view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the vertical center coordinate of the view relative to the top edge of the parent.
+		*/
 		void setCenterY(float p_y) override
 		{
 			moveAbsolutePositions(0, p_y - m_bounds.getCenterY());
 			m_bounds.setCenterY(p_y);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the vertical center coordinate of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the vertical center coordinate of the view relative to the top edge of the GUI.
+		*/
 		void setAbsoluteCenterY(float p_y)
 		{
 			m_bounds.moveY(p_y - m_absolutePosition.y - getHeight()*0.5f);
 			moveAbsolutePositions(0, p_y - m_absolutePosition.y - getHeight()*0.5f);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the center coordinates of the view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the center coordinates of the view relative to the top left corner of the parent.
+		*/
 		Point<float> getCenter() const override
 		{
 			return m_bounds.getCenter();
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the center coordinates of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the center coordinates of the view relative to the top left corner of the GUI.
+		*/
 		Point<float> getAbsoluteCenter() const
 		{
 			return Point<float>(m_absolutePosition.x + getWidth()*0.5f, m_absolutePosition.y + getHeight()*0.5f);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the x-axis center coordinate of the view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the x-axis center coordinate of the view relative to the left edge of the parent.
+		*/
 		float getCenterX() const override
 		{
 			return m_bounds.getCenterX();
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the x-axis center coordinate of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the x-axis center coordinate of the view relative to the left edge of the GUI.
+		*/
 		float getAbsoluteCenterX() const
 		{
 			return m_absolutePosition.x + getWidth()*0.5f;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the y-axis center coordinate of the view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the y-axis center coordinate of the view relative to the top edge of the parent.
+		*/
 		float getCenterY() const override
 		{
 			return m_bounds.getCenterY();
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the y-axis center coordinate of the view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the y-axis center coordinate of the view relative to the top edge of the GUI.
+		*/
 		float getAbsoluteCenterY() const
 		{
 			return m_absolutePosition.y + getHeight()*0.5f;
@@ -4142,12 +4513,12 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the left coordinate of this view and updates the layout relative to the top left corner of the parent. If p_willKeepWidth is</para>
-		/// <para>true, the right coordinate will be changed so that the width of the view stays the same.</para>
-		/// </summary>
-		void setLeft(float p_left, bool p_willKeepWidth = false) override
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the left coordinate of this view relative to the left edge of the parent. 
+			If p_willKeepWidth is true, the right coordinate will also be changed so that the width of the view stays the same.
+		*/
+		void setLeft(float p_left, bool p_willKeepWidth = true) override
 		{
 			if (p_left != m_bounds.left)
 			{
@@ -4159,12 +4530,12 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the left coordinate of this view and updates the layout relative to the top left corner of the GUI. If p_willKeepWidth is</para>
-		/// <para>true, the right coordinate will be changed so that the width of the view stays the same.</para>
-		/// </summary>
-		void setAbsoluteLeft(float p_left, bool p_willKeepWidth = false)
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the left coordinate of this view and updates the layout relative to the left edge of the GUI. 
+			If p_willKeepWidth is true, the right coordinate will also be changed so that the width of the view stays the same.
+		*/
+		void setAbsoluteLeft(float p_left, bool p_willKeepWidth = true)
 		{
 			if (p_left != m_absolutePosition.x)
 			{
@@ -4176,29 +4547,29 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the left coordinate of this view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the left coordinate of this view relative to the left edge of the parent.
+		*/
 		float getLeft() const override
 		{
 			return m_bounds.left;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the left coordinate of this view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the left coordinate of this view relative to the left edge of the GUI.
+		*/
 		float getAbsoluteLeft() const 
 		{
 			return m_absolutePosition.x;
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top coordinate of this view relative to the top left corner of the parent. If p_willKeepHeight is true, the bottom </para>
-		/// <para>coordinate will be changed so that the height of the view stays the same.</para>
-		/// </summary>
-		void setTop(float p_top, bool p_willKeepHeight = false) override
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the top coordinate of this view relative to the top edge of the parent. 
+			If p_willKeepHeight is true, the bottom coordinate will also be changed so that the height of the view stays the same.
+		*/
+		void setTop(float p_top, bool p_willKeepHeight = true) override
 		{
 			if (p_top != m_bounds.top)
 			{
@@ -4210,12 +4581,12 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the top coordinate of this view relative to the top left corner of the GUI. If p_willKeepHeight is true, the bottom </para>
-		/// <para>coordinate will be changed so that the height of the view stays the same.</para>
-		/// </summary>
-		void setAbsoluteTop(float p_top, bool p_willKeepHeight = false)
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the top coordinate of this view relative to the top edge of the GUI. 
+			If p_willKeepHeight is true, the bottom coordinate will also be changed so that the height of the view stays the same.
+		*/
+		void setAbsoluteTop(float p_top, bool p_willKeepHeight = true)
 		{
 			if (p_top != m_absolutePosition.y)
 			{
@@ -4227,29 +4598,29 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the top coordinate of this view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the top coordinate of this view relative to the top edge of the parent.
+		*/
 		float getTop() const override
 		{
 			return m_bounds.top;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the top coordinate of this view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the top coordinate of this view relative to the top edge of the GUI.
+		*/
 		float getAbsoluteTop() const
 		{
 			return m_absolutePosition.y;
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the right coordinate of this view relative to the top left corner of the parent. If p_willKeepWidth is true, the left</para>
-		/// <para>coordinate will be changed so that the width of the view stays the same.</para>
-		/// </summary>
-		void setRight(float p_right, bool p_willKeepWidth = false) override
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the right coordinate of this view relative to the left edge of the parent. 
+			If p_willKeepWidth is true, the left coordinate will also be changed so that the width of the view stays the same.
+		*/
+		void setRight(float p_right, bool p_willKeepWidth = true) override
 		{
 			if (p_right != m_bounds.right)
 			{
@@ -4265,12 +4636,12 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the right coordinate of this view relative to the top left corner of the GUI. If p_willKeepWidth is true, the left</para>
-		/// <para>coordinate will be changed so that the width of the view stays the same.</para>
-		/// </summary>
-		void setAbsoluteRight(float p_right, bool p_willKeepWidth = false) 
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the right coordinate of this view relative to the left edge of the GUI. 
+			If p_willKeepWidth is true, the left coordinate will also be changed so that the width of the view stays the same.
+		*/
+		void setAbsoluteRight(float p_right, bool p_willKeepWidth = true) 
 		{
 			float offset = p_right - m_absolutePosition.x + m_bounds.left - m_bounds.right;
 			if (offset)
@@ -4287,29 +4658,29 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinate of the right edge of this view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the coordinate of the right edge of this view relative to the left edge of the parent.
+		*/
 		float getRight() const override
 		{
 			return m_bounds.right;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinate of the right edge of this view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the coordinate of the right edge of this view relative to the left edge of the GUI.
+		*/
 		float getAbsoluteRight() const
 		{
 			return m_absolutePosition.x + m_bounds.right - m_bounds.left;
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom coordinate of this view relative to the top left corner of the parent and updates the layout. If p_willKeepHeight is true, the top</para>
-		/// <para>coordinate will be changed so that the height of the view stays the same.</para>
-		/// </summary>
-		void setBottom(float p_bottom, bool p_willKeepHeight = false) override
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the bottom coordinate of this view relative to the top edge of the parent and updates the layout. 
+			If p_willKeepHeight is true, the top coordinate will also be changed so that the height of the view stays the same.
+		*/
+		void setBottom(float p_bottom, bool p_willKeepHeight = true) override
 		{
 			if (p_bottom != m_bounds.bottom)
 			{
@@ -4325,12 +4696,12 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the bottom coordinate of this view relative to the top left corner of the GUI and updates the layout. If p_willKeepHeight is true, the top</para>
-		/// <para>coordinate will be changed so that the height of the view stays the same.</para>
-		/// </summary>
-		void setAbsoluteBottom(float p_bottom, bool p_willKeepHeight = false)
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the bottom coordinate of this view relative to the top edge of the GUI and updates the layout. 
+			If p_willKeepHeight is true, the top coordinate will also be changed so that the height of the view stays the same.
+		*/
+		void setAbsoluteBottom(float p_bottom, bool p_willKeepHeight = true)
 		{
 			float offset = p_bottom - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
 			if (offset)
@@ -4347,18 +4718,18 @@ namespace AvoGUI
 				}
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinate of the bottom edge of this view relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the coordinate of the bottom edge of this view relative to the top edge of the parent.
+		*/
 		float getBottom() const override
 		{
 			return m_bounds.bottom;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the coordinate of the bottom edge of this view relative to the top left corner of the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the coordinate of the bottom edge of this view relative to the top edge of the GUI.
+		*/
 		float getAbsoluteBottom() const 
 		{
 			return m_absolutePosition.y + m_bounds.bottom - m_bounds.top;
@@ -4366,10 +4737,10 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the width of this view and updates the layout.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the width of this view by changing the right coordinate and updates the layout.
+		*/
 		void setWidth(float p_width) override
 		{
 			if (p_width != m_bounds.right - m_bounds.left)
@@ -4378,18 +4749,19 @@ namespace AvoGUI
 				sendSizeChangeEvents();
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the distance between the left and right edges of this view.
+		*/
 		float getWidth() const override
 		{
 			return m_bounds.right - m_bounds.left;
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the height of this view and updates the layout.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the height of this view by changing the bottom coordinate and updates the layout.
+		*/
 		void setHeight(float p_height) override
 		{
 			if (p_height != m_bounds.bottom - m_bounds.top)
@@ -4398,18 +4770,19 @@ namespace AvoGUI
 				sendSizeChangeEvents();
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the distance between the top and bottom edges of this view.
+		*/
 		float getHeight() const override
 		{
 			return m_bounds.bottom - m_bounds.top;
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the size of this view and updates the layout.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the size of this view by changing the right and bottom coordinates and updates the layout.
+		*/
 		void setSize(const Point<float>& p_size) override
 		{
 			if (p_size.x != m_bounds.right - m_bounds.left || p_size.y != m_bounds.bottom - m_bounds.top)
@@ -4418,10 +4791,10 @@ namespace AvoGUI
 				sendSizeChangeEvents();
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the size of this view and updates the layout.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the size of this view by changing the right and bottom coordinates and updates the layout.
+		*/
 		void setSize(float p_width, float p_height) override
 		{
 			if (p_width != m_bounds.right - m_bounds.left || p_height != m_bounds.bottom - m_bounds.top)
@@ -4430,10 +4803,10 @@ namespace AvoGUI
 				sendSizeChangeEvents();
 			}
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the size of this view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			x is width and y is height in the returned point.
+		*/
 		Point<float> getSize() const override
 		{
 			return Point<float>(m_bounds.right - m_bounds.left, m_bounds.bottom - m_bounds.top);
@@ -4441,10 +4814,10 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view intersects/overlaps a rectangle relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether this view intersects/overlaps a rectangle that is relative to the top left corner of the parent.
+		*/
 		bool getIsIntersecting(const Rectangle<float>& p_rectangle) const override
 		{
 			if (m_cornerRadius > 0.f)
@@ -4479,26 +4852,26 @@ namespace AvoGUI
 			}
 			return m_bounds.getIsIntersecting(p_rectangle);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view intersects/overlaps another protected rectangle relative to the top left corner of the parent.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether this view intersects/overlaps another protected rectangle that is relative to the top left corner of the parent.
+		*/
 		bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const override
 		{
 			return getIsIntersecting(p_protectedRectangle->getBounds());
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view intersects/overlaps another view. Takes rounded corners of both views into account.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether this view intersects/overlaps another view. Takes rounded corners of both views into account.
+		*/
 		bool getIsIntersecting(View* p_view) const;
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view contains a rectangle. The rectangle is relative to the parent of the view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether a rectangle can be contained within this view. The rectangle is relative to the parent of this view.
+		*/
 		bool getIsContaining(const Rectangle<float>& p_rectangle) const override
 		{
 			if (m_cornerRadius > 0.f)
@@ -4533,24 +4906,24 @@ namespace AvoGUI
 			}
 			return m_bounds.getIsContaining(p_rectangle);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view contains another protected rectangle. The rectangle is relative to the parent of this view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether another protected rectangle can be contained within this view. The rectangle is relative to the parent of this view.
+		*/
 		bool getIsContaining(ProtectedRectangle* p_rectangle) const override
 		{
 			return getIsContaining(p_rectangle->getBounds());
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view contains another view. Takes rounded corners of both views into account.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether this view contains another view. Takes rounded corners of both views into account.
+		*/
 		bool getIsContaining(View* p_view) const;
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view contains a point. The point is relative to the parent of the view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether a point is within the bounds of this view. The point is relative to the parent of this view.
+		*/
 		bool getIsContaining(float p_x, float p_y) const override
 		{
 			if (m_cornerRadius > 0.f)
@@ -4585,10 +4958,10 @@ namespace AvoGUI
 			}
 			return m_bounds.getIsContaining(p_x, p_y);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether this view contains a point. The point is relative to the parent of the view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether a point is within the bounds of this view. The point is relative to the parent of the view.
+		*/
 		bool getIsContaining(const Point<float>& p_point) const override
 		{
 			return getIsContaining(p_point.x, p_point.y);
@@ -4596,18 +4969,18 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets whether the view is visible and can receive events.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets whether the view is visible and can receive events.
+		*/
 		void setIsVisible(bool p_isVisible)
 		{
 			m_isVisible = p_isVisible;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether the view is visible and can receive events.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether the view is visible and can receive events.
+		*/
 		bool getIsVisible() const
 		{
 			return m_isVisible;
@@ -4615,19 +4988,18 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the roundness of the corners of the view.</para>
-		/// </summary>
-		/// <param name="p_radius">Radius of the corner circles.</param>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the roundness of the corners of the view. p_radius is the radius of the corner circles.
+		*/
 		void setCornerRadius(float p_radius)
 		{
 			m_cornerRadius = p_radius;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the roundness of the corners of the view, as a radius. </para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the roundness of the corners of the view, as the radius of the corner circles. 
+		*/
 		float getCornerRadius() const
 		{
 			return m_cornerRadius;
@@ -4635,68 +5007,70 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the elevation of the view. This both changes its shadow (if the view has shadow) and drawing order.</para>
-		/// <para>The higher the elevation is, the later it will get drawn.</para>
-		/// </summary>
-		/// <param name="p_elevation">If this is negative, it is set from the top of the elevation space.</param>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the elevation of the view. This both changes its shadow (if the view has shadow) and drawing order.
+			The higher the elevation is, the later it will get drawn.
+			If p_elevation is negative, it is set from the top of the elevation space.
+		*/
 		void setElevation(float p_elevation);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the elevation of the view. See the setElevation method.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the elevation of the view. See the setElevation method.
+		*/
 		float getElevation() const
 		{
 			return m_elevation;
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets whether the elevation is shown with a shadow.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets whether the elevation is shown with a shadow.
+		*/
 		void setHasShadow(bool p_hasShadow);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether the elevation is shown with a shadow.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether the elevation is shown with a shadow.
+		*/
 		bool getHasShadow() const
 		{
 			return m_hasShadow;
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the rectangle which represents the area where the shadow is drawn, relative to the view position.</para>
-		/// <para>This rectangle is bigger than the view or equal to the size of the view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the rectangle that represents the area where the shadow is drawn, relative to the view position.
+			The view is always contained within the shadow bounds.
+		*/
 		Rectangle<float> getShadowBounds() const
 		{
 			return m_shadowBounds;
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>This is only used by the library from the parent of this view. It doesn't change the actual index of this view, it </para>
-		/// <para>only helps the view keep track of its current index. I apologize for the ambiguousness here.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			This is only used by the library from the parent of this view. 
+			It doesn't change the actual index of this view, it only helps the view keep track of its current index. 
+			I apologize for the ambiguousness here, couldn't find any better way...
+		*/
 		void setIndex(uint32_t p_index)
 		{
 			m_index = p_index;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the index of this view relative to its siblings.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the index of this view relative to its siblings.
+		*/
 		uint32_t getIndex() const
 		{
 			return m_index;
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the layer index of the view, how deep down the view hierarchy it is.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the layer index of the view, how deep down the view hierarchy it is.
+			The GUI view has a layer index of 0.
+		*/
 		uint32_t getLayerIndex() const
 		{
 			return m_layerIndex;
@@ -4704,19 +5078,19 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets some arbitrary data you can use yourself to keep track of the view,.</para>
-		/// </summary>
-		/// <param name="p_userData"></param>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets some arbitrary data you can use yourself to keep track of the view or something.
+			The view doesn't (by default) fiddle with this pointer or the memory it points to, it's your responsibility to manage it.
+		*/
 		void setUserData(void* p_userData)
 		{
 			m_userData = p_userData;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns your data that you for some reason wanted to associate with this view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns your data that you for some reason wanted to associate with this view.
+		*/
 		void* getUserData()
 		{
 			return m_userData;
@@ -4724,42 +5098,43 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Queues an animation update for the next frame.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Queues an animation update for the next frame.
+		*/
 		void queueAnimationUpdate();
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Don't do anything with this.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Don't do anything with this.
+		*/
 		void informAboutAnimationUpdateQueueRemoval()
 		{
 			m_isInAnimationUpdateQueue = false;
 		}
 
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Updates things like animations and does anything that you never want to happen more than once every frame.</para>
-		/// <para>Call queueAnimationUpdate() when you want this method to be called in the next interval. This system allows</para>
-		/// <para>for animations to only get updated when they have to.</para>
-		/// </summary>
+		/*
+			USER IMPLEMENTED
+			Updates things like animations and does anything that you never want to happen more than once every frame.
+			Call queueAnimationUpdate() when you want this method to be called in the next interval. 
+			This system allows for animations to only get updated when they have to.
+		*/
 		virtual void updateAnimations() { }
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Adds an event listener to the view that recieves events about when the view has changed size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Adds an event listener to the view, which recieves events about when the view has changed size.
+			The listener is not remembered, just put into a list.
+		*/
 		void addEventListener(ViewListener* p_eventListener)
 		{
 			m_viewEventListeners.push_back(p_eventListener);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Removes an event listener from the view.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			This only removes the pointer from a list, it doesn't forget it or anything.
+		*/
 		void removeEventListener(ViewListener* p_eventListener)
 		{
 			removeVectorElementWhileKeepingOrder(m_viewEventListeners, p_eventListener);
@@ -4767,131 +5142,136 @@ namespace AvoGUI
 
 		//------------------------------
 		
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>By default, mouse events are disabled.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			By default, mouse events are disabled.
+		*/
 		virtual void enableMouseEvents();
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Mouse events are disabled by default.
+		*/
 		virtual void disableMouseEvents();
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		virtual bool getAreMouseEventsEnabled()
 		{
 			return m_areMouseEventsEnabled;
 		}
 
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a mouse button has been pressed down while the pointer is above the view.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when a mouse button has been pressed down while the pointer is above the view.
+			p_event is an object that contains information about the mouse event.
+		*/
 		virtual void handleMouseDown(const MouseEvent& p_event) { }
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a mouse button has been released after having been pressed down when the mouse pointer was above the view.</para>
-		/// <para>The mouse cursor may have left the view during the time the button is pressed, but it will still recieve the event.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when a mouse button has been released after having been pressed down when the mouse pointer was above the view.
+			The mouse cursor may have left the view during the time the button is pressed, but it will still recieve the event.
+			p_event is an object that contains information about the mouse event.
+		*/
 		virtual void handleMouseUp(const MouseEvent& p_event) { }
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a mouse button has been double clicked while the mouse pointer is above the view.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when a mouse button has been double clicked while the mouse pointer is above the view.
+			p_event is an object that contains information about the mouse event.
+		*/
 		virtual void handleMouseDoubleClick(const MouseEvent& p_event) { }
 
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when the mouse pointer has been moved within the bounds of the view. If it has entered the view, a mouse enter event</para>
-		/// <para>is sent, and if it has left the view, a mouse leave event is sent.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when the mouse pointer has been moved within the bounds of the view. 
+			If it has entered the view, a mouse enter event is sent, and if it has left the view, a mouse leave event is sent.
+			p_event is an object that contains information about the mouse event.
+		*/
 		virtual void handleMouseMove(const MouseEvent& p_event) { }
-		/// <summary>
-		/// LIBRARY IMPLEMENTED (only default behavior)
-		/// <para>Gets called when the mouse pointer has entered the view.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		/*
+			LIBRARY IMPLEMENTED (only default behavior)
+			Gets called when the mouse pointer has entered the view.
+			By default, this changes the mouse cursor to the cursor that is set with setCursor on the view.
+			p_event an object that contains information about the mouse event.
+		*/
 		virtual void handleMouseEnter(const MouseEvent& p_event);
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when the mouse pointer has left the view.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when the mouse pointer has left the view.
+			p_event is an object that contains information about the mouse event.
+		*/
 		virtual void handleMouseLeave(const MouseEvent& p_event) { }
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when the mouse wheel has been moved/scrolled while the mouse pointer is above the view.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when the mouse wheel has been moved/scrolled while the mouse pointer is above the view.
+			p_event is an object that contains information about the mouse event.
+		*/
 		virtual void handleMouseScroll(const MouseEvent& p_event) { }
 
 		//------------------------------
 
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Implement this method in your view if you want to update things when the size of</para>
-		/// <para>the view has been changed.</para>
-		/// </summary>
+		/*
+			USER IMPLEMENTED
+			Implement this method in your view if you want to update things when the size ofthe view has been changed.
+		*/
 		virtual void handleSizeChange() { }
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Call this if you want the view to get redrawn. Adds an invalid rectangle to the window.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Call this if you want the view to get redrawn. Adds an invalid rectangle to the window or two if the view has been moved.
+		*/
 		void invalidate();
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Draws the shadow of the view. This gets called by the parent View before the</para>
-		/// <para>content of the view is drawn.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Draws the shadow of the view. This gets called by the parent View before the
+			content of the view is drawn.
+		*/
 		void drawShadow(DrawingContext* p_drawingContext);
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Draws the content of the view. This is a method that is called by default from the other draw method</para>
-		/// <para>that also takes the target rectangle as input. You do not often care about that parameter.</para>
-		/// </summary>
-		/// <param name="p_drawingContext">Object used to draw graphics to the window.</param>
+		/*
+			USER IMPLEMENTED
+			Draws the contents of the view. 
+			This method is called by default from the other draw method that also takes the target rectangle as input. 
+			You often don't need to use that parameter.
+			
+			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
+		*/
 		virtual void draw(DrawingContext* p_drawingContext) { }
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Draws the content of the view. Override this method if you want the target rectangle, override the overloaded</para>
-		/// <para>method that only takes the drawing context otherwise.</para>
-		/// </summary>
-		/// <param name="p_drawingContext">Object used to draw graphics to the window.</param>
-		/// <param name="p_targetRectangle">
-		/// The rectangle that needs to be drawn, relative to the top-left corner of the GUI. To optimize your application, you can make sure to only draw stuff in this region.
-		/// </param>
+		/*
+			USER IMPLEMENTED
+			Draws the content of the view. Override this method if you want the target rectangle, override the overloaded
+			method that only takes the drawing context otherwise.
+		
+			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
+			p_targetRectangle is the rectangle that needs to be drawn, relative to the top-left corner of the GUI. 
+			To optimize your application, you can make sure to only draw stuff in this region.
+		*/
 		virtual void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
 		{
 			draw(p_drawingContext);
 		}
 
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Draws on top of the view, without any view clipping applied. This is a method that is called by default from the other</para>
-		/// <para>drawUnclipped method that also takes the target rectangle as input. You do not often care about that parameter.</para>
-		/// </summary>
-		/// <param name="p_drawingContext"></param>
-		virtual void drawUnclipped(DrawingContext* p_drawingContext) {}
+		/*
+			USER IMPLEMENTED
+			Draws on top of child views. 
+			This method is called by default from the other drawOverlay method that also takes the target rectangle as input. 
+			You do not often care about that parameter.
+		
+			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
+		*/
+		virtual void drawOverlay(DrawingContext* p_drawingContext) {}
 
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Draws on top of the view, without any view clipping applied. Override this method if you want the target rectangle, override</para>
-		/// <para>the overloaded method that only takes the drawing context otherwise.</para>
-		/// </summary>
-		/// <param name="p_drawingContext">Object used to draw graphics to the window.</param>
-		/// <param name="p_targetRectangle">
-		/// The rectangle that needs to be drawn, relative to the top-left corner of the GUI. To optimize your application, you can make sure to only draw stuff in this region.
-		/// </param>
-		virtual void drawUnclipped(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
+		/*
+			USER IMPLEMENTED
+			Draws on top of child views. Override this method if you want the target rectangle, override the overloaded 
+			method that only takes the drawing context otherwise.
+		
+			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
+			p_targetRectangle is the rectangle that needs to be drawn, relative to the top-left corner of the GUI.
+			To optimize your application, you can make sure to only draw stuff in this region.
+		*/
+		virtual void drawOverlay(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
 		{
-			drawUnclipped(p_drawingContext);
+			drawOverlay(p_drawingContext);
 		}
 	};
 
@@ -4903,76 +5283,76 @@ namespace AvoGUI
 	class WindowEvent
 	{
 	public:
-		/// <summary>
-		/// The window that has experienced the event.
-		/// </summary>
+		/*
+			The window that has recieved the event from the OS.
+		*/
 		Window* window = 0;
-		/// <summary>
-		/// The new width of the window if it has changed size (includes sizeChange/maximize events).
-		/// </summary>
+		/*
+			The new width of the window if it has changed size (includes sizeChange/maximize/restore events).
+		*/
 		uint32_t width = 0U;
-		/// <summary>
-		/// The new height of the window if it has changed size (includes sizeChange/maximize events).
-		/// </summary>
+		/*
+			The new height of the window if it has changed size (includes sizeChange/maximize/restore events).
+		*/
 		uint32_t height = 0U;
 	};
 
 	class WindowEventListener
 	{
 	public:
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a window has been created.</para>
-		/// </summary>
-		/// <param name="p_event">Object containing information about the event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when a window has been created.
+			p_event is an object that contains information about the event.
+		*/
 		virtual void handleWindowCreate(const WindowEvent& p_event) { }
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a window has been requested to be closed. If the handler returns true, the window will close and get destroyed.</para>
-		/// </summary>
-		/// <param name="p_event">Object containing information about the event.</param>
+		/*
+			LIBRARY IMPLEMENTED (only default behavior)
+			Gets called when a window has been requested to be closed. 
+			If the handler returns true, the window will close and get destroyed. This is the default behavior.
+			p_event is an object containing information about the event.
+		*/
 		virtual bool handleWindowClose(const WindowEvent& p_event) { return true; }
 
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a window has been minimized in the taskbar. The width and height properties of the event tell you the new size of the window.</para>
-		/// </summary>
-		/// <param name="p_event">Object containing information about the event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when a window has been minimized in the taskbar. 
+			p_event is an object containing information about the event.
+		*/
 		virtual void handleWindowMinimize(const WindowEvent& p_event) { }
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a window has been maximized so that it is as big as possible while still showing the border.</para>
-		/// </summary>
-		/// <param name="p_event">Object containing information about the event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when a window has been maximized so that it is as big as possible while still showing the border.
+			The width and height properties of p_event tell you the new size of the window.
+		*/
 		virtual void handleWindowMaximize(const WindowEvent& p_event) { }
 
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a window has been restored after being in a minimized or maximized state.</para>
-		/// </summary>
-		/// <param name="p_event">Object containing information about the event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when a window has been restored after being in a minimized or maximized state.
+			The width and height properties of p_event tell you the new size of the window.
+		*/
 		virtual void handleWindowRestore(const WindowEvent& p_event) { }
 
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when the size of a window has changed. This includes if it has been maximized,</para>
-		/// <para>or if the border has been dragged to resize it. The width and height properties of the</para>
-		/// <para>event tell you the new size of the window.</para>
-		/// </summary>
-		/// <param name="p_event">Object containing information about the event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when the size of a window has changed. 
+			This includes if it has been maximized, or if the border has been dragged to resize it. 
+			The width and height properties of p_event tell you the new size of the window.
+		*/
 		virtual void handleWindowSizeChange(const WindowEvent& p_event) { }
 
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a window has been focused, meaning it has been interacted with so that another window loses focus.</para>
-		/// </summary>
-		/// <param name="p_event">Object containing information about the event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when a window has been focused, meaning it has been interacted with so that another window loses focus.
+			p_event is an object containing information about the event.
+		*/
 		virtual void handleWindowFocus(const WindowEvent& p_event) { }
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a window has been unfocused, meaning another window is interacted with.</para>
-		/// </summary>
-		/// <param name="p_event">Object containing information about the event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when a window has been unfocused, meaning another window is interacted with.
+			p_event is an object containing information about the event.
+		*/
 		virtual void handleWindowUnfocus(const WindowEvent& p_event) { }
 	};
 
@@ -5033,77 +5413,79 @@ namespace AvoGUI
 	class MouseEvent
 	{
 	public:
-		/// <summary>
-		/// X coordinate of the mouse pointer.
-		/// </summary>
+		/*
+			X coordinate of the mouse pointer.
+		*/
 		int32_t x = 0;
-		/// <summary>
-		/// Y coordinate of the mouse pointer.
-		/// </summary>
+		/*
+			Y coordinate of the mouse pointer.
+		*/
 		int32_t y = 0;
-		/// <summary>
-		/// <para>The movement of the mouse pointer in the X axis that has moved the pointer from where it was</para>
-		/// <para>before to where it is now.</para>
-		/// </summary>
+		/*
+			The movement of the mouse pointer in the x-axis.
+			If it is positive it has moved to the right and if it is negative it has moved to the left.
+		*/
 		int32_t movementX = 0;
-		/// <summary>
-		/// <para>The movement of the mouse pointer in the Y axis that has moved the pointer from where it was</para>
-		/// <para>before to where it is now.</para>
-		/// </summary>
+		/*
+			The movement of the mouse pointer in the y-axis.
+			If it is positive it has moved down and if it is negative it has moved up.
+		*/
 		int32_t movementY = 0;
-		/// <summary>
-		/// <para>How much the mouse wheel has been moved. If it is positive, the wheel has been moved away</para>
-		/// <para>from the user, if it negative it has moved towards the user. It represents the number of ticks</para>
-		/// <para>the wheel has been moved, but can be a fraction if the mouse has smooth scrolling.</para>
-		/// </summary>
+		/*
+			How much the mouse wheel has been moved. 
+			If it is positive, the wheel has been moved away from the user, if it negative it has moved towards the user. 
+			It represents the number of ticks the wheel has been moved, but can be a fraction if the mouse has smooth scrolling.
+		*/
 		float scrollDelta = 0.f;
-		/// <summary>
-		/// The mouse button that has been pressed, released or double clicked (depending on the mouse event).
-		/// </summary>
+		/*
+			The mouse button that has been pressed, released or double clicked (depending on the mouse event).
+		*/
 		MouseButton mouseButton = MouseButton::None;
-		/// <summary>
-		/// The modifier keys and mouse buttons that were down when the event ocurred.
-		/// </summary>
+		/*
+			The modifier keys and mouse buttons that were down when the event ocurred.
+		*/
 		ModifierKeyFlags modifierKeys = ModifierKeyFlags::None;
 	};
 
-	/// <summary>
-	/// This can be inherited by any class. Remember to register it to the GUI by calling the addGlobalMouseEventListener() method on it.
-	/// </summary>
+	/*
+		This can be inherited by any class. 
+		Remember to register it to the GUI by calling the addGlobalMouseEventListener() method on it.
+		A GlobalMouseEventListener will recieve mouse events as long as the window is focused.
+	*/
 	class GlobalMouseEventListener
 	{
 	public:
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a mouse button has been pressed down while the mouse cursor is inside the window.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when a mouse button has been pressed down while the mouse cursor is inside the window.
+			p_event is an object that contains information about the mouse event.
+		*/
 		virtual void handleGlobalMouseDown(const MouseEvent& p_event) { }
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a mouse button has been released after having been pressed down when the mouse pointer was inside the window.</para>
-		/// <para>The mouse cursor may have left the window during the time the button is pressed, but it will still recieve the event.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when a mouse button has been released after having been pressed down when the mouse pointer was inside the window.
+			The mouse cursor may have left the window during the time the button is pressed, but it will still recieve the event.
+			p_event is an object that contains information about the mouse event.
+		*/
 		virtual void handleGlobalMouseUp(const MouseEvent& p_event) { }
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when a mouse button has been double clicked while the mouse pointer is inside the window.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when a mouse button has been double clicked while the mouse pointer is inside the window.
+			p_event is an object that contains information about the mouse event.
+		*/
 		virtual void handleGlobalMouseDoubleClick(const MouseEvent& p_event) { }
 
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when the mouse has been moved while the mouse cursor is inside the window.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when the mouse has been moved while the mouse cursor is inside the window.
+			p_event is an object that contains information about the mouse event.
+		*/
 		virtual void handleGlobalMouseMove(const MouseEvent& p_event) { }
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>Gets called when the mouse wheel has been scrolled while the mouse pointer is inside the window.</para>
-		/// </summary>
-		/// <param name="p_event">An object that contains information about the mouse event.</param>
+		/*
+			USER IMPLEMENTED
+			Gets called when the mouse wheel has been scrolled while the mouse pointer is inside the window.
+			p_event is an object that contains information about the mouse event.
+		*/
 		virtual void handleGlobalMouseScroll(const MouseEvent& p_event) { }
 	};
 
@@ -5148,45 +5530,41 @@ namespace AvoGUI
 	class KeyboardEvent
 	{
 	public:
-		/// <summary>
-		/// The character that was pressed. This is only valid for character press events.
-		/// </summary>
+		/*
+			The character that was pressed. This is only valid for character press events.
+		*/
 		char character = 0;
-		/// <summary>
-		/// The keyboard key that was pressed or released. This is not valid for character press events.
-		/// </summary>
+		/*
+			The keyboard key that was pressed or released. This is not valid for character press events.
+		*/
 		KeyboardKey key = KeyboardKey::None;
-		/// <summary>
-		/// <para>If this is true, this character/key press event is generated after the initial attack because</para>
-		/// <para>the key is being held down.</para>
-		/// </summary>
+		/*
+			If this is true, this character/key press event is generated after the initial attack because the key is being held down.
+		*/
 		bool isRepeated = false;
 	};
 
 	class KeyboardEventListener
 	{
 	public:
-		/// <summary>
-		/// <para>This method is called when a character key has been pressed. The event contains the character</para>
-		/// <para>that was pressed, and whether it's a repeated character.</para>
-		/// </summary>
-		/// <param name="p_event">Object containing information about the event.</param>
+		/*
+			This method is called when a character key has been pressed. 
+			Only p_event.character and p_event.isRepeated are valid for this event type.
+		*/
 		virtual void handleCharacterInput(const KeyboardEvent& p_event) { }
-		/// <summary>
-		/// <para>This method is called when a keyboard key has been pressed. The event contains the virtual key</para>
-		/// <para>that was pressed, and whether it's a repeated key event.</para>
-		/// </summary>
-		/// <param name="p_event">Object containing information about the event.</param>
+		/*
+			This method is called when a keyboard key has been pressed.
+			Only p_event.key and p_event.isRepeated are valid for this event type.
+		*/
 		virtual void handleKeyboardKeyDown(const KeyboardEvent& p_event) { }
-		/// <summary>
-		/// <para>This method is called when a keyboard key has been released. The event only contains the virtual</para>
-		/// <para>key that was pressed.</para>
-		/// </summary>
-		/// <param name="p_event">Object containing information about the event.</param>
+		/*
+			This method is called when a keyboard key has been released.
+			Only p_event.key is valid for this event type.
+		*/
 		virtual void handleKeyboardKeyUp(const KeyboardEvent& p_event) { }
-		/// <summary>
-		/// Gets called when another keyboard event listener is the target of keyboard events.
-		/// </summary>
+		/*
+			Gets called when another keyboard event listener becomes the target of keyboard events.
+		*/
 		virtual void handleKeyboardFocusLost() { }
 	};
 
@@ -5235,305 +5613,303 @@ namespace AvoGUI
 
 	class GUI;
 
-	/// <summary>
-	/// <para>An abstract window which has an OS-specific implementation. The window is responsible</para>
-	/// <para>for recieving events from the OS and sending them to the GUI. It's like a portal between</para>
-	/// <para>your application and the operating system. It is only intended to be created by a GUI,</para>
-	/// <para>and you can access and use it from there.</para>
-	/// </summary>
+	/*
+		An abstract window, which has an OS-specific implementation. 
+		The window is responsible for recieving events from the OS and sending them to the GUI. 
+		It's like a portal between your application and the operating system. 
+		It is only intended to be created by a GUI, and you can access and use it from there.
+	*/
 	class Window : public ReferenceCounted
 	{
 	public:
-		/// <summary>
-		/// Creates the window. To close it, use close().
-		/// </summary>
-		/// <param name="p_title">The text that appears in the title bar of the window (if it has a border).</param>
-		/// <param name="p_x">The position of the left edge of the window relative to the left edge of the screen.</param>
-		/// <param name="p_y">The position of the top edge of the window relative to the top edge of the screen.</param>
-		/// <param name="p_width">The width of the client area in pixels.</param>
-		/// <param name="p_height">The height of the client area in pixels.</param>
-		/// <param name="p_styleFlags">Styling options for the window.</param>
-		/// <param name="p_isFullscreen">If the client area fills the whole screen without anything else showing.</param>
-		/// <param name="p_parent">An optional parent window that is behind this window.</param>
+		/*
+			Creates the window. To close it, use close().
+		
+			p_title is the text that appears in the title bar of the window (if it has a border).
+			p_x is the position of the left edge of the window relative to the left edge of the screen.
+			p_y is the position of the top edge of the window relative to the top edge of the screen.
+			p_width is the width of the client area in pixels.
+			p_height is the height of the client area in pixels.
+			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent window, which this window would appear above.
+		*/
 		virtual void create(const char* p_title, int32_t p_x, int32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
-		/// <summary>
-		/// Creates the window in the center of the screen. To close it, use close().
-		/// </summary>
-		/// <param name="p_title">The text that appears in the title bar of the window (if it has a border).</param>
-		/// <param name="p_width">The width of the client area in pixels.</param>
-		/// <param name="p_height">The height of the client area in pixels.</param>
-		/// <param name="p_styleFlags">Styling options for the window.</param>
-		/// <param name="p_isFullscreen">If the client area fills the whole screen without anything else showing.</param>
-		/// <param name="p_parent">An optional parent window that is behind this window.</param>
+		/*
+			Creates the window in the center of the screen. To close it, use close().
+		
+			p_title is the text that appears in the title bar of the window (if it has a border).
+			p_width is the width of the client area in pixels.
+			p_height is the height of the client area in pixels.
+			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent window, which this window would appear above.
+		*/
 		virtual void create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
 
-		/// <summary>
-		/// Closes the window. To recreate it, use create(...).
-		/// </summary>
+		/*
+			Closes the OS window and destroys it. To recreate it, use create(...).
+		*/
 		virtual void close() = 0;
 
-		/// <summary>
-		/// Returns whether the OS window has been created and exists.
-		/// <summary>
+		/*
+			Returns whether the OS window has been created and exists.
+		*/
 		virtual bool getIsOpen() const = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Changes the styles that determine how the window is drawn by the OS. These are set when the window is created,</para>
-		/// <para>and you can change them afterwards here.</para>
-		/// </summary>
-		/// <param name="p_styles"></param>
+		/*
+			Changes the styles that determine how the window is drawn by the OS. 
+			These are set when the window is created, and you can change them afterwards here.
+		*/
 		virtual void setStyles(WindowStyleFlags p_styles) = 0;
-		/// <summary>
-		/// <para>Returns the current styles that determine how the window is drawn by the OS.</para>
-		/// </summary>
+		/*
+			Returns the current styles that determine how the window is drawn by the OS.
+		*/
 		virtual WindowStyleFlags getStyles() const = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Returns the OS-specific window object associated with this window.
-		/// </summary>
+		/*
+			Returns the OS-specific window object associated with this window.
+		*/
 		virtual void* getWindowHandle() const = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Changes whether the client area of the window fills the whole screen.
-		/// </summary>
+		/*
+			Changes whether the client area of the window fills the whole screen.
+		*/
 		virtual void setIsFullscreen(bool p_isFullscreen) = 0;
-		/// <summary>
-		/// Switches between fullscreen and windowed mode. If the window is currently windowed, it will become fullscreen, and the other way around.
-		/// </summary>
+		/*
+			Switches between fullscreen and windowed mode. 
+			If the window is currently windowed, it will become fullscreen, and the other way around.
+		*/
 		virtual void switchFullscreen() = 0;
-		/// <summary>
-		/// Returns whether the client area of the window fills the whole screen.
-		/// </summary>
+		/*
+			Returns whether the client area of the window fills the whole screen.
+		*/
 		virtual bool getIsFullscreen() const = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Makes the window invisible and disabled.
-		/// </summary>
+		/*
+			Makes the window invisible and disabled.
+		*/
 		virtual void hide() = 0;
-		/// <summary>
-		/// Shows the window and enables it.
-		/// </summary>
+		/*
+			Shows the window and enables it.
+		*/
 		virtual void show() = 0;
 
-		/// <summary>
-		/// Makes the size of the window as big as possible so that the border still shows.
-		/// </summary>
+		/*
+			Makes the size of the window as big as possible so that the border still shows.
+		*/
 		virtual void maximize() = 0;
-		/// <summary>
-		/// Hides the window temporarily in a taskbar where it can be restored again.
-		/// </summary>
+		/*
+			Hides the window temporarily in a taskbar where it can be restored again.
+		*/
 		virtual void minimize() = 0;
-		/// <summary>
-		/// Shows/opens the window as it was before it was minimized.
-		/// </summary>
+		/*
+			Shows/opens the window as it was before it was minimized.
+		*/
 		virtual void restore() = 0;
 
-		/// <summary>
-		/// <para>Changes the window state, which determines how the window is viewed; hidden in the taskbar,</para>
-		/// <para>maximized so it fills the client area of the screen, or restored which is the default window</para>
-		/// <para>state where the window can overlap other windows and be resized normally.</para>
-		/// <para>Methods maximize(), minimize() and restore() do the same thing.</para>
-		/// </summary>
+		/*
+			Changes the window state, which determines how the window is viewed; hidden in the taskbar, maximized so it fills the client area 
+			of the screen, or restored which is the default window state where the window can overlap other windows and be resized normally.
+			Methods maximize(), minimize() and restore() do the same thing.
+		*/
 		virtual void setState(WindowState p_state) = 0;
-		/// <summary>
-		/// <para>Returns the window state, which determines how the window is viewed; hidden in the taskbar,</para>
-		/// <para>maximized so it fills the client area of the screen, or restored which is the default window</para>
-		/// <para>state where the window can overlap other windows and be resized normally.</para>
-		/// </summary>
+		/*
+			Returns the window state, which determines how the window is viewed; hidden in the taskbar, maximized so it fills the client area 
+			of the screen, or restored which is the default window state where the window can overlap other windows and be resized normally.
+		*/
 		virtual WindowState getState() const = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the position of the window relative to the top-left corner of the screen.
-		/// </summary>
+		/*
+			Sets the position of the window relative to the top-left corner of the screen.
+		*/
 		virtual void setPosition(const Point<int32_t>& p_position) = 0;
-		/// <summary>
-		/// Sets the position of the window relative to the top-left corner of the screen.
-		/// </summary>
+		/*
+			Sets the position of the window relative to the top-left corner of the screen.
+		*/
 		virtual void setPosition(int32_t p_x, int32_t p_y) = 0;
-		/// <summary>
-		/// Returns the position of the window relative to the top-left corner of the screen.
-		/// </summary>
+		/*
+			Returns the position of the window relative to the top-left corner of the screen.
+		*/
 		virtual const Point<int32_t>& getPosition() const = 0;
-		/// <summary>
-		/// Returns the position of the left edge of the window relative to the top-left corner of the screen.
-		/// </summary>
+		/*
+			Returns the position of the left edge of the window relative to the top-left corner of the screen.
+		*/
 		virtual int32_t getPositionX() const = 0;
-		/// <summary>
-		/// Returns the position of the left edge of the window relative to the top-left corner of the screen.
-		/// </summary>
+		/*
+			Returns the position of the left edge of the window relative to the top-left corner of the screen.
+		*/
 		virtual int32_t getPositionY() const = 0;
 
-		/// <summary>
-		/// Sets the size of the client area of the window, in pixels.
-		/// </summary>
+		/*
+			Sets the size of the client area of the window, in pixels.
+		*/
 		virtual void setSize(const Point<uint32_t>& p_size) = 0;
-		/// <summary>
-		/// Sets the size of the client area of the window, in pixels.
-		/// </summary>
+		/*
+			Sets the size of the client area of the window, in pixels.
+		*/
 		virtual void setSize(uint32_t p_width, uint32_t p_height) = 0;
-		/// <summary>
-		/// Returns the size of the client area of the window, in pixels.
-		/// </summary>
+		/*
+			Returns the size of the client area of the window, in pixels.
+		*/
 		virtual const Point<uint32_t>& getSize() const = 0;
-		/// <summary>
-		/// Returns the width of the client area of the window, in pixels.
-		/// </summary>
+		/*
+			Returns the width of the client area of the window, in pixels.
+		*/
 		virtual uint32_t getWidth() const = 0;
-		/// <summary>
-		/// Returns the height of the client area of the window, in pixels.
-		/// </summary>
+		/*
+			Returns the height of the client area of the window, in pixels.
+		*/
 		virtual uint32_t getHeight() const = 0;
 
-		/// <summary>
-		/// Sets the smallest allowed size for the window when the user is resizing it.
-		/// </summary>
+		/*
+			Sets the smallest allowed size for the window when the user is resizing it.
+		*/
 		virtual void setMinSize(const Point<uint32_t>& p_minSize) = 0;
-		/// <summary>
-		/// Sets the smallest allowed size for the window when the user is resizing it.
-		/// </summary>
+		/*
+			Sets the smallest allowed size for the window when the user is resizing it.
+		*/
 		virtual void setMinSize(uint32_t p_minWidth, uint32_t p_minHeight) = 0;
-		/// <summary>
-		/// Returns the smallest allowed size for the window when the user is resizing it.
-		/// </summary>
+		/*
+			Returns the smallest allowed size for the window when the user is resizing it.
+		*/
 		virtual Point<uint32_t> getMinSize() const = 0;
-		/// <summary>
-		/// Returns the smallest allowed width for the window when the user is resizing it.
-		/// </summary>
+		/*
+			Returns the smallest allowed width for the window when the user is resizing it.
+		*/
 		virtual uint32_t getMinWidth() const = 0;
-		/// <summary>
-		/// Returns the smallest allowed height for the window when the user is resizing it.
-		/// </summary>
+		/*
+			Returns the smallest allowed height for the window when the user is resizing it.
+		*/
 		virtual uint32_t getMinHeight() const = 0;
 
-		/// <summary>
-		/// Sets the biggest allowed size for the window when the user is resizing it.
-		/// </summary>
+		/*
+			Sets the biggest allowed size for the window when the user is resizing it.
+		*/
 		virtual void setMaxSize(const Point<uint32_t>& p_maxSize) = 0;
-		/// <summary>
-		/// Sets the biggest allowed size for the window when the user is resizing it.
-		/// </summary>
+		/*
+			Sets the biggest allowed size for the window when the user is resizing it.
+		*/
 		virtual void setMaxSize(uint32_t p_maxWidth, uint32_t p_maxHeight) = 0;
-		/// <summary>
-		/// Returns the biggest allowed size for the window when the user is resizing it.
-		/// </summary>
+		/*
+			Returns the biggest allowed size for the window when the user is resizing it.
+		*/
 		virtual Point<uint32_t> getMaxSize() const = 0;
-		/// <summary>
-		/// Returns the biggest allowed width for the window when the user is resizing it.
-		/// </summary>
+		/*
+			Returns the biggest allowed width for the window when the user is resizing it.
+		*/
 		virtual uint32_t getMaxWidth() const = 0;
-		/// <summary>
-		/// Returns the biggest allowed height for the window when the user is resizing it.
-		/// </summary>
+		/*
+			Returns the biggest allowed height for the window when the user is resizing it.
+		*/
 		virtual uint32_t getMaxHeight() const = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Returns the bounds of the current monitor used by the window</para>
-		/// </summary>
+		/*
+			Returns the bounds of the current monitor used by the window
+		*/
 		virtual Rectangle<uint32_t> getMonitorBounds() const = 0;
-		/// <summary>
-		/// <para>Returns the size of the current monitor used by the window.</para>
-		/// </summary>
+		/*
+			Returns the size of the current monitor used by the window.
+		*/
 		virtual Point<uint32_t> getMonitorPosition() const = 0;
-		/// <summary>
-		/// <para>Returns the size of the current monitor used by the window.</para>
-		/// </summary>
+		/*
+			Returns the size of the current monitor used by the window.
+		*/
 		virtual Point<uint32_t> getMonitorSize() const = 0;
-		/// <summary>
-		/// <para>Returns the width of the current monitor used by the window.</para>
-		/// </summary>
+		/*
+			Returns the width of the current monitor used by the window.
+		*/
 		virtual uint32_t getMonitorWidth() const = 0;
-		/// <summary>
-		/// <para>Returns the height of the current monitor used by the window.</para>
-		/// </summary>
+		/*
+			Returns the height of the current monitor used by the window.
+		*/
 		virtual uint32_t getMonitorHeight() const = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Returns whether a key is currently pressed down.
-		/// </summary>
+		/*
+			Returns whether a key is currently pressed down.
+		*/
 		virtual bool getIsKeyDown(KeyboardKey p_key) const = 0;
-		/// <summary>
-		/// Returns whether a mouse button is currently pressed down.
-		/// </summary>
+		/*
+			Returns whether a mouse button is currently pressed down.
+		*/
 		virtual bool getIsMouseButtonDown(MouseButton p_button) const = 0;
-		/// <summary>
-		/// Returns the position of the mouse cursor, relative to the top-left corner of the window.
-		/// </summary>
+		/*
+			Returns the position of the mouse cursor, relative to the top-left corner of the window.
+		*/
 		virtual const Point<int32_t>& getMousePosition() const = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Changes what the mouse cursor looks like.
-		/// </summary>
+		/*
+			Changes what the mouse cursor looks like.
+		*/
 		virtual void setCursor(Cursor p_cursor) = 0;
-		/// <summary>
-		/// Returns the current mouse cursor.
-		/// </summary>
+		/*
+			Returns the current mouse cursor.
+		*/
 		virtual Cursor getCursor() const = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Gives a wide string for the OS to store globally. Other programs, or this one, can then access it.</para>
-		/// <para>The data currently stored on the clipboard is freed and replaced by this string.</para>
-		/// </summary>
+		/*
+			Gives a wide string for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this string.
+		*/
 		virtual void setClipboardWideString(const std::wstring& p_string) = 0;
-		/// <summary>
-		/// <para>Gives a wide string for the OS to store globally. Other programs, or this one, can then access it.</para>
-		/// <para>The data currently stored on the clipboard is freed and replaced by this string.</para>
-		/// </summary>
-		/// <param name="p_length">Number of characters in the string. If it is -1 then it assumes the string is null-terminated.</param>
+		/*
+			Gives a wide string for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this string.
+			p_length is the number of characters in the string. If it is -1 then it assumes the string is null-terminated.
+		*/
 		virtual void setClipboardWideString(const wchar_t* p_string, int32_t p_length = -1) = 0;
 
-		/// <summary>
-		/// <para>Gives a string for the OS to store globally. Other programs, or this one, can then access it.</para>
-		/// <para>The data currently stored on the clipboard is freed and replaced by this string.</para>
-		/// </summary>
+		/*
+			Gives a string for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this string.
+		*/
 		virtual void setClipboardString(const std::string& p_string) = 0;
-		/// <summary>
-		/// <para>Gives a string for the OS to store globally. Other programs, or this one, can then access it.</para>
-		/// <para>The data currently stored on the clipboard is freed and replaced by this string.</para>
-		/// </summary>
-		/// <param name="p_length">Number of characters in the string. If it is -1 then it assumes the string is null-terminated.</param>
+		/*
+			Gives a string for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this string.
+			p_length is the number of characters in the string. If it is -1 then it assumes the string is null-terminated.
+		*/
 		virtual void setClipboardString(const char* p_string, int32_t p_length = -1) = 0;
 
-		/// <summary>
-		/// <para>Returns the 16-bit string which is currently stored on the OS clipboard, if there is any. Otherwhise the returned</para>
-		/// <para>string is empty.</para>
-		/// </summary>
+		/*
+			Returns the 16-bit string which is currently stored on the OS clipboard, if there is any. 
+			Otherwhise the returned string is empty.
+		*/
 		virtual std::wstring getClipboardWideString() const = 0;
-		/// <summary>
-		/// <para>Returns the 8-bit string which is currently stored on the OS clipboard, if there is any. Otherwhise the returned</para>
-		/// <para>string is empty.</para>
-		/// </summary>
+		/*
+			Returns the 8-bit string which is currently stored on the OS clipboard, if there is any. 
+			Otherwhise the returned string is empty.
+		*/
 		virtual std::string getClipboardString() const = 0;
 		
-		/// <summary>
-		/// <para>Returns the main type of the current data that is on the OS clipboard.</para>
-		/// </summary>
+		/*
+			Returns the main type of the current data that is on the OS clipboard.
+		*/
 		virtual ClipboardDataType getClipboardDataType() const = 0;
 	};
 #pragma endregion
 
 	//------------------------------
 
-	/// <summary>
-	/// This specifies what is done to fit the image within its bounds.
-	/// </summary>
+	/*
+		This specifies what is done to fit the image within its bounds.
+	*/
 	enum class ImageBoundsSizing
 	{
 		Stretch, // This stretches the image so that it fills its bounds.
@@ -5541,127 +5917,119 @@ namespace AvoGUI
 		Fill // This makes sure the image is so big that it fills its bounds while keeping aspect ratio. Edges may be clipped.
 	};
 
-	/// <summary>
-	/// This specifies how the pixels of an image are interpolated when it is scaled.
-	/// </summary>
+	/*
+		This specifies how the pixels of an image are interpolated when it is scaled.
+	*/
 	enum class ImageScalingMethod
 	{
 		Pixelated, // Uses nearest neighbor interpolation
 		Smooth // Uses linear interpolation
 	};
 
-	/// <summary>
-	/// Represents an image on the GPU which can be created and drawn by a DrawingContext. Notice that this is not a view but should be treated as a drawable object.
-	/// </summary>
+	/*
+		Represents an image on the GPU which can be created and drawn by a DrawingContext. Notice that this is not a view but should be treated as a drawable object.
+	*/
 	class Image : public ReferenceCounted, public ProtectedRectangle
 	{
 	public:
-		/// <summary>
-		/// Sets a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
-		/// </summary>
+		/*
+			Sets a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
+		*/
 		virtual void setCropRectangle(const Rectangle<float>& p_rectangle) = 0;
-		/// <summary>
-		/// Returns a rectangle representing the portion of the image that will be drawn, relative ot the top-left corner of the image.
-		/// </summary>
+		/*
+			Returns a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
+		*/
 		virtual const Rectangle<float>& getCropRectangle() const = 0;
 
-		/// <summary>
-		/// Returns the DIP size of the actual image.
-		/// </summary>
+		/*
+			Returns the DIP size of the actual image.
+		*/
 		virtual Point<uint32_t> getOriginalSize() const = 0;
-		/// <summary>
-		/// Returns the DIP width of the actual image.
-		/// </summary>
+		/*
+			Returns the DIP width of the actual image.
+		*/
 		virtual uint32_t getOriginalWidth() const = 0;
-		/// <summary>
-		/// Returns the DIP height of the actual image.
-		/// </summary>
+		/*
+			Returns the DIP height of the actual image.
+		*/
 		virtual uint32_t getOriginalHeight() const = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the way the image is fit within its bounds.
-		/// </summary>
+		/*
+			Sets the way the image is fit within its bounds.
+		*/
 		virtual void setBoundsSizing(ImageBoundsSizing p_sizeMode) = 0;
-		/// <summary>
-		/// Returns the way the image is fit within its bounds.
-		/// </summary>
+		/*
+			Returns the way the image is fit within its bounds.
+		*/
 		virtual ImageBoundsSizing getBoundsSizing() const = 0;
 
-		/// <summary>
-		/// <para>Sets the way the image is positioned within its bounds.</para>
-		/// </summary>
-		/// <param name="p_x">
-		/// <para>Represents the x coordinate of the point on the image that aligns with the same point but relative to the bounds.</para> 
-		/// <para>p_x is expressed as a factor of the width of the image. For example, if p_x is 1, the right edge of the image</para>
-		/// <para>will be aligned with the right edge of the bounds. 0.5 means the centers will be aligned.</para>
-		/// </param>
-		/// <param name="p_y">
-		/// <para>Represents the y coordinate of the point on the image that aligns with the same point but relative to the bounds.</para> 
-		/// <para>p_y is expressed as a factor of the height of the image. For example, if p_y is 1, the bottom edge of the image</para>
-		/// <para>will be aligned with the bottom edge of the bounds. 0.5 means the centers will be aligned.</para>
-		/// </param>
+		/*
+			Sets the way the image is positioned within its bounds.
+		
+			p_x represents the x coordinate of the point on the image that aligns with the same point but relative to the bounds. 
+			p_x is expressed as a factor of the width of the image. For example, if p_x is 1, the right edge of the image will be 
+			aligned with the right edge of the bounds. 0.5 means the centers will be aligned. 
+			Same for p_y but vertical coordinates.
+		*/
 		virtual void setBoundsPositioning(float p_x, float p_y) = 0;
-		/// <summary>
-		/// <para>Sets the way the image is positioned within its bounds on the x-axis.</para>
-		/// </summary>
-		/// <param name="p_x">
-		/// <para>Represents the x coordinate of the point on the image that aligns with the same point but relative to the bounds.</para> 
-		/// <para>p_x is expressed as a factor of the width of the image. For example, if p_x is 1, the right edge of the image</para>
-		/// <para>will be aligned with the right edge of the bounds. 0.5 means the centers will be aligned.</para>
-		/// </param>
+		/*
+			Sets the way the image is positioned within its bounds on the x-axis.
+		
+			p_x represents the x coordinate of the point on the image that aligns with the same point but relative to the bounds.
+			p_x is expressed as a factor of the width of the image. For example, if p_x is 1, the right edge of the image will be
+			aligned with the right edge of the bounds. 0.5 means the centers will be aligned.
+		*/
 		virtual void setBoundsPositioningX(float p_x) = 0;
-		/// <summary>
-		/// <para>Sets the way the image is positioned within its bounds on the y-axis.</para>
-		/// </summary>
-		/// <param name="p_y">
-		/// <para>Represents the y coordinate of the point on the image that aligns with the same point but relative to the bounds.</para> 
-		/// <para>p_y is expressed as a factor of the height of the image. For example, if p_y is 1, the bottom edge of the image</para>
-		/// <para>will be aligned with the bottom edge of the bounds. 0.5 means the centers will be aligned.</para>
-		/// </param>
+		/*
+			Sets the way the image is positioned within its bounds on the y-axis.
+		
+			p_y represents the y coordinate of the point on the image that aligns with the same point but relative to the bounds.
+			p_y is expressed as a factor of the height of the image. For example, if p_y is 1, the bottom edge of the image will be
+			aligned with the bottom edge of the bounds. 0.5 means the centers will be aligned.
+		*/
 		virtual void setBoundsPositioningY(float p_y) = 0;
-		/// <summary>
-		/// Returns the way the image is positioned within its bounds. See setBoundsPositioning for more info.
-		/// </summary>
+		/*
+			Returns the way the image is positioned within its bounds. See setBoundsPositioning for more info.
+		*/
 		virtual const Point<float>& getBoundsPositioning() const = 0;
-		/// <summary>
-		/// Returns the way the image is positioned within its bounds on the x-axis. See setBoundsPositioning for more info.
-		/// </summary>
+		/*
+			Returns the way the image is positioned within its bounds on the x-axis. See setBoundsPositioningX for more info.
+		*/
 		virtual float getBoundsPositioningX() const = 0;
-		/// <summary>
-		/// Returns the way the image is positioned within its bounds on the y-axis. See setBoundsPositioning for more info.
-		/// </summary>
+		/*
+			Returns the way the image is positioned within its bounds on the y-axis. See setBoundsPositioningY for more info.
+		*/
 		virtual float getBoundsPositioningY() const = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets how the pixels of the image are interpolated when the image is scaled.
-		/// </summary>
+		/*
+			Sets how the pixels of the image are interpolated when the image is scaled.
+		*/
 		virtual void setScalingMethod(ImageScalingMethod p_scalingMethod) = 0;
-		/// <summary>
-		/// Returns how the pixels of the image are interpolated when the image is scaled.
-		/// </summary>
+		/*
+			Returns how the pixels of the image are interpolated when the image is scaled.
+		*/
 		virtual ImageScalingMethod getScalingMethod() const = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets how opaque the image is being drawn.
-		/// </summary>
+		/*
+			Sets how opaque the image is being drawn.
+		*/
 		virtual void setOpacity(float p_opacity) = 0;
-		/// <summary>
-		/// Returns how opaque the image is being drawn.
-		/// </summary>
-		/// <returns></returns>
+		/*
+			Returns how opaque the image is being drawn.
+		*/
 		virtual float getOpacity() const = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Returns a pointer to the os-specific image object.
-		/// </summary>
+		/*
+			Returns a pointer to the os-specific image object.
+		*/
 		virtual void* getHandle() const = 0;
 	};
 
@@ -5719,248 +6087,241 @@ namespace AvoGUI
 		Fill // Stretches the spaces of the text to make the left and right edges of the text line up with the bounds of the text.
 	};
 
-	/// <summary>
-	/// <para>Represents a text block which can be calculated once and drawn any number of times by a DrawingContext.</para> 
-	/// <para>Notice that this is not a view, but should be treated as a drawable object created by a DrawingContext.</para>
-	/// </summary>
+	/*
+		Represents a text block which can be calculated once and drawn any number of times by a DrawingContext. 
+		Notice that this is not a view, but should be treated as a drawable object created by a DrawingContext.
+	*/
 	class Text : public ProtectedRectangle, public ReferenceCounted
 	{
 	public:
-		/// <summary>
-		/// Sets the rules for inserting line breaks in the text to avoid overflow.
-		/// </summary>
+		/*
+			Sets the rules for inserting line breaks in the text to avoid overflow.
+		*/
 		virtual void setWordWrapping(WordWrapping p_wordWrapping) = 0;
-		/// <summary>
-		/// Returns the type of rules used for inserting line breaks in the text to avoid overflow.
-		/// </summary>
+		/*
+			Returns the type of rules used for inserting line breaks in the text to avoid overflow.
+		*/
 		virtual WordWrapping getWordWrapping() = 0;
 
-		/// <summary>
-		/// Sets the size of the bounding box to fit the text.
-		/// </summary>
+		/*
+			Sets the size of the bounding box to fit the text.
+		*/
 		virtual void minimizeSize() = 0;
-		/// <summary>
-		/// Returns the smallest size to contain the actual text.
-		/// </summary>
+		/*
+			Returns the smallest size to contain the actual text.
+		*/
 		virtual Point<float> getMinimumSize() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Returns the 2d position of a character in the text, specified by its index in the string.
-		/// </summary>
-		/// <param name="p_isRelativeToOrigin">Whether the position returned is relative to the origin of the drawing context. If not, it is relative to the bounds of the text.</param>
+		/*
+			Returns the 2d position of a character in the text, specified by its index in the string.
+			p_isRelativeToOrigin is whether the position returned is relative to the origin of the drawing context. 
+			If not, it is relative to the bounds of the text.
+		*/
 		virtual Point<float> getCharacterPosition(uint32_t p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
-		/// <summary>
-		/// Returns the width and height of a character in the text, specified by its index in the string.
-		/// </summary>
+		/*
+			Returns the width and height of a character in the text, specified by its index in the string.
+		*/
 		virtual Point<float> getCharacterSize(uint32_t p_characterIndex) = 0;
-		/// <summary>
-		/// Returns a rectangle enclosing a character in the text, specified by its index in the string.
-		/// </summary>
-		/// <param name="p_isRelativeToOrigin">Whether the position of the bounds returned is relative to the origin of the drawing context. If not, it is relative to the bounds of the text.</param>
+		/*
+			Returns a rectangle enclosing a character in the text, specified by its index in the string.
+			p_isRelativeToOrigin is whether the position of the bounds returned is relative to the origin of the drawing context. 
+			If not, it is relative to the bounds of the text.
+		*/
 		virtual Rectangle<float> getCharacterBounds(uint32_t p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
 		
-		/// <summary>
-		/// Returns the index of the character which is nearest to a point.
-		/// </summary>
-		/// <param name="p_isRelativeToOrigin">Whether the position given is relative to the origin of the drawing context. If not, it is relative to the bounds of the text.</param>
+		/*
+			Returns the index of the character which is nearest to a point.
+			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context. 
+			If not, it is relative to the bounds of the text.
+		*/
 		virtual uint32_t getNearestCharacterIndex(const Point<float>& p_point, bool p_isRelativeToOrigin = false) = 0;
-		/// <summary>
-		/// Returns the index of the character which is nearest to a point.
-		/// </summary>
-		/// <param name="p_isRelativeToOrigin">Whether the position given is relative to the origin of the drawing context. If not, it is relative to the bounds of the text.</param>
+		/*
+			Returns the index of the character which is nearest to a point.
+		
+			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context. 
+			If not, it is relative to the bounds of the text.
+		*/
 		virtual uint32_t getNearestCharacterIndex(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false) = 0;
-		/// <summary>
-		/// Returns the index and position of the character which is nearest to a point.
-		/// </summary>
-		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
-		/// <param name="p_outCharacterPosition">Pointer to the 2d position to be returned.</param>
-		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.</param>
+		/*
+			Returns the index and position of the character which is nearest to a point.
+		
+			p_outCharacterIndex is a pointer to the character index to be returned.
+			p_outCharacterPosition is a pointer to the 2d position to be returned.
+			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. 
+			If not, they are relative to the bounds of the text.
+		*/
 		virtual void getNearestCharacterIndexAndPosition(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
-		/// <summary>
-		/// Returns the index and position of the character which is nearest to a point.
-		/// </summary>
-		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
-		/// <param name="p_outCharacterPosition">Pointer to the 2d position to be returned.</param>
-		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.</param>
+		/*
+			Returns the index and position of the character which is nearest to a point.
+		
+			p_outCharacterIndex is a pointer to the character index to be returned.
+			p_outCharacterPosition is a pointer to the 2d position to be returned.
+			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. 
+			If not, they are relative to the bounds of the text.
+		*/
 		virtual void getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
-		/// <summary>
-		/// Returns the index and bounds of the character which is nearest to a point.
-		/// </summary>
-		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
-		/// <param name="p_outCharacterBounds">Pointer to the bounding rectangle to be returned.</param>
-		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.</param>
+		/*
+			Returns the index and bounds of the character which is nearest to a point.
+		
+			p_outCharacterIndex is a pointer to the character index to be returned.
+			p_outCharacterBounds is a pointer to the bounding rectangle to be returned.
+			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.
+		*/
 		virtual void getNearestCharacterIndexAndBounds(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
-		/// <summary>
-		/// Returns the index and bounds of the character which is nearest to a point.
-		/// </summary>
-		/// <param name="p_outCharacterIndex">Pointer to the character index to be returned.</param>
-		/// <param name="p_outCharacterBounds">Pointer to the bounding rectangle to be returned.</param>
-		/// <param name="p_isRelativeToOrigin">Whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.</param>
+		/*
+			Returns the index and bounds of the character which is nearest to a point.
+		
+			p_outCharacterIndex is a pointer to the character index to be returned.
+			p_outCharacterBounds is a pointer to the bounding rectangle to be returned.
+			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.
+		*/
 		virtual void getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets how the text is placed within the bounds.
-		/// </summary>
+		/*
+			Sets how the text is placed within the bounds.
+		*/
 		virtual void setTextAlign(TextAlign p_textAlign) = 0;
-		/// <summary>
-		/// Returns how the text is placed within the bounds.
-		/// </summary>
+		/*
+			Returns how the text is placed within the bounds.
+		*/
 		virtual TextAlign getTextAlign() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the font in a section of the text.
-		/// </summary>
-		/// <param name="p_name">The name of the font family to be used.</param>
-		/// <param name="p_startPosition">
-		/// <para>The position of the first character to use this font.</para>
-		/// <para>If this is negative, it is relative to the end of the text.</para>
-		/// </param>
-		/// <param name="p_length">
-		/// <para>The number of characters to use this font.</para>
-		/// <para>If this is negative, it goes to the left of the start position.</para>
-		/// <para>If it is 0, everything after the starting position will be affected.</para>
-		/// </param>
+		/*
+			Sets the font family to be used in a section of the text.
+	
+			p_name is the name of the font family.
+
+			p_startPosition is the position of the first character to use this font.
+			If this is negative, it is relative to the end of the text.
+			
+			p_length is the number of characters to use this font.
+			If this is negative, it goes to the left of the start position.
+			If it is 0, everything after the starting position will be affected.
+		*/
 		virtual void setFontFamily(const char* p_name, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the character spacing in a section of the text.
-		/// </summary>
-		/// <param name="p_characterSpacing">The spacing between the characters of the text.</param>
-		/// <param name="p_startPosition">
-		/// <para>The position of the first character to use this spacing.</para>
-		/// <para>If this is negative, it is relative to the end of the text.</para>
-		/// </param>
-		/// <param name="p_length">
-		/// <para>The number of characters to use this spacing.</para>
-		/// <para>If this is negative, it goes to the left of the start position.</para>
-		/// <para>If it is 0, everything after the starting position will be affected.</para>
-		/// </param>
+		/*
+			Sets the spacing between characters in a section of the text.
+		
+			p_startPosition is the position of the first character to use this spacing.
+			If this is negative, it is relative to the end of the text.
+			
+			p_length is the number of characters to use this spacing.
+			If this is negative, it goes to the left of the start position.
+			If it is 0, everything after the starting position will be affected.
+		*/	
 		virtual void setCharacterSpacing(float p_characterSpacing, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
-		/// <summary>
-		/// Sets the leading and trailing spacing of the characters in a section of the text.
-		/// </summary>
-		/// <param name="p_leading">The spacing before the characters of the text.</param>
-		/// <param name="p_trailing">The spacing after the characters of the text.</param>
-		/// <param name="p_startPosition">
-		/// <para>The position of the first character to use this spacing.</para>
-		/// <para>If this is negative, it is relative to the end of the text.</para>
-		/// </param>
-		/// <param name="p_length">
-		/// <para>The number of characters to use this spacing.</para>
-		/// <para>If this is negative, it goes to the left of the start position.</para>
-		/// <para>If it is 0, everything after the starting position will be affected.</para>
-		/// </param>
+		/*
+			Sets the leading and trailing spacing of the characters in a section of the text.
+		
+			p_leading is the spacing before the characters of the text.
+			p_trailing is the spacing after the characters of the text.
+			p_startPosition is the position of the first character to use this spacing.
+			If this is negative, it is relative to the end of the text.
+			
+			p_length is the number of characters to use this spacing.
+			If this is negative, it goes to the left of the start position.
+			If it is 0, everything after the starting position will be affected.
+		*/	
 		virtual void setCharacterSpacing(float p_leading, float p_trailing, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
-		/// <summary>
-		/// Returns the spacing before one of the characters.
-		/// </summary>
+		/*
+			Returns the spacing before one of the characters.
+		*/
 		virtual float getLeadingCharacterSpacing(int32_t p_characterIndex = 0) = 0;
-		/// <summary>
-		/// Returns the spacing after one of the characters.
-		/// </summary>
+		/*
+			Returns the spacing after one of the characters.
+		*/
 		virtual float getTrailingCharacterSpacing(int32_t p_characterIndex = 0) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the distance between the baseline of lines in the text, as a factor of the default.
-		/// </summary>
+		/*
+			Sets the distance between the baseline of lines in the text, as a factor of the default.
+		*/
 		virtual void setLineHeight(float p_lineHeight) = 0;
-		/// <summary>
-		/// Returns the distance between the baseline of lines in the text, as a factor of the default.
-		/// </summary>
+		/*
+			Returns the distance between the baseline of lines in the text, as a factor of the default.
+		*/
 		virtual float getLineHeight() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the font weight in a section of the text.
-		/// </summary>
-		/// <param name="p_fontWeight">The thickness of the text.</param>
-		/// <param name="p_startPosition">
-		/// <para>The position of the first character to use this font weight.</para>
-		/// <para>If this is negative, it is relative to the end of the text.</para>
-		/// </param>
-		/// <param name="p_length">
-		/// <para>The number of characters to use this font weight.</para>
-		/// <para>If this is negative, it goes to the left of the start position.</para>
-		/// <para>If it is 0, everything after the starting position will be affected.</para>
-		/// </param>
+		/*
+			Sets the thickness of characters in a section of the text.
+		
+			p_startPosition is the position of the first character to use this font weight.
+			If this is negative, it is relative to the end of the text.
+			
+			p_length is the number of characters to use this font weight.
+			If this is negative, it goes to the left of the start position.
+			If it is 0, everything after the starting position will be affected.
+		*/	
 		virtual void setFontWeight(FontWeight p_fontWeight, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
-		/// <summary>
-		/// Returns the weight/thickness of a character in the text.
-		/// </summary>
+		/*
+			Returns the weight/thickness of a character in the text.
+		*/
 		virtual FontWeight getFontWeight(uint32_t p_characterPosition = 0) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the font style in a section of the text.
-		/// </summary>
-		/// <param name="p_fontStyle">The style of the text.</param>
-		/// <param name="p_startPosition">
-		/// <para>The position of the first character to use this font style.</para>
-		/// <para>If this is negative, it is relative to the end of the text.</para>
-		/// </param>
-		/// <param name="p_length">
-		/// <para>The number of characters to use this font style.</para>
-		/// <para>If this is negative, it goes to the left of the start position.</para>
-		/// <para>If it is 0, everything after the starting position will be affected.</para>
-		/// </param>
+		/*
+			Sets the font style in a section of the text.
+		
+			p_startPosition is the position of the first character to use this font style.
+			If this is negative, it is relative to the end of the text.
+			
+			p_length is the number of characters to use this font style.
+			If this is negative, it goes to the left of the start position.
+			If it is 0, everything after the starting position will be affected.
+		*/	
 		virtual void setFontStyle(FontStyle p_fontStyle, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
-		/// <summary>
-		/// Returns the style of a character in the text.
-		/// </summary>
+		/*
+			Returns the style of a character in the text.
+		*/
 		virtual FontStyle getFontStyle(uint32_t p_characterPosition = 0) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the font stretch in a section of the text.
-		/// </summary>
-		/// <param name="p_fontStretch">How stretched/wide the characters of the text are.</param>
-		/// <param name="p_startPosition">
-		/// <para>The position of the first character to use this font stretch.</para>
-		/// <para>If this is negative, it is relative to the end of the text.</para>
-		/// </param>
-		/// <param name="p_length">
-		/// <para>The number of characters to use this font stretch.</para>
-		/// <para>If this is negative, it goes to the left of the start position.</para>
-		/// <para>If it is 0, everything after the starting position will be affected.</para>
-		/// </param>
+		/*
+			Sets the font stretch in a section of the text. Not all fonts support this.
+		
+			p_startPosition is the position of the first character to use this font stretch.
+			If this is negative, it is relative to the end of the text.
+			
+			p_length is the number of characters to use this font stretch.
+			If this is negative, it goes to the left of the start position.
+			If it is 0, everything after the starting position will be affected.
+		*/	
 		virtual void setFontStretch(FontStretch p_fontStretch, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
-		/// <summary>
-		/// Returns the font stretch of a character in the text.
-		/// </summary>
+		/*
+			Returns the font stretch of a character in the text.
+		*/
 		virtual FontStretch getFontStretch(uint32_t p_characterPosition = 0) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the font size in a section of the text.
-		/// </summary>
-		/// <param name="p_fontSize">The size (height) of the text.</param>
-		/// <param name="p_startPosition">
-		/// <para>The position of the first character to use this font size.</para>
-		/// <para>If this is negative, it is relative to the end of the text.</para>
-		/// </param>
-		/// <param name="p_length">
-		/// <para>The number of characters to use this font size.</para>
-		/// <para>If this is negative, it goes to the left of the start position.</para>
-		/// <para>If it is 0, everything after the starting position will be affected.</para>
-		/// </param>
+		/*
+			Sets the font size in a section of the text.
+		
+			p_startPosition is the position of the first character to use this font size.
+			If this is negative, it is relative to the end of the text.
+			
+			p_length is the number of characters to use this font size.
+			If this is negative, it goes to the left of the start position.
+			If it is 0, everything after the starting position will be affected.
+		*/
 		virtual void setFontSize(float p_fontSize, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
-		/// <summary>
-		/// Returns the size (height) of a character in the text.
-		/// </summary>
+		/*
+			Returns the size (height) of a character in the text.
+		*/
 		virtual float getFontSize(uint32_t p_characterPosition = 0) = 0;
 
 		//------------------------------
@@ -5969,10 +6330,9 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// Returns a pointer to an OS-specific text object.
-		/// </summary>
-		/// <returns></returns>
+		/*
+			Returns a pointer to an OS-specific text object.
+		*/
 		virtual void* getHandle() = 0;
 	};
 
@@ -6017,626 +6377,653 @@ namespace AvoGUI
 		float fontSize = 22.f;
 	};
 
-	/// <summary>
-	/// An abstract drawing context, created by a GUI to be used 
-	/// when drawing shapes and stuff in your (and my) views.
-	/// </summary>
+	/*
+		An abstract drawing context, created by a GUI to be used to create objects 
+		like text and images as well as when drawing graphics in views.
+	*/
 	class DrawingContext : public ReferenceCounted
 	{
 	protected:
 		TextProperties m_textProperties;
 
 	public:
-		/// <summary>
-		/// <para>Initializes drawing. The GUI calls this for you.</para>
-		/// </summary>
+		/*
+			Initializes drawing. The GUI calls this for you.
+		*/
 		virtual void beginDrawing() = 0;
-		/// <summary>
-		/// <para>Finishes the drawing and shows it. The GUI calls this for you.</para>
-		/// </summary>
+		/*
+			Finishes the drawing and shows it. The GUI calls this for you.
+		*/
 		virtual void finishDrawing(const std::vector<Rectangle<float>>& p_updatedRectangles) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets whether the target is fullscreen or windowed.
-		/// </summary>
+		/*
+			Sets whether the target is fullscreen or windowed.
+		*/
 		virtual void setIsFullscreen(bool p_isFullscreen) = 0;
-		/// <summary>
-		/// Switches between windowed and fullscreen mode. If it is currently windowed, it switches to fullscreen, and the other way around.
-		/// </summary>
+		/*
+			Switches between windowed and fullscreen mode. 
+			If it is currently windowed, it switches to fullscreen, and the other way around.
+		*/
 		virtual void switchFullscreen() = 0;
-		/// <summary>
-		/// Returns whether the target is fullscreen or windowed.
-		/// </summary>
+		/*
+			Returns whether the target is fullscreen or windowed.
+		*/
 		virtual bool getIsFullscreen() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Enables synchronization with the monitor.
-		/// </summary>
+		/*
+			Enables synchronization with the monitor.
+		*/
 		virtual void enableVsync() = 0;
-		/// <summary>
-		/// Disables synchronization with the monitor.
-		/// </summary>
+		/*
+			Disables synchronization with the monitor.
+		*/
 		virtual void disableVsync() = 0;
-		/// <summary>
-		/// Returns whether presentation is synchronized with the monitor.
-		/// </summary>
+		/*
+			Returns whether presentation is synchronized with the monitor.
+		*/
 		virtual bool getIsVsyncEnabled() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Converts a number of physical pixels to the corresponding number of device independent pixels (DIP). Everything you draw is by default in DIPs.
-		/// </summary>
+		/*
+			Converts a number of physical pixels to the corresponding number of device independent pixels (DIP). Everything you draw is by default in DIPs.
+		*/
 		virtual float convertPixelsToDeviceIndependentPixels(float p_pixels) = 0;
-		/// <summary>
-		/// Converts a number of device independent pixels to the corresponding number of physical pixels (DIP). Everything you draw is by default in DIPs.
-		/// </summary>
+		/*
+			Converts a number of device independent pixels to the corresponding number of physical pixels (DIP). Everything you draw is by default in DIPs.
+		*/
 		virtual float convertDeviceIndependentPixelsToPixels(float p_deviceIndependentPixels) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Moves the screen position of the coordinate (0, 0).</para>
-		/// </summary>
+		/*
+			Moves the screen position of the coordinate (0, 0).
+		*/
 		virtual void moveOrigin(const Point<float>& p_offset) = 0;
-		/// <summary>
-		/// <para>Moves the screen position of the coordinate (0, 0).</para>
-		/// </summary>
+		/*
+			Moves the screen position of the coordinate (0, 0).
+		*/
 		virtual void moveOrigin(float p_offsetX, float p_offsetY) = 0;
-		/// <summary>
-		/// <para>Sets the screen position of the coordinate (0, 0).</para>
-		/// </summary>
+		/*
+			Sets the screen position of the coordinate (0, 0).
+		*/
 		virtual void setOrigin(const Point<float>& p_origin) = 0;
-		/// <summary>
-		/// <para>Sets the screen position of the coordinate (0, 0).</para>
-		/// </summary>
+		/*
+			Sets the screen position of the coordinate (0, 0).
+		*/
 		virtual void setOrigin(float p_x, float p_y) = 0;
-		/// <summary>
-		/// <para>Returns the screen position of the coordinate (0, 0).</para>
-		/// </summary>
+		/*
+			Returns the screen position of the coordinate (0, 0).
+		*/
 		virtual Point<float> getOrigin() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.</para>
-		/// <para>Everything will be scaled towards the origin.</para>
-		/// </summary>
+		/*
+			Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.
+			Everything will be scaled towards the origin.
+		*/
 		virtual void scale(float p_scale) = 0;
-		/// <summary>
-		/// <para>Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics</para>
-		/// <para>drawing so that it is bigger or smaller. Everything will be scaled towards the origin.</para>
-		/// </summary>
-		/// <param name="p_scaleX">Horizontal scaling</param>
-		/// <param name="p_scaleY">Vertical scaling</param>
+		/*
+			Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics
+			drawing so that it is bigger or smaller. Everything will be scaled towards the origin.
+		*/
 		virtual void scale(float p_scaleX, float p_scaleY) = 0;
-		/// <summary>
-		/// <para>Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.</para>
-		/// <para>Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.</para>
-		/// </summary>
+		/*
+			Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.
+			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
+		*/
 		virtual void scale(float p_scale, const Point<float>& p_origin) = 0;
-		/// <summary>
-		/// <para>Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics</para>
-		/// <para>drawing so that it is bigger or smaller. Everything will be scaled towards the origin parameter, which is relative</para>
-		/// <para>to the top-left corner of the window.</para>
-		/// </summary>
-		/// <param name="p_scaleX">Horizontal scaling</param>
-		/// <param name="p_scaleY">Vertical scaling</param>
+		/*
+			Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics
+			drawing so that it is bigger or smaller. Everything will be scaled towards the origin parameter, which is relative
+			to the top-left corner of the window.
+		*/
 		virtual void scale(float p_scaleX, float p_scaleY, const Point<float>& p_origin) = 0;
-		/// <summary>
-		/// <para>Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.</para>
-		/// <para>Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.</para>
-		/// </summary>
+		/*
+			Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.
+			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
+		*/
 		virtual void scale(float p_scale, float p_originX, float p_originY) = 0;
-		/// <summary>
-		/// <para>Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics</para>
-		/// <para>drawing so that it is bigger or smaller. The origin is shifted so that everything is scaled towards the origin</para>
-		/// <para>parameter, which is relative to the top-left corner of the window.</para>
-		/// </summary>
-		/// <param name="p_scaleX">Horizontal scaling</param>
-		/// <param name="p_scaleY">Vertical scaling</param>
+		/*
+			Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics
+			drawing so that it is bigger or smaller. The origin is shifted so that everything is scaled towards the origin
+			parameter, which is relative to the top-left corner of the window.
+		*/
 		virtual void scale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) = 0;
-		/// <summary>
-		/// <para>sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.</para>
-		/// <para>Everything will be scaled towards the origin.</para>
-		/// </summary>
+		/*
+			sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.
+			Everything will be scaled towards the origin.
+		*/
 		virtual void setScale(float p_scale) = 0;
-		/// <summary>
-		/// <para>Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics</para>
-		/// <para>drawing so that it is bigger or smaller than normal. Everything will be scaled towards the origin.</para>
-		/// </summary>
-		/// <param name="p_scaleX">Horizontal scaling</param>
-		/// <param name="p_scaleY">Vertical scaling</param>
+		/*
+			Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics
+			drawing so that it is bigger or smaller than normal. Everything will be scaled towards the origin.
+		*/
 		virtual void setScale(float p_scaleX, float p_scaleY) = 0;
-		/// <summary>
-		/// <para>Sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.</para>
-		/// <para>Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.</para>
-		/// </summary>
+		/*
+			Sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.
+			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
+		*/
 		virtual void setScale(float p_scale, const Point<float>& p_origin) = 0;
-		/// <summary>
-		/// <para>Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics drawing so that</para>
-		/// <para>it is bigger or smaller than normal. Everything will be scaled towards the origin parameter, which is relative</para>
-		/// <para>to the top-left corner of the window.</para>
-		/// </summary>
-		/// <param name="p_scaleX">Horizontal scaling</param>
-		/// <param name="p_scaleY">Vertical scaling</param>
+		/*
+			Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics drawing so that
+			it is bigger or smaller than normal. Everything will be scaled towards the origin parameter, which is relative
+			to the top-left corner of the window.
+		*/
 		virtual void setScale(float p_scaleX, float p_scaleY, const Point<float>& p_origin) = 0;
-		/// <summary>
-		/// <para>Sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.</para>
-		/// <para>Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.</para>
-		/// </summary>
+		/*
+			Sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.
+			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
+		*/
 		virtual void setScale(float p_scale, float p_originX, float p_originY) = 0;
-		/// <summary>
-		/// <para>Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics</para>
-		/// <para>drawing so that it is bigger or smaller. The origin is shifted so that everything is scaled towards the origin</para>
-		/// <para>parameter, which is relative to the top-left corner of the window.</para>
-		/// </summary>
-		/// <param name="p_scaleX">Horizontal scaling</param>
-		/// <param name="p_scaleY">Vertical scaling</param>
+		/*
+			Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics
+			drawing so that it is bigger or smaller. The origin is shifted so that everything is scaled towards the origin
+			parameter, which is relative to the top-left corner of the window.
+		*/
 		virtual void setScale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) = 0;
-		/// <summary>
-		/// <para>Returns the sizing factor which is transforming graphics drawing so that it is bigger or smaller. If it is 2,</para>
-		/// <para>graphics is drawn double as big as normal. 0.5 is half as big as normal.</para>
-		/// </summary>
+		/*
+			Returns the sizing factor which is transforming graphics drawing so that it is bigger or smaller. 
+			If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.
+		*/
 		virtual const Point<float>& getScale() = 0;
-		/// <summary>
-		/// <para>Returns the sizing factor for the x-axis which is transforming graphics drawing so that it is bigger or smaller.</para>
-		/// <para>If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.</para>
-		/// </summary>
+		/*
+			Returns the sizing factor for the x-axis which is transforming graphics drawing so that it is bigger or smaller.
+			If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.
+		*/
 		virtual float getScaleX() = 0;
-		/// <summary>
-		/// <para>Returns the sizing factor for the y-axis which is transforming graphics drawing so that it is bigger or smaller.</para>
-		/// <para>If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.</para>
-		/// </summary>
+		/*
+			Returns the sizing factor for the y-axis which is transforming graphics drawing so that it is bigger or smaller.
+			If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.
+		*/
 		virtual float getScaleY() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Rotates all future graphics drawing, with an angle in radians. Graphics will be rotated relative to the origin.
-		/// </summary>
-		/// <param name="p_radians">Angle to rotate, in radians.</param>
+		/*
+			Rotates all future graphics drawing, with an angle in radians. Graphics will be rotated relative to the origin.
+			p_radians is the angle to rotate, in radians.
+		*/
 		virtual void rotate(float p_radians) = 0;
-		/// <summary>
-		/// <para>Rotates all future graphics drawing, with an angle in radians. Graphics will be rotated relative to the origin parameter,</para>
-		/// <para>which itself is relative to the current origin.</para>
-		/// </summary>
-		/// <param name="p_radians">Angle to rotate, in radians.</param>
+		/*
+			Rotates all future graphics drawing, with an angle in radians. 
+			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
+			p_radians is the angle to rotate, in radians.
+		*/
 		virtual void rotate(float p_radians, const Point<float>& p_origin) = 0;
-		/// <summary>
-		/// <para>Rotates all future graphics drawing, with an angle in radians. Graphics will be rotated relative to the origin parameter,</para>
-		/// <para>which itself is relative to the current origin.</para>
-		/// </summary>
-		/// <param name="p_radians">Angle to rotate, in radians.</param>
+		/*
+			Rotates all future graphics drawing, with an angle in radians. 
+			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
+			p_radians is the angle to rotate, in radians.
+		*/
 		virtual void rotate(float p_radians, float p_originX, float p_originY) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Resets all graphics drawing transformations, so that every coordinate used in any drawing operation is unaltered, and</para>
-		/// <para>relative to the top-left corner of the window.</para>
-		/// </summary>
+		/*
+			Resets all graphics drawing transformations, so that every coordinate used in any drawing operation is unaltered, and relative to the top-left corner of the window.
+		*/
 		virtual void resetTransformations() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Resizes the drawing buffers.</para>
-		/// <para>The GUI calls this for you when it is being resized.</para>
-		/// </summary>
+		/*
+			Resizes the drawing buffers. The GUI calls this for you when it is being resized.
+		*/
 		virtual void setSize(const Point<uint32_t>& p_size) = 0;
-		/// <summary>
-		/// <para>Resizes the drawing buffers.</para>
-		/// <para>The GUI calls this for you when it is being resized.</para>
-		/// </summary>
+		/*
+			Resizes the drawing buffers. The GUI calls this for you when it is being resized.
+		*/
 		virtual void setSize(uint32_t p_width, uint32_t p_height) = 0;
-		/// <summary>
-		/// Returns the size of the drawing buffers.
-		/// </summary>
+		/*
+			Returns the size of the drawing buffers.
+		*/
 		virtual Point<uint32_t> getSize() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Clears the whole buffer with the specified color.
-		/// </summary>
+		/*
+			Clears the whole buffer with the specified color.
+		*/
 		virtual void clear(const Color& p_color) = 0;
-		/// <summary>
-		/// Clears the whole buffer with a transparent background.
-		/// </summary>
+		/*
+			Clears the whole buffer with a transparent background.
+		*/
 		virtual void clear() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Draws a filled rectangle using the current color. Change color with the method setColor.
-		/// </summary>
+		/*
+			Draws a filled rectangle using the current color. 
+			Change color with the method setColor.
+		*/
 		virtual void fillRectangle(const Rectangle<float>& p_rectangle) = 0;
-		/// <summary>
-		/// Draws a filled rectangle using the current color. Change color with the method setColor.
-		/// </summary>
+		/*
+			Draws a filled rectangle using the current color. 
+			Change color with the method setColor.
+		*/
 		virtual void fillRectangle(const Point<float>& p_position, const Point<float>& p_size) = 0;
-		/// <summary>
-		/// Draws a filled rectangle using the current color. Change color with the method setColor.
-		/// </summary>
+		/*
+			Draws a filled rectangle using the current color. 
+			Change color with the method setColor.
+		*/
 		virtual void fillRectangle(float p_left, float p_top, float p_right, float p_bottom) = 0;
 
-		/// <summary>
-		/// Draws a filled rectangle at the origin using the current color. Change color with the method setColor.
-		/// </summary>
+		/*
+			Draws a filled rectangle at the origin using the current color. 
+			Change color with the method setColor.
+		*/
 		virtual void fillRectangle(const Point<float>& p_size) = 0;
-		/// <summary>
-		/// Draws a filled rectangle at the origin using the current color. Change color with the method setColor.
-		/// </summary>
+		/*
+			Draws a filled rectangle at the origin using the current color. 
+			Change color with the method setColor.
+		*/
 		virtual void fillRectangle(float p_width, float p_height) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Draws a rectangle outline using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a rectangle outline using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void strokeRectangle(const Rectangle<float>& p_rectangle, float p_strokeWidth = 1.f) = 0;
-		/// <summary>
-		/// Draws a rectangle outline using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a rectangle outline using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void strokeRectangle(const Point<float>& p_position, const Point<float>& p_size, float p_strokeWidth = 1.f) = 0;
-		/// <summary>
-		/// Draws a rectangle outline using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a rectangle outline using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth = 1.f) = 0;
 
-		/// <summary>
-		/// Draws a rectangle outline at the origin using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a rectangle outline at the origin using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void strokeRectangle(const Point<float>& p_size, float p_strokeWidth = 1.f) = 0;
-		/// <summary>
-		/// Draws a rectangle outline at the origin using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a rectangle outline at the origin using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void strokeRectangle(float p_width, float p_height, float p_strokeWidth = 1.f) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Draws a filled rounded rectangle using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a filled rounded rectangle using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void fillRoundedRectangle(const Rectangle<float>& p_rectangle, float p_radius) = 0;
-		/// <summary>
-		/// Draws a filled rounded rectangle using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a filled rounded rectangle using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void fillRoundedRectangle(const Point<float>& p_position, const Point<float>& p_size, float p_radius) = 0;
-		/// <summary>
-		/// Draws a filled rounded rectangle using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a filled rounded rectangle using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) = 0;
 
-		/// <summary>
-		/// Draws a filled rounded rectangle at the origin using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a filled rounded rectangle at the origin using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void fillRoundedRectangle(const Point<float>& p_size, float p_radius) = 0;
-		/// <summary>
-		/// Draws a filled rounded rectangle at the origin using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a filled rounded rectangle at the origin using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void fillRoundedRectangle(float p_width, float p_height, float p_radius) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Draws a rounded rectangle outline using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a rounded rectangle outline using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void strokeRoundedRectangle(const Rectangle<float>& p_rectangle, float p_radius, float p_strokeWidth = 1.f) = 0;
-		/// <summary>
-		/// Draws a rounded rectangle outline using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a rounded rectangle outline using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void strokeRoundedRectangle(const Point<float>& p_position, const Point<float>& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
-		/// <summary>
-		/// Draws a rounded rectangle outline using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a rounded rectangle outline using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void strokeRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_strokeWidth = 1.f) = 0;
 
-		/// <summary>
-		/// Draws a rounded rectangle outline at the origin using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a rounded rectangle outline at the origin using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void strokeRoundedRectangle(const Point<float>& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
-		/// <summary>
-		/// Draws a rounded rectangle outline at the origin using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a rounded rectangle outline at the origin using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void strokeRoundedRectangle(float p_width, float p_height, float p_radius, float p_strokeWidth = 1.f) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Draws a filled circle using the current color. Change the color being used with the method setColor.
-		/// </summary>
-		/// <param name="p_position">Center position of the circle.</param>
+		/*
+			Draws a filled circle using the current color. 
+			Change the color being used with the method setColor.
+		
+			p_position is the center position of the circle.
+		*/
 		virtual void fillCircle(const Point<float>& p_position, float p_radius) = 0;
-		/// <summary>
-		/// Draws a filled circle using the current color. Change the color being used with the method setColor.
-		/// </summary>
-		/// <param name="p_x">Center X position of the circle.</param>
-		/// <param name="p_y">Center Y position of the circle.</param>
+		/*
+			Draws a filled circle using the current color. 
+			Change the color being used with the method setColor.
+		
+			p_x is the horizontal center position of the circle.
+			p_y is the vertical center position of the circle.
+		*/
 		virtual void fillCircle(float p_x, float p_y, float p_radius) = 0;
 
-		/// <summary>
-		/// Draws a circle outline using the current color. Change the color being used with the method setColor.
-		/// </summary>
-		/// <param name="p_position">Center position of the circle.</param>
+		/*
+			Draws a circle outline using the current color. 
+			Change the color being used with the method setColor.
+		
+			p_position is the center position of the circle.
+		*/
 		virtual void strokeCircle(const Point<float>& p_position, float p_radius, float p_strokeWidth = 1.f) = 0;
-		/// <summary>
-		/// Draws a circle outline using the current color. Change the color being used with the method setColor.
-		/// </summary>
-		/// <param name="p_position">Center position of the circle.</param>
+		/*
+			Draws a circle outline using the current color. 
+			Change the color being used with the method setColor.
+		
+			p_position is the center position of the circle.
+		*/
 		virtual void strokeCircle(float p_x, float p_y, float p_radius, float p_strokeWidth = 1.f) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Draws a straight line between two points using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a straight line between two points using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void drawLine(const Point<float>& p_point_0, const Point<float>& p_point_1, float p_thickness = 1.f) = 0;
-		/// <summary>
-		/// Draws a straight line between two points using the current color. Change the color being used with the method setColor.
-		/// </summary>
+		/*
+			Draws a straight line between two points using the current color. 
+			Change the color being used with the method setColor.
+		*/
 		virtual void drawLine(float p_x0, float p_y0, float p_x1, float p_y1, float p_thickness = 1.f) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Draws the edge of a custom shape.
-		/// </summary>
-		/// <param name="p_vertices">The points that make up the shape.</param>
-		/// <param name="p_lineThickness">How thicc the edges of the shape are.</param>
-		/// <param name="p_isClosed">Whether the last vertex will be connected to the first one to close the shape.</param>
+		/*
+			Draws the edge of a custom shape.
+		
+			p_vertices is a vector of the points that make up the shape.
+			p_lineThickness is how thicc the edges of the shape are.
+			p_isClosed is whether the last vertex will be connected to the first one to close the shape.
+		*/
 		virtual void strokeShape(const std::vector<Point<float>>& p_vertices, float p_lineThickness, bool p_isClosed = false) = 0;
-		/// <summary>
-		/// Draws the edge of a custom shape.
-		/// </summary>
-		/// <param name="p_vertices">An array of points that make up the shape.</param>
-		/// <param name="p_numberOfVertices">The number of points that make up the shape.</param>
-		/// <param name="p_lineThickness">How thicc the edges of the shape are.</param>
-		/// <param name="p_isClosed">Whether the last vertex will be connected to the first one to close the shape.</param>
+		/*
+			Draws the edge of a custom shape.
+		
+			p_vertices is an array of points that make up the shape.
+			p_numberOfVertices is the number of points that make up the shape.
+			p_lineThickness is how thicc the edges of the shape are.
+			p_isClosed is whether the last vertex will be connected to the first one to close the shape.
+		*/
 		virtual void strokeShape(Point<float> const* p_vertices, uint32_t p_numberOfVertices, float p_lineThickness, bool p_isClosed = false) = 0;
-		/// <summary>
-		/// Fills a custom shape with the current color.
-		/// </summary>
-		/// <param name="p_shape">The points that make up the shape.</param>
+		/*
+			Fills a custom shape with the current color.
+
+			p_shape is a vector of points that make up the shape.
+		*/
 		virtual void fillShape(const std::vector<Point<float>>& p_vertices) = 0;
-		/// <summary>
-		/// Fills a custom shape with the current color.
-		/// </summary>
-		/// <param name="p_vertices">An array of points that make up the shape.</param>
-		/// <param name="p_numberOfVertices">The number of points that make up the shape.</param>
+		/*
+			Fills a custom shape with the current color.
+		
+			p_vertices is an array of points that make up the shape.
+			p_numberOfVertices is he number of points that make up the shape.
+		*/
 		virtual void fillShape(Point<float> const* p_vertices, uint32_t p_numberOfVertices) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Changes the way both start- and endpoints of lines are drawn.
-		/// </summary>
+		/*
+			Changes the way both start- and endpoints of lines are drawn.
+		*/
 		virtual void setLineCap(LineCap p_lineCap) = 0;
-		/// <summary>
-		/// Changes the way startpoints of lines are drawn.
-		/// </summary>
+		/*
+			Changes the way startpoints of lines are drawn.
+		*/
 		virtual void setStartLineCap(LineCap p_lineCap) = 0;
-		/// <summary>
-		/// Changes the way endpoints of lines are drawn.
-		/// </summary>
+		/*
+			Changes the way endpoints of lines are drawn.
+		*/
 		virtual void setEndLineCap(LineCap p_lineCap) = 0;
-		/// <summary>
-		/// Returns the way startpoints of lines are drawn.
-		/// </summary>
+		/*
+			Returns the way startpoints of lines are drawn.
+		*/
 		virtual LineCap getStartLineCap() = 0;
-		/// <summary>
-		/// Returns the way endpoints of lines are drawn.
-		/// </summary>
+		/*
+			Returns the way endpoints of lines are drawn.
+		*/
 		virtual LineCap getEndLineCap() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets how and if lines are dashed/dotted.
-		/// </summary>
+		/*
+			Sets how and if lines are dashed/dotted.
+		*/
 		virtual void setLineDashStyle(LineDashStyle p_dashStyle) = 0;
-		/// <summary>
-		/// Returns how and if lines are dashed/dotted.
-		/// </summary>
+		/*
+			Returns how and if lines are dashed/dotted.
+		*/
 		virtual LineDashStyle getLineDashStyle() = 0;
 
-		/// <summary>
-		/// Sets the offset of line dashing/dotting.
-		/// </summary>
+		/*
+			Sets the offset of line dashing/dotting.
+		*/
 		virtual void setLineDashOffset(float p_dashOffset) = 0;
-		/// <summary>
-		/// Returns the offset of line dashing/dotting.
-		/// </summary>
+		/*
+			Returns the offset of line dashing/dotting.
+		*/
 		virtual float getLineDashOffset() = 0;
 
-		/// <summary>
-		/// This changes the way the endpoints of dots and dashes on lines are drawn.
-		/// </summary>
+		/*
+			This changes the way the endpoints of dots and dashes on lines are drawn.
+		*/
 		virtual void setLineDashCap(LineCap p_dashCap) = 0;
-		/// <summary>
-		/// Returns the way the endpoints of dots and dashes on lines are drawn.
-		/// </summary>
+		/*
+			Returns the way the endpoints of dots and dashes on lines are drawn.
+		*/
 		virtual LineCap getLineDashCap() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the way line joints are drawn.
-		/// </summary>
+		/*
+			Sets the way line joints are drawn.
+		*/
 		virtual void setLineJoin(LineJoin p_lineJoin) = 0;
-		/// <summary>
-		/// Returns the way line joints are drawn.
-		/// </summary>
+		/*
+			Returns the way line joints are drawn.
+		*/
 		virtual LineJoin getLineJoin() = 0;
 
-		/// <summary>
-		/// Sets the limit of the thickness of pointy "mitered" joints.
-		/// </summary>
+		/*
+			Sets the lower limit of the thickness of pointy "mitered" joints.
+		*/
 		virtual void setLineJoinMiterLimit(float p_miterLimit) = 0;
-		/// <summary>
-		/// Returns the limit of the thickness of pointy "mitered" joints.
-		/// </summary>
+		/*
+			Returns the lower limit of the thickness of pointy "mitered" joints.
+		*/
 		virtual float getLineJoinMiterLimit() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
-		/// </summary>
+		/*
+			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
+		*/
 		virtual void pushClipRectangle(const Rectangle<float>& p_rectangle) = 0;
-		/// <summary>
-		/// After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
-		/// </summary>
-		/// <param name="p_size">The size of the clip rectangle positioned at the origin.</param>
+		/*
+			After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
+			p_size is the size of the clip rectangle positioned at the origin.
+		*/
 		virtual void pushClipRectangle(const Point<float>& p_size) = 0;
-		/// <summary>
-		/// This undos the last added clipping rectangle.
-		/// </summary>
+		/*
+			This removes the last added clipping rectangle.
+		*/
 		virtual void popClipRectangle() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// After calling this, all graphics drawn outside the rounded rectangle will be invisible, on pixel-level.
-		/// </summary>
+		/*
+			After calling this, all graphics drawn outside the rounded rectangle will be invisible, on pixel-level.
+		*/
 		virtual void pushRoundedClipRectangle(const Rectangle<float>& p_rectangle, float p_radius) = 0;
-		/// <summary>
-		/// After calling this, all graphics drawn outside a rounded rectangle at the origin with the given size and radius will be invisible, on pixel level.
-		/// </summary>
-		/// <param name="p_size">The size of the rounded clip rectangle positioned at the origin.</param>
+		/*
+			After calling this, all graphics drawn outside a rounded rectangle at the origin with the given size and radius will be invisible, on pixel level.
+		
+			p_size is the size of the rounded clip rectangle positioned at the origin.
+		*/
 		virtual void pushRoundedClipRectangle(const Point<float>& p_size, float p_radius) = 0;
-		/// <summary>
-		/// This undos the last added rounded clipping rectangle.
-		/// </summary>
+		/*
+			This removes the last added rounded clipping rectangle.
+		*/
 		virtual void popRoundedClipRectangle() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Generates a shadow cast by a rectangle.
-		/// </summary>
-		/// <param name="p_size">The size of the rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.</param>
-		/// <param name="p_blur">How far away from the surface the rectangle is (how blurry the shadow is).</param>
-		/// <param name="p_color">The color of the resulting shadow.</param>
+		/*
+			Generates an image of a shadow that is cast by a rectangle.
+		
+			p_size is the size of the rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.
+			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
+			p_color is the color of the resulting shadow.
+		*/
 		virtual Image* createRectangleShadowImage(const Point<uint32_t>& p_size, float p_blur, const Color& p_color) = 0;
-		/// <summary>
-		/// Generates a shadow cast by a rectangle.
-		/// </summary>
-		/// <param name="p_width">The width of the rectangle which will cast the shadow. The shadow will be wider than this if p_blur > 0.</param>
-		/// <param name="p_height">The height of the rectangle which will cast the shadow. The shadow will be taller than this if p_blur > 0.</param>
-		/// <param name="p_blur">How far away from the surface the rectangle is (how blurry the shadow is).</param>
-		/// <param name="p_color">The color of the resulting shadow.</param>
+		/*
+			Generates an image of a shadow that is cast by a rectangle.
+		
+			p_width is the width of the rectangle which will cast the shadow. The shadow will be wider than this if p_blur > 0.
+			p_height is the height of the rectangle which will cast the shadow. The shadow will be taller than this if p_blur > 0.
+			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
+			p_color is the color of the resulting shadow.
+		*/
 		virtual Image* createRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_blur, const Color& p_color) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Generates a shadow cast by a rounded rectangle.
-		/// </summary>
-		/// <param name="p_size">The size of the rounded rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.</param>
-		/// <param name="p_radius">The corner radius ("roundness") of the rounded rectangle which will cast the shadow.</param>
-		/// <param name="p_blur">How far away from the surface the rounded rectangle is (how blurry the shadow is).</param>
-		/// <param name="p_color">The color of the resulting shadow.</param>
+		/*
+			Generates an image of a shadow that is cast by a rounded rectangle.
+		
+			p_size is the size of the rounded rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.
+			p_radius is the corner radius ("roundness") of the rounded rectangle which will cast the shadow.
+			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
+			p_color is the color of the resulting shadow.
+		*/
 		virtual Image* createRoundedRectangleShadowImage(const Point<uint32_t>& p_size, float p_radius, float p_blur, const Color& p_color) = 0;
-		/// <summary>
-		/// Generates a shadow cast by a rounded rectangle.
-		/// </summary>
-		/// <param name="p_width">The width of the rounded rectangle which will cast the shadow. The shadow will be wider than this if p_blur > 0.</param>
-		/// <param name="p_height">The height of the rounded rectangle which will cast the shadow. The shadow will be taller than this if p_blur > 0.</param>
-		/// <param name="p_radius">The corner radius ("roundness") of the rounded rectangle which will cast the shadow.</param>
-		/// <param name="p_blur">How far away from the surface the rounded rectangle is (how blurry the shadow is).</param>
-		/// <param name="p_color">The color of the resulting shadow.</param>
+		/*
+			Generates an image of a shadow that is cast by a rounded rectangle.
+		
+			p_width is the width of the rounded rectangle which will cast the shadow. The shadow will be wider than this if p_blur > 0.
+			p_height is the height of the rounded rectangle which will cast the shadow. The shadow will be taller than this if p_blur > 0.
+			p_radius is the corner radius ("roundness") of the rounded rectangle which will cast the shadow.
+			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
+			p_color is the color of the resulting shadow.
+		*/
 		virtual Image* createRoundedRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_radius, float p_blur, const Color& p_color) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Loads an image from pixel data in BGRA format.
-		/// </summary>
-		/// <param name="p_pixelData">An array which is 4*width*height bytes in size. It contains the color values for every pixel in the image, row-by-row. One byte for every color channel.</param>
-		/// <param name="p_width">The number of pixels wide the image is.</param>
-		/// <param name="p_height">The number of pixels high the image is.</param>
+		/*
+			Loads an image from pixel data in BGRA format.
+
+			p_pixelData is an array which is 4*width*height bytes in size. 
+			It contains the color values for every pixel in the image, row-by-row. One byte for every color channel.
+
+			p_width and p_height are in pixels.
+		*/
 		virtual Image* createImage(const void* p_pixelData, uint32_t p_width, uint32_t p_height) = 0;
 
-		/// <summary>
-		/// <para>Loads an image from a file. Most standard image formats/codecs are supported.</para>
-		/// <para>If this returns 0, then the file path is probably incorrect.</para>
-		/// </summary>
-		/// <param name="p_filePath">The path, relative or absolute, to the image file to be loaded.</param>
+		/*
+			Loads an image from a file. Most standard image formats/codecs are supported.
+			p_filePath is the path, relative or absolute, to the image file to be loaded.
+			If this returns 0, then the file path is probably incorrect.
+		*/
 		virtual Image* createImage(const char* p_filePath) = 0;
 
 		virtual void drawImage(Image* p_image) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the color being used when drawing shapes.
-		/// </summary>
+		/*
+			Sets the color being used when drawing shapes.
+		*/
 		virtual void setColor(const Color& p_color) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Adds a new font family that can be used by text.
-		/// </summary>
-		/// <param name="p_data">Font data, the data that is in a font file.</param>
-		/// <param name="p_dataSize">The length/size of the data in bytes</param>
+		/*
+			Adds a new font family that can be used by text.
+			p_data is the data that would be in a standard font file.
+			p_dataSize is the length/size of the data in bytes.
+		*/
 		virtual void addFont(const void* p_data, uint32_t p_dataSize) = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the default properties of text created with this drawing context. These properties can be overridden by changing the properties of a text object.
-		/// </summary>
+		/*
+			Sets the default properties of text created with this drawing context. 
+			These properties can be overridden by changing the properties of a text object.
+		*/
 		virtual void setDefaultTextProperties(const TextProperties& p_textProperties) = 0;
-		/// <summary>
-		/// Returns the default properties of text created with this drawing context. These properties can be overridden by changing the properties of a text object.
-		/// </summary>
+		/*
+			Returns the default properties of text created with this drawing context. 
+			These properties can be overridden by changing the properties of a text object.
+		*/
 		virtual TextProperties getDefaultTextProperties() = 0;
 
 		//------------------------------
 
-		/// <summary>
-		/// Creates a new Text object which represents a pre-calculated text layout, using the current text properties.
-		/// </summary>
-		/// <param name="p_string">The content of the text.</param>
-		/// <param name="p_fontSize">The font size of the text.</param>
-		/// <param name="p_bounds">The maximum bounds of the text.</param>
+		/*
+			Creates a new Text object which represents a pre-calculated text layout, using the current text properties.
+			p_bounds is the maximum bounds of the text. If it's (0, 0, 0, 0) then the bounds will be calculated to fit the text.
+		*/
 		virtual Text* createText(const char* p_string, float p_fontSize, const Rectangle<float>& p_bounds = Rectangle<float>()) = 0;
-		/// <summary>
-		/// Draws pre-calculated text created with the createText method.
-		/// </summary>
+		/*
+			Draws pre-calculated text created with the createText method.
+		*/
 		virtual void drawText(Text* p_text) = 0;
 
-		/// <summary>
-		/// <para>Lays out and draws a string in a rectangle.</para>
-		/// <para>If you're drawing the same text repeatedly, use a Text object (created with method createText).</para>
-		/// </summary>
+		/*
+			Lays out and draws a string in a rectangle.
+			If you're drawing the same text repeatedly, use a Text object (created with method createText).
+		*/
 		virtual void drawText(const char* p_string, const Rectangle<float>& p_rectangle) = 0;
-		/// <summary>
-		/// <para>Lays out and draws a string in a rectangle.</para>
-		/// <para>If you're drawing the same text repeatedly, use a Text object (created with method createText()).</para>
-		/// </summary>
+		/*
+			Lays out and draws a string in a rectangle.
+			If you're drawing the same text repeatedly, use a Text object (created with method createText()).
+		*/
 		virtual void drawText(const char* p_string, float p_left, float p_top, float p_right, float p_bottom) = 0;
-		/// <summary>
-		/// <para>Lays out and draws a string in a rectangle.</para>
-		/// <para>If you're drawing the same text repeatedly, use a Text object (created with method createText()).</para>
-		/// </summary>
+		/*
+			Lays out and draws a string in a rectangle.
+			If you're drawing the same text repeatedly, use a Text object (created with method createText()).
+		*/
 		virtual void drawText(const char* p_string, const Point<float>& p_position, const Point<float>& p_size) = 0;
-		/// <summary>
-		/// <para>Lays out and draws a string at a position.</para>
-		/// <para>If you're drawing the same text repeatedly, use a Text object (created with createText()).</para>
-		/// </summary>
+		/*
+			Lays out and draws a string at a position.
+			If you're drawing the same text repeatedly, use a Text object (created with createText()).
+		*/
 		virtual void drawText(const char* p_string, float p_x, float p_y) = 0;
-		/// <summary>
-		/// <para>Lays out and draws a string at a position.</para>
-		/// <para>If you're drawing the same text repeatedly, use a Text object (created with createText()).</para>
-		/// </summary>
+		/*
+			Lays out and draws a string at a position.
+			If you're drawing the same text repeatedly, use a Text object (created with createText()).
+		*/
 		virtual void drawText(const char* p_string, const Point<float>& p_position) = 0;
 	};
 #pragma endregion
@@ -6645,10 +7032,10 @@ namespace AvoGUI
 
 	class Tooltip;
 
-	/// <summary>
-	/// <para>The highest view in the view hierarchy.</para>
-	/// <para>Is connected to a window (which it holds) and recieves events from it.</para>
-	/// </summary>
+	/*
+		The highest view in the view hierarchy.
+		Is connected to a window which it holds and recieves events from.
+	*/
 	class GUI : public View, public WindowEventListener, public GlobalMouseEventListener
 	{
 	private:
@@ -6704,199 +7091,203 @@ namespace AvoGUI
 		GUI();
 		~GUI();
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>This method creates the window and drawing context as well as creates the content of the GUI and lays it out.</para>
-		/// </summary>
-		/// <param name="p_title">The name of the window.</param>
-		/// <param name="p_x">X coordinate of the window in desktop coordinates.</param>
-		/// <param name="p_y">Y coordinate of the window in desktop coordinates.</param>
-		/// <param name="p_width">Width of the window.</param>
-		/// <param name="p_height">Height of the window.</param>
-		/// <param name="p_windowFlags">Flags which change how the window appears.</param>
-		/// <param name="p_isFullscreen">If this is true, no window will be shown and graphics will be drawn in fullscreen.</param>
-		/// <param name="p_parent">Parent GUI, is only used if the Child flag is turned on in p_windowFlags.</param>
+		/*
+			LIBRARY IMPLEMENTED
+			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
+			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
+			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+		
+			p_title is the text that appears in the title bar of the window (if it has a border).
+			p_x is the position of the left edge of the window relative to the left edge of the screen.
+			p_y is the position of the top edge of the window relative to the top edge of the screen.
+			p_width is the width of the client area in pixels.
+			p_height is the height of the client area in pixels.
+			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent GUI, is only used if the Child bit is turned on in p_windowFlags.
+		*/
 		void create(const char* p_title, uint32_t p_x, uint32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>This method creates the window and drawing context as well as creates the content of the GUI and lays it out.</para>
-		/// </summary>
-		/// <param name="p_title">The name of the window.</param>
-		/// <param name="p_width">Width of the window.</param>
-		/// <param name="p_height">Height of the window.</param>
-		/// <param name="p_windowFlags">Flags which change how the window appears.</param>
-		/// <param name="p_isFullscreen">If this is true, no window will be shown and graphics will be drawn in fullscreen.</param>
-		/// <param name="p_parent">Parent GUI, is only used if the Child flag is turned on in p_windowFlags.</param>
+		/*
+			LIBRARY IMPLEMENTED
+			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
+			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
+			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+		
+			p_title is the text that appears in the title bar of the window (if it has a border).
+			p_width is the width of the client area in pixels.
+			p_height is the height of the client area in pixels.
+			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent GUI, is only used if the Child bit is turned on in p_windowFlags.
+		*/
 		void create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the topmost view which contains the coordinates given.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the topmost view which contains the coordinates given.
+		*/
 		View* getViewAt(const Point<float>& p_coordinates);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the topmost view which contains the coordinates given.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the topmost view which contains the coordinates given.
+		*/
 		View* getViewAt(float p_x, float p_y);
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Creates a new drawing context and calls createContent() to initialize the layout, as well as sends the event down to all window listeners.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Creates a new drawing context and calls createContent() to initialize the layout, as well as sends the event down to all window listeners.
+		*/
 		void handleWindowCreate(const WindowEvent& p_event) override;
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sends the event down to all window listeners and returns whether the window will close.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sends the event down to all window listeners and returns whether the window will close.
+		*/
 		bool handleWindowClose(const WindowEvent& p_event) override;
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sends the event down to all window listeners.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sends the event down to all window listeners.
+		*/
 		void handleWindowMinimize(const WindowEvent& p_event) override;
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sends the event down to all window listeners.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sends the event down to all window listeners.
+		*/
 		void handleWindowMaximize(const WindowEvent& p_event) override;
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Resizes the drawing context and updates the size of the GUI, as well as sends the event down to all window listeners.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Resizes the buffers held by the drawing context and updates the size of the GUI, as well as sends the event down to all window listeners.
+		*/
 		void handleWindowSizeChange(const WindowEvent& p_event) override;
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sends the event down to all window listeners.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sends the event down to all window listeners.
+		*/
 		void handleWindowFocus(const WindowEvent& p_event) override;
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sends the event down to all window listeners.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sends the event down to all window listeners.
+		*/
 		void handleWindowUnfocus(const WindowEvent& p_event) override;
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a mouse down event that has been sent directly from the window to the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sends the event down to global and targeted mouse event listeners.
+		*/
 		virtual void handleGlobalMouseDown(const MouseEvent& p_event) override;
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a mouse up event that has been sent directly from the window to the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sends the event down to global and targeted mouse event listeners.
+		*/
 		virtual void handleGlobalMouseUp(const MouseEvent& p_event) override;
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a double click event that has been sent directly from the window to the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sends the event down to global and targeted mouse event listeners.
+		*/
 		virtual void handleGlobalMouseDoubleClick(const MouseEvent& p_event) override;
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a mouse move event that has been sent directly from the window to the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sends the event down to global and targeted mouse event listeners.
+		*/
 		virtual void handleGlobalMouseMove(const MouseEvent& p_event) override;
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a mouse scroll event that has been sent directly from the window to the GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sends the event down to global and targeted mouse event listeners.
+		*/
 		virtual void handleGlobalMouseScroll(const MouseEvent& p_event) override;
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the keyboard event listener that keyboard events are sent to.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the keyboard event listener that keyboard events are sent to.
+		*/
 		void setKeyboardFocus(KeyboardEventListener* p_keyboardFocus)
 		{
-			if (m_keyboardFocus)
+			if (m_keyboardFocus && m_keyboardFocus != p_keyboardFocus)
 			{
 				m_keyboardFocus->handleKeyboardFocusLost();
 			}
 			m_keyboardFocus = p_keyboardFocus;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the keyboard event listener that keyboard events are sent to.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the keyboard event listener that keyboard events are sent to.
+		*/
 		KeyboardEventListener* getKeyboardFocus()
 		{
 			return m_keyboardFocus;
 		}
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a character pressed event that has been sent directly from the window to the GUI. If there are no global keyboard listeners, the event is only</para>
-		/// <para>sent to the keyboard focus.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Handles a character pressed event that has been sent directly from the window to the GUI. 
+			If there are no global keyboard listeners, the event is only sent to the keyboard focus.
+		*/
 		virtual void handleCharacterInput(const KeyboardEvent& p_event);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a key pressed event that has been sent directly from the window to the GUI. If there are no global keyboard listeners, the event is only</para>
-		/// <para>sent to the keyboard focus.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Handles a key pressed event that has been sent directly from the window to the GUI. 
+			If there are no global keyboard listeners, the event is only sent to the keyboard focus.
+		*/
 		virtual void handleKeyboardKeyDown(const KeyboardEvent& p_event);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Handles a key released event that has been sent directly from the window to the GUI. If there are no global keyboard listeners, the event is only</para>
-		/// <para>sent to the keyboard focus.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Handles a key release event that has been sent directly from the window to the GUI. 
+			If there are no global keyboard listeners, the event is only sent to the keyboard focus.
+		*/
 		virtual void handleKeyboardKeyUp(const KeyboardEvent& p_event);
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Enables a window event listener to recieve events.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Enables a window event listener to recieve events.
+		*/
 		void addWindowEventListener(WindowEventListener* p_listener)
 		{
 			m_windowEventListeners.push_back(p_listener);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Disables a window event listener to recieve events.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Disables a window event listener to recieve events.
+		*/
 		void removeWindowEventListener(WindowEventListener* p_listener)
 		{
 			removeVectorElementWithoutKeepingOrder(m_windowEventListeners, p_listener);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Enables a keyboard event listener to recieve events even if it is not the keyboard focus.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Enables a keyboard event listener to recieve events even if it is not the keyboard focus.
+		*/
 		void addGlobalKeyboardEventListener(KeyboardEventListener* p_listener)
 		{
 			m_globalKeyboardEventListeners.push_back(p_listener);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Disables a keyboard event listener to recieve events when it is not the keyboard focus.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Disables a keyboard event listener to recieve events when it is not the keyboard focus.
+		*/
 		void removeGlobalKeyboardEventListener(KeyboardEventListener* p_listener)
 		{
 			removeVectorElementWithoutKeepingOrder(m_globalKeyboardEventListeners, p_listener);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Enables a global mouse event listener to recieve events.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Enables a global mouse event listener to recieve events.
+		*/
 		void addGlobalMouseEventListener(GlobalMouseEventListener* p_listener)
 		{
 			m_globalMouseEventListeners.push_back(p_listener);
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Disables a global mouse event listener to recieve events.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Disables a global mouse event listener to recieve events.
+		*/
 		void removeGlobalMouseEventListener(GlobalMouseEventListener* p_listener)
 		{
 			removeVectorElementWithoutKeepingOrder(m_globalMouseEventListeners, p_listener);
@@ -6904,18 +7295,18 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns a pointer to the window used by this GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns a pointer to the window used by this GUI.
+		*/
 		Window* getWindow()
 		{
 			return m_window;
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns a pointer to the drawing context used by this GUI.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns a pointer to the drawing context used by this GUI.
+		*/
 		DrawingContext* getDrawingContext()
 		{
 			return m_drawingContext;
@@ -6923,34 +7314,32 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Sets the view used for showing tooltips. This can be your own view inheriting Tooltip.</para>
-		/// </summary>
-		/// <param name="p_tooltip"></param>
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the view used for showing tooltips. This can be your own view that inherits Tooltip.
+		*/
 		void setTooltipView(Tooltip* p_tooltip);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns the view used for showing tooltips.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the view used for showing tooltips.
+		*/
 		Tooltip* getTooltipView();
 
 		//------------------------------
 
-		/// <summary>
-		/// USER IMPLEMENTED
-		/// <para>This is called after the window and drawing context have been created. You should initialize your GUI in this method,</para>
-		/// <para>but it is easiest to do the layout in handleSizeChange() - it is called right after creation too.</para>
-		/// </summary>
+		/*
+			USER IMPLEMENTED
+			This is called after the window and drawing context have been created. 
+			It is a good idea to initialize your GUI in this method, but do the layout in handleSizeChange() - it is called right after creation too.
+		*/
 		virtual void createContent() { };
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether the window has been resized since the last GUI size update. Used internally.</para>
-		/// </summary>
-		/// <returns></returns>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether the window has been resized since the last GUI size update. Used internally.
+		*/
 		bool getHasNewWindowSize()
 		{
 			return m_hasNewWindowSize;
@@ -6958,35 +7347,35 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Adds a view to the animation update queue. Views that are in the animation update queue will be updated after a certain interval.</para>
-		/// <para>Do not use this method, because it is possible to add a view twice to the queue. Instead use queueAnimationUpdate() from the view.</para>
-		/// </summary>
-		/// <param name="p_view"></param>
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a view to the animation update queue. Views that are in the animation update queue will be updated after a certain interval.
+			Do not use this method, because it is possible to add a view twice to the queue. Instead use queueAnimationUpdate() on the view.
+			Using that method esures that animations are only updated max once per interval for every view.
+		*/
 		void queueAnimationUpdateForView(View* p_view);
-
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Should only need to be used internally. Updates the animations of views which have been requested to get an animation update.</para>
-		/// <para>Also resizes the GUI if the window has changed size.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Should only need to be used internally. 
+			Updates the animations of views which have been requested to get an animation update.
+			Also resizes the GUI if the window has changed size.
+		*/
 		void updateQueuedAnimations();
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Should only need to be used internally. This locks the animation thread mutex, so that the critical section in the animation thread</para>
-		/// <para>does not run until the mutex is unlocked again. (or the other way around)</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Should only need to be used internally. 
+			This locks the animation thread mutex, so that the critical section in the animation thread does not run until the mutex is unlocked again (or the other way around).
+		*/
 		void excludeAnimationThread()
 		{
 			m_animationThreadMutex.lock();
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Should only need to be used internally. This unlocks the animation thread mutex, so that the critical section in the animation thread</para>
-		/// <para>is allowed to run.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Should only need to be used internally. 
+			This unlocks the animation thread mutex, so that the critical section in the animation thread is allowed to run.
+		*/
 		void includeAnimationThread()
 		{
 			m_animationThreadMutex.unlock();
@@ -6994,40 +7383,41 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Invalidates a part of the GUI that has been changed, and therefore needs to be redrawn.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Invalidates a part of the GUI that has been changed, and therefore needs to be redrawn. 
+			Views that intersect with any invalid rectangles will be drawn in the next call to drawViews() (which is made internally) automatically.
+		*/
 		void invalidateRectangle(Rectangle<float> p_rectangle);
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>Returns whether the GUi has invalid rectangles.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether the GUi has invalid rectangles.
+		*/
 		bool getNeedsRedrawing()
 		{
 			return m_invalidRectangles.size();
 		}
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// Draws the invalid rectangles of the GUI. This method should only be called by the library. Use draw() to draw things directly on the GUI.
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			Draws the invalid rectangles of the GUI. This method should only be called internally by the library. Use draw() to draw things directly on the GUI.
+		*/
 		void drawViews();
 
 		//------------------------------
 
-		/// <summary>
-		/// LIBRARY IMPLEMENTED
-		/// <para>This runs the global event loop.</para>
-		/// </summary>
+		/*
+			LIBRARY IMPLEMENTED
+			This runs the global event loop and blocks until the window has been destroyed.
+		*/
 		static void run();
 	};
 
 	//------------------------------
 
-	/// <summary>
-	/// <para>Shows a short info message about a view. This is a virtual class with standard implementation.</para>
-	/// <para>You can create your own tooltip that inherits this class, and then give it to the GUI.</para>
-	/// </summary>
+	/*
+		Shows a short info message about a view. This is a virtual class with standard implementation.
+		You can create your own tooltip that inherits this class, and then give it to the GUI.
+	*/
 	class Tooltip : public View
 	{
 	private:
@@ -7055,16 +7445,16 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// Makes the tooltip appear.
-		/// </summary>
-		/// <param name="p_text">The text to be shown on the tooltip.</param>
-		/// <param name="p_targetBounds">The area that the tooltip points to, relative to the parent of this tooltip. The tooltip decides the exact positioning.</param>
+		/*
+			Makes the tooltip appear
+			p_string is the string to be displayed on the tooltip.
+			p_targetBounds is the area that the tooltip points to and is relative to the parent of this tooltip. The tooltip decides the exact positioning.
+		*/
 		virtual void show(const char* p_string, const Rectangle<float>& p_targetRectangle);
 
-		/// <summary>
-		/// Makes the tooltip disappear.
-		/// </summary>
+		/*
+			Makes the tooltip disappear.
+		*/
 		virtual void hide();
 
 		//------------------------------
@@ -7106,10 +7496,10 @@ namespace AvoGUI
 
 	//------------------------------
 
-	/// <summary>
-	/// <para>A view that shows a ripple effect when you click it and optionally shows a hover effect when the mouse hovers over it.</para>
-	/// <para>It is a mouse event overlay which means views behind this view are targeted as if this view didn't exist.</para>
-	/// </summary>
+	/*
+		A view that shows a ripple effect when you click it and optionally shows a hover effect when the mouse hovers over it.
+		It is a mouse event overlay which means views behind this view are targeted as if this view didn't exist.
+	*/
 	class Ripple : public View, public ViewListener
 	{
 	private:
@@ -7143,23 +7533,23 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// Disables the ripple and hover effects.
-		/// </summary>
+		/*
+			Disables the ripple and hover effects.
+		*/
 		void disable()
 		{
 			m_isEnabled = false;
 		}
-		/// <summary>
-		/// Enables the ripple and hover effects.
-		/// </summary>
+		/*
+			Enables the ripple and hover effects.
+		*/
 		void enable()
 		{
 			m_isEnabled = true;
 		}
-		/// <summary>
-		/// Returns whether the ripple and hover effects are enabled.
-		/// </summary>
+		/*
+			Returns whether the ripple and hover effects are enabled.
+		*/
 		bool getIsEnabled()
 		{
 			return m_isEnabled;
@@ -7167,16 +7557,16 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the color that is used by the ripple and hover effects.
-		/// </summary>
+		/*
+			Sets the color that is used by the ripple and hover effects.
+		*/
 		void setColor(const Color& p_color)
 		{
 			m_color = p_color;
 		}
-		/// <summary>
-		/// Returns the color that is used by the ripple and hover effects.
-		/// </summary>
+		/*
+			Returns the color that is used by the ripple and hover effects.
+		*/
 		const Color& getColor()
 		{
 			return m_color;
@@ -7184,17 +7574,17 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Sets whether the view will be lightly highlighted when the mouse hovers over it.</para>
-		/// <para>This is true by default and is recommended since it indicates that the view can be pressed.</para>
-		/// </summary>
+		/*
+			Sets whether the view will be lightly highlighted when the mouse hovers over it.
+			This is true by default and is recommended since it indicates that the view can be pressed.
+		*/
 		void setHasHoverEffect(bool p_hasHoverEffect)
 		{
 			m_hasHoverEffect = p_hasHoverEffect;
 		}
-		/// <summary>
-		/// Returns whether the view will be lightly highlighted when the mouse hovers over it.
-		/// </summary>
+		/*
+			Returns whether the view will be lightly highlighted when the mouse hovers over it.
+		*/
 		bool getHasHoverEffect()
 		{
 			return m_hasHoverEffect;
@@ -7240,7 +7630,6 @@ namespace AvoGUI
 
 	private:
 		Text* m_text;
-		float m_fontSize;
 
 		const char* m_tooltipString;
 
@@ -7254,7 +7643,7 @@ namespace AvoGUI
 		bool m_isEnabled;
 		Color m_currentColor;
 		float m_colorAnimationTime;
-		bool m_isPrimary;
+		bool m_isAccent;
 
 		bool m_isMouseHovering;
 
@@ -7263,31 +7652,30 @@ namespace AvoGUI
 		std::vector<ButtonListener*> m_buttonListeners;
 
 	public:
-		Button(View* p_parent, const char* p_text = "", Emphasis p_emphasis = Emphasis::High, float p_x = 0.f, float p_y = 0.f);
+		Button(View* p_parent, const char* p_text = "", Emphasis p_emphasis = Emphasis::High, bool p_isAccent = false);
 		virtual ~Button();
 
 		//------------------------------
 
-		/// <summary>
-		/// Registers a button listener to this button. The button listener will get an event when the button has been pressed.
-		/// </summary>
-		/// <param name="p_buttonListener"></param>
+		/*
+			Registers a button listener to this button. The button listener will get an event when the button has been pressed.
+		*/
 		void addButtonListener(ButtonListener* p_buttonListener);
 
 		//------------------------------
 
-		/// <summary>
-		/// Makes the user unable to use the button and makes it gray.
-		/// </summary>
+		/*
+			Makes the user unable to use the button and makes it gray.
+		*/
 		void disable();
-		/// <summary>
-		/// Makes the user able to use the button.
-		/// </summary>
+		/*
+			Makes the user able to use the button.
+		*/
 		void enable();
 
-		/// <summary>
-		/// Returns whether the user can use the button.
-		/// </summary>
+		/*
+			Returns whether the user can use the button.
+		*/
 		bool getIsEnabled()
 		{
 			return m_isEnabled;
@@ -7295,43 +7683,53 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets whether the button has an accent/primary color. If not, it has a secondary color. The button uses primary color by default.
-		/// </summary>
-		void setIsPrimary(bool p_isPrimary)
+		/*
+			Sets whether the button uses the secondary/accent color. If not, it uses the primary color. The button uses primary color by default.
+		*/
+		void setIsAccent(bool p_isAccent)
 		{
-			m_isPrimary = p_isPrimary;
+			m_isAccent = p_isAccent;
+			if (m_emphasis == Emphasis::High)
+			{
+				m_currentColor = m_isAccent ? m_theme->colors["secondary"] : m_theme->colors["primary"];
+				m_ripple->setColor(Color(m_isAccent ? m_theme->colors["on secondary"] : m_theme->colors["on primary"], 0.3f));
+			}
+			else
+			{
+				m_currentColor = m_isAccent ? m_theme->colors["secondary on background"] : m_theme->colors["primary on background"];
+				m_ripple->setColor(Color(m_isAccent ? m_theme->colors["secondary on background"] : m_theme->colors["primary on background"], 0.3f));
+			}
 		}
-		/// <summary>
-		/// Returns whether the button has an accent/primary color. If not, it has a secondary color.
-		/// </summary>
-		bool getIsPrimary()
+		/*
+			Returns whether the button uses the secondary/accent color. If not, it uses the primary color. The buton uses primary color by default.
+		*/
+		bool getIsAccent()
 		{
-			return m_isPrimary;
+			return m_isAccent;
 		}
 
 		//------------------------------
 
-		/// <summary>
-		/// Sets the string that the button displays.
-		/// </summary>
+		/*
+			Sets the string that the button displays.
+		*/
 		void setString(const char* p_string);
-		/// <summary>
-		/// Returns the string that the button displays.
-		/// </summary>
+		/*
+			Returns the string that the button displays.
+		*/
 		const char* getString();
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Sets an image to be shown together with the text. Unless you have remembered the image yourself, your are transferring ownership of the image to the button.</para>
-		/// <para>It is best to keep a text label with the icon, unless it is very clear to all users what the button does with the icon alone, or if you have set a tooltip.</para>
-		/// </summary>
-		/// <param name="p_icon">The image to be shown as an icon. If this is 0, the icon is removed.</param>
+		/*
+			Sets an image to be shown together with the text. Unless you have remembered the image yourself, your are transferring ownership of the image to the button.
+			It is best to keep a text label with the icon, unless it is very clear to all users what the button does with the icon alone, or if you have set a tooltip.
+			If p_icon is 0, the icon is removed.
+		*/
 		void setIcon(Image* p_icon);
-		/// <summary>
-		/// Returns the image that is shown together with the button text.
-		/// </summary>
+		/*
+			Returns the image that is shown together with the button text.
+		*/
 		Image* getIcon()
 		{
 			return m_icon;
@@ -7339,10 +7737,10 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// <summary>
-		/// <para>Sets a string to be shown as a tooltip when the mouse hovers over the button. Should give the user additional information about the button's purpose.</para>
-		/// <para>An empty string disables the tooltip.</para>
-		/// </summary>
+		/*
+			Sets a string to be shown as a tooltip when the mouse hovers over the button. Should give the user additional information about the button's purpose.
+			An empty string disables the tooltip.
+		*/
 		void setTooltip(const char* p_info)
 		{
 			m_tooltipString = p_info;
@@ -7378,16 +7776,13 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void drawUnclipped(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override;
+		void drawOverlay(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override;
 
 		void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override;
 	};
 
 	//------------------------------
 
-#define TEXT_FIELD_PADDING_LEFT 14.f
-#define TEXT_FIELD_PADDING_RIGHT 14.f
-#define TEXT_FIELD_CARET_BLINK_RATE 30 // In frames
 	class TextField : public View, public KeyboardEventListener
 	{
 	public:
@@ -7404,9 +7799,12 @@ namespace AvoGUI
 		float m_focusAnimationTime;
 		float m_focusAnimationValue;
 
+		bool m_isMouseHovering;
+		float m_hoverAnimationTime;
+		float m_hoverAnimationValue;
+
 		Text* m_text;
 		float m_textDrawingOffsetX;
-		float m_fontSize;
 
 		uint32_t m_caretIndex;
 		Point<float> m_caretPosition;
@@ -7422,11 +7820,17 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void updateCaretPosition();
+
 		void updateCaretTracking();
 		void updateSelectionEndTracking();
 
+	protected:
+		void handleThemeFontFamilyChange(const char* p_name, const char* p_newFontFamilyName) override;
+		void handleThemeValueChange(const char* p_name, float p_newValue) override;
+
 	public:
-		TextField(View* p_parent, Type p_type = Type::Filled, const char* p_labelString = "", float p_width = 120.f, float fontSize = 16.f);
+		TextField(View* p_parent, Type p_type = Type::Filled, const char* p_labelString = "", float p_width = 120.f);
 		~TextField();
 
 		//------------------------------
@@ -7446,6 +7850,8 @@ namespace AvoGUI
 		void handleMouseDown(const MouseEvent& p_event) override;
 		void handleMouseMove(const MouseEvent& p_event) override;
 		void handleMouseUp(const MouseEvent& p_event) override;
+		void handleMouseEnter(const MouseEvent& p_event) override;
+		void handleMouseLeave(const MouseEvent& p_event) override;
 		void handleKeyboardFocusLost() override;
 
 		//------------------------------
