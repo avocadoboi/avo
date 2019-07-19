@@ -177,11 +177,11 @@ namespace AvoGUI
 		The function returns true if the element existed in the vector and was removed (replaced by the last element).
 	*/
 	template<typename Type>
-	bool removeVectorElementWithoutKeepingOrder(std::vector<Type>& p_vector, Type p_value)
+	bool removeVectorElementWithoutKeepingOrder(std::vector<Type>& p_vector, Type p_element)
 	{
 		for (auto element = p_vector.begin(); element != p_vector.end(); element++)
 		{
-			if (*element == p_value)
+			if (*element == p_element)
 			{
 				*element = p_vector.back();
 				p_vector.pop_back();
@@ -1516,16 +1516,16 @@ namespace AvoGUI
 		template<typename PointType>
 		bool getIsContaining(const Point<PointType>& p_point) const
 		{
-			return p_point.x >= left && p_point.x <= right
-				&& p_point.y >= top && p_point.y <= bottom;
+			return p_point.x >= left && p_point.x < right
+				&& p_point.y >= top && p_point.y < bottom;
 		}
 		/*
 			Returns whether a point lies within this rectangle.
 		*/
 		bool getIsContaining(RectangleType p_x, RectangleType p_y) const
 		{
-			return p_x >= left && p_x <= right
-				&& p_y >= top && p_y <= bottom;
+			return p_x >= left && p_x < right
+				&& p_y >= top && p_y < bottom;
 		}
 
 		/*
@@ -2895,6 +2895,9 @@ namespace AvoGUI
 			colors["secondary on background"] = COLOR_TEAL_A700;
 			colors["on secondary"] = 0xff070707;
 
+			colors["tooltip background"] = Color(0.2f, 0.8f);
+			colors["tooltip on background"] = Color(1.f, 0.95f);
+
 			colors["selection"] = 0x90488db5;
 
 			colors["shadow"] = 0x68000000;
@@ -2917,16 +2920,21 @@ namespace AvoGUI
 			//------------------------------
 			// Values
 
+			// Global values
+			values["hover animation speed"] = 1.f/6.f; // 1/frames where frames is the number of frames the animation takes to finish. If it's 0.5, it finishes in 2 frames.
+
 			// Button styles
 			values["button font size"] = 14.f;
 
+			// Editable text styles
+			values["editable text caret blink rate"] = 20; // This is in frames
+
 			// Text field styles
-			values["text field caret blink rate"] = 30; // This is in frames
-			values["text field font size"] = 16.f;
-			values["text field height"] = 3.2f; // This is a factor of the font size
+			values["text field font size"] = 15.f;
+			values["text field height"] = 3.4f; // This is a factor of the font size
 			values["text field padding left"] = 14.f;
 			values["text field padding right"] = 14.f;
-			values["text field filled padding bottom"] = 7.f;
+			values["text field filled padding bottom"] = 9.f;
 		}
 	};
 
@@ -3093,7 +3101,7 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 			Sets the cursor that will by default be shown when the mouse enters the view.
-			The default implementation of handleMouseEnter sets the cursor to this one, and you can override this behaviour.
+			The default implementation of handleBackgroundMouseEnter sets the cursor to this one, and you can override this behaviour.
 		*/
 		void setCursor(Cursor p_cursor)
 		{
@@ -3482,6 +3490,9 @@ namespace AvoGUI
 			"secondary on background"
 			"on secondary"
 
+			"tooltip background"
+			"tooltip on background"
+
 			"selection"
 
 			"shadow"
@@ -3684,9 +3695,12 @@ namespace AvoGUI
 			If p_name is any of the strings below, it has a default value that can be changed.
 			These values may be used by views that come with the library, but you could use them yourself too.
 			
+			"hover animation speed"
+
 			"button font size"
 
-			"text field caret blink rate"
+			"editable text caret blink rate"
+
 			"text field font size"
 			"text field height"
 			"text field padding left"
@@ -5183,20 +5197,38 @@ namespace AvoGUI
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse pointer has been moved within the bounds of the view. 
+			This can be blocked by non-overlay views which have the same parent and are overlapping this one.
+			The event is never blocked by children of this view.
 			If it has entered the view, a mouse enter event is sent, and if it has left the view, a mouse leave event is sent.
 			p_event is an object that contains information about the mouse event.
 		*/
 		virtual void handleMouseMove(const MouseEvent& p_event) { }
 		/*
 			LIBRARY IMPLEMENTED (only default behavior)
-			Gets called when the mouse pointer has entered the view.
+			Gets called when the mouse pointer has entered any part of the view that is not occupied by children of this view.
 			By default, this changes the mouse cursor to the cursor that is set with setCursor on the view.
-			p_event an object that contains information about the mouse event.
+			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleMouseEnter(const MouseEvent& p_event);
+		virtual void handleBackgroundMouseEnter(const MouseEvent& p_event);
 		/*
 			USER IMPLEMENTED
-			Gets called when the mouse pointer has left the view.
+			Gets called when the mouse pointer has left any part of the view that is not occupied by children of this view.
+			p_event is an object that contains information about the mouse event.
+		*/
+		virtual void handleBackgroundMouseLeave(const MouseEvent& p_event) { }
+		/*
+			USER IMPLEMENTED
+			Gets called when the mouse pointer has entered the bounds of the view.
+			This can be called on one or more views at the same time, but among views that have the same parent, only the topmost view 
+			that the mouse has entered gets the event (except for overlay views, they always get the event as long as they are targeted).
+			p_event is an object that contains information about the mouse event.
+		*/
+		virtual void handleMouseEnter(const MouseEvent& p_event) { }
+		/*
+			USER IMPLEMENTED
+			Gets called when the mouse cursor has left the bounds of the view.
+			This can be called on one or more views at the same time, but among views that have the same parent, only the topmost view
+			that the mouse has left gets the event (except for overlay views, they always get the event as long as they are targeted).
 			p_event is an object that contains information about the mouse event.
 		*/
 		virtual void handleMouseLeave(const MouseEvent& p_event) { }
@@ -5416,35 +5448,40 @@ namespace AvoGUI
 		/*
 			X coordinate of the mouse pointer.
 		*/
-		int32_t x = 0;
+		float x;
 		/*
 			Y coordinate of the mouse pointer.
 		*/
-		int32_t y = 0;
+		float y;
 		/*
 			The movement of the mouse pointer in the x-axis.
 			If it is positive it has moved to the right and if it is negative it has moved to the left.
 		*/
-		int32_t movementX = 0;
+		float movementX;
 		/*
 			The movement of the mouse pointer in the y-axis.
 			If it is positive it has moved down and if it is negative it has moved up.
 		*/
-		int32_t movementY = 0;
+		float movementY;
 		/*
 			How much the mouse wheel has been moved. 
 			If it is positive, the wheel has been moved away from the user, if it negative it has moved towards the user. 
 			It represents the number of ticks the wheel has been moved, but can be a fraction if the mouse has smooth scrolling.
 		*/
-		float scrollDelta = 0.f;
+		float scrollDelta;
 		/*
 			The mouse button that has been pressed, released or double clicked (depending on the mouse event).
 		*/
-		MouseButton mouseButton = MouseButton::None;
+		MouseButton mouseButton;
 		/*
 			The modifier keys and mouse buttons that were down when the event ocurred.
 		*/
-		ModifierKeyFlags modifierKeys = ModifierKeyFlags::None;
+		ModifierKeyFlags modifierKeys;
+
+		MouseEvent() :
+			x(0.f), y(0.f), movementX(0.f), movementY(0.f), scrollDelta(0.f), 
+			mouseButton(MouseButton::None), modifierKeys(ModifierKeyFlags::None)
+		{ }
 	};
 
 	/*
@@ -5533,15 +5570,19 @@ namespace AvoGUI
 		/*
 			The character that was pressed. This is only valid for character press events.
 		*/
-		char character = 0;
+		char character;
 		/*
 			The keyboard key that was pressed or released. This is not valid for character press events.
 		*/
-		KeyboardKey key = KeyboardKey::None;
+		KeyboardKey key;
 		/*
 			If this is true, this character/key press event is generated after the initial attack because the key is being held down.
 		*/
-		bool isRepeated = false;
+		bool isRepeated;
+
+		KeyboardEvent() :
+			character(0), key(KeyboardKey::None), isRepeated(false)
+		{ }
 	};
 
 	class KeyboardEventListener
@@ -5565,7 +5606,11 @@ namespace AvoGUI
 		/*
 			Gets called when another keyboard event listener becomes the target of keyboard events.
 		*/
-		virtual void handleKeyboardFocusLost() { }
+		virtual void handleKeyboardFocusLose() { }
+		/*
+			Gets called when this keyboard event listener becomes the target of keyboard events.
+		*/
+		virtual void handleKeyboardFocusGain() { }
 	};
 
 	//------------------------------
@@ -7064,8 +7109,17 @@ namespace AvoGUI
 
 		std::vector<GlobalMouseEventListener*> m_globalMouseEventListeners;
 		std::vector<View*> m_pressedMouseEventListeners;
+		Point<float> m_mouseDownPosition;
 
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the topmost non-overlay view which contains the coordinates given, as well as any overlay views which are above the non-overlay view.
+		*/
 		void getTopMouseListenersAt(const Point<float>& p_coordinates, std::vector<View*>& p_result);
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the topmost non-overlay view which contains the coordinates given, as well as any overlay views which are above the non-overlay view.
+		*/
 		void getTopMouseListenersAt(float p_x, float p_y, std::vector<View*>& p_result);
 
 		//------------------------------
@@ -7124,12 +7178,12 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Returns the topmost view which contains the coordinates given.
+			Returns the topmost non-overlay view which contains the coordinates given.
 		*/
 		View* getViewAt(const Point<float>& p_coordinates);
 		/*
 			LIBRARY IMPLEMENTED
-			Returns the topmost view which contains the coordinates given.
+			Returns the topmost non-overlay view which contains the coordinates given.
 		*/
 		View* getViewAt(float p_x, float p_y);
 
@@ -7208,11 +7262,24 @@ namespace AvoGUI
 		*/
 		void setKeyboardFocus(KeyboardEventListener* p_keyboardFocus)
 		{
-			if (m_keyboardFocus && m_keyboardFocus != p_keyboardFocus)
+			if (m_keyboardFocus == p_keyboardFocus)
 			{
-				m_keyboardFocus->handleKeyboardFocusLost();
+				return;
 			}
+
+			KeyboardEventListener* focusBefore = m_keyboardFocus;
+
 			m_keyboardFocus = p_keyboardFocus;
+
+			if (focusBefore)
+			{
+				focusBefore->handleKeyboardFocusLose();
+			}
+
+			if (p_keyboardFocus)
+			{
+				p_keyboardFocus->handleKeyboardFocusGain();
+			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -7596,8 +7663,8 @@ namespace AvoGUI
 
 		void handleMouseDown(const MouseEvent& p_event) override;
 		void handleMouseUp(const MouseEvent& p_event) override;
-		void handleMouseEnter(const MouseEvent& p_event) override;
-		void handleMouseLeave(const MouseEvent& p_event) override;
+		void handleBackgroundMouseEnter(const MouseEvent& p_event) override;
+		void handleBackgroundMouseLeave(const MouseEvent& p_event) override;
 
 		void updateAnimations() override;
 
@@ -7748,7 +7815,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void handleMouseEnter(const MouseEvent& p_event) override 
+		void handleBackgroundMouseEnter(const MouseEvent& p_event) override 
 		{ 
 			if (m_tooltipString != "")
 			{
@@ -7759,7 +7826,7 @@ namespace AvoGUI
 		{
 			m_isMouseHovering = true;
 		}
-		void handleMouseLeave(const MouseEvent& p_event) override
+		void handleBackgroundMouseLeave(const MouseEvent& p_event) override
 		{
 			if (m_tooltipString != "")
 			{
@@ -7783,17 +7850,821 @@ namespace AvoGUI
 
 	//------------------------------
 
-	class TextField : public View, public KeyboardEventListener
+	class EditableText;
+
+	class EditableTextListener
+	{
+	public:
+		/*
+			USER IMPLEMENTED
+			Gets called when an EditableText view has gained keyboard focus.
+		*/
+		virtual void handleEditableTextFocusGain(EditableText* p_editableText) { }
+		/*
+			USER IMPLEMENTED
+			Gets called when an EditableText view has lost keyboard focus.
+		*/
+		virtual void handleEditableTextFocusLose(EditableText* p_editableText) { }
+		/*
+			USER IMPLEMENTED
+			Gets called when the text of an EditableText view has been changed, either by the user or programmatically.
+		*/
+		virtual void handleEditableTextChange(EditableText* p_editableText) { }
+	};
+
+	/*
+		A view that only consists of text that can be edited by the user.
+	*/
+	class EditableText : public View, public KeyboardEventListener
+	{
+	private:
+		Text* m_text;
+		float m_textDrawingOffsetX;
+		float m_fontSize;
+
+		uint32_t m_caretIndex;
+		Point<float> m_caretPosition;
+		bool m_isCaretVisible;
+		uint32_t m_caretFrameCount;
+
+		uint32_t m_selectionEndIndex;
+		Point<float> m_selectionEndPosition;
+		bool m_isSelectingWithMouse;
+		bool m_isSelectionVisible;
+
+		std::vector<EditableTextListener*> m_listeners;
+
+		//------------------------------
+
+		void updateCaretTracking()
+		{
+			if (!m_text)
+			{
+				return;
+			}
+
+			if (m_caretPosition.x + m_textDrawingOffsetX > getWidth())
+			{
+				m_textDrawingOffsetX = getWidth() - m_caretPosition.x;
+			}
+			else if (m_caretPosition.x + m_textDrawingOffsetX < 0.f)
+			{
+				m_textDrawingOffsetX = -m_caretPosition.x;
+			}
+			if (m_text->getRight() > getWidth())
+			{
+				if (m_text->getRight() + m_textDrawingOffsetX < getWidth())
+				{
+					m_textDrawingOffsetX = getWidth() - m_text->getRight();
+				}
+			}
+			else
+			{
+				m_textDrawingOffsetX = 0.f;
+			}
+		}
+		void updateSelectionEndTracking()
+		{
+			if (m_selectionEndPosition.x + m_textDrawingOffsetX > getWidth())
+			{
+				m_textDrawingOffsetX = getWidth() - m_selectionEndPosition.x;
+			}
+			else if (m_selectionEndPosition.x + m_textDrawingOffsetX < 0.f)
+			{
+				m_textDrawingOffsetX = -m_selectionEndPosition.x;
+			}
+		}
+
+	protected:
+		void handleThemeFontFamilyChange(const char* p_name, const char* p_newFontFamily)
+		{
+			if (p_name == "main")
+			{
+				if (m_text)
+				{
+					m_text->setFontFamily(p_newFontFamily);
+					m_text->minimizeSize();
+				}
+			}
+		}
+
+	public:
+		EditableText(View* p_parent, float p_width = 0.f, float p_fontSize = 12.f) :
+			View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*1.2f)), 
+			m_text(0), m_textDrawingOffsetX(0.f), m_fontSize(p_fontSize), 
+			m_caretIndex(0), m_isCaretVisible(false), m_caretFrameCount(0), 
+			m_selectionEndIndex(0), m_isSelectingWithMouse(false), m_isSelectionVisible(false)
+		{
+			setCursor(Cursor::Ibeam);
+			enableMouseEvents();
+		}
+
+		//------------------------------
+
+		/*
+			Enables an EditableTextListener to recieve events from this EditableText.
+		*/
+		void addEditableTextListener(EditableTextListener* p_listener)
+		{
+			m_listeners.push_back(p_listener);
+		}
+		/*
+			Disables an EditableTextListener to recieve events from this EditableText.
+		*/
+		void removeEditableTextListener(EditableTextListener* p_listener)
+		{
+			removeVectorElementWithoutKeepingOrder(m_listeners, p_listener);
+		}
+
+		//------------------------------
+
+		void handleMouseDoubleClick(const MouseEvent& p_event) override
+		{
+			if (m_text)
+			{
+				uint32_t clickCharacterIndex = m_text->getNearestCharacterIndex(p_event.x - m_textDrawingOffsetX, p_event.y, true);
+				const std::string& string = m_text->getString();
+				for (int32_t a = clickCharacterIndex; a >= 0; a--)
+				{
+					if (!a || string[a - 1] == ' ')
+					{
+						if (a != m_caretIndex)
+						{
+							m_caretPosition = m_text->getCharacterPosition(a, true);
+							updateCaretTracking();
+						}
+						m_caretIndex = a;
+						break;
+					}
+				}
+				for (int32_t a = clickCharacterIndex; a <= string.size(); a++)
+				{
+					if (a == string.size() || string[a] == ' ')
+					{
+						if (a != m_selectionEndIndex)
+						{
+							m_selectionEndPosition = m_text->getCharacterPosition(a, true);
+							updateSelectionEndTracking();
+						}
+						m_selectionEndIndex = a;
+						break;
+					}
+				}
+				if (m_caretIndex != m_selectionEndIndex)
+				{
+					m_isSelectionVisible = true;
+					invalidate();
+				}
+			}	
+		}
+		void handleMouseDown(const MouseEvent& p_event) override
+		{
+			getGUI()->setKeyboardFocus(this);
+
+			if (m_text)
+			{
+				if (p_event.modifierKeys & ModifierKeyFlags::Shift)
+				{
+					m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_selectionEndIndex, &m_selectionEndPosition, true);
+
+					if (m_selectionEndIndex == m_caretIndex)
+					{
+						m_caretFrameCount = 1;
+						m_isCaretVisible = true;
+						m_isSelectionVisible = false;
+					}
+					else
+					{
+						updateSelectionEndTracking();
+						m_isSelectionVisible = true;
+					}
+					m_isSelectingWithMouse = true;
+				}
+				else
+				{
+					if (m_text->getString().size())
+					{
+						m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_caretIndex, &m_caretPosition, true);
+					}
+					else
+					{
+						m_caretPosition.x = 0;
+						m_caretPosition.y = 0;
+					}
+					updateCaretTracking();
+
+					m_isCaretVisible = true;
+					m_caretFrameCount = 1;
+					m_isSelectingWithMouse = true;
+					m_isSelectionVisible = false;
+				}
+			}
+
+			invalidate();
+			queueAnimationUpdate();
+		}
+		void handleMouseMove(const MouseEvent& p_event) override
+		{
+			if (m_isSelectingWithMouse)
+			{
+				m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_selectionEndIndex, &m_selectionEndPosition, true);
+				updateSelectionEndTracking();
+				m_isSelectionVisible = m_selectionEndIndex != m_caretIndex;
+				m_isCaretVisible = true;
+				m_caretFrameCount = 1;
+				invalidate();
+			}
+		}
+		void handleMouseUp(const MouseEvent& p_event) override
+		{
+			m_isSelectingWithMouse = false;
+		}
+
+		void handleKeyboardFocusGain() override
+		{
+			m_caretFrameCount = 1;
+			m_isCaretVisible = true;
+
+			for (auto listener : m_listeners)
+			{
+				listener->handleEditableTextFocusGain(this);
+			}
+
+			queueAnimationUpdate();
+			invalidate();
+		}
+		void handleKeyboardFocusLose() override
+		{
+			m_caretFrameCount = 1;
+			m_isCaretVisible = false;
+			m_isSelectionVisible = false;
+
+			for (auto listener : m_listeners)
+			{
+				listener->handleEditableTextFocusLose(this);
+			}
+
+			invalidate();
+		}
+		void handleCharacterInput(const KeyboardEvent& p_event) override
+		{
+			if ((p_event.character >= 32 && p_event.character < 126 || p_event.character < 0))
+			{
+				std::string string(m_text ? m_text->getString() : "");
+				if (m_isSelectionVisible)
+				{
+					if (m_caretIndex <= m_selectionEndIndex)
+					{
+						string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
+					}
+					else
+					{
+						string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
+						m_caretIndex = m_selectionEndIndex;
+					}
+					m_isSelectionVisible = false;
+				}
+
+				string.insert(m_caretIndex, 1U, p_event.character);
+				setString(string.c_str());
+
+				m_caretIndex++;
+				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+				updateCaretTracking();
+
+				m_caretFrameCount = 1;
+				m_isCaretVisible = true;
+
+				invalidate();
+			}
+		}
+		void handleKeyboardKeyDown(const KeyboardEvent& p_event) override
+		{
+			if (!m_text)
+			{
+				return;
+			}
+			Window* window = getGUI()->getWindow();
+			if (m_isSelectionVisible && (p_event.key == KeyboardKey::Backspace || p_event.key == KeyboardKey::Delete) && m_caretIndex != m_selectionEndIndex)
+			{
+				std::string string = m_text->getString();
+				if (m_caretIndex <= m_selectionEndIndex)
+				{
+					string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
+				}
+				else
+				{
+					string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
+					m_caretIndex = m_selectionEndIndex;
+					m_caretPosition = m_selectionEndPosition;
+					updateCaretTracking();
+				}
+				setString(string);
+
+				m_caretFrameCount = 1;
+				m_isCaretVisible = true;
+			}
+			switch (p_event.key)
+			{
+			case KeyboardKey::Backspace:
+			{
+				if (!m_isSelectionVisible && m_caretIndex > 0)
+				{
+					if (window->getIsKeyDown(KeyboardKey::Control))
+					{
+						std::string string = m_text->getString();
+						for (int32_t a = m_caretIndex - 1; a >= 0; a--)
+						{
+							if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
+							{
+								string.erase(a, (int32_t)m_caretIndex - a);
+								setString(string);
+								m_caretIndex = a;
+								m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+								updateCaretTracking();
+								break;
+							}
+						}
+					}
+					else
+					{
+						std::string string = m_text->getString();
+						m_caretIndex--;
+						string.erase(m_caretIndex, 1);
+						setString(string);
+						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+						updateCaretTracking();
+					}
+				}
+				m_caretFrameCount = 1;
+				m_isCaretVisible = true;
+				m_isSelectionVisible = false;
+				break;
+			}
+			case KeyboardKey::Delete:
+			{
+				if (!m_isSelectionVisible && m_caretIndex < m_text->getString().size())
+				{
+					if (window->getIsKeyDown(KeyboardKey::Control))
+					{
+						std::string string = m_text->getString();
+						for (int32_t a = m_caretIndex; a < string.size(); a++)
+						{
+							if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
+							{
+								string.erase(m_caretIndex, a - (int32_t)m_caretIndex + 1);
+								setString(string);
+								break;
+							}
+						}
+					}
+					else
+					{
+						setString(std::string(m_text->getString()).erase(m_caretIndex, 1));
+					}
+				}
+				m_caretFrameCount = 1;
+				m_isCaretVisible = true;
+				m_isSelectionVisible = false;
+				break;
+			}
+			case KeyboardKey::Left:
+			{
+				if (window->getIsKeyDown(KeyboardKey::Control))
+				{
+					std::string string = m_text->getString();
+					if (window->getIsKeyDown(KeyboardKey::Shift))
+					{
+						if (!m_isSelectionVisible)
+						{
+							m_selectionEndIndex = m_caretIndex;
+						}
+						for (int32_t a = m_selectionEndIndex - 1; a >= 0; a--)
+						{
+							if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
+							{
+								m_selectionEndIndex = a;
+								if (m_selectionEndIndex == m_caretIndex)
+								{
+									m_isSelectionVisible = false;
+								}
+								else
+								{
+									m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+									updateSelectionEndTracking();
+									m_isSelectionVisible = true;
+								}
+								break;
+							}
+						}
+					}
+					else
+					{
+						for (int32_t a = m_caretIndex - 1; a >= 0; a--)
+						{
+							if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
+							{
+								m_caretIndex = a;
+								m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+								updateCaretTracking();
+								m_isSelectionVisible = false;
+								break;
+							}
+						}
+					}
+				}
+				else if (window->getIsKeyDown(KeyboardKey::Shift))
+				{
+					if (!m_isSelectionVisible)
+					{
+						m_selectionEndIndex = m_caretIndex;
+					}
+					if (m_selectionEndIndex > 0)
+					{
+						m_selectionEndIndex--;
+						if (m_selectionEndIndex == m_caretIndex)
+						{
+							m_isSelectionVisible = false;
+						}
+						else
+						{
+							m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+							updateSelectionEndTracking();
+							m_isSelectionVisible = true;
+						}
+					}
+				}
+				else
+				{
+					if (m_isSelectionVisible)
+					{
+						if (m_caretIndex > m_selectionEndIndex)
+						{
+							m_caretIndex = m_selectionEndIndex;
+							m_caretPosition = m_selectionEndPosition;
+						}
+						updateCaretTracking();
+						m_isSelectionVisible = false;
+					}
+					else
+					{
+						if (m_caretIndex > 0)
+						{
+							m_caretIndex--;
+							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+							updateCaretTracking();
+						}
+					}
+				}
+				m_caretFrameCount = 1;
+				m_isCaretVisible = true;
+				break;
+			}
+			case KeyboardKey::Right:
+			{
+				if (window->getIsKeyDown(KeyboardKey::Control))
+				{
+					std::string string = m_text->getString();
+					if (window->getIsKeyDown(KeyboardKey::Shift))
+					{
+						if (!m_isSelectionVisible)
+						{
+							m_selectionEndIndex = m_caretIndex;
+						}
+						for (uint32_t a = m_selectionEndIndex; a < string.size(); a++)
+						{
+							if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
+							{
+								m_selectionEndIndex = a + 1;
+								if (m_selectionEndIndex == m_caretIndex)
+								{
+									m_isSelectionVisible = false;
+								}
+								else
+								{
+									m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+									updateSelectionEndTracking();
+									m_isSelectionVisible = true;
+								}
+								break;
+							}
+						}
+					}
+					else
+					{
+						for (uint32_t a = m_caretIndex; a < string.size(); a++)
+						{
+							if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
+							{
+								m_caretIndex = a + 1;
+								m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+								updateCaretTracking();
+								m_isSelectionVisible = false;
+								break;
+							}
+						}
+					}
+				}
+				else if (window->getIsKeyDown(KeyboardKey::Shift))
+				{
+					if (!m_isSelectionVisible)
+					{
+						m_selectionEndIndex = m_caretIndex;
+					}
+					if (m_selectionEndIndex < m_text->getString().size())
+					{
+						m_selectionEndIndex++;
+						if (m_selectionEndIndex == m_caretIndex)
+						{
+							m_isSelectionVisible = false;
+						}
+						else
+						{
+							m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+							updateSelectionEndTracking();
+							m_isSelectionVisible = true;
+						}
+					}
+				}
+				else
+				{
+					if (m_isSelectionVisible)
+					{
+						if (m_caretIndex < m_selectionEndIndex)
+						{
+							m_caretIndex = m_selectionEndIndex;
+							m_caretPosition = m_selectionEndPosition;
+							updateCaretTracking();
+						}
+						m_isSelectionVisible = false;
+					}
+					else
+					{
+						if (m_caretIndex < m_text->getString().size())
+						{
+							m_caretIndex++;
+							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+							updateCaretTracking();
+						}
+					}
+				}
+				m_caretFrameCount = 1;
+				m_isCaretVisible = true;
+				break;
+			}
+			case KeyboardKey::C:
+			{
+				if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
+				{
+					if (m_caretIndex < m_selectionEndIndex)
+					{
+						window->setClipboardString(m_text->getString().substr(m_caretIndex, m_selectionEndIndex - m_caretIndex));
+					}
+					else
+					{
+						window->setClipboardString(m_text->getString().substr(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex));
+					}
+				}
+				break;
+			}
+			case KeyboardKey::X:
+			{
+				if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
+				{
+					std::string string(m_text->getString());
+					if (m_caretIndex < m_selectionEndIndex)
+					{
+						window->setClipboardString(string.substr(m_caretIndex, m_selectionEndIndex - m_caretIndex));
+						string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
+					}
+					else {
+						window->setClipboardString(string.substr(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex));
+						string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
+						m_caretIndex = m_selectionEndIndex;
+						m_caretPosition = m_selectionEndPosition;
+						updateCaretTracking();
+					}
+					setString(string);
+
+					m_isSelectionVisible = false;
+
+					m_caretFrameCount = 1;
+					m_isCaretVisible = true;
+				}
+				break;
+			}
+			case KeyboardKey::V:
+			{
+				if (window->getIsKeyDown(KeyboardKey::Control))
+				{
+					std::string string(m_text->getString());
+					if (m_isSelectionVisible)
+					{
+						if (m_caretIndex < m_selectionEndIndex)
+						{
+							string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
+						}
+						else
+						{
+							string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
+							m_caretIndex = m_selectionEndIndex;
+						}
+						m_isSelectionVisible = false;
+					}
+					std::string clipboardString = window->getClipboardString();
+					string.insert(m_caretIndex, clipboardString);
+					setString(string);
+
+					m_caretIndex += clipboardString.size();
+					m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+					updateCaretTracking();
+					m_caretFrameCount = 1;
+					m_isCaretVisible = true;
+				}
+				break;
+			}
+			case KeyboardKey::A:
+			{
+				uint32_t stringLength = m_text->getString().size();
+				if (window->getIsKeyDown(KeyboardKey::Control) && stringLength)
+				{
+					m_isSelectionVisible = true;
+					if (m_caretIndex)
+					{
+						m_caretIndex = 0;
+						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+					}
+					if (m_selectionEndIndex != stringLength)
+					{
+						m_selectionEndIndex = stringLength;
+						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+					}
+				}
+				break;
+			}
+			}
+
+			invalidate();
+		}
+
+		//------------------------------
+
+		void setString(const char* p_string)
+		{
+			if (m_text)
+			{
+				if (m_text->getString() == p_string)
+				{
+					return;
+				}
+				m_text->forget();
+				m_text = 0;
+			}
+			if (p_string == "")
+			{
+				m_caretIndex = 0;
+				m_caretPosition.x = 0;
+				m_caretPosition.y = 0;
+				m_textDrawingOffsetX = 0.f;
+				m_isSelectionVisible = false;
+				return;
+			}
+
+			m_text = getGUI()->getDrawingContext()->createText(p_string, m_fontSize);
+			m_text->setTop(3.f);
+			m_text->setFontFamily(m_theme->fontFamilies["main"]);
+			m_text->setFontWeight(FontWeight::Regular);
+			m_text->minimizeSize();
+			setHeight(m_text->getHeight() + 3.f);
+
+			if (m_caretIndex > (uint32_t)m_text->getString().size())
+			{
+				m_caretIndex = (uint32_t)m_text->getString().size();
+				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+			}
+			if (m_isSelectionVisible)
+			{
+				if (m_selectionEndIndex > (uint32_t)m_text->getString().size())
+				{
+					m_selectionEndIndex = min(m_selectionEndIndex, (uint32_t)m_text->getString().size());
+					if (m_selectionEndIndex == m_caretIndex)
+					{
+						m_isSelectionVisible = false;
+					}
+					else
+					{
+						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+					}
+				}
+			}
+
+			for (auto listener : m_listeners)
+			{
+				listener->handleEditableTextChange(this);
+			}
+		}
+		void setString(const std::string& p_string)
+		{
+			setString(p_string.c_str());
+		}
+		const char* getString()
+		{
+			if (m_text)
+			{
+				return m_text->getString().c_str();
+			}
+			return "";
+		}
+
+		Text* getText()
+		{
+			return m_text;
+		}
+
+		//------------------------------
+
+		void setFontSize(float p_fontSize)
+		{
+			m_fontSize = p_fontSize;
+			if (m_text)
+			{
+				m_text->setFontSize(p_fontSize);
+				m_text->minimizeSize();
+				setHeight(m_text->getHeight() + 3.f);
+			}
+			else
+			{
+				setHeight(p_fontSize * 1.2f + 3.f);
+			}
+			invalidate();
+		}
+		float getFontSize()
+		{
+			return m_fontSize;
+		}
+
+		//------------------------------
+
+		void handleSizeChange() override
+		{
+			updateCaretTracking();
+		}
+
+		//------------------------------
+
+		void updateAnimations() override
+		{
+			if (getGUI()->getKeyboardFocus() == this)
+			{
+				if (m_caretFrameCount % (uint32_t)m_theme->values["editable text caret blink rate"] == 0 && !m_isSelectionVisible)
+				{
+					m_isCaretVisible = !m_isCaretVisible;
+					invalidate();
+				}
+				m_caretFrameCount++;
+				queueAnimationUpdate();
+			}
+		}
+
+		void draw(DrawingContext* p_context) override
+		{
+			//p_context->setColor(Color(0.f));
+			//p_context->strokeRectangle(getSize(), 1.f);
+			p_context->moveOrigin(m_textDrawingOffsetX, 0.f);
+			p_context->setColor(m_theme->colors["on background"]);
+			if (m_text)
+			{
+				p_context->drawText(m_text);
+				if (m_isSelectionVisible)
+				{
+					p_context->setColor(m_theme->colors["selection"]);
+					p_context->fillRectangle(m_caretPosition.x, m_caretPosition.y - 3.f, m_selectionEndPosition.x, m_selectionEndPosition.y + m_fontSize * 1.2f);
+				}
+			}
+			if (m_isCaretVisible && !m_isSelectionVisible)
+			{
+				p_context->drawLine(m_caretPosition.x, m_caretPosition.y - 3.f, m_caretPosition.x, m_caretPosition.y + m_fontSize * 1.2f, 1.f);
+			}
+			p_context->moveOrigin(-m_textDrawingOffsetX, 0.f);
+		}
+	};
+
+	//------------------------------
+
+	constexpr float TEXT_FIELD_OUTLINED_PADDING_LABEL = 5.f;
+
+	class TextField : public View, public KeyboardEventListener, public EditableTextListener
 	{
 	public:
 		enum Type
 		{
 			Outlined,
-			Filled,
-			OnlyText // The text field consists only of editable text
+			Filled
 		};
 
 	private:
+		EditableText* m_editableText;
+
 		Text* m_labelText;
 		Color m_labelColor;
 		float m_focusAnimationTime;
@@ -7803,67 +8674,309 @@ namespace AvoGUI
 		float m_hoverAnimationTime;
 		float m_hoverAnimationValue;
 
-		Text* m_text;
-		float m_textDrawingOffsetX;
-
-		uint32_t m_caretIndex;
-		Point<float> m_caretPosition;
-		bool m_isCaretVisible;
-		uint32_t m_caretFrameCount;
-
-		bool m_isSelectingWithMouse;
-		bool m_isSelectionVisible;
-		uint32_t m_selectionEndIndex;
-		Point<float> m_selectionEndPosition;
-
 		Type m_type;
 
-		//------------------------------
-
-		void updateCaretPosition();
-
-		void updateCaretTracking();
-		void updateSelectionEndTracking();
-
 	protected:
-		void handleThemeFontFamilyChange(const char* p_name, const char* p_newFontFamilyName) override;
-		void handleThemeValueChange(const char* p_name, float p_newValue) override;
+		void handleThemeFontFamilyChange(const char* p_name, const char* p_newFontFamilyName) override
+		{
+			if (p_name == "main")
+			{
+				if (m_labelText)
+				{
+					m_labelText->setFontFamily(p_newFontFamilyName);
+					m_labelText->minimizeSize();
+				}
+			}
+		}
+		void handleThemeValueChange(const char* p_name, float p_newValue) override
+		{
+			if (p_name == "text field font size")
+			{
+				if (m_labelText)
+				{
+					m_labelText->setFontSize(p_newValue);
+					m_labelText->minimizeSize();
+				}
+				m_editableText->setFontSize(p_newValue);
+			}
+			if (p_name == "text field font size" || p_name == "text field height")
+			{
+				setHeight(m_theme->values["text field font size"] * 1.2f * m_theme->values["text field height"] + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
+
+				if (m_labelText)
+				{
+					if (m_type == Type::Filled)
+					{
+						m_labelText->setCenterY(getHeight() * 0.5f);
+					}
+					else
+					{
+						m_labelText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f);
+					}
+				}
+				if (m_type == Type::Filled)
+				{
+					m_editableText->setBottom(getHeight() - m_theme->values["text field filled padding bottom"]);
+				}
+				else
+				{
+					m_editableText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f);
+				}
+			}
+			if (p_name == "text field padding left")
+			{
+				m_editableText->setLeft(p_newValue, false);
+			}
+		}
 
 	public:
-		TextField(View* p_parent, Type p_type = Type::Filled, const char* p_labelString = "", float p_width = 120.f);
-		~TextField();
+		TextField(View* p_parent, Type p_type = Type::Filled, const char* p_label = "", float p_width = 120.f) :
+			View(p_parent),
+			m_labelText(0), m_labelColor(0.4f), m_focusAnimationTime(0.f), m_focusAnimationValue(0.f),
+			m_isMouseHovering(false), m_hoverAnimationTime(0.f), m_hoverAnimationValue(0.f),
+			m_type(p_type)
+		{
+			m_bounds.right = p_width;
+			m_bounds.bottom = m_theme->values["text field font size"] * m_theme->values["text field height"] + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined);
+
+			setLabel(p_label);
+			setCursor(Cursor::Ibeam);
+			enableMouseEvents();
+
+			m_editableText = new EditableText(this);
+			m_editableText->setFontSize(m_theme->values["text field font size"]);
+			m_editableText->setLeft(m_theme->values["text field padding left"]);
+			m_editableText->setRight(p_width - m_theme->values["text field padding right"], false);
+			m_editableText->addEditableTextListener(this);
+
+			setString("");
+		}
+		~TextField()
+		{
+			if (m_labelText)
+			{
+				m_labelText->forget();
+			}
+		}
 
 		//------------------------------
 
-		void setLabel(const char* p_label);
-		const char* getLabel();
+		void setLabel(const char* p_label)
+		{
+			if (m_labelText)
+			{
+				m_labelText->forget();
+			}
+			if (p_label == "")
+			{
+				m_labelText = 0;
+			}
+			else
+			{
+				m_labelText = getGUI()->getDrawingContext()->createText(p_label, m_theme->values["text field font size"]);
+				m_labelText->setFontFamily(m_theme->fontFamilies["main"]);
+				m_labelText->setFontWeight(AvoGUI::FontWeight::Regular);
+				m_labelText->minimizeSize();
+				if (m_type == Type::Filled)
+				{
+					m_labelText->setCenterY(getHeight() * 0.5f);
+				}
+				else if (m_type == Type::Outlined)
+				{
+					m_labelText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f);
+				}
+				queueAnimationUpdate();
+			}
+		}
+		const char* getLabel()
+		{
+			if (m_labelText)
+			{
+				return m_labelText->getString().c_str();
+			}
+			return "";
+		}
 
 		//------------------------------
 
-		void setString(const char* p_string);
-		void setString(const std::string& p_string);
-		const std::string& getString();
+		void setString(const char* p_string)
+		{
+			m_editableText->setString(p_string);
+			if (m_type == Type::Filled)
+			{
+				m_editableText->setBottom(getHeight() - m_theme->values["text field filled padding bottom"]);
+			}
+			else if (m_type == Type::Outlined)
+			{
+				m_editableText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f);
+			}
+		}
+		void setString(const std::string& p_string)
+		{
+			setString(p_string.c_str());
+		}
+		const char* getString()
+		{
+			return m_editableText->getString();
+		}
 
 		//------------------------------
 
-		void handleMouseDoubleClick(const MouseEvent& p_event) override;
-		void handleMouseDown(const MouseEvent& p_event) override;
-		void handleMouseMove(const MouseEvent& p_event) override;
-		void handleMouseUp(const MouseEvent& p_event) override;
-		void handleMouseEnter(const MouseEvent& p_event) override;
-		void handleMouseLeave(const MouseEvent& p_event) override;
-		void handleKeyboardFocusLost() override;
+		void handleMouseDown(const MouseEvent& p_event) override
+		{
+			MouseEvent event = p_event;
+			event.y = 0;
+			event.x -= m_editableText->getLeft();
+			m_editableText->handleMouseDown(event);
+		}
+		void handleMouseUp(const MouseEvent& p_event) override
+		{
+			MouseEvent event = p_event;
+			event.y = 0;
+			event.x -= m_editableText->getLeft();
+			m_editableText->handleMouseUp(event);
+		}
+		void handleMouseMove(const MouseEvent& p_event) override
+		{
+			MouseEvent event = p_event;
+			event.y = 0;
+			event.x -= m_editableText->getLeft();
+			m_editableText->handleMouseMove(event);
+		}
+		void handleMouseEnter(const MouseEvent& p_event) override
+		{
+			View::handleBackgroundMouseEnter(p_event);
+			m_isMouseHovering = true;
+			queueAnimationUpdate();
+		}
+		void handleMouseLeave(const MouseEvent& p_event) override
+		{
+			m_isMouseHovering = false;
+			queueAnimationUpdate();
+		}
+
+		void handleKeyboardFocusGain() override
+		{
+			getGUI()->setKeyboardFocus(m_editableText);
+		}
+		void handleEditableTextFocusGain(EditableText* p_editableText) override
+		{
+			if (m_editableText->getString()[0] == 0)
+			{
+				queueAnimationUpdate();
+			}
+		}
+		void handleEditableTextFocusLose(EditableText* p_editableText) override
+		{
+			if (m_editableText->getString()[0] == 0)
+			{
+				m_isMouseHovering = false;
+				queueAnimationUpdate();
+			}
+		}
 
 		//------------------------------
 
-		void handleCharacterInput(const KeyboardEvent& p_event) override;
-		void handleKeyboardKeyDown(const KeyboardEvent& p_event) override;
+		/*
+			Returns whether the EditableText child of this text field has keyboard focus.
+		*/
+		bool getHasKeyboardFocus()
+		{
+			return m_editableText == getGUI()->getKeyboardFocus();
+		}
 
 		//------------------------------
 
-		void updateAnimations() override;
+		void updateAnimations() override
+		{
+			if (getGUI()->getKeyboardFocus() == m_editableText || m_editableText->getString()[0] != 0)
+			{
+				if (m_focusAnimationValue < 1.f)
+				{
+					m_focusAnimationValue = m_theme->easings["in out"].easeValue(m_focusAnimationTime);
+					m_focusAnimationTime = min(1.f, m_focusAnimationTime + 0.09f);
+					m_labelColor = interpolate(Color(0.5f), m_theme->colors["primary on background"], m_focusAnimationValue);
+					invalidate();
+					queueAnimationUpdate();
+				}
+			}
+			else if (m_focusAnimationValue > 0.f)
+			{
+				m_focusAnimationValue = 1.f - m_theme->easings["in out"].easeValue(1.f - m_focusAnimationTime);
+				m_focusAnimationTime = max(0.f, m_focusAnimationTime - 0.09f);
+				m_labelColor = interpolate(Color(0.4f), m_theme->colors["primary on background"], m_focusAnimationValue);
 
-		void draw(DrawingContext* p_context) override;
+				m_hoverAnimationValue = 1.f - m_theme->easings["symmetrical in out"].easeValue(1.f - m_hoverAnimationTime);
+				m_hoverAnimationTime = max(0.f, m_hoverAnimationTime - m_theme->values["hover animation speed"]);
+
+				invalidate();
+				queueAnimationUpdate();
+			}
+			else if (m_isMouseHovering)
+			{
+				if (m_hoverAnimationValue < 1.f)
+				{
+					m_hoverAnimationValue = m_theme->easings["symmetrical in out"].easeValue(m_hoverAnimationTime);
+					m_hoverAnimationTime = min(1.f, m_hoverAnimationTime + m_theme->values["hover animation speed"]);
+					invalidate();
+					queueAnimationUpdate();
+				}
+			}
+			else if (m_hoverAnimationValue > 0.f)
+			{
+				m_hoverAnimationValue = 1.f - m_theme->easings["symmetrical in out"].easeValue(1.f - m_hoverAnimationTime);
+				m_hoverAnimationTime = max(0.f, m_hoverAnimationTime - m_theme->values["hover animation speed"]);
+				invalidate();
+				queueAnimationUpdate();
+			}
+		}
+
+		void draw(DrawingContext* p_context) override
+		{
+			if (m_type == Type::Filled)
+			{
+				p_context->setColor(Color(m_theme->colors["on background"], 0.05f + 0.03f * m_hoverAnimationValue));
+				p_context->fillRoundedRectangle(getSize(), 5.f);
+				p_context->fillRectangle(Rectangle<float>(0.f, getHeight() - 5.f, getWidth(), getHeight()));
+				p_context->setColor(Color(m_theme->colors["on background"], 0.4));
+				p_context->drawLine(0.f, getHeight() - 1.f, getWidth(), getHeight() - 0.5f, 1.f);
+				if (m_focusAnimationValue > 0.01f)
+				{
+					p_context->setColor(m_theme->colors["primary on background"]);
+					p_context->drawLine((1.f - m_focusAnimationValue) * getWidth() * 0.5f, getHeight() - 1.f, (1.f + m_focusAnimationValue) * getWidth() * 0.5f, getHeight() - 1.f, 2.f);
+				}
+				if (m_labelText)
+				{
+					float& leftPadding = m_theme->values["text field padding left"];
+					p_context->moveOrigin(leftPadding + 2.f*m_focusAnimationValue, -0.17f*(getHeight() - m_labelText->getHeight() - leftPadding) * m_focusAnimationValue);
+					p_context->setScale(1.f - m_focusAnimationValue * 0.3f);
+					p_context->setColor(m_labelColor);
+					p_context->drawText(m_labelText);
+					p_context->setScale(1.f);
+					p_context->setOrigin(getAbsoluteTopLeft());
+				}
+			}
+			else if (m_type == Type::Outlined)
+			{
+				p_context->setColor(interpolate(Color(m_theme->colors["on background"], m_hoverAnimationValue * 0.4f + 0.3f), m_theme->colors["primary on background"], m_focusAnimationValue));
+				p_context->strokeRoundedRectangle(Rectangle<float>(1.f, 1.f + TEXT_FIELD_OUTLINED_PADDING_LABEL, getWidth() - 1.f, getHeight() - 1.f), 5.f, m_focusAnimationValue + 1.f);
+
+				if (m_labelText)
+				{
+					p_context->moveOrigin(m_theme->values["text field padding left"] + 2.f * m_focusAnimationValue, -(getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.3f * m_focusAnimationValue);
+					p_context->setScale(1.f - m_focusAnimationValue * 0.3f);
+
+					p_context->setColor(m_theme->colors["background"]);
+					p_context->fillRoundedRectangle(Rectangle<float>(m_labelText->getLeft() - 4.f, m_labelText->getTop(), m_labelText->getRight() + 4.f, m_labelText->getBottom()), 2.f);
+
+					p_context->setColor(m_labelColor);
+					p_context->drawText(m_labelText);
+
+					p_context->setScale(1.f);
+					p_context->setOrigin(getAbsoluteTopLeft());
+				}
+			}
+		}
 	};
 
 	//------------------------------
