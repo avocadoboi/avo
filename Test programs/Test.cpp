@@ -43,6 +43,8 @@ class MyGUI : public AvoGUI::GUI, public AvoGUI::ButtonListener
 {
 private:
 	AvoGUI::View* m_viewContainer;
+	AvoGUI::TextField* m_textField_firstName;
+	AvoGUI::TextField* m_textField_lastName;
 
 public:
 	MyGUI() :
@@ -75,19 +77,26 @@ public:
 		{
 			getWindow()->setIsFullscreen(false);
 		}
+		else if (p_event.key == AvoGUI::KeyboardKey::Tab)
+		{
+			setKeyboardFocus(m_textField_firstName->getHasKeyboardFocus() ? m_textField_lastName : m_textField_firstName);
+		}
 	}
 
 	//------------------------------
 
 	void createContent() override
 	{
-		//m_theme->colors["background"] = AvoGUI::Color(0.1f);
-		//m_theme->colors["on background"] = AvoGUI::;
+		m_theme->colors["background"] = AvoGUI::Color(0.1f);
+		m_theme->colors["on background"] = AvoGUI::Color(0.98f);
 
-		//m_theme->colors["primary"] = AvoGUI::Color(31, 115, 230);
-		//m_theme->colors["primary on background"] = m_theme->colors["primary"];
-		//m_theme->colors["on primary"] = AvoGUI::Color(1.f);
+		m_theme->colors["primary"] = AvoGUI::Color(31, 115, 230);
+		m_theme->colors["primary on background"] = AvoGUI::Color(50, 130, 250);
+		m_theme->colors["on primary"] = AvoGUI::Color(1.f);
 
+		m_theme->values["text field height"] = 2.5f;
+		m_theme->values["text field font size"] = 14.f;
+		m_theme->values["text field padding left"] = 15.f;
 		//m_theme->colors["shadow"] = 0x90000000U;
 
 		//------------------------------
@@ -95,6 +104,8 @@ public:
 		enableMouseEvents();
 
 		m_viewContainer = new AvoGUI::View(this);
+		m_viewContainer->enableMouseEvents();
+
 		AvoGUI::Button* button_yes = new AvoGUI::Button(m_viewContainer, "YES");
 		button_yes->setTooltip("Tooltip 0");
 		button_yes->addButtonListener(this);
@@ -110,13 +121,15 @@ public:
 		button_readMore->setTooltip("tooltip 2");
 		button_readMore->addButtonListener(this);
 
-		AvoGUI::TextField* textField_name = new AvoGUI::TextField(m_viewContainer, AvoGUI::TextField::Type::Filled, "Name", 200.f);
-		textField_name->setLeft(button_no->getRight() + 15.f);
-		textField_name->setCenterY(button_readMore->getBottom()*0.5f);
-		textField_name->setThemeValue("text field height", 3.2f);
-		textField_name->setThemeValue("text field font size", 16.f);
+		m_textField_firstName = new AvoGUI::TextField(m_viewContainer, AvoGUI::TextField::Type::Outlined, "First name", 150.f);
+		m_textField_firstName->setLeft(button_no->getRight() + 15.f);
+		m_textField_firstName->setCenterY(button_readMore->getBottom()*0.5f - 22.f - AvoGUI::TEXT_FIELD_OUTLINED_PADDING_LABEL*0.5f);
 
-		m_viewContainer->setPadding(30.f);
+		m_textField_lastName = new AvoGUI::TextField(m_viewContainer, AvoGUI::TextField::Type::Outlined, "Last name", 150.f);
+		m_textField_lastName->setLeft(button_no->getRight() + 15.f);
+		m_textField_lastName->setCenterY(button_readMore->getBottom() * 0.5f + 22.f - AvoGUI::TEXT_FIELD_OUTLINED_PADDING_LABEL*0.5f);
+
+		m_viewContainer->setPadding(5.f);
 	}
 	void handleSizeChange() override
 	{

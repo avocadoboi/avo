@@ -510,7 +510,7 @@ namespace AvoGUI
 		m_areMouseEventsEnabled = false;
 	}
 
-	void View::handleMouseEnter(const MouseEvent& p_event)
+	void View::handleBackgroundMouseEnter(const MouseEvent& p_event)
 	{
 		getGUI()->getWindow()->setCursor(m_cursor);
 	}
@@ -1946,6 +1946,29 @@ namespace AvoGUI
 			}
 			case WM_MOUSEMOVE:
 			{
+				ModifierKeyFlags modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+
+				int32_t x = GET_X_LPARAM(p_data_b);
+				int32_t y = GET_Y_LPARAM(p_data_b);
+
+				MouseEvent mouseEvent;
+				mouseEvent.x = x;
+				mouseEvent.y = y;
+				mouseEvent.movementX = x - m_mousePosition.x;
+				mouseEvent.movementY = y - m_mousePosition.y;
+				mouseEvent.modifierKeys = modifierKeys;
+
+				m_mousePosition.x = x;
+				m_mousePosition.y = y;
+
+				m_GUI->excludeAnimationThread();
+				m_GUI->handleGlobalMouseMove(mouseEvent);
+				if (m_isMouseOutsideWindow)
+				{
+					m_GUI->handleMouseEnter(mouseEvent);
+				}
+				m_GUI->includeAnimationThread();
+
 				if (m_isMouseOutsideWindow)
 				{
 					SetCursor(m_cursorHandle);
@@ -1958,24 +1981,6 @@ namespace AvoGUI
 
 					m_isMouseOutsideWindow = false;
 				}
-
-				ModifierKeyFlags modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-				int32_t x = GET_X_LPARAM(p_data_b);
-				int32_t y = GET_Y_LPARAM(p_data_b);
-
-				MouseEvent mouseEvent;
-				mouseEvent.x = x;
-				mouseEvent.y = y;
-				mouseEvent.movementX = x - m_mousePosition.x;
-				mouseEvent.movementY = y - m_mousePosition.y;
-				mouseEvent.modifierKeys = modifierKeys;
-				m_GUI->excludeAnimationThread();
-				m_GUI->handleGlobalMouseMove(mouseEvent);
-				m_GUI->includeAnimationThread();
-
-				m_mousePosition.x = x;
-				m_mousePosition.y = y;
 
 				return 0;
 			}
@@ -1995,6 +2000,7 @@ namespace AvoGUI
 					mouseEvent.movementY = mousePosition.y - m_mousePosition.y;
 					m_GUI->excludeAnimationThread();
 					m_GUI->handleGlobalMouseMove(mouseEvent);
+					m_GUI->handleMouseLeave(mouseEvent);
 					m_GUI->includeAnimationThread();
 
 					m_mousePosition.x = mousePosition.x;
@@ -4853,72 +4859,120 @@ namespace AvoGUI
 
 	void GUI::getTopMouseListenersAt(const Point<float>& p_coordinates, std::vector<View*>& p_result)
 	{
-		p_result.reserve(5);
+		p_result = { this };
+		p_result.reserve(10);
 
-		View* currentContainer = this;
-		uint32_t startPosition = getNumberOfChildren() - 1U;
+		View* container = this;
+		int32_t startIndex = getNumberOfChildren() - 1;
 
-		Point<float> viewOffset;
+		bool hasFoundTopView = false;
 
-		bool willContinue = true;
-		while (willContinue)
+		while (true)
 		{
-			for (int32_t a = startPosition; a >= -1; a--)
+		loopStart:
+			for (int32_t a = startIndex; a >= 0; a--)
 			{
-				if (a == -1)
+				View* child = container->getChild(a);
+				if (child->getAbsoluteBounds().getIsContaining(p_coordinates.x, p_coordinates.y))
 				{
-					if (currentContainer->getAreMouseEventsEnabled())
+					bool hasChildren = child->getNumberOfChildren();
+
+					if (hasChildren)
 					{
-						p_result.push_back(currentContainer);
-					}
-					if (currentContainer->getIsOverlay())
-					{
-						if (currentContainer->getParent() == this)
+						if (child->getAreMouseEventsEnabled())
 						{
-							willContinue = false;
+							p_result.push_back(child);
 						}
-						else
-						{
-							startPosition = currentContainer->getIndex() - 1;
-							currentContainer = currentContainer->getParent();
-							viewOffset -= currentContainer->getTopLeft();
-						}
+						container = child;
+						startIndex = container->getNumberOfChildren() - 1;
+						goto loopStart;
 					}
 					else
 					{
-						willContinue = false;
-					}
-				}
-				else
-				{
-					View* view = currentContainer->getChild(a);
-					if (view->getIsContaining(p_coordinates - viewOffset))
-					{
-						if (view->getNumberOfChildren())
+						if (child->getAreMouseEventsEnabled())
 						{
-							currentContainer = view;
-							startPosition = currentContainer->getNumberOfChildren() - 1;
-							viewOffset += currentContainer->getTopLeft();
-							break;
+							p_result.push_back(child);
 						}
-						if (view->getAreMouseEventsEnabled())
+						if (!child->getIsOverlay())
 						{
-							p_result.push_back(view);
-						}
-						if (!view->getIsOverlay())
-						{
-							willContinue = false;
+							hasFoundTopView = true;
 							break;
 						}
 					}
 				}
 			}
+
+			if (!container->getIsOverlay() || hasFoundTopView || container == this)
+			{
+				break;
+			}
+
+			startIndex = container->getIndex() - 1;
+			container = container->getParent();
 		}
+
+
+		//View* currentContainer = this;
+		//uint32_t startIndex = getNumberOfChildren() - 1U;
+
+		//bool willContinue = true;
+		//while (willContinue)
+		//{
+		//	for (int32_t a = startIndex; a >= -1; a--)
+		//	{
+		//		if (a == -1)
+		//		{
+		//			if (currentContainer->getAreMouseEventsEnabled())
+		//			{
+		//				p_result.push_back(currentContainer);
+		//			}
+		//			if (currentContainer->getIsOverlay())
+		//			{
+		//				if (currentContainer->getParent() == this)
+		//				{
+		//					willContinue = false;
+		//				}
+		//				else
+		//				{
+		//					startIndex = currentContainer->getIndex() - 1;
+		//					currentContainer = currentContainer->getParent();
+		//				}
+		//			}
+		//			else
+		//			{
+		//				willContinue = false;
+		//			}
+		//		}
+		//		else
+		//		{
+		//			View* view = currentContainer->getChild(a);
+		//			if (view->getAbsoluteBounds().getIsContaining(p_coordinates))
+		//			{
+		//				if (view->getNumberOfChildren())
+		//				{
+		//					currentContainer = view;
+		//					startIndex = currentContainer->getNumberOfChildren() - 1;
+		//					break;
+		//				}
+		//				if (view->getAreMouseEventsEnabled())
+		//				{
+		//					p_result.push_back(view);
+		//				}
+		//				if (!view->getIsOverlay())
+		//				{
+		//					willContinue = false;
+		//					break;
+		//				}
+		//			}
+		//		}
+		//	}
+		//}
 	}
 	void GUI::getTopMouseListenersAt(float p_x, float p_y, std::vector<View*>& p_result)
 	{
 		getTopMouseListenersAt(Point<float>(p_x, p_y), p_result);
 	}
+
 
 	//
 	// Public
@@ -4978,32 +5032,29 @@ namespace AvoGUI
 	{
 		View* currentContainer = this;
 
-		View* result = 0;
-		while (!result)
+		while (true)
 		{
 			for (int32_t a = currentContainer->getNumberOfChildren() - 1; a >= 0; a--)
 			{
 				View* view = currentContainer->getChild(a);
-				if (view->getAbsoluteBounds().getIsContaining(p_coordinates))
+				if (view->getIsVisible() && !view->getIsOverlay() && view->getAbsoluteBounds().getIsContaining(p_coordinates))
 				{
 					if (view->getNumberOfChildren())
 					{
 						currentContainer = view;
+						break;
 					}
 					else
 					{
-						result = view;
+						return view;
 					}
-					break;
 				}
 				else if (a == 0)
 				{
-					result = currentContainer;
-					break;
+					return currentContainer;
 				}
 			}
 		}
-		return result;
 	}
 	View* GUI::getViewAt(float p_x, float p_y)
 	{
@@ -5113,6 +5164,8 @@ namespace AvoGUI
 			}
 		}
 
+		m_mouseDownPosition.set(p_event.x, p_event.y);
+
 		if (m_globalMouseEventListeners.size())
 		{
 			for (auto listener : m_globalMouseEventListeners)
@@ -5134,6 +5187,13 @@ namespace AvoGUI
 
 				view->handleMouseUp(event);
 			}
+
+			event.mouseButton = MouseButton::None;
+			event.x = p_event.x;
+			event.y = p_event.y;
+			event.movementX = event.x - m_mouseDownPosition.x;
+			event.movementY = event.y - m_mouseDownPosition.y;
+			handleGlobalMouseMove(event); // This is so that any views that the mouse has entered while pressed get their events.
 		}
 
 		if (m_globalMouseEventListeners.size())
@@ -5173,54 +5233,234 @@ namespace AvoGUI
 
 	void GUI::handleGlobalMouseMove(const MouseEvent& p_event)
 	{
-		// These vectors usually don't have more than 1 or 2 elements in them, so the loops aren't as slow as it looks like.
-
-		std::vector<View*> oldTargets;
-		getTopMouseListenersAt(p_event.x - p_event.movementX, p_event.y - p_event.movementY, oldTargets);
-		std::vector<View*> newTargets;
-		getTopMouseListenersAt(p_event.x, p_event.y, newTargets);
-
-		if (!newTargets.size() && oldTargets.size())
+		if (m_pressedMouseEventListeners.size() && (p_event.modifierKeys & ModifierKeyFlags::LeftMouse || p_event.modifierKeys & ModifierKeyFlags::MiddleMouse || p_event.modifierKeys & ModifierKeyFlags::RightMouse))
 		{
-			m_window->setCursor(Cursor::Arrow);
-		}
-
-		MouseEvent mouseEvent = p_event;
-
-		std::vector<bool> isNewTargetOldTarget(newTargets.size());
-		for (uint32_t a = 0; a < oldTargets.size(); a++)
-		{
-			bool hasLeftTarget = true;
-			for (uint32_t b = 0; b < newTargets.size(); b++)
+			MouseEvent mouseEvent = p_event;
+			for (auto pressedView : m_pressedMouseEventListeners)
 			{
-				if (oldTargets[a] == newTargets[b])
-				{
-					Point<float> position = newTargets[b]->getAbsoluteBounds().getTopLeft();
-					mouseEvent.x = p_event.x - position.x;
-					mouseEvent.y = p_event.y - position.y;
+				mouseEvent.x = p_event.x - pressedView->getAbsoluteLeft();
+				mouseEvent.y = p_event.y - pressedView->getAbsoluteTop();
+				pressedView->handleMouseMove(mouseEvent);
+			}
+		}
+		else
+		{
+			// Get ready for some big ol' algorithms. They're hopefully more efficient than they look like, because of the view tree structure.
 
-					newTargets[b]->handleMouseMove(mouseEvent);
-					isNewTargetOldTarget[b] = true;
-					hasLeftTarget = false;
+			View* container = this;
+			int32_t startIndex = getNumberOfChildren() - 1;
+
+			bool isContainerMouseEnterLeaveView = false;
+			bool hasFoundViewContainingNewPosition = false;
+			bool hasFoundViewContainingOldPosition = false;
+
+			MouseEvent mouseEvent = p_event;
+
+			handleMouseMove(p_event);
+
+			// Mouse enter and move events
+
+			while (true)
+			{
+			loopStart_0:
+				hasFoundViewContainingOldPosition = false;
+				for (int32_t a = startIndex; a >= 0; a--)
+				{
+					View* child = container->getChild(a);
+					if (child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
+					{
+						if (hasFoundViewContainingNewPosition) // In this case we're just checking if the view contains only the old mouse position.
+						{
+							continue;
+						}
+
+						bool hasChildren = child->getNumberOfChildren();
+						bool areEventsEnabled = child->getAreMouseEventsEnabled();
+
+						if (areEventsEnabled)
+						{
+							mouseEvent.x = p_event.x - child->getAbsoluteLeft();
+							mouseEvent.y = p_event.y - child->getAbsoluteTop();
+						}
+						if (isContainerMouseEnterLeaveView || !child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+						{
+							if (areEventsEnabled)
+							{
+								child->handleMouseEnter(mouseEvent);
+								if (!hasChildren)
+								{
+									child->handleBackgroundMouseEnter(mouseEvent);
+								}
+							}
+							if (hasChildren)
+							{
+								isContainerMouseEnterLeaveView = true;
+							}
+						}
+						else
+						{
+							hasFoundViewContainingOldPosition = true;
+							if (areEventsEnabled)
+							{
+								child->handleMouseMove(mouseEvent);
+							}
+						}
+
+						if (hasChildren)
+						{
+							container = child;
+							startIndex = container->getNumberOfChildren() - 1;
+							goto loopStart_0;
+						}
+						else if (!child->getIsOverlay())
+						{
+							hasFoundViewContainingNewPosition = true;
+							if (isContainerMouseEnterLeaveView || hasFoundViewContainingOldPosition)
+							{
+								break;
+							}
+						}
+					}
+					else if (!isContainerMouseEnterLeaveView && !hasFoundViewContainingOldPosition && child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+					{
+						hasFoundViewContainingOldPosition = true;
+						if (hasFoundViewContainingNewPosition)
+						{
+							break;
+						}
+					}
+				}
+
+				if (container->getAreMouseEventsEnabled() && !hasFoundViewContainingNewPosition && (hasFoundViewContainingOldPosition || isContainerMouseEnterLeaveView))
+				{
+					mouseEvent.x = p_event.x - container->getAbsoluteLeft();
+					mouseEvent.y = p_event.y - container->getAbsoluteTop();
+					container->handleBackgroundMouseEnter(mouseEvent);
+				}
+
+				if (!container->getIsOverlay() || container == this)
+				{
 					break;
 				}
+
+				// We only continue if the container was an overlay view.
+
+				startIndex = container->getIndex() - 1;
+				container = container->getParent();
+
+				if (isContainerMouseEnterLeaveView && startIndex > 0)
+				{
+					if (container->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+					{
+						isContainerMouseEnterLeaveView = false;
+					}
+				}
+				else
+				{
+					isContainerMouseEnterLeaveView = false;
+				}
 			}
-			if (hasLeftTarget)
+
+			// Mouse leave events
+
+			container = this;
+			startIndex = getNumberOfChildren() - 1;
+			isContainerMouseEnterLeaveView = !getIsContaining(p_event.x, p_event.y);
+			hasFoundViewContainingNewPosition = false;
+			hasFoundViewContainingOldPosition = false;
+
+			while (true)
 			{
-				Point<float> position = oldTargets[a]->getAbsoluteBounds().getTopLeft();
-				mouseEvent.x = p_event.x - position.x;
-				mouseEvent.y = p_event.y - position.y;
-				oldTargets[a]->handleMouseLeave(mouseEvent);
-			}
-		}
-		for (auto view = newTargets.begin(); view != newTargets.end(); view++)
-		{
-			if (!isNewTargetOldTarget[view - newTargets.begin()])
-			{
-				Point<float> position = (*view)->getAbsoluteBounds().getTopLeft();
-				mouseEvent.x = p_event.x - position.x;
-				mouseEvent.y = p_event.y - position.y;
-				(*view)->handleMouseEnter(mouseEvent);
+			loopStart_1:
+				hasFoundViewContainingNewPosition = false;
+				for (int32_t a = startIndex; a >= 0; a--)
+				{
+					View* child = container->getChild(a);
+					if (child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+					{
+						if (hasFoundViewContainingOldPosition) // In this case we're just checking if the view contains only the old mouse position.
+						{
+							continue;
+						}
+
+						bool hasChildren = child->getNumberOfChildren();
+						bool areEventsEnabled = child->getAreMouseEventsEnabled();
+
+						if (isContainerMouseEnterLeaveView || !child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
+						{
+							if (areEventsEnabled)
+							{
+								mouseEvent.x = p_event.x - child->getAbsoluteLeft();
+								mouseEvent.y = p_event.y - child->getAbsoluteTop();
+								child->handleMouseLeave(mouseEvent);
+								if (!hasChildren)
+								{
+									child->handleBackgroundMouseLeave(mouseEvent);
+								}
+							}
+							if (hasChildren)
+							{
+								isContainerMouseEnterLeaveView = true;
+							}
+						}
+						else
+						{
+							hasFoundViewContainingNewPosition = true;
+						}
+
+						if (hasChildren)
+						{
+							container = child;
+							startIndex = container->getNumberOfChildren() - 1;
+							goto loopStart_1;
+						}
+						else if (!child->getIsOverlay())
+						{
+							hasFoundViewContainingOldPosition = true;
+							if (isContainerMouseEnterLeaveView || hasFoundViewContainingNewPosition)
+							{
+								break;
+							}
+						}
+					}
+					else if (!isContainerMouseEnterLeaveView && !hasFoundViewContainingNewPosition && child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
+					{
+						hasFoundViewContainingNewPosition = true;
+						if (hasFoundViewContainingOldPosition)
+						{
+							break;
+						}
+					}
+				}
+
+				if (container->getAreMouseEventsEnabled() && !hasFoundViewContainingOldPosition && (hasFoundViewContainingNewPosition || isContainerMouseEnterLeaveView))
+				{
+					mouseEvent.x = p_event.x - container->getAbsoluteLeft();
+					mouseEvent.y = p_event.y - container->getAbsoluteTop();
+					container->handleBackgroundMouseLeave(mouseEvent);
+				}
+
+				if (!container->getIsOverlay() || container == this)
+				{
+					break;
+				}
+
+				// We only continue if the container was an overlay view.
+
+				startIndex = container->getIndex() - 1;
+				container = container->getParent();
+
+				if (isContainerMouseEnterLeaveView && startIndex > 0)
+				{
+					if (container->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
+					{
+						isContainerMouseEnterLeaveView = false;
+					}
+				}
+				else
+				{
+					isContainerMouseEnterLeaveView = false;
+				}
 			}
 		}
 
@@ -5596,9 +5836,9 @@ namespace AvoGUI
 		if (m_text)
 		{
 			p_drawingContext->scale(m_opacity*0.3f + 0.7f, getAbsoluteCenter());
-			p_drawingContext->setColor(Color(0.f, m_opacity*0.6f));
+			p_drawingContext->setColor(Color(m_theme->colors["tooltip background"], m_opacity));
 			p_drawingContext->fillRoundedRectangle(getSize(), getCornerRadius());
-			p_drawingContext->setColor(Color(1.f, m_opacity*0.9f));
+			p_drawingContext->setColor(Color(m_theme->colors["tooltip on background"], m_opacity));
 			p_drawingContext->drawText(m_text);
 			p_drawingContext->scale(1.f / (m_opacity*0.3f + 0.7f), getAbsoluteCenter());
 		}
@@ -5655,7 +5895,7 @@ namespace AvoGUI
 			queueAnimationUpdate();
 		}
 	}
-	void Ripple::handleMouseEnter(const MouseEvent& p_event)
+	void Ripple::handleBackgroundMouseEnter(const MouseEvent& p_event)
 	{
 		if (m_isEnabled)
 		{
@@ -5664,7 +5904,7 @@ namespace AvoGUI
 			queueAnimationUpdate();
 		}
 	}
-	void Ripple::handleMouseLeave(const MouseEvent& p_event)
+	void Ripple::handleBackgroundMouseLeave(const MouseEvent& p_event)
 	{
 		if (m_isMouseHovering)
 		{
@@ -5683,13 +5923,13 @@ namespace AvoGUI
 			{
 				if (m_overlayAlphaFactor < 1.f)
 				{
-					m_overlayAnimationTime = min(m_overlayAnimationTime + 0.2f, 1.f);
+					m_overlayAnimationTime = min(m_overlayAnimationTime + m_theme->values["hover animation speed"], 1.f);
 					queueAnimationUpdate();
 				}
 			}
 			else if (m_overlayAlphaFactor > 0.f)
 			{
-				m_overlayAnimationTime = max(m_overlayAnimationTime - 0.2f, 0.f);
+				m_overlayAnimationTime = max(m_overlayAnimationTime - m_theme->values["hover animation speed"], 0.f);
 				queueAnimationUpdate();
 			}
 		}
@@ -5986,7 +6226,7 @@ namespace AvoGUI
 		if (m_emphasis == Emphasis::Medium)
 		{
 			p_context->setColor(Color(m_theme->colors["on background"], 0.25f));
-			p_context->strokeRoundedRectangle(Rectangle<float>(0.5f, 0.5f, getWidth() - 0.5f, getHeight()), getCornerRadius(), 1.f);
+			p_context->strokeRoundedRectangle(Rectangle<float>(0.5f, 0.5f, getWidth() - 0.5f, getHeight() - 0.5f), getCornerRadius(), 1.f);
 		}
 	}
 
@@ -6008,936 +6248,5 @@ namespace AvoGUI
 		}
 
 		p_context->drawText(m_text);
-	}
-
-	//------------------------------
-	// class TextField
-	//------------------------------
-
-	//
-	// Private
-	//
-
-	constexpr float TEXT_FIELD_OUTLINED_PADDING_LABEL = 5.f;
-
-	void TextField::updateCaretPosition()
-	{
-		if (m_text->getString().size())
-		{
-			m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-		}
-		else
-		{
-			if (m_type == Type::Filled)
-			{
-				m_caretPosition = Point<float>(m_text->getLeft(), getHeight() - m_theme->values["text field filled padding bottom"] - m_theme->values["text field font size"] * 1.2f);
-			}
-			else if (m_type == Type::Outlined)
-			{
-				m_caretPosition = Point<float>(m_text->getLeft(), TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL - m_theme->values["text field font size"]) * 0.5f);
-			}
-		}
-	}
-
-	void TextField::updateCaretTracking()
-	{
-		if (m_caretPosition.x + m_textDrawingOffsetX > getWidth() - m_theme->values["text field padding right"])
-		{
-			m_textDrawingOffsetX = getWidth() - m_theme->values["text field padding right"] - m_caretPosition.x;
-		}
-		else if (m_caretPosition.x + m_textDrawingOffsetX < m_theme->values["text field padding left"])
-		{
-			m_textDrawingOffsetX = m_theme->values["text field padding left"] - m_caretPosition.x;
-		}
-		if (m_text->getRight() > getWidth() - m_theme->values["text field padding right"])
-		{
-			if (m_text->getRight() + m_textDrawingOffsetX < getWidth() - m_theme->values["text field padding right"])
-			{
-				m_textDrawingOffsetX = getWidth() - m_theme->values["text field padding right"] - m_text->getRight();
-			}
-		}
-		else
-		{
-			m_textDrawingOffsetX = 0.f;
-		}
-	}
-	void TextField::updateSelectionEndTracking()
-	{
-		if (m_selectionEndPosition.x + m_textDrawingOffsetX > getWidth() - m_theme->values["text field padding right"])
-		{
-			m_textDrawingOffsetX = getWidth() - m_theme->values["text field padding right"] - m_selectionEndPosition.x;
-		}
-		else if (m_selectionEndPosition.x + m_textDrawingOffsetX < m_theme->values["text field padding left"])
-		{
-			m_textDrawingOffsetX = m_theme->values["text field padding left"] - m_selectionEndPosition.x;
-		}
-		//if (m_selectionEndPosition.x > m_theme->values["text field padding left"] + 0.5f*(getWidth() - m_theme->values["text field padding left"] - m_theme->values["text field padding right"]) && m_selectionEndPosition.x < m_text->getRight() - 0.5f * (getWidth() - m_theme->values["text field padding left"] - m_theme->values["text field padding right"]))
-		//{
-		//	m_textDrawingOffsetX = getWidth() * 0.5f - m_selectionEndPosition.x;
-		//}
-	}
-
-	//
-	// Protected
-	//
-
-	void TextField::handleThemeFontFamilyChange(const char* p_name, const char* p_newFontFamily)
-	{
-		if (p_name == "main")
-		{
-			if (m_labelText)
-			{
-				m_labelText->setFontFamily(p_newFontFamily);
-				m_labelText->minimizeSize();
-			}
-			if (m_text)
-			{
-				m_text->setFontFamily(p_newFontFamily);
-				m_text->minimizeSize();
-			}
-		}
-	}
-	void TextField::handleThemeValueChange(const char* p_name, float p_newValue)
-	{
-		if (p_name == "text field font size")
-		{
-			if (m_labelText)
-			{
-				m_labelText->setFontSize(p_newValue);
-				m_labelText->minimizeSize();
-			}
-			if (m_text)
-			{
-				m_text->setFontSize(p_newValue);
-				m_text->minimizeSize();
-			}
-		}
-		if (p_name == "text field font size" || p_name == "text field height")
-		{
-			setHeight(m_theme->values["text field font size"] * m_theme->values["text field height"] + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
-
-			if (m_labelText)
-			{
-				if (m_type == Type::Filled)
-				{
-					m_labelText->setCenterY(getHeight() * 0.5f);
-				}
-				else
-				{
-					m_labelText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f);
-				}
-			}
-			if (m_text)
-			{
-				if (m_type == Type::Filled)
-				{
-					m_text->setBottom(getHeight() - m_theme->values["text field filled padding bottom"]);
-				}
-				else
-				{
-					m_text->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f);
-				}
-				updateCaretPosition();
-			}
-		}
-		if (p_name == "text field padding left")
-		{
-			if (m_labelText)
-			{
-				m_labelText->setLeft(p_newValue);
-			}
-			if (m_text)
-			{
-				m_text->setLeft(p_newValue);
-			}
-		}
-	}
-
-	//
-	// Public
-	//
-
-	TextField::TextField(View* p_parent, Type p_type, const char* p_label, float p_width) :
-		View(p_parent),
-		m_labelText(0), m_labelColor(0.5f), m_focusAnimationTime(0.f), m_focusAnimationValue(0.f),
-		m_isMouseHovering(false), m_hoverAnimationTime(0.f), m_hoverAnimationValue(0.f),
-		m_text(0), m_textDrawingOffsetX(0.f),
-		m_caretIndex(0), m_isCaretVisible(false), m_caretFrameCount(0.f),
-		m_isSelectingWithMouse(false), m_isSelectionVisible(false), m_selectionEndIndex(0),
-		m_type(p_type)
-	{
-		m_bounds.right = p_width;
-		m_bounds.bottom = m_theme->values["text field font size"] * m_theme->values["text field height"] + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined);
-
-		setLabel(p_label);
-		setCursor(Cursor::Ibeam);
-		enableMouseEvents();
-
-		setString("");
-	}
-	TextField::~TextField()
-	{
-		if (m_labelText)
-		{
-			m_labelText->forget();
-		}
-		if (m_text)
-		{
-			m_text->forget();
-		}
-	}
-
-	//------------------------------
-
-	void TextField::setLabel(const char* p_label)
-	{
-		if (m_labelText)
-		{
-			m_labelText->forget();
-		}
-		if (p_label == "")
-		{
-			m_labelText = 0;
-		}
-		else
-		{
-			m_labelText = getGUI()->getDrawingContext()->createText(p_label, m_theme->values["text field font size"]);
-			m_labelText->setFontFamily(m_theme->fontFamilies["main"]);
-			m_labelText->setFontWeight(AvoGUI::FontWeight::Regular);
-			m_labelText->setLeft(m_theme->values["text field padding left"]);
-			m_labelText->minimizeSize();
-			if (m_type == Type::Filled)
-			{
-				m_labelText->setCenterY(getHeight() * 0.5f);
-			}
-			else if (m_type == Type::Outlined)
-			{
-				m_labelText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f);
-			}
-			queueAnimationUpdate();
-		}
-	}
-	const char* TextField::getLabel()
-	{
-		if (m_labelText)
-		{
-			return m_labelText->getString().c_str();
-		}
-		return "";
-	}
-
-	//------------------------------
-
-	void TextField::setString(const char* p_string)
-	{
-		if (m_text)
-		{
-			if (p_string == m_text->getString()) return;
-			if (p_string == "")
-			{
-				m_caretIndex = 0;
-				m_caretPosition = m_text->getTopLeft();
-				updateCaretTracking();
-				m_text->forget();
-				m_text = 0;
-				return;
-			}
-			m_text->forget();
-		}
-		else if (p_string != "")
-		{
-			m_focusAnimationValue = 1.f;
-			queueAnimationUpdate();
-		}
-		m_text = getGUI()->getDrawingContext()->createText(p_string, m_theme->values["text field font size"]);
-		m_text->setFontFamily(m_theme->fontFamilies["main"]);
-		m_text->setFontWeight(AvoGUI::FontWeight::Regular);
-		m_text->setLeft(m_theme->values["text field padding left"]);
-		m_text->minimizeSize();
-		if (m_type == Type::Filled)
-		{
-			m_text->setBottom(getHeight() - m_theme->values["text field filled padding bottom"], true);
-		}
-		else if (m_type == Type::Outlined)
-		{
-			m_text->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL)*0.5f);
-		}
-
-		m_caretIndex = min(m_caretIndex, m_text->getString().size());
-		updateCaretPosition();
-		updateCaretTracking();
-	}
-	void TextField::setString(const std::string& p_string)
-	{
-		setString(p_string.c_str());
-	}
-	const std::string& TextField::getString()
-	{
-		if (m_text)
-		{
-			return m_text->getString();
-		}
-		return "";
-	}
-
-	//------------------------------
-
-	void TextField::handleMouseDoubleClick(const MouseEvent& p_event)
-	{
-		if (m_text)
-		{
-			uint32_t clickCharacterIndex = m_text->getNearestCharacterIndex(p_event.x - m_textDrawingOffsetX, p_event.y, true);
-			const std::string& string = m_text->getString();
-			for (int32_t a = clickCharacterIndex; a >= 0; a--)
-			{
-				if (!a || string[a - 1] == ' ')
-				{
-					if (a != m_caretIndex)
-					{
-						m_caretPosition = m_text->getCharacterPosition(a, true);
-						updateCaretTracking();
-					}
-					m_caretIndex = a;
-					break;
-				}
-			}
-			for (int32_t a = clickCharacterIndex; a <= string.size(); a++)
-			{
-				if (a == string.size() || string[a] == ' ')
-				{
-					if (a != m_selectionEndIndex)
-					{
-						m_selectionEndPosition = m_text->getCharacterPosition(a, true);
-						updateSelectionEndTracking();
-					}
-					m_selectionEndIndex = a;
-					break;
-				}
-			}
-			if (m_caretIndex != m_selectionEndIndex)
-			{
-				m_isSelectionVisible = true;
-				invalidate();
-			}
-		}
-	}
-	void TextField::handleMouseDown(const MouseEvent& p_event)
-	{
-		if (m_text)
-		{
-			if (p_event.modifierKeys & ModifierKeyFlags::Shift)
-			{
-				m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_selectionEndIndex, &m_selectionEndPosition, true);
-
-				if (m_selectionEndIndex == m_caretIndex)
-				{
-					m_caretFrameCount = 1;
-					m_isCaretVisible = true;
-					m_isSelectionVisible = false;
-				}
-				else
-				{
-					updateSelectionEndTracking();
-					m_isSelectionVisible = true;
-				}
-				m_isSelectingWithMouse = true;
-			}
-			else
-			{
-				if (m_text->getString().size())
-				{
-					m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_caretIndex, &m_caretPosition, true);
-				}
-				else
-				{
-					updateCaretPosition();
-				}
-				updateCaretTracking();
-				m_caretFrameCount = 1;
-				m_isCaretVisible = true;
-
-				m_isSelectingWithMouse = true;
-				m_isSelectionVisible = false;
-			}
-		}
-
-		getGUI()->setKeyboardFocus(this);
-		invalidate();
-		queueAnimationUpdate();
-	}
-	void TextField::handleMouseMove(const MouseEvent& p_event)
-	{
-		if (m_isSelectingWithMouse)
-		{
-			m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_selectionEndIndex, &m_selectionEndPosition, true);
-			updateSelectionEndTracking();
-			m_isSelectionVisible = m_selectionEndIndex != m_caretIndex;
-			invalidate();
-		}
-	}
-	void TextField::handleMouseUp(const MouseEvent& p_event)
-	{
-		m_isSelectingWithMouse = false;
-	}
-	void TextField::handleMouseEnter(const MouseEvent& p_event)
-	{
-		View::handleMouseEnter(p_event);
-		m_isMouseHovering = true;
-		queueAnimationUpdate();
-	}
-	void TextField::handleMouseLeave(const MouseEvent& p_event)
-	{
-		View::handleMouseLeave(p_event);
-		m_isMouseHovering = false;
-		queueAnimationUpdate();
-	}
-
-	//------------------------------
-
-	void TextField::handleKeyboardFocusLost()
-	{
-		if (!m_isMouseHovering)
-		{
-			m_hoverAnimationTime = 0.f;
-			m_hoverAnimationValue = 0.f;
-		}
-		m_isSelectionVisible = false;
-		m_isCaretVisible = false;
-		m_caretFrameCount = 1;
-		queueAnimationUpdate();
-	}
-
-	void TextField::handleCharacterInput(const KeyboardEvent& p_event)
-	{
-		if ((p_event.character >= 32 && p_event.character < 126 || p_event.character < 0))
-		{
-			std::string string(m_text ? m_text->getString() : "");
-			if (m_isSelectionVisible)
-			{
-				if (m_caretIndex <= m_selectionEndIndex)
-				{
-					string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
-				}
-				else
-				{
-					string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
-					m_caretIndex = m_selectionEndIndex;
-				}
-			}
-
-			string.insert(m_caretIndex, 1U, p_event.character);
-			setString(string);
-
-			m_caretIndex++;
-			m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-			updateCaretTracking();
-
-			m_isSelectionVisible = false;
-
-			m_caretFrameCount = 1;
-			m_isCaretVisible = true;
-
-			invalidate();
-		}
-	}
-	void TextField::handleKeyboardKeyDown(const KeyboardEvent& p_event)
-	{
-		Window* window = getGUI()->getWindow();
-		if (m_isSelectionVisible && (p_event.key == KeyboardKey::Backspace || p_event.key == KeyboardKey::Delete))
-		{
-			std::string string = m_text->getString();
-			if (m_caretIndex <= m_selectionEndIndex)
-			{
-				string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
-			}
-			else
-			{
-				string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
-				m_caretIndex = m_selectionEndIndex;
-				m_caretPosition = m_selectionEndPosition;
-				updateCaretTracking();
-			}
-			setString(string);
-
-			m_caretFrameCount = 1;
-			m_isCaretVisible = true;
-		}
-		switch (p_event.key)
-		{
-		case KeyboardKey::Backspace:
-		{
-			if (!m_isSelectionVisible && m_caretIndex > 0)
-			{
-				if (window->getIsKeyDown(KeyboardKey::Control))
-				{
-					std::string string = m_text->getString();
-					for (int32_t a = m_caretIndex - 1; a >= 0; a--)
-					{
-						if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
-						{
-							string.erase(a, (int32_t)m_caretIndex - a);
-							setString(string);
-							m_caretIndex = a;
-							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-							updateCaretTracking();
-							break;
-						}
-					}
-				}
-				else
-				{
-					std::string string = m_text->getString();
-					m_caretIndex--;
-					string.erase(m_caretIndex, 1);
-					setString(string);
-					m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-					updateCaretTracking();
-				}
-			}
-			m_caretFrameCount = 1;
-			m_isCaretVisible = true;
-			m_isSelectionVisible = false;
-			break;
-		}
-		case KeyboardKey::Delete:
-		{
-			if (!m_isSelectionVisible && m_caretIndex < m_text->getString().size())
-			{
-				if (window->getIsKeyDown(KeyboardKey::Control))
-				{
-					std::string string = m_text->getString();
-					for (int32_t a = m_caretIndex; a < string.size(); a++)
-					{
-						if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
-						{
-							string.erase(m_caretIndex, a - (int32_t)m_caretIndex + 1);
-							setString(string);
-							break;
-						}
-					}
-				}
-				else
-				{
-					setString(std::string(m_text->getString()).erase(m_caretIndex, 1));
-				}
-			}
-			m_caretFrameCount = 1;
-			m_isCaretVisible = true;
-			m_isSelectionVisible = false;
-			break;
-		}
-		case KeyboardKey::Left:
-		{
-			if (window->getIsKeyDown(KeyboardKey::Control))
-			{
-				std::string string = m_text->getString();
-				if (window->getIsKeyDown(KeyboardKey::Shift))
-				{
-					if (!m_isSelectionVisible)
-					{
-						m_selectionEndIndex = m_caretIndex;
-					}
-					for (int32_t a = m_selectionEndIndex - 1; a >= 0; a--)
-					{
-						if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
-						{
-							m_selectionEndIndex = a;
-							if (m_selectionEndIndex == m_caretIndex)
-							{
-								m_isSelectionVisible = false;
-							}
-							else
-							{
-								m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
-								updateSelectionEndTracking();
-								m_isSelectionVisible = true;
-							}
-							break;
-						}
-					}
-				}
-				else
-				{
-					for (int32_t a = m_caretIndex - 1; a >= 0; a--)
-					{
-						if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
-						{
-							m_caretIndex = a;
-							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-							updateCaretTracking();
-							m_isSelectionVisible = false;
-							break;
-						}
-					}
-				}
-			}
-			else if (window->getIsKeyDown(KeyboardKey::Shift))
-			{
-				if (!m_isSelectionVisible)
-				{
-					m_selectionEndIndex = m_caretIndex;
-				}
-				if (m_selectionEndIndex > 0)
-				{
-					m_selectionEndIndex--;
-					if (m_selectionEndIndex == m_caretIndex)
-					{
-						m_isSelectionVisible = false;
-					}
-					else
-					{
-						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
-						updateSelectionEndTracking();
-						m_isSelectionVisible = true;
-					}
-				}
-			}
-			else
-			{
-				if (m_isSelectionVisible)
-				{
-					if (m_caretIndex > m_selectionEndIndex)
-					{
-						m_caretIndex = m_selectionEndIndex;
-						m_caretPosition = m_selectionEndPosition;
-						updateCaretTracking();
-					}
-					m_isSelectionVisible = false;
-				}
-				else
-				{
-					if (m_caretIndex > 0)
-					{
-						m_caretIndex--;
-						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-						updateCaretTracking();
-					}
-				}
-			}
-			m_caretFrameCount = 1;
-			m_isCaretVisible = true;
-			break;
-		}
-		case KeyboardKey::Right:
-		{
-			if (window->getIsKeyDown(KeyboardKey::Control))
-			{
-				std::string string = m_text->getString();
-				if (window->getIsKeyDown(KeyboardKey::Shift))
-				{
-					if (!m_isSelectionVisible)
-					{
-						m_selectionEndIndex = m_caretIndex;
-					}
-					for (uint32_t a = m_selectionEndIndex; a < string.size(); a++)
-					{
-						if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
-						{
-							m_selectionEndIndex = a + 1;
-							if (m_selectionEndIndex == m_caretIndex)
-							{
-								m_isSelectionVisible = false;
-							}
-							else
-							{
-								m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
-								updateSelectionEndTracking();
-								m_isSelectionVisible = true;
-							}
-							break;
-						}
-					}
-				}
-				else
-				{
-					for (uint32_t a = m_caretIndex; a < string.size(); a++)
-					{
-						if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
-						{
-							m_caretIndex = a + 1;
-							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-							updateCaretTracking();
-							m_isSelectionVisible = false;
-							break;
-						}
-					}
-				}
-			}
-			else if (window->getIsKeyDown(KeyboardKey::Shift))
-			{
-				if (!m_isSelectionVisible)
-				{
-					m_selectionEndIndex = m_caretIndex;
-				}
-				if (m_selectionEndIndex < m_text->getString().size())
-				{
-					m_selectionEndIndex++;
-					if (m_selectionEndIndex == m_caretIndex)
-					{
-						m_isSelectionVisible = false;
-					}
-					else
-					{
-						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
-						updateSelectionEndTracking();
-						m_isSelectionVisible = true;
-					}
-				}
-			}
-			else
-			{
-				if (m_isSelectionVisible)
-				{
-					if (m_caretIndex < m_selectionEndIndex)
-					{
-						m_caretIndex = m_selectionEndIndex;
-						m_caretPosition = m_selectionEndPosition;
-						updateCaretTracking();
-					}
-					m_isSelectionVisible = false;
-				}
-				else
-				{
-					if (m_caretIndex < m_text->getString().size())
-					{
-						m_caretIndex++;
-						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-						updateCaretTracking();
-					}
-				}
-			}
-			m_caretFrameCount = 1;
-			m_isCaretVisible = true;
-			break;
-		}
-		case KeyboardKey::C:
-		{
-			if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
-			{
-				if (m_caretIndex < m_selectionEndIndex)
-				{
-					window->setClipboardString(m_text->getString().substr(m_caretIndex, m_selectionEndIndex - m_caretIndex));
-				}
-				else
-				{
-					window->setClipboardString(m_text->getString().substr(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex));
-				}
-			}
-			break;
-		}
-		case KeyboardKey::X:
-		{
-			if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
-			{
-				std::string string(m_text->getString());
-				if (m_caretIndex < m_selectionEndIndex)
-				{
-					window->setClipboardString(string.substr(m_caretIndex, m_selectionEndIndex - m_caretIndex));
-					string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
-				}
-				else {
-					window->setClipboardString(string.substr(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex));
-					string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
-					m_caretIndex = m_selectionEndIndex;
-					m_caretPosition = m_selectionEndPosition;
-					updateCaretTracking();
-				}
-				setString(string);
-
-				m_isSelectionVisible = false;
-
-				m_caretFrameCount = 1;
-				m_isCaretVisible = true;
-			}
-			break;
-		}
-		case KeyboardKey::V:
-		{
-			if (window->getIsKeyDown(KeyboardKey::Control))
-			{
-				std::string string(m_text->getString());
-				if (m_isSelectionVisible)
-				{
-					if (m_caretIndex < m_selectionEndIndex)
-					{
-						string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
-					}
-					else
-					{
-						string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
-						m_caretIndex = m_selectionEndIndex;
-					}
-					m_isSelectionVisible = false;
-				}
-				std::string clipboardString = window->getClipboardString();
-				string.insert(m_caretIndex, clipboardString);
-				setString(string);
-
-				m_caretIndex += clipboardString.size();
-				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-				updateCaretTracking();
-				m_caretFrameCount = 1;
-				m_isCaretVisible = true;
-			}
-			break;
-		}
-		case KeyboardKey::A:
-		{
-			uint32_t stringLength = m_text->getString().size();
-			if (window->getIsKeyDown(KeyboardKey::Control) && stringLength)
-			{
-				m_isSelectionVisible = true;
-				if (m_caretIndex)
-				{
-					m_caretIndex = 0;
-					m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-				}
-				if (m_selectionEndIndex != stringLength)
-				{
-					m_selectionEndIndex = stringLength;
-					m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
-				}
-			}
-			break;
-		}
-		}
-
-		invalidate();
-	}
-
-	//------------------------------
-
-	void TextField::updateAnimations()
-	{
-		if (m_type == Type::OnlyText)
-		{
-			if (getGUI()->getKeyboardFocus() == this)
-			{
-				if (m_caretFrameCount % 30 == 0 && !m_isSelectionVisible)
-				{
-					m_isCaretVisible = !m_isCaretVisible;
-					invalidate();
-				}
-				m_caretFrameCount++;
-				queueAnimationUpdate();
-			}
-		}
-		else
-		{
-			if (getGUI()->getKeyboardFocus() == this)
-			{
-				if (m_focusAnimationValue < 1.f)
-				{
-					m_focusAnimationValue = m_theme->easings["in out"].easeValue(m_focusAnimationTime);
-					m_focusAnimationTime = min(1.f, m_focusAnimationTime + 0.09f);
-					m_labelColor = interpolate(Color(0.5f), m_theme->colors["primary on background"], m_focusAnimationValue);
-					m_caretFrameCount = 0;
-					invalidate();
-				}
-				else if (m_caretFrameCount % (uint32_t)m_theme->values["text field caret blink rate"] == 0 && !m_isSelectionVisible)
-				{
-					m_isCaretVisible = !m_isCaretVisible;
-					invalidate();
-				}
-				m_caretFrameCount++;
-				queueAnimationUpdate();
-			}
-			else if (m_focusAnimationValue > 0.f)
-			{
-				m_focusAnimationValue = 1.f - m_theme->easings["in out"].easeValue(1.f - m_focusAnimationTime);
-				m_focusAnimationTime = max(0.f, m_focusAnimationTime - 0.09f);
-				invalidate();
-				queueAnimationUpdate();
-				m_labelColor = interpolate(Color(0.5f), m_theme->colors["primary on background"], m_focusAnimationValue);
-			}
-			else if (m_isMouseHovering)
-			{
-				if (m_hoverAnimationValue < 1.f)
-				{
-					m_hoverAnimationValue = m_theme->easings["in out"].easeValue(m_hoverAnimationTime);
-					m_hoverAnimationTime = min(1.f, m_hoverAnimationTime + 0.1f);
-					invalidate();
-					queueAnimationUpdate();
-				}
-			}
-			else if (m_hoverAnimationValue > 0.f)
-			{
-				m_hoverAnimationValue = 1.f - m_theme->easings["in out"].easeValue(1.f - m_hoverAnimationTime);
-				m_hoverAnimationTime = max(0.f, m_hoverAnimationTime - 0.1f);
-				invalidate();
-				queueAnimationUpdate();
-			}
-		}
-	}
-
-	void TextField::draw(DrawingContext* p_context)
-	{
-		float animationValue = m_text->getString().size() ? 1.f : m_focusAnimationValue;
-		if (m_type == Type::Filled)
-		{
-			p_context->setColor(0xffebebeb);
-			p_context->fillRoundedRectangle(getSize(), 5.f);
-			p_context->fillRectangle(Rectangle<float>(0.f, getHeight() - 5.f, getWidth(), getHeight()));
-			p_context->setColor(0xffa0a0a0);
-			p_context->drawLine(0.f, getHeight() - 1.f, getWidth(), getHeight() - 1.f, 1.f);
-			if (m_focusAnimationValue > 0.01f)
-			{
-				p_context->setColor(m_theme->colors["primary on background"]);
-				p_context->drawLine((1.f - m_focusAnimationValue)*getWidth()*0.5f, getHeight() - 1.f, (1.f + m_focusAnimationValue)*getWidth()*0.5f, getHeight() - 1.f);
-			}
-			if (m_labelText)
-			{
-				p_context->moveOrigin(4.f*m_focusAnimationValue, -3.f*m_focusAnimationValue);
-				p_context->setScale(1.f - m_focusAnimationValue * 0.3f);
-				p_context->setColor(m_labelColor);
-				p_context->drawText(m_labelText);
-				p_context->moveOrigin(-4.f*m_focusAnimationValue, 3.f*m_focusAnimationValue);
-				p_context->setScale(1.f);
-			}
-		}
-		else if (m_type == Type::Outlined)
-		{
-			p_context->setColor(interpolate(Color(m_theme->colors["on background"], m_hoverAnimationValue*0.4f + 0.3f), m_theme->colors["primary on background"], m_focusAnimationValue));
-			p_context->strokeRoundedRectangle(Rectangle<float>(1.f, 1.f + TEXT_FIELD_OUTLINED_PADDING_LABEL, getWidth() - 1.f, getHeight() - 1.f), 5.f, m_focusAnimationValue + 1.f);
-			
-			if (m_labelText)
-			{
-				p_context->moveOrigin(4.f * animationValue, -(getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.3f * animationValue);
-				p_context->setScale(1.f - animationValue * 0.3f);
-
-				p_context->setColor(m_theme->colors["background"]);
-				p_context->fillRoundedRectangle(Rectangle<float>(m_labelText->getLeft() - 4.f, m_labelText->getTop(), m_labelText->getRight() + 4.f, m_labelText->getBottom()), 2.f);
-
-				p_context->setColor(m_labelColor);
-				p_context->drawText(m_labelText);
-
-				p_context->moveOrigin(-4.f * animationValue, (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.3f * animationValue);
-				p_context->setScale(1.f);
-			}
-		}
-		else if (m_type == Type::OnlyText)
-		{
-
-		}
-		if (animationValue >= 0.95f && m_text)
-		{
-			p_context->pushClipRectangle(Rectangle<float>(m_theme->values["text field padding left"], 0, getWidth() - m_theme->values["text field padding right"], getHeight()));
-			p_context->moveOrigin(m_textDrawingOffsetX, 0.f);
-			p_context->setColor(m_theme->colors["on background"]);
-			p_context->drawText(m_text);
-
-			if (m_isSelectionVisible)
-			{
-				p_context->setColor(m_theme->colors["selection"]);
-				p_context->fillRectangle(m_caretPosition.x, m_caretPosition.y - 3.f, m_selectionEndPosition.x, m_selectionEndPosition.y + m_theme->values["text field font size"] * 1.2f);
-			}
-			else if (m_isCaretVisible)
-			{
-				p_context->drawLine(m_caretPosition.x, m_caretPosition.y - 3.f, m_caretPosition.x, m_caretPosition.y + m_theme->values["text field font size"] * 1.2f, 1.f);
-			}
-			p_context->moveOrigin(-m_textDrawingOffsetX, 0.f);
-			p_context->popClipRectangle();
-		}
-
 	}
 };
