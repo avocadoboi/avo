@@ -4859,7 +4859,8 @@ namespace AvoGUI
 
 	void GUI::getTopMouseListenersAt(const Point<float>& p_coordinates, std::vector<View*>& p_result)
 	{
-		p_result.reserve(5);
+		p_result = { this };
+		p_result.reserve(10);
 
 		View* container = this;
 		int32_t startIndex = getNumberOfChildren() - 1;
@@ -5254,6 +5255,8 @@ namespace AvoGUI
 			bool hasFoundViewContainingOldPosition = false;
 
 			MouseEvent mouseEvent = p_event;
+
+			handleMouseMove(p_event);
 
 			// Mouse enter and move events
 
