@@ -24,7 +24,7 @@
 	inside your overridden method), or you can completely override it - although that can sometimes remove
 	important functionality.
 
-	Submit issues at GitHub!
+	Submit issues on GitHub!
 	https://github.com/avocadoboi/AvoGUI
 
 	Started development in summer 2018.
@@ -2977,7 +2977,6 @@ namespace AvoGUI
 		bool m_areMouseEventsEnabled;
 		float m_cornerRadius;
 		Cursor m_cursor;
-		void* m_userData;
 
 		//------------------------------
 
@@ -3101,7 +3100,7 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 			Sets the cursor that will by default be shown when the mouse enters the view.
-			The default implementation of handleBackgroundMouseEnter sets the cursor to this one, and you can override this behaviour.
+			The default implementation of handleMouseBackgroundEnter sets the cursor to this one, and you can override this behaviour.
 		*/
 		void setCursor(Cursor p_cursor)
 		{
@@ -5094,26 +5093,6 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Sets some arbitrary data you can use yourself to keep track of the view or something.
-			The view doesn't (by default) fiddle with this pointer or the memory it points to, it's your responsibility to manage it.
-		*/
-		void setUserData(void* p_userData)
-		{
-			m_userData = p_userData;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Returns your data that you for some reason wanted to associate with this view.
-		*/
-		void* getUserData()
-		{
-			return m_userData;
-		}
-
-		//------------------------------
-
-		/*
-			LIBRARY IMPLEMENTED
 			Queues an animation update for the next frame.
 		*/
 		void queueAnimationUpdate();
@@ -5209,13 +5188,13 @@ namespace AvoGUI
 			By default, this changes the mouse cursor to the cursor that is set with setCursor on the view.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleBackgroundMouseEnter(const MouseEvent& p_event);
+		virtual void handleMouseBackgroundEnter(const MouseEvent& p_event);
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse pointer has left any part of the view that is not occupied by children of this view.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleBackgroundMouseLeave(const MouseEvent& p_event) { }
+		virtual void handleMouseBackgroundLeave(const MouseEvent& p_event) { }
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse pointer has entered the bounds of the view.
@@ -7663,8 +7642,8 @@ namespace AvoGUI
 
 		void handleMouseDown(const MouseEvent& p_event) override;
 		void handleMouseUp(const MouseEvent& p_event) override;
-		void handleBackgroundMouseEnter(const MouseEvent& p_event) override;
-		void handleBackgroundMouseLeave(const MouseEvent& p_event) override;
+		void handleMouseBackgroundEnter(const MouseEvent& p_event) override;
+		void handleMouseBackgroundLeave(const MouseEvent& p_event) override;
 
 		void updateAnimations() override;
 
@@ -7815,7 +7794,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void handleBackgroundMouseEnter(const MouseEvent& p_event) override 
+		void handleMouseBackgroundEnter(const MouseEvent& p_event) override 
 		{ 
 			if (m_tooltipString != "")
 			{
@@ -7826,7 +7805,7 @@ namespace AvoGUI
 		{
 			m_isMouseHovering = true;
 		}
-		void handleBackgroundMouseLeave(const MouseEvent& p_event) override
+		void handleMouseBackgroundLeave(const MouseEvent& p_event) override
 		{
 			if (m_tooltipString != "")
 			{
@@ -8845,7 +8824,7 @@ namespace AvoGUI
 		}
 		void handleMouseEnter(const MouseEvent& p_event) override
 		{
-			View::handleBackgroundMouseEnter(p_event);
+			View::handleMouseBackgroundEnter(p_event);
 			m_isMouseHovering = true;
 			queueAnimationUpdate();
 		}
