@@ -45,9 +45,10 @@ class MyApplication : public AvoGUI::GUI
   }
   
   // Other event listeners that you can override in your GUI are: handleMouseUp, handleDoubleClick, 
-  // handleMouseMove, handleMouseScroll, handleMouseEnter, handleMouseLeave, handleCharacterInput, 
-  // handleKeyboardKeyDown and handleKeyboardKeyUp - as well as the global versions of mouse events. 
-  // Mouse events and keyboard events are explained more later in this readme.
+  // handleMouseMove, handleMouseScroll, handleMouseEnter, handleMouseLeave, handleMouseBackgroundEnter,
+  // handleMouseBackgroundLeave, handleCharacterInput, handleKeyboardKeyDown and handleKeyboardKeyUp - 
+  // as well as the global versions of mouse events. Mouse events and keyboard events are explained more 
+  // later in this readme.
 
   //------------------------------
   
@@ -142,7 +143,8 @@ class MyView : public AvoGUI::View
   }
   
   // Other mouse events that you can override by default in your view are: handleMouseUp, handleDoubleClick, 
-  // handleMouseMove, handleMouseScroll, handleMouseLeave and handleMouseEnter
+  // handleMouseMove, handleMouseScroll, handleMouseLeave, handleMouseEnter, handleMouseBackgroundLeave and
+  // handleMouseBackgroundEnter.
   
   //------------------------------
   
