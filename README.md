@@ -30,19 +30,18 @@ class MyApplication : public AvoGUI::GUI
   void handleMouseDown(const AvoGUI::MouseEvent& p_event) override
   {
     // If you want to react to mouse down events from your GUI, you can do it here.
-    // This is called from handleGlobalMouseDown, which is a method that sends the event down to all 
-    // targeted views. The mouse coordinates in the event are relative to the top-left corner of the 
-    // GUI. Note that only mouse events that are targeted at the GUI and haven't been absorbed by 
-    // children are received here. This method is inherited from AvoGUI::View.
+    // This is called from handleGlobalMouseDown, which is explained below. 
+    // The mouse coordinates in the event are relative to the top-left corner of the GUI. 
+    // This method is inherited from AvoGUI::View.
   }
   void handleGlobalMouseDown(const AvoGUI::MouseEvent& p_event) override
   {
-    // Every single mouse down event that the window recieves from the OS is sent here.
-    // It can be a good idea to call the default GUI implementation like this:
-    GUI::handleGlobalMouseDown(p_event); // Since it sends the event to children and global listeners.
-
-    // Note that this method is called to the GUI directly from the window no matter what, so don't 
-    // call addGlobalMouseEventListener() with a GUI as the parameter...
+    // This method sends a mouse down event to all targeted children.
+    // You could override this if you'd want your own algorithm for targeting the mouse events.
+    // The most complicated method is handleGlobalMouseMove(), which sends enter, leave and move events.
+    // Note that this method is called to the GUI directly from the window no matter what, so don't call 
+    // addGlobalMouseEventListener() with a GUI as the parameter...
+    // This method is inherited from AvoGUI::GlobalMouseEventListener.
   }
   
   // Other event listeners that you can override in your GUI are: handleMouseUp, handleDoubleClick, 
@@ -56,13 +55,13 @@ class MyApplication : public AvoGUI::GUI
   {
     // Here you can create your views, set up your theme and initialize other things. The purpose of having
     // this method is that resources like the window connected to the GUI and the drawing context used
-    // for example to create text are created and can be used. This method has no default implementation.
+    // for example to create text have been created and can be used. This method has no default implementation.
   }
   void handleSizeChange() override
   {
-    // This is called when the GUI has changed size due to window resizing. This method has no 
-    // default implementation. Note that this method belongs to the View class (which AvoGUI::GUI 
-    // inherits) and can be implemented on any view.
+    // This is called when the GUI has changed size due to window resizing. This method has no default 
+    // implementation. Note that this method belongs to the View class (which AvoGUI::GUI inherits) and can 
+    // be implemented on any view.
   }
   
   //------------------------------
@@ -96,7 +95,7 @@ class MyApplication : public AvoGUI::GUI
 First of all, what exactly is a view? A view is a rectangle that can draw itself, and is used to create components and build up the GUI. 
 
 If you want your view to react to keyboard events let it inherit AvoGUI::KeyboardEventListener, override the keyboard event handler methods you want to use and then call getGUI()->setKeyboardFocus(view) when you want your view to be the target of keyboard events. If you want your view to respond to all keyboard events independent of being the keyboard focus, call getGUI()->addGlobalKeyboardEventListener(view). 
-To respond to mouse events you first need to call enableMouseEvents() and then override the mouse event listener methods (which all views have). To add global mouse event listeners you let the view inherit GlobalMouseEventListener and then call getGUI()->addGlobalMouseEventListener(view). 
+To respond to mouse events you first need to call enableMouseEvents() and then override the mouse event listener methods (which are defined in all views). To add global mouse event listeners you let the view inherit GlobalMouseEventListener and then call getGUI()->addGlobalMouseEventListener(view). 
 Look at the documentation in AvoGUI.hpp for more information about all of this. 
 
 This is the structure of a custom View class. Every method that can be overridden by your view (assuming it only inherits AvoGUI::View) is shown here. 
@@ -154,6 +153,7 @@ class MyView : public AvoGUI::View
     // Do NOT call this method directly, instead call invalidate() or getGUI()->invalidateRect(...) to 
     // tell the system that a portion of the GUI has been updated and wants to be redrawn. Note that 
     // invalidate() cleans up if the view has been moved, by also invalidating the last rectangle.
+    // invalidateRect(...) only makes sure a region will be updated.
   }
   void draw(AvoGUI::DrawingContext* p_drawingContext, const AvoGUI::Rectangle<float>& p_targetRectangle) override
   {
