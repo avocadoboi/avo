@@ -129,7 +129,7 @@ namespace AvoGUI
 
 	View::View(View* p_parent, const Rectangle<float>& p_bounds) :
 		ProtectedRectangle(p_bounds), m_isInAnimationUpdateQueue(false), m_isVisible(true), m_isOverlay(false),
-		m_areMouseEventsEnabled(false), m_cornerRadius(0.f), m_cursor(Cursor::Arrow), m_userData(0),
+		m_areMouseEventsEnabled(false), m_cornerRadius(0.f), m_cursor(Cursor::Arrow), 
 		m_shadowBounds(p_bounds), m_shadowImage(0), m_hasShadow(true), m_elevation(0.f), m_hasSizeChangedSinceLastElevationChange(true),
 		m_parent(0)
 	{
@@ -510,7 +510,7 @@ namespace AvoGUI
 		m_areMouseEventsEnabled = false;
 	}
 
-	void View::handleBackgroundMouseEnter(const MouseEvent& p_event)
+	void View::handleMouseBackgroundEnter(const MouseEvent& p_event)
 	{
 		getGUI()->getWindow()->setCursor(m_cursor);
 	}
@@ -876,7 +876,7 @@ namespace AvoGUI
 		WindowsWindow(GUI* p_GUI) :
 			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0), 
 			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
-			m_state(WindowState::Restored), m_isMouseOutsideWindow(true), m_cursorHandle(0)
+			m_state(WindowState::Restored), m_isMouseOutsideWindow(true), m_mousePosition(-1, -1), m_cursorHandle(0)
 		{
 			m_cursorType = (Cursor)-1;
 			setCursor(Cursor::Arrow);
@@ -884,7 +884,7 @@ namespace AvoGUI
 		WindowsWindow(GUI* p_GUI, const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) :
 			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0),
 			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
-			m_state(WindowState::Restored), m_isMouseOutsideWindow(true), m_cursorHandle(0)
+			m_state(WindowState::Restored), m_isMouseOutsideWindow(true), m_mousePosition(-1, -1), m_cursorHandle(0)
 		{
 			m_GUI = p_GUI;
 			m_isFullscreen = false;
@@ -1951,6 +1951,11 @@ namespace AvoGUI
 				int32_t x = GET_X_LPARAM(p_data_b);
 				int32_t y = GET_Y_LPARAM(p_data_b);
 
+				if ((x == m_mousePosition.x && y == m_mousePosition.y) || x < 0 || y < 0 || x >= getWidth() || y >= getHeight())
+				{
+					return 0;
+				}
+
 				MouseEvent mouseEvent;
 				mouseEvent.x = x;
 				mouseEvent.y = y;
@@ -1963,10 +1968,6 @@ namespace AvoGUI
 
 				m_GUI->excludeAnimationThread();
 				m_GUI->handleGlobalMouseMove(mouseEvent);
-				if (m_isMouseOutsideWindow)
-				{
-					m_GUI->handleMouseEnter(mouseEvent);
-				}
 				m_GUI->includeAnimationThread();
 
 				if (m_isMouseOutsideWindow)
@@ -2000,7 +2001,6 @@ namespace AvoGUI
 					mouseEvent.movementY = mousePosition.y - m_mousePosition.y;
 					m_GUI->excludeAnimationThread();
 					m_GUI->handleGlobalMouseMove(mouseEvent);
-					m_GUI->handleMouseLeave(mouseEvent);
 					m_GUI->includeAnimationThread();
 
 					m_mousePosition.x = mousePosition.x;
@@ -4859,7 +4859,14 @@ namespace AvoGUI
 
 	void GUI::getTopMouseListenersAt(const Point<float>& p_coordinates, std::vector<View*>& p_result)
 	{
-		p_result = { this };
+		if (getAreMouseEventsEnabled())
+		{
+			p_result = { this };
+		}
+		else
+		{
+			p_result = { };
+		}
 		p_result.reserve(10);
 
 		View* container = this;
@@ -5188,12 +5195,15 @@ namespace AvoGUI
 				view->handleMouseUp(event);
 			}
 
-			event.mouseButton = MouseButton::None;
-			event.x = p_event.x;
-			event.y = p_event.y;
-			event.movementX = event.x - m_mouseDownPosition.x;
-			event.movementY = event.y - m_mouseDownPosition.y;
-			handleGlobalMouseMove(event); // This is so that any views that the mouse has entered while pressed get their events.
+			if (p_event.x != m_mouseDownPosition.x || p_event.y != m_mouseDownPosition.y)
+			{
+				event.mouseButton = MouseButton::None;
+				event.x = p_event.x;
+				event.y = p_event.y;
+				event.movementX = event.x - m_mouseDownPosition.x;
+				event.movementY = event.y - m_mouseDownPosition.y;
+				handleGlobalMouseMove(event); // This is so that any views that the mouse has entered while pressed get their events.
+			}
 		}
 
 		if (m_globalMouseEventListeners.size())
@@ -5250,13 +5260,30 @@ namespace AvoGUI
 			View* container = this;
 			int32_t startIndex = getNumberOfChildren() - 1;
 
-			bool isContainerMouseEnterLeaveView = false;
+			bool isLastPositionInsideGUI = getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY);
+			bool isNewPositionInsideGUI = getIsContaining(p_event.x, p_event.y);
+
+			bool isContainerMouseEnterLeaveView = !isLastPositionInsideGUI;
 			bool hasFoundViewContainingNewPosition = false;
 			bool hasFoundViewContainingOldPosition = false;
 
 			MouseEvent mouseEvent = p_event;
 
-			handleMouseMove(p_event);
+			if (getAreMouseEventsEnabled())
+			{
+				if (!isLastPositionInsideGUI)
+				{
+					handleMouseEnter(p_event);
+				}
+				else if (!isNewPositionInsideGUI)
+				{
+					handleMouseLeave(p_event);
+				}
+				else
+				{
+					handleMouseMove(p_event);
+				}
+			}
 
 			// Mouse enter and move events
 
@@ -5282,14 +5309,14 @@ namespace AvoGUI
 							mouseEvent.x = p_event.x - child->getAbsoluteLeft();
 							mouseEvent.y = p_event.y - child->getAbsoluteTop();
 						}
-						if (isContainerMouseEnterLeaveView || !child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+						if (hasFoundViewContainingOldPosition || isContainerMouseEnterLeaveView || !child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
 						{
 							if (areEventsEnabled)
 							{
 								child->handleMouseEnter(mouseEvent);
 								if (!hasChildren)
 								{
-									child->handleBackgroundMouseEnter(mouseEvent);
+									child->handleMouseBackgroundEnter(mouseEvent);
 								}
 							}
 							if (hasChildren)
@@ -5335,7 +5362,7 @@ namespace AvoGUI
 				{
 					mouseEvent.x = p_event.x - container->getAbsoluteLeft();
 					mouseEvent.y = p_event.y - container->getAbsoluteTop();
-					container->handleBackgroundMouseEnter(mouseEvent);
+					container->handleMouseBackgroundEnter(mouseEvent);
 				}
 
 				if (!container->getIsOverlay() || container == this)
@@ -5365,7 +5392,7 @@ namespace AvoGUI
 
 			container = this;
 			startIndex = getNumberOfChildren() - 1;
-			isContainerMouseEnterLeaveView = !getIsContaining(p_event.x, p_event.y);
+			isContainerMouseEnterLeaveView = !isNewPositionInsideGUI;
 			hasFoundViewContainingNewPosition = false;
 			hasFoundViewContainingOldPosition = false;
 
@@ -5386,7 +5413,7 @@ namespace AvoGUI
 						bool hasChildren = child->getNumberOfChildren();
 						bool areEventsEnabled = child->getAreMouseEventsEnabled();
 
-						if (isContainerMouseEnterLeaveView || !child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
+						if (hasFoundViewContainingNewPosition || isContainerMouseEnterLeaveView || !child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
 						{
 							if (areEventsEnabled)
 							{
@@ -5395,7 +5422,7 @@ namespace AvoGUI
 								child->handleMouseLeave(mouseEvent);
 								if (!hasChildren)
 								{
-									child->handleBackgroundMouseLeave(mouseEvent);
+									child->handleMouseBackgroundLeave(mouseEvent);
 								}
 							}
 							if (hasChildren)
@@ -5437,7 +5464,7 @@ namespace AvoGUI
 				{
 					mouseEvent.x = p_event.x - container->getAbsoluteLeft();
 					mouseEvent.y = p_event.y - container->getAbsoluteTop();
-					container->handleBackgroundMouseLeave(mouseEvent);
+					container->handleMouseBackgroundLeave(mouseEvent);
 				}
 
 				if (!container->getIsOverlay() || container == this)
@@ -5895,7 +5922,7 @@ namespace AvoGUI
 			queueAnimationUpdate();
 		}
 	}
-	void Ripple::handleBackgroundMouseEnter(const MouseEvent& p_event)
+	void Ripple::handleMouseBackgroundEnter(const MouseEvent& p_event)
 	{
 		if (m_isEnabled)
 		{
@@ -5904,7 +5931,7 @@ namespace AvoGUI
 			queueAnimationUpdate();
 		}
 	}
-	void Ripple::handleBackgroundMouseLeave(const MouseEvent& p_event)
+	void Ripple::handleMouseBackgroundLeave(const MouseEvent& p_event)
 	{
 		if (m_isMouseHovering)
 		{
