@@ -55,6 +55,11 @@
 
 namespace AvoGUI
 {
+	double const E =		2.71828182845904523;
+	double const HALFPI =	1.57079632679489661;
+	double const PI =		3.14159265358979323;
+	double const TAU =		6.28318530717958647;
+
 	/*
 		Returns the square root of a float using a fast but less accurate algorithm.
 	*/
@@ -6130,11 +6135,27 @@ namespace AvoGUI
 		/*
 			Sets the size of the bounding box to fit the text.
 		*/
-		virtual void minimizeSize() = 0;
+		virtual void fitBoundsToText() = 0;
+		/*
+			Sets the width of the bounding box to fit the text.
+		*/
+		virtual void fitWidthToText() = 0;
+		/*
+			Sets the height of the bounding box to fit the text.
+		*/
+		virtual void fitHeightToText() = 0;
 		/*
 			Returns the smallest size to contain the actual text.
 		*/
 		virtual Point<float> getMinimumSize() = 0;
+		/*
+			Returns the smallest width to contain the actual text.
+		*/
+		virtual float getMinimumWidth() = 0;
+		/*
+			Returns the smallest height to contain the actual text.
+		*/
+		virtual float getMinimumHeight() = 0;
 
 		//------------------------------
 
@@ -7511,7 +7532,7 @@ namespace AvoGUI
 			{
 				if (m_timeSinceShow > 6U)
 				{
-					m_opacity = m_theme->easings["out"].easeValue(m_opacityAnimationTime);
+					m_opacity = getThemeEasing("out").easeValue(m_opacityAnimationTime);
 					if (m_opacity < 1.f)
 					{
 						m_opacityAnimationTime = min(m_opacityAnimationTime + 0.08f, 1.f);
@@ -7526,7 +7547,7 @@ namespace AvoGUI
 			}
 			else
 			{
-				m_opacity = m_theme->easings["in out"].easeValue(m_opacityAnimationTime);
+				m_opacity = getThemeEasing("in out").easeValue(m_opacityAnimationTime);
 				if (m_opacity > 0.f)
 				{
 					m_opacityAnimationTime = max(m_opacityAnimationTime - 0.2f, 0.f);
@@ -7737,13 +7758,13 @@ namespace AvoGUI
 			m_isAccent = p_isAccent;
 			if (m_emphasis == Emphasis::High)
 			{
-				m_currentColor = m_isAccent ? m_theme->colors["secondary"] : m_theme->colors["primary"];
-				m_ripple->setColor(Color(m_isAccent ? m_theme->colors["on secondary"] : m_theme->colors["on primary"], 0.3f));
+				m_currentColor = m_isAccent ? getThemeColor("secondary") : getThemeColor("primary");
+				m_ripple->setColor(Color(m_isAccent ? getThemeColor("on secondary") : getThemeColor("on primary"), 0.3f));
 			}
 			else
 			{
-				m_currentColor = m_isAccent ? m_theme->colors["secondary on background"] : m_theme->colors["primary on background"];
-				m_ripple->setColor(Color(m_isAccent ? m_theme->colors["secondary on background"] : m_theme->colors["primary on background"], 0.3f));
+				m_currentColor = m_isAccent ? getThemeColor("secondary on background") : getThemeColor("primary on background");
+				m_ripple->setColor(Color(m_isAccent ? getThemeColor("secondary on background") : getThemeColor("primary on background"), 0.3f));
 			}
 		}
 		/*
@@ -7845,10 +7866,26 @@ namespace AvoGUI
 		*/
 		virtual void handleEditableTextFocusLose(EditableText* p_editableText) { }
 		/*
-			USER IMPLEMENTED
-			Gets called when the text of an EditableText view has been changed, either by the user or programmatically.
+			LIBRARY IMPLEMENTED (only default behavior)
+			Gets called when the text of an EditableText view is about to be changed, either by the user or programmatically.
+			All listeners of p_editableText need to return true for the string to be changed.
+			This is a simpler version of the handler, without p_newString and p_newCaretIndex and is called by the default implementation of the other overload.
+			The default implementation of this method only returns true.
 		*/
-		virtual void handleEditableTextChange(EditableText* p_editableText) { }
+		virtual bool handleEditableTextChange(EditableText* p_editableText) { return true; }
+		/*
+			LIBRARY IMPLEMENTED (only default behavior)
+			Gets called when the text of an EditableText view is about to be changed, either by the user or programmatically.
+			p_newString is the string that will be set if all listeners return true from this handler. Otherwise, the string is left unchanged.
+			p_newString can be modified, and the contents of the string after all listeners have handled the event is what will be set as the new text.
+			p_newCaretIndex works in a similar way, and it is the index of the cursor showing where new user input is inserted. 
+			This index can be equal to the size of the new string, and in that case the cursor ends up at the end of the text.
+			The default implementation of this method calls the simpler version that only takes the p_editableText parameter.
+		*/
+		virtual bool handleEditableTextChange(EditableText* p_editableText, std::string& p_newString, int32_t& p_newCaretIndex) 
+		{ 
+			return handleEditableTextChange(p_editableText); 
+		}
 	};
 
 	/*
@@ -7860,6 +7897,7 @@ namespace AvoGUI
 		Text* m_text;
 		float m_textDrawingOffsetX;
 		float m_fontSize;
+		TextAlign m_textAlign;
 
 		uint32_t m_caretIndex;
 		Point<float> m_caretPosition;
@@ -7890,16 +7928,34 @@ namespace AvoGUI
 			{
 				m_textDrawingOffsetX = -m_caretPosition.x;
 			}
-			if (m_text->getRight() > getWidth())
+
+			if (m_textAlign == TextAlign::Left)
 			{
-				if (m_text->getRight() + m_textDrawingOffsetX < getWidth())
+				if (m_text->getMinimumWidth() > getWidth())
 				{
-					m_textDrawingOffsetX = getWidth() - m_text->getRight();
+					if (m_text->getMinimumWidth() + m_textDrawingOffsetX < getWidth())
+					{
+						m_textDrawingOffsetX = getWidth() - m_text->getMinimumWidth();
+					}
+				}
+				else
+				{
+					m_textDrawingOffsetX = 0.f;
 				}
 			}
-			else
+			else if (m_textAlign == TextAlign::Right)
 			{
-				m_textDrawingOffsetX = 0.f;
+				if (m_text->getMinimumWidth() > getWidth())
+				{
+					if (getWidth() - m_text->getMinimumWidth() + m_textDrawingOffsetX > 0.f)
+					{
+						m_textDrawingOffsetX = m_text->getMinimumWidth() - getWidth();
+					}
+				}
+				else
+				{
+					m_textDrawingOffsetX = 0;
+				}
 			}
 		}
 		void updateSelectionEndTracking()
@@ -7922,15 +7978,15 @@ namespace AvoGUI
 				if (m_text)
 				{
 					m_text->setFontFamily(p_newFontFamily);
-					m_text->minimizeSize();
+					m_text->fitBoundsToText();
 				}
 			}
 		}
 
 	public:
 		EditableText(View* p_parent, float p_width = 0.f, float p_fontSize = 12.f) :
-			View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*1.2f)), 
-			m_text(0), m_textDrawingOffsetX(0.f), m_fontSize(p_fontSize), 
+			View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*1.2f + 3.f)), 
+			m_text(0), m_textDrawingOffsetX(0.f), m_fontSize(p_fontSize), m_textAlign(TextAlign::Left),
 			m_caretIndex(0), m_isCaretVisible(false), m_caretFrameCount(0), 
 			m_selectionEndIndex(0), m_isSelectingWithMouse(false), m_isSelectionVisible(false)
 		{
@@ -8021,15 +8077,7 @@ namespace AvoGUI
 				}
 				else
 				{
-					if (m_text->getString().size())
-					{
-						m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_caretIndex, &m_caretPosition, true);
-					}
-					else
-					{
-						m_caretPosition.x = 0;
-						m_caretPosition.y = 0;
-					}
+					m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_caretIndex, &m_caretPosition, true);
 					updateCaretTracking();
 
 					m_isCaretVisible = true;
@@ -8037,6 +8085,10 @@ namespace AvoGUI
 					m_isSelectingWithMouse = true;
 					m_isSelectionVisible = false;
 				}
+			}
+			else
+			{
+				setString("");
 			}
 
 			invalidate();
@@ -8046,7 +8098,7 @@ namespace AvoGUI
 		{
 			if (m_isSelectingWithMouse)
 			{
-				m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_selectionEndIndex, &m_selectionEndPosition, true);
+				m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, 0, &m_selectionEndIndex, &m_selectionEndPosition, true);
 				updateSelectionEndTracking();
 				m_isSelectionVisible = m_selectionEndIndex != m_caretIndex;
 				m_isCaretVisible = true;
@@ -8105,10 +8157,10 @@ namespace AvoGUI
 				}
 
 				string.insert(m_caretIndex, 1U, p_event.character);
-				setString(string.c_str());
 
 				m_caretIndex++;
-				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+				setString(string.c_str());
+
 				updateCaretTracking();
 
 				m_caretFrameCount = 1;
@@ -8119,10 +8171,6 @@ namespace AvoGUI
 		}
 		void handleKeyboardKeyDown(const KeyboardEvent& p_event) override
 		{
-			if (!m_text)
-			{
-				return;
-			}
 			Window* window = getGUI()->getWindow();
 			if (m_isSelectionVisible && (p_event.key == KeyboardKey::Backspace || p_event.key == KeyboardKey::Delete) && m_caretIndex != m_selectionEndIndex)
 			{
@@ -8130,23 +8178,45 @@ namespace AvoGUI
 				if (m_caretIndex <= m_selectionEndIndex)
 				{
 					string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
+					if (m_textAlign == TextAlign::Right)
+					{
+						m_caretPosition = m_selectionEndPosition;
+					}
+					m_isSelectionVisible = false;
+					setString(string);
+					updateCaretTracking();
 				}
 				else
 				{
 					string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
 					m_caretIndex = m_selectionEndIndex;
-					m_caretPosition = m_selectionEndPosition;
+					if (m_textAlign == TextAlign::Left)
+					{
+						m_caretPosition = m_selectionEndPosition;
+					}
+					m_isSelectionVisible = false;
+					setString(string);
 					updateCaretTracking();
 				}
-				setString(string);
+				if (m_textAlign == TextAlign::Center)
+				{
+					m_caretPosition = m_text->getCharacterPosition(m_caretIndex);
+					updateCaretTracking();
+				}
 
 				m_caretFrameCount = 1;
 				m_isCaretVisible = true;
+				invalidate();
+				return;
 			}
 			switch (p_event.key)
 			{
 			case KeyboardKey::Backspace:
 			{
+				if (!m_text)
+				{
+					return;
+				}
 				if (!m_isSelectionVisible && m_caretIndex > 0)
 				{
 					if (window->getIsKeyDown(KeyboardKey::Control))
@@ -8159,20 +8229,24 @@ namespace AvoGUI
 								string.erase(a, (int32_t)m_caretIndex - a);
 								setString(string);
 								m_caretIndex = a;
-								m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-								updateCaretTracking();
+								if (m_text && m_textAlign != TextAlign::Right)
+								{
+									m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+									updateCaretTracking();
+								}
 								break;
 							}
 						}
 					}
 					else
 					{
-						std::string string = m_text->getString();
 						m_caretIndex--;
-						string.erase(m_caretIndex, 1);
-						setString(string);
-						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-						updateCaretTracking();
+						setString(std::string(m_text->getString()).erase(m_caretIndex, 1));
+						if (m_text && m_textAlign != TextAlign::Right)
+						{
+							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+							updateCaretTracking();
+						}
 					}
 				}
 				m_caretFrameCount = 1;
@@ -8182,6 +8256,10 @@ namespace AvoGUI
 			}
 			case KeyboardKey::Delete:
 			{
+				if (!m_text)
+				{
+					return;
+				}
 				if (!m_isSelectionVisible && m_caretIndex < m_text->getString().size())
 				{
 					if (window->getIsKeyDown(KeyboardKey::Control))
@@ -8193,6 +8271,11 @@ namespace AvoGUI
 							{
 								string.erase(m_caretIndex, a - (int32_t)m_caretIndex + 1);
 								setString(string);
+								if (m_text && m_textAlign != TextAlign::Left)
+								{
+									m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+									updateCaretTracking();
+								}
 								break;
 							}
 						}
@@ -8200,6 +8283,11 @@ namespace AvoGUI
 					else
 					{
 						setString(std::string(m_text->getString()).erase(m_caretIndex, 1));
+						if (m_text && m_textAlign != TextAlign::Left)
+						{
+							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+							updateCaretTracking();
+						}
 					}
 				}
 				m_caretFrameCount = 1;
@@ -8209,6 +8297,10 @@ namespace AvoGUI
 			}
 			case KeyboardKey::Left:
 			{
+				if (!m_text)
+				{
+					return;
+				}
 				if (window->getIsKeyDown(KeyboardKey::Control))
 				{
 					std::string string = m_text->getString();
@@ -8301,6 +8393,10 @@ namespace AvoGUI
 			}
 			case KeyboardKey::Right:
 			{
+				if (!m_text)
+				{
+					return;
+				}
 				if (window->getIsKeyDown(KeyboardKey::Control))
 				{
 					std::string string = m_text->getString();
@@ -8393,6 +8489,10 @@ namespace AvoGUI
 			}
 			case KeyboardKey::C:
 			{
+				if (!m_text)
+				{
+					return;
+				}
 				if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
 				{
 					if (m_caretIndex < m_selectionEndIndex)
@@ -8408,6 +8508,10 @@ namespace AvoGUI
 			}
 			case KeyboardKey::X:
 			{
+				if (!m_text)
+				{
+					return;
+				}
 				if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
 				{
 					std::string string(m_text->getString());
@@ -8436,7 +8540,7 @@ namespace AvoGUI
 			{
 				if (window->getIsKeyDown(KeyboardKey::Control))
 				{
-					std::string string(m_text->getString());
+					std::string string(m_text ? m_text->getString() : "");
 					if (m_isSelectionVisible)
 					{
 						if (m_caretIndex < m_selectionEndIndex)
@@ -8452,11 +8556,9 @@ namespace AvoGUI
 					}
 					std::string clipboardString = window->getClipboardString();
 					string.insert(m_caretIndex, clipboardString);
-					setString(string);
-
 					m_caretIndex += clipboardString.size();
-					m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-					updateCaretTracking();
+					setString(string);
+					
 					m_caretFrameCount = 1;
 					m_isCaretVisible = true;
 				}
@@ -8464,6 +8566,10 @@ namespace AvoGUI
 			}
 			case KeyboardKey::A:
 			{
+				if (!m_text)
+				{
+					return;
+				}
 				uint32_t stringLength = m_text->getString().size();
 				if (window->getIsKeyDown(KeyboardKey::Control) && stringLength)
 				{
@@ -8488,39 +8594,83 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/*
+			Changes the content of the editable text.
+		*/
 		void setString(const char* p_string)
 		{
+			if (m_text && m_text->getString() == p_string)
+			{
+				return;
+			}
+			std::string newString = p_string;
+			int32_t newCaretIndex = m_caretIndex;
+			if (newString.size())
+			{
+				for (auto listener : m_listeners)
+				{
+					if (!listener->handleEditableTextChange(this, newString, newCaretIndex))
+					{
+						return;
+					}
+				}
+			}
 			if (m_text)
 			{
-				if (m_text->getString() == p_string)
-				{
-					return;
-				}
 				m_text->forget();
-				m_text = 0;
 			}
-			if (p_string == "")
+			if (!newString.size())
 			{
+				m_text = 0;
 				m_caretIndex = 0;
-				m_caretPosition.x = 0;
 				m_caretPosition.y = 0;
+				if (m_textAlign == TextAlign::Left)
+				{
+					m_caretPosition.x = 0;
+				}
+				else if (m_textAlign == TextAlign::Right)
+				{
+					m_caretPosition.x = getWidth();
+				}
+				else if (m_textAlign == TextAlign::Center)
+				{
+					m_caretPosition.x = getWidth() * 0.5f;
+				}
 				m_textDrawingOffsetX = 0.f;
 				m_isSelectionVisible = false;
 				return;
 			}
 
-			m_text = getGUI()->getDrawingContext()->createText(p_string, m_fontSize);
+			m_text = getGUI()->getDrawingContext()->createText(newString.c_str(), m_fontSize);
 			m_text->setTop(3.f);
-			m_text->setFontFamily(m_theme->fontFamilies["main"]);
+			m_text->setFontFamily(getThemeFontFamily("main"));
 			m_text->setFontWeight(FontWeight::Regular);
-			m_text->minimizeSize();
-			setHeight(m_text->getHeight() + 3.f);
 
-			if (m_caretIndex > (uint32_t)m_text->getString().size())
+			m_text->fitHeightToText();
+
+			m_text->setWidth(getWidth());
+			m_text->setTextAlign(m_textAlign);
+
+			if (newCaretIndex > (int32_t)m_text->getString().size()) // The size of the string has changed OR the caret index has changed
 			{
 				m_caretIndex = (uint32_t)m_text->getString().size();
 				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+				updateCaretTracking();
 			}
+			else if (newCaretIndex != m_caretIndex) // Only the caret index has changed for the following to happen
+			{
+				if (newCaretIndex < 0)
+				{
+					m_caretIndex = 0;
+				}
+				else
+				{
+					m_caretIndex = newCaretIndex;
+				}
+				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+				updateCaretTracking();
+			}
+
 			if (m_isSelectionVisible)
 			{
 				if (m_selectionEndIndex > (uint32_t)m_text->getString().size())
@@ -8536,16 +8686,17 @@ namespace AvoGUI
 					}
 				}
 			}
-
-			for (auto listener : m_listeners)
-			{
-				listener->handleEditableTextChange(this);
-			}
 		}
+		/*
+			Sets the content of the editable text.
+		*/
 		void setString(const std::string& p_string)
 		{
 			setString(p_string.c_str());
 		}
+		/*
+			Returns the content of the editable text.
+		*/
 		const char* getString()
 		{
 			if (m_text)
@@ -8555,9 +8706,34 @@ namespace AvoGUI
 			return "";
 		}
 
+		/*
+			Returns the internal text graphics object.
+		*/
 		Text* getText()
 		{
 			return m_text;
+		}
+
+		//------------------------------
+
+		/*
+			Sets the way text is horizontally aligned within the bounds of the editable text.
+		*/
+		void setTextAlign(TextAlign p_textAlign)
+		{
+			m_textAlign = p_textAlign;
+			if (m_text)
+			{
+				m_text->setTextAlign(m_textAlign);
+				invalidate();
+			}
+		}
+		/*
+			Returns the way text is horizontally aligned within the bounds of the editable text.
+		*/
+		TextAlign getTextAlign()
+		{
+			return m_textAlign;
 		}
 
 		//------------------------------
@@ -8568,7 +8744,7 @@ namespace AvoGUI
 			if (m_text)
 			{
 				m_text->setFontSize(p_fontSize);
-				m_text->minimizeSize();
+				m_text->fitBoundsToText();
 				setHeight(m_text->getHeight() + 3.f);
 			}
 			else
@@ -8587,6 +8763,10 @@ namespace AvoGUI
 		void handleSizeChange() override
 		{
 			updateCaretTracking();
+			if (m_text)
+			{
+				m_text->setWidth(getWidth());
+			}
 		}
 
 		//------------------------------
@@ -8595,7 +8775,7 @@ namespace AvoGUI
 		{
 			if (getGUI()->getKeyboardFocus() == this)
 			{
-				if (m_caretFrameCount % (uint32_t)m_theme->values["editable text caret blink rate"] == 0 && !m_isSelectionVisible)
+				if (m_caretFrameCount % (uint32_t)getThemeValue("editable text caret blink rate") == 0 && !m_isSelectionVisible)
 				{
 					m_isCaretVisible = !m_isCaretVisible;
 					invalidate();
@@ -8610,13 +8790,13 @@ namespace AvoGUI
 			//p_context->setColor(Color(0.f));
 			//p_context->strokeRectangle(getSize(), 1.f);
 			p_context->moveOrigin(m_textDrawingOffsetX, 0.f);
-			p_context->setColor(m_theme->colors["on background"]);
+			p_context->setColor(getThemeColor("on background"));
 			if (m_text)
 			{
 				p_context->drawText(m_text);
 				if (m_isSelectionVisible)
 				{
-					p_context->setColor(m_theme->colors["selection"]);
+					p_context->setColor(getThemeColor("selection"));
 					p_context->fillRectangle(m_caretPosition.x, m_caretPosition.y - 3.f, m_selectionEndPosition.x, m_selectionEndPosition.y + m_fontSize * 1.2f);
 				}
 			}
@@ -8649,6 +8829,9 @@ namespace AvoGUI
 		float m_focusAnimationTime;
 		float m_focusAnimationValue;
 
+		Text* m_prefixText;
+		Text* m_suffixText;
+
 		bool m_isMouseHovering;
 		float m_hoverAnimationTime;
 		float m_hoverAnimationValue;
@@ -8663,7 +8846,7 @@ namespace AvoGUI
 				if (m_labelText)
 				{
 					m_labelText->setFontFamily(p_newFontFamilyName);
-					m_labelText->minimizeSize();
+					m_labelText->fitBoundsToText();
 				}
 			}
 		}
@@ -8674,37 +8857,67 @@ namespace AvoGUI
 				if (m_labelText)
 				{
 					m_labelText->setFontSize(p_newValue);
-					m_labelText->minimizeSize();
+					m_labelText->fitBoundsToText();
+				}
+				if (m_prefixText)
+				{
+					m_prefixText->setFontSize(p_newValue);
+					m_prefixText->fitBoundsToText();
+				}
+				if (m_suffixText)
+				{
+					m_suffixText->setFontSize(p_newValue);
+					m_suffixText->fitBoundsToText();
 				}
 				m_editableText->setFontSize(p_newValue);
 			}
 			if (p_name == "text field font size" || p_name == "text field height")
 			{
-				setHeight(m_theme->values["text field font size"] * 1.2f * m_theme->values["text field height"] + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
-
-				if (m_labelText)
-				{
-					if (m_type == Type::Filled)
-					{
-						m_labelText->setCenterY(getHeight() * 0.5f);
-					}
-					else
-					{
-						m_labelText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f);
-					}
-				}
-				if (m_type == Type::Filled)
-				{
-					m_editableText->setBottom(getHeight() - m_theme->values["text field filled padding bottom"]);
-				}
-				else
-				{
-					m_editableText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f);
-				}
+				// Text positions will be updated in handleSizeChange()
+				setHeight(getThemeValue("text field font size") * 1.2f * getThemeValue("text field height") + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
 			}
 			if (p_name == "text field padding left")
 			{
-				m_editableText->setLeft(p_newValue, false);
+				if (m_labelText)
+				{
+					m_labelText->setLeft(p_newValue);
+				}
+				if (m_prefixText)
+				{
+					m_prefixText->setLeft(p_newValue);
+					m_editableText->setLeft(m_prefixText->getRight() + 1.f, false);
+				}
+				else
+				{
+					m_editableText->setLeft(p_newValue, false);
+				}
+			}
+			else if (p_name == "text field padding right")
+			{
+				if (m_suffixText)
+				{
+					m_suffixText->setRight(getWidth() - p_newValue);
+					m_editableText->setRight(m_suffixText->getLeft() - 1.f, false);
+				}
+				else
+				{
+					m_editableText->setRight(getWidth() - p_newValue, false);
+				}
+			}
+			else if (p_name == "text field filled padding bottom")
+			{
+				if (m_prefixText)
+				{
+					m_prefixText->setBottom(getHeight() - p_newValue);
+				}
+				if (m_suffixText)
+				{
+					m_suffixText->setBottom(getHeight() - p_newValue);
+				}
+				if (m_editableText)
+				{
+					m_editableText->setBottom(getHeight() - p_newValue);
+				}
 			}
 		}
 
@@ -8716,16 +8929,16 @@ namespace AvoGUI
 			m_type(p_type)
 		{
 			m_bounds.right = p_width;
-			m_bounds.bottom = m_theme->values["text field font size"] * m_theme->values["text field height"] + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined);
+			m_bounds.bottom = getThemeValue("text field font size") * getThemeValue("text field height") + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined);
 
 			setLabel(p_label);
 			setCursor(Cursor::Ibeam);
 			enableMouseEvents();
 
 			m_editableText = new EditableText(this);
-			m_editableText->setFontSize(m_theme->values["text field font size"]);
-			m_editableText->setLeft(m_theme->values["text field padding left"]);
-			m_editableText->setRight(p_width - m_theme->values["text field padding right"], false);
+			m_editableText->setFontSize(getThemeValue("text field font size"));
+			m_editableText->setLeft(getThemeValue("text field padding left"));
+			m_editableText->setRight(p_width - getThemeValue("text field padding right"), false);
 			m_editableText->addEditableTextListener(this);
 
 			setString("");
@@ -8736,6 +8949,74 @@ namespace AvoGUI
 			{
 				m_labelText->forget();
 			}
+			if (m_prefixText)
+			{
+				m_prefixText->forget();
+			}
+			if (m_suffixText)
+			{
+				m_suffixText->forget();
+			}
+		}
+
+		//------------------------------
+
+		void addEditableTextListener(EditableTextListener* p_listener)
+		{
+			m_editableText->addEditableTextListener(p_listener);
+		}
+		void removeEditableTextListener(EditableTextListener* p_listener)
+		{
+			m_editableText->removeEditableTextListener(p_listener);
+		}
+
+		//------------------------------
+
+		void handleSizeChange() override
+		{
+			if (m_suffixText)
+			{
+				m_editableText->setRight(m_suffixText->getLeft() - 1.f, false);
+			}
+			else
+			{
+				m_editableText->setRight(getWidth() - getThemeValue("text field padding right"), false);
+			}
+
+			if (m_type == Type::Filled)
+			{
+				float bottom = getHeight() - getThemeValue("text field filled padding bottom");
+				if (m_labelText)
+				{
+					m_labelText->setCenterY(getHeight() * 0.5f);
+				}
+				if (m_prefixText)
+				{
+					m_prefixText->setBottom(bottom);
+				}
+				if (m_suffixText)
+				{
+					m_suffixText->setBottom(bottom);
+				}
+				m_editableText->setBottom(bottom);
+			}
+			else
+			{
+				float centerY = TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f;
+				if (m_labelText)
+				{
+					m_labelText->setCenterY(centerY);
+				}
+				if (m_prefixText)
+				{
+					m_prefixText->setCenterY(centerY);
+				}
+				if (m_suffixText)
+				{
+					m_suffixText->setCenterY(centerY);
+				}
+				m_editableText->setCenterY(centerY);
+			}
 		}
 
 		//------------------------------
@@ -8744,18 +9025,22 @@ namespace AvoGUI
 		{
 			if (m_labelText)
 			{
+				if (p_label == m_labelText->getString())
+				{
+					return;
+				}
 				m_labelText->forget();
 			}
-			if (p_label == "")
+			if (p_label[0] == 0)
 			{
 				m_labelText = 0;
 			}
 			else
 			{
-				m_labelText = getGUI()->getDrawingContext()->createText(p_label, m_theme->values["text field font size"]);
-				m_labelText->setFontFamily(m_theme->fontFamilies["main"]);
+				m_labelText = getGUI()->getDrawingContext()->createText(p_label, getThemeValue("text field font size"));
+				m_labelText->setFontFamily(getThemeFontFamily("main"));
 				m_labelText->setFontWeight(AvoGUI::FontWeight::Regular);
-				m_labelText->minimizeSize();
+				m_labelText->fitBoundsToText();
 				if (m_type == Type::Filled)
 				{
 					m_labelText->setCenterY(getHeight() * 0.5f);
@@ -8778,12 +9063,96 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void setPrefixString(const char* p_string)
+		{
+			if (m_prefixText)
+			{
+				if (m_prefixText->getString() == p_string)
+				{
+					return;
+				}
+				m_prefixText->forget();
+			}
+			if (p_string[0] == 0)
+			{
+				m_prefixText = 0;
+				return;
+			}
+			m_prefixText = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("text field font size"));
+			m_prefixText->setFontFamily(getThemeFontFamily("main"));
+			m_prefixText->setFontWeight(AvoGUI::FontWeight::Regular);
+			m_prefixText->fitBoundsToText();
+			if (m_type == Type::Filled)
+			{
+				m_prefixText->setBottom(getThemeValue("text field filled padding bottom"));
+			}
+			else
+			{
+				m_prefixText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f + 1.5f);
+			}
+			m_prefixText->setRight(getWidth() - getThemeValue("text field padding right"));
+
+			m_editableText->setLeft(m_prefixText->getRight() + 1.f, false);
+		}
+		const char* setPrefixString()
+		{
+			if (m_suffixText)
+			{
+				return m_suffixText->getString().c_str();
+			}
+			return "";
+		}
+
+		//------------------------------
+
+		void setSuffixString(const char* p_string)
+		{
+			if (m_suffixText)
+			{
+				if (m_suffixText->getString() == p_string)
+				{
+					return;
+				}
+				m_suffixText->forget();
+			}
+			if (p_string[0] == 0)
+			{
+				m_suffixText = 0;
+				return;
+			}
+			m_suffixText = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("text field font size"));
+			m_suffixText->setFontFamily(getThemeFontFamily("main"));
+			m_suffixText->setFontWeight(AvoGUI::FontWeight::Regular);
+			m_suffixText->fitBoundsToText();
+			if (m_type == Type::Filled)
+			{
+				m_suffixText->setBottom(getThemeValue("text field filled padding bottom"));
+			}
+			else
+			{
+				m_suffixText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f + 1.5f);
+			}
+			m_suffixText->setRight(getWidth() - getThemeValue("text field padding right"));
+
+			m_editableText->setRight(m_suffixText->getLeft() - 1.f, false);
+		}
+		const char* getSuffixString()
+		{
+			if (m_suffixText)
+			{
+				return m_suffixText->getString().c_str();
+			}
+			return "";
+		}
+
+		//------------------------------
+
 		void setString(const char* p_string)
 		{
 			m_editableText->setString(p_string);
 			if (m_type == Type::Filled)
 			{
-				m_editableText->setBottom(getHeight() - m_theme->values["text field filled padding bottom"]);
+				m_editableText->setBottom(getHeight() - getThemeValue("text field filled padding bottom"));
 			}
 			else if (m_type == Type::Outlined)
 			{
@@ -8797,6 +9166,17 @@ namespace AvoGUI
 		const char* getString()
 		{
 			return m_editableText->getString();
+		}
+
+		//------------------------------
+
+		void setTextAlign(TextAlign p_textAlign)
+		{
+			m_editableText->setTextAlign(p_textAlign);
+		}
+		TextAlign getTextAlign()
+		{
+			return m_editableText->getTextAlign();
 		}
 
 		//------------------------------
@@ -8840,18 +9220,12 @@ namespace AvoGUI
 		}
 		void handleEditableTextFocusGain(EditableText* p_editableText) override
 		{
-			if (m_editableText->getString()[0] == 0)
-			{
-				queueAnimationUpdate();
-			}
+			queueAnimationUpdate();
 		}
 		void handleEditableTextFocusLose(EditableText* p_editableText) override
 		{
-			if (m_editableText->getString()[0] == 0)
-			{
-				m_isMouseHovering = false;
-				queueAnimationUpdate();
-			}
+			m_isMouseHovering = false;
+			queueAnimationUpdate();
 		}
 
 		//------------------------------
@@ -8868,66 +9242,62 @@ namespace AvoGUI
 
 		void updateAnimations() override
 		{
-			if (getGUI()->getKeyboardFocus() == m_editableText || m_editableText->getString()[0] != 0)
+			if (getGUI()->getKeyboardFocus() == m_editableText)
 			{
 				if (m_focusAnimationValue < 1.f)
 				{
-					m_focusAnimationValue = m_theme->easings["in out"].easeValue(m_focusAnimationTime);
+					m_focusAnimationValue = getThemeEasing("in out").easeValue(m_focusAnimationTime);
 					m_focusAnimationTime = min(1.f, m_focusAnimationTime + 0.09f);
-					m_labelColor = interpolate(Color(0.5f), m_theme->colors["primary on background"], m_focusAnimationValue);
 					invalidate();
 					queueAnimationUpdate();
 				}
 			}
 			else if (m_focusAnimationValue > 0.f)
 			{
-				m_focusAnimationValue = 1.f - m_theme->easings["in out"].easeValue(1.f - m_focusAnimationTime);
+				m_focusAnimationValue = 1.f - getThemeEasing("in out").easeValue(1.f - m_focusAnimationTime);
 				m_focusAnimationTime = max(0.f, m_focusAnimationTime - 0.09f);
-				m_labelColor = interpolate(Color(0.4f), m_theme->colors["primary on background"], m_focusAnimationValue);
-
-				m_hoverAnimationValue = 1.f - m_theme->easings["symmetrical in out"].easeValue(1.f - m_hoverAnimationTime);
-				m_hoverAnimationTime = max(0.f, m_hoverAnimationTime - m_theme->values["hover animation speed"]);
-
 				invalidate();
 				queueAnimationUpdate();
 			}
-			else if (m_isMouseHovering)
+			if (m_isMouseHovering)
 			{
 				if (m_hoverAnimationValue < 1.f)
 				{
-					m_hoverAnimationValue = m_theme->easings["symmetrical in out"].easeValue(m_hoverAnimationTime);
-					m_hoverAnimationTime = min(1.f, m_hoverAnimationTime + m_theme->values["hover animation speed"]);
+					m_hoverAnimationValue = getThemeEasing("symmetrical in out").easeValue(m_hoverAnimationTime);
+					m_hoverAnimationTime = min(1.f, m_hoverAnimationTime + getThemeValue("hover animation speed"));
 					invalidate();
 					queueAnimationUpdate();
 				}
 			}
 			else if (m_hoverAnimationValue > 0.f)
 			{
-				m_hoverAnimationValue = 1.f - m_theme->easings["symmetrical in out"].easeValue(1.f - m_hoverAnimationTime);
-				m_hoverAnimationTime = max(0.f, m_hoverAnimationTime - m_theme->values["hover animation speed"]);
+				m_hoverAnimationValue = 1.f - getThemeEasing("symmetrical in out").easeValue(1.f - m_hoverAnimationTime);
+				m_hoverAnimationTime = max(0.f, m_hoverAnimationTime - getThemeValue("hover animation speed"));
 				invalidate();
 				queueAnimationUpdate();
 			}
+			m_labelColor = interpolate(interpolate(getThemeColor("background"), getThemeColor("on background"), (1.f - m_focusAnimationValue) * m_hoverAnimationValue * 0.3f + 0.4f), getThemeColor("primary on background"), m_focusAnimationValue);
 		}
 
 		void draw(DrawingContext* p_context) override
 		{
 			if (m_type == Type::Filled)
 			{
-				p_context->setColor(Color(m_theme->colors["on background"], 0.05f + 0.03f * m_hoverAnimationValue));
+				p_context->setColor(Color(getThemeColor("on background"), 0.05f + 0.03f * m_hoverAnimationValue));
 				p_context->fillRoundedRectangle(getSize(), 5.f);
 				p_context->fillRectangle(Rectangle<float>(0.f, getHeight() - 5.f, getWidth(), getHeight()));
-				p_context->setColor(Color(m_theme->colors["on background"], 0.4));
+				p_context->setColor(Color(getThemeColor("on background"), 0.4));
 				p_context->drawLine(0.f, getHeight() - 1.f, getWidth(), getHeight() - 0.5f, 1.f);
 				if (m_focusAnimationValue > 0.01f)
 				{
-					p_context->setColor(m_theme->colors["primary on background"]);
+					p_context->setColor(getThemeColor("primary on background"));
 					p_context->drawLine((1.f - m_focusAnimationValue) * getWidth() * 0.5f, getHeight() - 1.f, (1.f + m_focusAnimationValue) * getWidth() * 0.5f, getHeight() - 1.f, 2.f);
 				}
 				if (m_labelText)
 				{
-					float& leftPadding = m_theme->values["text field padding left"];
-					p_context->moveOrigin(leftPadding + 2.f*m_focusAnimationValue, -0.17f*(getHeight() - m_labelText->getHeight() - leftPadding) * m_focusAnimationValue);
+					float labelAnimationValue = m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f;
+					float leftPadding = getThemeValue("text field padding left");
+					p_context->moveOrigin(leftPadding + 2.f*labelAnimationValue, -0.17f*(getHeight() - m_labelText->getHeight() - leftPadding) * labelAnimationValue);
 					p_context->setScale(1.f - m_focusAnimationValue * 0.3f);
 					p_context->setColor(m_labelColor);
 					p_context->drawText(m_labelText);
@@ -8937,15 +9307,16 @@ namespace AvoGUI
 			}
 			else if (m_type == Type::Outlined)
 			{
-				p_context->setColor(interpolate(Color(m_theme->colors["on background"], m_hoverAnimationValue * 0.4f + 0.3f), m_theme->colors["primary on background"], m_focusAnimationValue));
+				p_context->setColor(m_labelColor);
 				p_context->strokeRoundedRectangle(Rectangle<float>(1.f, 1.f + TEXT_FIELD_OUTLINED_PADDING_LABEL, getWidth() - 1.f, getHeight() - 1.f), 5.f, m_focusAnimationValue + 1.f);
 
 				if (m_labelText)
 				{
-					p_context->moveOrigin(m_theme->values["text field padding left"] + 2.f * m_focusAnimationValue, -(getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.3f * m_focusAnimationValue);
-					p_context->setScale(1.f - m_focusAnimationValue * 0.3f);
+					float labelAnimationValue = m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f;
+					p_context->moveOrigin(getThemeValue("text field padding left") + 2.f * labelAnimationValue, -(getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.3f * labelAnimationValue);
+					p_context->setScale(1.f - labelAnimationValue * 0.3f);
 
-					p_context->setColor(m_theme->colors["background"]);
+					p_context->setColor(getThemeColor("background"));
 					p_context->fillRoundedRectangle(Rectangle<float>(m_labelText->getLeft() - 4.f, m_labelText->getTop(), m_labelText->getRight() + 4.f, m_labelText->getBottom()), 2.f);
 
 					p_context->setColor(m_labelColor);
@@ -8954,6 +9325,12 @@ namespace AvoGUI
 					p_context->setScale(1.f);
 					p_context->setOrigin(getAbsoluteTopLeft());
 				}
+			}
+
+			if (m_suffixText)
+			{
+				p_context->setColor(Color(getThemeColor("on background"), 0.5f/* * (m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f)*/));
+				p_context->drawText(m_suffixText);
 			}
 		}
 	};

@@ -1951,7 +1951,7 @@ namespace AvoGUI
 				int32_t x = GET_X_LPARAM(p_data_b);
 				int32_t y = GET_Y_LPARAM(p_data_b);
 
-				if ((x == m_mousePosition.x && y == m_mousePosition.y) || x < 0 || y < 0 || x >= getWidth() || y >= getHeight())
+				if ((x == m_mousePosition.x && y == m_mousePosition.y) || (GetCapture() != m_windowHandle && (x < 0 || y < 0 || x >= getWidth() || y >= getHeight())))
 				{
 					return 0;
 				}
@@ -2252,7 +2252,7 @@ namespace AvoGUI
 			if (!m_bounds.right && !m_bounds.bottom)
 			{
 				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_NO_WRAP);
-				minimizeSize();
+				fitBoundsToText();
 			}
 			else
 			{
@@ -2299,17 +2299,41 @@ namespace AvoGUI
 			return WordWrapping::Never;
 		}
 
-		void minimizeSize() override
+		void fitBoundsToText() override
 		{
 			DWRITE_TEXT_METRICS metrics;
-			HRESULT result = m_handle->GetMetrics(&metrics);
+			m_handle->GetMetrics(&metrics);
 			m_bounds.setSize(metrics.width, metrics.height);
+		}
+		void fitWidthToText() override
+		{
+			DWRITE_TEXT_METRICS metrics;
+			m_handle->GetMetrics(&metrics);
+			m_bounds.setWidth(metrics.width);
+		}
+		void fitHeightToText() override
+		{
+			DWRITE_TEXT_METRICS metrics;
+			m_handle->GetMetrics(&metrics);
+			m_bounds.setHeight(metrics.height);
 		}
 		Point<float> getMinimumSize() override
 		{
 			DWRITE_TEXT_METRICS metrics;
-			HRESULT result = m_handle->GetMetrics(&metrics);
+			m_handle->GetMetrics(&metrics);
 			return Point<float>(metrics.width, metrics.height);
+		}
+		float getMinimumWidth() override
+		{
+			DWRITE_TEXT_METRICS metrics;
+			m_handle->GetMetrics(&metrics);
+			return metrics.width;
+		}
+		float getMinimumHeight() override
+		{
+			DWRITE_TEXT_METRICS metrics;
+			m_handle->GetMetrics(&metrics);
+			return metrics.height;
 		}
 
 		//------------------------------
@@ -5827,7 +5851,7 @@ namespace AvoGUI
 					m_text->forget();
 				}
 				m_text = getGUI()->getDrawingContext()->createText(p_string, 12.f);
-				m_text->minimizeSize();
+				m_text->fitBoundsToText();
 				setSize(m_text->getWidth() + 25.f, m_text->getHeight() + 15.f);
 				m_text->setCenter(getWidth()*0.5f, getHeight()*0.5f);
 			}
@@ -6098,7 +6122,7 @@ namespace AvoGUI
 		m_text->setWordWrapping(WordWrapping::Never);
 		m_text->setCharacterSpacing(1.2f);
 		m_text->setFontWeight(FontWeight::Medium);
-		m_text->minimizeSize();
+		m_text->fitBoundsToText();
 
 		if (m_text->getWidth() >= 32.f)
 		{
