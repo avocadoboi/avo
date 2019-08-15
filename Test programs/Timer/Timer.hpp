@@ -23,7 +23,7 @@ private:
 	AvoGUI::Point<float>* m_spiralVertices;
 	uint32_t m_numberOfSpiralVerticesInTotal;
 	uint32_t m_numberOfSpiralVerticesToDraw;
-	float m_spiralAngle;
+	float m_timeLeft;
 	bool m_isDraggingSpiral;
 
 	AvoGUI::TextField* m_textField_hours;
@@ -33,7 +33,7 @@ private:
 public:
 	TimerApp() :
 		m_numberOfSpiralVerticesInTotal(0), m_numberOfSpiralVerticesToDraw(0), 
-		m_spiralAngle(0.f), m_isDraggingSpiral(false), 
+		m_timeLeft(0.f), m_isDraggingSpiral(false),
 		m_textField_hours(0), m_textField_minutes(0), m_textField_seconds(0)
 	{
 		create("The best timer that exists", 2.f*(TIMER_SPIRAL_RADIUS + TIMER_SPIRAL_PADDING), 2.f*(TIMER_SPIRAL_RADIUS + TIMER_SPIRAL_PADDING), AvoGUI::WindowStyleFlags::DefaultNoResize);

@@ -1,8 +1,9 @@
+/*
+	This little program was created to help with debugging and building the mouse event system.
+	It can also be useful for library users who want to understand the mouse event system better!
+*/
+
 #include "../AvoGUI.hpp"
-
-//------------------------------
-
-std::string lastConsoleMessage = "";
 
 //------------------------------
 
@@ -29,42 +30,32 @@ public:
 
 	void handleMouseDown(const AvoGUI::MouseEvent& p_event) override
 	{
-		lastConsoleMessage = m_name + " mouse down";
-		std::cout << lastConsoleMessage << std::endl;
+		std::cout << m_name + " mouse down" << std::endl;
 	}
 	void handleMouseUp(const AvoGUI::MouseEvent& p_event) override
 	{
-		lastConsoleMessage = m_name + " mouse up";
-		std::cout << lastConsoleMessage << std::endl;
+		std::cout << m_name + " mouse up" << std::endl;
 	}
+	// Commented out because this spams the console...
 	//void handleMouseMove(const AvoGUI::MouseEvent& p_event) override
 	//{
-	//	std::string consoleMessage = m_name + " mouse move";
-	//	if (lastConsoleMessage != consoleMessage)
-	//	{
-	//		lastConsoleMessage = consoleMessage;
-	//		std::cout << lastConsoleMessage << std::endl;
-	//	}
+	//	std::cout << m_name + "mouse move" << std::endl;
 	//}
 	void handleMouseEnter(const AvoGUI::MouseEvent& p_event) override
 	{
-		lastConsoleMessage = m_name + " mouse enter";
-		std::cout << lastConsoleMessage << std::endl;
+		std::cout << m_name + " mouse enter" << std::endl;
 	}
 	void handleMouseLeave(const AvoGUI::MouseEvent& p_event) override
 	{
-		lastConsoleMessage = m_name + " mouse leave";
-		std::cout << lastConsoleMessage << std::endl;
+		std::cout << m_name + " mouse leave" << std::endl;
 	}
 	void handleMouseBackgroundEnter(const AvoGUI::MouseEvent& p_event) override
 	{
-		lastConsoleMessage = m_name + " mouse background enter";
-		std::cout << lastConsoleMessage << std::endl;
+		std::cout << m_name + " mouse background enter" << std::endl;
 	}
 	void handleMouseBackgroundLeave(const AvoGUI::MouseEvent& p_event) override
 	{
-		lastConsoleMessage = m_name + " mouse background leave";
-		std::cout << lastConsoleMessage << "\n\n";
+		std::cout << m_name + " mouse background leave" << "\n\n";
 	}
 
 	//------------------------------
@@ -90,13 +81,11 @@ public:
 
 	void handleMouseDown(const AvoGUI::MouseEvent& p_event) override
 	{
-		lastConsoleMessage = "GUI mouse down";
-		std::cout << lastConsoleMessage << std::endl;
+		std::cout << "GUI mouse down" << std::endl;
 	}
 	void handleMouseUp(const AvoGUI::MouseEvent& p_event) override
 	{
-		lastConsoleMessage = "GUI mouse up";
-		std::cout << lastConsoleMessage << std::endl;
+		std::cout << "GUI mouse up" << std::endl;
 	}
 	void handleMouseMove(const AvoGUI::MouseEvent& p_event) override
 	{
@@ -104,23 +93,19 @@ public:
 	}
 	void handleMouseEnter(const AvoGUI::MouseEvent& p_event) override
 	{
-		lastConsoleMessage = "GUI mouse enter";
-		std::cout << lastConsoleMessage << std::endl;
+		std::cout << "GUI mouse enter" << std::endl;
 	}
 	void handleMouseLeave(const AvoGUI::MouseEvent& p_event) override
 	{
-		lastConsoleMessage = "GUI mouse leave";
-		std::cout << lastConsoleMessage << std::endl;
+		std::cout << "GUI mouse leave" << std::endl;
 	}
 	void handleMouseBackgroundEnter(const AvoGUI::MouseEvent& p_event) override
 	{
-		lastConsoleMessage = "GUI mouse background enter";
-		std::cout << lastConsoleMessage << std::endl;
+		std::cout << "GUI mouse background enter" << std::endl;
 	}
 	void handleMouseBackgroundLeave(const AvoGUI::MouseEvent& p_event) override
 	{
-		lastConsoleMessage = "GUI mouse background leave";
-		std::cout << lastConsoleMessage << "\n\n";
+		std::cout << "GUI mouse background leave" << "\n\n";
 	}
 
 	//------------------------------
@@ -148,10 +133,11 @@ public:
 		child = new MouseView(container_1, AvoGUI::Rectangle<float>(100, 100, 180, 180));
 		child->setName("Blue");
 		child->setThemeColor("background", 0xff0000ff);
-	}
 
-	void draw(AvoGUI::DrawingContext* p_context) override
-	{
+		MouseView* overlay = new MouseView(this, AvoGUI::Rectangle<float>(0, 0, getWidth(), getHeight()));
+		overlay->setName("Overlay");
+		overlay->setThemeColor("background", 0U);
+		overlay->setIsOverlay(true);
 	}
 };
 
@@ -160,6 +146,6 @@ public:
 int main()
 {
 	MouseEventsTest* application = new MouseEventsTest();
-	AvoGUI::GUI::run();
+	application->run();
 	application->forget();
 }

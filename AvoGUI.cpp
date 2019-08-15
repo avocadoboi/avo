@@ -5287,7 +5287,7 @@ namespace AvoGUI
 			bool isLastPositionInsideGUI = getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY);
 			bool isNewPositionInsideGUI = getIsContaining(p_event.x, p_event.y);
 
-			bool isContainerMouseEnterLeaveView = !isLastPositionInsideGUI;
+			bool isContainerMouseEnterView = !isLastPositionInsideGUI;
 			bool hasFoundViewContainingNewPosition = false;
 			bool hasFoundViewContainingOldPosition = false;
 
@@ -5333,7 +5333,7 @@ namespace AvoGUI
 							mouseEvent.x = p_event.x - child->getAbsoluteLeft();
 							mouseEvent.y = p_event.y - child->getAbsoluteTop();
 						}
-						if (hasFoundViewContainingOldPosition || isContainerMouseEnterLeaveView || !child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+						if (hasFoundViewContainingOldPosition || isContainerMouseEnterView || !child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
 						{
 							if (areEventsEnabled)
 							{
@@ -5345,12 +5345,15 @@ namespace AvoGUI
 							}
 							if (hasChildren)
 							{
-								isContainerMouseEnterLeaveView = true;
+								isContainerMouseEnterView = true;
 							}
 						}
 						else
 						{
-							hasFoundViewContainingOldPosition = true;
+							if (!child->getIsOverlay())
+							{
+								hasFoundViewContainingOldPosition = true;
+							}
 							if (areEventsEnabled)
 							{
 								child->handleMouseMove(mouseEvent);
@@ -5366,13 +5369,13 @@ namespace AvoGUI
 						else if (!child->getIsOverlay())
 						{
 							hasFoundViewContainingNewPosition = true;
-							if (isContainerMouseEnterLeaveView || hasFoundViewContainingOldPosition)
+							if (isContainerMouseEnterView || hasFoundViewContainingOldPosition)
 							{
 								break;
 							}
 						}
 					}
-					else if (!isContainerMouseEnterLeaveView && !hasFoundViewContainingOldPosition && child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+					else if (!isContainerMouseEnterView && !hasFoundViewContainingOldPosition && !child->getIsOverlay() && child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
 					{
 						hasFoundViewContainingOldPosition = true;
 						if (hasFoundViewContainingNewPosition)
@@ -5382,7 +5385,7 @@ namespace AvoGUI
 					}
 				}
 
-				if (container->getAreMouseEventsEnabled() && !hasFoundViewContainingNewPosition && (hasFoundViewContainingOldPosition || isContainerMouseEnterLeaveView))
+				if (container->getAreMouseEventsEnabled() && !hasFoundViewContainingNewPosition && (hasFoundViewContainingOldPosition || isContainerMouseEnterView))
 				{
 					mouseEvent.x = p_event.x - container->getAbsoluteLeft();
 					mouseEvent.y = p_event.y - container->getAbsoluteTop();
@@ -5399,16 +5402,16 @@ namespace AvoGUI
 				startIndex = container->getIndex() - 1;
 				container = container->getParent();
 
-				if (isContainerMouseEnterLeaveView && startIndex > 0)
+				if (isContainerMouseEnterView && startIndex > 0)
 				{
 					if (container->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
 					{
-						isContainerMouseEnterLeaveView = false;
+						isContainerMouseEnterView = false;
 					}
 				}
 				else
 				{
-					isContainerMouseEnterLeaveView = false;
+					isContainerMouseEnterView = false;
 				}
 			}
 
@@ -5416,7 +5419,7 @@ namespace AvoGUI
 
 			container = this;
 			startIndex = getNumberOfChildren() - 1;
-			isContainerMouseEnterLeaveView = !isNewPositionInsideGUI;
+			bool isContainerMouseLeaveView = !isNewPositionInsideGUI;
 			hasFoundViewContainingNewPosition = false;
 			hasFoundViewContainingOldPosition = false;
 
@@ -5437,7 +5440,7 @@ namespace AvoGUI
 						bool hasChildren = child->getNumberOfChildren();
 						bool areEventsEnabled = child->getAreMouseEventsEnabled();
 
-						if (hasFoundViewContainingNewPosition || isContainerMouseEnterLeaveView || !child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
+						if (hasFoundViewContainingNewPosition || isContainerMouseLeaveView || !child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
 						{
 							if (areEventsEnabled)
 							{
@@ -5451,10 +5454,10 @@ namespace AvoGUI
 							}
 							if (hasChildren)
 							{
-								isContainerMouseEnterLeaveView = true;
+								isContainerMouseLeaveView = true;
 							}
 						}
-						else
+						else if (!child->getIsOverlay()) // Both the old and new mouse position are contained within this view.
 						{
 							hasFoundViewContainingNewPosition = true;
 						}
@@ -5468,13 +5471,13 @@ namespace AvoGUI
 						else if (!child->getIsOverlay())
 						{
 							hasFoundViewContainingOldPosition = true;
-							if (isContainerMouseEnterLeaveView || hasFoundViewContainingNewPosition)
+							if (isContainerMouseLeaveView || hasFoundViewContainingNewPosition)
 							{
 								break;
 							}
 						}
 					}
-					else if (!isContainerMouseEnterLeaveView && !hasFoundViewContainingNewPosition && child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
+					else if (!isContainerMouseLeaveView && !hasFoundViewContainingNewPosition && !child->getIsOverlay() && child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
 					{
 						hasFoundViewContainingNewPosition = true;
 						if (hasFoundViewContainingOldPosition)
@@ -5484,7 +5487,7 @@ namespace AvoGUI
 					}
 				}
 
-				if (container->getAreMouseEventsEnabled() && !hasFoundViewContainingOldPosition && (hasFoundViewContainingNewPosition || isContainerMouseEnterLeaveView))
+				if (container->getAreMouseEventsEnabled() && !hasFoundViewContainingOldPosition && (hasFoundViewContainingNewPosition || isContainerMouseLeaveView))
 				{
 					mouseEvent.x = p_event.x - container->getAbsoluteLeft();
 					mouseEvent.y = p_event.y - container->getAbsoluteTop();
@@ -5501,16 +5504,16 @@ namespace AvoGUI
 				startIndex = container->getIndex() - 1;
 				container = container->getParent();
 
-				if (isContainerMouseEnterLeaveView && startIndex > 0)
+				if (isContainerMouseLeaveView && startIndex > 0)
 				{
 					if (container->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
 					{
-						isContainerMouseEnterLeaveView = false;
+						isContainerMouseLeaveView = false;
 					}
 				}
 				else
 				{
-					isContainerMouseEnterLeaveView = false;
+					isContainerMouseLeaveView = false;
 				}
 			}
 		}

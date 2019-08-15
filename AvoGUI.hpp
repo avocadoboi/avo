@@ -7474,7 +7474,7 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			This runs the global event loop and blocks until the window has been destroyed.
+			This runs the global event loop and blocks until all windows have been destroyed.
 		*/
 		static void run();
 	};
@@ -8642,7 +8642,7 @@ namespace AvoGUI
 			}
 
 			m_text = getGUI()->getDrawingContext()->createText(newString.c_str(), m_fontSize);
-			m_text->setTop(3.f);
+			m_text->setTop(2.f);
 			m_text->setFontFamily(getThemeFontFamily("main"));
 			m_text->setFontWeight(FontWeight::Regular);
 
@@ -8651,13 +8651,11 @@ namespace AvoGUI
 			m_text->setWidth(getWidth());
 			m_text->setTextAlign(m_textAlign);
 
-			if (newCaretIndex > (int32_t)m_text->getString().size()) // The size of the string has changed OR the caret index has changed
+			if (newCaretIndex > (int32_t)m_text->getString().size())
 			{
 				m_caretIndex = (uint32_t)m_text->getString().size();
-				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-				updateCaretTracking();
 			}
-			else if (newCaretIndex != m_caretIndex) // Only the caret index has changed for the following to happen
+			else if (newCaretIndex != m_caretIndex)
 			{
 				if (newCaretIndex < 0)
 				{
@@ -8667,9 +8665,9 @@ namespace AvoGUI
 				{
 					m_caretIndex = newCaretIndex;
 				}
-				m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-				updateCaretTracking();
 			}
+			m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+			updateCaretTracking();
 
 			if (m_isSelectionVisible)
 			{
@@ -8797,12 +8795,12 @@ namespace AvoGUI
 				if (m_isSelectionVisible)
 				{
 					p_context->setColor(getThemeColor("selection"));
-					p_context->fillRectangle(m_caretPosition.x, m_caretPosition.y - 3.f, m_selectionEndPosition.x, m_selectionEndPosition.y + m_fontSize * 1.2f);
+					p_context->fillRectangle(m_caretPosition.x, 0.f, m_selectionEndPosition.x, m_selectionEndPosition.y + m_fontSize * 1.2f);
 				}
 			}
 			if (m_isCaretVisible && !m_isSelectionVisible)
 			{
-				p_context->drawLine(m_caretPosition.x, m_caretPosition.y - 3.f, m_caretPosition.x, m_caretPosition.y + m_fontSize * 1.2f, 1.f);
+				p_context->drawLine(m_caretPosition.x, 0.f, m_caretPosition.x, m_caretPosition.y + m_fontSize * 1.2f, 1.f);
 			}
 			p_context->moveOrigin(-m_textDrawingOffsetX, 0.f);
 		}
@@ -9224,7 +9222,6 @@ namespace AvoGUI
 		}
 		void handleEditableTextFocusLose(EditableText* p_editableText) override
 		{
-			m_isMouseHovering = false;
 			queueAnimationUpdate();
 		}
 
@@ -9283,7 +9280,7 @@ namespace AvoGUI
 		{
 			if (m_type == Type::Filled)
 			{
-				p_context->setColor(Color(getThemeColor("on background"), 0.05f + 0.03f * m_hoverAnimationValue));
+				p_context->setColor(Color(interpolate(getThemeColor("background"), getThemeColor("on background"), 0.05f + 0.05f * min(m_hoverAnimationValue*0.3f + m_focusAnimationValue, 1.f)), 1.f));
 				p_context->fillRoundedRectangle(getSize(), 5.f);
 				p_context->fillRectangle(Rectangle<float>(0.f, getHeight() - 5.f, getWidth(), getHeight()));
 				p_context->setColor(Color(getThemeColor("on background"), 0.4));
@@ -9298,7 +9295,7 @@ namespace AvoGUI
 					float labelAnimationValue = m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f;
 					float leftPadding = getThemeValue("text field padding left");
 					p_context->moveOrigin(leftPadding + 2.f*labelAnimationValue, -0.17f*(getHeight() - m_labelText->getHeight() - leftPadding) * labelAnimationValue);
-					p_context->setScale(1.f - m_focusAnimationValue * 0.3f);
+					p_context->setScale(1.f - labelAnimationValue * 0.3f);
 					p_context->setColor(m_labelColor);
 					p_context->drawText(m_labelText);
 					p_context->setScale(1.f);
