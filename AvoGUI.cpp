@@ -1951,7 +1951,7 @@ namespace AvoGUI
 				int32_t x = GET_X_LPARAM(p_data_b);
 				int32_t y = GET_Y_LPARAM(p_data_b);
 
-				if ((x == m_mousePosition.x && y == m_mousePosition.y) || x < 0 || y < 0 || x >= getWidth() || y >= getHeight())
+				if ((x == m_mousePosition.x && y == m_mousePosition.y) || (GetCapture() != m_windowHandle && (x < 0 || y < 0 || x >= getWidth() || y >= getHeight())))
 				{
 					return 0;
 				}
@@ -2252,7 +2252,7 @@ namespace AvoGUI
 			if (!m_bounds.right && !m_bounds.bottom)
 			{
 				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_NO_WRAP);
-				minimizeSize();
+				fitBoundsToText();
 			}
 			else
 			{
@@ -2299,17 +2299,41 @@ namespace AvoGUI
 			return WordWrapping::Never;
 		}
 
-		void minimizeSize() override
+		void fitBoundsToText() override
 		{
 			DWRITE_TEXT_METRICS metrics;
-			HRESULT result = m_handle->GetMetrics(&metrics);
+			m_handle->GetMetrics(&metrics);
 			m_bounds.setSize(metrics.width, metrics.height);
+		}
+		void fitWidthToText() override
+		{
+			DWRITE_TEXT_METRICS metrics;
+			m_handle->GetMetrics(&metrics);
+			m_bounds.setWidth(metrics.width);
+		}
+		void fitHeightToText() override
+		{
+			DWRITE_TEXT_METRICS metrics;
+			m_handle->GetMetrics(&metrics);
+			m_bounds.setHeight(metrics.height);
 		}
 		Point<float> getMinimumSize() override
 		{
 			DWRITE_TEXT_METRICS metrics;
-			HRESULT result = m_handle->GetMetrics(&metrics);
+			m_handle->GetMetrics(&metrics);
 			return Point<float>(metrics.width, metrics.height);
+		}
+		float getMinimumWidth() override
+		{
+			DWRITE_TEXT_METRICS metrics;
+			m_handle->GetMetrics(&metrics);
+			return metrics.width;
+		}
+		float getMinimumHeight() override
+		{
+			DWRITE_TEXT_METRICS metrics;
+			m_handle->GetMetrics(&metrics);
+			return metrics.height;
 		}
 
 		//------------------------------
@@ -5263,7 +5287,7 @@ namespace AvoGUI
 			bool isLastPositionInsideGUI = getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY);
 			bool isNewPositionInsideGUI = getIsContaining(p_event.x, p_event.y);
 
-			bool isContainerMouseEnterLeaveView = !isLastPositionInsideGUI;
+			bool isContainerMouseEnterView = !isLastPositionInsideGUI;
 			bool hasFoundViewContainingNewPosition = false;
 			bool hasFoundViewContainingOldPosition = false;
 
@@ -5309,7 +5333,7 @@ namespace AvoGUI
 							mouseEvent.x = p_event.x - child->getAbsoluteLeft();
 							mouseEvent.y = p_event.y - child->getAbsoluteTop();
 						}
-						if (hasFoundViewContainingOldPosition || isContainerMouseEnterLeaveView || !child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+						if (hasFoundViewContainingOldPosition || isContainerMouseEnterView || !child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
 						{
 							if (areEventsEnabled)
 							{
@@ -5321,12 +5345,15 @@ namespace AvoGUI
 							}
 							if (hasChildren)
 							{
-								isContainerMouseEnterLeaveView = true;
+								isContainerMouseEnterView = true;
 							}
 						}
 						else
 						{
-							hasFoundViewContainingOldPosition = true;
+							if (!child->getIsOverlay())
+							{
+								hasFoundViewContainingOldPosition = true;
+							}
 							if (areEventsEnabled)
 							{
 								child->handleMouseMove(mouseEvent);
@@ -5342,13 +5369,13 @@ namespace AvoGUI
 						else if (!child->getIsOverlay())
 						{
 							hasFoundViewContainingNewPosition = true;
-							if (isContainerMouseEnterLeaveView || hasFoundViewContainingOldPosition)
+							if (isContainerMouseEnterView || hasFoundViewContainingOldPosition)
 							{
 								break;
 							}
 						}
 					}
-					else if (!isContainerMouseEnterLeaveView && !hasFoundViewContainingOldPosition && child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+					else if (!isContainerMouseEnterView && !hasFoundViewContainingOldPosition && !child->getIsOverlay() && child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
 					{
 						hasFoundViewContainingOldPosition = true;
 						if (hasFoundViewContainingNewPosition)
@@ -5358,7 +5385,7 @@ namespace AvoGUI
 					}
 				}
 
-				if (container->getAreMouseEventsEnabled() && !hasFoundViewContainingNewPosition && (hasFoundViewContainingOldPosition || isContainerMouseEnterLeaveView))
+				if (container->getAreMouseEventsEnabled() && !hasFoundViewContainingNewPosition && (hasFoundViewContainingOldPosition || isContainerMouseEnterView))
 				{
 					mouseEvent.x = p_event.x - container->getAbsoluteLeft();
 					mouseEvent.y = p_event.y - container->getAbsoluteTop();
@@ -5375,16 +5402,16 @@ namespace AvoGUI
 				startIndex = container->getIndex() - 1;
 				container = container->getParent();
 
-				if (isContainerMouseEnterLeaveView && startIndex > 0)
+				if (isContainerMouseEnterView && startIndex > 0)
 				{
 					if (container->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
 					{
-						isContainerMouseEnterLeaveView = false;
+						isContainerMouseEnterView = false;
 					}
 				}
 				else
 				{
-					isContainerMouseEnterLeaveView = false;
+					isContainerMouseEnterView = false;
 				}
 			}
 
@@ -5392,7 +5419,7 @@ namespace AvoGUI
 
 			container = this;
 			startIndex = getNumberOfChildren() - 1;
-			isContainerMouseEnterLeaveView = !isNewPositionInsideGUI;
+			bool isContainerMouseLeaveView = !isNewPositionInsideGUI;
 			hasFoundViewContainingNewPosition = false;
 			hasFoundViewContainingOldPosition = false;
 
@@ -5413,7 +5440,7 @@ namespace AvoGUI
 						bool hasChildren = child->getNumberOfChildren();
 						bool areEventsEnabled = child->getAreMouseEventsEnabled();
 
-						if (hasFoundViewContainingNewPosition || isContainerMouseEnterLeaveView || !child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
+						if (hasFoundViewContainingNewPosition || isContainerMouseLeaveView || !child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
 						{
 							if (areEventsEnabled)
 							{
@@ -5427,10 +5454,10 @@ namespace AvoGUI
 							}
 							if (hasChildren)
 							{
-								isContainerMouseEnterLeaveView = true;
+								isContainerMouseLeaveView = true;
 							}
 						}
-						else
+						else if (!child->getIsOverlay()) // Both the old and new mouse position are contained within this view.
 						{
 							hasFoundViewContainingNewPosition = true;
 						}
@@ -5444,13 +5471,13 @@ namespace AvoGUI
 						else if (!child->getIsOverlay())
 						{
 							hasFoundViewContainingOldPosition = true;
-							if (isContainerMouseEnterLeaveView || hasFoundViewContainingNewPosition)
+							if (isContainerMouseLeaveView || hasFoundViewContainingNewPosition)
 							{
 								break;
 							}
 						}
 					}
-					else if (!isContainerMouseEnterLeaveView && !hasFoundViewContainingNewPosition && child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
+					else if (!isContainerMouseLeaveView && !hasFoundViewContainingNewPosition && !child->getIsOverlay() && child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
 					{
 						hasFoundViewContainingNewPosition = true;
 						if (hasFoundViewContainingOldPosition)
@@ -5460,7 +5487,7 @@ namespace AvoGUI
 					}
 				}
 
-				if (container->getAreMouseEventsEnabled() && !hasFoundViewContainingOldPosition && (hasFoundViewContainingNewPosition || isContainerMouseEnterLeaveView))
+				if (container->getAreMouseEventsEnabled() && !hasFoundViewContainingOldPosition && (hasFoundViewContainingNewPosition || isContainerMouseLeaveView))
 				{
 					mouseEvent.x = p_event.x - container->getAbsoluteLeft();
 					mouseEvent.y = p_event.y - container->getAbsoluteTop();
@@ -5477,16 +5504,16 @@ namespace AvoGUI
 				startIndex = container->getIndex() - 1;
 				container = container->getParent();
 
-				if (isContainerMouseEnterLeaveView && startIndex > 0)
+				if (isContainerMouseLeaveView && startIndex > 0)
 				{
 					if (container->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
 					{
-						isContainerMouseEnterLeaveView = false;
+						isContainerMouseLeaveView = false;
 					}
 				}
 				else
 				{
-					isContainerMouseEnterLeaveView = false;
+					isContainerMouseLeaveView = false;
 				}
 			}
 		}
@@ -5827,7 +5854,7 @@ namespace AvoGUI
 					m_text->forget();
 				}
 				m_text = getGUI()->getDrawingContext()->createText(p_string, 12.f);
-				m_text->minimizeSize();
+				m_text->fitBoundsToText();
 				setSize(m_text->getWidth() + 25.f, m_text->getHeight() + 15.f);
 				m_text->setCenter(getWidth()*0.5f, getHeight()*0.5f);
 			}
@@ -5869,411 +5896,5 @@ namespace AvoGUI
 			p_drawingContext->drawText(m_text);
 			p_drawingContext->scale(1.f / (m_opacity*0.3f + 0.7f), getAbsoluteCenter());
 		}
-	}
-
-	//------------------------------
-	// class Ripple
-	//------------------------------
-
-	Ripple::Ripple(View* p_parent, const Color& p_color) :
-		View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(p_color, 0.45f),
-		m_isEnabled(true), m_maxSize(0.f), m_size(0.f), m_circleAnimationTime(1.f), m_alphaFactor(0.f), 
-		m_alphaAnimationTime(0.f), m_isMouseDown(false), m_overlayAlphaFactor(0.f), m_overlayAnimationTime(0.f), 
-		m_isMouseHovering(false), m_hasHoverEffect(true)
-	{
-		setIsOverlay(true); // Mouse events should be sent through
-		setHasShadow(false);
-		setElevation(FLT_MAX); // Nothing can be above a ripple...
-		enableMouseEvents();
-		p_parent->addEventListener(this);
-	}
-	Ripple::~Ripple()
-	{
-	}
-
-	//------------------------------
-
-	void Ripple::handleViewSizeChange(View* p_view)
-	{
-		setSize(p_view->getSize());
-		m_maxSize = 2.f*Point<>::getDistanceFast(m_position, Point<float>(m_position.x < getWidth()*0.5 ? getWidth() : 0, m_position.y < getHeight()*0.5 ? getHeight() : 0));
-	}
-
-	void Ripple::handleMouseDown(const MouseEvent& p_event)
-	{
-		if (m_isEnabled)
-		{
-			m_position.set(p_event.x - getLeft(), p_event.y - getTop());
-			m_circleAnimationTime = 0.f;
-			m_alphaFactor = 1.f;
-			m_isMouseDown = true;
-
-			m_maxSize = 2.f*Point<>::getDistanceFast(m_position, Point<float>(m_position.x < getWidth()*0.5 ? getWidth() : 0, m_position.y < getHeight()*0.5 ? getHeight() : 0));
-
-			queueAnimationUpdate();
-		}
-	}
-	void Ripple::handleMouseUp(const MouseEvent& p_event)
-	{
-		if (m_isMouseDown)
-		{
-			m_isMouseDown = false;
-			m_alphaAnimationTime = 0.f;
-			queueAnimationUpdate();
-		}
-	}
-	void Ripple::handleMouseBackgroundEnter(const MouseEvent& p_event)
-	{
-		if (m_isEnabled)
-		{
-			getGUI()->getWindow()->setCursor(Cursor::Hand);
-			m_isMouseHovering = true;
-			queueAnimationUpdate();
-		}
-	}
-	void Ripple::handleMouseBackgroundLeave(const MouseEvent& p_event)
-	{
-		if (m_isMouseHovering)
-		{
-			m_isMouseHovering = false;
-			queueAnimationUpdate();
-		}
-	}
-
-	void Ripple::updateAnimations()
-	{
-		if (m_hasHoverEffect)
-		{
-			m_overlayAlphaFactor = m_theme->easings["symmetrical in out"].easeValue(m_overlayAnimationTime);
-
-			if (m_isMouseHovering)
-			{
-				if (m_overlayAlphaFactor < 1.f)
-				{
-					m_overlayAnimationTime = min(m_overlayAnimationTime + m_theme->values["hover animation speed"], 1.f);
-					queueAnimationUpdate();
-				}
-			}
-			else if (m_overlayAlphaFactor > 0.f)
-			{
-				m_overlayAnimationTime = max(m_overlayAnimationTime - m_theme->values["hover animation speed"], 0.f);
-				queueAnimationUpdate();
-			}
-		}
-
-		float circleAnimationValue = 1.f;
-		if (m_circleAnimationTime < 1.f)
-		{
-			circleAnimationValue = m_theme->easings["ripple"].easeValue(m_circleAnimationTime);
-			m_circleAnimationTime += 0.05f;
-			m_size = interpolate(m_maxSize * 0.4f, m_maxSize, circleAnimationValue);
-		}
-
-		if (m_isMouseDown)
-		{
-			if (circleAnimationValue < 1.f)
-			{
-				queueAnimationUpdate();
-			}
-		}
-		else if (circleAnimationValue >= 1.f)
-		{
-			if (m_alphaAnimationTime < 1.f)
-			{
-				m_alphaFactor = 1.f - m_theme->easings["symmetrical in out"].easeValue(m_alphaAnimationTime);
-				m_alphaAnimationTime = min(1.f, m_alphaAnimationTime + 0.05f);
-
-				queueAnimationUpdate();
-			}
-		}
-		else
-		{
-			queueAnimationUpdate();
-		}
-
-		invalidate();
-	}
-
-	//------------------------------
-
-	void Ripple::draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
-	{
-		if (m_isEnabled)
-		{
-			p_drawingContext->setColor(Color(m_color, m_color.alpha*m_overlayAlphaFactor*0.3f));
-			p_drawingContext->fillRectangle(getSize());
-
-			if (m_color.alpha*m_alphaFactor >= 0.f)
-			{
-				p_drawingContext->setColor(Color(m_color, m_color.alpha*m_alphaFactor*0.8f));
-				p_drawingContext->fillCircle(m_position, m_size*0.5f);
-			}
-		}
-	}
-
-	//------------------------------
-	// class Button
-	//------------------------------
-
-	Button::Button(View* p_parent, const char* p_text, Emphasis p_emphasis, bool p_isAccent) :
-		View(p_parent), m_text(0), m_tooltipString(""),
-		m_icon(0), m_pressAnimationTime(1.f), m_emphasis(p_emphasis), m_isEnabled(true),
-		m_colorAnimationTime(1.f)
-	{
-		setString(p_text);
-
-		setCornerRadius(4.f);
-
-		m_ripple = new Ripple(this);
-
-		setIsAccent(p_isAccent);
-		if (p_emphasis == Emphasis::High)
-		{
-			setElevation(2.f);
-		}
-
-		enableMouseEvents();
-	}
-	Button::~Button()
-	{
-		if (m_text)
-		{
-			m_text->forget();
-		}
-	}
-
-	//------------------------------
-
-	void Button::addButtonListener(ButtonListener* p_buttonListener)
-	{
-		m_buttonListeners.push_back(p_buttonListener);
-	}
-
-	//------------------------------
-
-	void Button::disable()
-	{
-		if (m_isEnabled)
-		{
-			m_isEnabled = false;
-			m_colorAnimationTime = 1.f;
-			queueAnimationUpdate();
-
-			m_ripple->disable();
-
-			if (m_isMouseHovering)
-			{
-				getGUI()->getWindow()->setCursor(Cursor::Arrow);
-			}
-		}
-	}
-	void Button::enable()
-	{
-		if (!m_isEnabled)
-		{
-			m_isEnabled = true;
-			m_colorAnimationTime = 0.f;
-			queueAnimationUpdate();
-
-			m_ripple->enable();
-
-			if (m_isMouseHovering)
-			{
-				getGUI()->getWindow()->setCursor(Cursor::Hand);
-			}
-		}
-	}
-
-	//------------------------------
-
-	void Button::setString(const char* p_text)
-	{
-		if (m_text)
-		{
-			m_text->forget();
-		}
-
-		m_text = getGUI()->getDrawingContext()->createText(p_text, m_theme->values["button font size"]);
-		m_text->setFontFamily(m_theme->fontFamilies["main"]);
-		m_text->setWordWrapping(WordWrapping::Never);
-		m_text->setCharacterSpacing(1.2f);
-		m_text->setFontWeight(FontWeight::Medium);
-		m_text->minimizeSize();
-
-		if (m_text->getWidth() >= 32.f)
-		{
-			setSize(round(m_text->getWidth()) + 32.f, round(m_text->getHeight()) + 17.f);
-		}
-		else
-		{
-			setSize(64.f, round(m_text->getHeight()) + 17.f);
-		}
-		m_text->setCenter(getCenter() - getTopLeft());
-	}
-	const char* Button::getString()
-	{
-		return m_text->getString().c_str();
-	}
-
-	//------------------------------
-
-	void Button::setIcon(Image* p_icon)
-	{
-		if (p_icon != m_icon)
-		{
-			if (p_icon)
-			{
-				if (!m_icon)
-				{
-					m_text->setLeft(38.f);
-					setWidth(round(m_text->getWidth()) + 16.f + 38.f);
-					m_icon = p_icon;
-					m_icon->setBoundsSizing(ImageBoundsSizing::Contain);
-					m_icon->setSize(16.f, 16.f);
-					m_icon->setCenter(38.f*0.5f, getHeight()*0.5f);
-				}
-				else
-				{
-					m_icon->forget();
-					m_icon = p_icon;
-				}
-			}
-			else
-			{
-				if (m_text->getWidth() >= 32.f)
-				{
-					setWidth(round(m_text->getWidth()) + 32.f);
-				}
-				else
-				{
-					setWidth(64.f);
-				}
-				m_text->setCenter(getCenter());
-			}
-			invalidate();
-		}
-	}
-
-	//------------------------------
-
-	void Button::handleMouseDown(const MouseEvent& p_event)
-	{
-		if (m_isEnabled && m_emphasis == Emphasis::High)
-		{
-			m_isPressed = true;
-			m_isRaising = true;
-			m_pressAnimationTime = 0.f;
-			queueAnimationUpdate();
-		}
-	}
-	void Button::handleMouseUp(const MouseEvent& p_event)
-	{
-		if (m_emphasis == Emphasis::High)
-		{
-			m_isPressed = false;
-			queueAnimationUpdate();
-		}
-		if (m_isEnabled && m_isMouseHovering)
-		{
-			for (uint32_t a = 0; a < m_buttonListeners.size(); a++)
-			{
-				m_buttonListeners[a]->handleButtonClick(this);
-			}
-		}
-	}
-
-	//------------------------------
-
-	void Button::updateAnimations()
-	{
-		if ((m_colorAnimationTime != 1.f && m_isEnabled) || (m_colorAnimationTime != 0.f && !m_isEnabled))
-		{
-			float colorAnimationValue = m_theme->easings["symmetrical in out"].easeValue(m_colorAnimationTime);
-			if (m_emphasis == Emphasis::High)
-			{
-				m_currentColor = m_isAccent ? m_theme->colors["secondary"] : m_theme->colors["primary"];
-			}
-			else
-			{
-				m_currentColor = m_isAccent ? m_theme->colors["secondary on background"] : m_theme->colors["primary on background"];
-			}
-			m_currentColor.setSaturationHSL(colorAnimationValue);
-
-			if (m_isEnabled)
-			{
-				if (m_colorAnimationTime < 1.f)
-				{
-					m_colorAnimationTime = min(1.f, m_colorAnimationTime + 0.1f);
-					queueAnimationUpdate();
-				}
-			}
-			else
-			{
-				if (m_colorAnimationTime > 0.f)
-				{
-					m_colorAnimationTime = max(0.f, m_colorAnimationTime - 0.1f);
-					queueAnimationUpdate();
-				}
-			}
-		}
-
-		if (m_emphasis == Emphasis::High)
-		{
-			float pressAnimationValue = m_theme->easings["in out"].easeValue(m_pressAnimationTime);
-			m_pressAnimationTime += 0.06f;
-
-			if (m_isRaising || m_isPressed)
-			{
-				setElevation(2.f + pressAnimationValue * 4.f);
-				if (!m_isPressed && pressAnimationValue == 1.f)
-				{
-					m_pressAnimationTime = 0.f;
-					m_isRaising = false;
-					queueAnimationUpdate();
-				}
-			}
-			else
-			{
-				setElevation(2.f + (1.f - pressAnimationValue) * 4.f);
-			}
-
-			if (pressAnimationValue < 1.f)
-			{
-				queueAnimationUpdate();
-			}
-		}
-
-		invalidate();
-	}
-
-	//------------------------------
-
-	void Button::drawOverlay(DrawingContext* p_context, const Rectangle<float>& p_invalidRectangle)
-	{
-		if (m_emphasis == Emphasis::Medium)
-		{
-			p_context->setColor(Color(m_theme->colors["on background"], 0.25f));
-			p_context->strokeRoundedRectangle(Rectangle<float>(0.5f, 0.5f, getWidth() - 0.5f, getHeight() - 0.5f), getCornerRadius(), 1.f);
-		}
-	}
-
-	void Button::draw(DrawingContext* p_context, const Rectangle<float>& p_invalidRectangle)
-	{
-		if (m_emphasis == Emphasis::High)
-		{
-			p_context->clear(m_currentColor);
-			p_context->setColor(m_isAccent ? m_theme->colors["on secondary"] : m_theme->colors["on primary"]);
-		}
-		else
-		{
-			p_context->setColor(m_currentColor);
-		}
-
-		if (m_icon)
-		{
-			p_context->drawImage(m_icon);
-		}
-
-		p_context->drawText(m_text);
 	}
 };
