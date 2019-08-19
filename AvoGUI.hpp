@@ -494,42 +494,72 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/*
+			Calculates the length of the 2d vector with pythagorean theorem. 
+			This is faster than getLength() and getLengthFast() since no square root is needed, so use this one when you can!
+		*/
 		PointType getLengthSquared() const
 		{
 			return x * x + y * y;
 		}
+		/*
+			Uses an accurate but slower algorithm to calculate the length of the 2d vector with pythagorean teorem.
+		*/
 		double getLength() const
 		{
 			return sqrt(x*x + y * y);
 		}
+		/*
+			Uses a fast but less accurate algorithm to calculate the length of the 2d vector with pythagorean teorem.
+		*/
 		double getLengthFast() const
 		{
 			return fastSqrt(x*x + y * y);
 		}
 
+		/*
+			Calculates the distance between this point and another point with pythagorean theorem.
+			This is faster than getDistance() and getDistanceFast() since no square root is needed, so use this one when you can!
+		*/
 		template<typename T>
 		double getDistanceSquared(const Point<T>& p_point)
 		{
 			return (x - p_point.x)*(x - p_point.x) + (y - p_point.y)*(y - p_point.y);
 		}
+		/*
+			Calculates the distance between this point and another point with pythagorean theorem.
+			This is faster than getDistance() and getDistanceFast() since no square root is needed, so use this one when you can!
+		*/
 		double getDistanceSquared(PointType p_x, PointType p_y)
 		{
 			return (x - p_x)*(x - p_x) + (y - p_y)*(y - p_y);
 		}
+		/*
+			Uses an accurate but slower algorithm to calculate the distance between this point and another point with pythagorean theorem.
+		*/
 		template<typename T>
 		double getDistance(const Point<T>& p_point)
 		{
 			return sqrt((x - p_point.x)*(x - p_point.x) + (y - p_point.y)*(y - p_point.y));
 		}
+		/*
+			Uses an accurate but slower algorithm to calculate the distance between this point and another point with pythagorean theorem.
+		*/
 		double getDistance(PointType p_x, PointType p_y)
 		{
 			return sqrt((x - p_x)*(x - p_x) + (y - p_y)*(y - p_y));
 		}
+		/*
+			Uses a fast but less accurate algorithm to calculate the distance between this point and another point with pythagorean theorem.
+		*/
 		template<typename T>
 		double getDistanceFast(const Point<T>& p_point)
 		{
 			return sqrtFast((x - p_point.x)*(x - p_point.x) + (y - p_point.y)*(y - p_point.y));
 		}
+		/*
+			Uses a fast but less accurate algorithm to calculate the distance between this point and another point with pythagorean theorem.
+		*/
 		double getDistanceFast(PointType p_x, PointType p_y)
 		{
 			return sqrtFast((x - p_x)*(x - p_x) + (y - p_y)*(y - p_y));
@@ -537,44 +567,74 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/*
+			Calculates the length of a 2d vector with pythagorean theorem.
+			This is faster than getLength() and getLengthFast() since no square root is needed, so use this one when you can!
+		*/
 		static double getLengthSquared(float p_x, float p_y)
 		{
 			return p_x * p_x + p_y * p_y;
 		}
+		/*
+			Uses an accurate but slower algorithm to calculate the length of a 2d vector with pythagorean teorem.
+		*/
 		static double getLength(float p_x, float p_y)
 		{
 			return sqrt(p_x * p_x + p_y * p_y);
 		}
+		/*
+			Uses a fast but less accurate algorithm to calculate the length of a 2d vector with pythagorean teorem.
+		*/
 		static double getLengthFast(float p_x, float p_y)
 		{
 			return fastSqrt(p_x * p_x + p_y * p_y);
 		}
 
+		/*
+			Calculates the distance between two points with pythagorean theorem.
+			This is faster than getDistance() and getDistanceFast() since no square root is needed, so use this one when you can!
+		*/
 		template<typename T>
 		static T getDistanceSquared(const Point<T>& p_point_0, const Point<T>& p_point_1)
 		{
 			return (p_point_1.x - p_point_0.x)*(p_point_1.x - p_point_0.x) + (p_point_1.y - p_point_0.y)*(p_point_1.y - p_point_0.y);
 		}
+		/*
+			Calculates the distance between two points with pythagorean theorem.
+			This is faster than getDistance() and getDistanceFast() since no square root is needed, so use this one when you can!
+		*/
 		template<typename T>
 		static T getDistanceSquared(T p_x0, T p_y0, T p_x1, T p_y1)
 		{
 			return double((p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0));
 		}
+		/*
+			Uses an accurate but slower algorithm to calculate the distance between two points with pytagorean theorem.
+		*/
 		template<typename T0, typename T1>
 		static double getDistance(const Point<T0>& p_point_0, const Point<T1>& p_point_1)
 		{
 			return sqrt((p_point_1.x - p_point_0.x)*(p_point_1.x - p_point_0.x) + (p_point_1.y - p_point_0.y)*(p_point_1.y - p_point_0.y));
 		}
+		/*
+			Uses an accurate but slower algorithm to calculate the distance between two points with pytagorean theorem.
+		*/
 		template<typename T>
 		static double getDistance(T p_x0, T p_y0, T p_x1, T p_y1)
 		{
 			return sqrt((p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0));
 		}
+		/*
+			Uses a fast but less accurate algorithm to calculate the distance between two points with pytagorean theorem.
+		*/
 		template<typename T0, typename T1>
 		static float getDistanceFast(const Point<T0>& p_point_0, const Point<T1>& p_point_1)
 		{
 			return fastSqrt((p_point_1.x - p_point_0.x)*(p_point_1.x - p_point_0.x) + (p_point_1.y - p_point_0.y)*(p_point_1.y - p_point_0.y));
 		}
+		/*
+			Uses a fast but less accurate algorithm to calculate the distance between two points with pytagorean theorem.
+		*/
 		template<typename T>
 		static float getDistanceFast(T p_x0, T p_y0, T p_x1, T p_y1)
 		{
@@ -583,6 +643,10 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/*
+			Uses an accurate but slower algorithm to set the length of the 2d vector to 1.
+			The angle remains the same.
+		*/
 		Point<PointType>& normalize()
 		{
 			float length = sqrt(x*x + y * y);
@@ -590,6 +654,10 @@ namespace AvoGUI
 			y /= length;
 			return *this;
 		}
+		/*
+			Uses a fast but less accurate algorithm to set the length of the 2d vector to 1.
+			The angle remains the same.
+		*/
 		Point<PointType>& normalizeFast()
 		{
 			float inverseLength = fastInverseSqrt(x*x + y * y);
@@ -2884,6 +2952,7 @@ namespace AvoGUI
 		/*
 			This initializes the default theme. 
 			If you want to know the default values you can look at the definition in AvoGUI.hpp.
+			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
 		Theme()
 		{
@@ -3506,6 +3575,7 @@ namespace AvoGUI
 			if p_willAffectChildren is true, all children and views below those too will change this color in their themes.
 
 			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default colors and more details.
+			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
 		void setThemeColor(const char* p_name, const Color& p_color, bool p_willAffectChildren = true)
 		{
@@ -3545,7 +3615,7 @@ namespace AvoGUI
 					{
 						break;
 					}
-					startIndex = view->getIndex();
+					startIndex = view->getIndex() + 1;
 					view = view->getParent();
 				}
 			}
@@ -3576,6 +3646,7 @@ namespace AvoGUI
 			if p_willAffectChildren is true, all children and views below those too will change this easing in their themes.
 
 			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default easings and more details.
+			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
 		void setThemeEasing(const char* p_name, const Easing& p_easing, bool p_willAffectChildren = true)
 		{
@@ -3615,7 +3686,7 @@ namespace AvoGUI
 					{
 						break;
 					}
-					startIndex = view->getIndex();
+					startIndex = view->getIndex() + 1;
 					view = view->getParent();
 				}
 			}
@@ -3639,6 +3710,7 @@ namespace AvoGUI
 			if p_willAffectChildren is true, all children and views below those too will change this font family in their themes.
 
 			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default font families and more details.
+			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
 		void setThemeFontFamily(const char* p_name, const char* p_fontFamilyName, bool p_willAffectChildren = true)
 		{
@@ -3678,7 +3750,7 @@ namespace AvoGUI
 					{
 						break;
 					}
-					startIndex = view->getIndex();
+					startIndex = view->getIndex() + 1;
 					view = view->getParent();
 				}
 			}
@@ -3716,6 +3788,7 @@ namespace AvoGUI
 			if p_willAffectChildren is true, all children and views below those too will change this value in their themes.
 
 			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default values and more details.
+			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
 		void setThemeValue(const char* p_name, float p_value, bool p_willAffectChildren = true)
 		{
@@ -3755,7 +3828,7 @@ namespace AvoGUI
 					{
 						break;
 					}
-					startIndex = view->getIndex();
+					startIndex = view->getIndex() + 1;
 					view = view->getParent();
 				}
 			}
@@ -7458,6 +7531,15 @@ namespace AvoGUI
 		void invalidateRectangle(Rectangle<float> p_rectangle);
 		/*
 			LIBRARY IMPLEMENTED
+			Invalidates a part of the GUI that has been changed, and therefore needs to be redrawn.
+			Views that intersect with any invalid rectangles will be drawn in the next call to drawViews() (which is made internally) automatically.
+		*/
+		void invalidateRectangle(float p_left, float p_top, float p_right, float p_bottom)
+		{
+			invalidateRectangle(Rectangle<float>(p_left, p_top, p_right, p_bottom));
+		}
+		/*
+			LIBRARY IMPLEMENTED
 			Returns whether the GUi has invalid rectangles.
 		*/
 		bool getNeedsRedrawing()
@@ -7595,8 +7677,21 @@ namespace AvoGUI
 		bool m_hasHoverEffect;
 
 	public:
-		Ripple(View* p_parent, const Color& p_color = Color(1.f, 0.45f));
-		virtual ~Ripple();
+		Ripple(View* p_parent, const Color& p_color = Color(1.f, 0.45f)) :
+			View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(p_color, 0.45f),
+			m_isEnabled(true), m_maxSize(0.f), m_size(0.f), m_circleAnimationTime(1.f), m_alphaFactor(0.f),
+			m_alphaAnimationTime(0.f), m_isMouseDown(false), m_overlayAlphaFactor(0.f), m_overlayAnimationTime(0.f),
+			m_isMouseHovering(false), m_hasHoverEffect(true)
+		{
+			setIsOverlay(true); // Mouse events should be sent through
+			setHasShadow(false);
+			setElevation(FLT_MAX); // Nothing can be above a ripple...
+			enableMouseEvents();
+			p_parent->addEventListener(this);
+		}
+		~Ripple()
+		{
+		}
 
 		//------------------------------
 
@@ -7659,18 +7754,123 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void handleViewSizeChange(View* p_view) override;
+		void handleViewSizeChange(View* p_view) override
+		{
+			setSize(p_view->getSize());
+			m_maxSize = 2.f * Point<>::getDistanceFast(m_position, Point<float>(m_position.x < getWidth() * 0.5 ? getWidth() : 0, m_position.y < getHeight() * 0.5 ? getHeight() : 0));
+		}
 
-		void handleMouseDown(const MouseEvent& p_event) override;
-		void handleMouseUp(const MouseEvent& p_event) override;
-		void handleMouseBackgroundEnter(const MouseEvent& p_event) override;
-		void handleMouseBackgroundLeave(const MouseEvent& p_event) override;
+		void handleMouseDown(const MouseEvent& p_event) override
+		{
+			if (m_isEnabled)
+			{
+				m_position.set(p_event.x - getLeft(), p_event.y - getTop());
+				m_circleAnimationTime = 0.f;
+				m_alphaFactor = 1.f;
+				m_isMouseDown = true;
 
-		void updateAnimations() override;
+				m_maxSize = 2.f * Point<>::getDistanceFast(m_position, Point<float>(m_position.x < getWidth() * 0.5 ? getWidth() : 0, m_position.y < getHeight() * 0.5 ? getHeight() : 0));
+
+				queueAnimationUpdate();
+			}
+		}
+		void handleMouseUp(const MouseEvent& p_event) override
+		{
+			if (m_isMouseDown)
+			{
+				m_isMouseDown = false;
+				m_alphaAnimationTime = 0.f;
+				queueAnimationUpdate();
+			}
+		}
+		void handleMouseBackgroundEnter(const MouseEvent& p_event) override
+		{
+			if (m_isEnabled)
+			{
+				getGUI()->getWindow()->setCursor(Cursor::Hand);
+				m_isMouseHovering = true;
+				queueAnimationUpdate();
+			}
+		}
+		void handleMouseBackgroundLeave(const MouseEvent& p_event) override
+		{
+			if (m_isMouseHovering)
+			{
+				m_isMouseHovering = false;
+				queueAnimationUpdate();
+			}
+		}
+
+		void updateAnimations() override
+		{
+			if (m_hasHoverEffect)
+			{
+				m_overlayAlphaFactor = m_theme->easings["symmetrical in out"].easeValue(m_overlayAnimationTime);
+
+				if (m_isMouseHovering)
+				{
+					if (m_overlayAlphaFactor < 1.f)
+					{
+						m_overlayAnimationTime = min(m_overlayAnimationTime + m_theme->values["hover animation speed"], 1.f);
+						queueAnimationUpdate();
+					}
+				}
+				else if (m_overlayAlphaFactor > 0.f)
+				{
+					m_overlayAnimationTime = max(m_overlayAnimationTime - m_theme->values["hover animation speed"], 0.f);
+					queueAnimationUpdate();
+				}
+			}
+
+			float circleAnimationValue = 1.f;
+			if (m_circleAnimationTime < 1.f)
+			{
+				circleAnimationValue = m_theme->easings["ripple"].easeValue(m_circleAnimationTime);
+				m_circleAnimationTime += 0.05f;
+				m_size = interpolate(m_maxSize * 0.4f, m_maxSize, circleAnimationValue);
+			}
+
+			if (m_isMouseDown)
+			{
+				if (circleAnimationValue < 1.f)
+				{
+					queueAnimationUpdate();
+				}
+			}
+			else if (circleAnimationValue >= 1.f)
+			{
+				if (m_alphaAnimationTime < 1.f)
+				{
+					m_alphaFactor = 1.f - m_theme->easings["symmetrical in out"].easeValue(m_alphaAnimationTime);
+					m_alphaAnimationTime = min(1.f, m_alphaAnimationTime + 0.05f);
+
+					queueAnimationUpdate();
+				}
+			}
+			else
+			{
+				queueAnimationUpdate();
+			}
+
+			invalidate();
+		}
 
 		//------------------------------
 
-		void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override;
+		void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
+		{
+			if (m_isEnabled)
+			{
+				p_drawingContext->setColor(Color(m_color, m_color.alpha * m_overlayAlphaFactor * 0.3f));
+				p_drawingContext->fillRectangle(getSize());
+
+				if (m_color.alpha * m_alphaFactor >= 0.f)
+				{
+					p_drawingContext->setColor(Color(m_color, m_color.alpha * m_alphaFactor * 0.8f));
+					p_drawingContext->fillCircle(m_position, m_size * 0.5f);
+				}
+			}
+		}
 	};
 
 	//------------------------------
@@ -7719,26 +7919,84 @@ namespace AvoGUI
 		std::vector<ButtonListener*> m_buttonListeners;
 
 	public:
-		Button(View* p_parent, const char* p_text = "", Emphasis p_emphasis = Emphasis::High, bool p_isAccent = false);
-		virtual ~Button();
+		Button(View* p_parent, const char* p_text = "", Emphasis p_emphasis = Emphasis::High, bool p_isAccent = false) :
+			View(p_parent), m_text(0), m_tooltipString(""),
+			m_icon(0), m_pressAnimationTime(1.f), m_emphasis(p_emphasis), m_isEnabled(true),
+			m_colorAnimationTime(1.f)
+		{
+			setString(p_text);
+
+			setCornerRadius(4.f);
+
+			m_ripple = new Ripple(this);
+
+			setIsAccent(p_isAccent);
+			if (p_emphasis == Emphasis::High)
+			{
+				setElevation(2.f);
+			}
+
+			enableMouseEvents();
+		}
+		~Button()
+		{
+			if (m_text)
+			{
+				m_text->forget();
+			}
+		}
 
 		//------------------------------
 
 		/*
 			Registers a button listener to this button. The button listener will get an event when the button has been pressed.
 		*/
-		void addButtonListener(ButtonListener* p_buttonListener);
+		void addButtonListener(ButtonListener* p_buttonListener)
+		{
+			m_buttonListeners.push_back(p_buttonListener);
+		}
 
 		//------------------------------
 
 		/*
 			Makes the user unable to use the button and makes it gray.
 		*/
-		void disable();
+		void disable()
+		{
+			if (m_isEnabled)
+			{
+				m_isEnabled = false;
+				m_colorAnimationTime = 1.f;
+				queueAnimationUpdate();
+
+				m_ripple->disable();
+
+				if (m_isMouseHovering)
+				{
+					getGUI()->getWindow()->setCursor(Cursor::Arrow);
+				}
+			}
+		}
+
 		/*
 			Makes the user able to use the button.
 		*/
-		void enable();
+		void enable()
+		{
+			if (!m_isEnabled)
+			{
+				m_isEnabled = true;
+				m_colorAnimationTime = 0.f;
+				queueAnimationUpdate();
+
+				m_ripple->enable();
+
+				if (m_isMouseHovering)
+				{
+					getGUI()->getWindow()->setCursor(Cursor::Hand);
+				}
+			}
+		}
 
 		/*
 			Returns whether the user can use the button.
@@ -7780,11 +8038,38 @@ namespace AvoGUI
 		/*
 			Sets the string that the button displays.
 		*/
-		void setString(const char* p_string);
+		void setString(const char* p_string)
+		{
+			if (m_text)
+			{
+				m_text->forget();
+			}
+
+			m_text = getGUI()->getDrawingContext()->createText(p_string, m_theme->values["button font size"]);
+			m_text->setFontFamily(m_theme->fontFamilies["main"]);
+			m_text->setWordWrapping(WordWrapping::Never);
+			m_text->setCharacterSpacing(1.2f);
+			m_text->setFontWeight(FontWeight::Medium);
+			m_text->fitBoundsToText();
+
+			if (m_text->getWidth() >= 32.f)
+			{
+				setSize(round(m_text->getWidth()) + 32.f, round(m_text->getHeight()) + 17.f);
+			}
+			else
+			{
+				setSize(64.f, round(m_text->getHeight()) + 17.f);
+			}
+			m_text->setCenter(getCenter() - getTopLeft());
+		}
+
 		/*
 			Returns the string that the button displays.
 		*/
-		const char* getString();
+		const char* getString()
+		{
+			return m_text->getString().c_str();
+		}
 
 		//------------------------------
 
@@ -7793,7 +8078,43 @@ namespace AvoGUI
 			It is best to keep a text label with the icon, unless it is very clear to all users what the button does with the icon alone, or if you have set a tooltip.
 			If p_icon is 0, the icon is removed.
 		*/
-		void setIcon(Image* p_icon);
+		void setIcon(Image* p_icon)
+		{
+			if (p_icon != m_icon)
+			{
+				if (p_icon)
+				{
+					if (!m_icon)
+					{
+						m_text->setLeft(38.f);
+						setWidth(round(m_text->getWidth()) + 16.f + 38.f);
+						m_icon = p_icon;
+						m_icon->setBoundsSizing(ImageBoundsSizing::Contain);
+						m_icon->setSize(16.f, 16.f);
+						m_icon->setCenter(38.f * 0.5f, getHeight() * 0.5f);
+					}
+					else
+					{
+						m_icon->forget();
+						m_icon = p_icon;
+					}
+				}
+				else
+				{
+					if (m_text->getWidth() >= 32.f)
+					{
+						setWidth(round(m_text->getWidth()) + 32.f);
+					}
+					else
+					{
+						setWidth(64.f);
+					}
+					m_text->setCenter(getCenter());
+				}
+				invalidate();
+			}
+		}
+
 		/*
 			Returns the image that is shown together with the button text.
 		*/
@@ -7834,18 +8155,127 @@ namespace AvoGUI
 			}
 			m_isMouseHovering = false;
 		}
-		void handleMouseDown(const MouseEvent& p_event) override;
-		void handleMouseUp(const MouseEvent& p_event) override;
+		void handleMouseDown(const MouseEvent& p_event) override
+		{
+			if (m_isEnabled && m_emphasis == Emphasis::High)
+			{
+				m_isPressed = true;
+				m_isRaising = true;
+				m_pressAnimationTime = 0.f;
+				queueAnimationUpdate();
+			}
+		}
+		void handleMouseUp(const MouseEvent& p_event) override
+		{
+			if (m_emphasis == Emphasis::High)
+			{
+				m_isPressed = false;
+				queueAnimationUpdate();
+			}
+			if (m_isEnabled && getIsContaining(p_event.x + getAbsoluteLeft(), p_event.y + getAbsoluteTop()))
+			{
+				for (uint32_t a = 0; a < m_buttonListeners.size(); a++)
+				{
+					m_buttonListeners[a]->handleButtonClick(this);
+				}
+			}
+		}
 
 		//------------------------------
 
-		void updateAnimations() override;
+		void updateAnimations() override
+		{
+			if ((m_colorAnimationTime != 1.f && m_isEnabled) || (m_colorAnimationTime != 0.f && !m_isEnabled))
+			{
+				float colorAnimationValue = m_theme->easings["symmetrical in out"].easeValue(m_colorAnimationTime);
+				if (m_emphasis == Emphasis::High)
+				{
+					m_currentColor = m_isAccent ? m_theme->colors["secondary"] : m_theme->colors["primary"];
+				}
+				else
+				{
+					m_currentColor = m_isAccent ? m_theme->colors["secondary on background"] : m_theme->colors["primary on background"];
+				}
+				m_currentColor.setSaturationHSL(colorAnimationValue);
+
+				if (m_isEnabled)
+				{
+					if (m_colorAnimationTime < 1.f)
+					{
+						m_colorAnimationTime = min(1.f, m_colorAnimationTime + 0.1f);
+						queueAnimationUpdate();
+					}
+				}
+				else
+				{
+					if (m_colorAnimationTime > 0.f)
+					{
+						m_colorAnimationTime = max(0.f, m_colorAnimationTime - 0.1f);
+						queueAnimationUpdate();
+					}
+				}
+			}
+
+			if (m_emphasis == Emphasis::High)
+			{
+				float pressAnimationValue = m_theme->easings["in out"].easeValue(m_pressAnimationTime);
+				m_pressAnimationTime += 0.06f;
+
+				if (m_isRaising || m_isPressed)
+				{
+					setElevation(2.f + pressAnimationValue * 4.f);
+					if (!m_isPressed && pressAnimationValue == 1.f)
+					{
+						m_pressAnimationTime = 0.f;
+						m_isRaising = false;
+						queueAnimationUpdate();
+					}
+				}
+				else
+				{
+					setElevation(2.f + (1.f - pressAnimationValue) * 4.f);
+				}
+
+				if (pressAnimationValue < 1.f)
+				{
+					queueAnimationUpdate();
+				}
+			}
+
+			invalidate();
+		}
+
 
 		//------------------------------
 
-		void drawOverlay(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override;
+		void drawOverlay(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
+		{
+			if (m_emphasis == Emphasis::Medium)
+			{
+				p_drawingContext->setColor(Color(m_theme->colors["on background"], 0.25f));
+				p_drawingContext->strokeRoundedRectangle(Rectangle<float>(0.5f, 0.5f, getWidth() - 0.5f, getHeight() - 0.5f), getCornerRadius(), 1.f);
+			}
+		}
 
-		void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override;
+		void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
+		{
+			if (m_emphasis == Emphasis::High)
+			{
+				p_drawingContext->clear(m_currentColor);
+				p_drawingContext->setColor(m_isAccent ? m_theme->colors["on secondary"] : m_theme->colors["on primary"]);
+			}
+			else
+			{
+				p_drawingContext->setColor(m_currentColor);
+			}
+
+			if (m_icon)
+			{
+				p_drawingContext->drawImage(m_icon);
+			}
+
+			p_drawingContext->drawText(m_text);
+		}
 	};
 
 	//------------------------------
@@ -8158,8 +8588,7 @@ namespace AvoGUI
 
 				string.insert(m_caretIndex, 1U, p_event.character);
 
-				m_caretIndex++;
-				setString(string.c_str());
+				setString(string.c_str(), m_caretIndex + 1);
 
 				updateCaretTracking();
 
@@ -8178,10 +8607,6 @@ namespace AvoGUI
 				if (m_caretIndex <= m_selectionEndIndex)
 				{
 					string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
-					if (m_textAlign == TextAlign::Right)
-					{
-						m_caretPosition = m_selectionEndPosition;
-					}
 					m_isSelectionVisible = false;
 					setString(string);
 					updateCaretTracking();
@@ -8189,13 +8614,8 @@ namespace AvoGUI
 				else
 				{
 					string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
-					m_caretIndex = m_selectionEndIndex;
-					if (m_textAlign == TextAlign::Left)
-					{
-						m_caretPosition = m_selectionEndPosition;
-					}
 					m_isSelectionVisible = false;
-					setString(string);
+					setString(string, m_selectionEndIndex);
 					updateCaretTracking();
 				}
 				if (m_textAlign == TextAlign::Center)
@@ -8227,26 +8647,14 @@ namespace AvoGUI
 							if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
 							{
 								string.erase(a, (int32_t)m_caretIndex - a);
-								setString(string);
-								m_caretIndex = a;
-								if (m_text && m_textAlign != TextAlign::Right)
-								{
-									m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-									updateCaretTracking();
-								}
+								setString(string, a);
 								break;
 							}
 						}
 					}
 					else
 					{
-						m_caretIndex--;
-						setString(std::string(m_text->getString()).erase(m_caretIndex, 1));
-						if (m_text && m_textAlign != TextAlign::Right)
-						{
-							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-							updateCaretTracking();
-						}
+						setString(std::string(m_text->getString()).erase(m_caretIndex - 1, 1), m_caretIndex - 1);
 					}
 				}
 				m_caretFrameCount = 1;
@@ -8271,11 +8679,6 @@ namespace AvoGUI
 							{
 								string.erase(m_caretIndex, a - (int32_t)m_caretIndex + 1);
 								setString(string);
-								if (m_text && m_textAlign != TextAlign::Left)
-								{
-									m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-									updateCaretTracking();
-								}
 								break;
 							}
 						}
@@ -8283,11 +8686,6 @@ namespace AvoGUI
 					else
 					{
 						setString(std::string(m_text->getString()).erase(m_caretIndex, 1));
-						if (m_text && m_textAlign != TextAlign::Left)
-						{
-							m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-							updateCaretTracking();
-						}
 					}
 				}
 				m_caretFrameCount = 1;
@@ -8519,15 +8917,13 @@ namespace AvoGUI
 					{
 						window->setClipboardString(string.substr(m_caretIndex, m_selectionEndIndex - m_caretIndex));
 						string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
+						setString(string);
 					}
 					else {
 						window->setClipboardString(string.substr(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex));
 						string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
-						m_caretIndex = m_selectionEndIndex;
-						m_caretPosition = m_selectionEndPosition;
-						updateCaretTracking();
+						setString(string, m_selectionEndIndex);
 					}
-					setString(string);
 
 					m_isSelectionVisible = false;
 
@@ -8541,23 +8937,23 @@ namespace AvoGUI
 				if (window->getIsKeyDown(KeyboardKey::Control))
 				{
 					std::string string(m_text ? m_text->getString() : "");
+					uint32_t caretIndex = m_caretIndex;
 					if (m_isSelectionVisible)
 					{
-						if (m_caretIndex < m_selectionEndIndex)
+						if (caretIndex < m_selectionEndIndex)
 						{
-							string.erase(m_caretIndex, m_selectionEndIndex - m_caretIndex);
+							string.erase(caretIndex, m_selectionEndIndex - caretIndex);
 						}
 						else
 						{
-							string.erase(m_selectionEndIndex, m_caretIndex - m_selectionEndIndex);
-							m_caretIndex = m_selectionEndIndex;
+							string.erase(m_selectionEndIndex, caretIndex - m_selectionEndIndex);
+							caretIndex = m_selectionEndIndex;
 						}
 						m_isSelectionVisible = false;
 					}
 					std::string clipboardString = window->getClipboardString();
-					string.insert(m_caretIndex, clipboardString);
-					m_caretIndex += clipboardString.size();
-					setString(string);
+					string.insert(caretIndex, clipboardString);
+					setString(string, caretIndex + clipboardString.size());
 					
 					m_caretFrameCount = 1;
 					m_isCaretVisible = true;
@@ -8596,20 +8992,25 @@ namespace AvoGUI
 
 		/*
 			Changes the content of the editable text.
+			p_newCaretIndex determines the caret index that will be set if no event listeners cancel the change.
+			This is needed because the old caret index will be kept in case any event listener returns false.
 		*/
-		void setString(const char* p_string)
+		void setString(const char* p_string, int32_t p_newCaretIndex = -1)
 		{
 			if (m_text && m_text->getString() == p_string)
 			{
 				return;
 			}
+			if (p_newCaretIndex == -1)
+			{
+				p_newCaretIndex = m_caretIndex;
+			}
 			std::string newString = p_string;
-			int32_t newCaretIndex = m_caretIndex;
 			if (newString.size())
 			{
 				for (auto listener : m_listeners)
 				{
-					if (!listener->handleEditableTextChange(this, newString, newCaretIndex))
+					if (!listener->handleEditableTextChange(this, newString, p_newCaretIndex))
 					{
 						return;
 					}
@@ -8651,19 +9052,19 @@ namespace AvoGUI
 			m_text->setWidth(getWidth());
 			m_text->setTextAlign(m_textAlign);
 
-			if (newCaretIndex > (int32_t)m_text->getString().size())
+			if (p_newCaretIndex > (int32_t)m_text->getString().size())
 			{
 				m_caretIndex = (uint32_t)m_text->getString().size();
 			}
-			else if (newCaretIndex != m_caretIndex)
+			else if (p_newCaretIndex != m_caretIndex)
 			{
-				if (newCaretIndex < 0)
+				if (p_newCaretIndex < 0)
 				{
 					m_caretIndex = 0;
 				}
 				else
 				{
-					m_caretIndex = newCaretIndex;
+					m_caretIndex = p_newCaretIndex;
 				}
 			}
 			m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
@@ -8688,9 +9089,9 @@ namespace AvoGUI
 		/*
 			Sets the content of the editable text.
 		*/
-		void setString(const std::string& p_string)
+		void setString(const std::string& p_string, int32_t p_caretIndex = -1)
 		{
-			setString(p_string.c_str());
+			setString(p_string.c_str(), p_caretIndex);
 		}
 		/*
 			Returns the content of the editable text.
@@ -8922,12 +9323,12 @@ namespace AvoGUI
 	public:
 		TextField(View* p_parent, Type p_type = Type::Filled, const char* p_label = "", float p_width = 120.f) :
 			View(p_parent),
-			m_labelText(0), m_labelColor(0.4f), m_focusAnimationTime(0.f), m_focusAnimationValue(0.f),
+			m_labelText(0), m_focusAnimationTime(0.f), m_focusAnimationValue(0.f),
 			m_isMouseHovering(false), m_hoverAnimationTime(0.f), m_hoverAnimationValue(0.f),
 			m_type(p_type)
 		{
 			m_bounds.right = p_width;
-			m_bounds.bottom = getThemeValue("text field font size") * getThemeValue("text field height") + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined);
+			m_bounds.bottom = getThemeValue("text field font size") * 1.2f * getThemeValue("text field height") + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined);
 
 			setLabel(p_label);
 			setCursor(Cursor::Ibeam);
@@ -8940,6 +9341,8 @@ namespace AvoGUI
 			m_editableText->addEditableTextListener(this);
 
 			setString("");
+
+			queueAnimationUpdate();
 		}
 		~TextField()
 		{

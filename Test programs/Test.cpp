@@ -94,8 +94,8 @@ public:
 		m_theme->colors["primary on background"] = AvoGUI::Color(50, 130, 250);
 		m_theme->colors["on primary"] = AvoGUI::Color(1.f);
 
-		m_theme->values["text field height"] = 2.5f;
-		m_theme->values["text field font size"] = 14.f;
+		m_theme->values["text field height"] = 2.4f;
+		m_theme->values["text field font size"] = 13.f;
 		m_theme->values["text field padding left"] = 15.f;
 		//m_theme->colors["shadow"] = 0x90000000U;
 

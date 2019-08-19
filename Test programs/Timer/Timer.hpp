@@ -144,19 +144,12 @@ public:
 		//------------------------------
 		// Generate spiral!
 
-		//if (m_spiralAngle > 0.f)
-		//{
-		//	uint32_t oldSize = m_spiralVertices.size();
-		//	uint32_t newSize = uint32_t(m_spiralAngle / AvoGUI::TAU * (float)TIMER_SPIRAL_RESOLUTION);
-		//	m_spiralVertices.resize(newSize);
-		//	if (newSize > oldSize)
-		//	{
-		//		for (uint32_t a = 0; a < m_spiralAngle; a += AvoGUI::TAU / TIMER_SPIRAL_RESOLUTION)
-		//		{
-		//			m_spiralVertices[a] 
-		//		}
-		//	}
-		//}
+		m_numberOfSpiralVerticesInTotal = TIMER_SPIRAL_RESOLUTION * TIMER_MAX_NUMBER_OF_HOURS;
+		m_spiralVertices = new AvoGUI::Point<float>(m_numberOfSpiralVerticesInTotal);
+		for (uint32_t a = 0; a < m_numberOfSpiralVerticesInTotal; a ++)
+		{
+			//m_spiralVertices[a].set()
+		}
 	}
 
 	//------------------------------

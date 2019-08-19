@@ -58,7 +58,6 @@ public:
 	Application()
 	{
 		create("Bouncing ball!", 800, 700);
-		enableMouseEvents();
 	}
 
 	//------------------------------
@@ -94,6 +93,8 @@ public:
 		m_ball.radius = BALL_RADIUS;
 		m_ball.position = getCenter();
 		m_ball.acceleration = GRAVITATIONAL_ACCELERATION * PIXELS_PER_METER / 3600.0;
+		getWindow()->setMinSize(m_ball.radius * 2 + 101.0, 0);
+		enableMouseEvents();
 
 		m_lastTimeMeasurementPoint = std::chrono::steady_clock::now();
 		queueAnimationUpdate();
