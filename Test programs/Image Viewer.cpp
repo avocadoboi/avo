@@ -12,12 +12,12 @@ class ImageViewer : public AvoGUI::GUI, public AvoGUI::KeyboardEventListener
 {
 private:
 	AvoGUI::Image* m_image;
-	const char* m_filePath;
+	char const* m_filePath;
 
 	AvoGUI::Rectangle<float> m_targetImageBounds;
 
 public:
-	ImageViewer(const char* p_filePath) : 
+	ImageViewer(char const* p_filePath) :
 		m_filePath(p_filePath)
 	{
 		create("Image viewer", 600U, 500U, AvoGUI::WindowStyleFlags::Default);
@@ -54,7 +54,7 @@ public:
 
 	//------------------------------
 
-	void handleKeyboardKeyDown(const AvoGUI::KeyboardEvent& p_event) override
+	void handleKeyboardKeyDown(AvoGUI::KeyboardEvent const& p_event) override
 	{
 		if (p_event.isRepeated)
 		{
@@ -72,7 +72,7 @@ public:
 
 	//------------------------------
 
-	void handleMouseScroll(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseScroll(AvoGUI::MouseEvent const& p_event) override
 	{
 		float factor = 1.f;
 		if (p_event.scrollDelta > 0.f)
@@ -94,7 +94,7 @@ public:
 		}
 		queueAnimationUpdate();
 	}
-	void handleMouseMove(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseMove(AvoGUI::MouseEvent const& p_event) override
 	{
 		if (p_event.modifierKeys == AvoGUI::ModifierKeyFlags::LeftMouse)
 		{

@@ -44,7 +44,7 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void widenString(const char* p_string, wchar_t* p_result, uint32_t p_numberOfCharactersInResult)
+	void widenString(char const* p_string, wchar_t* p_result, uint32_t p_numberOfCharactersInResult)
 	{
 #ifdef _WIN32
 		MultiByteToWideChar(CP_ACP, 0, p_string, -1, p_result, p_numberOfCharactersInResult);
@@ -127,7 +127,7 @@ namespace AvoGUI
 	// Public
 	//
 
-	View::View(View* p_parent, const Rectangle<float>& p_bounds) :
+	View::View(View* p_parent, Rectangle<float> const& p_bounds) :
 		ProtectedRectangle(p_bounds), m_isInAnimationUpdateQueue(false), m_isVisible(true), m_isOverlay(false),
 		m_areMouseEventsEnabled(false), m_cornerRadius(0.f), m_cursor(Cursor::Arrow), 
 		m_shadowBounds(p_bounds), m_shadowImage(0), m_hasShadow(true), m_elevation(0.f), m_hasSizeChangedSinceLastElevationChange(true),
@@ -510,7 +510,7 @@ namespace AvoGUI
 		m_areMouseEventsEnabled = false;
 	}
 
-	void View::handleMouseBackgroundEnter(const MouseEvent& p_event)
+	void View::handleMouseBackgroundEnter(MouseEvent const& p_event)
 	{
 		getGUI()->getWindow()->setCursor(m_cursor);
 	}
@@ -869,7 +869,7 @@ namespace AvoGUI
 
 	public:
 		static uint32_t s_numberOfWindows;
-		static const char* const WINDOW_CLASS_NAME;
+		static char const* const WINDOW_CLASS_NAME;
 
 		//------------------------------
 
@@ -881,7 +881,7 @@ namespace AvoGUI
 			m_cursorType = (Cursor)-1;
 			setCursor(Cursor::Arrow);
 		}
-		WindowsWindow(GUI* p_GUI, const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) :
+		WindowsWindow(GUI* p_GUI, char const* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) :
 			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0),
 			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
 			m_state(WindowState::Restored), m_isMouseOutsideWindow(true), m_mousePosition(-1, -1), m_cursorHandle(0)
@@ -902,7 +902,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void create(const char* p_title, int32_t p_x, int32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
+		void create(char const* p_title, int32_t p_x, int32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
 		{
 			if (m_windowHandle)
 			{
@@ -955,7 +955,7 @@ namespace AvoGUI
 
 			s_numberOfWindows++;
 		}
-		void create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
+		void create(char const* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
 		{
 			create(p_title, (GetSystemMetrics(SM_CXSCREEN) - p_width) / 2, (GetSystemMetrics(SM_CYSCREEN) - p_height) / 2, p_width, p_height, p_styleFlags, p_parent);
 		}
@@ -1089,7 +1089,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setPosition(const Point<int32_t>& p_position) override
+		void setPosition(Point<int32_t> const& p_position) override
 		{
 			SetWindowPos(m_windowHandle, 0, p_position.x, p_position.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 			m_position = p_position;
@@ -1099,7 +1099,7 @@ namespace AvoGUI
 			SetWindowPos(m_windowHandle, 0, p_x, p_y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 			m_position.set(p_x, p_y);
 		}
-		const Point<int32_t>& getPosition() const override
+		Point<int32_t> const& getPosition() const override
 		{
 			return m_position;
 		}
@@ -1112,7 +1112,7 @@ namespace AvoGUI
 			return m_position.y;
 		}
 
-		void setSize(const Point<uint32_t>& p_size) override
+		void setSize(Point<uint32_t> const& p_size) override
 		{
 			RECT windowRect = { 0, 0, p_size.x, p_size.y };
 			AdjustWindowRect(&windowRect, m_styles, 0);
@@ -1127,7 +1127,7 @@ namespace AvoGUI
 			m_size.set(p_width, p_height);
 		}
 
-		const Point<uint32_t>& getSize() const override
+		Point<uint32_t> const& getSize() const override
 		{
 			return m_size;
 		}
@@ -1142,7 +1142,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setMinSize(const Point<uint32_t>& p_minSize) override
+		void setMinSize(Point<uint32_t> const& p_minSize) override
 		{
 			m_minSize = p_minSize;
 		}
@@ -1164,7 +1164,7 @@ namespace AvoGUI
 			return m_minSize.y;
 		}
 
-		void setMaxSize(const Point<uint32_t>& p_maxSize) override
+		void setMaxSize(Point<uint32_t> const& p_maxSize) override
 		{
 			m_maxSize = p_maxSize;
 		}
@@ -1496,7 +1496,7 @@ namespace AvoGUI
 			}
 			return false;
 		}
-		const Point<int32_t>& getMousePosition() const override
+		Point<int32_t> const& getMousePosition() const override
 		{
 			return m_mousePosition;
 		}
@@ -1507,7 +1507,7 @@ namespace AvoGUI
 		{
 			if (p_cursor == m_cursorType) return;
 
-			const char* name = 0;
+			char const* name = 0;
 			switch (p_cursor)
 			{
 			case Cursor::Arrow:
@@ -1559,7 +1559,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setClipboardWideString(const std::wstring& p_string) override
+		void setClipboardWideString(std::wstring const& p_string) override
 		{
 			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, p_string.size() + 1LL);
 			if (!clipboardData)
@@ -1575,7 +1575,7 @@ namespace AvoGUI
 			SetClipboardData(CF_UNICODETEXT, clipboardData);
 			CloseClipboard();
 		}
-		void setClipboardWideString(const wchar_t* p_string, int32_t p_length) override
+		void setClipboardWideString(wchar_t const* p_string, int32_t p_length) override
 		{
 			size_t size = p_length >= 0 ? p_length : wcslen(p_string);
 			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, size + 1LL);
@@ -1592,7 +1592,7 @@ namespace AvoGUI
 			CloseClipboard();
 		}
 		
-		void setClipboardString(const std::string& p_string) override
+		void setClipboardString(std::string const& p_string) override
 		{
 			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, p_string.size() + 1LL);
 			if (!clipboardData)
@@ -1608,7 +1608,7 @@ namespace AvoGUI
 			SetClipboardData(CF_OEMTEXT, clipboardData);
 			CloseClipboard();
 		}
-		void setClipboardString(const char* p_string, int32_t p_length) override
+		void setClipboardString(char const* p_string, int32_t p_length) override
 		{
 			size_t size = p_length >= 0 ? p_length : strlen(p_string);
 			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, size + 1LL);
@@ -2108,7 +2108,7 @@ namespace AvoGUI
 		}
 	};
 	uint32_t WindowsWindow::s_numberOfWindows;
-	const char* const WindowsWindow::WINDOW_CLASS_NAME = "AvoGUI window class";
+	char const* const WindowsWindow::WINDOW_CLASS_NAME = "AvoGUI window class";
 
 #endif
 #pragma endregion
@@ -2140,11 +2140,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setCropRectangle(const Rectangle<float>& p_rectangle) override
+		void setCropRectangle(Rectangle<float> const& p_rectangle) override
 		{
 			m_cropRectangle = p_rectangle;
 		}
-		const Rectangle<float>& getCropRectangle() const override
+		Rectangle<float> const& getCropRectangle() const override
 		{
 			return m_cropRectangle;
 		}
@@ -2185,7 +2185,7 @@ namespace AvoGUI
 		{
 			m_boundsPositioning.y = p_y;
 		}
-		const Point<float>& getBoundsPositioning() const override
+		Point<float> const& getBoundsPositioning() const override
 		{
 			return m_boundsPositioning;
 		}
@@ -2245,7 +2245,7 @@ namespace AvoGUI
 		}
 
 	public:
-		WindowsText(IDWriteTextLayout1* p_handle, const std::string& p_string, const Rectangle<float> p_bounds) :
+		WindowsText(IDWriteTextLayout1* p_handle, std::string const& p_string, Rectangle<float> const& p_bounds) :
 			m_handle(p_handle), m_string(p_string)
 		{
 			m_bounds = p_bounds;
@@ -2372,7 +2372,7 @@ namespace AvoGUI
 			result.bottom = result.top + metrics.height;
 			return result;
 		}
-		uint32_t getNearestCharacterIndex(const Point<float>& p_point, bool p_isRelativeToOrigin = false) override
+		uint32_t getNearestCharacterIndex(Point<float> const& p_point, bool p_isRelativeToOrigin = false) override
 		{
 			return getNearestCharacterIndex(p_point.x, p_point.y, p_isRelativeToOrigin);
 		}
@@ -2384,7 +2384,7 @@ namespace AvoGUI
 			m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * getLeft(), p_pointY - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
 			return metrics.textPosition + isTrailingHit * isInside;
 		}
-		void getNearestCharacterIndexAndPosition(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) override
+		void getNearestCharacterIndexAndPosition(Point<float> const& p_point, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) override
 		{
 			getNearestCharacterIndexAndPosition(p_point.x, p_point.y, p_outCharacterIndex, p_outCharacterPosition, p_isRelativeToOrigin);
 		}
@@ -2397,7 +2397,7 @@ namespace AvoGUI
 			*p_outCharacterIndex = metrics.textPosition + isTrailingHit * isInside;
 			p_outCharacterPosition->set(metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * getLeft(), metrics.top + p_isRelativeToOrigin * getTop());
 		}
-		void getNearestCharacterIndexAndBounds(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) override
+		void getNearestCharacterIndexAndBounds(Point<float> const& p_point, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) override
 		{
 			getNearestCharacterIndexAndBounds(p_point.x, p_point.y, p_outCharacterIndex, p_outCharacterBounds, p_isRelativeToOrigin);
 		}
@@ -2451,7 +2451,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setBounds(const Rectangle<float>& p_rectangle) override
+		void setBounds(Rectangle<float> const& p_rectangle) override
 		{
 			m_bounds = p_rectangle;
 			if (p_rectangle.right - p_rectangle.left != m_bounds.right - m_bounds.left ||
@@ -2474,7 +2474,7 @@ namespace AvoGUI
 				m_handle->SetMaxHeight(getHeight());
 			}
 		}
-		void setBounds(const Point<float>& p_position, const Point<float>& p_size) override
+		void setBounds(Point<float> const& p_position, Point<float> const& p_size) override
 		{
 			m_bounds.left = p_position.x;
 			m_bounds.top = p_position.y;
@@ -2487,14 +2487,14 @@ namespace AvoGUI
 				m_handle->SetMaxHeight(getHeight());
 			}
 		}
-		const Rectangle<float>& getBounds() const override
+		Rectangle<float> const& getBounds() const override
 		{
 			return m_bounds;
 		}
 
 		//------------------------------
 
-		void move(const Point<float>& p_offset) override
+		void move(Point<float> const& p_offset) override
 		{
 			m_bounds += p_offset;
 		}
@@ -2505,7 +2505,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setTopLeft(const Point<float>& p_position, bool p_willKeepSize = true) override
+		void setTopLeft(Point<float> const& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.left || p_position.y != m_bounds.top)
 			{
@@ -2534,7 +2534,7 @@ namespace AvoGUI
 			return Point<float>(m_bounds.left, m_bounds.top);
 		}
 
-		void setTopRight(const Point<float>& p_position, bool p_willKeepSize = true) override
+		void setTopRight(Point<float> const& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.right || p_position.y != m_bounds.top)
 			{
@@ -2563,7 +2563,7 @@ namespace AvoGUI
 			return Point<float>(m_bounds.right, m_bounds.top);
 		}
 
-		void setBottomLeft(const Point<float>& p_position, bool p_willKeepSize = true) override
+		void setBottomLeft(Point<float> const& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.left || p_position.y != m_bounds.bottom)
 			{
@@ -2592,7 +2592,7 @@ namespace AvoGUI
 			return Point<float>(m_bounds.left, m_bounds.bottom);
 		}
 
-		void setBottomRight(const Point<float>& p_position, bool p_willKeepSize = true) override
+		void setBottomRight(Point<float> const& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.right || p_position.y != m_bounds.bottom)
 			{
@@ -2623,7 +2623,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setCenter(const Point<float>& p_position) override
+		void setCenter(Point<float> const& p_position) override
 		{
 			m_bounds.setCenter(p_position.x, p_position.y);
 		}
@@ -2746,7 +2746,7 @@ namespace AvoGUI
 			return m_bounds.bottom - m_bounds.top;
 		}
 
-		void setSize(const Point<float>& p_size) override
+		void setSize(Point<float> const& p_size) override
 		{
 			if (p_size.x != m_bounds.right - m_bounds.left || p_size.y != m_bounds.bottom - m_bounds.top)
 			{
@@ -2771,7 +2771,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		bool getIsIntersecting(const Rectangle<float>& p_rectangle) const override
+		bool getIsIntersecting(Rectangle<float> const& p_rectangle) const override
 		{
 			return m_bounds.getIsIntersecting(p_rectangle);
 		}
@@ -2782,7 +2782,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		bool getIsContaining(const Rectangle<float>& p_rectangle) const override
+		bool getIsContaining(Rectangle<float> const& p_rectangle) const override
 		{
 			return m_bounds.getIsContaining(p_rectangle);
 		}
@@ -2795,14 +2795,14 @@ namespace AvoGUI
 		{
 			return m_bounds.getIsContaining(p_x, p_y);
 		}
-		bool getIsContaining(const Point<float>& p_point) const override
+		bool getIsContaining(Point<float> const& p_point) const override
 		{
 			return m_bounds.getIsContaining(p_point);
 		}
 
 		//------------------------------
 
-		void setFontFamily(const char* p_name, int32_t p_startPosition, int32_t p_length) override
+		void setFontFamily(char const* p_name, int32_t p_startPosition, int32_t p_length) override
 		{
 			wchar_t wideName[100];
 			widenString(p_name, wideName, 100);
@@ -2902,7 +2902,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		const std::string& getString() override
+		std::string const& getString() override
 		{
 			return m_string;
 		}
@@ -2920,10 +2920,10 @@ namespace AvoGUI
 	class FontData
 	{
 	public:
-		const void* data;
+		void const* data;
 		uint32_t dataSize;
 
-		FontData(const void* p_data, uint32_t p_dataSize) :
+		FontData(void const* p_data, uint32_t p_dataSize) :
 			data(p_data), dataSize(p_dataSize)
 		{ }
 	};
@@ -2957,7 +2957,7 @@ namespace AvoGUI
 			}
 			return m_referenceCount;
 		}
-		HRESULT __stdcall QueryInterface(const IID& p_id, void** p_object) override
+		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override
 		{
 			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontFileStream))
 			{
@@ -2971,7 +2971,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		HRESULT __stdcall ReadFileFragment(const void** p_fragment, UINT64 p_fileOffset, UINT64 p_fragmentSize, void** p_fragmentContext) override
+		HRESULT __stdcall ReadFileFragment(void const** p_fragment, UINT64 p_fileOffset, UINT64 p_fragmentSize, void** p_fragmentContext) override
 		{
 			if (p_fileOffset + p_fragmentSize > m_fontData->dataSize || !p_fragmentSize)
 			{
@@ -2980,7 +2980,7 @@ namespace AvoGUI
 				return E_FAIL;
 			}
 
-			*p_fragment = (const char*)m_fontData->data + p_fileOffset;
+			*p_fragment = (char const*)m_fontData->data + p_fileOffset;
 			*p_fragmentContext = 0;
 			return S_OK;
 		}
@@ -3023,7 +3023,7 @@ namespace AvoGUI
 			}
 			return m_referenceCount;
 		}
-		HRESULT __stdcall QueryInterface(const IID& p_id, void** p_object)
+		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object)
 		{
 			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontFileLoader))
 			{
@@ -3037,7 +3037,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		HRESULT __stdcall CreateStreamFromKey(const void* p_data, UINT32 p_dataSize, IDWriteFontFileStream** p_stream)
+		HRESULT __stdcall CreateStreamFromKey(void const* p_data, UINT32 p_dataSize, IDWriteFontFileStream** p_stream)
 		{
 			if (p_dataSize != sizeof(FontData*) || !p_data)
 			{
@@ -3087,7 +3087,7 @@ namespace AvoGUI
 			}
 			return m_referenceCount;
 		}
-		HRESULT __stdcall QueryInterface(const IID& p_id, void** p_object) override
+		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override
 		{
 			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontFileEnumerator))
 			{
@@ -3122,7 +3122,7 @@ namespace AvoGUI
 			else
 			{
 				*p_hasCurrentFile = 1;
-				m_factory->CreateCustomFontFileReference((const void*)&(*m_fontData)[m_currentFontFileIndex], sizeof(FontData*), m_fontFileLoader, &m_currentFontFile);
+				m_factory->CreateCustomFontFileReference((void const*)&(*m_fontData)[m_currentFontFileIndex], sizeof(FontData*), m_fontFileLoader, &m_currentFontFile);
 			}
 			return S_OK;
 		}
@@ -3156,7 +3156,7 @@ namespace AvoGUI
 			}
 			return m_referenceCount;
 		}
-		HRESULT __stdcall QueryInterface(const IID& p_id, void** p_object) override
+		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override
 		{
 			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontCollectionLoader))
 			{
@@ -3170,7 +3170,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		HRESULT __stdcall CreateEnumeratorFromKey(IDWriteFactory* p_factory, const void* p_data, UINT32 p_dataSize, IDWriteFontFileEnumerator** p_fontFileEnumerator)
+		HRESULT __stdcall CreateEnumeratorFromKey(IDWriteFactory* p_factory, void const* p_data, UINT32 p_dataSize, IDWriteFontFileEnumerator** p_fontFileEnumerator)
 		{
 			*p_fontFileEnumerator = new FontFileEnumerator(p_factory, m_fontFileLoader, *((std::vector<FontData*>**)p_data));
 			(*p_fontFileEnumerator)->AddRef();
@@ -3493,7 +3493,7 @@ namespace AvoGUI
 		{
 			m_context->BeginDraw();
 		}
-		void finishDrawing(const std::vector<Rectangle<float>>& p_updatedRectangles) override
+		void finishDrawing(std::vector<Rectangle<float>> const& p_updatedRectangles) override
 		{
 			m_context->EndDraw();
 
@@ -3504,9 +3504,9 @@ namespace AvoGUI
 			RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
 
 			// If you're getting an exception below, you have three options; 
-			// 1. don't invalidate thousands of rectangles
+			// 1. don't invalidate so damn many rectangles
 			// 2. increase the size of the static array above
-			// 3. make the array above dynamic
+			// 3. make the array above dynamic by commenting out the line above
 			for (uint32_t a = 0; a < p_updatedRectangles.size(); a++)
 			{
 				updatedRects[a].left = p_updatedRectangles[a].left;
@@ -3576,7 +3576,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void moveOrigin(const Point<float>& p_offset) override
+		void moveOrigin(Point<float> const& p_offset) override
 		{
 			D2D1_MATRIX_3X2_F transform;
 			m_context->GetTransform(&transform);
@@ -3592,7 +3592,7 @@ namespace AvoGUI
 			transform.dy += p_offsetY;
 			m_context->SetTransform(transform);
 		}
-		void setOrigin(const Point<float>& p_origin) override
+		void setOrigin(Point<float> const& p_origin) override
 		{
 			D2D1_MATRIX_3X2_F transform;
 			m_context->GetTransform(&transform);
@@ -3633,11 +3633,11 @@ namespace AvoGUI
 			m_scale.y *= p_scaleY;
 			m_context->SetTransform(transform);
 		}
-		void scale(float p_scale, const Point<float>& p_origin) override
+		void scale(float p_scale, Point<float> const& p_origin) override
 		{
 			scale(p_scale, p_scale, p_origin.x, p_origin.y);
 		}
-		void scale(float p_scaleX, float p_scaleY, const Point<float>& p_origin) override
+		void scale(float p_scaleX, float p_scaleY, Point<float> const& p_origin) override
 		{
 			scale(p_scaleX, p_scaleY, p_origin.x, p_origin.y);
 		}
@@ -3667,11 +3667,11 @@ namespace AvoGUI
 		{
 			scale(p_scaleX / m_scale.x, p_scaleY / m_scale.x);
 		}
-		void setScale(float p_scale, const Point<float>& p_origin) override
+		void setScale(float p_scale, Point<float> const& p_origin) override
 		{
 			scale(p_scale / m_scale.x, p_scale / m_scale.y, p_origin.x, p_origin.y);
 		}
-		void setScale(float p_scaleX, float p_scaleY, const Point<float>& p_origin) override
+		void setScale(float p_scaleX, float p_scaleY, Point<float> const& p_origin) override
 		{
 			scale(p_scaleX / m_scale.x, p_scaleY / m_scale.y, p_origin.x, p_origin.y);
 		}
@@ -3683,7 +3683,7 @@ namespace AvoGUI
 		{
 			scale(p_scaleX / m_scale.x, p_scaleY / m_scale.y, p_originX, p_originY);
 		}
-		const Point<float>& getScale() override
+		Point<float> const& getScale() override
 		{
 			return m_scale;
 		}
@@ -3704,7 +3704,7 @@ namespace AvoGUI
 			m_context->GetTransform(&transform);
 			m_context->SetTransform(transform * D2D1::Matrix3x2F::Rotation(p_radians));
 		}
-		void rotate(float p_radians, const Point<float>& p_origin) override
+		void rotate(float p_radians, Point<float> const& p_origin) override
 		{
 			D2D1::Matrix3x2F transform;
 			m_context->GetTransform(&transform);
@@ -3728,7 +3728,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setSize(const Point<uint32_t>& p_size) override
+		void setSize(Point<uint32_t> const& p_size) override
 		{
 			setSize(p_size.x, p_size.y);
 		}
@@ -3780,7 +3780,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void clear(const Color& p_color) override
+		void clear(Color const& p_color) override
 		{
 			m_context->Clear(D2D1::ColorF(p_color.red, p_color.green, p_color.blue, p_color.alpha));
 		}
@@ -3791,11 +3791,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void fillRectangle(const Rectangle<float>& p_rectangle) override
+		void fillRectangle(Rectangle<float> const& p_rectangle) override
 		{
 			fillRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
-		void fillRectangle(const Point<float>& p_position, const Point<float>& p_size) override
+		void fillRectangle(Point<float> const& p_position, Point<float> const& p_size) override
 		{
 			fillRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y);
 		}
@@ -3809,7 +3809,7 @@ namespace AvoGUI
 			);
 		}
 
-		void fillRectangle(const Point<float>& p_size) override
+		void fillRectangle(Point<float> const& p_size) override
 		{
 			m_context->FillRectangle(D2D1::RectF(0, 0, p_size.x, p_size.y), m_solidColorBrush);
 		}
@@ -3820,11 +3820,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void strokeRectangle(const Rectangle<float>& p_rectangle, float p_strokeWidth = 1.f) override
+		void strokeRectangle(Rectangle<float> const& p_rectangle, float p_strokeWidth = 1.f) override
 		{
 			strokeRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
-		void strokeRectangle(const Point<float>& p_position, const Point<float>& p_size, float p_strokeWidth = 1.f) override
+		void strokeRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_strokeWidth = 1.f) override
 		{
 			strokeRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_strokeWidth);
 		}
@@ -3843,7 +3843,7 @@ namespace AvoGUI
 			strokeStyle->Release();
 		}
 
-		void strokeRectangle(const Point<float>& p_size, float p_strokeWidth = 1.f) override
+		void strokeRectangle(Point<float> const& p_size, float p_strokeWidth = 1.f) override
 		{
 			strokeRectangle(p_size.x, p_size.y, p_strokeWidth);
 		}
@@ -3862,11 +3862,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void fillRoundedRectangle(const Rectangle<float>& p_rectangle, float p_radius) override
+		void fillRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius) override
 		{
 			fillRoundedRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius);
 		}
-		void fillRoundedRectangle(const Point<float>& p_position, const Point<float>& p_size, float p_radius) override
+		void fillRoundedRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_radius) override
 		{
 			fillRoundedRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_radius);
 		}
@@ -3882,7 +3882,7 @@ namespace AvoGUI
 			);
 		}
 
-		void fillRoundedRectangle(const Point<float>& p_size, float p_radius) override
+		void fillRoundedRectangle(Point<float> const& p_size, float p_radius) override
 		{
 			fillRoundedRectangle(p_size.x, p_size.y, p_radius);
 		}
@@ -3898,11 +3898,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void strokeRoundedRectangle(const Rectangle<float>& p_rectangle, float p_radius, float p_strokeWidth = 1.f) override
+		void strokeRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius, float p_strokeWidth = 1.f) override
 		{
 			strokeRoundedRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius, p_strokeWidth);
 		}
-		void strokeRoundedRectangle(const Point<float>& p_position, const Point<float>& p_size, float p_radius, float p_strokeWidth = 1.f) override
+		void strokeRoundedRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) override
 		{
 			strokeRoundedRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_radius, p_strokeWidth);
 		}
@@ -3924,7 +3924,7 @@ namespace AvoGUI
 			strokeStyle->Release();
 		}
 
-		void strokeRoundedRectangle(const Point<float>& p_size, float p_radius, float p_strokeWidth = 1.f) override
+		void strokeRoundedRectangle(Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) override
 		{
 			strokeRoundedRectangle(p_size.x, p_size.y, p_radius, p_strokeWidth);
 		}
@@ -3945,7 +3945,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void fillCircle(const Point<float>& p_position, float p_radius) override
+		void fillCircle(Point<float> const& p_position, float p_radius) override
 		{
 			fillCircle(p_position.x, p_position.y, p_radius);
 		}
@@ -3959,7 +3959,7 @@ namespace AvoGUI
 			);
 		}
 
-		void strokeCircle(const Point<float>& p_position, float p_radius, float p_strokeWidth = 1.f)
+		void strokeCircle(Point<float> const& p_position, float p_radius, float p_strokeWidth = 1.f)
 		{
 			strokeCircle(p_position.x, p_position.y, p_radius, p_strokeWidth);
 		};
@@ -3981,7 +3981,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void drawLine(const Point<float>& p_point_0, const Point<float>& p_point_1, float p_thickness = 1.f) override
+		void drawLine(Point<float> const& p_point_0, Point<float> const& p_point_1, float p_thickness = 1.f) override
 		{
 			drawLine(p_point_0.x, p_point_0.y, p_point_1.x, p_point_1.y, p_thickness);
 		}
@@ -4028,7 +4028,7 @@ namespace AvoGUI
 			sink->Release();
 			path->Release();
 		}
-		void strokeShape(const std::vector<Point<float>>& p_vertices, float p_lineThickness, bool p_isClosed) override
+		void strokeShape(std::vector<Point<float>> const& p_vertices, float p_lineThickness, bool p_isClosed) override
 		{
 			strokeShape(p_vertices.data(), p_vertices.size(), p_lineThickness, p_isClosed);
 		}
@@ -4056,7 +4056,7 @@ namespace AvoGUI
 			sink->Release();
 			path->Release();
 		}
-		void fillShape(const std::vector<Point<float>>& p_vertices) override
+		void fillShape(std::vector<Point<float>> const& p_vertices) override
 		{
 			fillShape(p_vertices.data(), p_vertices.size());
 		}
@@ -4276,7 +4276,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void pushClipRectangle(const Rectangle<float>& p_rectangle) override
+		void pushClipRectangle(Rectangle<float> const& p_rectangle) override
 		{
 			m_context->PushAxisAlignedClip(
 				D2D1::RectF(
@@ -4285,7 +4285,7 @@ namespace AvoGUI
 				), D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE
 			);
 		}
-		void pushClipRectangle(const Point<float>& p_size) override
+		void pushClipRectangle(Point<float> const& p_size) override
 		{
 			m_context->PushAxisAlignedClip(
 				D2D1::RectF(
@@ -4300,7 +4300,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void pushRoundedClipRectangle(const Rectangle<float>& p_rectangle, float p_radius) override
+		void pushRoundedClipRectangle(Rectangle<float> const& p_rectangle, float p_radius) override
 		{
 			ID2D1RoundedRectangleGeometry* geometry;
 			s_direct2DFactory->CreateRoundedRectangleGeometry(
@@ -4317,7 +4317,7 @@ namespace AvoGUI
 			layer->Release();
 			geometry->Release();
 		}
-		void pushRoundedClipRectangle(const Point<float>& p_size, float p_radius) override
+		void pushRoundedClipRectangle(Point<float> const& p_size, float p_radius) override
 		{
 			ID2D1RoundedRectangleGeometry* geometry;
 			s_direct2DFactory->CreateRoundedRectangleGeometry(
@@ -4341,11 +4341,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		Image* createRectangleShadowImage(const Point<uint32_t>& p_size, float p_blur, const Color& p_color) override
+		Image* createRectangleShadowImage(Point<uint32_t> const& p_size, float p_blur, Color const& p_color) override
 		{
 			return createRectangleShadowImage(p_size.x, p_size.y, p_blur, p_color);
 		}
-		Image* createRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_blur, const Color& p_color) override
+		Image* createRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_blur, Color const& p_color) override
 		{
 			// I am proud of this algorithm I came up with when I was
 			// trying to make a GUI library using SDL, so why not use it here
@@ -4542,11 +4542,11 @@ namespace AvoGUI
 			return new WindowsImage(outputBitmap);
 		}
 
-		Image* createRoundedRectangleShadowImage(const Point<uint32_t>& p_size, float p_radius, float p_blur, const Color& p_color)
+		Image* createRoundedRectangleShadowImage(Point<uint32_t> const& p_size, float p_radius, float p_blur, Color const& p_color)
 		{
 			return createRoundedRectangleShadowImage(p_size.x, p_size.y, p_radius, p_blur, p_color);
 		}
-		Image* createRoundedRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_radius, float p_blur, const Color& p_color)
+		Image* createRoundedRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_radius, float p_blur, Color const& p_color)
 		{
 			if (!p_width || !p_height || !p_color.alpha) return 0;
 
@@ -4618,7 +4618,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		Image* createImage(const void* p_pixelData, uint32_t p_width, uint32_t p_height) override
+		Image* createImage(void const* p_pixelData, uint32_t p_width, uint32_t p_height) override
 		{
 			ID2D1Bitmap1* bitmap;
 			m_context->CreateBitmap(
@@ -4631,7 +4631,7 @@ namespace AvoGUI
 			);
 			return new WindowsImage(bitmap);
 		}
-		Image* createImage(const char* p_filePath) override
+		Image* createImage(char const* p_filePath) override
 		{
 			wchar_t wideFilePath[200];
 			widenString(p_filePath, wideFilePath, 200);
@@ -4664,9 +4664,9 @@ namespace AvoGUI
 
 		void drawImage(Image* p_image) override
 		{
-			const Rectangle<float>& cropRectangle = p_image->getCropRectangle();
-			const Point<float>& imageSize = cropRectangle.getSize();
-			const Point<float>& boundsSize = p_image->getSize();
+			Rectangle<float> const& cropRectangle = p_image->getCropRectangle();
+			Point<float> const& imageSize = cropRectangle.getSize();
+			Point<float> const& boundsSize = p_image->getSize();
 
 			float left = p_image->getLeft();
 			float top = p_image->getTop();
@@ -4713,14 +4713,14 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setColor(const Color& p_color) override
+		void setColor(Color const& p_color) override
 		{
 			m_solidColorBrush->SetColor(D2D1::ColorF(p_color.red, p_color.green, p_color.blue, p_color.alpha));
 		}
 
 		//------------------------------
 
-		void addFont(const void* p_data, uint32_t p_dataSize)
+		void addFont(void const* p_data, uint32_t p_dataSize)
 		{
 			m_fontData.push_back(new FontData(p_data, p_dataSize));
 			updateFontCollection();
@@ -4728,7 +4728,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setDefaultTextProperties(const TextProperties& p_textProperties) override
+		void setDefaultTextProperties(TextProperties const& p_textProperties) override
 		{
 			wchar_t fontFamily[100];
 			widenString(p_textProperties.fontFamilyName, fontFamily, 100);
@@ -4775,7 +4775,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		Text* createText(const char* p_string, float p_fontSize, const Rectangle<float>& p_bounds = Rectangle<float>()) override
+		Text* createText(char const* p_string, float p_fontSize, Rectangle<float> const& p_bounds = Rectangle<float>()) override
 		{
 			int32_t numberOfCharacters = MultiByteToWideChar(CP_ACP, 0, p_string, -1, 0, 0);
 			wchar_t* wideString = new wchar_t[numberOfCharacters];
@@ -4796,7 +4796,7 @@ namespace AvoGUI
 		{
 			m_context->DrawTextLayout(D2D1::Point2F(p_text->getTopLeft().x, p_text->getTopLeft().y), (IDWriteTextLayout*)p_text->getHandle(), m_solidColorBrush);
 		}
-		void drawText(const char* p_string, const Rectangle<float>& p_rectangle) override
+		void drawText(char const* p_string, Rectangle<float> const& p_rectangle) override
 		{
 			if (p_string == "") return;
 
@@ -4812,19 +4812,19 @@ namespace AvoGUI
 
 			delete[] wideString;
 		}
-		void drawText(const char* p_string, float p_left, float p_top, float p_right, float p_bottom) override
+		void drawText(char const* p_string, float p_left, float p_top, float p_right, float p_bottom) override
 		{
 			drawText(p_string, Rectangle<float>(p_left, p_top, p_right, p_bottom));
 		}
-		void drawText(const char* p_string, const Point<float>& p_position, const Point<float>& p_size) override
+		void drawText(char const* p_string, Point<float> const& p_position, Point<float> const& p_size) override
 		{
 			drawText(p_string, Rectangle<float>(p_position, p_size));
 		}
-		void drawText(const char* p_string, float p_x, float p_y) override
+		void drawText(char const* p_string, float p_x, float p_y) override
 		{
 			drawText(p_string, Rectangle<float>(p_x, p_y, m_context->GetSize().width, m_context->GetSize().height));
 		}
-		void drawText(const char* p_string, const Point<float>& p_position) override
+		void drawText(char const* p_string, Point<float> const& p_position) override
 		{
 			drawText(p_string, Rectangle<float>(p_position.x, p_position.y, m_context->GetSize().width * 2, m_context->GetSize().height * 2));
 		}
@@ -4881,7 +4881,7 @@ namespace AvoGUI
 	// Private
 	//
 
-	void GUI::getTopMouseListenersAt(const Point<float>& p_coordinates, std::vector<View*>& p_result)
+	void GUI::getTopMouseListenersAt(Point<float> const& p_coordinates, std::vector<View*>& p_result)
 	{
 		if (getAreMouseEventsEnabled())
 		{
@@ -5045,13 +5045,13 @@ namespace AvoGUI
 		}
 	}
 
-	void GUI::create(const char* p_title, uint32_t p_x, uint32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
+	void GUI::create(char const* p_title, uint32_t p_x, uint32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
 	{
 		m_bounds = Rectangle<float>(0, 0, p_width, p_height);
 		setAbsoluteBounds(m_bounds);
 		m_window->create(p_title, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
 	}
-	void GUI::create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
+	void GUI::create(char const* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
 	{
 		m_bounds = Rectangle<float>(0, 0, p_width, p_height);
 		m_window->create(p_title, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
@@ -5059,7 +5059,7 @@ namespace AvoGUI
 
 	//------------------------------
 
-	View* GUI::getViewAt(const Point<float>& p_coordinates)
+	View* GUI::getViewAt(Point<float> const& p_coordinates)
 	{
 		View* currentContainer = this;
 
@@ -5094,7 +5094,7 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void GUI::handleWindowCreate(const WindowEvent& p_event)
+	void GUI::handleWindowCreate(WindowEvent const& p_event)
 	{
 #ifdef _WIN32
 		if (m_drawingContext)
@@ -5112,7 +5112,7 @@ namespace AvoGUI
 			listener->handleWindowCreate(p_event);
 		}
 	}
-	bool GUI::handleWindowClose(const WindowEvent& p_event)
+	bool GUI::handleWindowClose(WindowEvent const& p_event)
 	{
 		bool willClose = true;
 		for (auto listener : m_windowEventListeners)
@@ -5124,21 +5124,21 @@ namespace AvoGUI
 		}
 		return willClose;
 	}
-	void GUI::handleWindowMinimize(const WindowEvent& p_event)
+	void GUI::handleWindowMinimize(WindowEvent const& p_event)
 	{
 		for (auto listener : m_windowEventListeners)
 		{
 			listener->handleWindowMinimize(p_event);
 		}
 	}
-	void GUI::handleWindowMaximize(const WindowEvent& p_event)
+	void GUI::handleWindowMaximize(WindowEvent const& p_event)
 	{
 		for (auto listener : m_windowEventListeners)
 		{
 			listener->handleWindowMaximize(p_event);
 		}
 	}
-	void GUI::handleWindowSizeChange(const WindowEvent& p_event)
+	void GUI::handleWindowSizeChange(WindowEvent const& p_event)
 	{
 		m_newWindowSize.set(p_event.width, p_event.height);
 		m_hasNewWindowSize = true;
@@ -5157,14 +5157,14 @@ namespace AvoGUI
 			animationThread.detach();
 		}
 	}
-	void GUI::handleWindowFocus(const WindowEvent& p_event)
+	void GUI::handleWindowFocus(WindowEvent const& p_event)
 	{
 		for (auto listener : m_windowEventListeners)
 		{
 			listener->handleWindowFocus(p_event);
 		}
 	}
-	void GUI::handleWindowUnfocus(const WindowEvent& p_event)
+	void GUI::handleWindowUnfocus(WindowEvent const& p_event)
 	{
 		for (auto listener : m_windowEventListeners)
 		{
@@ -5174,7 +5174,7 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void GUI::handleGlobalMouseDown(const MouseEvent& p_event)
+	void GUI::handleGlobalMouseDown(MouseEvent const& p_event)
 	{
 		std::vector<View*> targets;
 		getTopMouseListenersAt(p_event.x, p_event.y, targets);
@@ -5205,7 +5205,7 @@ namespace AvoGUI
 			}
 		}
 	}
-	void GUI::handleGlobalMouseUp(const MouseEvent& p_event)
+	void GUI::handleGlobalMouseUp(MouseEvent const& p_event)
 	{
 		MouseEvent event = p_event;
 		if (m_pressedMouseEventListeners.size())
@@ -5238,7 +5238,7 @@ namespace AvoGUI
 			}
 		}
 	}
-	void GUI::handleGlobalMouseDoubleClick(const MouseEvent& p_event)
+	void GUI::handleGlobalMouseDoubleClick(MouseEvent const& p_event)
 	{
 		std::vector<View*> targets;
 		getTopMouseListenersAt(p_event.x, p_event.y, targets);
@@ -5265,7 +5265,7 @@ namespace AvoGUI
 		}
 	}
 
-	void GUI::handleGlobalMouseMove(const MouseEvent& p_event)
+	void GUI::handleGlobalMouseMove(MouseEvent const& p_event)
 	{
 		if (m_pressedMouseEventListeners.size() && (p_event.modifierKeys & ModifierKeyFlags::LeftMouse || p_event.modifierKeys & ModifierKeyFlags::MiddleMouse || p_event.modifierKeys & ModifierKeyFlags::RightMouse))
 		{
@@ -5526,7 +5526,7 @@ namespace AvoGUI
 			}
 		}
 	}
-	void GUI::handleGlobalMouseScroll(const MouseEvent& p_event)
+	void GUI::handleGlobalMouseScroll(MouseEvent const& p_event)
 	{
 		std::vector<View*> targets;
 		getTopMouseListenersAt(p_event.x, p_event.y, targets);
@@ -5555,7 +5555,7 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void GUI::handleCharacterInput(const KeyboardEvent& p_event)
+	void GUI::handleCharacterInput(KeyboardEvent const& p_event)
 	{
 		if (m_keyboardFocus)
 		{
@@ -5566,7 +5566,7 @@ namespace AvoGUI
 			listener->handleCharacterInput(p_event);
 		}
 	}
-	void GUI::handleKeyboardKeyDown(const KeyboardEvent& p_event)
+	void GUI::handleKeyboardKeyDown(KeyboardEvent const& p_event)
 	{
 		if (m_keyboardFocus)
 		{
@@ -5577,7 +5577,7 @@ namespace AvoGUI
 			listener->handleKeyboardKeyDown(p_event);
 		}
 	}
-	void GUI::handleKeyboardKeyUp(const KeyboardEvent& p_event)
+	void GUI::handleKeyboardKeyUp(KeyboardEvent const& p_event)
 	{
 		if (m_keyboardFocus)
 		{
@@ -5715,7 +5715,7 @@ namespace AvoGUI
 		includeAnimationThread();
 
 		Point<uint32_t> size(m_drawingContext->getSize());
-		for (const auto& targetRectangle : invalidRectangles)
+		for (auto const& targetRectangle : invalidRectangles)
 		{
 			View* currentContainer = this;
 			uint32_t startPosition = 0;
@@ -5843,7 +5843,7 @@ namespace AvoGUI
 	// class Tooltip
 	//------------------------------
 
-	void Tooltip::show(const char* p_string, const Rectangle<float>& p_targetRectangle)
+	void Tooltip::show(char const* p_string, Rectangle<float> const& p_targetRectangle)
 	{
 		if (!m_isShowing)
 		{

@@ -62,7 +62,7 @@ public:
 
 	//------------------------------
 
-	void handleMouseMove(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseMove(AvoGUI::MouseEvent const& p_event) override
 	{
 		if (m_ball.isDragged)
 		{
@@ -71,14 +71,14 @@ public:
 			m_ball.velocity.move(p_event.movementX, p_event.movementY);
 		}
 	}
-	void handleMouseDown(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
 	{
 		if (m_ball.isPointInside(p_event.x, p_event.y))
 		{
 			m_ball.isDragged = true;
 		}
 	}
-	void handleMouseUp(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseUp(AvoGUI::MouseEvent const& p_event) override
 	{
 		m_ball.isDragged = false;
 		m_ball.velocity = m_ball.draggingVelocity;

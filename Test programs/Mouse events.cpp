@@ -13,7 +13,7 @@ private:
 	std::string m_name;
 
 public:
-	MouseView(View* p_parent, const AvoGUI::Rectangle<float>& p_bounds) : 
+	MouseView(View* p_parent, AvoGUI::Rectangle<float> const& p_bounds) :
 		View(p_parent, p_bounds), m_name("")
 	{
 		enableMouseEvents();
@@ -21,39 +21,39 @@ public:
 
 	//------------------------------
 
-	void setName(const char* p_name)
+	void setName(char const* p_name)
 	{
 		m_name = p_name;
 	}
 
 	//------------------------------
 
-	void handleMouseDown(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
 	{
 		std::cout << m_name + " mouse down" << std::endl;
 	}
-	void handleMouseUp(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseUp(AvoGUI::MouseEvent const& p_event) override
 	{
 		std::cout << m_name + " mouse up" << std::endl;
 	}
 	// Commented out because this spams the console...
-	//void handleMouseMove(const AvoGUI::MouseEvent& p_event) override
+	//void handleMouseMove(AvoGUI::MouseEvent const& p_event) override
 	//{
 	//	std::cout << m_name + "mouse move" << std::endl;
 	//}
-	void handleMouseEnter(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseEnter(AvoGUI::MouseEvent const& p_event) override
 	{
 		std::cout << m_name + " mouse enter" << std::endl;
 	}
-	void handleMouseLeave(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseLeave(AvoGUI::MouseEvent const& p_event) override
 	{
 		std::cout << m_name + " mouse leave" << std::endl;
 	}
-	void handleMouseBackgroundEnter(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseBackgroundEnter(AvoGUI::MouseEvent const& p_event) override
 	{
 		std::cout << m_name + " mouse background enter" << std::endl;
 	}
-	void handleMouseBackgroundLeave(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseBackgroundLeave(AvoGUI::MouseEvent const& p_event) override
 	{
 		std::cout << m_name + " mouse background leave" << "\n\n";
 	}
@@ -79,31 +79,31 @@ public:
 
 	//------------------------------
 
-	void handleMouseDown(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
 	{
 		std::cout << "GUI mouse down" << std::endl;
 	}
-	void handleMouseUp(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseUp(AvoGUI::MouseEvent const& p_event) override
 	{
 		std::cout << "GUI mouse up" << std::endl;
 	}
-	void handleMouseMove(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseMove(AvoGUI::MouseEvent const& p_event) override
 	{
 		invalidate();
 	}
-	void handleMouseEnter(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseEnter(AvoGUI::MouseEvent const& p_event) override
 	{
 		std::cout << "GUI mouse enter" << std::endl;
 	}
-	void handleMouseLeave(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseLeave(AvoGUI::MouseEvent const& p_event) override
 	{
 		std::cout << "GUI mouse leave" << std::endl;
 	}
-	void handleMouseBackgroundEnter(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseBackgroundEnter(AvoGUI::MouseEvent const& p_event) override
 	{
 		std::cout << "GUI mouse background enter" << std::endl;
 	}
-	void handleMouseBackgroundLeave(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseBackgroundLeave(AvoGUI::MouseEvent const& p_event) override
 	{
 		std::cout << "GUI mouse background leave" << "\n\n";
 	}
