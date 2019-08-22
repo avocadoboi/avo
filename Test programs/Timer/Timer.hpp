@@ -3,6 +3,7 @@
 #include <chrono>
 #include <math.h>
 #include <Windows.h>
+#include <ShObjIdl.h>
 
 #undef min
 #undef max
@@ -26,19 +27,25 @@ private:
 
 	AvoGUI::Point<float>* m_spiralVertices;
 	uint32_t m_numberOfSpiralVerticesInTotal;
-	float m_currentAngle;
 	float m_startAngle;
+	float m_currentAngle;
+	bool m_isHoveringSpiral;
 	bool m_isDraggingSpiral;
+
+	AvoGUI::Text* m_text_timeLeft;
+	AvoGUI::Button* m_button_restart;
 
 	AvoGUI::TextField* m_textField_hours;
 	AvoGUI::TextField* m_textField_minutes;
 	AvoGUI::TextField* m_textField_seconds;
 	AvoGUI::Button* m_button_openSound;
 
+	std::string m_soundFilePath;
+
 public:
 	TimerApp() :
 		m_spiralVertices(0), m_numberOfSpiralVerticesInTotal(0), 
-		m_currentAngle(0.f), m_isDraggingSpiral(false),
+		m_startAngle(0.f), m_currentAngle(0.f), m_isHoveringSpiral(false), m_isDraggingSpiral(false),
 		m_textField_hours(0), m_textField_minutes(0), m_textField_seconds(0),
 		m_button_openSound(0)
 	{
@@ -50,11 +57,57 @@ public:
 
 	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
 	{
-		//m_currentAngle = 
+		if (m_isHoveringSpiral)
+		{
+			m_isDraggingSpiral = true;
+		}
+	}
+	void handleMouseUp(AvoGUI::MouseEvent const& p_event) override
+	{
+		m_isDraggingSpiral = false;
 	}
 	void handleMouseMove(AvoGUI::MouseEvent const& p_event) override
 	{
+		m_isHoveringSpiral = 
+			AvoGUI::Point<>::getLengthSquared(p_event.x - getWidth() * 0.5f, p_event.y - getHeight() * 0.5f) >
+			AvoGUI::Point<>::getLengthSquared(m_spiralVertices[m_numberOfSpiralVerticesInTotal - 1].x - getWidth() * 0.5f, m_spiralVertices[m_numberOfSpiralVerticesInTotal - 1].y - getHeight() * 0.5f);
 
+		if (m_isDraggingSpiral && (p_event.x != getWidth()*0.5f || p_event.y != getHeight()*0.5f))
+		{
+			float normalizedStartAngle = m_startAngle - floor(m_startAngle);
+			float normalizedCursorAngle = std::atan2(p_event.y - getHeight() * 0.5f, p_event.x - getWidth() * 0.5f) / AvoGUI::TAU + 0.25;
+			normalizedCursorAngle -= floor(normalizedCursorAngle);
+
+			float nextAngle = m_startAngle;
+			if (normalizedStartAngle > normalizedCursorAngle)
+			{
+				if (normalizedStartAngle - normalizedCursorAngle < 0.5f)
+				{
+					nextAngle += normalizedCursorAngle - normalizedStartAngle;
+				}
+				else
+				{
+					nextAngle += 1.f - (normalizedStartAngle - normalizedCursorAngle);
+				}
+			}
+			else
+			{
+				if (normalizedCursorAngle - normalizedStartAngle < 0.5f)
+				{
+					nextAngle += normalizedCursorAngle - normalizedStartAngle;
+				}
+				else
+				{
+					nextAngle -= 1.f - (normalizedCursorAngle - normalizedStartAngle);
+				}
+			}
+			nextAngle = AvoGUI::constrain(nextAngle, 0.f, TIMER_MAX_NUMBER_OF_HOURS);
+
+			m_textField_hours->setString(std::to_string((int)nextAngle));
+			float minutes = (nextAngle - (int)nextAngle) * 60.f;
+			m_textField_minutes->setString(std::to_string((int)minutes));
+			m_textField_seconds->setString(std::to_string(int((minutes - (int)minutes) * 60.f)));
+		}
 	}
 	void handleKeyboardKeyDown(AvoGUI::KeyboardEvent const& p_event) override
 	{
@@ -80,8 +133,6 @@ public:
 
 	bool handleEditableTextChange(AvoGUI::EditableText* p_editableText, std::string& p_newString, int32_t& p_newCaretIndex) override
 	{
-		// Check input
-
 		for (uint32_t a = 0; a < p_newString.size(); a++)
 		{
 			if (p_newString[a] < 48 || p_newString[a] > 57)
@@ -90,22 +141,49 @@ public:
 			}
 		}
 
+		// Update text fields and m_startAngle
 		if (p_newString.size())
 		{
 			if (p_editableText->getParent() == m_textField_hours)
 			{
-				p_newString = std::to_string(AvoGUI::min((int)TIMER_MAX_NUMBER_OF_HOURS, std::stoi(p_newString)));
-				m_startAngle += float((p_newString.size() ? std::stoi(p_newString) : 0) - (m_textField_hours->getString()[0] ? std::stoi(m_textField_hours->getString()) : 0));
+				int hours = AvoGUI::min((int)TIMER_MAX_NUMBER_OF_HOURS, std::stoi(p_newString));
+				p_newString = std::to_string(hours);
+				if (hours == TIMER_MAX_NUMBER_OF_HOURS)
+				{
+					m_startAngle = TIMER_MAX_NUMBER_OF_HOURS;
+					m_textField_minutes->setString("0");
+					m_textField_seconds->setString("0");
+				}
+				else
+				{
+					m_startAngle += float((p_newString.size() ? std::stoi(p_newString) : 0) - (m_textField_hours->getString()[0] ? std::stoi(m_textField_hours->getString()) : 0));
+				}
 			}
 			else if (p_editableText->getParent() == m_textField_minutes)
 			{
-				p_newString = std::to_string(AvoGUI::min(60, std::stoi(p_newString)));
-				m_startAngle += ((p_newString.size() ? std::stoi(p_newString) : 0) - (m_textField_minutes->getString()[0] ? std::stoi(m_textField_minutes->getString()) : 0))/60.f;
+				if (m_startAngle >= TIMER_MAX_NUMBER_OF_HOURS)
+				{
+					p_newString = "0";
+					m_startAngle = TIMER_MAX_NUMBER_OF_HOURS;
+				}
+				else
+				{
+					p_newString = std::to_string(AvoGUI::min(59, std::stoi(p_newString)));
+					m_startAngle += ((p_newString.size() ? std::stoi(p_newString) : 0) - (m_textField_minutes->getString()[0] ? std::stoi(m_textField_minutes->getString()) : 0)) / 60.f;
+				}
 			}
 			else
 			{
-				p_newString = std::to_string(AvoGUI::min(60, std::stoi(p_newString)));
-				m_startAngle += ((p_newString.size() ? std::stoi(p_newString) : 0) - (m_textField_seconds->getString()[0] ? std::stoi(m_textField_seconds->getString()) : 0))/3600.f;
+				if (m_startAngle >= TIMER_MAX_NUMBER_OF_HOURS)
+				{
+					p_newString = "0";
+					m_startAngle = TIMER_MAX_NUMBER_OF_HOURS;
+				}
+				else
+				{
+					p_newString = std::to_string(AvoGUI::min(59, std::stoi(p_newString)));
+					m_startAngle += ((p_newString.size() ? std::stoi(p_newString) : 0) - (m_textField_seconds->getString()[0] ? std::stoi(m_textField_seconds->getString()) : 0)) / 3600.f;
+				}
 			}
 		}
 		else
@@ -124,10 +202,6 @@ public:
 			}
 		}
 
-		//m_startAngle = 
-		//	((m_textField_hours->getString()[0] == 0) ? 0 : std::stoi(m_textField_hours->getString())) + 
-		//	((m_textField_minutes->getString()[0] == 0) ? 0 : std::stoi(m_textField_minutes->getString()) / 60.f) + 
-		//	((m_textField_seconds->getString()[0] == 0) ? 0 : std::stoi(m_textField_seconds->getString()) / 3600.f);
 		m_timeStart = std::chrono::system_clock::now();
 
 		return true;
@@ -137,7 +211,6 @@ public:
 
 	void handleButtonClick(AvoGUI::Button* p_button) override
 	{
-		//PlaySound("",)
 	}
 
 	//------------------------------
@@ -157,6 +230,7 @@ public:
 		m_theme->values["text field height"] = 2.4f;
 
 		m_theme->values["button font size"] = 12.f;
+		m_theme->values["button character spacing"] = 0.f;
 
 		//------------------------------
 
@@ -187,7 +261,6 @@ public:
 		m_button_openSound = new AvoGUI::Button(textFieldContainer, "Open sound...", AvoGUI::Button::Emphasis::Low);
 		m_button_openSound->setTop(m_textField_hours->getBottom() + 20.f);
 		m_button_openSound->setCenterX(m_textField_minutes->getCenterX());
-		m_button_openSound->getText()->setCharacterSpacing(0.f);
 		m_button_openSound->addButtonListener(this);
 
 		textFieldContainer->setPadding(1.f);
@@ -214,10 +287,11 @@ public:
 
 	void updateAnimations() override
 	{
+		float angleBefore = m_currentAngle;
 		m_currentAngle = AvoGUI::max(0.f, m_startAngle - std::chrono::duration<float>(std::chrono::system_clock::now() - m_timeStart).count()/3600.f);
-		if (m_currentAngle == 0.f)
+		if (angleBefore && !m_currentAngle && m_soundFilePath.size())
 		{
-
+			//PlaySound(m_soundFilePath.c_str(), GetModuleHandle(0), SND_ASYNC | SND_FILENAME);
 		}
 		if (getWindow()->getState() != AvoGUI::WindowState::Minimized)
 		{

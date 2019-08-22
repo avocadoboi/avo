@@ -3496,35 +3496,34 @@ namespace AvoGUI
 		void finishDrawing(std::vector<Rectangle<float>> const& p_updatedRectangles) override
 		{
 			m_context->EndDraw();
-
-			DXGI_PRESENT_PARAMETERS presentParameters;
-			presentParameters.DirtyRectsCount = p_updatedRectangles.size();
-
-			//RECT* updatedRects = new RECT[p_updatedRectangles.size()];
-			RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
-
-			// If you're getting an exception below, you have three options; 
-			// 1. don't invalidate so damn many rectangles
-			// 2. increase the size of the static array above
-			// 3. make the array above dynamic by commenting out the line above
-			for (uint32_t a = 0; a < p_updatedRectangles.size(); a++)
+			try
 			{
-				updatedRects[a].left = p_updatedRectangles[a].left;
-				updatedRects[a].top = p_updatedRectangles[a].top;
-				updatedRects[a].right = p_updatedRectangles[a].right;
-				updatedRects[a].bottom = p_updatedRectangles[a].bottom;
-			}
+				DXGI_PRESENT_PARAMETERS presentParameters;
+				presentParameters.DirtyRectsCount = p_updatedRectangles.size();
 
-			presentParameters.pDirtyRects = updatedRects;
-			presentParameters.pScrollOffset = 0;
-			presentParameters.pScrollRect = 0;
+				//RECT* updatedRects = new RECT[p_updatedRectangles.size()];
+				RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
 
-			HRESULT result = m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
-			if (result != S_OK)
-			{
-				std::cout << "oOps" << std::endl;
+				// If you're getting an exception below, you have three options; 
+				// 1. don't invalidate so damn many rectangles
+				// 2. increase the size of the static array above
+				// 3. make the array above dynamic (see the commented line above there), also don't forget to free it.
+				for (uint32_t a = 0; a < p_updatedRectangles.size(); a++)
+				{
+					updatedRects[a].left = p_updatedRectangles[a].left;
+					updatedRects[a].top = p_updatedRectangles[a].top;
+					updatedRects[a].right = p_updatedRectangles[a].right;
+					updatedRects[a].bottom = p_updatedRectangles[a].bottom;
+				}
+
+				presentParameters.pDirtyRects = updatedRects;
+				presentParameters.pScrollOffset = 0;
+				presentParameters.pScrollRect = 0;
+
+				m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
+				//delete[] updatedRects;
 			}
-			//delete[] updatedRects;
+			catch (...) { }
 		}
 
 		//------------------------------

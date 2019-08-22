@@ -61,6 +61,16 @@ namespace AvoGUI
 	double const TAU =		6.28318530717958647;
 
 	/*
+		Returns a number multiplied by itself (x to the 2nd power, meaning x^2, meaning x*x). 
+		Can be useful if you want to quickly square a longer expression.
+	*/
+	template<typename T>
+	T square(T p_x)
+	{
+		return p_x * p_x;
+	}
+
+	/*
 		Returns the square root of a float using a fast but less accurate algorithm.
 	*/
 	inline float fastSqrt(float p_x)
@@ -3580,6 +3590,34 @@ namespace AvoGUI
 		*/
 		void setThemeColor(char const* p_name, Color const& p_color, bool p_willAffectChildren = true)
 		{
+			if (p_willAffectChildren)
+			{
+				View* view = this;
+				uint32_t startIndex = 0;
+				while (true)
+				{
+				loopStart:
+					for (uint32_t a = startIndex; a < view->getNumberOfChildren(); a++)
+					{
+						view->getChild(a)->setThemeColor(p_name, p_color, false);
+						if (view->getChild(a)->getNumberOfChildren())
+						{
+							view = view->getChild(a);
+							startIndex = 0;
+							goto loopStart; // dont @ me
+						}
+					}
+					if (view == this)
+					{
+						break;
+					}
+					startIndex = view->getIndex() + 1;
+					view = view->getParent();
+				}
+			}
+
+			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
+			// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
 			if (!m_theme)
 			{
 				m_theme = new Theme();
@@ -3595,32 +3633,6 @@ namespace AvoGUI
 				m_theme->colors[p_name] = p_color;
 				std::string name(std::move(p_name));
 				handleThemeColorChange(name, p_color);
-			}
-
-			if (p_willAffectChildren)
-			{
-				View* view = this;
-				uint32_t startIndex = 0;
-				while (true)
-				{
-				loopStart:
-					for (uint32_t a = startIndex; a < view->getNumberOfChildren(); a++)
-					{
-						view->getChild(a)->setThemeColor(p_name, p_color, false);
-						if (view->getChild(a)->getNumberOfChildren())
-						{
-							view = view->getChild(a);
-							startIndex = 0;
-							goto loopStart;
-						}
-					}
-					if (view == this)
-					{
-						break;
-					}
-					startIndex = view->getIndex() + 1;
-					view = view->getParent();
-				}
 			}
 		}
 		/*
@@ -3653,23 +3665,6 @@ namespace AvoGUI
 		*/
 		void setThemeEasing(char const* p_name, Easing const& p_easing, bool p_willAffectChildren = true)
 		{
-			if (!m_theme)
-			{
-				m_theme = new Theme();
-			}
-			else if (m_theme->getReferenceCount() > 1)
-			{
-				m_theme->forget();
-				m_theme = new Theme(*m_theme);
-			}
-
-			if (m_theme->easings[p_name] != p_easing)
-			{
-				m_theme->easings[p_name] = p_easing;
-				std::string name(std::move(p_name));
-				handleThemeEasingChange(name, p_easing);
-			}
-
 			if (p_willAffectChildren)
 			{
 				View* view = this;
@@ -3695,6 +3690,25 @@ namespace AvoGUI
 					view = view->getParent();
 				}
 			}
+
+			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
+			// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
+			if (!m_theme)
+			{
+				m_theme = new Theme();
+			}
+			else if (m_theme->getReferenceCount() > 1)
+			{
+				m_theme->forget();
+				m_theme = new Theme(*m_theme);
+			}
+
+			if (m_theme->easings[p_name] != p_easing)
+			{
+				m_theme->easings[p_name] = p_easing;
+				std::string name(std::move(p_name));
+				handleThemeEasingChange(name, p_easing);
+			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -3719,23 +3733,6 @@ namespace AvoGUI
 		*/
 		void setThemeFontFamily(char const* p_name, char const* p_fontFamilyName, bool p_willAffectChildren = true)
 		{
-			if (!m_theme)
-			{
-				m_theme = new Theme();
-			}
-			else if (m_theme->getReferenceCount() > 1)
-			{
-				m_theme->forget();
-				m_theme = new Theme(*m_theme);
-			}
-
-			if (m_theme->fontFamilies[p_name] != p_fontFamilyName)
-			{
-				m_theme->fontFamilies[p_name] = p_fontFamilyName;
-				std::string name(std::move(p_name));
-				handleThemeFontFamilyChange(name.c_str(), p_fontFamilyName);
-			}
-
 			if (p_willAffectChildren)
 			{
 				View* view = this;
@@ -3760,6 +3757,25 @@ namespace AvoGUI
 					startIndex = view->getIndex() + 1;
 					view = view->getParent();
 				}
+			}
+
+			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
+			// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
+			if (!m_theme)
+			{
+				m_theme = new Theme();
+			}
+			else if (m_theme->getReferenceCount() > 1)
+			{
+				m_theme->forget();
+				m_theme = new Theme(*m_theme);
+			}
+
+			if (m_theme->fontFamilies[p_name] != p_fontFamilyName)
+			{
+				m_theme->fontFamilies[p_name] = p_fontFamilyName;
+				std::string name(std::move(p_name));
+				handleThemeFontFamilyChange(name.c_str(), p_fontFamilyName);
 			}
 
 		}
@@ -3800,23 +3816,6 @@ namespace AvoGUI
 		*/
 		void setThemeValue(char const* p_name, float p_value, bool p_willAffectChildren = true)
 		{
-			if (!m_theme)
-			{
-				m_theme = new Theme();
-			}
-			else if (m_theme->getReferenceCount() > 1)
-			{
-				m_theme->forget();
-				m_theme = new Theme(*m_theme);
-			}
-
-			if (m_theme->values[p_name] != p_value)
-			{
-				m_theme->values[p_name] = p_value;
-				std::string name(std::move(p_name));
-				handleThemeValueChange(name, p_value);
-			}
-
 			if (p_willAffectChildren)
 			{
 				View* view = this;
@@ -3841,6 +3840,25 @@ namespace AvoGUI
 					startIndex = view->getIndex() + 1;
 					view = view->getParent();
 				}
+			}
+
+			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
+			// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
+			if (!m_theme)
+			{
+				m_theme = new Theme();
+			}
+			else if (m_theme->getReferenceCount() > 1)
+			{
+				m_theme->forget();
+				m_theme = new Theme(*m_theme);
+			}
+
+			if (m_theme->values[p_name] != p_value)
+			{
+				m_theme->values[p_name] = p_value;
+				std::string name(std::move(p_name));
+				handleThemeValueChange(name, p_value);
 			}
 		}
 		/*
@@ -7655,13 +7673,25 @@ namespace AvoGUI
 
 	//------------------------------
 
-	//class FileOpener
+	//class OpenFileDialog
 	//{
 	//public:
-	//	FileOpener()
-	//	{
+	//	bool canSelectMultipleFiles = false;
 
-	//	}
+	//	/*
+	//		
+	//	*/
+	//	std::vector<char const*> fileExtensionFilters;
+
+	//	/*
+	//		The title shown in the top border of the open file dialog.
+	//	*/
+	//	char const* windowTitle;
+
+	//	/*
+	//		
+	//	*/
+	//	bool open(std::vector<char const*>& p_openedFilePaths);
 	//};
 
 	//------------------------------
@@ -8454,7 +8484,7 @@ namespace AvoGUI
 		}
 
 	protected:
-		void handleThemeFontFamilyChange(char const* p_name, char const* p_newFontFamily)
+		void handleThemeFontFamilyChange(std::string const& p_name, char const* p_newFontFamily) override
 		{
 			if (p_name == "main")
 			{
@@ -8465,6 +8495,9 @@ namespace AvoGUI
 				}
 			}
 		}
+		//void handleThemeValueChange(std::string const& p_name, float p_value) override
+		//{
+		//}
 
 	public:
 		EditableText(View* p_parent, float p_width = 0.f, float p_fontSize = 12.f) :
