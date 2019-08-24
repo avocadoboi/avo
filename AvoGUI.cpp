@@ -12,6 +12,7 @@
 #ifdef _WIN32
 #include <Windows.h>
 #include <windowsx.h>
+#include <ShObjIdl.h>
 #include <d2d1effects.h>
 #include <d2d1.h>
 #include <d2d1_1.h>
@@ -3496,34 +3497,30 @@ namespace AvoGUI
 		void finishDrawing(std::vector<Rectangle<float>> const& p_updatedRectangles) override
 		{
 			m_context->EndDraw();
-			try
+			DXGI_PRESENT_PARAMETERS presentParameters;
+			presentParameters.DirtyRectsCount = p_updatedRectangles.size();
+
+			//RECT* updatedRects = new RECT[p_updatedRectangles.size()];
+			RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
+
+			// If you're getting an exception below, you have three options; 
+			// 1. don't invalidate so damn many rectangles
+			// 2. increase the size of the static array above
+			// 3. make the array above dynamic (see the commented line above there), also don't forget to free it.
+			for (uint32_t a = 0; a < p_updatedRectangles.size(); a++)
 			{
-				DXGI_PRESENT_PARAMETERS presentParameters;
-				presentParameters.DirtyRectsCount = p_updatedRectangles.size();
-
-				//RECT* updatedRects = new RECT[p_updatedRectangles.size()];
-				RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
-
-				// If you're getting an exception below, you have three options; 
-				// 1. don't invalidate so damn many rectangles
-				// 2. increase the size of the static array above
-				// 3. make the array above dynamic (see the commented line above there), also don't forget to free it.
-				for (uint32_t a = 0; a < p_updatedRectangles.size(); a++)
-				{
-					updatedRects[a].left = p_updatedRectangles[a].left;
-					updatedRects[a].top = p_updatedRectangles[a].top;
-					updatedRects[a].right = p_updatedRectangles[a].right;
-					updatedRects[a].bottom = p_updatedRectangles[a].bottom;
-				}
-
-				presentParameters.pDirtyRects = updatedRects;
-				presentParameters.pScrollOffset = 0;
-				presentParameters.pScrollRect = 0;
-
-				m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
-				//delete[] updatedRects;
+				updatedRects[a].left = p_updatedRectangles[a].left;
+				updatedRects[a].top = p_updatedRectangles[a].top;
+				updatedRects[a].right = p_updatedRectangles[a].right;
+				updatedRects[a].bottom = p_updatedRectangles[a].bottom;
 			}
-			catch (...) { }
+
+			presentParameters.pDirtyRects = updatedRects;
+			presentParameters.pScrollOffset = 0;
+			presentParameters.pScrollRect = 0;
+
+			m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
+			//delete[] updatedRects;
 		}
 
 		//------------------------------
@@ -5839,61 +5836,6 @@ namespace AvoGUI
 	}
 
 	//------------------------------
-	// class Tooltip
-	//------------------------------
 
-	void Tooltip::show(char const* p_string, Rectangle<float> const& p_targetRectangle)
-	{
-		if (!m_isShowing)
-		{
-			if (!m_text || p_string != m_text->getString())
-			{
-				if (m_text)
-				{
-					m_text->forget();
-				}
-				m_text = getGUI()->getDrawingContext()->createText(p_string, 12.f);
-				m_text->fitBoundsToText();
-				setSize(m_text->getWidth() + 25.f, m_text->getHeight() + 15.f);
-				m_text->setCenter(getWidth()*0.5f, getHeight()*0.5f);
-			}
 
-			if (p_targetRectangle.bottom + 7.f + getHeight() >= getGUI()->getHeight())
-			{
-				setBottom(max(1.f, p_targetRectangle.top - 7.f), true);
-			}
-			else
-			{
-				setTop(p_targetRectangle.bottom + 7.f, true);
-			}
-			setCenterX(max(1.f + getWidth()*0.5f, min(getGUI()->getWidth() - getWidth()*0.5 - 1.f, p_targetRectangle.getCenterX())));
-
-			m_opacityAnimationTime = 0.f;
-			m_opacity = 0.f;
-			m_isShowing = true;
-			m_timeSinceShow = 0U;
-			queueAnimationUpdate();
-		}
-	}
-	void Tooltip::hide()
-	{
-		if (m_isShowing)
-		{
-			m_isShowing = false;
-			queueAnimationUpdate();
-		}
-	}
-
-	void Tooltip::draw(DrawingContext* p_drawingContext)
-	{
-		if (m_text)
-		{
-			p_drawingContext->scale(m_opacity*0.3f + 0.7f, getAbsoluteCenter());
-			p_drawingContext->setColor(Color(m_theme->colors["tooltip background"], m_opacity));
-			p_drawingContext->fillRoundedRectangle(getSize(), getCornerRadius());
-			p_drawingContext->setColor(Color(m_theme->colors["tooltip on background"], m_opacity));
-			p_drawingContext->drawText(m_text);
-			p_drawingContext->scale(1.f / (m_opacity*0.3f + 0.7f), getAbsoluteCenter());
-		}
-	}
 };

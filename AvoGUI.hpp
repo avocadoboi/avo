@@ -36,6 +36,7 @@
 
 #include <cstdint>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <deque>
 #include <map>
@@ -214,6 +215,53 @@ namespace AvoGUI
 		p_result should be allocated with p_numberOfCharactersInResult number of wchar_t characters.
 	*/
 	void widenString(char const* p_string, wchar_t* p_result, uint32_t p_numberOfCharactersInResult);
+
+	//------------------------------
+
+	enum class RoundingType
+	{
+		Down, 
+		Up, 
+		Nearest
+	};
+
+	/*
+		Converts a number to a string, using . (dot) for the decimal point.
+	*/
+	template<typename T>
+	std::string convertNumberToString(T p_value)
+	{
+		std::ostringstream stream;
+		stream.precision(10);
+		stream << p_value;
+		return stream.str();
+	}
+
+	/*
+		Converts a number rounded at a certain digit to a string, using . (dot) for the decimal point.
+		If p_numberOfDigitsToRound is 0, only all decimals are rounded off and it becomes an integer.
+		Positive goes to the right and negative goes to the left.
+	*/
+	template<typename T>
+	std::string convertNumberToString(T p_value, int32_t p_roundingIndex, RoundingType p_roundingType = RoundingType::Nearest)
+	{
+		double roundingFactor = std::pow(10., p_roundingIndex);
+		std::ostringstream stream;
+		stream.precision(10);
+		if (p_roundingType == RoundingType::Nearest)
+		{
+			stream << std::round(p_value*roundingFactor)/roundingFactor;
+		}
+		else if (p_roundingType == RoundingType::Down)
+		{
+			stream << std::floor(p_value * roundingFactor) / roundingFactor;
+		}
+		else
+		{
+			stream << std::ceil(p_value * roundingFactor) / roundingFactor;
+		}
+		return stream.str();
+	}
 
 	//------------------------------
 
@@ -3007,6 +3055,9 @@ namespace AvoGUI
 			// Global values
 			values["hover animation speed"] = 1.f/6.f; // 1/frames where frames is the number of frames the animation takes to finish. If it's 0.5, it finishes in 2 frames.
 
+			// Tooltip styles
+			values["tooltip font size"] = 12.f;
+
 			// Button styles
 			values["button font size"] = 14.f;
 			values["button character spacing"] = 1.f;
@@ -3795,6 +3846,8 @@ namespace AvoGUI
 			These values may be used by views that come with the library, but you could use them yourself too.
 			
 			"hover animation speed"
+
+			"tooltip font size"
 
 			"button font size"
 			"button character spacing"
@@ -7627,12 +7680,51 @@ namespace AvoGUI
 			p_string is the string to be displayed on the tooltip.
 			p_targetBounds is the area that the tooltip points to and is relative to the parent of this tooltip. The tooltip decides the exact positioning.
 		*/
-		virtual void show(char const* p_string, Rectangle<float> const& p_targetRectangle);
+		virtual void show(char const* p_string, Rectangle<float> const& p_targetRectangle)
+		{
+			if (!m_isShowing)
+			{
+				if (!m_text || p_string != m_text->getString())
+				{
+					if (m_text)
+					{
+						m_text->forget();
+					}
+					m_text = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("tooltip font size"));
+					m_text->fitBoundsToText();
+					setSize(m_text->getWidth() + 1.6 * getThemeValue("tooltip font size"), m_text->getHeight() + getThemeValue("tooltip font size") * 1.f);
+					m_text->setCenter(getWidth() * 0.5f, getHeight() * 0.5f);
+				}
+
+				if (p_targetRectangle.bottom + 7.f + getHeight() >= getGUI()->getHeight())
+				{
+					setBottom(max(1.f, p_targetRectangle.top - 7.f), true);
+				}
+				else
+				{
+					setTop(p_targetRectangle.bottom + 7.f, true);
+				}
+				setCenterX(max(1.f + getWidth() * 0.5f, min(getGUI()->getWidth() - getWidth() * 0.5f - 1.f, p_targetRectangle.getCenterX())));
+
+				m_opacityAnimationTime = 0.f;
+				m_opacity = 0.f;
+				m_isShowing = true;
+				m_timeSinceShow = 0U;
+				queueAnimationUpdate();
+			}
+		}
 
 		/*
 			Makes the tooltip disappear.
 		*/
-		virtual void hide();
+		virtual void hide()
+		{
+			if (m_isShowing)
+			{
+				m_isShowing = false;
+				queueAnimationUpdate();
+			}
+		}
 
 		//------------------------------
 
@@ -7668,31 +7760,51 @@ namespace AvoGUI
 			invalidate();
 		}
 
-		virtual void draw(DrawingContext* p_drawingContext) override;
+		virtual void draw(DrawingContext* p_drawingContext) override
+		{
+			if (m_text)
+			{
+				p_drawingContext->scale(m_opacity * 0.3f + 0.7f, getAbsoluteCenter());
+				p_drawingContext->setColor(Color(m_theme->colors["tooltip background"], m_opacity));
+				p_drawingContext->fillRoundedRectangle(getSize(), getCornerRadius());
+				p_drawingContext->setColor(Color(m_theme->colors["tooltip on background"], m_opacity));
+				p_drawingContext->drawText(m_text);
+				p_drawingContext->scale(1.f / (m_opacity * 0.3f + 0.7f), getAbsoluteCenter());
+			}
+		}
 	};
 
 	//------------------------------
 
-	//class OpenFileDialog
-	//{
-	//public:
-	//	bool canSelectMultipleFiles = false;
+	class OpenFileDialog
+	{
+	public:
+		/*
+			If this is true, the user can select more than 1 file to open.
+		*/
+		bool canSelectMultipleFiles;
 
-	//	/*
-	//		
-	//	*/
-	//	std::vector<char const*> fileExtensionFilters;
+		/*
+			
+		*/
+		std::vector<char const*> fileExtensionFilters;
 
-	//	/*
-	//		The title shown in the top border of the open file dialog.
-	//	*/
-	//	char const* windowTitle;
+		/*
+			The title shown in the top border of the open file dialog.
+		*/
+		char const* windowTitle;
 
-	//	/*
-	//		
-	//	*/
-	//	bool open(std::vector<char const*>& p_openedFilePaths);
-	//};
+		OpenFileDialog() :
+			canSelectMultipleFiles(false), windowTitle("Open file...")
+		{
+		}
+
+		/*
+			Opens the dialog and returns when the user has selected the files.
+			p_openedFilePaths is a vector which will be filled with file paths to the files the user has selected to open.
+		*/
+		bool open(std::vector<char const*>& p_openedFilePaths);
+	};
 
 	//------------------------------
 
@@ -7856,7 +7968,7 @@ namespace AvoGUI
 		{
 			if (m_hasHoverEffect)
 			{
-				m_overlayAlphaFactor = m_theme->easings["symmetrical in out"].easeValue(m_overlayAnimationTime);
+				m_overlayAlphaFactor = getThemeEasing("symmetrical in out").easeValue(m_overlayAnimationTime);
 
 				if (m_isMouseHovering)
 				{
@@ -7876,7 +7988,7 @@ namespace AvoGUI
 			float circleAnimationValue = 1.f;
 			if (m_circleAnimationTime < 1.f)
 			{
-				circleAnimationValue = m_theme->easings["ripple"].easeValue(m_circleAnimationTime);
+				circleAnimationValue = getThemeEasing("ripple").easeValue(m_circleAnimationTime);
 				m_circleAnimationTime += 0.05f;
 				m_size = interpolate(m_maxSize * 0.4f, m_maxSize, circleAnimationValue);
 			}
@@ -7892,7 +8004,7 @@ namespace AvoGUI
 			{
 				if (m_alphaAnimationTime < 1.f)
 				{
-					m_alphaFactor = 1.f - m_theme->easings["symmetrical in out"].easeValue(m_alphaAnimationTime);
+					m_alphaFactor = 1.f - getThemeEasing("symmetrical in out").easeValue(m_alphaAnimationTime);
 					m_alphaAnimationTime = min(1.f, m_alphaAnimationTime + 0.05f);
 
 					queueAnimationUpdate();
@@ -7971,15 +8083,34 @@ namespace AvoGUI
 
 		void updateSize()
 		{
-			if (m_text->getWidth() >= 32.f)
+			if (m_text)
 			{
-				setSize(round(m_text->getWidth()) + 32.f, round(m_text->getHeight()) + 17.f);
+				float sizeFactor = getThemeValue("button font size") / 14.f;
+				if (m_icon)
+				{
+					m_icon->setSize(16.f*sizeFactor, 16.f*sizeFactor);
+					m_icon->setCenter(sizeFactor*38.f * 0.5f, getHeight() * 0.5f);
+
+					m_text->setLeft(38.f*sizeFactor);
+					setSize(round(m_text->getWidth()) + sizeFactor*(16.f + 38.f), round(m_text->getHeight()) + 17.f * sizeFactor);
+				}
+				else
+				{
+					if (m_text->getWidth() >= 32.f*sizeFactor)
+					{
+						setSize(round(m_text->getWidth()) + 32.f*sizeFactor, round(m_text->getHeight()) + 17.f*sizeFactor);
+					}
+					else
+					{
+						setSize(64.f*sizeFactor, round(m_text->getHeight()) + 17.f*sizeFactor);
+					}
+					m_text->setCenter(getCenter() - getTopLeft());
+				}
 			}
-			else
+			else if (m_icon)
 			{
-				setSize(64.f, round(m_text->getHeight()) + 17.f);
+				m_icon->setCenter(getCenter() - getTopLeft());
 			}
-			m_text->setCenter(getCenter() - getTopLeft());
 		}
 
 	protected:
@@ -8127,14 +8258,19 @@ namespace AvoGUI
 			{
 				m_text->forget();
 			}
-
-			m_text = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("button font size"));
-			m_text->setFontFamily(m_theme->fontFamilies["main"]);
-			m_text->setWordWrapping(WordWrapping::Never);
-			m_text->setCharacterSpacing(getThemeValue("button character spacing"));
-			m_text->setFontWeight(FontWeight::Medium);
-			m_text->fitBoundsToText();
-
+			if (p_string[0])
+			{
+				m_text = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("button font size"));
+				m_text->setFontFamily(m_theme->fontFamilies["main"]);
+				m_text->setWordWrapping(WordWrapping::Never);
+				m_text->setCharacterSpacing(getThemeValue("button character spacing"));
+				m_text->setFontWeight(FontWeight::Medium);
+				m_text->fitBoundsToText();
+			}
+			else 
+			{
+				m_text = 0;
+			}
 			updateSize();
 		}
 
@@ -8165,35 +8301,20 @@ namespace AvoGUI
 		{
 			if (p_icon != m_icon)
 			{
+				if (m_icon)
+				{
+					m_icon->forget();
+				}
 				if (p_icon)
 				{
-					if (!m_icon)
-					{
-						m_text->setLeft(38.f);
-						setWidth(round(m_text->getWidth()) + 16.f + 38.f);
-						m_icon = p_icon;
-						m_icon->setBoundsSizing(ImageBoundsSizing::Contain);
-						m_icon->setSize(16.f, 16.f);
-						m_icon->setCenter(38.f * 0.5f, getHeight() * 0.5f);
-					}
-					else
-					{
-						m_icon->forget();
-						m_icon = p_icon;
-					}
+					m_icon = p_icon;
+					m_icon->setBoundsSizing(ImageBoundsSizing::Contain);
 				}
 				else
 				{
-					if (m_text->getWidth() >= 32.f)
-					{
-						setWidth(round(m_text->getWidth()) + 32.f);
-					}
-					else
-					{
-						setWidth(64.f);
-					}
-					m_text->setCenter(getCenter());
+					m_icon = 0;
 				}
+				updateSize();
 				invalidate();
 			}
 		}
@@ -8270,7 +8391,7 @@ namespace AvoGUI
 		{
 			if ((m_colorAnimationTime != 1.f && m_isEnabled) || (m_colorAnimationTime != 0.f && !m_isEnabled))
 			{
-				float colorAnimationValue = m_theme->easings["symmetrical in out"].easeValue(m_colorAnimationTime);
+				float colorAnimationValue = getThemeEasing("symmetrical in out").easeValue(m_colorAnimationTime);
 				if (m_emphasis == Emphasis::High)
 				{
 					m_currentColor = m_isAccent ? m_theme->colors["secondary"] : m_theme->colors["primary"];
@@ -8301,7 +8422,7 @@ namespace AvoGUI
 
 			if (m_emphasis == Emphasis::High)
 			{
-				float pressAnimationValue = m_theme->easings["in out"].easeValue(m_pressAnimationTime);
+				float pressAnimationValue = getThemeEasing("in out").easeValue(m_pressAnimationTime);
 				m_pressAnimationTime += 0.06f;
 
 				if (m_isRaising || m_isPressed)
@@ -8357,7 +8478,10 @@ namespace AvoGUI
 				p_drawingContext->drawImage(m_icon);
 			}
 
-			p_drawingContext->drawText(m_text);
+			if (m_text)
+			{
+				p_drawingContext->drawText(m_text);
+			}
 		}
 	};
 
@@ -8570,8 +8694,6 @@ namespace AvoGUI
 		}
 		void handleMouseDown(MouseEvent const& p_event) override
 		{
-			getGUI()->setKeyboardFocus(this);
-
 			if (m_text)
 			{
 				if (p_event.modifierKeys & ModifierKeyFlags::Shift)
@@ -8606,6 +8728,8 @@ namespace AvoGUI
 			{
 				setString("");
 			}
+
+			getGUI()->setKeyboardFocus(this);
 
 			invalidate();
 			queueAnimationUpdate();
@@ -9052,26 +9176,66 @@ namespace AvoGUI
 				{
 					return;
 				}
-				uint32_t stringLength = m_text->getString().size();
-				if (window->getIsKeyDown(KeyboardKey::Control) && stringLength)
+				if (window->getIsKeyDown(KeyboardKey::Control))
 				{
-					m_isSelectionVisible = true;
-					if (m_caretIndex)
-					{
-						m_caretIndex = 0;
-						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-					}
-					if (m_selectionEndIndex != stringLength)
-					{
-						m_selectionEndIndex = stringLength;
-						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
-					}
+					selectAll();
+					return;
 				}
 				break;
 			}
 			}
 
 			invalidate();
+		}
+
+		//------------------------------
+
+		void setSelection(uint32_t p_startIndex, uint32_t p_endIndex)
+		{
+			if (m_text)
+			{
+				p_startIndex = min((uint32_t)m_text->getString().size(), p_startIndex);
+				p_endIndex = min((uint32_t)m_text->getString().size(), max(p_startIndex, p_endIndex));
+				if (p_startIndex != p_endIndex)
+				{
+					if (p_startIndex != m_caretIndex)
+					{
+						m_caretIndex = p_startIndex;
+						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+					}
+
+					if (p_endIndex != m_selectionEndIndex)
+					{
+						m_selectionEndIndex = p_endIndex;
+						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+					}
+					m_isSelectionVisible = true;
+					invalidate();
+				}
+			}
+		}
+		void selectAll()
+		{
+			if (m_text)
+			{
+				uint32_t stringLength = m_text->getString().size();
+				if (stringLength)
+				{
+					if (m_caretIndex != 0)
+					{
+						m_caretIndex = 0;
+						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+					}
+
+					if (m_selectionEndIndex != stringLength)
+					{
+						m_selectionEndIndex = stringLength;
+						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+					}
+					m_isSelectionVisible = true;
+					invalidate();
+				}
+			}
 		}
 
 		//------------------------------
@@ -9665,9 +9829,35 @@ namespace AvoGUI
 		{
 			setString(p_string.c_str());
 		}
+		//void setValue(int32_t p_valueToParse)
+		//{
+
+		//}
+		//void setValue(float p_valueToParse)
+		//{
+
+		//}
+		/*
+			Parses a float rounded at a certain digit and sets it as the content of the text field.
+			If p_numberOfDigitsToRound is 0, all decimals are rounded off and it becomes an integer.
+			Positive goes to the right and negative goes to the left.
+		*/
+		//void setValue(float p_valueToParse, int32_t p_numberOfDigitsToRound)
+		//{
+		//	float roundingFactor = std::pow(10, p_numberOfDigitsToRound);
+		//	setString(std::to_string(std::round(p_valueToParse * roundingFactor) / roundingFactor));
+		//}
 		char const* getString()
 		{
 			return m_editableText->getString();
+		}
+		float getValue()
+		{
+			if (m_editableText->getString()[0])
+			{
+				return std::stof(m_editableText->getString());
+			}
+			return 0.f;
 		}
 
 		//------------------------------
