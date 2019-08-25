@@ -10,7 +10,7 @@ private:
 	AvoGUI::Image* m_image;
 
 public:
-	Sprite(AvoGUI::View* p_parent, const char* p_filePath) : View(p_parent)
+	Sprite(AvoGUI::View* p_parent, char const* p_filePath) : View(p_parent)
 	{
 		p_parent->addEventListener(this);
 
@@ -55,7 +55,7 @@ public:
 
 	//------------------------------
 
-	void handleMouseDown(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
 	{
 		setKeyboardFocus(0);
 	}
@@ -65,7 +65,7 @@ public:
 		std::cout << "A button saying '" << p_button->getString() << "' was pressed!" << std::endl;
 	}
 
-	void handleKeyboardKeyDown(const AvoGUI::KeyboardEvent& p_event) override
+	void handleKeyboardKeyDown(AvoGUI::KeyboardEvent const& p_event) override
 	{
 		GUI::handleKeyboardKeyDown(p_event);
 

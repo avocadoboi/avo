@@ -124,7 +124,7 @@ public:
 		startSimulation();
 		return true;
 	}
-	void handleMouseDown(const AvoGUI::MouseEvent& p_event) override
+	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
 	{
 		setKeyboardFocus(0);
 	}

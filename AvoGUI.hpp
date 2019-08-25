@@ -36,6 +36,7 @@
 
 #include <cstdint>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <deque>
 #include <map>
@@ -59,6 +60,16 @@ namespace AvoGUI
 	double const HALFPI =	1.57079632679489661;
 	double const PI =		3.14159265358979323;
 	double const TAU =		6.28318530717958647;
+
+	/*
+		Returns a number multiplied by itself (x to the 2nd power, meaning x^2, meaning x*x). 
+		Can be useful if you want to quickly square a longer expression.
+	*/
+	template<typename T>
+	T square(T p_x)
+	{
+		return p_x * p_x;
+	}
 
 	/*
 		Returns the square root of a float using a fast but less accurate algorithm.
@@ -199,11 +210,58 @@ namespace AvoGUI
 	//------------------------------
 
 	/*
-		Converts a const char* string to a wchar* string.
+		Converts a char const* string to a wchar* string.
 		p_string should be null-terminated.
 		p_result should be allocated with p_numberOfCharactersInResult number of wchar_t characters.
 	*/
-	void widenString(const char* p_string, wchar_t* p_result, uint32_t p_numberOfCharactersInResult);
+	void widenString(char const* p_string, wchar_t* p_result, uint32_t p_numberOfCharactersInResult);
+
+	//------------------------------
+
+	enum class RoundingType
+	{
+		Down, 
+		Up, 
+		Nearest
+	};
+
+	/*
+		Converts a number to a string, using . (dot) for the decimal point.
+	*/
+	template<typename T>
+	std::string convertNumberToString(T p_value)
+	{
+		std::ostringstream stream;
+		stream.precision(10);
+		stream << p_value;
+		return stream.str();
+	}
+
+	/*
+		Converts a number rounded at a certain digit to a string, using . (dot) for the decimal point.
+		If p_numberOfDigitsToRound is 0, only all decimals are rounded off and it becomes an integer.
+		Positive goes to the right and negative goes to the left.
+	*/
+	template<typename T>
+	std::string convertNumberToString(T p_value, int32_t p_roundingIndex, RoundingType p_roundingType = RoundingType::Nearest)
+	{
+		double roundingFactor = std::pow(10., p_roundingIndex);
+		std::ostringstream stream;
+		stream.precision(10);
+		if (p_roundingType == RoundingType::Nearest)
+		{
+			stream << std::round(p_value*roundingFactor)/roundingFactor;
+		}
+		else if (p_roundingType == RoundingType::Down)
+		{
+			stream << std::floor(p_value * roundingFactor) / roundingFactor;
+		}
+		else
+		{
+			stream << std::ceil(p_value * roundingFactor) / roundingFactor;
+		}
+		return stream.str();
+	}
 
 	//------------------------------
 
@@ -234,7 +292,7 @@ namespace AvoGUI
 			y = p_coordinate;
 		}
 		template<typename T>
-		Point(const Point<T>& p_point)
+		Point(Point<T> const& p_point)
 		{
 			x = (PointType)p_point.x;
 			y = (PointType)p_point.y;
@@ -256,7 +314,7 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename T>
-		Point<PointType>& operator=(const Point<T>& p_point)
+		Point<PointType>& operator=(Point<T> const& p_point)
 		{
 			x = (PointType)p_point.x;
 			y = (PointType)p_point.y;
@@ -289,7 +347,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		bool operator==(const Point<PointType>& p_point) const
+		bool operator==(Point<PointType> const& p_point) const
 		{
 			return x == p_point.x && y == p_point.y;
 		}
@@ -304,7 +362,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		bool operator!=(const Point<PointType>& p_point) const
+		bool operator!=(Point<PointType> const& p_point) const
 		{
 			return x != p_point.x || y != p_point.y;
 		}
@@ -320,7 +378,7 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename T>
-		Point<PointType> operator+(const Point<T>& p_point) const
+		Point<PointType> operator+(Point<T> const& p_point) const
 		{
 			return Point<PointType>(x + (PointType)p_point.x, y + (PointType)p_point.y);
 		}
@@ -343,7 +401,7 @@ namespace AvoGUI
 		}
 
 		template<typename OffsetType>
-		Point<PointType>& operator+=(const Point<OffsetType>& p_offset)
+		Point<PointType>& operator+=(Point<OffsetType> const& p_offset)
 		{
 			x += (PointType)p_offset.x;
 			y += (PointType)p_offset.y;
@@ -365,7 +423,7 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename T>
-		Point<PointType> operator-(const Point<T>& p_point) const
+		Point<PointType> operator-(Point<T> const& p_point) const
 		{
 			return Point<PointType>(x - (PointType)p_point.x, y - (PointType)p_point.y);
 		}
@@ -387,7 +445,7 @@ namespace AvoGUI
 		}
 
 		template<typename OffsetType>
-		Point<PointType>& operator-=(const Point<OffsetType>& p_offset)
+		Point<PointType>& operator-=(Point<OffsetType> const& p_offset)
 		{
 			x -= (PointType)p_offset.x;
 			y -= (PointType)p_offset.y;
@@ -403,7 +461,7 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename T>
-		Point<PointType> operator*(const Point<T>& p_point) const
+		Point<PointType> operator*(Point<T> const& p_point) const
 		{
 			return Point<PointType>(x*(PointType)p_point.x, y*(PointType)p_point.y);
 		}
@@ -422,7 +480,7 @@ namespace AvoGUI
 		}
 
 		template<typename T>
-		Point<PointType>& operator*=(const Point<T>& p_point)
+		Point<PointType>& operator*=(Point<T> const& p_point)
 		{
 			x *= (PointType)p_point.x;
 			y *= (PointType)p_point.y;
@@ -438,7 +496,7 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename T>
-		Point<PointType> operator/(const Point<T>& p_point) const
+		Point<PointType> operator/(Point<T> const& p_point) const
 		{
 			return Point<PointType>(x / (PointType)p_point.x, y / (PointType)p_point.y);
 		}
@@ -457,7 +515,7 @@ namespace AvoGUI
 		}
 
 		template<typename T>
-		Point<PointType>& operator/=(const Point<T>& p_point)
+		Point<PointType>& operator/=(Point<T> const& p_point)
 		{
 			x /= (PointType)p_point.x;
 			x /= (PointType)p_point.y;
@@ -473,7 +531,7 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename T>
-		double getDotProduct(const Point<T>& p_point) const
+		double getDotProduct(Point<T> const& p_point) const
 		{
 			return x * p_point.x + y * p_point.y;
 		}
@@ -483,7 +541,7 @@ namespace AvoGUI
 		}
 
 		template<typename T>
-		double getCrossProduct(const Point<T>& p_point) const
+		double getCrossProduct(Point<T> const& p_point) const
 		{
 			return x * p_point.x - y * p_point.x;
 		}
@@ -522,7 +580,7 @@ namespace AvoGUI
 			This is faster than getDistance() and getDistanceFast() since no square root is needed, so use this one when you can!
 		*/
 		template<typename T>
-		double getDistanceSquared(const Point<T>& p_point)
+		double getDistanceSquared(Point<T> const& p_point)
 		{
 			return (x - p_point.x)*(x - p_point.x) + (y - p_point.y)*(y - p_point.y);
 		}
@@ -538,7 +596,7 @@ namespace AvoGUI
 			Uses an accurate but slower algorithm to calculate the distance between this point and another point with pythagorean theorem.
 		*/
 		template<typename T>
-		double getDistance(const Point<T>& p_point)
+		double getDistance(Point<T> const& p_point)
 		{
 			return sqrt((x - p_point.x)*(x - p_point.x) + (y - p_point.y)*(y - p_point.y));
 		}
@@ -553,7 +611,7 @@ namespace AvoGUI
 			Uses a fast but less accurate algorithm to calculate the distance between this point and another point with pythagorean theorem.
 		*/
 		template<typename T>
-		double getDistanceFast(const Point<T>& p_point)
+		double getDistanceFast(Point<T> const& p_point)
 		{
 			return sqrtFast((x - p_point.x)*(x - p_point.x) + (y - p_point.y)*(y - p_point.y));
 		}
@@ -595,7 +653,7 @@ namespace AvoGUI
 			This is faster than getDistance() and getDistanceFast() since no square root is needed, so use this one when you can!
 		*/
 		template<typename T>
-		static T getDistanceSquared(const Point<T>& p_point_0, const Point<T>& p_point_1)
+		static T getDistanceSquared(Point<T> const& p_point_0, Point<T> const& p_point_1)
 		{
 			return (p_point_1.x - p_point_0.x)*(p_point_1.x - p_point_0.x) + (p_point_1.y - p_point_0.y)*(p_point_1.y - p_point_0.y);
 		}
@@ -612,7 +670,7 @@ namespace AvoGUI
 			Uses an accurate but slower algorithm to calculate the distance between two points with pytagorean theorem.
 		*/
 		template<typename T0, typename T1>
-		static double getDistance(const Point<T0>& p_point_0, const Point<T1>& p_point_1)
+		static double getDistance(Point<T0> const& p_point_0, Point<T1> const& p_point_1)
 		{
 			return sqrt((p_point_1.x - p_point_0.x)*(p_point_1.x - p_point_0.x) + (p_point_1.y - p_point_0.y)*(p_point_1.y - p_point_0.y));
 		}
@@ -628,7 +686,7 @@ namespace AvoGUI
 			Uses a fast but less accurate algorithm to calculate the distance between two points with pytagorean theorem.
 		*/
 		template<typename T0, typename T1>
-		static float getDistanceFast(const Point<T0>& p_point_0, const Point<T1>& p_point_1)
+		static float getDistanceFast(Point<T0> const& p_point_0, Point<T1> const& p_point_1)
 		{
 			return fastSqrt((p_point_1.x - p_point_0.x)*(p_point_1.x - p_point_0.x) + (p_point_1.y - p_point_0.y)*(p_point_1.y - p_point_0.y));
 		}
@@ -671,7 +729,7 @@ namespace AvoGUI
 		Linearly interpolates between p_start and p_end. This means we are calculating a point on the line segment between the two points.
 	*/
 	template<typename Type>
-	Point<Type> interpolate(const Point<Type>& p_start, const Point<Type>& p_end, double p_progress)
+	Point<Type> interpolate(Point<Type> const& p_start, Point<Type> const& p_end, double p_progress)
 	{
 		return p_start * (1.0 - p_progress) + p_end * (p_progress);
 	}
@@ -698,12 +756,12 @@ namespace AvoGUI
 			set(p_left, p_top, p_right, p_bottom);
 		}
 		template<typename PositionType, typename SizeType>
-		Rectangle(const Point<PositionType>& p_position, const Point<SizeType>& p_size)
+		Rectangle(Point<PositionType> const& p_position, Point<SizeType> const& p_size)
 		{
 			set(p_position, p_size);
 		}
 		template<typename ParameterRectangleType>
-		Rectangle(const Rectangle<ParameterRectangleType>& p_rectangle)
+		Rectangle(Rectangle<ParameterRectangleType> const& p_rectangle)
 		{
 			*this = p_rectangle;
 		}
@@ -723,7 +781,7 @@ namespace AvoGUI
 			bottom = p_bottom;
 		}
 		template<typename PositionType, typename SizeType>
-		void set(const Point<PositionType>& p_position, const Point<SizeType>& p_size)
+		void set(Point<PositionType> const& p_position, Point<SizeType> const& p_size)
 		{
 			left = (RectangleType)p_position.x;
 			top = (RectangleType)p_position.y;
@@ -734,7 +792,7 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename ParameterRectangleType>
-		Rectangle<RectangleType>& operator=(const Rectangle<ParameterRectangleType>& p_rectangle)
+		Rectangle<RectangleType>& operator=(Rectangle<ParameterRectangleType> const& p_rectangle)
 		{
 			left = (RectangleType)p_rectangle.left;
 			top = (RectangleType)p_rectangle.top;
@@ -758,7 +816,7 @@ namespace AvoGUI
 			Offsets the position of the rectangle.
 		*/
 		template<typename OffsetType>
-		Rectangle<RectangleType>& operator+=(const Point<OffsetType>& p_offset)
+		Rectangle<RectangleType>& operator+=(Point<OffsetType> const& p_offset)
 		{
 			left += (RectangleType)p_offset.x;
 			top += (RectangleType)p_offset.y;
@@ -770,7 +828,7 @@ namespace AvoGUI
 			Offsets the position of the rectangle negatively.
 		*/
 		template<typename OffsetType>
-		Rectangle<RectangleType>& operator-=(const Point<OffsetType>& p_offset)
+		Rectangle<RectangleType>& operator-=(Point<OffsetType> const& p_offset)
 		{
 			left -= (RectangleType)p_offset.x;
 			top -= (RectangleType)p_offset.y;
@@ -782,7 +840,7 @@ namespace AvoGUI
 		//------------------------------
 
 		template<typename ParameterRectangleType>
-		bool operator==(const Rectangle<ParameterRectangleType>& p_rectangle) const
+		bool operator==(Rectangle<ParameterRectangleType> const& p_rectangle) const
 		{
 			return left == p_rectangle.left && right == p_rectangle.right
 				&& top == p_rectangle.top && bottom == p_rectangle.bottom;
@@ -795,7 +853,7 @@ namespace AvoGUI
 		}
 
 		template<typename ParameterRectangleType>
-		bool operator!=(const Rectangle<ParameterRectangleType>& p_rectangle) const
+		bool operator!=(Rectangle<ParameterRectangleType> const& p_rectangle) const
 		{
 			return left != p_rectangle.left || right != p_rectangle.right
 				|| top != p_rectangle.top || bottom != p_rectangle.bottom;
@@ -829,7 +887,7 @@ namespace AvoGUI
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		template<typename PositionType>
-		Rectangle<RectangleType> createCopyWithTopLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
+		Rectangle<RectangleType> createCopyWithTopLeft(Point<PositionType> const& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_position.x, p_position.y, p_willKeepSize*(p_position.x - left) + right, p_willKeepSize*(p_position.y - top) + bottom);
 		}
@@ -855,7 +913,7 @@ namespace AvoGUI
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		template<typename PositionType>
-		Rectangle<RectangleType>& setTopLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true)
+		Rectangle<RectangleType>& setTopLeft(Point<PositionType> const& p_position, bool p_willKeepSize = true)
 		{
 			return setTopLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -897,7 +955,7 @@ namespace AvoGUI
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		template<typename PositionType>
-		Rectangle<RectangleType> createCopyWithTopRight(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
+		Rectangle<RectangleType> createCopyWithTopRight(Point<PositionType> const& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_position.x - right) + left, p_position.y, p_position.x, p_willKeepSize*(p_position.y - top) + bottom);
 		}
@@ -922,7 +980,7 @@ namespace AvoGUI
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		template<typename PositionType>
-		Rectangle<RectangleType>& setTopRight(const Point<PositionType>& p_position, bool p_willKeepSize = true)
+		Rectangle<RectangleType>& setTopRight(Point<PositionType> const& p_position, bool p_willKeepSize = true)
 		{
 			return setTopRight(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -964,7 +1022,7 @@ namespace AvoGUI
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		template<typename PositionType>
-		Rectangle<RectangleType> createCopyWithBottomLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
+		Rectangle<RectangleType> createCopyWithBottomLeft(Point<PositionType> const& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_position.x, p_willKeepSize*(p_position.y - bottom) + top, (p_position.x - left) + right, p_position.y);
 		}
@@ -989,7 +1047,7 @@ namespace AvoGUI
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		template<typename PositionType>
-		Rectangle<RectangleType>& setBottomLeft(const Point<PositionType>& p_position, bool p_willKeepSize = true)
+		Rectangle<RectangleType>& setBottomLeft(Point<PositionType> const& p_position, bool p_willKeepSize = true)
 		{
 			return setBottomLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -1031,7 +1089,7 @@ namespace AvoGUI
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		template<typename PositionType>
-		Rectangle<RectangleType> createCopyWithBottomRight(const Point<PositionType>& p_position, bool p_willKeepSize = true) const
+		Rectangle<RectangleType> createCopyWithBottomRight(Point<PositionType> const& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_position.x - right) + left, p_willKeepSize*(p_position.y - bottom) + top, p_position.x, p_position.y);
 		}
@@ -1056,7 +1114,7 @@ namespace AvoGUI
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		template<typename PositionType>
-		Rectangle<RectangleType>& setBottomRight(const Point<PositionType>& p_position, bool p_willKeepSize = true)
+		Rectangle<RectangleType>& setBottomRight(Point<PositionType> const& p_position, bool p_willKeepSize = true)
 		{
 			return setBottomRight(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -1179,7 +1237,7 @@ namespace AvoGUI
 			Creates a copy of this rectangle, with a new center position.
 		*/
 		template<typename PositionType>
-		Rectangle<RectangleType> createCopyWithCenter(const Point<PositionType>& p_position) const
+		Rectangle<RectangleType> createCopyWithCenter(Point<PositionType> const& p_position) const
 		{
 			RectangleType offsetX = (RectangleType)p_position.x - (left + right)/2;
 			RectangleType offsetY = (RectangleType)p_position.y - (top + bottom)/2;
@@ -1205,7 +1263,7 @@ namespace AvoGUI
 			Sets the center coordinates of the rectangle. 
 		*/
 		template<typename PositionType>
-		Rectangle<RectangleType>& setCenter(const Point<PositionType>& p_position)
+		Rectangle<RectangleType>& setCenter(Point<PositionType> const& p_position)
 		{
 			return setCenter(p_position.x, p_position.y);
 		}
@@ -1270,7 +1328,7 @@ namespace AvoGUI
 			Moves the left and top coordinates of the rectangle without affecting the other two.
 		*/
 		template<typename OffsetType>
-		Rectangle<RectangleType>& moveTopLeft(const Point<OffsetType>& p_offset)
+		Rectangle<RectangleType>& moveTopLeft(Point<OffsetType> const& p_offset)
 		{
 			left += p_offset.x;
 			top += p_offset.y;
@@ -1290,7 +1348,7 @@ namespace AvoGUI
 			Moves the right and top coordinates of the rectangle without affecting the other two.
 		*/
 		template<typename OffsetType>
-		Rectangle<RectangleType>& moveTopRight(const Point<OffsetType>& p_offset)
+		Rectangle<RectangleType>& moveTopRight(Point<OffsetType> const& p_offset)
 		{
 			right += p_offset.x;
 			top += p_offset.y;
@@ -1310,7 +1368,7 @@ namespace AvoGUI
 			Moves the left and bottom coordinates of the rectangle without affecting the other two.
 		*/
 		template<typename OffsetType>
-		Rectangle<RectangleType>& moveBottomLeft(const Point<OffsetType>& p_offset)
+		Rectangle<RectangleType>& moveBottomLeft(Point<OffsetType> const& p_offset)
 		{
 			left += p_offset.x;
 			bottom += p_offset.y;
@@ -1330,7 +1388,7 @@ namespace AvoGUI
 			Moves the right and bottom coordinates of the rectangle without affecting the other two.
 		*/
 		template<typename OffsetType>
-		Rectangle<RectangleType>& moveBottomRight(const Point<OffsetType>& p_offset)
+		Rectangle<RectangleType>& moveBottomRight(Point<OffsetType> const& p_offset)
 		{
 			right += p_offset.x;
 			bottom += p_offset.y;
@@ -1352,7 +1410,7 @@ namespace AvoGUI
 			Creates a copy of this rectangle, offseted by an amount.
 		*/
 		template<typename OffsetType>
-		Rectangle<RectangleType> createMovedCopy(const Point<OffsetType>& p_offset) const
+		Rectangle<RectangleType> createMovedCopy(Point<OffsetType> const& p_offset) const
 		{
 			return Rectangle<RectangleType>(left + p_offset.x, top + p_offset.y, right + p_offset.x, bottom + p_offset.y);
 		}
@@ -1367,7 +1425,7 @@ namespace AvoGUI
 			Does the same as the += operator, offsets the whole rectangle.
 		*/
 		template<typename OffsetType>
-		Rectangle<RectangleType>& move(const Point<OffsetType>& p_offset)
+		Rectangle<RectangleType>& move(Point<OffsetType> const& p_offset)
 		{
 			left += p_offset.x;
 			right += p_offset.x;
@@ -1411,7 +1469,7 @@ namespace AvoGUI
 			Sets the width and height of the rectangle, changing only the right and bottom coordinates.
 		*/
 		template<typename SizeType>
-		Rectangle<RectangleType>& setSize(const Point<SizeType>& p_size)
+		Rectangle<RectangleType>& setSize(Point<SizeType> const& p_size)
 		{
 			return setSize(p_size.x, p_size.y);
 		}
@@ -1470,7 +1528,7 @@ namespace AvoGUI
 			Returns a new copy of this rectangle, that is clipped to fit into the parameter rectangle.
 		*/
 		template<typename ParameterRectangleType>
-		Rectangle<RectangleType> createBoundedCopy(const Rectangle<ParameterRectangleType>& p_bounds) const
+		Rectangle<RectangleType> createBoundedCopy(Rectangle<ParameterRectangleType> const& p_bounds) const
 		{
 			Rectangle<RectangleType> bounded;
 			bounded.left = constrain(left, p_bounds.left, p_bounds.right);
@@ -1498,7 +1556,7 @@ namespace AvoGUI
 			Clips this rectangle to fit into the parameter rectangle.
 		*/
 		template<typename ParameterRectangleType>
-		Rectangle<RectangleType>& bound(const Rectangle<ParameterRectangleType>& p_bounds)
+		Rectangle<RectangleType>& bound(Rectangle<ParameterRectangleType> const& p_bounds)
 		{
 			left = constrain(left, p_bounds.left, p_bounds.right);
 			top = constrain(top, p_bounds.top, p_bounds.bottom);
@@ -1526,7 +1584,7 @@ namespace AvoGUI
 			Returns a copy of this rectangle that is extended so that it contains the parameter rectangle.
 		*/
 		template<typename ParameterRectangleType>
-		Rectangle<RectangleType> createContainedCopy(const Rectangle<ParameterRectangleType>& p_rectangle) const
+		Rectangle<RectangleType> createContainedCopy(Rectangle<ParameterRectangleType> const& p_rectangle) const
 		{
 			Rectangle<RectangleType> contained;
 			contained.left = min(left, p_rectangle.left);
@@ -1552,7 +1610,7 @@ namespace AvoGUI
 			Extends the rectangle so that it contains the parameter rectangle.
 		*/
 		template<typename ParameterRectangleType>
-		Rectangle<RectangleType>& contain(const Rectangle<ParameterRectangleType>& p_rectangle)
+		Rectangle<RectangleType>& contain(Rectangle<ParameterRectangleType> const& p_rectangle)
 		{
 			if (p_rectangle.left < left) 
 				left = p_rectangle.left;
@@ -1587,7 +1645,7 @@ namespace AvoGUI
 			Returns whether a point lies within this rectangle.
 		*/
 		template<typename PointType>
-		bool getIsContaining(const Point<PointType>& p_point) const
+		bool getIsContaining(Point<PointType> const& p_point) const
 		{
 			return p_point.x >= left && p_point.x < right
 				&& p_point.y >= top && p_point.y < bottom;
@@ -1605,7 +1663,7 @@ namespace AvoGUI
 			Returns whether another rectangle is fully inside this rectangle.
 		*/
 		template<typename ParameterRectangleType>
-		bool getIsContaining(const Rectangle<ParameterRectangleType>& p_rectangle) const
+		bool getIsContaining(Rectangle<ParameterRectangleType> const& p_rectangle) const
 		{
 			return p_rectangle.left >= left && p_rectangle.right <= right
 				&& p_rectangle.top >= top && p_rectangle.bottom <= bottom;
@@ -1618,7 +1676,7 @@ namespace AvoGUI
 			Returns whether this rectangle intersects/overlaps/touches another rectangle.
 		*/
 		template<typename ParameterRectangleType>
-		bool getIsIntersecting(const Rectangle<ParameterRectangleType>& p_rectangle) const
+		bool getIsIntersecting(Rectangle<ParameterRectangleType> const& p_rectangle) const
 		{
 			return p_rectangle.right >= left && p_rectangle.bottom >= top
 				&& p_rectangle.left <= right && p_rectangle.top <= bottom;
@@ -1641,10 +1699,10 @@ namespace AvoGUI
 
 	public:
 		ProtectedRectangle() { }
-		ProtectedRectangle(const Rectangle<float>& p_bounds) : m_bounds(p_bounds) { }
+		ProtectedRectangle(Rectangle<float> const& p_bounds) : m_bounds(p_bounds) { }
 		ProtectedRectangle(Rectangle<float>&& p_bounds) : m_bounds(p_bounds) { }
 
-		virtual void setBounds(const Rectangle<float>& p_rectangle)
+		virtual void setBounds(Rectangle<float> const& p_rectangle)
 		{
 			m_bounds = p_rectangle;
 		}
@@ -1652,18 +1710,18 @@ namespace AvoGUI
 		{
 			m_bounds.set(p_left, p_top, p_right, p_bottom);
 		}
-		virtual void setBounds(const Point<float>& p_position, const Point<float>& p_size)
+		virtual void setBounds(Point<float> const& p_position, Point<float> const& p_size)
 		{
 			m_bounds.set(p_position, p_size);
 		}
-		virtual const Rectangle<float>& getBounds() const
+		virtual Rectangle<float> const& getBounds() const
 		{
 			return m_bounds;
 		}
 
 		//------------------------------
 
-		virtual void move(const Point<float>& p_offset)
+		virtual void move(Point<float> const& p_offset)
 		{
 			m_bounds.move(p_offset);
 		}
@@ -1686,7 +1744,7 @@ namespace AvoGUI
 		{
 			m_bounds.setTopLeft(p_topAndLeft, p_willKeepSize);
 		}
-		virtual void setTopLeft(const Point<float>& p_position, bool p_willKeepSize = true)
+		virtual void setTopLeft(Point<float> const& p_position, bool p_willKeepSize = true)
 		{
 			m_bounds.setTopLeft(p_position, p_willKeepSize);
 		}
@@ -1703,7 +1761,7 @@ namespace AvoGUI
 		{
 			m_bounds.setTopRight(p_topAndRight, p_willKeepSize);
 		}
-		virtual void setTopRight(const Point<float>& p_topRight, bool p_willKeepSize = true)
+		virtual void setTopRight(Point<float> const& p_topRight, bool p_willKeepSize = true)
 		{
 			m_bounds.setTopRight(p_topRight, p_willKeepSize);
 		}
@@ -1720,7 +1778,7 @@ namespace AvoGUI
 		{
 			m_bounds.setBottomLeft(p_bottomAndLeft, p_willKeepSize);
 		}
-		virtual void setBottomLeft(const Point<float>& p_bottomLeft, bool p_willKeepSize = true)
+		virtual void setBottomLeft(Point<float> const& p_bottomLeft, bool p_willKeepSize = true)
 		{
 			m_bounds.setBottomLeft(p_bottomLeft, p_willKeepSize);
 		}
@@ -1737,7 +1795,7 @@ namespace AvoGUI
 		{
 			m_bounds.setBottomRight(p_bottomAndRight, p_willKeepSize);
 		}
-		virtual void setBottomRight(const Point<float>& p_bottomRight, bool p_willKeepSize = true)
+		virtual void setBottomRight(Point<float> const& p_bottomRight, bool p_willKeepSize = true)
 		{
 			m_bounds.setBottomRight(p_bottomRight, p_willKeepSize);
 		}
@@ -1756,7 +1814,7 @@ namespace AvoGUI
 		{
 			m_bounds.setCenter(p_centerXY);
 		}
-		virtual void setCenter(const Point<float>& p_position)
+		virtual void setCenter(Point<float> const& p_position)
 		{
 			m_bounds.setCenter(p_position);
 		}
@@ -1844,7 +1902,7 @@ namespace AvoGUI
 			return m_bounds.getHeight();
 		}
 
-		virtual void setSize(const Point<float>& p_size)
+		virtual void setSize(Point<float> const& p_size)
 		{
 			m_bounds.setSize(p_size);
 		}
@@ -1859,7 +1917,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		virtual bool getIsIntersecting(const Rectangle<float>& p_rectangle) const
+		virtual bool getIsIntersecting(Rectangle<float> const& p_rectangle) const
 		{
 			return m_bounds.getIsIntersecting(p_rectangle);
 		}
@@ -1868,7 +1926,7 @@ namespace AvoGUI
 			return m_bounds.getIsIntersecting(p_protectedRectangle);
 		}
 
-		virtual bool getIsContaining(const Rectangle<float>& p_rectangle) const
+		virtual bool getIsContaining(Rectangle<float> const& p_rectangle) const
 		{
 			return m_bounds.getIsContaining(p_rectangle);
 		}
@@ -1880,7 +1938,7 @@ namespace AvoGUI
 		{
 			return m_bounds.getIsContaining(p_x, p_y);
 		}
-		virtual bool getIsContaining(const Point<float>& p_point) const
+		virtual bool getIsContaining(Point<float> const& p_point) const
 		{
 			return m_bounds.getIsContaining(p_point);
 		}
@@ -1908,7 +1966,7 @@ namespace AvoGUI
 		//------------------------------
 
 		Easing() : x0(0.f), y0(0.f), x1(1.f), y1(1.f) { }
-		Easing(const Easing& p_easing)
+		Easing(Easing const& p_easing)
 		{
 			*this = p_easing;
 		}
@@ -1931,7 +1989,7 @@ namespace AvoGUI
 			x0((float)p_x0), y0((float)p_y0), x1((float)p_x1), y1((float)p_y1)
 		{ }
 
-		Easing& operator=(const Easing& p_easing)
+		Easing& operator=(Easing const& p_easing)
 		{
 			x0 = p_easing.x0;
 			y0 = p_easing.y0;
@@ -1950,11 +2008,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		bool operator==(const Easing& p_easing) const
+		bool operator==(Easing const& p_easing) const
 		{
 			return x0 == p_easing.x0 && y0 == p_easing.y0 && x1 == p_easing.x1 && y1 == p_easing.y1;
 		}
-		bool operator!=(const Easing& p_easing) const
+		bool operator!=(Easing const& p_easing) const
 		{
 			return x0 != p_easing.x0 || y0 != p_easing.y0 || x1 != p_easing.x1 || y1 != p_easing.y1;
 		}
@@ -2113,17 +2171,17 @@ namespace AvoGUI
 		/*
 			Creates a copy of another color but with a new alpha.
 		*/
-		Color(const Color& p_color, float p_alpha) :
+		Color(Color const& p_color, float p_alpha) :
 			red(p_color.red), green(p_color.green), blue(p_color.blue), alpha(p_alpha)
 		{ }
 		/*
 			Initializes with a 4-byte packed RGBA color.
 		*/
-		Color(const colorInt& p_color)
+		Color(colorInt const& p_color)
 		{
 			operator=(p_color);
 		}
-		Color(const Color& p_color)
+		Color(Color const& p_color)
 		{
 			operator=(p_color);
 		}
@@ -2132,7 +2190,7 @@ namespace AvoGUI
 			operator=(p_color);
 		}
 
-		Color& operator=(const colorInt& p_color)
+		Color& operator=(colorInt const& p_color)
 		{
 			alpha = float(p_color >> 24) / 255.f;
 			red = float(p_color >> 16 & 0xff) / 255.f;
@@ -2140,7 +2198,7 @@ namespace AvoGUI
 			blue = float(p_color & 0xff) / 255.f;
 			return *this;
 		}
-		Color& operator=(const Color& p_color)
+		Color& operator=(Color const& p_color)
 		{
 			red = p_color.red;
 			green = p_color.green;
@@ -2159,11 +2217,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		bool operator==(const Color& p_color) const
+		bool operator==(Color const& p_color) const
 		{
 			return red == p_color.red && green == p_color.green && blue == p_color.blue && alpha == p_color.alpha;
 		}
-		bool operator!=(const Color& p_color) const
+		bool operator!=(Color const& p_color) const
 		{
 			return red != p_color.red || green != p_color.green || blue != p_color.blue || alpha != p_color.alpha;
 		}
@@ -2632,7 +2690,7 @@ namespace AvoGUI
 	/*
 		Linearly interpolates a color between p_start and p_end. Each channel is faded individually.
 	*/
-	inline Color interpolate(const Color& p_start, const Color& p_end, float p_progress)
+	inline Color interpolate(Color const& p_start, Color const& p_end, float p_progress)
 	{
 		return Color(
 			p_start.red * (1.f - p_progress) + p_end.red*p_progress, 
@@ -2944,10 +3002,10 @@ namespace AvoGUI
 	class Theme : public ReferenceCounted
 	{
 	public:
-		std::map<const char*, Color> colors;
-		std::map<const char*, Easing> easings;
-		std::map<const char*, const char*> fontFamilies;
-		std::map<const char*, float> values;
+		std::map<char const*, Color> colors;
+		std::map<char const*, Easing> easings;
+		std::map<char const*, char const*> fontFamilies;
+		std::map<char const*, float> values;
 
 		/*
 			This initializes the default theme. 
@@ -2997,15 +3055,19 @@ namespace AvoGUI
 			// Global values
 			values["hover animation speed"] = 1.f/6.f; // 1/frames where frames is the number of frames the animation takes to finish. If it's 0.5, it finishes in 2 frames.
 
+			// Tooltip styles
+			values["tooltip font size"] = 12.f;
+
 			// Button styles
 			values["button font size"] = 14.f;
+			values["button character spacing"] = 1.f;
 
 			// Editable text styles
 			values["editable text caret blink rate"] = 20; // This is in frames
 
 			// Text field styles
 			values["text field font size"] = 15.f;
-			values["text field height"] = 3.4f; // This is a factor of the font size
+			values["text field height"] = 3.f; // This is a factor of the font size
 			values["text field padding left"] = 14.f;
 			values["text field padding right"] = 14.f;
 			values["text field filled padding bottom"] = 9.f;
@@ -3127,25 +3189,25 @@ namespace AvoGUI
 			USER IMPLEMENTED
 			This gets called whenever a theme color has changed, not including initialization.
 		*/
-		virtual void handleThemeColorChange(const char* p_name, const Color& p_newColor) { };
+		virtual void handleThemeColorChange(std::string const& p_name, Color const& p_newColor) { };
 		/*
 			USER IMPLEMENTED
 			This gets called whenever a theme easing has changed, not including initialization.
 		*/
-		virtual void handleThemeEasingChange(const char* p_name, const Easing& p_newEasing) { };
+		virtual void handleThemeEasingChange(std::string const& p_name, Easing const& p_newEasing) { };
 		/*
 			USER IMPLEMENTED
 			This gets called whenever a theme font family name has changed, not including initialization.
 		*/
-		virtual void handleThemeFontFamilyChange(const char* p_name, const char* p_newFontFamilyName) { };
+		virtual void handleThemeFontFamilyChange(std::string const& p_name, char const* p_newFontFamilyName) { };
 		/*
 			USER IMPLEMENTED
 			This gets called whenever a theme value has changed, not including initialization.
 		*/
-		virtual void handleThemeValueChange(const char* p_name, float p_newValue) { };
+		virtual void handleThemeValueChange(std::string const& p_name, float p_newValue) { };
 
 	public:
-		View(View* p_parent, const Rectangle<float>& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
+		View(View* p_parent, Rectangle<float> const& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
 		virtual ~View();
 
 		//------------------------------
@@ -3577,23 +3639,8 @@ namespace AvoGUI
 			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default colors and more details.
 			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
-		void setThemeColor(const char* p_name, const Color& p_color, bool p_willAffectChildren = true)
+		void setThemeColor(char const* p_name, Color const& p_color, bool p_willAffectChildren = true)
 		{
-			if (!m_theme)
-			{
-				m_theme = new Theme();
-			}
-			else if (m_theme->getReferenceCount() > 1)
-			{
-				m_theme->forget();
-				m_theme = new Theme(*m_theme);
-			}
-			if (m_theme->colors[p_name] != p_color)
-			{
-				m_theme->colors[p_name] = p_color;
-				handleThemeColorChange(p_name, p_color);
-			}
-
 			if (p_willAffectChildren)
 			{
 				View* view = this;
@@ -3608,7 +3655,7 @@ namespace AvoGUI
 						{
 							view = view->getChild(a);
 							startIndex = 0;
-							goto loopStart;
+							goto loopStart; // dont @ me
 						}
 					}
 					if (view == this)
@@ -3619,12 +3666,31 @@ namespace AvoGUI
 					view = view->getParent();
 				}
 			}
+
+			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
+			// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
+			if (!m_theme)
+			{
+				m_theme = new Theme();
+			}
+			else if (m_theme->getReferenceCount() > 1)
+			{
+				m_theme->forget();
+				m_theme = new Theme(*m_theme);
+			}
+
+			if (m_theme->colors[p_name] != p_color)
+			{
+				m_theme->colors[p_name] = p_color;
+				std::string name(std::move(p_name));
+				handleThemeColorChange(name, p_color);
+			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
 			See setThemeColor for names that have colors by default.
 		*/
-		const Color& getThemeColor(const char* p_name) const
+		Color const& getThemeColor(char const* p_name) const
 		{
 			return m_theme->colors[p_name];
 		}
@@ -3648,23 +3714,8 @@ namespace AvoGUI
 			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default easings and more details.
 			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
-		void setThemeEasing(const char* p_name, const Easing& p_easing, bool p_willAffectChildren = true)
+		void setThemeEasing(char const* p_name, Easing const& p_easing, bool p_willAffectChildren = true)
 		{
-			if (!m_theme)
-			{
-				m_theme = new Theme();
-			}
-			else if (m_theme->getReferenceCount() > 1)
-			{
-				m_theme->forget();
-				m_theme = new Theme(*m_theme);
-			}
-			if (m_theme->easings[p_name] != p_easing)
-			{
-				m_theme->easings[p_name] = p_easing;
-				handleThemeEasingChange(p_name, p_easing);
-			}
-
 			if (p_willAffectChildren)
 			{
 				View* view = this;
@@ -3690,12 +3741,31 @@ namespace AvoGUI
 					view = view->getParent();
 				}
 			}
+
+			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
+			// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
+			if (!m_theme)
+			{
+				m_theme = new Theme();
+			}
+			else if (m_theme->getReferenceCount() > 1)
+			{
+				m_theme->forget();
+				m_theme = new Theme(*m_theme);
+			}
+
+			if (m_theme->easings[p_name] != p_easing)
+			{
+				m_theme->easings[p_name] = p_easing;
+				std::string name(std::move(p_name));
+				handleThemeEasingChange(name, p_easing);
+			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
 			See setThemeEasing for names that have easings by default.
 		*/
-		const Easing& getThemeEasing(const char* p_name) const
+		Easing const& getThemeEasing(char const* p_name) const
 		{
 			return m_theme->easings[p_name];
 		}
@@ -3712,23 +3782,8 @@ namespace AvoGUI
 			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default font families and more details.
 			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
-		void setThemeFontFamily(const char* p_name, const char* p_fontFamilyName, bool p_willAffectChildren = true)
+		void setThemeFontFamily(char const* p_name, char const* p_fontFamilyName, bool p_willAffectChildren = true)
 		{
-			if (!m_theme)
-			{
-				m_theme = new Theme();
-			}
-			else if (m_theme->getReferenceCount() > 1)
-			{
-				m_theme->forget();
-				m_theme = new Theme(*m_theme);
-			}
-			if (m_theme->fontFamilies[p_name] != p_fontFamilyName)
-			{
-				m_theme->fontFamilies[p_name] = p_fontFamilyName;
-				handleThemeFontFamilyChange(p_name, p_fontFamilyName);
-			}
-
 			if (p_willAffectChildren)
 			{
 				View* view = this;
@@ -3755,12 +3810,31 @@ namespace AvoGUI
 				}
 			}
 
+			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
+			// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
+			if (!m_theme)
+			{
+				m_theme = new Theme();
+			}
+			else if (m_theme->getReferenceCount() > 1)
+			{
+				m_theme->forget();
+				m_theme = new Theme(*m_theme);
+			}
+
+			if (m_theme->fontFamilies[p_name] != p_fontFamilyName)
+			{
+				m_theme->fontFamilies[p_name] = p_fontFamilyName;
+				std::string name(std::move(p_name));
+				handleThemeFontFamilyChange(name.c_str(), p_fontFamilyName);
+			}
+
 		}
 		/*
 			LIBRARY IMPLEMENTED
 			"main" has a font family by default, but you can also access your own font families here.
 		*/
-		const char* getThemeFontFamily(const char* p_name) const
+		char const* getThemeFontFamily(char const* p_name) const
 		{
 			return m_theme->fontFamilies[p_name];
 		}
@@ -3773,7 +3847,10 @@ namespace AvoGUI
 			
 			"hover animation speed"
 
+			"tooltip font size"
+
 			"button font size"
+			"button character spacing"
 
 			"editable text caret blink rate"
 
@@ -3790,23 +3867,8 @@ namespace AvoGUI
 			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default values and more details.
 			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
-		void setThemeValue(const char* p_name, float p_value, bool p_willAffectChildren = true)
+		void setThemeValue(char const* p_name, float p_value, bool p_willAffectChildren = true)
 		{
-			if (!m_theme)
-			{
-				m_theme = new Theme();
-			}
-			else if (m_theme->getReferenceCount() > 1)
-			{
-				m_theme->forget();
-				m_theme = new Theme(*m_theme);
-			}
-			if (m_theme->values[p_name] != p_value)
-			{
-				m_theme->values[p_name] = p_value;
-				handleThemeValueChange(p_name, p_value);
-			}
-
 			if (p_willAffectChildren)
 			{
 				View* view = this;
@@ -3832,12 +3894,31 @@ namespace AvoGUI
 					view = view->getParent();
 				}
 			}
+
+			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
+			// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
+			if (!m_theme)
+			{
+				m_theme = new Theme();
+			}
+			else if (m_theme->getReferenceCount() > 1)
+			{
+				m_theme->forget();
+				m_theme = new Theme(*m_theme);
+			}
+
+			if (m_theme->values[p_name] != p_value)
+			{
+				m_theme->values[p_name] = p_value;
+				std::string name(std::move(p_name));
+				handleThemeValueChange(name, p_value);
+			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
 			See setThemeValue for names that have values by default.
 		*/
-		float getThemeValue(const char* p_name) const
+		float getThemeValue(char const* p_name) const
 		{
 			return m_theme->values[p_name];
 		}
@@ -3846,7 +3927,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns a pointer to the theme that is used by this view.
 		*/
-		const Theme* getTheme() const
+		Theme const* getTheme() const
 		{
 			return m_theme;
 		}
@@ -3871,7 +3952,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.
 		*/
-		void setBounds(const Rectangle<float>& p_rectangle) override
+		void setBounds(Rectangle<float> const& p_rectangle) override
 		{
 			bool hasSizeChanged = p_rectangle.getWidth() != m_bounds.getWidth() || p_rectangle.getHeight() != m_bounds.getHeight();
 
@@ -3893,7 +3974,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.
 		*/
-		void setAbsoluteBounds(const Rectangle<float>& p_rectangle)
+		void setAbsoluteBounds(Rectangle<float> const& p_rectangle)
 		{
 			bool hasSizeChanged = p_rectangle.getWidth() != m_bounds.getWidth() || p_rectangle.getHeight() != m_bounds.getHeight();
 
@@ -3968,7 +4049,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.
 		*/
-		void setBounds(const Point<float>& p_position, const Point<float>& p_size) override
+		void setBounds(Point<float> const& p_position, Point<float> const& p_size) override
 		{
 			bool hasSizeChanged = p_size.x != m_bounds.getWidth() || p_size.y != m_bounds.getHeight();
 
@@ -3993,7 +4074,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.
 		*/
-		void setAbsoluteBounds(const Point<float>& p_position, const Point<float>& p_size)
+		void setAbsoluteBounds(Point<float> const& p_position, Point<float> const& p_size)
 		{
 			bool hasSizeChanged = p_size.x != m_bounds.getWidth() || p_size.y != m_bounds.getHeight();
 
@@ -4018,7 +4099,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns a rectangle representing the bounds of this view relative to the top left corner of the parent.
 		*/
-		const Rectangle<float>& getBounds() const override
+		Rectangle<float> const& getBounds() const override
 		{
 			return m_bounds;
 		}
@@ -4050,7 +4131,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Moves the whoie view.
 		*/
-		void move(const Point<float>& p_offset) override
+		void move(Point<float> const& p_offset) override
 		{
 			moveAbsolutePositions(p_offset.x, p_offset.y);
 			m_bounds += p_offset;
@@ -4072,7 +4153,7 @@ namespace AvoGUI
 			Sets the top left coordinates of the view relative to the top left corner of the parent. 
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setTopLeft(const Point<float>& p_position, bool p_willKeepSize = true) override
+		void setTopLeft(Point<float> const& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.left || p_position.y != m_bounds.top)
 			{
@@ -4089,7 +4170,7 @@ namespace AvoGUI
 			Sets the top left coordinates of the view relative to the top left corner of the GUI. 
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setAbsoluteTopLeft(const Point<float>& p_position, bool p_willKeepSize = true)
+		void setAbsoluteTopLeft(Point<float> const& p_position, bool p_willKeepSize = true)
 		{
 			float offsetX = p_position.x - m_absolutePosition.x;
 			float offsetY = p_position.y - m_absolutePosition.y;
@@ -4151,7 +4232,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns the coordinates of the top left corner of the view relative to the top left corner of the GUI.
 		*/
-		const Point<float>& getAbsoluteTopLeft() const
+		Point<float> const& getAbsoluteTopLeft() const
 		{
 			return m_absolutePosition;
 		}
@@ -4161,7 +4242,7 @@ namespace AvoGUI
 			Sets the top right coordinates of the view relative to the top left corner of the parent. 
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setTopRight(const Point<float>& p_position, bool p_willKeepSize = true) override
+		void setTopRight(Point<float> const& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.right || p_position.y != m_bounds.top)
 			{
@@ -4183,7 +4264,7 @@ namespace AvoGUI
 			Sets the top right coordinates of the view relative to the top left corner of the GUI. 
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setAbsoluteTopRight(const Point<float>& p_position, bool p_willKeepSize = true)
+		void setAbsoluteTopRight(Point<float> const& p_position, bool p_willKeepSize = true)
 		{
 			float offsetX = p_position.x - m_absolutePosition.x + m_bounds.left - m_bounds.right;
 			float offsetY = p_position.y - m_absolutePosition.y;
@@ -4268,7 +4349,7 @@ namespace AvoGUI
 			Sets the bottom left coordinates of the view relative to the top left corner of the parent. 
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setBottomLeft(const Point<float>& p_position, bool p_willKeepSize = true) override
+		void setBottomLeft(Point<float> const& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.left || p_position.y != m_bounds.bottom)
 			{
@@ -4290,7 +4371,7 @@ namespace AvoGUI
 			Sets the bottom left coordinates of the view relative to the top left corner of the GUI. 
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setAbsoluteBottomLeft(const Point<float>& p_position, bool p_willKeepSize = true)
+		void setAbsoluteBottomLeft(Point<float> const& p_position, bool p_willKeepSize = true)
 		{
 			float offsetX = p_position.x - m_absolutePosition.x;
 			float offsetY = p_position.y - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
@@ -4375,7 +4456,7 @@ namespace AvoGUI
 			Sets the bottom right coordinates of the view relative to the top left corner of the parent. 
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setBottomRight(const Point<float>& p_position, bool p_willKeepSize = true) override
+		void setBottomRight(Point<float> const& p_position, bool p_willKeepSize = true) override
 		{
 			if (p_position.x != m_bounds.right || p_position.y != m_bounds.bottom)
 			{
@@ -4396,7 +4477,7 @@ namespace AvoGUI
 			Sets the bottom right coordinates of the view relative to the top left corner of the GUI. 
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setAbsoluteBottomRight(const Point<float>& p_position, bool p_willKeepSize = true)
+		void setAbsoluteBottomRight(Point<float> const& p_position, bool p_willKeepSize = true)
 		{
 			float offsetX = p_position.x - m_absolutePosition.x + m_bounds.left - m_bounds.right;
 			float offsetY = p_position.y - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
@@ -4481,7 +4562,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sets the center coordinates of the view relative to the top left corner of the parent. 
 		*/
-		void setCenter(const Point<float>& p_position) override
+		void setCenter(Point<float> const& p_position) override
 		{
 			moveAbsolutePositions(p_position.x - m_bounds.getCenterX(), p_position.y - m_bounds.getCenterY());
 			m_bounds.setCenter(p_position.x, p_position.y);
@@ -4490,7 +4571,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sets the center coordinates of the view relative to the top left corner of the GUI. 
 		*/
-		void setAbsoluteCenter(const Point<float>& p_position)
+		void setAbsoluteCenter(Point<float> const& p_position)
 		{
 			float offsetX = p_position.x - m_absolutePosition.x - getWidth()*0.5f;
 			float offsetY = p_position.y - m_absolutePosition.y - getHeight()*0.5f;
@@ -4874,7 +4955,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sets the size of this view by changing the right and bottom coordinates and updates the layout.
 		*/
-		void setSize(const Point<float>& p_size) override
+		void setSize(Point<float> const& p_size) override
 		{
 			if (p_size.x != m_bounds.right - m_bounds.left || p_size.y != m_bounds.bottom - m_bounds.top)
 			{
@@ -4909,7 +4990,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns whether this view intersects/overlaps a rectangle that is relative to the top left corner of the parent.
 		*/
-		bool getIsIntersecting(const Rectangle<float>& p_rectangle) const override
+		bool getIsIntersecting(Rectangle<float> const& p_rectangle) const override
 		{
 			if (m_cornerRadius > 0.f)
 			{
@@ -4963,7 +5044,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns whether a rectangle can be contained within this view. The rectangle is relative to the parent of this view.
 		*/
-		bool getIsContaining(const Rectangle<float>& p_rectangle) const override
+		bool getIsContaining(Rectangle<float> const& p_rectangle) const override
 		{
 			if (m_cornerRadius > 0.f)
 			{
@@ -5053,7 +5134,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns whether a point is within the bounds of this view. The point is relative to the parent of the view.
 		*/
-		bool getIsContaining(const Point<float>& p_point) const override
+		bool getIsContaining(Point<float> const& p_point) const override
 		{
 			return getIsContaining(p_point.x, p_point.y);
 		}
@@ -5236,20 +5317,20 @@ namespace AvoGUI
 			Gets called when a mouse button has been pressed down while the pointer is above the view.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleMouseDown(const MouseEvent& p_event) { }
+		virtual void handleMouseDown(MouseEvent const& p_event) { }
 		/*
 			USER IMPLEMENTED
 			Gets called when a mouse button has been released after having been pressed down when the mouse pointer was above the view.
 			The mouse cursor may have left the view during the time the button is pressed, but it will still recieve the event.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleMouseUp(const MouseEvent& p_event) { }
+		virtual void handleMouseUp(MouseEvent const& p_event) { }
 		/*
 			USER IMPLEMENTED
 			Gets called when a mouse button has been double clicked while the mouse pointer is above the view.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleMouseDoubleClick(const MouseEvent& p_event) { }
+		virtual void handleMouseDoubleClick(MouseEvent const& p_event) { }
 
 		/*
 			USER IMPLEMENTED
@@ -5259,20 +5340,20 @@ namespace AvoGUI
 			If it has entered the view, a mouse enter event is sent, and if it has left the view, a mouse leave event is sent.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleMouseMove(const MouseEvent& p_event) { }
+		virtual void handleMouseMove(MouseEvent const& p_event) { }
 		/*
 			LIBRARY IMPLEMENTED (only default behavior)
 			Gets called when the mouse pointer has entered any part of the view that is not occupied by children of this view.
 			By default, this changes the mouse cursor to the cursor that is set with setCursor on the view.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleMouseBackgroundEnter(const MouseEvent& p_event);
+		virtual void handleMouseBackgroundEnter(MouseEvent const& p_event);
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse pointer has left any part of the view that is not occupied by children of this view.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleMouseBackgroundLeave(const MouseEvent& p_event) { }
+		virtual void handleMouseBackgroundLeave(MouseEvent const& p_event) { }
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse pointer has entered the bounds of the view.
@@ -5280,7 +5361,7 @@ namespace AvoGUI
 			that the mouse has entered gets the event (except for overlay views, they always get the event as long as they are targeted).
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleMouseEnter(const MouseEvent& p_event) { }
+		virtual void handleMouseEnter(MouseEvent const& p_event) { }
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse cursor has left the bounds of the view.
@@ -5288,13 +5369,13 @@ namespace AvoGUI
 			that the mouse has left gets the event (except for overlay views, they always get the event as long as they are targeted).
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleMouseLeave(const MouseEvent& p_event) { }
+		virtual void handleMouseLeave(MouseEvent const& p_event) { }
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse wheel has been moved/scrolled while the mouse pointer is above the view.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleMouseScroll(const MouseEvent& p_event) { }
+		virtual void handleMouseScroll(MouseEvent const& p_event) { }
 
 		//------------------------------
 
@@ -5334,7 +5415,7 @@ namespace AvoGUI
 			p_targetRectangle is the rectangle that needs to be drawn, relative to the top-left corner of the GUI. 
 			To optimize your application, you can make sure to only draw stuff in this region.
 		*/
-		virtual void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
+		virtual void draw(DrawingContext* p_drawingContext, Rectangle<float> const& p_targetRectangle)
 		{
 			draw(p_drawingContext);
 		}
@@ -5358,7 +5439,7 @@ namespace AvoGUI
 			p_targetRectangle is the rectangle that needs to be drawn, relative to the top-left corner of the GUI.
 			To optimize your application, you can make sure to only draw stuff in this region.
 		*/
-		virtual void drawOverlay(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle)
+		virtual void drawOverlay(DrawingContext* p_drawingContext, Rectangle<float> const& p_targetRectangle)
 		{
 			drawOverlay(p_drawingContext);
 		}
@@ -5394,34 +5475,34 @@ namespace AvoGUI
 			Gets called when a window has been created.
 			p_event is an object that contains information about the event.
 		*/
-		virtual void handleWindowCreate(const WindowEvent& p_event) { }
+		virtual void handleWindowCreate(WindowEvent const& p_event) { }
 		/*
 			LIBRARY IMPLEMENTED (only default behavior)
 			Gets called when a window has been requested to be closed. 
 			If the handler returns true, the window will close and get destroyed. This is the default behavior.
 			p_event is an object containing information about the event.
 		*/
-		virtual bool handleWindowClose(const WindowEvent& p_event) { return true; }
+		virtual bool handleWindowClose(WindowEvent const& p_event) { return true; }
 
 		/*
 			USER IMPLEMENTED
 			Gets called when a window has been minimized in the taskbar. 
 			p_event is an object containing information about the event.
 		*/
-		virtual void handleWindowMinimize(const WindowEvent& p_event) { }
+		virtual void handleWindowMinimize(WindowEvent const& p_event) { }
 		/*
 			USER IMPLEMENTED
 			Gets called when a window has been maximized so that it is as big as possible while still showing the border.
 			The width and height properties of p_event tell you the new size of the window.
 		*/
-		virtual void handleWindowMaximize(const WindowEvent& p_event) { }
+		virtual void handleWindowMaximize(WindowEvent const& p_event) { }
 
 		/*
 			USER IMPLEMENTED
 			Gets called when a window has been restored after being in a minimized or maximized state.
 			The width and height properties of p_event tell you the new size of the window.
 		*/
-		virtual void handleWindowRestore(const WindowEvent& p_event) { }
+		virtual void handleWindowRestore(WindowEvent const& p_event) { }
 
 		/*
 			USER IMPLEMENTED
@@ -5429,20 +5510,20 @@ namespace AvoGUI
 			This includes if it has been maximized, or if the border has been dragged to resize it. 
 			The width and height properties of p_event tell you the new size of the window.
 		*/
-		virtual void handleWindowSizeChange(const WindowEvent& p_event) { }
+		virtual void handleWindowSizeChange(WindowEvent const& p_event) { }
 
 		/*
 			USER IMPLEMENTED
 			Gets called when a window has been focused, meaning it has been interacted with so that another window loses focus.
 			p_event is an object containing information about the event.
 		*/
-		virtual void handleWindowFocus(const WindowEvent& p_event) { }
+		virtual void handleWindowFocus(WindowEvent const& p_event) { }
 		/*
 			USER IMPLEMENTED
 			Gets called when a window has been unfocused, meaning another window is interacted with.
 			p_event is an object containing information about the event.
 		*/
-		virtual void handleWindowUnfocus(const WindowEvent& p_event) { }
+		virtual void handleWindowUnfocus(WindowEvent const& p_event) { }
 	};
 
 	//------------------------------
@@ -5554,33 +5635,33 @@ namespace AvoGUI
 			Gets called when a mouse button has been pressed down while the mouse cursor is inside the window.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleGlobalMouseDown(const MouseEvent& p_event) { }
+		virtual void handleGlobalMouseDown(MouseEvent const& p_event) { }
 		/*
 			USER IMPLEMENTED
 			Gets called when a mouse button has been released after having been pressed down when the mouse pointer was inside the window.
 			The mouse cursor may have left the window during the time the button is pressed, but it will still recieve the event.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleGlobalMouseUp(const MouseEvent& p_event) { }
+		virtual void handleGlobalMouseUp(MouseEvent const& p_event) { }
 		/*
 			USER IMPLEMENTED
 			Gets called when a mouse button has been double clicked while the mouse pointer is inside the window.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleGlobalMouseDoubleClick(const MouseEvent& p_event) { }
+		virtual void handleGlobalMouseDoubleClick(MouseEvent const& p_event) { }
 
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse has been moved while the mouse cursor is inside the window.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleGlobalMouseMove(const MouseEvent& p_event) { }
+		virtual void handleGlobalMouseMove(MouseEvent const& p_event) { }
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse wheel has been scrolled while the mouse pointer is inside the window.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleGlobalMouseScroll(const MouseEvent& p_event) { }
+		virtual void handleGlobalMouseScroll(MouseEvent const& p_event) { }
 	};
 
 	//------------------------------
@@ -5649,17 +5730,17 @@ namespace AvoGUI
 			This method is called when a character key has been pressed. 
 			Only p_event.character and p_event.isRepeated are valid for this event type.
 		*/
-		virtual void handleCharacterInput(const KeyboardEvent& p_event) { }
+		virtual void handleCharacterInput(KeyboardEvent const& p_event) { }
 		/*
 			This method is called when a keyboard key has been pressed.
 			Only p_event.key and p_event.isRepeated are valid for this event type.
 		*/
-		virtual void handleKeyboardKeyDown(const KeyboardEvent& p_event) { }
+		virtual void handleKeyboardKeyDown(KeyboardEvent const& p_event) { }
 		/*
 			This method is called when a keyboard key has been released.
 			Only p_event.key is valid for this event type.
 		*/
-		virtual void handleKeyboardKeyUp(const KeyboardEvent& p_event) { }
+		virtual void handleKeyboardKeyUp(KeyboardEvent const& p_event) { }
 		/*
 			Gets called when another keyboard event listener becomes the target of keyboard events.
 		*/
@@ -5735,7 +5816,7 @@ namespace AvoGUI
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(const char* p_title, int32_t p_x, int32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		virtual void create(char const* p_title, int32_t p_x, int32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
 		/*
 			Creates the window in the center of the screen. To close it, use close().
 		
@@ -5745,7 +5826,7 @@ namespace AvoGUI
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		virtual void create(char const* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
 
 		/*
 			Closes the OS window and destroys it. To recreate it, use create(...).
@@ -5833,7 +5914,7 @@ namespace AvoGUI
 		/*
 			Sets the position of the window relative to the top-left corner of the screen.
 		*/
-		virtual void setPosition(const Point<int32_t>& p_position) = 0;
+		virtual void setPosition(Point<int32_t> const& p_position) = 0;
 		/*
 			Sets the position of the window relative to the top-left corner of the screen.
 		*/
@@ -5841,7 +5922,7 @@ namespace AvoGUI
 		/*
 			Returns the position of the window relative to the top-left corner of the screen.
 		*/
-		virtual const Point<int32_t>& getPosition() const = 0;
+		virtual Point<int32_t> const& getPosition() const = 0;
 		/*
 			Returns the position of the left edge of the window relative to the top-left corner of the screen.
 		*/
@@ -5854,7 +5935,7 @@ namespace AvoGUI
 		/*
 			Sets the size of the client area of the window, in pixels.
 		*/
-		virtual void setSize(const Point<uint32_t>& p_size) = 0;
+		virtual void setSize(Point<uint32_t> const& p_size) = 0;
 		/*
 			Sets the size of the client area of the window, in pixels.
 		*/
@@ -5862,7 +5943,7 @@ namespace AvoGUI
 		/*
 			Returns the size of the client area of the window, in pixels.
 		*/
-		virtual const Point<uint32_t>& getSize() const = 0;
+		virtual Point<uint32_t> const& getSize() const = 0;
 		/*
 			Returns the width of the client area of the window, in pixels.
 		*/
@@ -5875,7 +5956,7 @@ namespace AvoGUI
 		/*
 			Sets the smallest allowed size for the window when the user is resizing it.
 		*/
-		virtual void setMinSize(const Point<uint32_t>& p_minSize) = 0;
+		virtual void setMinSize(Point<uint32_t> const& p_minSize) = 0;
 		/*
 			Sets the smallest allowed size for the window when the user is resizing it.
 		*/
@@ -5896,7 +5977,7 @@ namespace AvoGUI
 		/*
 			Sets the biggest allowed size for the window when the user is resizing it.
 		*/
-		virtual void setMaxSize(const Point<uint32_t>& p_maxSize) = 0;
+		virtual void setMaxSize(Point<uint32_t> const& p_maxSize) = 0;
 		/*
 			Sets the biggest allowed size for the window when the user is resizing it.
 		*/
@@ -5950,7 +6031,7 @@ namespace AvoGUI
 		/*
 			Returns the position of the mouse cursor, relative to the top-left corner of the window.
 		*/
-		virtual const Point<int32_t>& getMousePosition() const = 0;
+		virtual Point<int32_t> const& getMousePosition() const = 0;
 
 		//------------------------------
 
@@ -5969,25 +6050,25 @@ namespace AvoGUI
 			Gives a wide string for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this string.
 		*/
-		virtual void setClipboardWideString(const std::wstring& p_string) = 0;
+		virtual void setClipboardWideString(std::wstring const& p_string) = 0;
 		/*
 			Gives a wide string for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this string.
 			p_length is the number of characters in the string. If it is -1 then it assumes the string is null-terminated.
 		*/
-		virtual void setClipboardWideString(const wchar_t* p_string, int32_t p_length = -1) = 0;
+		virtual void setClipboardWideString(wchar_t const* p_string, int32_t p_length = -1) = 0;
 
 		/*
 			Gives a string for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this string.
 		*/
-		virtual void setClipboardString(const std::string& p_string) = 0;
+		virtual void setClipboardString(std::string const& p_string) = 0;
 		/*
 			Gives a string for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this string.
 			p_length is the number of characters in the string. If it is -1 then it assumes the string is null-terminated.
 		*/
-		virtual void setClipboardString(const char* p_string, int32_t p_length = -1) = 0;
+		virtual void setClipboardString(char const* p_string, int32_t p_length = -1) = 0;
 
 		/*
 			Returns the 16-bit string which is currently stored on the OS clipboard, if there is any. 
@@ -6037,11 +6118,11 @@ namespace AvoGUI
 		/*
 			Sets a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
 		*/
-		virtual void setCropRectangle(const Rectangle<float>& p_rectangle) = 0;
+		virtual void setCropRectangle(Rectangle<float> const& p_rectangle) = 0;
 		/*
 			Returns a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
 		*/
-		virtual const Rectangle<float>& getCropRectangle() const = 0;
+		virtual Rectangle<float> const& getCropRectangle() const = 0;
 
 		/*
 			Returns the DIP size of the actual image.
@@ -6095,7 +6176,7 @@ namespace AvoGUI
 		/*
 			Returns the way the image is positioned within its bounds. See setBoundsPositioning for more info.
 		*/
-		virtual const Point<float>& getBoundsPositioning() const = 0;
+		virtual Point<float> const& getBoundsPositioning() const = 0;
 		/*
 			Returns the way the image is positioned within its bounds on the x-axis. See setBoundsPositioningX for more info.
 		*/
@@ -6254,7 +6335,7 @@ namespace AvoGUI
 			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context. 
 			If not, it is relative to the bounds of the text.
 		*/
-		virtual uint32_t getNearestCharacterIndex(const Point<float>& p_point, bool p_isRelativeToOrigin = false) = 0;
+		virtual uint32_t getNearestCharacterIndex(Point<float> const& p_point, bool p_isRelativeToOrigin = false) = 0;
 		/*
 			Returns the index of the character which is nearest to a point.
 		
@@ -6270,7 +6351,7 @@ namespace AvoGUI
 			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. 
 			If not, they are relative to the bounds of the text.
 		*/
-		virtual void getNearestCharacterIndexAndPosition(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
+		virtual void getNearestCharacterIndexAndPosition(Point<float> const& p_point, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
 		/*
 			Returns the index and position of the character which is nearest to a point.
 		
@@ -6287,7 +6368,7 @@ namespace AvoGUI
 			p_outCharacterBounds is a pointer to the bounding rectangle to be returned.
 			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.
 		*/
-		virtual void getNearestCharacterIndexAndBounds(const Point<float>& p_point, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
+		virtual void getNearestCharacterIndexAndBounds(Point<float> const& p_point, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
 		/*
 			Returns the index and bounds of the character which is nearest to a point.
 		
@@ -6322,7 +6403,7 @@ namespace AvoGUI
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
 		*/
-		virtual void setFontFamily(const char* p_name, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
+		virtual void setFontFamily(char const* p_name, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
 
 		//------------------------------
 
@@ -6444,7 +6525,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		virtual const std::string& getString() = 0;
+		virtual std::string const& getString() = 0;
 
 		//------------------------------
 
@@ -6485,8 +6566,8 @@ namespace AvoGUI
 	class TextProperties
 	{
 	public:
-		const char* fontFamilyName = "arial";
-		const char* fontLocaleName = "";
+		char const* fontFamilyName = "arial";
+		char const* fontLocaleName = "";
 		FontWeight fontWeight = FontWeight::Medium;
 		FontStyle fontStyle = FontStyle::Normal;
 		FontStretch fontStretch = FontStretch::Medium;
@@ -6512,7 +6593,7 @@ namespace AvoGUI
 		/*
 			Finishes the drawing and shows it. The GUI calls this for you.
 		*/
-		virtual void finishDrawing(const std::vector<Rectangle<float>>& p_updatedRectangles) = 0;
+		virtual void finishDrawing(std::vector<Rectangle<float>> const& p_updatedRectangles) = 0;
 
 		//------------------------------
 
@@ -6561,7 +6642,7 @@ namespace AvoGUI
 		/*
 			Moves the screen position of the coordinate (0, 0).
 		*/
-		virtual void moveOrigin(const Point<float>& p_offset) = 0;
+		virtual void moveOrigin(Point<float> const& p_offset) = 0;
 		/*
 			Moves the screen position of the coordinate (0, 0).
 		*/
@@ -6569,7 +6650,7 @@ namespace AvoGUI
 		/*
 			Sets the screen position of the coordinate (0, 0).
 		*/
-		virtual void setOrigin(const Point<float>& p_origin) = 0;
+		virtual void setOrigin(Point<float> const& p_origin) = 0;
 		/*
 			Sets the screen position of the coordinate (0, 0).
 		*/
@@ -6595,13 +6676,13 @@ namespace AvoGUI
 			Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.
 			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
 		*/
-		virtual void scale(float p_scale, const Point<float>& p_origin) = 0;
+		virtual void scale(float p_scale, Point<float> const& p_origin) = 0;
 		/*
 			Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics
 			drawing so that it is bigger or smaller. Everything will be scaled towards the origin parameter, which is relative
 			to the top-left corner of the window.
 		*/
-		virtual void scale(float p_scaleX, float p_scaleY, const Point<float>& p_origin) = 0;
+		virtual void scale(float p_scaleX, float p_scaleY, Point<float> const& p_origin) = 0;
 		/*
 			Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.
 			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
@@ -6627,13 +6708,13 @@ namespace AvoGUI
 			Sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.
 			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
 		*/
-		virtual void setScale(float p_scale, const Point<float>& p_origin) = 0;
+		virtual void setScale(float p_scale, Point<float> const& p_origin) = 0;
 		/*
 			Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics drawing so that
 			it is bigger or smaller than normal. Everything will be scaled towards the origin parameter, which is relative
 			to the top-left corner of the window.
 		*/
-		virtual void setScale(float p_scaleX, float p_scaleY, const Point<float>& p_origin) = 0;
+		virtual void setScale(float p_scaleX, float p_scaleY, Point<float> const& p_origin) = 0;
 		/*
 			Sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.
 			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
@@ -6649,7 +6730,7 @@ namespace AvoGUI
 			Returns the sizing factor which is transforming graphics drawing so that it is bigger or smaller. 
 			If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.
 		*/
-		virtual const Point<float>& getScale() = 0;
+		virtual Point<float> const& getScale() = 0;
 		/*
 			Returns the sizing factor for the x-axis which is transforming graphics drawing so that it is bigger or smaller.
 			If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.
@@ -6673,7 +6754,7 @@ namespace AvoGUI
 			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
 			p_radians is the angle to rotate, in radians.
 		*/
-		virtual void rotate(float p_radians, const Point<float>& p_origin) = 0;
+		virtual void rotate(float p_radians, Point<float> const& p_origin) = 0;
 		/*
 			Rotates all future graphics drawing, with an angle in radians. 
 			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
@@ -6693,7 +6774,7 @@ namespace AvoGUI
 		/*
 			Resizes the drawing buffers. The GUI calls this for you when it is being resized.
 		*/
-		virtual void setSize(const Point<uint32_t>& p_size) = 0;
+		virtual void setSize(Point<uint32_t> const& p_size) = 0;
 		/*
 			Resizes the drawing buffers. The GUI calls this for you when it is being resized.
 		*/
@@ -6708,7 +6789,7 @@ namespace AvoGUI
 		/*
 			Clears the whole buffer with the specified color.
 		*/
-		virtual void clear(const Color& p_color) = 0;
+		virtual void clear(Color const& p_color) = 0;
 		/*
 			Clears the whole buffer with a transparent background.
 		*/
@@ -6720,12 +6801,12 @@ namespace AvoGUI
 			Draws a filled rectangle using the current color. 
 			Change color with the method setColor.
 		*/
-		virtual void fillRectangle(const Rectangle<float>& p_rectangle) = 0;
+		virtual void fillRectangle(Rectangle<float> const& p_rectangle) = 0;
 		/*
 			Draws a filled rectangle using the current color. 
 			Change color with the method setColor.
 		*/
-		virtual void fillRectangle(const Point<float>& p_position, const Point<float>& p_size) = 0;
+		virtual void fillRectangle(Point<float> const& p_position, Point<float> const& p_size) = 0;
 		/*
 			Draws a filled rectangle using the current color. 
 			Change color with the method setColor.
@@ -6736,7 +6817,7 @@ namespace AvoGUI
 			Draws a filled rectangle at the origin using the current color. 
 			Change color with the method setColor.
 		*/
-		virtual void fillRectangle(const Point<float>& p_size) = 0;
+		virtual void fillRectangle(Point<float> const& p_size) = 0;
 		/*
 			Draws a filled rectangle at the origin using the current color. 
 			Change color with the method setColor.
@@ -6749,12 +6830,12 @@ namespace AvoGUI
 			Draws a rectangle outline using the current color. 
 			Change the color being used with the method setColor.
 		*/
-		virtual void strokeRectangle(const Rectangle<float>& p_rectangle, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRectangle(Rectangle<float> const& p_rectangle, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rectangle outline using the current color. 
 			Change the color being used with the method setColor.
 		*/
-		virtual void strokeRectangle(const Point<float>& p_position, const Point<float>& p_size, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rectangle outline using the current color. 
 			Change the color being used with the method setColor.
@@ -6765,7 +6846,7 @@ namespace AvoGUI
 			Draws a rectangle outline at the origin using the current color. 
 			Change the color being used with the method setColor.
 		*/
-		virtual void strokeRectangle(const Point<float>& p_size, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRectangle(Point<float> const& p_size, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rectangle outline at the origin using the current color. 
 			Change the color being used with the method setColor.
@@ -6778,12 +6859,12 @@ namespace AvoGUI
 			Draws a filled rounded rectangle using the current color. 
 			Change the color being used with the method setColor.
 		*/
-		virtual void fillRoundedRectangle(const Rectangle<float>& p_rectangle, float p_radius) = 0;
+		virtual void fillRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius) = 0;
 		/*
 			Draws a filled rounded rectangle using the current color. 
 			Change the color being used with the method setColor.
 		*/
-		virtual void fillRoundedRectangle(const Point<float>& p_position, const Point<float>& p_size, float p_radius) = 0;
+		virtual void fillRoundedRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_radius) = 0;
 		/*
 			Draws a filled rounded rectangle using the current color. 
 			Change the color being used with the method setColor.
@@ -6794,7 +6875,7 @@ namespace AvoGUI
 			Draws a filled rounded rectangle at the origin using the current color. 
 			Change the color being used with the method setColor.
 		*/
-		virtual void fillRoundedRectangle(const Point<float>& p_size, float p_radius) = 0;
+		virtual void fillRoundedRectangle(Point<float> const& p_size, float p_radius) = 0;
 		/*
 			Draws a filled rounded rectangle at the origin using the current color. 
 			Change the color being used with the method setColor.
@@ -6807,12 +6888,12 @@ namespace AvoGUI
 			Draws a rounded rectangle outline using the current color. 
 			Change the color being used with the method setColor.
 		*/
-		virtual void strokeRoundedRectangle(const Rectangle<float>& p_rectangle, float p_radius, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rounded rectangle outline using the current color. 
 			Change the color being used with the method setColor.
 		*/
-		virtual void strokeRoundedRectangle(const Point<float>& p_position, const Point<float>& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRoundedRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rounded rectangle outline using the current color. 
 			Change the color being used with the method setColor.
@@ -6823,7 +6904,7 @@ namespace AvoGUI
 			Draws a rounded rectangle outline at the origin using the current color. 
 			Change the color being used with the method setColor.
 		*/
-		virtual void strokeRoundedRectangle(const Point<float>& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRoundedRectangle(Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rounded rectangle outline at the origin using the current color. 
 			Change the color being used with the method setColor.
@@ -6838,7 +6919,7 @@ namespace AvoGUI
 		
 			p_position is the center position of the circle.
 		*/
-		virtual void fillCircle(const Point<float>& p_position, float p_radius) = 0;
+		virtual void fillCircle(Point<float> const& p_position, float p_radius) = 0;
 		/*
 			Draws a filled circle using the current color. 
 			Change the color being used with the method setColor.
@@ -6854,7 +6935,7 @@ namespace AvoGUI
 		
 			p_position is the center position of the circle.
 		*/
-		virtual void strokeCircle(const Point<float>& p_position, float p_radius, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeCircle(Point<float> const& p_position, float p_radius, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a circle outline using the current color. 
 			Change the color being used with the method setColor.
@@ -6869,7 +6950,7 @@ namespace AvoGUI
 			Draws a straight line between two points using the current color. 
 			Change the color being used with the method setColor.
 		*/
-		virtual void drawLine(const Point<float>& p_point_0, const Point<float>& p_point_1, float p_thickness = 1.f) = 0;
+		virtual void drawLine(Point<float> const& p_point_0, Point<float> const& p_point_1, float p_thickness = 1.f) = 0;
 		/*
 			Draws a straight line between two points using the current color. 
 			Change the color being used with the method setColor.
@@ -6885,7 +6966,7 @@ namespace AvoGUI
 			p_lineThickness is how thicc the edges of the shape are.
 			p_isClosed is whether the last vertex will be connected to the first one to close the shape.
 		*/
-		virtual void strokeShape(const std::vector<Point<float>>& p_vertices, float p_lineThickness, bool p_isClosed = false) = 0;
+		virtual void strokeShape(std::vector<Point<float>> const& p_vertices, float p_lineThickness, bool p_isClosed = false) = 0;
 		/*
 			Draws the edge of a custom shape.
 		
@@ -6900,7 +6981,7 @@ namespace AvoGUI
 
 			p_shape is a vector of points that make up the shape.
 		*/
-		virtual void fillShape(const std::vector<Point<float>>& p_vertices) = 0;
+		virtual void fillShape(std::vector<Point<float>> const& p_vertices) = 0;
 		/*
 			Fills a custom shape with the current color.
 		
@@ -6986,12 +7067,12 @@ namespace AvoGUI
 		/*
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
 		*/
-		virtual void pushClipRectangle(const Rectangle<float>& p_rectangle) = 0;
+		virtual void pushClipRectangle(Rectangle<float> const& p_rectangle) = 0;
 		/*
 			After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
 			p_size is the size of the clip rectangle positioned at the origin.
 		*/
-		virtual void pushClipRectangle(const Point<float>& p_size) = 0;
+		virtual void pushClipRectangle(Point<float> const& p_size) = 0;
 		/*
 			This removes the last added clipping rectangle.
 		*/
@@ -7002,13 +7083,13 @@ namespace AvoGUI
 		/*
 			After calling this, all graphics drawn outside the rounded rectangle will be invisible, on pixel-level.
 		*/
-		virtual void pushRoundedClipRectangle(const Rectangle<float>& p_rectangle, float p_radius) = 0;
+		virtual void pushRoundedClipRectangle(Rectangle<float> const& p_rectangle, float p_radius) = 0;
 		/*
 			After calling this, all graphics drawn outside a rounded rectangle at the origin with the given size and radius will be invisible, on pixel level.
 		
 			p_size is the size of the rounded clip rectangle positioned at the origin.
 		*/
-		virtual void pushRoundedClipRectangle(const Point<float>& p_size, float p_radius) = 0;
+		virtual void pushRoundedClipRectangle(Point<float> const& p_size, float p_radius) = 0;
 		/*
 			This removes the last added rounded clipping rectangle.
 		*/
@@ -7023,7 +7104,7 @@ namespace AvoGUI
 			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image* createRectangleShadowImage(const Point<uint32_t>& p_size, float p_blur, const Color& p_color) = 0;
+		virtual Image* createRectangleShadowImage(Point<uint32_t> const& p_size, float p_blur, Color const& p_color) = 0;
 		/*
 			Generates an image of a shadow that is cast by a rectangle.
 		
@@ -7032,7 +7113,7 @@ namespace AvoGUI
 			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image* createRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_blur, const Color& p_color) = 0;
+		virtual Image* createRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_blur, Color const& p_color) = 0;
 
 		//------------------------------
 
@@ -7044,7 +7125,7 @@ namespace AvoGUI
 			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image* createRoundedRectangleShadowImage(const Point<uint32_t>& p_size, float p_radius, float p_blur, const Color& p_color) = 0;
+		virtual Image* createRoundedRectangleShadowImage(Point<uint32_t> const& p_size, float p_radius, float p_blur, Color const& p_color) = 0;
 		/*
 			Generates an image of a shadow that is cast by a rounded rectangle.
 		
@@ -7054,7 +7135,7 @@ namespace AvoGUI
 			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image* createRoundedRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_radius, float p_blur, const Color& p_color) = 0;
+		virtual Image* createRoundedRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_radius, float p_blur, Color const& p_color) = 0;
 
 		//------------------------------
 
@@ -7066,14 +7147,14 @@ namespace AvoGUI
 
 			p_width and p_height are in pixels.
 		*/
-		virtual Image* createImage(const void* p_pixelData, uint32_t p_width, uint32_t p_height) = 0;
+		virtual Image* createImage(void const* p_pixelData, uint32_t p_width, uint32_t p_height) = 0;
 
 		/*
 			Loads an image from a file. Most standard image formats/codecs are supported.
 			p_filePath is the path, relative or absolute, to the image file to be loaded.
 			If this returns 0, then the file path is probably incorrect.
 		*/
-		virtual Image* createImage(const char* p_filePath) = 0;
+		virtual Image* createImage(char const* p_filePath) = 0;
 
 		virtual void drawImage(Image* p_image) = 0;
 
@@ -7082,7 +7163,7 @@ namespace AvoGUI
 		/*
 			Sets the color being used when drawing shapes.
 		*/
-		virtual void setColor(const Color& p_color) = 0;
+		virtual void setColor(Color const& p_color) = 0;
 
 		//------------------------------
 
@@ -7091,7 +7172,7 @@ namespace AvoGUI
 			p_data is the data that would be in a standard font file.
 			p_dataSize is the length/size of the data in bytes.
 		*/
-		virtual void addFont(const void* p_data, uint32_t p_dataSize) = 0;
+		virtual void addFont(void const* p_data, uint32_t p_dataSize) = 0;
 
 		//------------------------------
 
@@ -7099,7 +7180,7 @@ namespace AvoGUI
 			Sets the default properties of text created with this drawing context. 
 			These properties can be overridden by changing the properties of a text object.
 		*/
-		virtual void setDefaultTextProperties(const TextProperties& p_textProperties) = 0;
+		virtual void setDefaultTextProperties(TextProperties const& p_textProperties) = 0;
 		/*
 			Returns the default properties of text created with this drawing context. 
 			These properties can be overridden by changing the properties of a text object.
@@ -7112,7 +7193,7 @@ namespace AvoGUI
 			Creates a new Text object which represents a pre-calculated text layout, using the current text properties.
 			p_bounds is the maximum bounds of the text. If it's (0, 0, 0, 0) then the bounds will be calculated to fit the text.
 		*/
-		virtual Text* createText(const char* p_string, float p_fontSize, const Rectangle<float>& p_bounds = Rectangle<float>()) = 0;
+		virtual Text* createText(char const* p_string, float p_fontSize, Rectangle<float> const& p_bounds = Rectangle<float>()) = 0;
 		/*
 			Draws pre-calculated text created with the createText method.
 		*/
@@ -7122,27 +7203,27 @@ namespace AvoGUI
 			Lays out and draws a string in a rectangle.
 			If you're drawing the same text repeatedly, use a Text object (created with method createText).
 		*/
-		virtual void drawText(const char* p_string, const Rectangle<float>& p_rectangle) = 0;
+		virtual void drawText(char const* p_string, Rectangle<float> const& p_rectangle) = 0;
 		/*
 			Lays out and draws a string in a rectangle.
 			If you're drawing the same text repeatedly, use a Text object (created with method createText()).
 		*/
-		virtual void drawText(const char* p_string, float p_left, float p_top, float p_right, float p_bottom) = 0;
+		virtual void drawText(char const* p_string, float p_left, float p_top, float p_right, float p_bottom) = 0;
 		/*
 			Lays out and draws a string in a rectangle.
 			If you're drawing the same text repeatedly, use a Text object (created with method createText()).
 		*/
-		virtual void drawText(const char* p_string, const Point<float>& p_position, const Point<float>& p_size) = 0;
+		virtual void drawText(char const* p_string, Point<float> const& p_position, Point<float> const& p_size) = 0;
 		/*
 			Lays out and draws a string at a position.
 			If you're drawing the same text repeatedly, use a Text object (created with createText()).
 		*/
-		virtual void drawText(const char* p_string, float p_x, float p_y) = 0;
+		virtual void drawText(char const* p_string, float p_x, float p_y) = 0;
 		/*
 			Lays out and draws a string at a position.
 			If you're drawing the same text repeatedly, use a Text object (created with createText()).
 		*/
-		virtual void drawText(const char* p_string, const Point<float>& p_position) = 0;
+		virtual void drawText(char const* p_string, Point<float> const& p_position) = 0;
 	};
 #pragma endregion
 
@@ -7188,7 +7269,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns the topmost non-overlay view which contains the coordinates given, as well as any overlay views which are above the non-overlay view.
 		*/
-		void getTopMouseListenersAt(const Point<float>& p_coordinates, std::vector<View*>& p_result);
+		void getTopMouseListenersAt(Point<float> const& p_coordinates, std::vector<View*>& p_result);
 		/*
 			LIBRARY IMPLEMENTED
 			Returns the topmost non-overlay view which contains the coordinates given, as well as any overlay views which are above the non-overlay view.
@@ -7232,7 +7313,7 @@ namespace AvoGUI
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, is only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(const char* p_title, uint32_t p_x, uint32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
+		void create(char const* p_title, uint32_t p_x, uint32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
 		/*
 			LIBRARY IMPLEMENTED
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
@@ -7245,7 +7326,7 @@ namespace AvoGUI
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, is only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(const char* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
+		void create(char const* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
 
 		//------------------------------
 
@@ -7253,7 +7334,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns the topmost non-overlay view which contains the coordinates given.
 		*/
-		View* getViewAt(const Point<float>& p_coordinates);
+		View* getViewAt(Point<float> const& p_coordinates);
 		/*
 			LIBRARY IMPLEMENTED
 			Returns the topmost non-overlay view which contains the coordinates given.
@@ -7266,37 +7347,37 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Creates a new drawing context and calls createContent() to initialize the layout, as well as sends the event down to all window listeners.
 		*/
-		void handleWindowCreate(const WindowEvent& p_event) override;
+		void handleWindowCreate(WindowEvent const& p_event) override;
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to all window listeners and returns whether the window will close.
 		*/
-		bool handleWindowClose(const WindowEvent& p_event) override;
+		bool handleWindowClose(WindowEvent const& p_event) override;
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to all window listeners.
 		*/
-		void handleWindowMinimize(const WindowEvent& p_event) override;
+		void handleWindowMinimize(WindowEvent const& p_event) override;
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to all window listeners.
 		*/
-		void handleWindowMaximize(const WindowEvent& p_event) override;
+		void handleWindowMaximize(WindowEvent const& p_event) override;
 		/*
 			LIBRARY IMPLEMENTED
 			Resizes the buffers held by the drawing context and updates the size of the GUI, as well as sends the event down to all window listeners.
 		*/
-		void handleWindowSizeChange(const WindowEvent& p_event) override;
+		void handleWindowSizeChange(WindowEvent const& p_event) override;
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to all window listeners.
 		*/
-		void handleWindowFocus(const WindowEvent& p_event) override;
+		void handleWindowFocus(WindowEvent const& p_event) override;
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to all window listeners.
 		*/
-		void handleWindowUnfocus(const WindowEvent& p_event) override;
+		void handleWindowUnfocus(WindowEvent const& p_event) override;
 
 		//------------------------------
 
@@ -7304,28 +7385,28 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.
 		*/
-		virtual void handleGlobalMouseDown(const MouseEvent& p_event) override;
+		virtual void handleGlobalMouseDown(MouseEvent const& p_event) override;
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.
 		*/
-		virtual void handleGlobalMouseUp(const MouseEvent& p_event) override;
+		virtual void handleGlobalMouseUp(MouseEvent const& p_event) override;
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.
 		*/
-		virtual void handleGlobalMouseDoubleClick(const MouseEvent& p_event) override;
+		virtual void handleGlobalMouseDoubleClick(MouseEvent const& p_event) override;
 
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.
 		*/
-		virtual void handleGlobalMouseMove(const MouseEvent& p_event) override;
+		virtual void handleGlobalMouseMove(MouseEvent const& p_event) override;
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.
 		*/
-		virtual void handleGlobalMouseScroll(const MouseEvent& p_event) override;
+		virtual void handleGlobalMouseScroll(MouseEvent const& p_event) override;
 
 		//------------------------------
 
@@ -7368,19 +7449,19 @@ namespace AvoGUI
 			Handles a character pressed event that has been sent directly from the window to the GUI. 
 			If there are no global keyboard listeners, the event is only sent to the keyboard focus.
 		*/
-		virtual void handleCharacterInput(const KeyboardEvent& p_event);
+		virtual void handleCharacterInput(KeyboardEvent const& p_event);
 		/*
 			LIBRARY IMPLEMENTED
 			Handles a key pressed event that has been sent directly from the window to the GUI. 
 			If there are no global keyboard listeners, the event is only sent to the keyboard focus.
 		*/
-		virtual void handleKeyboardKeyDown(const KeyboardEvent& p_event);
+		virtual void handleKeyboardKeyDown(KeyboardEvent const& p_event);
 		/*
 			LIBRARY IMPLEMENTED
 			Handles a key release event that has been sent directly from the window to the GUI. 
 			If there are no global keyboard listeners, the event is only sent to the keyboard focus.
 		*/
-		virtual void handleKeyboardKeyUp(const KeyboardEvent& p_event);
+		virtual void handleKeyboardKeyUp(KeyboardEvent const& p_event);
 
 		//------------------------------
 
@@ -7599,12 +7680,51 @@ namespace AvoGUI
 			p_string is the string to be displayed on the tooltip.
 			p_targetBounds is the area that the tooltip points to and is relative to the parent of this tooltip. The tooltip decides the exact positioning.
 		*/
-		virtual void show(const char* p_string, const Rectangle<float>& p_targetRectangle);
+		virtual void show(char const* p_string, Rectangle<float> const& p_targetRectangle)
+		{
+			if (!m_isShowing)
+			{
+				if (!m_text || p_string != m_text->getString())
+				{
+					if (m_text)
+					{
+						m_text->forget();
+					}
+					m_text = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("tooltip font size"));
+					m_text->fitBoundsToText();
+					setSize(m_text->getWidth() + 1.6 * getThemeValue("tooltip font size"), m_text->getHeight() + getThemeValue("tooltip font size") * 1.f);
+					m_text->setCenter(getWidth() * 0.5f, getHeight() * 0.5f);
+				}
+
+				if (p_targetRectangle.bottom + 7.f + getHeight() >= getGUI()->getHeight())
+				{
+					setBottom(max(1.f, p_targetRectangle.top - 7.f), true);
+				}
+				else
+				{
+					setTop(p_targetRectangle.bottom + 7.f, true);
+				}
+				setCenterX(max(1.f + getWidth() * 0.5f, min(getGUI()->getWidth() - getWidth() * 0.5f - 1.f, p_targetRectangle.getCenterX())));
+
+				m_opacityAnimationTime = 0.f;
+				m_opacity = 0.f;
+				m_isShowing = true;
+				m_timeSinceShow = 0U;
+				queueAnimationUpdate();
+			}
+		}
 
 		/*
 			Makes the tooltip disappear.
 		*/
-		virtual void hide();
+		virtual void hide()
+		{
+			if (m_isShowing)
+			{
+				m_isShowing = false;
+				queueAnimationUpdate();
+			}
+		}
 
 		//------------------------------
 
@@ -7640,7 +7760,50 @@ namespace AvoGUI
 			invalidate();
 		}
 
-		virtual void draw(DrawingContext* p_drawingContext) override;
+		virtual void draw(DrawingContext* p_drawingContext) override
+		{
+			if (m_text)
+			{
+				p_drawingContext->scale(m_opacity * 0.3f + 0.7f, getAbsoluteCenter());
+				p_drawingContext->setColor(Color(m_theme->colors["tooltip background"], m_opacity));
+				p_drawingContext->fillRoundedRectangle(getSize(), getCornerRadius());
+				p_drawingContext->setColor(Color(m_theme->colors["tooltip on background"], m_opacity));
+				p_drawingContext->drawText(m_text);
+				p_drawingContext->scale(1.f / (m_opacity * 0.3f + 0.7f), getAbsoluteCenter());
+			}
+		}
+	};
+
+	//------------------------------
+
+	class OpenFileDialog
+	{
+	public:
+		/*
+			If this is true, the user can select more than 1 file to open.
+		*/
+		bool canSelectMultipleFiles;
+
+		/*
+			
+		*/
+		std::vector<char const*> fileExtensionFilters;
+
+		/*
+			The title shown in the top border of the open file dialog.
+		*/
+		char const* windowTitle;
+
+		OpenFileDialog() :
+			canSelectMultipleFiles(false), windowTitle("Open file...")
+		{
+		}
+
+		/*
+			Opens the dialog and returns when the user has selected the files.
+			p_openedFilePaths is a vector which will be filled with file paths to the files the user has selected to open.
+		*/
+		bool open(std::vector<char const*>& p_openedFilePaths);
 	};
 
 	//------------------------------
@@ -7677,7 +7840,7 @@ namespace AvoGUI
 		bool m_hasHoverEffect;
 
 	public:
-		Ripple(View* p_parent, const Color& p_color = Color(1.f, 0.45f)) :
+		Ripple(View* p_parent, Color const& p_color = Color(1.f, 0.45f)) :
 			View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(p_color, 0.45f),
 			m_isEnabled(true), m_maxSize(0.f), m_size(0.f), m_circleAnimationTime(1.f), m_alphaFactor(0.f),
 			m_alphaAnimationTime(0.f), m_isMouseDown(false), m_overlayAlphaFactor(0.f), m_overlayAnimationTime(0.f),
@@ -7722,14 +7885,14 @@ namespace AvoGUI
 		/*
 			Sets the color that is used by the ripple and hover effects.
 		*/
-		void setColor(const Color& p_color)
+		void setColor(Color const& p_color)
 		{
 			m_color = p_color;
 		}
 		/*
 			Returns the color that is used by the ripple and hover effects.
 		*/
-		const Color& getColor()
+		Color const& getColor()
 		{
 			return m_color;
 		}
@@ -7760,7 +7923,7 @@ namespace AvoGUI
 			m_maxSize = 2.f * Point<>::getDistanceFast(m_position, Point<float>(m_position.x < getWidth() * 0.5 ? getWidth() : 0, m_position.y < getHeight() * 0.5 ? getHeight() : 0));
 		}
 
-		void handleMouseDown(const MouseEvent& p_event) override
+		void handleMouseDown(MouseEvent const& p_event) override
 		{
 			if (m_isEnabled)
 			{
@@ -7774,7 +7937,7 @@ namespace AvoGUI
 				queueAnimationUpdate();
 			}
 		}
-		void handleMouseUp(const MouseEvent& p_event) override
+		void handleMouseUp(MouseEvent const& p_event) override
 		{
 			if (m_isMouseDown)
 			{
@@ -7783,7 +7946,7 @@ namespace AvoGUI
 				queueAnimationUpdate();
 			}
 		}
-		void handleMouseBackgroundEnter(const MouseEvent& p_event) override
+		void handleMouseBackgroundEnter(MouseEvent const& p_event) override
 		{
 			if (m_isEnabled)
 			{
@@ -7792,7 +7955,7 @@ namespace AvoGUI
 				queueAnimationUpdate();
 			}
 		}
-		void handleMouseBackgroundLeave(const MouseEvent& p_event) override
+		void handleMouseBackgroundLeave(MouseEvent const& p_event) override
 		{
 			if (m_isMouseHovering)
 			{
@@ -7805,7 +7968,7 @@ namespace AvoGUI
 		{
 			if (m_hasHoverEffect)
 			{
-				m_overlayAlphaFactor = m_theme->easings["symmetrical in out"].easeValue(m_overlayAnimationTime);
+				m_overlayAlphaFactor = getThemeEasing("symmetrical in out").easeValue(m_overlayAnimationTime);
 
 				if (m_isMouseHovering)
 				{
@@ -7825,7 +7988,7 @@ namespace AvoGUI
 			float circleAnimationValue = 1.f;
 			if (m_circleAnimationTime < 1.f)
 			{
-				circleAnimationValue = m_theme->easings["ripple"].easeValue(m_circleAnimationTime);
+				circleAnimationValue = getThemeEasing("ripple").easeValue(m_circleAnimationTime);
 				m_circleAnimationTime += 0.05f;
 				m_size = interpolate(m_maxSize * 0.4f, m_maxSize, circleAnimationValue);
 			}
@@ -7841,7 +8004,7 @@ namespace AvoGUI
 			{
 				if (m_alphaAnimationTime < 1.f)
 				{
-					m_alphaFactor = 1.f - m_theme->easings["symmetrical in out"].easeValue(m_alphaAnimationTime);
+					m_alphaFactor = 1.f - getThemeEasing("symmetrical in out").easeValue(m_alphaAnimationTime);
 					m_alphaAnimationTime = min(1.f, m_alphaAnimationTime + 0.05f);
 
 					queueAnimationUpdate();
@@ -7857,7 +8020,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
+		void draw(DrawingContext* p_drawingContext, Rectangle<float> const& p_targetRectangle) override
 		{
 			if (m_isEnabled)
 			{
@@ -7898,7 +8061,7 @@ namespace AvoGUI
 	private:
 		Text* m_text;
 
-		const char* m_tooltipString;
+		char const* m_tooltipString;
 
 		Image* m_icon;
 
@@ -7918,8 +8081,59 @@ namespace AvoGUI
 
 		std::vector<ButtonListener*> m_buttonListeners;
 
+		void updateSize()
+		{
+			if (m_text)
+			{
+				float sizeFactor = getThemeValue("button font size") / 14.f;
+				if (m_icon)
+				{
+					m_icon->setSize(16.f*sizeFactor, 16.f*sizeFactor);
+					m_icon->setCenter(sizeFactor*38.f * 0.5f, getHeight() * 0.5f);
+
+					m_text->setLeft(38.f*sizeFactor);
+					setSize(round(m_text->getWidth()) + sizeFactor*(16.f + 38.f), round(m_text->getHeight()) + 17.f * sizeFactor);
+				}
+				else
+				{
+					if (m_text->getWidth() >= 32.f*sizeFactor)
+					{
+						setSize(round(m_text->getWidth()) + 32.f*sizeFactor, round(m_text->getHeight()) + 17.f*sizeFactor);
+					}
+					else
+					{
+						setSize(64.f*sizeFactor, round(m_text->getHeight()) + 17.f*sizeFactor);
+					}
+					m_text->setCenter(getCenter() - getTopLeft());
+				}
+			}
+			else if (m_icon)
+			{
+				m_icon->setCenter(getCenter() - getTopLeft());
+			}
+		}
+
+	protected:
+		void handleThemeValueChange(std::string const& p_name, float p_newValue) override
+		{
+			if (p_name == "button font size")
+			{
+				m_text->setFontSize(p_newValue);
+				if (p_name == "button character spacing")
+				{
+					m_text->setCharacterSpacing(p_newValue);
+				}
+				updateSize();
+			}
+			else if (p_name == "button character spacing")
+			{
+				m_text->setCharacterSpacing(p_newValue);
+				updateSize();
+			}
+		}
+
 	public:
-		Button(View* p_parent, const char* p_text = "", Emphasis p_emphasis = Emphasis::High, bool p_isAccent = false) :
+		Button(View* p_parent, char const* p_text = "", Emphasis p_emphasis = Emphasis::High, bool p_isAccent = false) :
 			View(p_parent), m_text(0), m_tooltipString(""),
 			m_icon(0), m_pressAnimationTime(1.f), m_emphasis(p_emphasis), m_isEnabled(true),
 			m_colorAnimationTime(1.f)
@@ -8038,37 +8252,42 @@ namespace AvoGUI
 		/*
 			Sets the string that the button displays.
 		*/
-		void setString(const char* p_string)
+		void setString(char const* p_string)
 		{
 			if (m_text)
 			{
 				m_text->forget();
 			}
-
-			m_text = getGUI()->getDrawingContext()->createText(p_string, m_theme->values["button font size"]);
-			m_text->setFontFamily(m_theme->fontFamilies["main"]);
-			m_text->setWordWrapping(WordWrapping::Never);
-			m_text->setCharacterSpacing(1.2f);
-			m_text->setFontWeight(FontWeight::Medium);
-			m_text->fitBoundsToText();
-
-			if (m_text->getWidth() >= 32.f)
+			if (p_string[0])
 			{
-				setSize(round(m_text->getWidth()) + 32.f, round(m_text->getHeight()) + 17.f);
+				m_text = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("button font size"));
+				m_text->setFontFamily(m_theme->fontFamilies["main"]);
+				m_text->setWordWrapping(WordWrapping::Never);
+				m_text->setCharacterSpacing(getThemeValue("button character spacing"));
+				m_text->setFontWeight(FontWeight::Medium);
+				m_text->fitBoundsToText();
 			}
-			else
+			else 
 			{
-				setSize(64.f, round(m_text->getHeight()) + 17.f);
+				m_text = 0;
 			}
-			m_text->setCenter(getCenter() - getTopLeft());
+			updateSize();
 		}
 
 		/*
 			Returns the string that the button displays.
 		*/
-		const char* getString()
+		char const* getString()
 		{
 			return m_text->getString().c_str();
+		}
+
+		/*
+			Returns the text object that is used to display the button label.
+		*/
+		Text* getText()
+		{
+			return m_text;
 		}
 
 		//------------------------------
@@ -8082,35 +8301,20 @@ namespace AvoGUI
 		{
 			if (p_icon != m_icon)
 			{
+				if (m_icon)
+				{
+					m_icon->forget();
+				}
 				if (p_icon)
 				{
-					if (!m_icon)
-					{
-						m_text->setLeft(38.f);
-						setWidth(round(m_text->getWidth()) + 16.f + 38.f);
-						m_icon = p_icon;
-						m_icon->setBoundsSizing(ImageBoundsSizing::Contain);
-						m_icon->setSize(16.f, 16.f);
-						m_icon->setCenter(38.f * 0.5f, getHeight() * 0.5f);
-					}
-					else
-					{
-						m_icon->forget();
-						m_icon = p_icon;
-					}
+					m_icon = p_icon;
+					m_icon->setBoundsSizing(ImageBoundsSizing::Contain);
 				}
 				else
 				{
-					if (m_text->getWidth() >= 32.f)
-					{
-						setWidth(round(m_text->getWidth()) + 32.f);
-					}
-					else
-					{
-						setWidth(64.f);
-					}
-					m_text->setCenter(getCenter());
+					m_icon = 0;
 				}
+				updateSize();
 				invalidate();
 			}
 		}
@@ -8129,25 +8333,25 @@ namespace AvoGUI
 			Sets a string to be shown as a tooltip when the mouse hovers over the button. Should give the user additional information about the button's purpose.
 			An empty string disables the tooltip.
 		*/
-		void setTooltip(const char* p_info)
+		void setTooltip(char const* p_info)
 		{
 			m_tooltipString = p_info;
 		}
 
 		//------------------------------
 
-		void handleMouseBackgroundEnter(const MouseEvent& p_event) override 
+		void handleMouseBackgroundEnter(MouseEvent const& p_event) override 
 		{ 
 			if (m_tooltipString != "")
 			{
 				getGUI()->getTooltipView()->show(m_tooltipString, getAbsoluteBounds());
 			}
 		}
-		void handleMouseMove(const MouseEvent& p_event) override
+		void handleMouseMove(MouseEvent const& p_event) override
 		{
 			m_isMouseHovering = true;
 		}
-		void handleMouseBackgroundLeave(const MouseEvent& p_event) override
+		void handleMouseBackgroundLeave(MouseEvent const& p_event) override
 		{
 			if (m_tooltipString != "")
 			{
@@ -8155,7 +8359,7 @@ namespace AvoGUI
 			}
 			m_isMouseHovering = false;
 		}
-		void handleMouseDown(const MouseEvent& p_event) override
+		void handleMouseDown(MouseEvent const& p_event) override
 		{
 			if (m_isEnabled && m_emphasis == Emphasis::High)
 			{
@@ -8165,7 +8369,7 @@ namespace AvoGUI
 				queueAnimationUpdate();
 			}
 		}
-		void handleMouseUp(const MouseEvent& p_event) override
+		void handleMouseUp(MouseEvent const& p_event) override
 		{
 			if (m_emphasis == Emphasis::High)
 			{
@@ -8187,7 +8391,7 @@ namespace AvoGUI
 		{
 			if ((m_colorAnimationTime != 1.f && m_isEnabled) || (m_colorAnimationTime != 0.f && !m_isEnabled))
 			{
-				float colorAnimationValue = m_theme->easings["symmetrical in out"].easeValue(m_colorAnimationTime);
+				float colorAnimationValue = getThemeEasing("symmetrical in out").easeValue(m_colorAnimationTime);
 				if (m_emphasis == Emphasis::High)
 				{
 					m_currentColor = m_isAccent ? m_theme->colors["secondary"] : m_theme->colors["primary"];
@@ -8218,7 +8422,7 @@ namespace AvoGUI
 
 			if (m_emphasis == Emphasis::High)
 			{
-				float pressAnimationValue = m_theme->easings["in out"].easeValue(m_pressAnimationTime);
+				float pressAnimationValue = getThemeEasing("in out").easeValue(m_pressAnimationTime);
 				m_pressAnimationTime += 0.06f;
 
 				if (m_isRaising || m_isPressed)
@@ -8248,7 +8452,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void drawOverlay(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
+		void drawOverlay(DrawingContext* p_drawingContext, Rectangle<float> const& p_targetRectangle) override
 		{
 			if (m_emphasis == Emphasis::Medium)
 			{
@@ -8257,7 +8461,7 @@ namespace AvoGUI
 			}
 		}
 
-		void draw(DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
+		void draw(DrawingContext* p_drawingContext, Rectangle<float> const& p_targetRectangle) override
 		{
 			if (m_emphasis == Emphasis::High)
 			{
@@ -8274,7 +8478,10 @@ namespace AvoGUI
 				p_drawingContext->drawImage(m_icon);
 			}
 
-			p_drawingContext->drawText(m_text);
+			if (m_text)
+			{
+				p_drawingContext->drawText(m_text);
+			}
 		}
 	};
 
@@ -8401,7 +8608,7 @@ namespace AvoGUI
 		}
 
 	protected:
-		void handleThemeFontFamilyChange(const char* p_name, const char* p_newFontFamily)
+		void handleThemeFontFamilyChange(std::string const& p_name, char const* p_newFontFamily) override
 		{
 			if (p_name == "main")
 			{
@@ -8412,6 +8619,9 @@ namespace AvoGUI
 				}
 			}
 		}
+		//void handleThemeValueChange(std::string const& p_name, float p_value) override
+		//{
+		//}
 
 	public:
 		EditableText(View* p_parent, float p_width = 0.f, float p_fontSize = 12.f) :
@@ -8443,12 +8653,12 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void handleMouseDoubleClick(const MouseEvent& p_event) override
+		void handleMouseDoubleClick(MouseEvent const& p_event) override
 		{
 			if (m_text)
 			{
 				uint32_t clickCharacterIndex = m_text->getNearestCharacterIndex(p_event.x - m_textDrawingOffsetX, p_event.y, true);
-				const std::string& string = m_text->getString();
+				std::string const& string = m_text->getString();
 				for (int32_t a = clickCharacterIndex; a >= 0; a--)
 				{
 					if (!a || string[a - 1] == ' ')
@@ -8482,10 +8692,8 @@ namespace AvoGUI
 				}
 			}	
 		}
-		void handleMouseDown(const MouseEvent& p_event) override
+		void handleMouseDown(MouseEvent const& p_event) override
 		{
-			getGUI()->setKeyboardFocus(this);
-
 			if (m_text)
 			{
 				if (p_event.modifierKeys & ModifierKeyFlags::Shift)
@@ -8521,10 +8729,12 @@ namespace AvoGUI
 				setString("");
 			}
 
+			getGUI()->setKeyboardFocus(this);
+
 			invalidate();
 			queueAnimationUpdate();
 		}
-		void handleMouseMove(const MouseEvent& p_event) override
+		void handleMouseMove(MouseEvent const& p_event) override
 		{
 			if (m_isSelectingWithMouse)
 			{
@@ -8536,7 +8746,7 @@ namespace AvoGUI
 				invalidate();
 			}
 		}
-		void handleMouseUp(const MouseEvent& p_event) override
+		void handleMouseUp(MouseEvent const& p_event) override
 		{
 			m_isSelectingWithMouse = false;
 		}
@@ -8567,7 +8777,7 @@ namespace AvoGUI
 
 			invalidate();
 		}
-		void handleCharacterInput(const KeyboardEvent& p_event) override
+		void handleCharacterInput(KeyboardEvent const& p_event) override
 		{
 			if ((p_event.character >= 32 && p_event.character < 126 || p_event.character < 0))
 			{
@@ -8598,7 +8808,7 @@ namespace AvoGUI
 				invalidate();
 			}
 		}
-		void handleKeyboardKeyDown(const KeyboardEvent& p_event) override
+		void handleKeyboardKeyDown(KeyboardEvent const& p_event) override
 		{
 			Window* window = getGUI()->getWindow();
 			if (m_isSelectionVisible && (p_event.key == KeyboardKey::Backspace || p_event.key == KeyboardKey::Delete) && m_caretIndex != m_selectionEndIndex)
@@ -8966,20 +9176,10 @@ namespace AvoGUI
 				{
 					return;
 				}
-				uint32_t stringLength = m_text->getString().size();
-				if (window->getIsKeyDown(KeyboardKey::Control) && stringLength)
+				if (window->getIsKeyDown(KeyboardKey::Control))
 				{
-					m_isSelectionVisible = true;
-					if (m_caretIndex)
-					{
-						m_caretIndex = 0;
-						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
-					}
-					if (m_selectionEndIndex != stringLength)
-					{
-						m_selectionEndIndex = stringLength;
-						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
-					}
+					selectAll();
+					return;
 				}
 				break;
 			}
@@ -8990,12 +9190,62 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void setSelection(uint32_t p_startIndex, uint32_t p_endIndex)
+		{
+			if (m_text)
+			{
+				p_startIndex = min((uint32_t)m_text->getString().size(), p_startIndex);
+				p_endIndex = min((uint32_t)m_text->getString().size(), max(p_startIndex, p_endIndex));
+				if (p_startIndex != p_endIndex)
+				{
+					if (p_startIndex != m_caretIndex)
+					{
+						m_caretIndex = p_startIndex;
+						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+					}
+
+					if (p_endIndex != m_selectionEndIndex)
+					{
+						m_selectionEndIndex = p_endIndex;
+						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+					}
+					m_isSelectionVisible = true;
+					invalidate();
+				}
+			}
+		}
+		void selectAll()
+		{
+			if (m_text)
+			{
+				uint32_t stringLength = m_text->getString().size();
+				if (stringLength)
+				{
+					if (m_caretIndex != 0)
+					{
+						m_caretIndex = 0;
+						m_caretPosition = m_text->getCharacterPosition(m_caretIndex, true);
+					}
+
+					if (m_selectionEndIndex != stringLength)
+					{
+						m_selectionEndIndex = stringLength;
+						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndIndex, true);
+					}
+					m_isSelectionVisible = true;
+					invalidate();
+				}
+			}
+		}
+
+		//------------------------------
+
 		/*
 			Changes the content of the editable text.
 			p_newCaretIndex determines the caret index that will be set if no event listeners cancel the change.
 			This is needed because the old caret index will be kept in case any event listener returns false.
 		*/
-		void setString(const char* p_string, int32_t p_newCaretIndex = -1)
+		void setString(char const* p_string, int32_t p_newCaretIndex = -1)
 		{
 			if (m_text && m_text->getString() == p_string)
 			{
@@ -9006,14 +9256,11 @@ namespace AvoGUI
 				p_newCaretIndex = m_caretIndex;
 			}
 			std::string newString = p_string;
-			if (newString.size())
+			for (auto listener : m_listeners)
 			{
-				for (auto listener : m_listeners)
+				if (!listener->handleEditableTextChange(this, newString, p_newCaretIndex))
 				{
-					if (!listener->handleEditableTextChange(this, newString, p_newCaretIndex))
-					{
-						return;
-					}
+					return;
 				}
 			}
 			if (m_text)
@@ -9089,14 +9336,14 @@ namespace AvoGUI
 		/*
 			Sets the content of the editable text.
 		*/
-		void setString(const std::string& p_string, int32_t p_caretIndex = -1)
+		void setString(std::string const& p_string, int32_t p_caretIndex = -1)
 		{
 			setString(p_string.c_str(), p_caretIndex);
 		}
 		/*
 			Returns the content of the editable text.
 		*/
-		const char* getString()
+		char const* getString()
 		{
 			if (m_text)
 			{
@@ -9238,7 +9485,7 @@ namespace AvoGUI
 		Type m_type;
 
 	protected:
-		void handleThemeFontFamilyChange(const char* p_name, const char* p_newFontFamilyName) override
+		void handleThemeFontFamilyChange(std::string const& p_name, char const* p_newFontFamilyName) override
 		{
 			if (p_name == "main")
 			{
@@ -9247,9 +9494,25 @@ namespace AvoGUI
 					m_labelText->setFontFamily(p_newFontFamilyName);
 					m_labelText->fitBoundsToText();
 				}
+				if (m_prefixText)
+				{
+					m_prefixText->setFontFamily(p_newFontFamilyName);
+					m_prefixText->fitBoundsToText();
+					m_editableText->setLeft(m_prefixText->getRight() + 1.f, false);
+					if (m_labelText)
+					{
+						m_labelText->setLeft(m_prefixText->getRight() + 1.f);
+					}
+				}
+				if (m_suffixText)
+				{
+					m_suffixText->setFontFamily(p_newFontFamilyName);
+					m_suffixText->fitBoundsToText();
+					m_editableText->setRight(m_suffixText->getRight() - 1.f, false);
+				}
 			}
 		}
-		void handleThemeValueChange(const char* p_name, float p_newValue) override
+		void handleThemeValueChange(std::string const& p_name, float p_newValue) override
 		{
 			if (p_name == "text field font size")
 			{
@@ -9313,15 +9576,12 @@ namespace AvoGUI
 				{
 					m_suffixText->setBottom(getHeight() - p_newValue);
 				}
-				if (m_editableText)
-				{
-					m_editableText->setBottom(getHeight() - p_newValue);
-				}
+				m_editableText->setBottom(getHeight() - p_newValue);
 			}
 		}
 
 	public:
-		TextField(View* p_parent, Type p_type = Type::Filled, const char* p_label = "", float p_width = 120.f) :
+		TextField(View* p_parent, Type p_type = Type::Filled, char const* p_label = "", float p_width = 120.f) :
 			View(p_parent),
 			m_labelText(0), m_focusAnimationTime(0.f), m_focusAnimationValue(0.f),
 			m_isMouseHovering(false), m_hoverAnimationTime(0.f), m_hoverAnimationValue(0.f),
@@ -9377,6 +9637,7 @@ namespace AvoGUI
 		{
 			if (m_suffixText)
 			{
+				m_suffixText->setRight(getWidth() - getThemeValue("text field padding right"));
 				m_editableText->setRight(m_suffixText->getLeft() - 1.f, false);
 			}
 			else
@@ -9422,7 +9683,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setLabel(const char* p_label)
+		void setLabel(char const* p_label)
 		{
 			if (m_labelText)
 			{
@@ -9453,7 +9714,7 @@ namespace AvoGUI
 				queueAnimationUpdate();
 			}
 		}
-		const char* getLabel()
+		char const* getLabel()
 		{
 			if (m_labelText)
 			{
@@ -9464,7 +9725,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setPrefixString(const char* p_string)
+		void setPrefixString(char const* p_string)
 		{
 			if (m_prefixText)
 			{
@@ -9491,11 +9752,15 @@ namespace AvoGUI
 			{
 				m_prefixText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f + 1.5f);
 			}
-			m_prefixText->setRight(getWidth() - getThemeValue("text field padding right"));
+			m_prefixText->setLeft(getThemeValue("text field padding left"));
 
 			m_editableText->setLeft(m_prefixText->getRight() + 1.f, false);
+			if (m_labelText)
+			{
+				m_labelText->setLeft(m_prefixText->getRight() + 1.f);
+			}
 		}
-		const char* setPrefixString()
+		char const* setPrefixString()
 		{
 			if (m_suffixText)
 			{
@@ -9506,7 +9771,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setSuffixString(const char* p_string)
+		void setSuffixString(char const* p_string)
 		{
 			if (m_suffixText)
 			{
@@ -9537,7 +9802,7 @@ namespace AvoGUI
 
 			m_editableText->setRight(m_suffixText->getLeft() - 1.f, false);
 		}
-		const char* getSuffixString()
+		char const* getSuffixString()
 		{
 			if (m_suffixText)
 			{
@@ -9548,7 +9813,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setString(const char* p_string)
+		void setString(char const* p_string)
 		{
 			m_editableText->setString(p_string);
 			if (m_type == Type::Filled)
@@ -9560,13 +9825,39 @@ namespace AvoGUI
 				m_editableText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f);
 			}
 		}
-		void setString(const std::string& p_string)
+		void setString(std::string const& p_string)
 		{
 			setString(p_string.c_str());
 		}
-		const char* getString()
+		//void setValue(int32_t p_valueToParse)
+		//{
+
+		//}
+		//void setValue(float p_valueToParse)
+		//{
+
+		//}
+		/*
+			Parses a float rounded at a certain digit and sets it as the content of the text field.
+			If p_numberOfDigitsToRound is 0, all decimals are rounded off and it becomes an integer.
+			Positive goes to the right and negative goes to the left.
+		*/
+		//void setValue(float p_valueToParse, int32_t p_numberOfDigitsToRound)
+		//{
+		//	float roundingFactor = std::pow(10, p_numberOfDigitsToRound);
+		//	setString(std::to_string(std::round(p_valueToParse * roundingFactor) / roundingFactor));
+		//}
+		char const* getString()
 		{
 			return m_editableText->getString();
+		}
+		float getValue()
+		{
+			if (m_editableText->getString()[0])
+			{
+				return std::stof(m_editableText->getString());
+			}
+			return 0.f;
 		}
 
 		//------------------------------
@@ -9582,34 +9873,34 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void handleMouseDown(const MouseEvent& p_event) override
+		void handleMouseDown(MouseEvent const& p_event) override
 		{
 			MouseEvent event = p_event;
 			event.y = 0;
 			event.x -= m_editableText->getLeft();
 			m_editableText->handleMouseDown(event);
 		}
-		void handleMouseUp(const MouseEvent& p_event) override
+		void handleMouseUp(MouseEvent const& p_event) override
 		{
 			MouseEvent event = p_event;
 			event.y = 0;
 			event.x -= m_editableText->getLeft();
 			m_editableText->handleMouseUp(event);
 		}
-		void handleMouseMove(const MouseEvent& p_event) override
+		void handleMouseMove(MouseEvent const& p_event) override
 		{
 			MouseEvent event = p_event;
 			event.y = 0;
 			event.x -= m_editableText->getLeft();
 			m_editableText->handleMouseMove(event);
 		}
-		void handleMouseEnter(const MouseEvent& p_event) override
+		void handleMouseEnter(MouseEvent const& p_event) override
 		{
 			View::handleMouseBackgroundEnter(p_event);
 			m_isMouseHovering = true;
 			queueAnimationUpdate();
 		}
-		void handleMouseLeave(const MouseEvent& p_event) override
+		void handleMouseLeave(MouseEvent const& p_event) override
 		{
 			m_isMouseHovering = false;
 			queueAnimationUpdate();
@@ -9738,7 +10029,7 @@ namespace AvoGUI
 	//------------------------------
 	// Font data
 
-	const char* const FONT_NAME_ROBOTO = "Roboto";
+	char const* const FONT_NAME_ROBOTO = "Roboto";
 
 	char const FONT_DATA_ROBOTO_REGULAR[] =
 	{
