@@ -210,11 +210,29 @@ namespace AvoGUI
 	//------------------------------
 
 	/*
-		Converts a char const* string to a wchar* string.
-		p_string should be null-terminated.
-		p_result should be allocated with p_numberOfCharactersInResult number of wchar_t characters.
+		Converts a UTF-8 encoded char* string to a UTF-16 encoded wchar_t* string.
+		p_input should be null-terminated.
+		p_output should be allocated with p_numberOfCharactersInOutput number of wchar_t characters.
+		The output includes the null terminator.
 	*/
-	void widenString(char const* p_string, wchar_t* p_result, uint32_t p_numberOfCharactersInResult);
+	void widenString(char const* p_input, wchar_t* p_output, uint32_t p_numberOfCharactersInOutput);
+	/*
+		Returns the number of UTF-16 encoded wchar_t* characters that would be used to represent the same characters in a UTF-8 encoded char* string.
+		p_input should be null-terminated. The output includes the null-terminator.
+	*/
+	uint32_t getNumberOfCharactersInWidenedString(char const* p_input);
+	/*
+		Converts a UTF-16 encoded wchar_t const* string to a UTF-8 encoded char* string.
+		p_string should be null-terminated.
+		p_result should be allocated with p_numberOfCharactersInResult number of char characters.
+		The output includes the null terminator.
+	*/
+	void narrowString(wchar_t const* p_input, char* p_output, uint32_t p_numberOfCharactersInResult);
+	/*
+		Returns the number of UTF-8 encoded char* characters that would be used to represent the same characters in a UTF-16 encoded wchar_t* string.
+		p_input should be null-terminated. The output includes the null-terminator.
+	*/
+	uint32_t getNumberOfCharactersInNarrowedString(wchar_t const* p_input);
 
 	//------------------------------
 
@@ -3165,6 +3183,11 @@ namespace AvoGUI
 		}
 
 		Point<float> calculateAbsolutePositionRelativeTo(Point<float> p_position) const;
+		/*
+			LIBRARY IMPLEMENTED
+			Only adds a child view to the child list of this view. 
+		*/
+		void addChild(View* p_view);
 
 	protected:
 		GUI* m_GUI;
@@ -3265,7 +3288,7 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 			Attaches this view to a new parent, which will manage the lifetime of the view unless you've called remember() on it.
-			If the parameter is 0, the view is only detached from its old parent.
+			If the parameter is 0, the view is only detached from its old parent, and is left alone with no parents :^(.
 		*/
 		void setParent(View* p_container);
 		/*
@@ -3277,13 +3300,6 @@ namespace AvoGUI
 			return m_parent;
 		}
 
-		/*
-			LIBRARY IMPLEMENTED
-			Adds a child view to this view. 
-			DO NOT call this method yourself, it is called automatically when you create a view with a parent, or set a new parent.
-			Only calling this method would not link the parent view to the child.
-		*/
-		void addChild(View* p_view);
 		/*
 			LIBRARY IMPLEMENTED
 			Removes a child view from this view. This forgets the view being removed. 
@@ -3639,53 +3655,7 @@ namespace AvoGUI
 			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default colors and more details.
 			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
-		void setThemeColor(char const* p_name, Color const& p_color, bool p_willAffectChildren = true)
-		{
-			if (p_willAffectChildren)
-			{
-				View* view = this;
-				uint32_t startIndex = 0;
-				while (true)
-				{
-				loopStart:
-					for (uint32_t a = startIndex; a < view->getNumberOfChildren(); a++)
-					{
-						view->getChild(a)->setThemeColor(p_name, p_color, false);
-						if (view->getChild(a)->getNumberOfChildren())
-						{
-							view = view->getChild(a);
-							startIndex = 0;
-							goto loopStart; // dont @ me
-						}
-					}
-					if (view == this)
-					{
-						break;
-					}
-					startIndex = view->getIndex() + 1;
-					view = view->getParent();
-				}
-			}
-
-			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
-			// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
-			if (!m_theme)
-			{
-				m_theme = new Theme();
-			}
-			else if (m_theme->getReferenceCount() > 1)
-			{
-				m_theme->forget();
-				m_theme = new Theme(*m_theme);
-			}
-
-			if (m_theme->colors[p_name] != p_color)
-			{
-				m_theme->colors[p_name] = p_color;
-				std::string name(std::move(p_name));
-				handleThemeColorChange(name, p_color);
-			}
-		}
+		void setThemeColor(char const* p_name, Color const& p_color, bool p_willAffectChildren = true);
 		/*
 			LIBRARY IMPLEMENTED
 			See setThemeColor for names that have colors by default.
@@ -5138,6 +5108,30 @@ namespace AvoGUI
 		{
 			return getIsContaining(p_point.x, p_point.y);
 		}
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether a point is within the bounds of this view. The point is relative to the top-left corner of the GUI.
+		*/
+		bool getIsContainingAbsolute(float p_x, float p_y) const
+		{
+			if (m_parent)
+			{
+				return getIsContaining(p_x - m_parent->getAbsoluteLeft(), p_y - m_parent->getAbsoluteTop());
+			}
+			return getIsContaining(p_x, p_y);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether a point is within the bounds of this view. The point is relative to the top-left corner of the GUI.
+		*/
+		bool getIsContainingAbsolute(Point<float> const& p_point) const
+		{
+			if (m_parent)
+			{
+				return getIsContaining(p_point.x - m_parent->getAbsoluteLeft(), p_point.y - m_parent->getAbsoluteTop());
+			}
+			return getIsContaining(p_point.x, p_point.y);
+		}
 
 		//------------------------------
 
@@ -5279,7 +5273,7 @@ namespace AvoGUI
 			Adds an event listener to the view, which recieves events about when the view has changed size.
 			The listener is not remembered, just put into a list.
 		*/
-		void addEventListener(ViewListener* p_eventListener)
+		void addViewListener(ViewListener* p_eventListener)
 		{
 			m_viewEventListeners.push_back(p_eventListener);
 		}
@@ -5287,7 +5281,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			This only removes the pointer from a list, it doesn't forget it or anything.
 		*/
-		void removeEventListener(ViewListener* p_eventListener)
+		void removeViewListener(ViewListener* p_eventListener)
 		{
 			removeVectorElementWhileKeepingOrder(m_viewEventListeners, p_eventListener);
 		}
@@ -5296,7 +5290,7 @@ namespace AvoGUI
 		
 		/*
 			LIBRARY IMPLEMENTED
-			By default, mouse events are disabled.
+			Mouse events are disabled by default.
 		*/
 		virtual void enableMouseEvents();
 		/*
@@ -5467,7 +5461,7 @@ namespace AvoGUI
 		uint32_t height = 0U;
 	};
 
-	class WindowEventListener
+	class WindowListener
 	{
 	public:
 		/*
@@ -5624,10 +5618,10 @@ namespace AvoGUI
 
 	/*
 		This can be inherited by any class. 
-		Remember to register it to the GUI by calling the addGlobalMouseEventListener() method on it.
-		A GlobalMouseEventListener will recieve mouse events as long as the window is focused.
+		Remember to register it to the GUI by calling the addGlobalMouseListener() method on it.
+		A GlobalMouseListener will recieve mouse events as long as the window is focused.
 	*/
-	class GlobalMouseEventListener
+	class GlobalMouseListener
 	{
 	public:
 		/*
@@ -5723,7 +5717,7 @@ namespace AvoGUI
 		{ }
 	};
 
-	class KeyboardEventListener
+	class KeyboardListener
 	{
 	public:
 		/*
@@ -6110,7 +6104,9 @@ namespace AvoGUI
 	};
 
 	/*
-		Represents an image on the GPU which can be created and drawn by a DrawingContext. Notice that this is not a view but should be treated as a drawable object.
+		Represents an image on the GPU which can be created and drawn by a DrawingContext. 
+		Notice that this is not a view but should be treated as a drawable object.
+		It is your responsibility to manage its lifetime, using remember() and forget().
 	*/
 	class Image : public ReferenceCounted, public ProtectedRectangle
 	{
@@ -6273,6 +6269,7 @@ namespace AvoGUI
 	/*
 		Represents a text block which can be calculated once and drawn any number of times by a DrawingContext. 
 		Notice that this is not a view, but should be treated as a drawable object created by a DrawingContext.
+		It is your reponsibility to mange its lifetime, using remember() and forget().
 	*/
 	class Text : public ProtectedRectangle, public ReferenceCounted
 	{
@@ -6625,6 +6622,17 @@ namespace AvoGUI
 			Returns whether presentation is synchronized with the monitor.
 		*/
 		virtual bool getIsVsyncEnabled() = 0;
+
+		//------------------------------
+
+		/*
+			Sets the color that the target is filled with before any drawing.
+		*/
+		virtual void setBackgroundColor(Color const& p_color) = 0;
+		/*
+			Returns the color that the target is filled with before any drawing.
+		*/
+		virtual Color getBackgroundColor() = 0;
 
 		//------------------------------
 
@@ -7235,13 +7243,13 @@ namespace AvoGUI
 		The highest view in the view hierarchy.
 		Is connected to a window which it holds and recieves events from.
 	*/
-	class GUI : public View, public WindowEventListener, public GlobalMouseEventListener
+	class GUI : public View, public WindowListener, public GlobalMouseListener
 	{
 	private:
 		Window* m_window;
 		DrawingContext* m_drawingContext;
 
-		std::vector<WindowEventListener*> m_windowEventListeners;
+		std::vector<WindowListener*> m_windowEventListeners;
 
 		//------------------------------
 
@@ -7261,7 +7269,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		std::vector<GlobalMouseEventListener*> m_globalMouseEventListeners;
+		std::vector<GlobalMouseListener*> m_globalMouseEventListeners;
 		std::vector<View*> m_pressedMouseEventListeners;
 		Point<float> m_mouseDownPosition;
 
@@ -7278,8 +7286,8 @@ namespace AvoGUI
 
 		//------------------------------
 
-		std::vector<KeyboardEventListener*> m_globalKeyboardEventListeners;
-		KeyboardEventListener* m_keyboardFocus;
+		std::vector<KeyboardListener*> m_globalKeyboardEventListeners;
+		KeyboardListener* m_keyboardFocus;
 
 		//------------------------------
 
@@ -7414,14 +7422,14 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sets the keyboard event listener that keyboard events are sent to.
 		*/
-		void setKeyboardFocus(KeyboardEventListener* p_keyboardFocus)
+		void setKeyboardFocus(KeyboardListener* p_keyboardFocus)
 		{
 			if (m_keyboardFocus == p_keyboardFocus)
 			{
 				return;
 			}
 
-			KeyboardEventListener* focusBefore = m_keyboardFocus;
+			KeyboardListener* focusBefore = m_keyboardFocus;
 
 			m_keyboardFocus = p_keyboardFocus;
 
@@ -7439,7 +7447,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns the keyboard event listener that keyboard events are sent to.
 		*/
-		KeyboardEventListener* getKeyboardFocus()
+		KeyboardListener* getKeyboardFocus()
 		{
 			return m_keyboardFocus;
 		}
@@ -7469,7 +7477,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Enables a window event listener to recieve events.
 		*/
-		void addWindowEventListener(WindowEventListener* p_listener)
+		void addWindowListener(WindowListener* p_listener)
 		{
 			m_windowEventListeners.push_back(p_listener);
 		}
@@ -7477,7 +7485,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Disables a window event listener to recieve events.
 		*/
-		void removeWindowEventListener(WindowEventListener* p_listener)
+		void removeWindowListener(WindowListener* p_listener)
 		{
 			removeVectorElementWithoutKeepingOrder(m_windowEventListeners, p_listener);
 		}
@@ -7485,7 +7493,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Enables a keyboard event listener to recieve events even if it is not the keyboard focus.
 		*/
-		void addGlobalKeyboardEventListener(KeyboardEventListener* p_listener)
+		void addGlobalKeyboardListener(KeyboardListener* p_listener)
 		{
 			m_globalKeyboardEventListeners.push_back(p_listener);
 		}
@@ -7493,7 +7501,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Disables a keyboard event listener to recieve events when it is not the keyboard focus.
 		*/
-		void removeGlobalKeyboardEventListener(KeyboardEventListener* p_listener)
+		void removeGlobalKeyboardListener(KeyboardListener* p_listener)
 		{
 			removeVectorElementWithoutKeepingOrder(m_globalKeyboardEventListeners, p_listener);
 		}
@@ -7501,7 +7509,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Enables a global mouse event listener to recieve events.
 		*/
-		void addGlobalMouseEventListener(GlobalMouseEventListener* p_listener)
+		void addGlobalMouseListener(GlobalMouseListener* p_listener)
 		{
 			m_globalMouseEventListeners.push_back(p_listener);
 		}
@@ -7509,7 +7517,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Disables a global mouse event listener to recieve events.
 		*/
-		void removeGlobalMouseEventListener(GlobalMouseEventListener* p_listener)
+		void removeGlobalMouseListener(GlobalMouseListener* p_listener)
 		{
 			removeVectorElementWithoutKeepingOrder(m_globalMouseEventListeners, p_listener);
 		}
@@ -7779,31 +7787,115 @@ namespace AvoGUI
 	class OpenFileDialog
 	{
 	public:
+		struct FileExtensionFilter
+		{
+			/*
+				This is the name that will be shown for the file extension filter.
+			*/
+			char const* name;
+			/*
+				This is the file extension(s) that the user can open when this filter is selected.
+				If you want more than 1 file extension for this file extension name, you can seperate the extensions with ";".
+				Wildcards are used to specify what part of the file name is filtered.
+				For example: "*.png;*.jpg"
+			*/
+			char const* extensions;
+		};
+
+	private:
+		GUI* m_gui;
+
+		bool m_canSelectMultipleFiles;
+		std::vector<FileExtensionFilter> m_fileExtensions;
+		char const* m_title;
+
+	public:
+		OpenFileDialog() :
+			m_gui(0),
+			m_canSelectMultipleFiles(false), m_title("Open file...")
+		{ }
+		OpenFileDialog(GUI* p_gui) :
+			m_gui(p_gui),
+			m_canSelectMultipleFiles(false), m_title("Open file...")
+		{ }
+
 		/*
 			If this is true, the user can select more than 1 file to open.
 		*/
-		bool canSelectMultipleFiles;
-
-		/*
-			
-		*/
-		std::vector<char const*> fileExtensionFilters;
-
-		/*
-			The title shown in the top border of the open file dialog.
-		*/
-		char const* windowTitle;
-
-		OpenFileDialog() :
-			canSelectMultipleFiles(false), windowTitle("Open file...")
+		void setCanSelectMultipleFiles(bool p_canSelectMultipleFiles)
 		{
+			m_canSelectMultipleFiles = p_canSelectMultipleFiles;
+		}
+		bool getCanSelectMultipleFiles()
+		{
+			return m_canSelectMultipleFiles;
 		}
 
 		/*
-			Opens the dialog and returns when the user has selected the files.
-			p_openedFilePaths is a vector which will be filled with file paths to the files the user has selected to open.
+			Sets the title shown in the top border of the open file dialog.
 		*/
-		bool open(std::vector<char const*>& p_openedFilePaths);
+		void setTitle(char const* p_title)
+		{
+			m_title = p_title;
+		}
+		/*
+			Returns the title shown in the thop border of the open file dialog.
+		*/
+		char const* getTitle()
+		{
+			return m_title;
+		}
+
+		/*
+			Sets the file extensions of the files that the user can open with the dialog.
+			See the properties of FileExtensionFilter for details.
+
+			You can initialize the vector like this:
+			
+			{
+				{ "Images", "*.jpg;*.png" }
+				{ "Sound files", "*.mp3;*.wav;*.ogg" }
+			}
+		*/
+		void setFileExtensions(std::vector<FileExtensionFilter>& p_fileExtensions)
+		{
+			m_fileExtensions = std::move(p_fileExtensions);
+		}
+		/*
+			These are the file extensions of the files that the user can open with the dialog.
+			See the properties of FileExtensionFilter for details.
+
+			You can initialize the vector like this:
+
+			{
+				{ "Images", "*.jpg;*.png" }
+				{ "Sound files", "*.mp3;*.wav;*.ogg" }
+			}
+		*/
+		void setFileExtensions(std::vector<FileExtensionFilter>&& p_fileExtensions)
+		{
+			m_fileExtensions = p_fileExtensions;
+		}
+		/*
+			Returns the file extension filters that can be selected in the dialog.
+		*/
+		std::vector<FileExtensionFilter> const& getFileExtensions()
+		{
+			return m_fileExtensions;
+		}
+
+		/*
+			Opens the dialog and returns when the user has selected the files or closed the window.
+			p_openedFilePaths is a vector which will be filled with file paths in UTF-8 format of the files the user has selected to open.
+			It can be empty if the user closed the window without selecting any files.
+		*/
+		void open(std::vector<std::string>& p_openedFilePaths);
+		/*
+			Opens the dialog and returns when the user has selected the files or closed the window.
+			p_openedFilePaths is a vector which will be filled with file paths in UTF-16 format of the files the user has selected to open.
+			It can be empty if the user closed the window without selecting any files.
+		*/
+		void open(std::vector<std::wstring>& p_openedFilePaths);
 	};
 
 	//------------------------------
@@ -7850,7 +7942,7 @@ namespace AvoGUI
 			setHasShadow(false);
 			setElevation(FLT_MAX); // Nothing can be above a ripple...
 			enableMouseEvents();
-			p_parent->addEventListener(this);
+			p_parent->addViewListener(this);
 		}
 		~Ripple()
 		{
@@ -8376,7 +8468,7 @@ namespace AvoGUI
 				m_isPressed = false;
 				queueAnimationUpdate();
 			}
-			if (m_isEnabled && getIsContaining(p_event.x + getAbsoluteLeft(), p_event.y + getAbsoluteTop()))
+			if (m_isEnabled && getIsContaining(p_event.x + getLeft(), p_event.y + getTop()))
 			{
 				for (uint32_t a = 0; a < m_buttonListeners.size(); a++)
 				{
@@ -8528,7 +8620,7 @@ namespace AvoGUI
 	/*
 		A view that only consists of text that can be edited by the user.
 	*/
-	class EditableText : public View, public KeyboardEventListener
+	class EditableText : public View, public KeyboardListener
 	{
 	private:
 		Text* m_text;
@@ -8726,7 +8818,7 @@ namespace AvoGUI
 			}
 			else
 			{
-				setString("");
+				//setString("");
 			}
 
 			getGUI()->setKeyboardFocus(this);
@@ -9341,6 +9433,22 @@ namespace AvoGUI
 			setString(p_string.c_str(), p_caretIndex);
 		}
 		/*
+			Sets the content of the editable text as a value.
+		*/
+		template<typename T>
+		void setValue(T p_value)
+		{
+			setString(convertNumberToString(p_value));
+		}
+		/*
+			Sets the content of the editable text as a value, rounded at a certain digit.
+		*/
+		template<typename T>
+		void setValue(T p_value, int32_t p_roundingDigit, RoundingType p_roundingType = RoundingType::Nearest)
+		{
+			setString(convertNumberToString(p_value, p_roundingDigit, p_roundingType));
+		}
+		/*
 			Returns the content of the editable text.
 		*/
 		char const* getString()
@@ -9458,7 +9566,7 @@ namespace AvoGUI
 
 	constexpr float TEXT_FIELD_OUTLINED_PADDING_LABEL = 5.f;
 
-	class TextField : public View, public KeyboardEventListener, public EditableTextListener
+	class TextField : public View, public KeyboardListener, public EditableTextListener
 	{
 	public:
 		enum Type
@@ -9829,35 +9937,25 @@ namespace AvoGUI
 		{
 			setString(p_string.c_str());
 		}
-		//void setValue(int32_t p_valueToParse)
-		//{
-
-		//}
-		//void setValue(float p_valueToParse)
-		//{
-
-		//}
 		/*
-			Parses a float rounded at a certain digit and sets it as the content of the text field.
-			If p_numberOfDigitsToRound is 0, all decimals are rounded off and it becomes an integer.
-			Positive goes to the right and negative goes to the left.
+			Sets the content of the text field as a value.
 		*/
-		//void setValue(float p_valueToParse, int32_t p_numberOfDigitsToRound)
-		//{
-		//	float roundingFactor = std::pow(10, p_numberOfDigitsToRound);
-		//	setString(std::to_string(std::round(p_valueToParse * roundingFactor) / roundingFactor));
-		//}
+		template<typename T>
+		void setValue(T p_value)
+		{
+			setString(convertNumberToString(p_value));
+		}
+		/*
+			Sets the content of the text field as a value, rounded at a certain digit.
+		*/
+		template<typename T>
+		void setValue(T p_value, int32_t p_roundingDigit, RoundingType p_roundingType = RoundingType::Nearest)
+		{
+			setString(convertNumberToString(p_value, p_roundingDigit, p_roundingType));
+		}
 		char const* getString()
 		{
 			return m_editableText->getString();
-		}
-		float getValue()
-		{
-			if (m_editableText->getString()[0])
-			{
-				return std::stof(m_editableText->getString());
-			}
-			return 0.f;
 		}
 
 		//------------------------------

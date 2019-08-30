@@ -45,10 +45,28 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void widenString(char const* p_string, wchar_t* p_result, uint32_t p_numberOfCharactersInResult)
+	void widenString(char const* p_input, wchar_t* p_output, uint32_t p_numberOfCharactersInResult)
 	{
 #ifdef _WIN32
-		MultiByteToWideChar(CP_ACP, 0, p_string, -1, p_result, p_numberOfCharactersInResult);
+		MultiByteToWideChar(CP_UTF8, 0, p_input, -1, p_output, p_numberOfCharactersInResult);
+#endif
+	}
+	uint32_t getNumberOfCharactersInWidenedString(char const* p_input)
+	{
+#ifdef _WIN32
+		return MultiByteToWideChar(CP_UTF8, 0, p_input, -1, 0, 0);
+#endif
+	}
+	void narrowString(wchar_t const* p_input, char* p_output, uint32_t p_numberOfCharactersInResult)
+	{
+#ifdef _WIN32
+		WideCharToMultiByte(CP_UTF8, 0, p_input, -1, p_output, p_numberOfCharactersInResult, 0, false);
+#endif
+	}
+	uint32_t getNumberOfCharactersInNarrowedString(wchar_t const* p_input)
+	{
+#ifdef _WIN32
+		return WideCharToMultiByte(CP_UTF8, 0, p_input, -1, 0, 0, 0, false);
 #endif
 	}
 
@@ -64,7 +82,6 @@ namespace AvoGUI
 
 	float Easing::easeValue(float p_value, float p_precision) const
 	{
-
 		if (p_value <= 0.0001f)
 		{
 			return 0.f;
@@ -121,7 +138,15 @@ namespace AvoGUI
 		}
 
 		return p_position;
-
+	}
+	void View::addChild(View* p_view)
+	{
+		if (p_view)
+		{
+			p_view->setIndex(m_views.size());
+			m_views.push_back(p_view);
+			updateViewDrawingIndex(p_view);
+		}
 	}
 
 	//
@@ -200,15 +225,9 @@ namespace AvoGUI
 		}
 	}
 
-	void View::addChild(View* p_view)
-	{
-		p_view->setIndex(m_views.size());
-		m_views.push_back(p_view);
-		updateViewDrawingIndex(p_view);
-	}
 	void View::removeChild(View* p_view)
 	{
-		if (removeVectorElementWhileKeepingOrder(m_views, p_view))
+		if (p_view && removeVectorElementWhileKeepingOrder(m_views, p_view))
 		{
 			p_view->forget();
 		}
@@ -271,6 +290,60 @@ namespace AvoGUI
 					m_views[a]->setIndex(a);
 				}
 			}
+		}
+	}
+
+	//------------------------------
+
+	void View::setThemeColor(char const* p_name, Color const& p_color, bool p_willAffectChildren)
+	{
+		if (p_willAffectChildren)
+		{
+			View* view = this;
+			uint32_t startIndex = 0;
+			while (true)
+			{
+			loopStart:
+				for (uint32_t a = startIndex; a < view->getNumberOfChildren(); a++)
+				{
+					view->getChild(a)->setThemeColor(p_name, p_color, false);
+					if (view->getChild(a)->getNumberOfChildren())
+					{
+						view = view->getChild(a);
+						startIndex = 0;
+						goto loopStart; // dont @ me
+					}
+				}
+				if (view == this)
+				{
+					break;
+				}
+				startIndex = view->getIndex() + 1;
+				view = view->getParent();
+			}
+		}
+
+		// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
+		// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
+		if (!m_theme)
+		{
+			m_theme = new Theme();
+		}
+		else if (m_theme->getReferenceCount() > 1)
+		{
+			m_theme->forget();
+			m_theme = new Theme(*m_theme);
+		}
+
+		if (m_theme->colors[p_name] != p_color)
+		{
+			m_theme->colors[p_name] = p_color;
+			std::string name(std::move(p_name));
+			if (getGUI() == this && name == "background")
+			{
+				((GUI*)this)->getDrawingContext()->setBackgroundColor(p_color);
+			}
+			handleThemeColorChange(name, p_color);
 		}
 	}
 
@@ -1709,6 +1782,8 @@ namespace AvoGUI
 				{
 					uint32_t width = p_data_b & 0xffff;
 					uint32_t height = p_data_b >> 16 & 0xffff;
+					m_size.x = width;
+					m_size.y = height;
 					windowEvent.width = width;
 					windowEvent.height = height;
 
@@ -3218,7 +3293,8 @@ namespace AvoGUI
 
 	public:
 		WindowsDrawingContext(Window* p_window) :
-			m_window(p_window), m_isVsyncEnabled(true), m_scale(1.f, 1.f), m_textFormat(0), m_fontCollection(0)
+			m_window(p_window), m_context(0), m_swapChain(0), m_targetWindowBitmap(0), 
+			m_isVsyncEnabled(true), m_solidColorBrush(0), m_scale(1.f, 1.f), m_textFormat(0), m_fontCollection(0)
 		{
 			if (!s_imagingFactory)
 			{
@@ -3496,31 +3572,47 @@ namespace AvoGUI
 		}
 		void finishDrawing(std::vector<Rectangle<float>> const& p_updatedRectangles) override
 		{
-			m_context->EndDraw();
-			DXGI_PRESENT_PARAMETERS presentParameters;
-			presentParameters.DirtyRectsCount = p_updatedRectangles.size();
-
-			//RECT* updatedRects = new RECT[p_updatedRectangles.size()];
-			RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
-
-			// If you're getting an exception below, you have three options; 
-			// 1. don't invalidate so damn many rectangles
-			// 2. increase the size of the static array above
-			// 3. make the array above dynamic (see the commented line above there), also don't forget to free it.
-			for (uint32_t a = 0; a < p_updatedRectangles.size(); a++)
+			if (p_updatedRectangles.size())
 			{
-				updatedRects[a].left = p_updatedRectangles[a].left;
-				updatedRects[a].top = p_updatedRectangles[a].top;
-				updatedRects[a].right = p_updatedRectangles[a].right;
-				updatedRects[a].bottom = p_updatedRectangles[a].bottom;
+				m_context->EndDraw();
+
+				DXGI_PRESENT_PARAMETERS presentParameters;
+				presentParameters.DirtyRectsCount = p_updatedRectangles.size();
+
+				//RECT* updatedRects = new RECT[p_updatedRectangles.size()];
+				RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
+
+				// If you're getting an exception below, you have three options; 
+				// 1. don't invalidate so damn many rectangles
+				// 2. increase the size of the static array above
+				// 3. make the array above dynamic (see the commented line above there), also don't forget to free it.
+				for (uint32_t a = 0; a < p_updatedRectangles.size(); a++)
+				{
+					updatedRects[a].left = p_updatedRectangles[a].left;
+					updatedRects[a].top = p_updatedRectangles[a].top;
+					updatedRects[a].right = p_updatedRectangles[a].right;
+					updatedRects[a].bottom = p_updatedRectangles[a].bottom;
+				}
+
+				presentParameters.pDirtyRects = updatedRects;
+				presentParameters.pScrollOffset = 0;
+				presentParameters.pScrollRect = 0;
+
+				m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
+				//delete[] updatedRects;
+			}
+			else
+			{
+				RECT rect = { 0, 0,	1, 1 };
+				DXGI_PRESENT_PARAMETERS presentParameters;
+				presentParameters.DirtyRectsCount = 1;
+				presentParameters.pDirtyRects = &rect;
+				presentParameters.pScrollOffset = 0;
+				presentParameters.pScrollRect = 0;
+
+				m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
 			}
 
-			presentParameters.pDirtyRects = updatedRects;
-			presentParameters.pScrollOffset = 0;
-			presentParameters.pScrollRect = 0;
-
-			m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
-			//delete[] updatedRects;
 		}
 
 		//------------------------------
@@ -3551,6 +3643,32 @@ namespace AvoGUI
 		bool getIsVsyncEnabled()
 		{
 			return m_isVsyncEnabled;
+		}
+
+		//------------------------------
+
+		void setBackgroundColor(Color const& p_color) override
+		{
+			if (m_swapChain)
+			{
+				DXGI_RGBA color;
+				color.r = p_color.red;
+				color.g = p_color.green;
+				color.b = p_color.blue;
+				color.a = p_color.alpha;
+				m_swapChain->SetBackgroundColor(&color);
+			}
+		}
+		Color getBackgroundColor()
+		{
+			if (m_swapChain)
+			{
+				DXGI_RGBA color;
+				m_swapChain->GetBackgroundColor(&color);
+
+				return Color(color.r, color.g, color.b, color.a);
+			}
+			return Color(0.5f, 0.5f, 0.5f);
 		}
 
 		//------------------------------
@@ -4773,9 +4891,9 @@ namespace AvoGUI
 
 		Text* createText(char const* p_string, float p_fontSize, Rectangle<float> const& p_bounds = Rectangle<float>()) override
 		{
-			int32_t numberOfCharacters = MultiByteToWideChar(CP_ACP, 0, p_string, -1, 0, 0);
+			int32_t numberOfCharacters = MultiByteToWideChar(CP_UTF8, 0, p_string, -1, 0, 0);
 			wchar_t* wideString = new wchar_t[numberOfCharacters];
-			MultiByteToWideChar(CP_ACP, 0, p_string, -1, wideString, numberOfCharacters);
+			MultiByteToWideChar(CP_UTF8, 0, p_string, -1, wideString, numberOfCharacters);
 
 			IDWriteTextLayout1* textLayout;
 			s_directWriteFactory->CreateTextLayout(wideString, numberOfCharacters, m_textFormat, p_bounds.getWidth(), p_bounds.getHeight(), (IDWriteTextLayout**)&textLayout);
@@ -4796,9 +4914,9 @@ namespace AvoGUI
 		{
 			if (p_string == "") return;
 
-			int32_t numberOfCharacters = MultiByteToWideChar(CP_ACP, 0, p_string, -1, 0, 0);
+			int32_t numberOfCharacters = MultiByteToWideChar(CP_UTF8, 0, p_string, -1, 0, 0);
 			wchar_t* wideString = new wchar_t[numberOfCharacters];
-			MultiByteToWideChar(CP_ACP, 0, p_string, -1, wideString, numberOfCharacters);
+			MultiByteToWideChar(CP_UTF8, 0, p_string, -1, wideString, numberOfCharacters);
 
 			m_context->DrawTextA(
 				wideString, numberOfCharacters, m_textFormat,
@@ -4835,10 +4953,13 @@ namespace AvoGUI
 	{
 		HWND windowHandle = (HWND)p_gui->getWindow()->getWindowHandle();
 
-		//int32_t syncInterval = 16666667;
+		int32_t syncInterval = 16666667;
+		auto timeBefore = std::chrono::steady_clock::now();
+
+		bool wasLastFrameDrawn = false;
+
 		while (p_gui->getWindow() && p_gui->getWindow()->getIsOpen())
 		{
-			//auto timeBefore = std::chrono::steady_clock::now();
 
 			//if (p_gui->getHasNewWindowSize())
 			//{
@@ -4849,20 +4970,30 @@ namespace AvoGUI
 			if (p_gui->getNeedsRedrawing())
 			{
 				p_gui->drawViews();
-				
+
+				wasLastFrameDrawn = true;
+
 				if (!p_gui->getDrawingContext()->getIsVsyncEnabled())
 				{
-					std::this_thread::sleep_for(std::chrono::microseconds(16667));
+					std::this_thread::sleep_for(std::chrono::nanoseconds(syncInterval));
 					//p_gui->getDrawingContext()->enableVsync();
 				}
 			}
 			else
 			{
-				std::this_thread::sleep_for(std::chrono::microseconds(16667));
+				if (wasLastFrameDrawn)
+				{
+					p_gui->drawViews();
+					wasLastFrameDrawn = false;
+				}
+				else
+				{
+					std::this_thread::sleep_for(std::chrono::nanoseconds(syncInterval));
+				}
 			}
-			//std::cout << float(syncInterval) / 1000000 << std::endl;
-			//auto timeAfter = std::chrono::steady_clock::now();
-			//syncInterval = max(5000000, syncInterval + (16666667 - (timeAfter - timeBefore).count())/100);
+			auto timeAfter = std::chrono::steady_clock::now();
+			syncInterval = max(1000000, syncInterval + (16666667 - (timeAfter - timeBefore).count())/10);
+			timeBefore = timeAfter;
 		}
 	}
 
@@ -4900,7 +5031,8 @@ namespace AvoGUI
 			for (int32_t a = startIndex; a >= 0; a--)
 			{
 				View* child = container->getChild(a);
-				if (child->getAbsoluteBounds().getIsContaining(p_coordinates.x, p_coordinates.y))
+				// Invisible views and their children do not recieve mouse events.
+				if (child->getIsVisible() && child->getIsContainingAbsolute(p_coordinates.x, p_coordinates.y))
 				{
 					bool hasChildren = child->getNumberOfChildren();
 
@@ -4912,7 +5044,7 @@ namespace AvoGUI
 						}
 						container = child;
 						startIndex = container->getNumberOfChildren() - 1;
-						goto loopStart;
+						goto loopStart; // I have determined this is the least messy way to do it pls don't kill me
 					}
 					else
 					{
@@ -4920,8 +5052,11 @@ namespace AvoGUI
 						{
 							p_result.push_back(child);
 						}
+
+						// We only continue of it's an overlay view, meaning mouse events can pass through it.
 						if (!child->getIsOverlay())
 						{
+							// This is only used to determine if the outer loop should be exited afterwards.
 							hasFoundTopView = true;
 							break;
 						}
@@ -4929,6 +5064,8 @@ namespace AvoGUI
 				}
 			}
 
+			// If an overlay view has children that are not overlay views and one of those are targeted by 
+			// the mouse event, mouse events won't pass through!
 			if (!container->getIsOverlay() || hasFoundTopView || container == this)
 			{
 				break;
@@ -4937,63 +5074,6 @@ namespace AvoGUI
 			startIndex = container->getIndex() - 1;
 			container = container->getParent();
 		}
-
-
-		//View* currentContainer = this;
-		//uint32_t startIndex = getNumberOfChildren() - 1U;
-
-		//bool willContinue = true;
-		//while (willContinue)
-		//{
-		//	for (int32_t a = startIndex; a >= -1; a--)
-		//	{
-		//		if (a == -1)
-		//		{
-		//			if (currentContainer->getAreMouseEventsEnabled())
-		//			{
-		//				p_result.push_back(currentContainer);
-		//			}
-		//			if (currentContainer->getIsOverlay())
-		//			{
-		//				if (currentContainer->getParent() == this)
-		//				{
-		//					willContinue = false;
-		//				}
-		//				else
-		//				{
-		//					startIndex = currentContainer->getIndex() - 1;
-		//					currentContainer = currentContainer->getParent();
-		//				}
-		//			}
-		//			else
-		//			{
-		//				willContinue = false;
-		//			}
-		//		}
-		//		else
-		//		{
-		//			View* view = currentContainer->getChild(a);
-		//			if (view->getAbsoluteBounds().getIsContaining(p_coordinates))
-		//			{
-		//				if (view->getNumberOfChildren())
-		//				{
-		//					currentContainer = view;
-		//					startIndex = currentContainer->getNumberOfChildren() - 1;
-		//					break;
-		//				}
-		//				if (view->getAreMouseEventsEnabled())
-		//				{
-		//					p_result.push_back(view);
-		//				}
-		//				if (!view->getIsOverlay())
-		//				{
-		//					willContinue = false;
-		//					break;
-		//				}
-		//			}
-		//		}
-		//	}
-		//}
 	}
 	void GUI::getTopMouseListenersAt(float p_x, float p_y, std::vector<View*>& p_result)
 	{
@@ -5064,7 +5144,7 @@ namespace AvoGUI
 			for (int32_t a = currentContainer->getNumberOfChildren() - 1; a >= 0; a--)
 			{
 				View* view = currentContainer->getChild(a);
-				if (view->getIsVisible() && !view->getIsOverlay() && view->getAbsoluteBounds().getIsContaining(p_coordinates))
+				if (view->getIsVisible() && !view->getIsOverlay() && view->getIsContainingAbsolute(p_coordinates))
 				{
 					if (view->getNumberOfChildren())
 					{
@@ -5076,7 +5156,7 @@ namespace AvoGUI
 						return view;
 					}
 				}
-				else if (a == 0)
+				else if (!a)
 				{
 					return currentContainer;
 				}
@@ -5314,7 +5394,7 @@ namespace AvoGUI
 				for (int32_t a = startIndex; a >= 0; a--)
 				{
 					View* child = container->getChild(a);
-					if (child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
+					if (child->getIsVisible() && child->getIsContainingAbsolute(p_event.x, p_event.y))
 					{
 						if (hasFoundViewContainingNewPosition) // In this case we're just checking if the view contains only the old mouse position.
 						{
@@ -5329,7 +5409,7 @@ namespace AvoGUI
 							mouseEvent.x = p_event.x - child->getAbsoluteLeft();
 							mouseEvent.y = p_event.y - child->getAbsoluteTop();
 						}
-						if (hasFoundViewContainingOldPosition || isContainerMouseEnterView || !child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+						if (hasFoundViewContainingOldPosition || isContainerMouseEnterView || !child->getIsContainingAbsolute(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
 						{
 							if (areEventsEnabled)
 							{
@@ -5371,7 +5451,7 @@ namespace AvoGUI
 							}
 						}
 					}
-					else if (!isContainerMouseEnterView && !hasFoundViewContainingOldPosition && !child->getIsOverlay() && child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+					else if (!isContainerMouseEnterView && !hasFoundViewContainingOldPosition && child->getIsVisible() && !child->getIsOverlay() && child->getIsContainingAbsolute(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
 					{
 						hasFoundViewContainingOldPosition = true;
 						if (hasFoundViewContainingNewPosition)
@@ -5400,7 +5480,7 @@ namespace AvoGUI
 
 				if (isContainerMouseEnterView && startIndex > 0)
 				{
-					if (container->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+					if (container->getIsContainingAbsolute(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
 					{
 						isContainerMouseEnterView = false;
 					}
@@ -5426,7 +5506,7 @@ namespace AvoGUI
 				for (int32_t a = startIndex; a >= 0; a--)
 				{
 					View* child = container->getChild(a);
-					if (child->getAbsoluteBounds().getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+					if (child->getIsVisible() && child->getIsContainingAbsolute(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
 					{
 						if (hasFoundViewContainingOldPosition) // In this case we're just checking if the view contains only the old mouse position.
 						{
@@ -5436,7 +5516,7 @@ namespace AvoGUI
 						bool hasChildren = child->getNumberOfChildren();
 						bool areEventsEnabled = child->getAreMouseEventsEnabled();
 
-						if (hasFoundViewContainingNewPosition || isContainerMouseLeaveView || !child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
+						if (hasFoundViewContainingNewPosition || isContainerMouseLeaveView || !child->getIsContainingAbsolute(p_event.x, p_event.y))
 						{
 							if (areEventsEnabled)
 							{
@@ -5473,7 +5553,7 @@ namespace AvoGUI
 							}
 						}
 					}
-					else if (!isContainerMouseLeaveView && !hasFoundViewContainingNewPosition && !child->getIsOverlay() && child->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
+					else if (!isContainerMouseLeaveView && !hasFoundViewContainingNewPosition && child->getIsVisible() && !child->getIsOverlay() && child->getIsContainingAbsolute(p_event.x, p_event.y))
 					{
 						hasFoundViewContainingNewPosition = true;
 						if (hasFoundViewContainingOldPosition)
@@ -5502,7 +5582,7 @@ namespace AvoGUI
 
 				if (isContainerMouseLeaveView && startIndex > 0)
 				{
-					if (container->getAbsoluteBounds().getIsContaining(p_event.x, p_event.y))
+					if (container->getIsContainingAbsolute(p_event.x, p_event.y))
 					{
 						isContainerMouseLeaveView = false;
 					}
@@ -5703,120 +5783,131 @@ namespace AvoGUI
 
 	void GUI::drawViews()
 	{
-		m_drawingContext->beginDrawing();
-
-		excludeAnimationThread();
-		std::vector<Rectangle<float>> invalidRectangles = std::move(m_invalidRectangles);
-		m_invalidRectangles.clear();
-		includeAnimationThread();
-
-		Point<uint32_t> size(m_drawingContext->getSize());
-		for (auto const& targetRectangle : invalidRectangles)
+		if (m_invalidRectangles.size())
 		{
-			View* currentContainer = this;
-			uint32_t startPosition = 0;
-
-			m_drawingContext->setOrigin(0, 0);
-			m_drawingContext->pushClipRectangle(targetRectangle);
-			m_drawingContext->clear(m_theme->colors["background"]);
+			m_drawingContext->beginDrawing();
 
 			excludeAnimationThread();
-			draw(m_drawingContext, targetRectangle);
+			std::vector<Rectangle<float>> invalidRectangles = std::move(m_invalidRectangles);
+			//std::cout << "Invalid rectangles:\n";
+			//for (auto rect : invalidRectangles)
+			//{
+			//	std::cout << "(" << rect.left << ", " << rect.top << ", " << rect.right << ", " << rect.bottom << ")\n";
+			//}
+			//std::cout << "\n\n";
 			includeAnimationThread();
 
-			while (true)
+			Point<uint32_t> size(m_drawingContext->getSize());
+			for (auto const& targetRectangle : invalidRectangles)
 			{
-				bool isDoneWithContainer = true;
-				for (uint32_t a = startPosition; a < currentContainer->getNumberOfChildren(); a++)
+				View* currentContainer = this;
+				uint32_t startPosition = 0;
+
+				m_drawingContext->setOrigin(0, 0);
+				m_drawingContext->pushClipRectangle(targetRectangle);
+				m_drawingContext->clear(m_theme->colors["background"]);
+
+				excludeAnimationThread();
+				draw(m_drawingContext, targetRectangle);
+				includeAnimationThread();
+
+				while (true)
 				{
-					View* view = currentContainer->getChild(a);
-
-					if (view->getWidth() > 0.f && view->getHeight() > 0.f && view->getAbsoluteBounds().getIsIntersecting(targetRectangle) && view->getIsVisible())
+					bool isDoneWithContainer = true;
+					for (uint32_t a = startPosition; a < currentContainer->getNumberOfChildren(); a++)
 					{
-						m_drawingContext->moveOrigin(view->getTopLeft());
+						View* view = currentContainer->getChild(a);
 
-						excludeAnimationThread();
-						view->drawShadow(m_drawingContext);
-						includeAnimationThread();
+						if (view->getWidth() > 0.f && view->getHeight() > 0.f && view->getAbsoluteBounds().getIsIntersecting(targetRectangle) && view->getIsVisible())
+						{
+							m_drawingContext->moveOrigin(view->getTopLeft());
 
-						if (view->getCornerRadius())
-						{
-							m_drawingContext->pushRoundedClipRectangle(view->getSize(), view->getCornerRadius());
-						}
-						else
-						{
-							m_drawingContext->pushClipRectangle(view->getSize());
-						}
-
-						excludeAnimationThread();
-						view->draw(m_drawingContext, targetRectangle);
-						includeAnimationThread();
-
-						if (view->getNumberOfChildren())
-						{
-							currentContainer = view;
-							startPosition = 0;
-							isDoneWithContainer = false;
-							break;
-						}
-						else
-						{
 							excludeAnimationThread();
-							view->drawOverlay(m_drawingContext, targetRectangle);
+							view->drawShadow(m_drawingContext);
 							includeAnimationThread();
 
 							if (view->getCornerRadius())
 							{
-								m_drawingContext->popRoundedClipRectangle();
+								m_drawingContext->pushRoundedClipRectangle(view->getSize(), view->getCornerRadius());
 							}
 							else
 							{
-								m_drawingContext->popClipRectangle();
+								m_drawingContext->pushClipRectangle(view->getSize());
 							}
 
+							excludeAnimationThread();
+							view->draw(m_drawingContext, targetRectangle);
+							includeAnimationThread();
+
+							if (view->getNumberOfChildren())
+							{
+								currentContainer = view;
+								startPosition = 0;
+								isDoneWithContainer = false;
+								break;
+							}
+							else
+							{
+								excludeAnimationThread();
+								view->drawOverlay(m_drawingContext, targetRectangle);
+								includeAnimationThread();
+
+								if (view->getCornerRadius())
+								{
+									m_drawingContext->popRoundedClipRectangle();
+								}
+								else
+								{
+									m_drawingContext->popClipRectangle();
+								}
+
+								m_drawingContext->moveOrigin(-view->getTopLeft());
+							}
+						}
+						else if (view->getAbsoluteShadowBounds().getIsIntersecting(targetRectangle))
+						{
+							m_drawingContext->moveOrigin(view->getTopLeft());
+							excludeAnimationThread();
+							view->drawShadow(m_drawingContext);
+							includeAnimationThread();
 							m_drawingContext->moveOrigin(-view->getTopLeft());
 						}
 					}
-					else if (view->getAbsoluteShadowBounds().getIsIntersecting(targetRectangle))
+					if (isDoneWithContainer)
 					{
-						m_drawingContext->moveOrigin(view->getTopLeft());
+						if (currentContainer == this)
+						{
+							break;
+						}
+
 						excludeAnimationThread();
-						view->drawShadow(m_drawingContext);
+						currentContainer->drawOverlay(m_drawingContext, targetRectangle);
 						includeAnimationThread();
-						m_drawingContext->moveOrigin(-view->getTopLeft());
+
+						if (currentContainer->getCornerRadius())
+						{
+							m_drawingContext->popRoundedClipRectangle();
+						}
+						else
+						{
+							m_drawingContext->popClipRectangle();
+						}
+
+						m_drawingContext->moveOrigin(-currentContainer->getTopLeft());
+
+						startPosition = currentContainer->getIndex() + 1U;
+						currentContainer = currentContainer->getParent();
 					}
 				}
-				if (isDoneWithContainer)
-				{
-					if (currentContainer == this)
-					{
-						break;
-					}
 
-					excludeAnimationThread();
-					currentContainer->drawOverlay(m_drawingContext, targetRectangle);
-					includeAnimationThread();
-
-					if (currentContainer->getCornerRadius())
-					{
-						m_drawingContext->popRoundedClipRectangle();
-					}
-					else
-					{
-						m_drawingContext->popClipRectangle();
-					}
-
-					m_drawingContext->moveOrigin(-currentContainer->getTopLeft());
-
-					startPosition = currentContainer->getIndex() + 1U;
-					currentContainer = currentContainer->getParent();
-				}
+				m_drawingContext->popClipRectangle();
 			}
-
-			m_drawingContext->popClipRectangle();
+			m_drawingContext->finishDrawing(invalidRectangles);
 		}
-
-		m_drawingContext->finishDrawing(invalidRectangles);
+		else
+		{
+			m_drawingContext->finishDrawing(std::vector<Rectangle<float>>());
+		}
 	}
 
 	//------------------------------
@@ -5837,5 +5928,157 @@ namespace AvoGUI
 
 	//------------------------------
 
+	void OpenFileDialog::open(std::vector<std::wstring>& p_openedFilePaths)
+	{
+#ifdef _WIN32
+		IFileOpenDialog* dialog;
+		CoCreateInstance(CLSID_FileOpenDialog, 0, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&dialog));
 
+		wchar_t wideTitle[200];
+		widenString(m_title, wideTitle, 200);
+		dialog->SetTitle(wideTitle);
+
+		COMDLG_FILTERSPEC* filters = new COMDLG_FILTERSPEC[m_fileExtensions.size()];
+		// I made 1 big string buffer to decrease the number of allocations.
+		wchar_t* filterStringBuffer = new wchar_t[100 * m_fileExtensions.size()];
+		for (uint32_t a = 0; a < m_fileExtensions.size(); a++)
+		{
+			filters[a].pszName = filterStringBuffer + a*100;
+			widenString(m_fileExtensions[a].name, (wchar_t*)filters[a].pszName, 50);
+
+			filters[a].pszSpec = filterStringBuffer + a*100 + 50;
+			widenString(m_fileExtensions[a].extensions, (wchar_t*)filters[a].pszSpec, 50);
+
+		}
+		dialog->SetFileTypes(m_fileExtensions.size(), filters);
+
+		if (m_canSelectMultipleFiles)
+		{
+			FILEOPENDIALOGOPTIONS options;
+			dialog->GetOptions(&options);
+			dialog->SetOptions(options | FOS_ALLOWMULTISELECT);
+		}
+
+		HRESULT result = dialog->Show(HWND(m_gui ? m_gui->getWindow()->getWindowHandle() : 0));
+
+		if (SUCCEEDED(result))
+		{
+			if (m_canSelectMultipleFiles)
+			{
+				IShellItemArray* items;
+				dialog->GetResults(&items);
+
+				DWORD numberOfResults = 0;
+				items->GetCount(&numberOfResults);
+				p_openedFilePaths.resize(numberOfResults);
+
+				for (uint32_t a = 0; a < numberOfResults; a++)
+				{
+					IShellItem* item;
+					items->GetItemAt(a, &item);
+
+					LPWSTR name;
+					item->GetDisplayName(SIGDN::SIGDN_FILESYSPATH, &name);
+					p_openedFilePaths[a] = name;
+
+					item->Release();
+				}
+				items->Release();
+			}
+			else
+			{
+				IShellItem* item;
+				dialog->GetResult(&item);
+
+				LPWSTR name;
+				item->GetDisplayName(SIGDN::SIGDN_FILESYSPATH, &name);
+				p_openedFilePaths.resize(1);
+				p_openedFilePaths[0] = name;
+				
+				item->Release();
+			}
+		}
+		delete[] filterStringBuffer;
+		delete[] filters;
+
+		dialog->Release();
+#endif
+	}
+	void OpenFileDialog::open(std::vector<std::string>& p_openedFilePaths)
+	{
+#ifdef _WIN32
+		IFileOpenDialog* dialog;
+		CoCreateInstance(CLSID_FileOpenDialog, 0, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&dialog));
+
+		wchar_t wideTitle[200];
+		widenString(m_title, wideTitle, 200);
+		dialog->SetTitle(wideTitle);
+
+		COMDLG_FILTERSPEC* filters = new COMDLG_FILTERSPEC[m_fileExtensions.size()];
+		// I made 1 big string buffer to decrease the number of allocations.
+		wchar_t* filterStringBuffer = new wchar_t[100 * m_fileExtensions.size()];
+		for (uint32_t a = 0; a < m_fileExtensions.size(); a++)
+		{
+			filters[a].pszName = filterStringBuffer + a * 100;
+			widenString(m_fileExtensions[a].name, (wchar_t*)filters[a].pszName, 50);
+
+			filters[a].pszSpec = filterStringBuffer + a * 100 + 50;
+			widenString(m_fileExtensions[a].extensions, (wchar_t*)filters[a].pszSpec, 50);
+		}
+		dialog->SetFileTypes(m_fileExtensions.size(), filters);
+
+		if (m_canSelectMultipleFiles)
+		{
+			FILEOPENDIALOGOPTIONS options;
+			dialog->GetOptions(&options);
+			dialog->SetOptions(options | FOS_ALLOWMULTISELECT);
+		}
+
+		HRESULT result = dialog->Show(HWND(m_gui ? m_gui->getWindow()->getWindowHandle() : 0));
+
+		if (SUCCEEDED(result))
+		{
+			if (m_canSelectMultipleFiles)
+			{
+				IShellItemArray* items;
+				dialog->GetResults(&items);
+
+				DWORD numberOfResults = 0;
+				items->GetCount(&numberOfResults);
+				p_openedFilePaths.resize(numberOfResults);
+
+				for (uint32_t a = 0; a < numberOfResults; a++)
+				{
+					IShellItem* item;
+					items->GetItemAt(a, &item);
+
+					LPWSTR name;
+					item->GetDisplayName(SIGDN::SIGDN_FILESYSPATH, &name);
+					p_openedFilePaths[a].resize(getNumberOfCharactersInNarrowedString(name) - 1);
+					narrowString(name, (char*)p_openedFilePaths[a].data(), p_openedFilePaths[a].size() + 1);
+
+					item->Release();
+				}
+				items->Release();
+			}
+			else
+			{
+				IShellItem* item;
+				dialog->GetResult(&item);
+
+				LPWSTR name;
+				item->GetDisplayName(SIGDN::SIGDN_FILESYSPATH, &name);
+				p_openedFilePaths.resize(1);
+				p_openedFilePaths[0].resize(getNumberOfCharactersInNarrowedString(name) - 1);
+				narrowString(name, (char*)p_openedFilePaths[0].data(), p_openedFilePaths[0].size() + 1);
+
+				item->Release();
+			}
+		}
+		delete[] filterStringBuffer;
+		delete[] filters;
+
+		dialog->Release();
+#endif
+	}
 };

@@ -12,7 +12,7 @@ private:
 public:
 	Sprite(AvoGUI::View* p_parent, char const* p_filePath) : View(p_parent)
 	{
-		p_parent->addEventListener(this);
+		p_parent->addViewListener(this);
 
 		m_image = getGUI()->getDrawingContext()->createImage(p_filePath);
 		m_image->setBoundsPositioning(0.5f, 0.5f);
@@ -87,17 +87,17 @@ public:
 
 	void createContent() override
 	{
-		m_theme->colors["background"] = AvoGUI::Color(0.1f);
-		m_theme->colors["on background"] = AvoGUI::Color(0.98f);
+		setThemeColor("background", AvoGUI::Color(0.1f));
+		setThemeColor("on background", AvoGUI::Color(0.98f));
 
-		m_theme->colors["primary"] = AvoGUI::Color(31, 115, 230);
-		m_theme->colors["primary on background"] = AvoGUI::Color(50, 130, 250);
-		m_theme->colors["on primary"] = AvoGUI::Color(1.f);
+		setThemeColor("primary", AvoGUI::Color(31, 115, 230));
+		setThemeColor("primary on background", AvoGUI::Color(50, 130, 250));
+		setThemeColor("on primary", AvoGUI::Color(1.f));
+		setThemeColor("shadow", AvoGUI::Color(0.f, 0.9f));
 
-		m_theme->values["text field height"] = 2.4f;
-		m_theme->values["text field font size"] = 13.f;
-		m_theme->values["text field padding left"] = 15.f;
-		//m_theme->colors["shadow"] = 0x90000000U;
+		setThemeValue("text field height", 2.4f);
+		setThemeValue("text field font size", 13.f);
+		setThemeValue("text field padding left", 15.f);
 
 		//------------------------------
 
