@@ -252,31 +252,31 @@ public:
 		{
 			m_hasDraggedSpiral = true;
 
-			float normalizedStartAngle = m_startAngle - floor(m_startAngle);
+			float normalizedCurrentAngle = m_currentAngle - floor(m_currentAngle);
 			float normalizedCursorAngle = std::atan2(p_event.y - getHeight() * 0.5f, p_event.x - getWidth() * 0.5f) / AvoGUI::TAU + 0.25;
 			normalizedCursorAngle -= floor(normalizedCursorAngle);
 
-			float nextAngle = m_startAngle;
-			if (normalizedStartAngle > normalizedCursorAngle)
+			float nextAngle = m_currentAngle;
+			if (normalizedCurrentAngle > normalizedCursorAngle)
 			{
-				if (normalizedStartAngle - normalizedCursorAngle < 0.5f)
+				if (normalizedCurrentAngle - normalizedCursorAngle < 0.5f)
 				{
-					nextAngle += normalizedCursorAngle - normalizedStartAngle;
+					nextAngle += normalizedCursorAngle - normalizedCurrentAngle;
 				}
 				else
 				{
-					nextAngle += 1.f - (normalizedStartAngle - normalizedCursorAngle);
+					nextAngle += 1.f - (normalizedCurrentAngle - normalizedCursorAngle);
 				}
 			}
 			else
 			{
-				if (normalizedCursorAngle - normalizedStartAngle < 0.5f)
+				if (normalizedCursorAngle - normalizedCurrentAngle < 0.5f)
 				{
-					nextAngle += normalizedCursorAngle - normalizedStartAngle;
+					nextAngle += normalizedCursorAngle - normalizedCurrentAngle;
 				}
 				else
 				{
-					nextAngle -= 1.f - (normalizedCursorAngle - normalizedStartAngle);
+					nextAngle -= 1.f - (normalizedCursorAngle - normalizedCurrentAngle);
 				}
 			}
 			nextAngle = AvoGUI::constrain(nextAngle, 0.f, TIMER_MAX_NUMBER_OF_HOURS);
