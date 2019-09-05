@@ -172,7 +172,7 @@ class MyView : public AvoGUI::View
 }
 ```
 
-#### Events
+### Events
 An event is something that happens. You often want your GUI components (views) to react to things that happen outside of their reach, for example a mouse click or when a child has resized itself. Views can inherit abstract classes which have *event handlers* you can override. The names of these abstract classes end with *Listener*, since they are objects that listen for events. The view also needs to be registered to the sender to recieve any events. The registering methods begin with "add" and end with the name of the event listener class. There are also unregistering methods which begin with "remove". You need to call that whenever a registered view is destroyed.
 
 However, this is a bit different for a couple of event listeners.
