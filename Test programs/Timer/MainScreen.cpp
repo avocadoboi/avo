@@ -66,7 +66,7 @@ MainScreen::MainScreen(TimerApp* p_timerApp) :
 
 	m_numberOfSpiralVerticesInTotal = TIMER_SPIRAL_RESOLUTION * TIMER_MAX_NUMBER_OF_HOURS;
 	m_spiralVertices = new AvoGUI::Point<float>[m_numberOfSpiralVerticesInTotal];
-	for (uint32_t a = 0; a < m_numberOfSpiralVerticesInTotal; a++)
+	for (uint32 a = 0; a < m_numberOfSpiralVerticesInTotal; a++)
 	{
 		float angle = ((float)a / TIMER_SPIRAL_RESOLUTION - 0.25f) * AvoGUI::TAU;
 		float magnitude = TIMER_SPIRAL_RADIUS * (1.f - TIMER_SPIRAL_STEEPNESS * (float)a / m_numberOfSpiralVerticesInTotal);
@@ -101,12 +101,12 @@ void MainScreen::updateAnimations()
 		float angleBefore = m_currentAngle;
 		if (m_willRestart)
 		{
-			uint32_t hours = m_textField_hours->getString()[0] ? std::stoi(m_textField_hours->getString()) : 0;
-			uint32_t minutes = m_textField_minutes->getString()[0] ? std::stoi(m_textField_minutes->getString()) : 0;
-			uint32_t seconds = m_textField_seconds->getString()[0] ? std::stoi(m_textField_seconds->getString()) : 0;
-			if (hours > TIMER_MAX_NUMBER_OF_HOURS)
+			uint32 hours = m_textField_hours->getString()[0] ? std::stoi(m_textField_hours->getString()) : 0;
+			uint32 minutes = m_textField_minutes->getString()[0] ? std::stoi(m_textField_minutes->getString()) : 0;
+			uint32 seconds = m_textField_seconds->getString()[0] ? std::stoi(m_textField_seconds->getString()) : 0;
+			if ((float)hours + minutes/60.f + seconds/3600.f > TIMER_MAX_NUMBER_OF_HOURS)
 			{
-				hours = (uint32_t)TIMER_MAX_NUMBER_OF_HOURS;
+				hours = (uint32)TIMER_MAX_NUMBER_OF_HOURS;
 				minutes = 0u;
 				seconds = 0u;
 				m_textField_hours->setValue(hours);
@@ -130,6 +130,7 @@ void MainScreen::updateAnimations()
 			m_timeStart = std::chrono::steady_clock::now();
 			m_startAngle = (float)hours + minutes / 60.f + seconds / 3600.f;
 			m_currentAngle = m_startAngle;
+
 			angleBefore = -1;
 
 			m_willRestart = false;

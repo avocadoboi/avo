@@ -28,7 +28,7 @@ private:
 		if (m_soundFilePath.size())
 		{
 			std::string fileName = m_soundFilePath;
-			for (int32_t a = fileName.size() - 1; a > 0; a--)
+			for (int32 a = fileName.size() - 1; a > 0; a--)
 			{
 				if (fileName[a] == '\\' || fileName[a] == '/')
 				{
@@ -185,7 +185,7 @@ private:
 	bool m_willRestart;
 
 	AvoGUI::Point<float>* m_spiralVertices;
-	uint32_t m_numberOfSpiralVerticesInTotal;
+	uint32 m_numberOfSpiralVerticesInTotal;
 	float m_startAngle;
 	float m_currentAngle;
 	bool m_isDraggingSpiral;
@@ -211,9 +211,9 @@ private:
 		if (m_currentAngle)
 		{
 			float angle = std::ceil(m_currentAngle * 3600.f) / 3600.f;
-			float minutes = (angle - (uint32_t)angle) * 60.f;
-			uint32_t seconds = std::round((minutes - (uint32_t)minutes) * 60.f);
-			m_text_timeLeft = getGUI()->getDrawingContext()->createText(((angle < 10 ? "0" + AvoGUI::convertNumberToString((uint32_t)angle) : AvoGUI::convertNumberToString((uint32_t)angle)) + (minutes < 10 ? ":0" : ":") + AvoGUI::convertNumberToString((uint32_t)minutes) + (seconds < 10u ? ":0" : ":") + AvoGUI::convertNumberToString(seconds)).c_str(), 23.f);
+			float minutes = (angle - (uint32)angle) * 60.f;
+			uint32 seconds = std::round((minutes - (uint32)minutes) * 60.f);
+			m_text_timeLeft = getGUI()->getDrawingContext()->createText(((angle < 10 ? "0" + AvoGUI::convertNumberToString((uint32)angle) : AvoGUI::convertNumberToString((uint32)angle)) + (minutes < 10 ? ":0" : ":") + AvoGUI::convertNumberToString((uint32)minutes) + (seconds < 10u ? ":0" : ":") + AvoGUI::convertNumberToString(seconds)).c_str(), 23.f);
 		}
 		else
 		{
@@ -314,9 +314,9 @@ public:
 
 	//------------------------------
 
-	bool handleEditableTextChange(AvoGUI::EditableText* p_editableText, std::string& p_newString, int32_t& p_newCaretIndex) override
+	bool handleEditableTextChange(AvoGUI::EditableText* p_editableText, std::string& p_newString, int32& p_newCaretIndex) override
 	{
-		for (uint32_t a = 0; a < p_newString.size(); a++)
+		for (uint32 a = 0; a < p_newString.size(); a++)
 		{
 			if (p_newString[a] < 48 || p_newString[a] > 57)
 			{
@@ -359,7 +359,7 @@ public:
 		if (p_targetRectangle == getBounds())
 		{
 			p_context->setColor(AvoGUI::Color(1.f, 0.5f, 0.7f, 0.9f));
-			p_context->strokeShape(m_spiralVertices, (uint32_t)round(m_currentAngle * TIMER_SPIRAL_RESOLUTION), 3.f);
+			p_context->strokeShape(m_spiralVertices, (uint32)round(m_currentAngle * TIMER_SPIRAL_RESOLUTION), 3.f);
 
 			float magnitude = TIMER_SPIRAL_RADIUS * (1.f - TIMER_SPIRAL_STEEPNESS * m_currentAngle / TIMER_MAX_NUMBER_OF_HOURS);
 			AvoGUI::Point<float> point(getWidth() * 0.5f + std::cos((m_currentAngle - 0.25f) * AvoGUI::TAU) * magnitude, getHeight() * 0.5f + std::sin((m_currentAngle - 0.25f) * AvoGUI::TAU) * magnitude);

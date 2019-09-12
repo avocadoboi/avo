@@ -54,6 +54,18 @@
 
 //------------------------------
 
+typedef int8_t int8;
+typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
+
+typedef uint8_t uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
+
+//------------------------------
+
 namespace AvoGUI
 {
 	double const E =		2.71828182845904523;
@@ -76,7 +88,7 @@ namespace AvoGUI
 	*/
 	inline float fastSqrt(float p_x)
 	{
-		int32_t bits = (*(int32_t*)&p_x - (1 << 23) >> 1) + (1 << 29);
+		int32 bits = (*(int32*)&p_x - (1 << 23) >> 1) + (1 << 29);
 		float approximation = *(float*)&bits;
 		return (p_x / approximation + approximation) * 0.5f;
 	}
@@ -85,7 +97,7 @@ namespace AvoGUI
 	*/
 	inline float fastInverseSqrt(float p_x)
 	{
-		int32_t bits = 0x5f375a86 - (*(int32_t*)&p_x >> 1);
+		int32 bits = 0x5f375a86 - (*(int32*)&p_x >> 1);
 		float approximation = *(float*)&bits;
 		return approximation * (1.5f - 0.5f*p_x*approximation*approximation);
 	}
@@ -215,24 +227,24 @@ namespace AvoGUI
 		p_output should be allocated with p_numberOfCharactersInOutput number of wchar_t characters.
 		The output includes the null terminator.
 	*/
-	void widenString(char const* p_input, wchar_t* p_output, uint32_t p_numberOfCharactersInOutput);
+	void widenString(char const* p_input, wchar_t* p_output, uint32 p_numberOfCharactersInOutput);
 	/*
 		Returns the number of UTF-16 encoded wchar_t* characters that would be used to represent the same characters in a UTF-8 encoded char* string.
 		p_input should be null-terminated. The output includes the null-terminator.
 	*/
-	uint32_t getNumberOfCharactersInWidenedString(char const* p_input);
+	uint32 getNumberOfCharactersInWidenedString(char const* p_input);
 	/*
 		Converts a UTF-16 encoded wchar_t const* string to a UTF-8 encoded char* string.
 		p_string should be null-terminated.
 		p_result should be allocated with p_numberOfCharactersInResult number of char characters.
 		The output includes the null terminator.
 	*/
-	void narrowString(wchar_t const* p_input, char* p_output, uint32_t p_numberOfCharactersInResult);
+	void narrowString(wchar_t const* p_input, char* p_output, uint32 p_numberOfCharactersInResult);
 	/*
 		Returns the number of UTF-8 encoded char* characters that would be used to represent the same characters in a UTF-16 encoded wchar_t* string.
 		p_input should be null-terminated. The output includes the null-terminator.
 	*/
-	uint32_t getNumberOfCharactersInNarrowedString(wchar_t const* p_input);
+	uint32 getNumberOfCharactersInNarrowedString(wchar_t const* p_input);
 
 	//------------------------------
 
@@ -261,7 +273,7 @@ namespace AvoGUI
 		Positive goes to the right and negative goes to the left.
 	*/
 	template<typename T>
-	std::string convertNumberToString(T p_value, int32_t p_roundingIndex, RoundingType p_roundingType = RoundingType::Nearest)
+	std::string convertNumberToString(T p_value, int32 p_roundingIndex, RoundingType p_roundingType = RoundingType::Nearest)
 	{
 		double roundingFactor = std::pow(10., p_roundingIndex);
 		std::ostringstream stream;
@@ -2060,7 +2072,7 @@ namespace AvoGUI
 	class ReferenceCounted
 	{
 	private:
-		uint32_t m_referenceCount;
+		uint32 m_referenceCount;
 
 	public:
 		ReferenceCounted() : m_referenceCount(1U) { }
@@ -2070,7 +2082,7 @@ namespace AvoGUI
 			Increments the reference count and returns the new reference count.
 			Remembers a pointer!
 		*/
-		uint32_t remember()
+		uint32 remember()
 		{
 			return ++m_referenceCount;
 		}
@@ -2079,7 +2091,7 @@ namespace AvoGUI
 			Decrements the reference count, returns the new reference count and 
 			deletes the object if the reference count has reached 0.
 		*/
-		uint32_t forget()
+		uint32 forget()
 		{
 			m_referenceCount--;
 			if (!m_referenceCount)
@@ -2093,7 +2105,7 @@ namespace AvoGUI
 		/*
 			Returns the number of pointers to the dynamic object that have been remembered.
 		*/
-		uint32_t getReferenceCount()
+		uint32 getReferenceCount()
 		{
 			return m_referenceCount;
 		}
@@ -2106,21 +2118,21 @@ namespace AvoGUI
 	/*
 		ARGB formatted 32-bit packed color, where every channel has 8 bits.
 	*/
-	typedef uint32_t colorInt;
+	typedef uint32 colorInt;
 
-	inline uint8_t getRedChannel(colorInt p_color)
+	inline uint8 getRedChannel(colorInt p_color)
 	{
 		return (p_color >> 16) & 0xff;
 	}
-	inline uint8_t getGreenChannel(colorInt p_color)
+	inline uint8 getGreenChannel(colorInt p_color)
 	{
 		return (p_color >> 8) & 0xff;
 	}
-	inline uint8_t getBlueChannel(colorInt p_color)
+	inline uint8 getBlueChannel(colorInt p_color)
 	{
 		return p_color & 0xff;
 	}
-	inline uint8_t getAlphaChannel(colorInt p_color)
+	inline uint8 getAlphaChannel(colorInt p_color)
 	{
 		return (p_color >> 24) & 0xff;
 	}
@@ -2151,19 +2163,19 @@ namespace AvoGUI
 		/*
 			The channels are in the range [0, 255]
 		*/
-		Color(uint8_t p_red, uint8_t p_green, uint8_t p_blue, uint8_t p_alpha = (uint8_t)255) :
+		Color(uint8 p_red, uint8 p_green, uint8 p_blue, uint8 p_alpha = (uint8)255) :
 			red(float(p_red) / 255.f), green(float(p_green) / 255.f), blue(float(p_blue) / 255.f), alpha(float(p_alpha) / 255.f)
 		{ }
 		/*
 			The channels are in the range [0, 255]
 		*/
-		Color(uint32_t p_red, uint32_t p_green, uint32_t p_blue, uint32_t p_alpha = (uint32_t)255) :
+		Color(uint32 p_red, uint32 p_green, uint32 p_blue, uint32 p_alpha = (uint32)255) :
 			red(float(p_red) / 255.f), green(float(p_green) / 255.f), blue(float(p_blue) / 255.f), alpha(float(p_alpha) / 255.f)
 		{ }
 		/*
 			The channels are in the range [0, 255]
 		*/
-		Color(int32_t p_red, int32_t p_green, int32_t p_blue, int32_t p_alpha = (int32_t)255) :
+		Color(int32 p_red, int32 p_green, int32 p_blue, int32 p_alpha = (int32)255) :
 			red(float(p_red) / 255.f), green(float(p_green) / 255.f), blue(float(p_blue) / 255.f), alpha(float(p_alpha) / 255.f)
 		{ }
 		/*
@@ -2179,7 +2191,7 @@ namespace AvoGUI
 		/*
 			Initializes the color with a grayscale value. The values are bytes in the range [0, 255].
 		*/
-		Color(uint8_t p_lightness, uint8_t p_alpha = (uint8_t)255)
+		Color(uint8 p_lightness, uint8 p_alpha = (uint8)255)
 		{
 			red = float(p_lightness) / 255.f;
 			green = red;
@@ -2287,7 +2299,7 @@ namespace AvoGUI
 		/*
 			Sets the values for the red, green, blue and alpha channels. The parameters are bytes, in the range of [0, 255].
 		*/
-		void setRGBA(uint8_t p_red, uint8_t p_green, uint8_t p_blue, uint8_t p_alpha = (uint8_t)255)
+		void setRGBA(uint8 p_red, uint8 p_green, uint8 p_blue, uint8 p_alpha = (uint8)255)
 		{
 			red = float(p_red) / 255.f;
 			green = float(p_green) / 255.f;
@@ -2297,7 +2309,7 @@ namespace AvoGUI
 		/*
 			Sets the same values for the red, green, blue and alpha channels. The parameters are bytes, in the range of [0, 255].
 		*/
-		void setRGBA(uint8_t p_grayscale, uint8_t p_alpha = 255)
+		void setRGBA(uint8 p_grayscale, uint8 p_alpha = 255)
 		{
 			red = float(p_grayscale) / 255.f;
 			green = float(p_grayscale) / 255.f;
@@ -2307,7 +2319,7 @@ namespace AvoGUI
 		/*
 			Sets the values for the red, green and blue channels. The parameters are bytes, in the range of [0, 255].
 		*/
-		void setRGB(uint8_t p_red, uint8_t p_green, uint8_t p_blue)
+		void setRGB(uint8 p_red, uint8 p_green, uint8 p_blue)
 		{
 			red = float(p_red) / 255.f;
 			green = float(p_green) / 255.f;
@@ -2316,7 +2328,7 @@ namespace AvoGUI
 		/*
 			Sets the same values for the red, green and blue channels. The parameters are bytes, in the range of [0, 255].
 		*/
-		void setRGB(uint8_t p_grayscale)
+		void setRGB(uint8 p_grayscale)
 		{
 			red = float(p_grayscale) / 255.f;
 			green = float(p_grayscale) / 255.f;
@@ -2325,7 +2337,7 @@ namespace AvoGUI
 		/*
 			Sets the values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
 		*/
-		void setRGBA(uint32_t p_red, uint32_t p_green, uint32_t p_blue, uint32_t p_alpha = 255U)
+		void setRGBA(uint32 p_red, uint32 p_green, uint32 p_blue, uint32 p_alpha = 255U)
 		{
 			red = float(p_red) / 255.f;
 			green = float(p_green) / 255.f;
@@ -2335,7 +2347,7 @@ namespace AvoGUI
 		/*
 			Sets the same values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
 		*/
-		void setRGBA(uint32_t p_grayscale, uint32_t p_alpha = 255)
+		void setRGBA(uint32 p_grayscale, uint32 p_alpha = 255)
 		{
 			red = float(p_grayscale) / 255.f;
 			green = float(p_grayscale) / 255.f;
@@ -2345,7 +2357,7 @@ namespace AvoGUI
 		/*
 			Sets the values for the red, green and blue channels. The parameters are in the range [0, 255].
 		*/
-		void setRGB(uint32_t p_red, uint32_t p_green, uint32_t p_blue)
+		void setRGB(uint32 p_red, uint32 p_green, uint32 p_blue)
 		{
 			red = float(p_red) / 255.f;
 			green = float(p_green) / 255.f;
@@ -2354,7 +2366,7 @@ namespace AvoGUI
 		/*
 			Sets the same values for the red, green and blue channels. The parameters are in the range [0, 255].
 		*/
-		void setRGB(uint32_t p_grayscale)
+		void setRGB(uint32 p_grayscale)
 		{
 			red = float(p_grayscale) / 255.f;
 			green = float(p_grayscale) / 255.f;
@@ -2363,7 +2375,7 @@ namespace AvoGUI
 		/*
 			Sets the values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
 		*/
-		void setRGBA(int32_t p_red, int32_t p_green, int32_t p_blue, int32_t p_alpha = 255U)
+		void setRGBA(int32 p_red, int32 p_green, int32 p_blue, int32 p_alpha = 255U)
 		{
 			red = float(p_red) / 255.f;
 			green = float(p_green) / 255.f;
@@ -2373,7 +2385,7 @@ namespace AvoGUI
 		/*
 			Sets the same values for the red, green, blue and alpha channels. The parameters are in the range [0, 255].
 		*/
-		void setRGBA(int32_t p_grayscale, int32_t p_alpha = 255)
+		void setRGBA(int32 p_grayscale, int32 p_alpha = 255)
 		{
 			red = float(p_grayscale) / 255.f;
 			green = float(p_grayscale) / 255.f;
@@ -2383,7 +2395,7 @@ namespace AvoGUI
 		/*
 			Sets the values for the red, green and blue channels. The parameters are in the range [0, 255].
 		*/
-		void setRGB(int32_t p_red, int32_t p_green, int32_t p_blue)
+		void setRGB(int32 p_red, int32 p_green, int32 p_blue)
 		{
 			red = float(p_red) / 255.f;
 			green = float(p_green) / 255.f;
@@ -2392,7 +2404,7 @@ namespace AvoGUI
 		/*
 			Sets the same values for the red, green and blue channels. The parameters are in the range [0, 255].
 		*/
-		void setRGB(int32_t p_grayscale)
+		void setRGB(int32 p_grayscale)
 		{
 			red = float(p_grayscale) / 255.f;
 			green = float(p_grayscale) / 255.f;
@@ -3147,38 +3159,46 @@ namespace AvoGUI
 
 		std::vector<View*> m_views;
 
-		uint32_t m_layerIndex;
-		uint32_t m_index;
+		uint32 m_layerIndex;
+		uint32 m_index;
 
 		//------------------------------
 
-		void moveAbsolutePositions(float p_offsetX, float p_offsetY)
+		/*
+			Moves the point(s) representing the absolute position(s) of this view and/or all children of this view (recursively).
+			The absolute positions of views are used often for mouse event targeting, among other things.
+			Because of this, it is pre-calculated in this way only when this view or a parent view has moved.
+		*/
+		void moveAbsolutePositions(float p_offsetX, float p_offsetY, bool p_willUpdateChildren = true)
 		{
 			m_absolutePosition.move(p_offsetX, p_offsetY);
 
-			View* currentContainer = this;
-			View* child = 0;
-			uint32_t startIndex = 0;
-			while (true)
+			if (p_willUpdateChildren)
 			{
-			loopBody:
-				for (uint32_t a = startIndex; a < currentContainer->getNumberOfChildren(); a++)
+				View* currentContainer = this;
+				View* child = 0;
+				uint32 startIndex = 0;
+				while (true)
 				{
-					child = currentContainer->getChild(a);
-					child->moveAbsolutePosition(p_offsetX, p_offsetY);
-					if (child->getNumberOfChildren())
+				loopBody:
+					for (uint32 a = startIndex; a < currentContainer->getNumberOfChildren(); a++)
 					{
-						currentContainer = child;
-						startIndex = 0;
-						goto loopBody; // THIS IS GOOD USE OF GOTO OK
+						child = currentContainer->getChild(a);
+						child->moveAbsolutePositions(p_offsetX, p_offsetY, false);
+						if (child->getNumberOfChildren())
+						{
+							currentContainer = child;
+							startIndex = 0;
+							goto loopBody; // THIS IS GOOD USE OF GOTO OK
+						}
 					}
+					if (currentContainer == this)
+					{
+						return;
+					}
+					startIndex = currentContainer->getIndex() + 1;
+					currentContainer = currentContainer->getParent();
 				}
-				if (currentContainer == this)
-				{
-					return;
-				}
-				startIndex = currentContainer->getIndex() + 1;
-				currentContainer = currentContainer->getParent();
 			}
 		}
 
@@ -3311,7 +3331,7 @@ namespace AvoGUI
 			Removes a child view from this view. This forgets the view being removed. 
 			If you haven't remembered it yourself, it will get deleted.
 		*/
-		void removeChild(uint32_t p_viewIndex);
+		void removeChild(uint32 p_viewIndex);
 		/*
 			LIBRARY IMPLEMENTED
 			Forgets the children views and empties this view from children.
@@ -3322,7 +3342,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns the child view at an index.
 		*/
-		View* getChild(uint32_t p_viewIndex)
+		View* getChild(uint32 p_viewIndex)
 		{
 			return m_views[p_viewIndex];
 		}
@@ -3330,7 +3350,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns the number of child views that are attached to this view.
 		*/
-		uint32_t getNumberOfChildren()
+		uint32 getNumberOfChildren()
 		{
 			return m_views.size();
 		}
@@ -3360,7 +3380,7 @@ namespace AvoGUI
 			float right = m_views[0]->getRight();
 			float top = m_views[0]->getTop();
 			float bottom = m_views[0]->getBottom();
-			for (uint32_t a = 1; a < m_views.size(); a++)
+			for (uint32 a = 1; a < m_views.size(); a++)
 			{
 				if (m_views[a]->getLeft() < left)
 				{
@@ -3396,7 +3416,7 @@ namespace AvoGUI
 
 			float left = m_views[0]->getLeft();
 			float right = m_views[0]->getRight();
-			for (uint32_t a = 1; a < m_views.size(); a++)
+			for (uint32 a = 1; a < m_views.size(); a++)
 			{
 				if (m_views[a]->getLeft() < left)
 				{
@@ -3422,7 +3442,7 @@ namespace AvoGUI
 
 			float top = m_views[0]->getTop();
 			float bottom = m_views[0]->getBottom();
-			for (uint32_t a = 1; a < m_views.size(); a++)
+			for (uint32 a = 1; a < m_views.size(); a++)
 			{
 				if (m_views[a]->getTop() < top)
 				{
@@ -3457,7 +3477,7 @@ namespace AvoGUI
 			}
 
 			float left = m_views[0]->getLeft();
-			for (uint32_t a = 1; a < m_views.size(); a++)
+			for (uint32 a = 1; a < m_views.size(); a++)
 			{
 				if (m_views[a]->getLeft() < left)
 				{
@@ -3479,7 +3499,7 @@ namespace AvoGUI
 			}
 
 			float right = m_views[0]->getRight();
-			for (uint32_t a = 1; a < m_views.size(); a++)
+			for (uint32 a = 1; a < m_views.size(); a++)
 			{
 				if (m_views[a]->getRight() > right)
 				{
@@ -3501,7 +3521,7 @@ namespace AvoGUI
 			}
 
 			float top = m_views[0]->getTop();
-			for (uint32_t a = 1; a < m_views.size(); a++)
+			for (uint32 a = 1; a < m_views.size(); a++)
 			{
 				if (m_views[a]->getTop() < top)
 				{
@@ -3523,7 +3543,7 @@ namespace AvoGUI
 			}
 
 			float bottom = m_views[0]->getBottom();
-			for (uint32_t a = 1; a < m_views.size(); a++)
+			for (uint32 a = 1; a < m_views.size(); a++)
 			{
 				if (m_views[a]->getBottom() > bottom)
 				{
@@ -3566,7 +3586,7 @@ namespace AvoGUI
 			Rectangle<float> contentBounds(calculateContentBounds());
 			float offsetX = p_leftPadding - contentBounds.left;
 			float offsetY = p_topPadding - contentBounds.top;
-			for (uint32_t a = 0; a < m_views.size(); a++)
+			for (uint32 a = 0; a < m_views.size(); a++)
 			{
 				m_views[a]->move(offsetX, offsetY);
 			}
@@ -3582,7 +3602,7 @@ namespace AvoGUI
 		{
 			float left = calculateContentLeft();
 			float offset = p_leftPadding - left;
-			for (uint32_t a = 0; a < m_views.size(); a++)
+			for (uint32 a = 0; a < m_views.size(); a++)
 			{
 				m_views[a]->move(offset, 0.f);
 			}
@@ -3606,7 +3626,7 @@ namespace AvoGUI
 		{
 			float top = calculateContentTop();
 			float offset = p_topPadding - top;
-			for (uint32_t a = 0; a < m_views.size(); a++)
+			for (uint32 a = 0; a < m_views.size(); a++)
 			{
 				m_views[a]->move(offset, 0.f);
 			}
@@ -3689,11 +3709,11 @@ namespace AvoGUI
 			if (p_willAffectChildren)
 			{
 				View* view = this;
-				uint32_t startIndex = 0;
+				uint32 startIndex = 0;
 				while (true)
 				{
 				loopStart:
-					for (uint32_t a = startIndex; a < view->getNumberOfChildren(); a++)
+					for (uint32 a = startIndex; a < view->getNumberOfChildren(); a++)
 					{
 						view->getChild(a)->setThemeEasing(p_name, p_easing, false);
 						if (view->getChild(a)->getNumberOfChildren())
@@ -3757,11 +3777,11 @@ namespace AvoGUI
 			if (p_willAffectChildren)
 			{
 				View* view = this;
-				uint32_t startIndex = 0;
+				uint32 startIndex = 0;
 				while (true)
 				{
 				loopStart:
-					for (uint32_t a = startIndex; a < view->getNumberOfChildren(); a++)
+					for (uint32 a = startIndex; a < view->getNumberOfChildren(); a++)
 					{
 						view->getChild(a)->setThemeFontFamily(p_name, p_fontFamilyName, false);
 						if (view->getChild(a)->getNumberOfChildren())
@@ -3842,11 +3862,11 @@ namespace AvoGUI
 			if (p_willAffectChildren)
 			{
 				View* view = this;
-				uint32_t startIndex = 0;
+				uint32 startIndex = 0;
 				while (true)
 				{
 					loopStart:
-					for (uint32_t a = startIndex; a < view->getNumberOfChildren(); a++)
+					for (uint32 a = startIndex; a < view->getNumberOfChildren(); a++)
 					{
 						view->getChild(a)->setThemeValue(p_name, p_value, false);
 						if (view->getChild(a)->getNumberOfChildren())
@@ -3900,20 +3920,6 @@ namespace AvoGUI
 		Theme const* getTheme() const
 		{
 			return m_theme;
-		}
-
-		//------------------------------
-
-		/*
-			LIBRARY IMPLEMENTED
-			This is only used by the library to update the point variable representing the position of the view relative to the GUI, without affecting the actual position of the view. 
-			This is called when any parent, grandparent and so on has been moved.
-			Use move() to actually move the view.
-		*/
-		void moveAbsolutePosition(float p_x, float p_y)
-		{
-			m_absolutePosition.x += p_x;
-			m_absolutePosition.y += p_y;
 		}
 
 		//------------------------------
@@ -5219,7 +5225,7 @@ namespace AvoGUI
 			It doesn't change the actual index of this view, it only helps the view keep track of its current index. 
 			I apologize for the ambiguousness here, couldn't find any better way...
 		*/
-		void setIndex(uint32_t p_index)
+		void setIndex(uint32 p_index)
 		{
 			m_index = p_index;
 		}
@@ -5227,7 +5233,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns the index of this view relative to its siblings.
 		*/
-		uint32_t getIndex() const
+		uint32 getIndex() const
 		{
 			return m_index;
 		}
@@ -5237,7 +5243,7 @@ namespace AvoGUI
 			Returns the layer index of the view, how deep down the view hierarchy it is.
 			The GUI view has a layer index of 0.
 		*/
-		uint32_t getLayerIndex() const
+		uint32 getLayerIndex() const
 		{
 			return m_layerIndex;
 		}
@@ -5454,11 +5460,11 @@ namespace AvoGUI
 		/*
 			The new width of the window if it has changed size (includes sizeChange/maximize/restore events).
 		*/
-		uint32_t width = 0U;
+		uint32 width = 0U;
 		/*
 			The new height of the window if it has changed size (includes sizeChange/maximize/restore events).
 		*/
-		uint32_t height = 0U;
+		uint32 height = 0U;
 	};
 
 	class WindowListener
@@ -5552,11 +5558,11 @@ namespace AvoGUI
 	};
 	constexpr bool operator&(ModifierKeyFlags p_left, ModifierKeyFlags p_right)
 	{
-		return (uint32_t)p_left & (uint32_t)p_right;
+		return (uint32)p_left & (uint32)p_right;
 	}
 	constexpr ModifierKeyFlags operator|(ModifierKeyFlags p_left, ModifierKeyFlags p_right)
 	{
-		return ModifierKeyFlags((uint32_t)p_left | (uint32_t)p_right);
+		return ModifierKeyFlags((uint32)p_left | (uint32)p_right);
 	}
 	constexpr ModifierKeyFlags& operator|=(ModifierKeyFlags& p_left, ModifierKeyFlags p_right)
 	{
@@ -5763,11 +5769,11 @@ namespace AvoGUI
 
 	constexpr WindowStyleFlags operator&(WindowStyleFlags p_left, WindowStyleFlags p_right)
 	{
-		return WindowStyleFlags((uint32_t)p_left & (uint32_t)p_right);
+		return WindowStyleFlags((uint32)p_left & (uint32)p_right);
 	}
 	constexpr WindowStyleFlags operator|(WindowStyleFlags p_left, WindowStyleFlags p_right)
 	{
-		return WindowStyleFlags((uint32_t)p_left | (uint32_t)p_right);
+		return WindowStyleFlags((uint32)p_left | (uint32)p_right);
 	}
 	constexpr WindowStyleFlags& operator|=(WindowStyleFlags& p_left, WindowStyleFlags p_right)
 	{
@@ -5810,7 +5816,7 @@ namespace AvoGUI
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(char const* p_title, int32_t p_x, int32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		virtual void create(char const* p_title, int32 p_x, int32 p_y, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
 		/*
 			Creates the window in the center of the screen. To close it, use close().
 		
@@ -5820,7 +5826,7 @@ namespace AvoGUI
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(char const* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		virtual void create(char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
 
 		/*
 			Closes the OS window and destroys it. To recreate it, use create(...).
@@ -5908,109 +5914,109 @@ namespace AvoGUI
 		/*
 			Sets the position of the window relative to the top-left corner of the screen.
 		*/
-		virtual void setPosition(Point<int32_t> const& p_position) = 0;
+		virtual void setPosition(Point<int32> const& p_position) = 0;
 		/*
 			Sets the position of the window relative to the top-left corner of the screen.
 		*/
-		virtual void setPosition(int32_t p_x, int32_t p_y) = 0;
+		virtual void setPosition(int32 p_x, int32 p_y) = 0;
 		/*
 			Returns the position of the window relative to the top-left corner of the screen.
 		*/
-		virtual Point<int32_t> const& getPosition() const = 0;
+		virtual Point<int32> const& getPosition() const = 0;
 		/*
 			Returns the position of the left edge of the window relative to the top-left corner of the screen.
 		*/
-		virtual int32_t getPositionX() const = 0;
+		virtual int32 getPositionX() const = 0;
 		/*
 			Returns the position of the left edge of the window relative to the top-left corner of the screen.
 		*/
-		virtual int32_t getPositionY() const = 0;
+		virtual int32 getPositionY() const = 0;
 
 		/*
 			Sets the size of the client area of the window, in pixels.
 		*/
-		virtual void setSize(Point<uint32_t> const& p_size) = 0;
+		virtual void setSize(Point<uint32> const& p_size) = 0;
 		/*
 			Sets the size of the client area of the window, in pixels.
 		*/
-		virtual void setSize(uint32_t p_width, uint32_t p_height) = 0;
+		virtual void setSize(uint32 p_width, uint32 p_height) = 0;
 		/*
 			Returns the size of the client area of the window, in pixels.
 		*/
-		virtual Point<uint32_t> const& getSize() const = 0;
+		virtual Point<uint32> const& getSize() const = 0;
 		/*
 			Returns the width of the client area of the window, in pixels.
 		*/
-		virtual uint32_t getWidth() const = 0;
+		virtual uint32 getWidth() const = 0;
 		/*
 			Returns the height of the client area of the window, in pixels.
 		*/
-		virtual uint32_t getHeight() const = 0;
+		virtual uint32 getHeight() const = 0;
 
 		/*
 			Sets the smallest allowed size for the window when the user is resizing it.
 		*/
-		virtual void setMinSize(Point<uint32_t> const& p_minSize) = 0;
+		virtual void setMinSize(Point<uint32> const& p_minSize) = 0;
 		/*
 			Sets the smallest allowed size for the window when the user is resizing it.
 		*/
-		virtual void setMinSize(uint32_t p_minWidth, uint32_t p_minHeight) = 0;
+		virtual void setMinSize(uint32 p_minWidth, uint32 p_minHeight) = 0;
 		/*
 			Returns the smallest allowed size for the window when the user is resizing it.
 		*/
-		virtual Point<uint32_t> getMinSize() const = 0;
+		virtual Point<uint32> getMinSize() const = 0;
 		/*
 			Returns the smallest allowed width for the window when the user is resizing it.
 		*/
-		virtual uint32_t getMinWidth() const = 0;
+		virtual uint32 getMinWidth() const = 0;
 		/*
 			Returns the smallest allowed height for the window when the user is resizing it.
 		*/
-		virtual uint32_t getMinHeight() const = 0;
+		virtual uint32 getMinHeight() const = 0;
 
 		/*
 			Sets the biggest allowed size for the window when the user is resizing it.
 		*/
-		virtual void setMaxSize(Point<uint32_t> const& p_maxSize) = 0;
+		virtual void setMaxSize(Point<uint32> const& p_maxSize) = 0;
 		/*
 			Sets the biggest allowed size for the window when the user is resizing it.
 		*/
-		virtual void setMaxSize(uint32_t p_maxWidth, uint32_t p_maxHeight) = 0;
+		virtual void setMaxSize(uint32 p_maxWidth, uint32 p_maxHeight) = 0;
 		/*
 			Returns the biggest allowed size for the window when the user is resizing it.
 		*/
-		virtual Point<uint32_t> getMaxSize() const = 0;
+		virtual Point<uint32> getMaxSize() const = 0;
 		/*
 			Returns the biggest allowed width for the window when the user is resizing it.
 		*/
-		virtual uint32_t getMaxWidth() const = 0;
+		virtual uint32 getMaxWidth() const = 0;
 		/*
 			Returns the biggest allowed height for the window when the user is resizing it.
 		*/
-		virtual uint32_t getMaxHeight() const = 0;
+		virtual uint32 getMaxHeight() const = 0;
 
 		//------------------------------
 
 		/*
 			Returns the bounds of the current monitor used by the window
 		*/
-		virtual Rectangle<uint32_t> getMonitorBounds() const = 0;
+		virtual Rectangle<uint32> getMonitorBounds() const = 0;
 		/*
 			Returns the size of the current monitor used by the window.
 		*/
-		virtual Point<uint32_t> getMonitorPosition() const = 0;
+		virtual Point<uint32> getMonitorPosition() const = 0;
 		/*
 			Returns the size of the current monitor used by the window.
 		*/
-		virtual Point<uint32_t> getMonitorSize() const = 0;
+		virtual Point<uint32> getMonitorSize() const = 0;
 		/*
 			Returns the width of the current monitor used by the window.
 		*/
-		virtual uint32_t getMonitorWidth() const = 0;
+		virtual uint32 getMonitorWidth() const = 0;
 		/*
 			Returns the height of the current monitor used by the window.
 		*/
-		virtual uint32_t getMonitorHeight() const = 0;
+		virtual uint32 getMonitorHeight() const = 0;
 
 		//------------------------------
 
@@ -6025,7 +6031,7 @@ namespace AvoGUI
 		/*
 			Returns the position of the mouse cursor, relative to the top-left corner of the window.
 		*/
-		virtual Point<int32_t> const& getMousePosition() const = 0;
+		virtual Point<int32> const& getMousePosition() const = 0;
 
 		//------------------------------
 
@@ -6050,7 +6056,7 @@ namespace AvoGUI
 			The data currently stored on the clipboard is freed and replaced by this string.
 			p_length is the number of characters in the string. If it is -1 then it assumes the string is null-terminated.
 		*/
-		virtual void setClipboardWideString(wchar_t const* p_string, int32_t p_length = -1) = 0;
+		virtual void setClipboardWideString(wchar_t const* p_string, int32 p_length = -1) = 0;
 
 		/*
 			Gives a string for the OS to store globally. Other programs, or this one, can then access it.
@@ -6062,7 +6068,7 @@ namespace AvoGUI
 			The data currently stored on the clipboard is freed and replaced by this string.
 			p_length is the number of characters in the string. If it is -1 then it assumes the string is null-terminated.
 		*/
-		virtual void setClipboardString(char const* p_string, int32_t p_length = -1) = 0;
+		virtual void setClipboardString(char const* p_string, int32 p_length = -1) = 0;
 
 		/*
 			Returns the 16-bit string which is currently stored on the OS clipboard, if there is any. 
@@ -6123,15 +6129,15 @@ namespace AvoGUI
 		/*
 			Returns the DIP size of the actual image.
 		*/
-		virtual Point<uint32_t> getOriginalSize() const = 0;
+		virtual Point<uint32> getOriginalSize() const = 0;
 		/*
 			Returns the DIP width of the actual image.
 		*/
-		virtual uint32_t getOriginalWidth() const = 0;
+		virtual uint32 getOriginalWidth() const = 0;
 		/*
 			Returns the DIP height of the actual image.
 		*/
-		virtual uint32_t getOriginalHeight() const = 0;
+		virtual uint32 getOriginalHeight() const = 0;
 
 		//------------------------------
 
@@ -6315,31 +6321,31 @@ namespace AvoGUI
 			p_isRelativeToOrigin is whether the position returned is relative to the origin of the drawing context. 
 			If not, it is relative to the bounds of the text.
 		*/
-		virtual Point<float> getCharacterPosition(uint32_t p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
+		virtual Point<float> getCharacterPosition(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
 		/*
 			Returns the width and height of a character in the text, specified by its index in the string.
 		*/
-		virtual Point<float> getCharacterSize(uint32_t p_characterIndex) = 0;
+		virtual Point<float> getCharacterSize(uint32 p_characterIndex) = 0;
 		/*
 			Returns a rectangle enclosing a character in the text, specified by its index in the string.
 			p_isRelativeToOrigin is whether the position of the bounds returned is relative to the origin of the drawing context. 
 			If not, it is relative to the bounds of the text.
 		*/
-		virtual Rectangle<float> getCharacterBounds(uint32_t p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
+		virtual Rectangle<float> getCharacterBounds(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
 		
 		/*
 			Returns the index of the character which is nearest to a point.
 			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context. 
 			If not, it is relative to the bounds of the text.
 		*/
-		virtual uint32_t getNearestCharacterIndex(Point<float> const& p_point, bool p_isRelativeToOrigin = false) = 0;
+		virtual uint32 getNearestCharacterIndex(Point<float> const& p_point, bool p_isRelativeToOrigin = false) = 0;
 		/*
 			Returns the index of the character which is nearest to a point.
 		
 			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context. 
 			If not, it is relative to the bounds of the text.
 		*/
-		virtual uint32_t getNearestCharacterIndex(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false) = 0;
+		virtual uint32 getNearestCharacterIndex(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false) = 0;
 		/*
 			Returns the index and position of the character which is nearest to a point.
 		
@@ -6348,7 +6354,7 @@ namespace AvoGUI
 			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. 
 			If not, they are relative to the bounds of the text.
 		*/
-		virtual void getNearestCharacterIndexAndPosition(Point<float> const& p_point, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
+		virtual void getNearestCharacterIndexAndPosition(Point<float> const& p_point, uint32* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
 		/*
 			Returns the index and position of the character which is nearest to a point.
 		
@@ -6357,7 +6363,7 @@ namespace AvoGUI
 			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. 
 			If not, they are relative to the bounds of the text.
 		*/
-		virtual void getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
+		virtual void getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, uint32* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
 		/*
 			Returns the index and bounds of the character which is nearest to a point.
 		
@@ -6365,7 +6371,7 @@ namespace AvoGUI
 			p_outCharacterBounds is a pointer to the bounding rectangle to be returned.
 			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.
 		*/
-		virtual void getNearestCharacterIndexAndBounds(Point<float> const& p_point, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
+		virtual void getNearestCharacterIndexAndBounds(Point<float> const& p_point, uint32* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
 		/*
 			Returns the index and bounds of the character which is nearest to a point.
 		
@@ -6373,7 +6379,7 @@ namespace AvoGUI
 			p_outCharacterBounds is a pointer to the bounding rectangle to be returned.
 			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.
 		*/
-		virtual void getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
+		virtual void getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, uint32* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
 
 		//------------------------------
 
@@ -6400,7 +6406,7 @@ namespace AvoGUI
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
 		*/
-		virtual void setFontFamily(char const* p_name, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
+		virtual void setFontFamily(char const* p_name, int32 p_startPosition = 0, int32 p_length = 0) = 0;
 
 		//------------------------------
 
@@ -6414,7 +6420,7 @@ namespace AvoGUI
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
 		*/	
-		virtual void setCharacterSpacing(float p_characterSpacing, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
+		virtual void setCharacterSpacing(float p_characterSpacing, int32 p_startPosition = 0, int32 p_length = 0) = 0;
 		/*
 			Sets the leading and trailing spacing of the characters in a section of the text.
 		
@@ -6427,15 +6433,15 @@ namespace AvoGUI
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
 		*/	
-		virtual void setCharacterSpacing(float p_leading, float p_trailing, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
+		virtual void setCharacterSpacing(float p_leading, float p_trailing, int32 p_startPosition = 0, int32 p_length = 0) = 0;
 		/*
 			Returns the spacing before one of the characters.
 		*/
-		virtual float getLeadingCharacterSpacing(int32_t p_characterIndex = 0) = 0;
+		virtual float getLeadingCharacterSpacing(int32 p_characterIndex = 0) = 0;
 		/*
 			Returns the spacing after one of the characters.
 		*/
-		virtual float getTrailingCharacterSpacing(int32_t p_characterIndex = 0) = 0;
+		virtual float getTrailingCharacterSpacing(int32 p_characterIndex = 0) = 0;
 
 		//------------------------------
 
@@ -6460,11 +6466,11 @@ namespace AvoGUI
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
 		*/	
-		virtual void setFontWeight(FontWeight p_fontWeight, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
+		virtual void setFontWeight(FontWeight p_fontWeight, int32 p_startPosition = 0, int32 p_length = 0) = 0;
 		/*
 			Returns the weight/thickness of a character in the text.
 		*/
-		virtual FontWeight getFontWeight(uint32_t p_characterPosition = 0) = 0;
+		virtual FontWeight getFontWeight(uint32 p_characterPosition = 0) = 0;
 
 		//------------------------------
 
@@ -6478,11 +6484,11 @@ namespace AvoGUI
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
 		*/	
-		virtual void setFontStyle(FontStyle p_fontStyle, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
+		virtual void setFontStyle(FontStyle p_fontStyle, int32 p_startPosition = 0, int32 p_length = 0) = 0;
 		/*
 			Returns the style of a character in the text.
 		*/
-		virtual FontStyle getFontStyle(uint32_t p_characterPosition = 0) = 0;
+		virtual FontStyle getFontStyle(uint32 p_characterPosition = 0) = 0;
 
 		//------------------------------
 
@@ -6496,11 +6502,11 @@ namespace AvoGUI
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
 		*/	
-		virtual void setFontStretch(FontStretch p_fontStretch, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
+		virtual void setFontStretch(FontStretch p_fontStretch, int32 p_startPosition = 0, int32 p_length = 0) = 0;
 		/*
 			Returns the font stretch of a character in the text.
 		*/
-		virtual FontStretch getFontStretch(uint32_t p_characterPosition = 0) = 0;
+		virtual FontStretch getFontStretch(uint32 p_characterPosition = 0) = 0;
 
 		//------------------------------
 
@@ -6514,11 +6520,11 @@ namespace AvoGUI
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
 		*/
-		virtual void setFontSize(float p_fontSize, int32_t p_startPosition = 0, int32_t p_length = 0) = 0;
+		virtual void setFontSize(float p_fontSize, int32 p_startPosition = 0, int32 p_length = 0) = 0;
 		/*
 			Returns the size (height) of a character in the text.
 		*/
-		virtual float getFontSize(uint32_t p_characterPosition = 0) = 0;
+		virtual float getFontSize(uint32 p_characterPosition = 0) = 0;
 
 		//------------------------------
 
@@ -6782,15 +6788,15 @@ namespace AvoGUI
 		/*
 			Resizes the drawing buffers. The GUI calls this for you when it is being resized.
 		*/
-		virtual void setSize(Point<uint32_t> const& p_size) = 0;
+		virtual void setSize(Point<uint32> const& p_size) = 0;
 		/*
 			Resizes the drawing buffers. The GUI calls this for you when it is being resized.
 		*/
-		virtual void setSize(uint32_t p_width, uint32_t p_height) = 0;
+		virtual void setSize(uint32 p_width, uint32 p_height) = 0;
 		/*
 			Returns the size of the drawing buffers.
 		*/
-		virtual Point<uint32_t> getSize() = 0;
+		virtual Point<uint32> getSize() = 0;
 
 		//------------------------------
 
@@ -6983,7 +6989,7 @@ namespace AvoGUI
 			p_lineThickness is how thicc the edges of the shape are.
 			p_isClosed is whether the last vertex will be connected to the first one to close the shape.
 		*/
-		virtual void strokeShape(Point<float> const* p_vertices, uint32_t p_numberOfVertices, float p_lineThickness, bool p_isClosed = false) = 0;
+		virtual void strokeShape(Point<float> const* p_vertices, uint32 p_numberOfVertices, float p_lineThickness, bool p_isClosed = false) = 0;
 		/*
 			Fills a custom shape with the current color.
 
@@ -6996,7 +7002,7 @@ namespace AvoGUI
 			p_vertices is an array of points that make up the shape.
 			p_numberOfVertices is he number of points that make up the shape.
 		*/
-		virtual void fillShape(Point<float> const* p_vertices, uint32_t p_numberOfVertices) = 0;
+		virtual void fillShape(Point<float> const* p_vertices, uint32 p_numberOfVertices) = 0;
 
 		//------------------------------
 
@@ -7112,7 +7118,7 @@ namespace AvoGUI
 			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image* createRectangleShadowImage(Point<uint32_t> const& p_size, float p_blur, Color const& p_color) = 0;
+		virtual Image* createRectangleShadowImage(Point<uint32> const& p_size, float p_blur, Color const& p_color) = 0;
 		/*
 			Generates an image of a shadow that is cast by a rectangle.
 		
@@ -7121,7 +7127,7 @@ namespace AvoGUI
 			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image* createRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_blur, Color const& p_color) = 0;
+		virtual Image* createRectangleShadowImage(uint32 p_width, uint32 p_height, float p_blur, Color const& p_color) = 0;
 
 		//------------------------------
 
@@ -7133,7 +7139,7 @@ namespace AvoGUI
 			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image* createRoundedRectangleShadowImage(Point<uint32_t> const& p_size, float p_radius, float p_blur, Color const& p_color) = 0;
+		virtual Image* createRoundedRectangleShadowImage(Point<uint32> const& p_size, float p_radius, float p_blur, Color const& p_color) = 0;
 		/*
 			Generates an image of a shadow that is cast by a rounded rectangle.
 		
@@ -7143,7 +7149,7 @@ namespace AvoGUI
 			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image* createRoundedRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_radius, float p_blur, Color const& p_color) = 0;
+		virtual Image* createRoundedRectangleShadowImage(uint32 p_width, uint32 p_height, float p_radius, float p_blur, Color const& p_color) = 0;
 
 		//------------------------------
 
@@ -7155,7 +7161,7 @@ namespace AvoGUI
 
 			p_width and p_height are in pixels.
 		*/
-		virtual Image* createImage(void const* p_pixelData, uint32_t p_width, uint32_t p_height) = 0;
+		virtual Image* createImage(void const* p_pixelData, uint32 p_width, uint32 p_height) = 0;
 
 		/*
 			Loads an image from a file. Most standard image formats/codecs are supported.
@@ -7180,7 +7186,7 @@ namespace AvoGUI
 			p_data is the data that would be in a standard font file.
 			p_dataSize is the length/size of the data in bytes.
 		*/
-		virtual void addFont(void const* p_data, uint32_t p_dataSize) = 0;
+		virtual void addFont(void const* p_data, uint32 p_dataSize) = 0;
 
 		//------------------------------
 
@@ -7253,8 +7259,8 @@ namespace AvoGUI
 
 		//------------------------------
 
-		Point<uint32_t> m_lastWindowSize;
-		Point<uint32_t> m_newWindowSize;
+		Point<uint32> m_lastWindowSize;
+		Point<uint32> m_newWindowSize;
 		bool m_hasNewWindowSize;
 		std::deque<View*> m_animationUpdateQueue;
 		std::vector<Rectangle<float>> m_invalidRectangles;
@@ -7293,7 +7299,7 @@ namespace AvoGUI
 
 		void sendSizeChangeEvents() override
 		{
-			if ((uint32_t)getWidth() != m_lastWindowSize.x || (uint32_t)getHeight() != m_lastWindowSize.y)
+			if ((uint32)getWidth() != m_lastWindowSize.x || (uint32)getHeight() != m_lastWindowSize.y)
 			{
 				m_window->setSize(getSize());
 			}
@@ -7321,7 +7327,7 @@ namespace AvoGUI
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, is only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(char const* p_title, uint32_t p_x, uint32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
+		void create(char const* p_title, uint32 p_x, uint32 p_y, uint32 p_width, uint32 p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
 		/*
 			LIBRARY IMPLEMENTED
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
@@ -7334,7 +7340,7 @@ namespace AvoGUI
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, is only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(char const* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
+		void create(char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
 
 		//------------------------------
 
@@ -7663,7 +7669,7 @@ namespace AvoGUI
 		float m_opacityAnimationTime;
 		float m_opacity;
 		bool m_isShowing;
-		uint32_t m_timeSinceShow;
+		uint32 m_timeSinceShow;
 
 	public:
 		Tooltip(View* p_parent) : View(p_parent), m_text(0), m_opacityAnimationTime(0.f), m_opacity(0.f), m_isShowing(false), m_timeSinceShow(0U)
@@ -8470,7 +8476,7 @@ namespace AvoGUI
 			}
 			if (m_isEnabled && getIsContaining(p_event.x + getLeft(), p_event.y + getTop()))
 			{
-				for (uint32_t a = 0; a < m_buttonListeners.size(); a++)
+				for (uint32 a = 0; a < m_buttonListeners.size(); a++)
 				{
 					m_buttonListeners[a]->handleButtonClick(this);
 				}
@@ -8611,7 +8617,7 @@ namespace AvoGUI
 			This index can be equal to the size of the new string, and in that case the cursor ends up at the end of the text.
 			The default implementation of this method calls the simpler version that only takes the p_editableText parameter.
 		*/
-		virtual bool handleEditableTextChange(EditableText* p_editableText, std::string& p_newString, int32_t& p_newCaretIndex) 
+		virtual bool handleEditableTextChange(EditableText* p_editableText, std::string& p_newString, int32& p_newCaretIndex) 
 		{ 
 			return handleEditableTextChange(p_editableText); 
 		}
@@ -8628,12 +8634,12 @@ namespace AvoGUI
 		float m_fontSize;
 		TextAlign m_textAlign;
 
-		uint32_t m_caretIndex;
+		uint32 m_caretIndex;
 		Point<float> m_caretPosition;
 		bool m_isCaretVisible;
-		uint32_t m_caretFrameCount;
+		uint32 m_caretFrameCount;
 
-		uint32_t m_selectionEndIndex;
+		uint32 m_selectionEndIndex;
 		Point<float> m_selectionEndPosition;
 		bool m_isSelectingWithMouse;
 		bool m_isSelectionVisible;
@@ -8749,9 +8755,9 @@ namespace AvoGUI
 		{
 			if (m_text)
 			{
-				uint32_t clickCharacterIndex = m_text->getNearestCharacterIndex(p_event.x - m_textDrawingOffsetX, p_event.y, true);
+				uint32 clickCharacterIndex = m_text->getNearestCharacterIndex(p_event.x - m_textDrawingOffsetX, p_event.y, true);
 				std::string const& string = m_text->getString();
-				for (int32_t a = clickCharacterIndex; a >= 0; a--)
+				for (int32 a = clickCharacterIndex; a >= 0; a--)
 				{
 					if (!a || string[a - 1] == ' ')
 					{
@@ -8764,7 +8770,7 @@ namespace AvoGUI
 						break;
 					}
 				}
-				for (int32_t a = clickCharacterIndex; a <= string.size(); a++)
+				for (int32 a = clickCharacterIndex; a <= string.size(); a++)
 				{
 					if (a == string.size() || string[a] == ' ')
 					{
@@ -8944,11 +8950,11 @@ namespace AvoGUI
 					if (window->getIsKeyDown(KeyboardKey::Control))
 					{
 						std::string string = m_text->getString();
-						for (int32_t a = m_caretIndex - 1; a >= 0; a--)
+						for (int32 a = m_caretIndex - 1; a >= 0; a--)
 						{
 							if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
 							{
-								string.erase(a, (int32_t)m_caretIndex - a);
+								string.erase(a, (int32)m_caretIndex - a);
 								setString(string, a);
 								break;
 							}
@@ -8975,11 +8981,11 @@ namespace AvoGUI
 					if (window->getIsKeyDown(KeyboardKey::Control))
 					{
 						std::string string = m_text->getString();
-						for (int32_t a = m_caretIndex; a < string.size(); a++)
+						for (int32 a = m_caretIndex; a < string.size(); a++)
 						{
 							if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
 							{
-								string.erase(m_caretIndex, a - (int32_t)m_caretIndex + 1);
+								string.erase(m_caretIndex, a - (int32)m_caretIndex + 1);
 								setString(string);
 								break;
 							}
@@ -9010,7 +9016,7 @@ namespace AvoGUI
 						{
 							m_selectionEndIndex = m_caretIndex;
 						}
-						for (int32_t a = m_selectionEndIndex - 1; a >= 0; a--)
+						for (int32 a = m_selectionEndIndex - 1; a >= 0; a--)
 						{
 							if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
 							{
@@ -9031,7 +9037,7 @@ namespace AvoGUI
 					}
 					else
 					{
-						for (int32_t a = m_caretIndex - 1; a >= 0; a--)
+						for (int32 a = m_caretIndex - 1; a >= 0; a--)
 						{
 							if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
 							{
@@ -9106,7 +9112,7 @@ namespace AvoGUI
 						{
 							m_selectionEndIndex = m_caretIndex;
 						}
-						for (uint32_t a = m_selectionEndIndex; a < string.size(); a++)
+						for (uint32 a = m_selectionEndIndex; a < string.size(); a++)
 						{
 							if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
 							{
@@ -9127,7 +9133,7 @@ namespace AvoGUI
 					}
 					else
 					{
-						for (uint32_t a = m_caretIndex; a < string.size(); a++)
+						for (uint32 a = m_caretIndex; a < string.size(); a++)
 						{
 							if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
 							{
@@ -9239,7 +9245,7 @@ namespace AvoGUI
 				if (window->getIsKeyDown(KeyboardKey::Control))
 				{
 					std::string string(m_text ? m_text->getString() : "");
-					uint32_t caretIndex = m_caretIndex;
+					uint32 caretIndex = m_caretIndex;
 					if (m_isSelectionVisible)
 					{
 						if (caretIndex < m_selectionEndIndex)
@@ -9282,12 +9288,12 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setSelection(uint32_t p_startIndex, uint32_t p_endIndex)
+		void setSelection(uint32 p_startIndex, uint32 p_endIndex)
 		{
 			if (m_text)
 			{
-				p_startIndex = min((uint32_t)m_text->getString().size(), p_startIndex);
-				p_endIndex = min((uint32_t)m_text->getString().size(), max(p_startIndex, p_endIndex));
+				p_startIndex = min((uint32)m_text->getString().size(), p_startIndex);
+				p_endIndex = min((uint32)m_text->getString().size(), max(p_startIndex, p_endIndex));
 				if (p_startIndex != p_endIndex)
 				{
 					if (p_startIndex != m_caretIndex)
@@ -9310,7 +9316,7 @@ namespace AvoGUI
 		{
 			if (m_text)
 			{
-				uint32_t stringLength = m_text->getString().size();
+				uint32 stringLength = m_text->getString().size();
 				if (stringLength)
 				{
 					if (m_caretIndex != 0)
@@ -9337,7 +9343,7 @@ namespace AvoGUI
 			p_newCaretIndex determines the caret index that will be set if no event listeners cancel the change.
 			This is needed because the old caret index will be kept in case any event listener returns false.
 		*/
-		void setString(char const* p_string, int32_t p_newCaretIndex = -1)
+		void setString(char const* p_string, int32 p_newCaretIndex = -1)
 		{
 			if (m_text && m_text->getString() == p_string)
 			{
@@ -9391,9 +9397,9 @@ namespace AvoGUI
 			m_text->setWidth(getWidth());
 			m_text->setTextAlign(m_textAlign);
 
-			if (p_newCaretIndex > (int32_t)m_text->getString().size())
+			if (p_newCaretIndex > (int32)m_text->getString().size())
 			{
-				m_caretIndex = (uint32_t)m_text->getString().size();
+				m_caretIndex = (uint32)m_text->getString().size();
 			}
 			else if (p_newCaretIndex != m_caretIndex)
 			{
@@ -9411,9 +9417,9 @@ namespace AvoGUI
 
 			if (m_isSelectionVisible)
 			{
-				if (m_selectionEndIndex > (uint32_t)m_text->getString().size())
+				if (m_selectionEndIndex > (uint32)m_text->getString().size())
 				{
-					m_selectionEndIndex = min(m_selectionEndIndex, (uint32_t)m_text->getString().size());
+					m_selectionEndIndex = min(m_selectionEndIndex, (uint32)m_text->getString().size());
 					if (m_selectionEndIndex == m_caretIndex)
 					{
 						m_isSelectionVisible = false;
@@ -9428,7 +9434,7 @@ namespace AvoGUI
 		/*
 			Sets the content of the editable text.
 		*/
-		void setString(std::string const& p_string, int32_t p_caretIndex = -1)
+		void setString(std::string const& p_string, int32 p_caretIndex = -1)
 		{
 			setString(p_string.c_str(), p_caretIndex);
 		}
@@ -9444,7 +9450,7 @@ namespace AvoGUI
 			Sets the content of the editable text as a value, rounded at a certain digit.
 		*/
 		template<typename T>
-		void setValue(T p_value, int32_t p_roundingDigit, RoundingType p_roundingType = RoundingType::Nearest)
+		void setValue(T p_value, int32 p_roundingDigit, RoundingType p_roundingType = RoundingType::Nearest)
 		{
 			setString(convertNumberToString(p_value, p_roundingDigit, p_roundingType));
 		}
@@ -9529,7 +9535,7 @@ namespace AvoGUI
 		{
 			if (getGUI()->getKeyboardFocus() == this)
 			{
-				if (m_caretFrameCount % (uint32_t)getThemeValue("editable text caret blink rate") == 0 && !m_isSelectionVisible)
+				if (m_caretFrameCount % (uint32)getThemeValue("editable text caret blink rate") == 0 && !m_isSelectionVisible)
 				{
 					m_isCaretVisible = !m_isCaretVisible;
 					invalidate();
@@ -9949,7 +9955,7 @@ namespace AvoGUI
 			Sets the content of the text field as a value, rounded at a certain digit.
 		*/
 		template<typename T>
-		void setValue(T p_value, int32_t p_roundingDigit, RoundingType p_roundingType = RoundingType::Nearest)
+		void setValue(T p_value, int32 p_roundingDigit, RoundingType p_roundingType = RoundingType::Nearest)
 		{
 			setString(convertNumberToString(p_value, p_roundingDigit, p_roundingType));
 		}
@@ -12040,7 +12046,7 @@ namespace AvoGUI
 		0,6,1,-127,0,1,0,1,0,19,0,6,0,0,0,1,0,8,0,3,0,1,0,18,0,1,0,108,0,0,0,1,0,0,0,24,0,2,0,3,1,-108,1,-108,0,0,1,-59,1,-57,0,1,2,31,2,37,0,4,0,1,0,0,0,1,0,8,0,2,0,60,0,10,1,-57,1,-58,1,-59,2,31,2,32,2,33,2,34,2,35,2,36,
 		2,37,0,1,0,0,0,1,0,8,0,2,0,26,0,10,2,62,0,122,0,115,0,116,2,63,2,64,2,65,2,66,2,67,2,68,0,2,0,1,0,20,0,29,0,0,0
 	};
-	uint32_t const FONT_DATA_SIZE_ROBOTO_REGULAR = 171676;
+	uint32 const FONT_DATA_SIZE_ROBOTO_REGULAR = 171676;
 
 	char const FONT_DATA_ROBOTO_MEDIUM[] = 
 	{
@@ -13957,7 +13963,7 @@ namespace AvoGUI
 		2,83,2,83,0,8,2,85,2,94,0,9,2,101,2,101,0,19,0,1,0,0,0,1,0,8,0,1,0,6,1,-127,0,1,0,1,0,19,0,6,0,0,0,1,0,8,0,3,0,1,0,18,0,1,0,108,0,0,0,1,0,0,0,24,0,2,0,3,1,-108,1,-108,0,0,1,-59,1,-57,0,1,2,31,2,37,0,4,0,1,0,0,
 		0,1,0,8,0,2,0,60,0,10,1,-57,1,-58,1,-59,2,31,2,32,2,33,2,34,2,35,2,36,2,37,0,1,0,0,0,1,0,8,0,2,0,26,0,10,2,62,0,122,0,115,0,116,2,63,2,64,2,65,2,66,2,67,2,68,0,2,0,1,0,20,0,29,0,0,0
 	};
-	uint32_t const FONT_DATA_SIZE_ROBOTO_MEDIUM = 172064;
+	uint32 const FONT_DATA_SIZE_ROBOTO_MEDIUM = 172064;
 
 	char const FONT_DATA_ROBOTO_LIGHT[] = 
 	{
@@ -15856,7 +15862,7 @@ namespace AvoGUI
 		0,8,0,1,0,6,1,-127,0,1,0,1,0,19,0,6,0,0,0,1,0,8,0,3,0,1,0,18,0,1,0,108,0,0,0,1,0,0,0,24,0,2,0,3,1,-108,1,-108,0,0,1,-59,1,-57,0,1,2,31,2,37,0,4,0,1,0,0,0,1,0,8,0,2,0,60,0,10,1,-57,1,-58,1,-59,2,31,2,32,2,33,2,34,
 		2,35,2,36,2,37,0,1,0,0,0,1,0,8,0,2,0,26,0,10,2,62,0,122,0,115,0,116,2,63,2,64,2,65,2,66,2,67,2,68,0,2,0,1,0,20,0,29,0,0,0
 	};
-	uint32_t const FONT_DATA_SIZE_ROBOTO_LIGHT = 170420;
+	uint32 const FONT_DATA_SIZE_ROBOTO_LIGHT = 170420;
 
 	char const FONT_DATA_ROBOTO_BOLD[] = 
 	{
@@ -17759,5 +17765,5 @@ namespace AvoGUI
 		0,8,0,3,0,1,0,18,0,1,0,108,0,0,0,1,0,0,0,24,0,2,0,3,1,-108,1,-108,0,0,1,-59,1,-57,0,1,2,31,2,37,0,4,0,1,0,0,0,1,0,8,0,2,0,60,0,10,1,-57,1,-58,1,-59,2,31,2,32,2,33,2,34,2,35,2,36,2,37,0,1,0,0,0,1,0,8,0,2,0,26,0,10,
 		2,62,0,122,0,115,0,116,2,63,2,64,2,65,2,66,2,67,2,68,0,2,0,1,0,20,0,29,0,0,0
 	};
-	uint32_t const FONT_DATA_SIZE_ROBOTO_BOLD = 170760;
+	uint32 const FONT_DATA_SIZE_ROBOTO_BOLD = 170760;
 }

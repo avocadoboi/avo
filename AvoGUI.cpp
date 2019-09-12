@@ -45,25 +45,25 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void widenString(char const* p_input, wchar_t* p_output, uint32_t p_numberOfCharactersInResult)
+	void widenString(char const* p_input, wchar_t* p_output, uint32 p_numberOfCharactersInResult)
 	{
 #ifdef _WIN32
 		MultiByteToWideChar(CP_UTF8, 0, p_input, -1, p_output, p_numberOfCharactersInResult);
 #endif
 	}
-	uint32_t getNumberOfCharactersInWidenedString(char const* p_input)
+	uint32 getNumberOfCharactersInWidenedString(char const* p_input)
 	{
 #ifdef _WIN32
 		return MultiByteToWideChar(CP_UTF8, 0, p_input, -1, 0, 0);
 #endif
 	}
-	void narrowString(wchar_t const* p_input, char* p_output, uint32_t p_numberOfCharactersInResult)
+	void narrowString(wchar_t const* p_input, char* p_output, uint32 p_numberOfCharactersInResult)
 	{
 #ifdef _WIN32
 		WideCharToMultiByte(CP_UTF8, 0, p_input, -1, p_output, p_numberOfCharactersInResult, 0, false);
 #endif
 	}
-	uint32_t getNumberOfCharactersInNarrowedString(wchar_t const* p_input)
+	uint32 getNumberOfCharactersInNarrowedString(wchar_t const* p_input)
 	{
 #ifdef _WIN32
 		return WideCharToMultiByte(CP_UTF8, 0, p_input, -1, 0, 0, 0, false);
@@ -232,7 +232,7 @@ namespace AvoGUI
 			p_view->forget();
 		}
 	}
-	void View::removeChild(uint32_t p_viewIndex)
+	void View::removeChild(uint32 p_viewIndex)
 	{
 		m_views[p_viewIndex]->forget();
 		m_views.erase(m_views.begin() + p_viewIndex);
@@ -253,13 +253,13 @@ namespace AvoGUI
 
 	void View::updateViewDrawingIndex(View* p_view)
 	{
-		uint32_t numberOfViews = (uint32_t)m_views.size();
+		uint32 numberOfViews = (uint32)m_views.size();
 		if (numberOfViews <= 1) return;
 
 		float elevation = p_view->getElevation();
 		if (!p_view->getIndex() || (p_view->getIndex() < numberOfViews - 1U && m_views[p_view->getIndex() + 1U]->getElevation() < elevation))
 		{
-			for (uint32_t a = p_view->getIndex(); a < numberOfViews; a++)
+			for (uint32 a = p_view->getIndex(); a < numberOfViews; a++)
 			{
 				if (a == numberOfViews - 1U || m_views[a + 1U]->getElevation() >= elevation)
 				{
@@ -276,9 +276,9 @@ namespace AvoGUI
 		}
 		else
 		{
-			for (int32_t a = p_view->getIndex(); a >= 0; a--)
+			for (int32 a = p_view->getIndex(); a >= 0; a--)
 			{
-				if (!a || m_views[uint64_t(a - 1)]->getElevation() <= elevation)
+				if (!a || m_views[a - 1]->getElevation() <= elevation)
 				{
 					m_views[a] = p_view;
 					p_view->setIndex(a);
@@ -300,11 +300,11 @@ namespace AvoGUI
 		if (p_willAffectChildren)
 		{
 			View* view = this;
-			uint32_t startIndex = 0;
+			uint32 startIndex = 0;
 			while (true)
 			{
 			loopStart:
-				for (uint32_t a = startIndex; a < view->getNumberOfChildren(); a++)
+				for (uint32 a = startIndex; a < view->getNumberOfChildren(); a++)
 				{
 					view->getChild(a)->setThemeColor(p_name, p_color, false);
 					if (view->getChild(a)->getNumberOfChildren())
@@ -638,11 +638,11 @@ namespace AvoGUI
 
 		HWND m_windowHandle;
 		WindowStyleFlags m_crossPlatformStyles;
-		uint32_t m_styles;
+		uint32 m_styles;
 
 		bool m_isOpen;
-		Point<int32_t> m_position;
-		Point<uint32_t> m_size;
+		Point<int32> m_position;
+		Point<uint32> m_size;
 
 		bool m_isFullscreen;
 		RECT m_windowRectBeforeFullscreen;
@@ -650,35 +650,35 @@ namespace AvoGUI
 
 		WindowState m_state;
 
-		Point<uint32_t> m_minSize;
-		Point<uint32_t> m_maxSize;
+		Point<uint32> m_minSize;
+		Point<uint32> m_maxSize;
 
 		bool m_isMouseOutsideWindow;
-		Point<int32_t> m_mousePosition;
+		Point<int32> m_mousePosition;
 		HCURSOR m_cursorHandle;
 		Cursor m_cursorType;
 
-		uint32_t convertWindowStyleFlagsToWindowsWindowStyleFlags(WindowStyleFlags p_styleFlags)
+		uint32 convertWindowStyleFlagsToWindowsWindowStyleFlags(WindowStyleFlags p_styleFlags)
 		{
-			uint32_t styles = WS_SYSMENU;
+			uint32 styles = WS_SYSMENU;
 
-			if (uint32_t(p_styleFlags & WindowStyleFlags::Visible))
+			if (uint32(p_styleFlags & WindowStyleFlags::Visible))
 				styles |= WS_VISIBLE;
-			if (uint32_t(p_styleFlags & WindowStyleFlags::Border))
+			if (uint32(p_styleFlags & WindowStyleFlags::Border))
 				styles |= WS_CAPTION;
-			if (uint32_t(p_styleFlags & WindowStyleFlags::Child))
+			if (uint32(p_styleFlags & WindowStyleFlags::Child))
 				styles |= WS_CHILD;
 
-			if (uint32_t(p_styleFlags & WindowStyleFlags::Minimized))
+			if (uint32(p_styleFlags & WindowStyleFlags::Minimized))
 				styles |= WS_MINIMIZE;
-			else if (uint32_t(p_styleFlags & WindowStyleFlags::Maximized))
+			else if (uint32(p_styleFlags & WindowStyleFlags::Maximized))
 				styles |= WS_MAXIMIZE;
 
-			if (uint32_t(p_styleFlags & WindowStyleFlags::MinimizeBox))
+			if (uint32(p_styleFlags & WindowStyleFlags::MinimizeBox))
 				styles |= WS_MINIMIZEBOX;
-			if (uint32_t(p_styleFlags & WindowStyleFlags::MaximizeBox))
+			if (uint32(p_styleFlags & WindowStyleFlags::MaximizeBox))
 				styles |= WS_MAXIMIZEBOX;
-			if (uint32_t(p_styleFlags & WindowStyleFlags::ResizeBorder))
+			if (uint32(p_styleFlags & WindowStyleFlags::ResizeBorder))
 				styles |= WS_THICKFRAME;
 
 			return styles;
@@ -706,7 +706,7 @@ namespace AvoGUI
 
 			return modifierFlags;
 		}
-		KeyboardKey convertWindowsDataToKeyboardKey(uint64_t p_data)
+		KeyboardKey convertWindowsDataToKeyboardKey(uint64 p_data)
 		{
 			switch (p_data)
 			{
@@ -942,7 +942,7 @@ namespace AvoGUI
 		}
 
 	public:
-		static uint32_t s_numberOfWindows;
+		static uint32 s_numberOfWindows;
 		static char const* const WINDOW_CLASS_NAME;
 
 		//------------------------------
@@ -955,7 +955,7 @@ namespace AvoGUI
 			m_cursorType = (Cursor)-1;
 			setCursor(Cursor::Arrow);
 		}
-		WindowsWindow(GUI* p_GUI, char const* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) :
+		WindowsWindow(GUI* p_GUI, char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) :
 			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0),
 			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
 			m_state(WindowState::Restored), m_isMouseOutsideWindow(true), m_mousePosition(-1, -1), m_cursorHandle(0)
@@ -976,7 +976,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void create(char const* p_title, int32_t p_x, int32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
+		void create(char const* p_title, int32 p_x, int32 p_y, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
 		{
 			if (m_windowHandle)
 			{
@@ -998,9 +998,9 @@ namespace AvoGUI
 
 			m_styles = convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styleFlags);
 
-			//if (uint32_t(p_styleFlags & WindowStyleFlags::Maximized))
+			//if (uint32(p_styleFlags & WindowStyleFlags::Maximized))
 			//	m_state = WindowState::Maximized;
-			//else if (uint32_t(p_styleFlags & WindowStyleFlags::Minimized))
+			//else if (uint32(p_styleFlags & WindowStyleFlags::Minimized))
 			//	m_state = WindowState::Minimized;
 			//else
 			//	m_state = WindowState::Restored;
@@ -1029,7 +1029,7 @@ namespace AvoGUI
 
 			s_numberOfWindows++;
 		}
-		void create(char const* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
+		void create(char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
 		{
 			create(p_title, (GetSystemMetrics(SM_CXSCREEN) - p_width) / 2, (GetSystemMetrics(SM_CYSCREEN) - p_height) / 2, p_width, p_height, p_styleFlags, p_parent);
 		}
@@ -1163,37 +1163,37 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setPosition(Point<int32_t> const& p_position) override
+		void setPosition(Point<int32> const& p_position) override
 		{
 			SetWindowPos(m_windowHandle, 0, p_position.x, p_position.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 			m_position = p_position;
 		}
-		void setPosition(int32_t p_x, int32_t p_y) override
+		void setPosition(int32 p_x, int32 p_y) override
 		{
 			SetWindowPos(m_windowHandle, 0, p_x, p_y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 			m_position.set(p_x, p_y);
 		}
-		Point<int32_t> const& getPosition() const override
+		Point<int32> const& getPosition() const override
 		{
 			return m_position;
 		}
-		int32_t getPositionX() const override
+		int32 getPositionX() const override
 		{
 			return m_position.x;
 		}
-		int32_t getPositionY() const override
+		int32 getPositionY() const override
 		{
 			return m_position.y;
 		}
 
-		void setSize(Point<uint32_t> const& p_size) override
+		void setSize(Point<uint32> const& p_size) override
 		{
 			RECT windowRect = { 0, 0, p_size.x, p_size.y };
 			AdjustWindowRect(&windowRect, m_styles, 0);
 			SetWindowPos(m_windowHandle, 0, 0, 0, windowRect.right - windowRect.left, windowRect.bottom - windowRect.top, SWP_NOMOVE | SWP_NOZORDER);
 			m_size = p_size;
 		}
-		void setSize(uint32_t p_width, uint32_t p_height) override
+		void setSize(uint32 p_width, uint32 p_height) override
 		{
 			RECT windowRect = { 0, 0, p_width, p_height };
 			AdjustWindowRect(&windowRect, m_styles, 0);
@@ -1201,96 +1201,96 @@ namespace AvoGUI
 			m_size.set(p_width, p_height);
 		}
 
-		Point<uint32_t> const& getSize() const override
+		Point<uint32> const& getSize() const override
 		{
 			return m_size;
 		}
-		uint32_t getWidth() const override
+		uint32 getWidth() const override
 		{
 			return m_size.x;
 		}
-		uint32_t getHeight() const override
+		uint32 getHeight() const override
 		{
 			return m_size.y;
 		}
 
 		//------------------------------
 
-		void setMinSize(Point<uint32_t> const& p_minSize) override
+		void setMinSize(Point<uint32> const& p_minSize) override
 		{
 			m_minSize = p_minSize;
 		}
-		void setMinSize(uint32_t p_minWidth, uint32_t p_minHeight) override
+		void setMinSize(uint32 p_minWidth, uint32 p_minHeight) override
 		{
 			m_minSize.x = p_minWidth;
 			m_minSize.y = p_minHeight;
 		}
-		Point<uint32_t> getMinSize() const override
+		Point<uint32> getMinSize() const override
 		{
 			return m_minSize;
 		}
-		uint32_t getMinWidth() const override
+		uint32 getMinWidth() const override
 		{
 			return m_minSize.x;
 		}
-		uint32_t getMinHeight() const override
+		uint32 getMinHeight() const override
 		{
 			return m_minSize.y;
 		}
 
-		void setMaxSize(Point<uint32_t> const& p_maxSize) override
+		void setMaxSize(Point<uint32> const& p_maxSize) override
 		{
 			m_maxSize = p_maxSize;
 		}
-		void setMaxSize(uint32_t p_maxWidth, uint32_t p_maxHeight) override
+		void setMaxSize(uint32 p_maxWidth, uint32 p_maxHeight) override
 		{
 			m_maxSize.x = p_maxWidth;
 			m_maxSize.y = p_maxHeight;
 		}
-		Point<uint32_t> getMaxSize() const override
+		Point<uint32> getMaxSize() const override
 		{
 			return m_maxSize;
 		}
-		uint32_t getMaxWidth() const override
+		uint32 getMaxWidth() const override
 		{
 			return m_maxSize.x;
 		}
-		uint32_t getMaxHeight() const override
+		uint32 getMaxHeight() const override
 		{
 			return m_maxSize.y;
 		}
 
 		//------------------------------
 
-		Rectangle<uint32_t> getMonitorBounds() const override
+		Rectangle<uint32> getMonitorBounds() const override
 		{
 			MONITORINFO info = { };
 			info.cbSize = sizeof(MONITORINFO);
 			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
-			return Rectangle<uint32_t>(info.rcMonitor.left, info.rcMonitor.top, info.rcMonitor.right, info.rcMonitor.bottom);
+			return Rectangle<uint32>(info.rcMonitor.left, info.rcMonitor.top, info.rcMonitor.right, info.rcMonitor.bottom);
 		}
-		Point<uint32_t> getMonitorPosition() const override
+		Point<uint32> getMonitorPosition() const override
 		{
 			MONITORINFO info = { };
 			info.cbSize = sizeof(MONITORINFO);
 			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
-			return Point<uint32_t>(info.rcMonitor.left, info.rcMonitor.top);
+			return Point<uint32>(info.rcMonitor.left, info.rcMonitor.top);
 		}
-		Point<uint32_t> getMonitorSize() const override
+		Point<uint32> getMonitorSize() const override
 		{
 			MONITORINFO info = { };
 			info.cbSize = sizeof(MONITORINFO);
 			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
-			return Point<uint32_t>(info.rcMonitor.right - info.rcMonitor.left, info.rcMonitor.bottom - info.rcMonitor.top);
+			return Point<uint32>(info.rcMonitor.right - info.rcMonitor.left, info.rcMonitor.bottom - info.rcMonitor.top);
 		}
-		uint32_t getMonitorWidth() const override
+		uint32 getMonitorWidth() const override
 		{
 			MONITORINFO info = { };
 			info.cbSize = sizeof(MONITORINFO);
 			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
 			return info.rcMonitor.right - info.rcMonitor.left;
 		}
-		uint32_t getMonitorHeight() const override
+		uint32 getMonitorHeight() const override
 		{
 			MONITORINFO info = { };
 			info.cbSize = sizeof(MONITORINFO);
@@ -1570,7 +1570,7 @@ namespace AvoGUI
 			}
 			return false;
 		}
-		Point<int32_t> const& getMousePosition() const override
+		Point<int32> const& getMousePosition() const override
 		{
 			return m_mousePosition;
 		}
@@ -1649,7 +1649,7 @@ namespace AvoGUI
 			SetClipboardData(CF_UNICODETEXT, clipboardData);
 			CloseClipboard();
 		}
-		void setClipboardWideString(wchar_t const* p_string, int32_t p_length) override
+		void setClipboardWideString(wchar_t const* p_string, int32 p_length) override
 		{
 			size_t size = p_length >= 0 ? p_length : wcslen(p_string);
 			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, size + 1LL);
@@ -1682,7 +1682,7 @@ namespace AvoGUI
 			SetClipboardData(CF_OEMTEXT, clipboardData);
 			CloseClipboard();
 		}
-		void setClipboardString(char const* p_string, int32_t p_length) override
+		void setClipboardString(char const* p_string, int32 p_length) override
 		{
 			size_t size = p_length >= 0 ? p_length : strlen(p_string);
 			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, size + 1LL);
@@ -1741,7 +1741,7 @@ namespace AvoGUI
 		ClipboardDataType getClipboardDataType() const override
 		{
 			OpenClipboard(m_windowHandle);
-			uint32_t format = EnumClipboardFormats(0);
+			uint32 format = EnumClipboardFormats(0);
 			CloseClipboard();
 
 			if (format == CF_TEXT || format == CF_OEMTEXT || format == CF_UNICODETEXT)
@@ -1780,8 +1780,8 @@ namespace AvoGUI
 				}
 				else
 				{
-					uint32_t width = p_data_b & 0xffff;
-					uint32_t height = p_data_b >> 16 & 0xffff;
+					uint32 width = p_data_b & 0xffff;
+					uint32 height = p_data_b >> 16 & 0xffff;
 					m_size.x = width;
 					m_size.y = height;
 					windowEvent.width = width;
@@ -1854,8 +1854,8 @@ namespace AvoGUI
 			}
 			case WM_LBUTTONDOWN:
 			{
-				int32_t x = GET_X_LPARAM(p_data_b);
-				int32_t y = GET_Y_LPARAM(p_data_b);
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
 
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
@@ -1875,8 +1875,8 @@ namespace AvoGUI
 			}
 			case WM_LBUTTONUP:
 			{
-				int32_t x = GET_X_LPARAM(p_data_b);
-				int32_t y = GET_Y_LPARAM(p_data_b);
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
 
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
@@ -1896,8 +1896,8 @@ namespace AvoGUI
 			}
 			case WM_LBUTTONDBLCLK:
 			{
-				int32_t x = GET_X_LPARAM(p_data_b);
-				int32_t y = GET_Y_LPARAM(p_data_b);
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
 
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
@@ -1914,8 +1914,8 @@ namespace AvoGUI
 			}
 			case WM_RBUTTONDOWN:
 			{
-				int32_t x = GET_X_LPARAM(p_data_b);
-				int32_t y = GET_Y_LPARAM(p_data_b);
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
 
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
@@ -1932,8 +1932,8 @@ namespace AvoGUI
 			}
 			case WM_RBUTTONUP:
 			{
-				int32_t x = GET_X_LPARAM(p_data_b);
-				int32_t y = GET_Y_LPARAM(p_data_b);
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
 
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
@@ -1950,8 +1950,8 @@ namespace AvoGUI
 			}
 			case WM_RBUTTONDBLCLK:
 			{
-				int32_t x = GET_X_LPARAM(p_data_b);
-				int32_t y = GET_Y_LPARAM(p_data_b);
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
 
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
@@ -1968,8 +1968,8 @@ namespace AvoGUI
 			}
 			case WM_MBUTTONDOWN:
 			{
-				int32_t x = GET_X_LPARAM(p_data_b);
-				int32_t y = GET_Y_LPARAM(p_data_b);
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
 
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
@@ -1986,8 +1986,8 @@ namespace AvoGUI
 			}
 			case WM_MBUTTONUP:
 			{
-				int32_t x = GET_X_LPARAM(p_data_b);
-				int32_t y = GET_Y_LPARAM(p_data_b);
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
 
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
@@ -2004,8 +2004,8 @@ namespace AvoGUI
 			}
 			case WM_MBUTTONDBLCLK:
 			{
-				int32_t x = GET_X_LPARAM(p_data_b);
-				int32_t y = GET_Y_LPARAM(p_data_b);
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
 
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
@@ -2024,8 +2024,8 @@ namespace AvoGUI
 			{
 				ModifierKeyFlags modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
-				int32_t x = GET_X_LPARAM(p_data_b);
-				int32_t y = GET_Y_LPARAM(p_data_b);
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
 
 				if ((x == m_mousePosition.x && y == m_mousePosition.y) || (GetCapture() != m_windowHandle && (x < 0 || y < 0 || x >= getWidth() || y >= getHeight())))
 				{
@@ -2183,7 +2183,7 @@ namespace AvoGUI
 			return DefWindowProc(p_windowHandle, p_message, p_data_a, p_data_b);
 		}
 	};
-	uint32_t WindowsWindow::s_numberOfWindows;
+	uint32 WindowsWindow::s_numberOfWindows;
 	char const* const WindowsWindow::WINDOW_CLASS_NAME = "AvoGUI window class";
 
 #endif
@@ -2225,15 +2225,15 @@ namespace AvoGUI
 			return m_cropRectangle;
 		}
 
-		Point<uint32_t> getOriginalSize() const override
+		Point<uint32> getOriginalSize() const override
 		{
-			return Point<uint32_t>(m_image->GetSize().width, m_image->GetSize().height);
+			return Point<uint32>(m_image->GetSize().width, m_image->GetSize().height);
 		}
-		uint32_t getOriginalWidth() const override
+		uint32 getOriginalWidth() const override
 		{
 			return m_image->GetSize().width;
 		}
-		uint32_t getOriginalHeight() const override
+		uint32 getOriginalHeight() const override
 		{
 			return m_image->GetSize().height;
 		}
@@ -2312,7 +2312,7 @@ namespace AvoGUI
 		IDWriteTextLayout1* m_handle;
 		std::string m_string;
 
-		DWRITE_TEXT_RANGE createTextRange(int32_t p_startPosition, int32_t p_length)
+		DWRITE_TEXT_RANGE createTextRange(int32 p_startPosition, int32 p_length)
 		{
 			DWRITE_TEXT_RANGE textRange = { };
 			textRange.startPosition = p_length > 0 ? p_startPosition : max(0, p_startPosition - p_length);
@@ -2414,7 +2414,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		Point<float> getCharacterPosition(uint32_t p_characterIndex, bool p_isRelativeToOrigin = false) override
+		Point<float> getCharacterPosition(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) override
 		{
 			Point<float> result;
 			DWRITE_HIT_TEST_METRICS metrics;
@@ -2426,7 +2426,7 @@ namespace AvoGUI
 			}
 			return result;
 		}
-		Point<float> getCharacterSize(uint32_t p_characterIndex) override
+		Point<float> getCharacterSize(uint32 p_characterIndex) override
 		{
 			float x;
 			float y;
@@ -2434,7 +2434,7 @@ namespace AvoGUI
 			m_handle->HitTestTextPosition(p_characterIndex, false, &x, &y, &metrics);
 			return Point<float>(metrics.width, metrics.height);
 		}
-		Rectangle<float> getCharacterBounds(uint32_t p_characterIndex, bool p_isRelativeToOrigin = false) override 
+		Rectangle<float> getCharacterBounds(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) override 
 		{
 			Rectangle<float> result;
 			DWRITE_HIT_TEST_METRICS metrics;
@@ -2448,11 +2448,11 @@ namespace AvoGUI
 			result.bottom = result.top + metrics.height;
 			return result;
 		}
-		uint32_t getNearestCharacterIndex(Point<float> const& p_point, bool p_isRelativeToOrigin = false) override
+		uint32 getNearestCharacterIndex(Point<float> const& p_point, bool p_isRelativeToOrigin = false) override
 		{
 			return getNearestCharacterIndex(p_point.x, p_point.y, p_isRelativeToOrigin);
 		}
-		uint32_t getNearestCharacterIndex(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false) override
+		uint32 getNearestCharacterIndex(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false) override
 		{
 			int isTrailingHit;
 			int isInside;
@@ -2460,11 +2460,11 @@ namespace AvoGUI
 			m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * getLeft(), p_pointY - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
 			return metrics.textPosition + isTrailingHit * isInside;
 		}
-		void getNearestCharacterIndexAndPosition(Point<float> const& p_point, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) override
+		void getNearestCharacterIndexAndPosition(Point<float> const& p_point, uint32* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) override
 		{
 			getNearestCharacterIndexAndPosition(p_point.x, p_point.y, p_outCharacterIndex, p_outCharacterPosition, p_isRelativeToOrigin);
 		}
-		void getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, uint32_t* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) override
+		void getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, uint32* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) override
 		{
 			int isTrailingHit;
 			int isInside;
@@ -2473,11 +2473,11 @@ namespace AvoGUI
 			*p_outCharacterIndex = metrics.textPosition + isTrailingHit * isInside;
 			p_outCharacterPosition->set(metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * getLeft(), metrics.top + p_isRelativeToOrigin * getTop());
 		}
-		void getNearestCharacterIndexAndBounds(Point<float> const& p_point, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) override
+		void getNearestCharacterIndexAndBounds(Point<float> const& p_point, uint32* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) override
 		{
 			getNearestCharacterIndexAndBounds(p_point.x, p_point.y, p_outCharacterIndex, p_outCharacterBounds, p_isRelativeToOrigin);
 		}
-		void getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, uint32_t* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) override
+		void getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, uint32* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) override
 		{
 			int isTrailingHit;
 			int isInside;
@@ -2878,7 +2878,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setFontFamily(char const* p_name, int32_t p_startPosition, int32_t p_length) override
+		void setFontFamily(char const* p_name, int32 p_startPosition, int32 p_length) override
 		{
 			wchar_t wideName[100];
 			widenString(p_name, wideName, 100);
@@ -2888,21 +2888,21 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setCharacterSpacing(float p_leading, float p_trailing, int32_t p_startPosition, int32_t p_length) override
+		void setCharacterSpacing(float p_leading, float p_trailing, int32 p_startPosition, int32 p_length) override
 		{
 			m_handle->SetCharacterSpacing(p_leading, p_trailing, 0.f, createTextRange(p_startPosition, p_length));
 		}
-		void setCharacterSpacing(float p_characterSpacing, int32_t p_startPosition, int32_t p_length) override
+		void setCharacterSpacing(float p_characterSpacing, int32 p_startPosition, int32 p_length) override
 		{
 			m_handle->SetCharacterSpacing(p_characterSpacing*0.5f, p_characterSpacing*0.5f, 0.f, createTextRange(p_startPosition, p_length));
 		}
-		float getLeadingCharacterSpacing(int32_t p_characterIndex) override
+		float getLeadingCharacterSpacing(int32 p_characterIndex) override
 		{
 			float leadingSpacing = 0.f;
 			m_handle->GetCharacterSpacing(p_characterIndex, &leadingSpacing, 0, 0);
 			return leadingSpacing;
 		}
-		float getTrailingCharacterSpacing(int32_t p_characterIndex) override
+		float getTrailingCharacterSpacing(int32 p_characterIndex) override
 		{
 			float trailingSpacing = 0.f;
 			m_handle->GetCharacterSpacing(p_characterIndex, 0, &trailingSpacing, 0);
@@ -2926,11 +2926,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setFontWeight(FontWeight p_fontWeight, int32_t p_startPosition, int32_t p_length) override
+		void setFontWeight(FontWeight p_fontWeight, int32 p_startPosition, int32 p_length) override
 		{
 			m_handle->SetFontWeight((DWRITE_FONT_WEIGHT)p_fontWeight, createTextRange(p_startPosition, p_length));
 		}
-		FontWeight getFontWeight(uint32_t p_characterPosition) override
+		FontWeight getFontWeight(uint32 p_characterPosition) override
 		{
 			DWRITE_FONT_WEIGHT fontWeight;
 			m_handle->GetFontWeight(p_characterPosition, &fontWeight);
@@ -2939,11 +2939,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setFontStyle(FontStyle p_fontStyle, int32_t p_startPosition = 0, int32_t p_length = 0) override
+		void setFontStyle(FontStyle p_fontStyle, int32 p_startPosition = 0, int32 p_length = 0) override
 		{
 			m_handle->SetFontStyle((DWRITE_FONT_STYLE)p_fontStyle, createTextRange(p_startPosition, p_length));
 		}
-		FontStyle getFontStyle(uint32_t p_characterPosition) override
+		FontStyle getFontStyle(uint32 p_characterPosition) override
 		{
 			DWRITE_FONT_STYLE directwriteFontStyle;
 			m_handle->GetFontStyle(p_characterPosition, &directwriteFontStyle);
@@ -2952,11 +2952,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setFontStretch(FontStretch p_fontStretch, int32_t p_startPosition = 0, int32_t p_length = 0) override
+		void setFontStretch(FontStretch p_fontStretch, int32 p_startPosition = 0, int32 p_length = 0) override
 		{
 			m_handle->SetFontStretch((DWRITE_FONT_STRETCH)p_fontStretch, createTextRange(p_startPosition, p_length));
 		}
-		FontStretch getFontStretch(uint32_t p_characterPosition)
+		FontStretch getFontStretch(uint32 p_characterPosition)
 		{
 			DWRITE_FONT_STRETCH fontStretch;
 			m_handle->GetFontStretch(p_characterPosition, &fontStretch);
@@ -2965,11 +2965,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setFontSize(float p_fontSize, int32_t p_startPosition, int32_t p_length) override
+		void setFontSize(float p_fontSize, int32 p_startPosition, int32 p_length) override
 		{
 			m_handle->SetFontSize(p_fontSize, createTextRange(p_startPosition, p_length));
 		}
-		float getFontSize(uint32_t p_characterPosition) override
+		float getFontSize(uint32 p_characterPosition) override
 		{
 			float fontSize = 0.f;
 			m_handle->GetFontSize(p_characterPosition, &fontSize);
@@ -2997,9 +2997,9 @@ namespace AvoGUI
 	{
 	public:
 		void const* data;
-		uint32_t dataSize;
+		uint32 dataSize;
 
-		FontData(void const* p_data, uint32_t p_dataSize) :
+		FontData(void const* p_data, uint32 p_dataSize) :
 			data(p_data), dataSize(p_dataSize)
 		{ }
 	};
@@ -3077,7 +3077,7 @@ namespace AvoGUI
 	class FontFileLoader : public IDWriteFontFileLoader
 	{
 	private:
-		uint32_t m_referenceCount;
+		uint32 m_referenceCount;
 
 	public:
 		FontFileLoader() : m_referenceCount(0) { }
@@ -3128,7 +3128,7 @@ namespace AvoGUI
 	class FontFileEnumerator : public IDWriteFontFileEnumerator
 	{
 	private:
-		uint32_t m_referenceCount;
+		uint32 m_referenceCount;
 
 		//------------------------------
 
@@ -3137,7 +3137,7 @@ namespace AvoGUI
 
 		std::vector<FontData*>* m_fontData;
 		IDWriteFontFile* m_currentFontFile;
-		int32_t m_currentFontFileIndex;
+		int32 m_currentFontFileIndex;
 
 	public:
 		FontFileEnumerator(IDWriteFactory* p_factory, FontFileLoader* p_fontFileLoader, std::vector<FontData*>* p_data) :
@@ -3206,7 +3206,7 @@ namespace AvoGUI
 	class FontCollectionLoader : public IDWriteFontCollectionLoader
 	{
 	private:
-		uint32_t m_referenceCount;
+		uint32 m_referenceCount;
 		FontFileLoader* m_fontFileLoader;
 
 	public:
@@ -3485,7 +3485,7 @@ namespace AvoGUI
 
 			// Just for debugging...
 			//std::vector<wchar_t*> fontFamilyNames;
-			//for (uint32_t a = 0; a < m_fontCollection->GetFontFamilyCount(); a++)
+			//for (uint32 a = 0; a < m_fontCollection->GetFontFamilyCount(); a++)
 			//{
 			//	IDWriteFontFamily* fontFamily;
 			//	m_fontCollection->GetFontFamily(a, &fontFamily);
@@ -3502,7 +3502,7 @@ namespace AvoGUI
 
 		~WindowsDrawingContext()
 		{
-			for (uint32_t a = 0; a < m_fontData.size(); a++)
+			for (uint32 a = 0; a < m_fontData.size(); a++)
 			{
 				delete m_fontData[a];
 			}
@@ -3586,7 +3586,7 @@ namespace AvoGUI
 				// 1. don't invalidate so damn many rectangles
 				// 2. increase the size of the static array above
 				// 3. make the array above dynamic (see the commented line above there), also don't forget to free it.
-				for (uint32_t a = 0; a < p_updatedRectangles.size(); a++)
+				for (uint32 a = 0; a < p_updatedRectangles.size(); a++)
 				{
 					updatedRects[a].left = p_updatedRectangles[a].left;
 					updatedRects[a].top = p_updatedRectangles[a].top;
@@ -3842,11 +3842,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setSize(Point<uint32_t> const& p_size) override
+		void setSize(Point<uint32> const& p_size) override
 		{
 			setSize(p_size.x, p_size.y);
 		}
-		void setSize(uint32_t p_width, uint32_t p_height) override
+		void setSize(uint32 p_width, uint32 p_height) override
 		{
 			if (m_context->GetSize().width == p_width && m_context->GetSize().height == p_height)
 			{
@@ -3882,14 +3882,14 @@ namespace AvoGUI
 			
 			m_context->SetTarget(m_targetWindowBitmap);
 		}
-		Point<uint32_t> getSize() override
+		Point<uint32> getSize() override
 		{
 			IDXGISurface* dxgiBackBuffer;
 			m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
 			DXGI_SURFACE_DESC description;
 			dxgiBackBuffer->GetDesc(&description);
 			dxgiBackBuffer->Release();
-			return Point<uint32_t>(description.Width, description.Height);
+			return Point<uint32>(description.Width, description.Height);
 		}
 
 		//------------------------------
@@ -4116,7 +4116,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void strokeShape(Point<float> const* p_vertices, uint32_t p_numberOfVertices, float p_lineThickness, bool p_isClosed) override
+		void strokeShape(Point<float> const* p_vertices, uint32 p_numberOfVertices, float p_lineThickness, bool p_isClosed) override
 		{
 			if (!p_numberOfVertices) return;
 
@@ -4126,7 +4126,7 @@ namespace AvoGUI
 			path->Open(&sink);
 
 			sink->BeginFigure(D2D1::Point2F(p_vertices[0].x, p_vertices[0].y), D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_HOLLOW);
-			for (uint32_t a = 1; a < p_numberOfVertices; a++)
+			for (uint32 a = 1; a < p_numberOfVertices; a++)
 			{
 				sink->AddLine(D2D1::Point2F(p_vertices[a].x, p_vertices[a].y));
 			}
@@ -4147,7 +4147,7 @@ namespace AvoGUI
 			strokeShape(p_vertices.data(), p_vertices.size(), p_lineThickness, p_isClosed);
 		}
 
-		void fillShape(Point<float> const* p_vertices, uint32_t p_numberOfVertices) override
+		void fillShape(Point<float> const* p_vertices, uint32 p_numberOfVertices) override
 		{
 			if (!p_numberOfVertices) return;
 
@@ -4157,7 +4157,7 @@ namespace AvoGUI
 			path->Open(&sink);
 
 			sink->BeginFigure(D2D1::Point2F(p_vertices[0].x, p_vertices[0].y), D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_FILLED);
-			for (uint32_t a = 1; a < p_numberOfVertices; a++)
+			for (uint32 a = 1; a < p_numberOfVertices; a++)
 			{
 				sink->AddLine(D2D1::Point2F(p_vertices[a].x, p_vertices[a].y));
 			}
@@ -4455,11 +4455,11 @@ namespace AvoGUI
 
 		//------------------------------
 
-		Image* createRectangleShadowImage(Point<uint32_t> const& p_size, float p_blur, Color const& p_color) override
+		Image* createRectangleShadowImage(Point<uint32> const& p_size, float p_blur, Color const& p_color) override
 		{
 			return createRectangleShadowImage(p_size.x, p_size.y, p_blur, p_color);
 		}
-		Image* createRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_blur, Color const& p_color) override
+		Image* createRectangleShadowImage(uint32 p_width, uint32 p_height, float p_blur, Color const& p_color) override
 		{
 			// I am proud of this algorithm I came up with when I was
 			// trying to make a GUI library using SDL, so why not use it here
@@ -4473,7 +4473,7 @@ namespace AvoGUI
 			if (p_width*p_height == 0) return 0;
 
 			float blurCeiled = std::ceil(p_blur);
-			int32_t edgeWidth = (int32_t)blurCeiled << 1;
+			int32 edgeWidth = (int32)blurCeiled << 1;
 
 			p_width += edgeWidth;
 			p_height += edgeWidth;
@@ -4489,14 +4489,14 @@ namespace AvoGUI
 				p_color |= 0xff000000;
 			}
 
-			uint32_t* pixels = new uint32_t[p_width*p_height];
-			for (uint32_t a = 0; a < p_width*p_height; a++)
+			uint32* pixels = new uint32[p_width*p_height];
+			for (uint32 a = 0; a < p_width*p_height; a++)
 			{
 				pixels[a] = p_color;
 			}
 
-			int32_t x = 0, y = 0;
-			float distance = (p_blur - (int32_t)p_blur) / (p_blur*2.f + 1.f);
+			int32 x = 0, y = 0;
+			float distance = (p_blur - (int32)p_blur) / (p_blur*2.f + 1.f);
 			float alphaFactor = 2.f*distance*distance;
 
 			if (p_width > p_height)
@@ -4527,7 +4527,7 @@ namespace AvoGUI
 
 						// I needed to sit down with pen and paper for like half an hour to figure this out lol
 
-						distance = ((float)y + p_blur - (int32_t)p_blur) / (p_blur*2.f + 1.f);
+						distance = ((float)y + p_blur - (int32)p_blur) / (p_blur*2.f + 1.f);
 
 						if (y < blurCeiled)
 						{
@@ -4560,7 +4560,7 @@ namespace AvoGUI
 						y = 0;
 						x++;
 
-						distance = ((float)x + p_blur - (int32_t)p_blur) / (p_blur*2.f + 1.f);
+						distance = ((float)x + p_blur - (int32)p_blur) / (p_blur*2.f + 1.f);
 
 						if (x < blurCeiled)
 						{
@@ -4656,11 +4656,11 @@ namespace AvoGUI
 			return new WindowsImage(outputBitmap);
 		}
 
-		Image* createRoundedRectangleShadowImage(Point<uint32_t> const& p_size, float p_radius, float p_blur, Color const& p_color)
+		Image* createRoundedRectangleShadowImage(Point<uint32> const& p_size, float p_radius, float p_blur, Color const& p_color)
 		{
 			return createRoundedRectangleShadowImage(p_size.x, p_size.y, p_radius, p_blur, p_color);
 		}
-		Image* createRoundedRectangleShadowImage(uint32_t p_width, uint32_t p_height, float p_radius, float p_blur, Color const& p_color)
+		Image* createRoundedRectangleShadowImage(uint32 p_width, uint32 p_height, float p_radius, float p_blur, Color const& p_color)
 		{
 			if (!p_width || !p_height || !p_color.alpha) return 0;
 
@@ -4732,7 +4732,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		Image* createImage(void const* p_pixelData, uint32_t p_width, uint32_t p_height) override
+		Image* createImage(void const* p_pixelData, uint32 p_width, uint32 p_height) override
 		{
 			ID2D1Bitmap1* bitmap;
 			m_context->CreateBitmap(
@@ -4834,7 +4834,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void addFont(void const* p_data, uint32_t p_dataSize)
+		void addFont(void const* p_data, uint32 p_dataSize)
 		{
 			m_fontData.push_back(new FontData(p_data, p_dataSize));
 			updateFontCollection();
@@ -4891,7 +4891,7 @@ namespace AvoGUI
 
 		Text* createText(char const* p_string, float p_fontSize, Rectangle<float> const& p_bounds = Rectangle<float>()) override
 		{
-			int32_t numberOfCharacters = MultiByteToWideChar(CP_UTF8, 0, p_string, -1, 0, 0);
+			int32 numberOfCharacters = MultiByteToWideChar(CP_UTF8, 0, p_string, -1, 0, 0);
 			wchar_t* wideString = new wchar_t[numberOfCharacters];
 			MultiByteToWideChar(CP_UTF8, 0, p_string, -1, wideString, numberOfCharacters);
 
@@ -4914,7 +4914,7 @@ namespace AvoGUI
 		{
 			if (p_string == "") return;
 
-			int32_t numberOfCharacters = MultiByteToWideChar(CP_UTF8, 0, p_string, -1, 0, 0);
+			int32 numberOfCharacters = MultiByteToWideChar(CP_UTF8, 0, p_string, -1, 0, 0);
 			wchar_t* wideString = new wchar_t[numberOfCharacters];
 			MultiByteToWideChar(CP_UTF8, 0, p_string, -1, wideString, numberOfCharacters);
 
@@ -4953,7 +4953,7 @@ namespace AvoGUI
 	{
 		HWND windowHandle = (HWND)p_gui->getWindow()->getWindowHandle();
 
-		int32_t syncInterval = 16666667;
+		int32 syncInterval = 16666667;
 		auto timeBefore = std::chrono::steady_clock::now();
 
 		bool wasLastFrameDrawn = false;
@@ -5021,14 +5021,14 @@ namespace AvoGUI
 		p_result.reserve(10);
 
 		View* container = this;
-		int32_t startIndex = getNumberOfChildren() - 1;
+		int32 startIndex = getNumberOfChildren() - 1;
 
 		bool hasFoundTopView = false;
 
 		while (true)
 		{
 		loopStart:
-			for (int32_t a = startIndex; a >= 0; a--)
+			for (int32 a = startIndex; a >= 0; a--)
 			{
 				View* child = container->getChild(a);
 				// Invisible views and their children do not recieve mouse events.
@@ -5121,13 +5121,13 @@ namespace AvoGUI
 		}
 	}
 
-	void GUI::create(char const* p_title, uint32_t p_x, uint32_t p_y, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
+	void GUI::create(char const* p_title, uint32 p_x, uint32 p_y, uint32 p_width, uint32 p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
 	{
 		m_bounds = Rectangle<float>(0, 0, p_width, p_height);
 		setAbsoluteBounds(m_bounds);
 		m_window->create(p_title, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
 	}
-	void GUI::create(char const* p_title, uint32_t p_width, uint32_t p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
+	void GUI::create(char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
 	{
 		m_bounds = Rectangle<float>(0, 0, p_width, p_height);
 		m_window->create(p_title, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
@@ -5141,7 +5141,7 @@ namespace AvoGUI
 
 		while (true)
 		{
-			for (int32_t a = currentContainer->getNumberOfChildren() - 1; a >= 0; a--)
+			for (int32 a = currentContainer->getNumberOfChildren() - 1; a >= 0; a--)
 			{
 				View* view = currentContainer->getChild(a);
 				if (view->getIsVisible() && !view->getIsOverlay() && view->getIsContainingAbsolute(p_coordinates))
@@ -5358,7 +5358,7 @@ namespace AvoGUI
 			// Get ready for some big ol' algorithms. They're hopefully more efficient than they look like, because of the view tree structure.
 
 			View* container = this;
-			int32_t startIndex = getNumberOfChildren() - 1;
+			int32 startIndex = getNumberOfChildren() - 1;
 
 			bool isLastPositionInsideGUI = getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY);
 			bool isNewPositionInsideGUI = getIsContaining(p_event.x, p_event.y);
@@ -5391,7 +5391,7 @@ namespace AvoGUI
 			{
 			loopStart_0:
 				hasFoundViewContainingOldPosition = false;
-				for (int32_t a = startIndex; a >= 0; a--)
+				for (int32 a = startIndex; a >= 0; a--)
 				{
 					View* child = container->getChild(a);
 					if (child->getIsVisible() && child->getIsContainingAbsolute(p_event.x, p_event.y))
@@ -5503,7 +5503,7 @@ namespace AvoGUI
 			{
 			loopStart_1:
 				hasFoundViewContainingNewPosition = false;
-				for (int32_t a = startIndex; a >= 0; a--)
+				for (int32 a = startIndex; a >= 0; a--)
 				{
 					View* child = container->getChild(a);
 					if (child->getIsVisible() && child->getIsContainingAbsolute(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
@@ -5707,8 +5707,8 @@ namespace AvoGUI
 		}
 		
 		excludeAnimationThread();
-		uint32_t numberOfEventsToProcess = m_animationUpdateQueue.size();
-		for (uint32_t a = 0; a < numberOfEventsToProcess; a++)
+		uint32 numberOfEventsToProcess = m_animationUpdateQueue.size();
+		for (uint32 a = 0; a < numberOfEventsToProcess; a++)
 		{
 			m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval();
 			m_animationUpdateQueue.front()->updateAnimations();
@@ -5728,7 +5728,7 @@ namespace AvoGUI
 			return;
 		}
 
-		int32_t rectangleIndex = -1;
+		int32 rectangleIndex = -1;
 		Rectangle<float>* rectangle = 0;
 
 		bool willAdd = true;
@@ -5738,7 +5738,7 @@ namespace AvoGUI
 			if (rectangle)
 			{
 				isDone = true;
-				for (uint32_t a = 0; a < m_invalidRectangles.size(); a++)
+				for (uint32 a = 0; a < m_invalidRectangles.size(); a++)
 				{
 					if (a != rectangleIndex)
 					{
@@ -5761,7 +5761,7 @@ namespace AvoGUI
 			else
 			{
 				isDone = true;
-				for (uint32_t a = 0; a < m_invalidRectangles.size(); a++)
+				for (uint32 a = 0; a < m_invalidRectangles.size(); a++)
 				{
 					if (m_invalidRectangles[a].getIsIntersecting(p_rectangle))
 					{
@@ -5797,11 +5797,11 @@ namespace AvoGUI
 			//std::cout << "\n\n";
 			includeAnimationThread();
 
-			Point<uint32_t> size(m_drawingContext->getSize());
+			Point<uint32> size(m_drawingContext->getSize());
 			for (auto const& targetRectangle : invalidRectangles)
 			{
 				View* currentContainer = this;
-				uint32_t startPosition = 0;
+				uint32 startPosition = 0;
 
 				m_drawingContext->setOrigin(0, 0);
 				m_drawingContext->pushClipRectangle(targetRectangle);
@@ -5814,7 +5814,7 @@ namespace AvoGUI
 				while (true)
 				{
 					bool isDoneWithContainer = true;
-					for (uint32_t a = startPosition; a < currentContainer->getNumberOfChildren(); a++)
+					for (uint32 a = startPosition; a < currentContainer->getNumberOfChildren(); a++)
 					{
 						View* view = currentContainer->getChild(a);
 
@@ -5941,7 +5941,7 @@ namespace AvoGUI
 		COMDLG_FILTERSPEC* filters = new COMDLG_FILTERSPEC[m_fileExtensions.size()];
 		// I made 1 big string buffer to decrease the number of allocations.
 		wchar_t* filterStringBuffer = new wchar_t[100 * m_fileExtensions.size()];
-		for (uint32_t a = 0; a < m_fileExtensions.size(); a++)
+		for (uint32 a = 0; a < m_fileExtensions.size(); a++)
 		{
 			filters[a].pszName = filterStringBuffer + a*100;
 			widenString(m_fileExtensions[a].name, (wchar_t*)filters[a].pszName, 50);
@@ -5972,7 +5972,7 @@ namespace AvoGUI
 				items->GetCount(&numberOfResults);
 				p_openedFilePaths.resize(numberOfResults);
 
-				for (uint32_t a = 0; a < numberOfResults; a++)
+				for (uint32 a = 0; a < numberOfResults; a++)
 				{
 					IShellItem* item;
 					items->GetItemAt(a, &item);
@@ -6017,7 +6017,7 @@ namespace AvoGUI
 		COMDLG_FILTERSPEC* filters = new COMDLG_FILTERSPEC[m_fileExtensions.size()];
 		// I made 1 big string buffer to decrease the number of allocations.
 		wchar_t* filterStringBuffer = new wchar_t[100 * m_fileExtensions.size()];
-		for (uint32_t a = 0; a < m_fileExtensions.size(); a++)
+		for (uint32 a = 0; a < m_fileExtensions.size(); a++)
 		{
 			filters[a].pszName = filterStringBuffer + a * 100;
 			widenString(m_fileExtensions[a].name, (wchar_t*)filters[a].pszName, 50);
@@ -6047,7 +6047,7 @@ namespace AvoGUI
 				items->GetCount(&numberOfResults);
 				p_openedFilePaths.resize(numberOfResults);
 
-				for (uint32_t a = 0; a < numberOfResults; a++)
+				for (uint32 a = 0; a < numberOfResults; a++)
 				{
 					IShellItem* item;
 					items->GetItemAt(a, &item);
