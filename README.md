@@ -75,7 +75,7 @@ class MyApplication : public AvoGUI::GUI
     // Here you can draw directly in your GUI. It will appear behind child views. There is no default 
     // implementation.
   }
-  void draw(AvoGUI::DrawingContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
+  void draw(AvoGUI::DrawingContext* p_drawingContext, const AvoGUI::Rectangle<float>& p_targetRectangle) override
   {
     // By default, this method just calls the other draw method. You can use this one instead if you want to 
     // optimize drawing using the target rectangle, which is a rectangle specifying where drawing is needed 
@@ -87,7 +87,7 @@ class MyApplication : public AvoGUI::GUI
     // Here you can draw on top of child views. There is no default implementation.
     // Inherited from AvoGUI::View.
   }
-  void drawOverlay(AvoGUI::DrawContext* p_drawingContext, const Rectangle<float>& p_targetRectangle) override
+  void drawOverlay(AvoGUI::DrawContext* p_drawingContext, const AvoGUI::Rectangle<float>& p_targetRectangle) override
   {
     // By default, this method just calls the other drawOverlay method. 
     // Inherited from AvoGUI::View.
