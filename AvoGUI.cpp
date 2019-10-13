@@ -155,7 +155,7 @@ namespace AvoGUI
 
 	View::View(View* p_parent, Rectangle<float> const& p_bounds) :
 		ProtectedRectangle(p_bounds), m_isInAnimationUpdateQueue(false), m_isVisible(true), m_isOverlay(false),
-		m_areMouseEventsEnabled(false), m_cornerRadius(0.f), m_cursor(Cursor::Arrow), 
+		m_areMouseEventsEnabled(false), m_cursor(Cursor::Arrow), 
 		m_shadowBounds(p_bounds), m_shadowImage(0), m_hasShadow(true), m_elevation(0.f), m_hasSizeChangedSinceLastElevationChange(true),
 		m_parent(0)
 	{
@@ -349,161 +349,161 @@ namespace AvoGUI
 
 	//------------------------------
 
-	bool View::getIsIntersecting(View* p_view) const
-	{
-		Rectangle<float> viewBounds(p_view->getAbsoluteBounds());
-		if (p_view->getParent() != getParent())
-		{
-			viewBounds -= getParent()->getAbsoluteBounds().getTopLeft();
-		}
-		if (m_bounds.getIsIntersecting(viewBounds))
-		{
-			if (p_view->getCornerRadius() > 0.f)
-			{
-				if (m_cornerRadius > 0.f)
-				{
-					if (viewBounds.right - p_view->getCornerRadius() < m_bounds.left + m_cornerRadius)
-					{
-						if (viewBounds.bottom - p_view->getCornerRadius() < m_bounds.top + m_cornerRadius)
-						{
-							return Point<>::getDistanceSquared(viewBounds.right - m_cornerRadius, viewBounds.bottom - m_cornerRadius, m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
-						}
-						if (viewBounds.top + p_view->getCornerRadius() > m_bounds.bottom - m_cornerRadius)
-						{
-							return Point<>::getDistanceSquared(viewBounds.right - m_cornerRadius, viewBounds.top + m_cornerRadius, m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
-						}
-					}
-					else if (viewBounds.left + p_view->getCornerRadius() > m_bounds.right - m_cornerRadius)
-					{
-						if (viewBounds.bottom - p_view->getCornerRadius() < m_bounds.top + m_cornerRadius)
-						{
-							return Point<>::getDistanceSquared(viewBounds.left + m_cornerRadius, viewBounds.bottom - m_cornerRadius, m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
-						}
-						if (viewBounds.top + p_view->getCornerRadius() > m_bounds.bottom - m_cornerRadius)
-						{
-							return Point<>::getDistanceSquared(viewBounds.left + m_cornerRadius, viewBounds.top + m_cornerRadius, m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
-						}
-					}
-					return true;
-				}
-				float radius = p_view->getCornerRadius();
-				if (m_bounds.right < viewBounds.left + radius)
-				{
-					if (m_bounds.bottom < viewBounds.top + radius)
-					{
-						return Point<>::getDistanceSquared(m_bounds.right, m_bounds.bottom, viewBounds.left + radius, viewBounds.top + radius) < radius*radius;
-					}
-					if (m_bounds.top < viewBounds.bottom - radius)
-					{
-						return Point<>::getDistanceSquared(m_bounds.right, m_bounds.top, viewBounds.left + radius, viewBounds.bottom - radius) < radius*radius;
-					}
-				}
-				else if (m_bounds.left > viewBounds.right)
-				{
-					if (m_bounds.bottom < viewBounds.top + radius)
-					{
-						return Point<>::getDistanceSquared(m_bounds.left, m_bounds.bottom, viewBounds.right - radius, viewBounds.top + radius) < radius*radius;
-					}
-					if (m_bounds.top < viewBounds.bottom - radius)
-					{
-						return Point<>::getDistanceSquared(m_bounds.left, m_bounds.top, viewBounds.right - radius, viewBounds.bottom - radius) < radius*radius;
-					}
-				}
-			}
-			return true;
-		}
-		return false;
-	}
+	//bool View::getIsIntersecting(View* p_view) const
+	//{
+	//	Rectangle<float> viewBounds(p_view->getAbsoluteBounds());
+	//	if (p_view->getParent() != getParent())
+	//	{
+	//		viewBounds -= getParent()->getAbsoluteBounds().getTopLeft();
+	//	}
+	//	if (m_bounds.getIsIntersecting(viewBounds))
+	//	{
+	//		if (p_view->getCornerRadius() > 0.f)
+	//		{
+	//			if (m_cornerRadius > 0.f)
+	//			{
+	//				if (viewBounds.right - p_view->getCornerRadius() < m_bounds.left + m_cornerRadius)
+	//				{
+	//					if (viewBounds.bottom - p_view->getCornerRadius() < m_bounds.top + m_cornerRadius)
+	//					{
+	//						return Point<>::getDistanceSquared(viewBounds.right - m_cornerRadius, viewBounds.bottom - m_cornerRadius, m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
+	//					}
+	//					if (viewBounds.top + p_view->getCornerRadius() > m_bounds.bottom - m_cornerRadius)
+	//					{
+	//						return Point<>::getDistanceSquared(viewBounds.right - m_cornerRadius, viewBounds.top + m_cornerRadius, m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
+	//					}
+	//				}
+	//				else if (viewBounds.left + p_view->getCornerRadius() > m_bounds.right - m_cornerRadius)
+	//				{
+	//					if (viewBounds.bottom - p_view->getCornerRadius() < m_bounds.top + m_cornerRadius)
+	//					{
+	//						return Point<>::getDistanceSquared(viewBounds.left + m_cornerRadius, viewBounds.bottom - m_cornerRadius, m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
+	//					}
+	//					if (viewBounds.top + p_view->getCornerRadius() > m_bounds.bottom - m_cornerRadius)
+	//					{
+	//						return Point<>::getDistanceSquared(viewBounds.left + m_cornerRadius, viewBounds.top + m_cornerRadius, m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
+	//					}
+	//				}
+	//				return true;
+	//			}
+	//			float radius = p_view->getCornerRadius();
+	//			if (m_bounds.right < viewBounds.left + radius)
+	//			{
+	//				if (m_bounds.bottom < viewBounds.top + radius)
+	//				{
+	//					return Point<>::getDistanceSquared(m_bounds.right, m_bounds.bottom, viewBounds.left + radius, viewBounds.top + radius) < radius*radius;
+	//				}
+	//				if (m_bounds.top < viewBounds.bottom - radius)
+	//				{
+	//					return Point<>::getDistanceSquared(m_bounds.right, m_bounds.top, viewBounds.left + radius, viewBounds.bottom - radius) < radius*radius;
+	//				}
+	//			}
+	//			else if (m_bounds.left > viewBounds.right)
+	//			{
+	//				if (m_bounds.bottom < viewBounds.top + radius)
+	//				{
+	//					return Point<>::getDistanceSquared(m_bounds.left, m_bounds.bottom, viewBounds.right - radius, viewBounds.top + radius) < radius*radius;
+	//				}
+	//				if (m_bounds.top < viewBounds.bottom - radius)
+	//				{
+	//					return Point<>::getDistanceSquared(m_bounds.left, m_bounds.top, viewBounds.right - radius, viewBounds.bottom - radius) < radius*radius;
+	//				}
+	//			}
+	//		}
+	//		return true;
+	//	}
+	//	return false;
+	//}
 
-	bool View::getIsContaining(View* p_view) const
-	{
-		Rectangle<float> viewBounds(p_view->getAbsoluteBounds());
-		if (p_view->getParent() != getParent())
-		{
-			viewBounds -= getParent()->getAbsoluteBounds().getTopLeft();
-		}
-		if (getIsContaining(viewBounds))
-		{
-			float radius = p_view->getCornerRadius();
-			float maxDistance = (m_cornerRadius - radius)*(m_cornerRadius - radius);
-			if (viewBounds.left < m_bounds.left + m_cornerRadius)
-			{
-				if (viewBounds.top < m_bounds.top + m_cornerRadius)
-				{
-					if (Point<>::getDistanceSquared(viewBounds.left + radius, viewBounds.top + radius, m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius) > maxDistance)
-					{
-						return false;
-					}
-				}
-				if (viewBounds.bottom > m_bounds.bottom - m_cornerRadius)
-				{
-					if (Point<>::getDistanceSquared(viewBounds.left + radius, viewBounds.bottom - radius, m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius) > maxDistance)
-					{
-						return false;
-					}
-				}
-			}
-			if (viewBounds.right > m_bounds.right - m_cornerRadius)
-			{
-				if (viewBounds.top < m_bounds.top + m_cornerRadius)
-				{
-					if (Point<>::getDistanceSquared(viewBounds.right - radius, viewBounds.top + radius, m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius) > maxDistance)
-					{
-						return false;
-					}
-				}
-				if (viewBounds.bottom > m_bounds.bottom - m_cornerRadius)
-				{
-					if (Point<>::getDistanceSquared(viewBounds.right - radius, viewBounds.bottom - radius, m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius) > maxDistance)
-					{
-						return false;
-					}
-				}
-			}
-			return true;
-		}
-		if (viewBounds.getIsContaining(m_bounds))
-		{
-			float radius = p_view->getCornerRadius();
-			float maxDistance = (m_cornerRadius - radius)*(m_cornerRadius - radius);
-			if (m_bounds.left < viewBounds.left + radius)
-			{
-				if (m_bounds.top < viewBounds.top + radius)
-				{
-					if (Point<>::getDistanceSquared(m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius, viewBounds.left + radius, viewBounds.top + radius) > maxDistance)
-					{
-						return false;
-					}
-				}
-				if (m_bounds.bottom > viewBounds.bottom - radius)
-				{
-					if (Point<>::getDistanceSquared(m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius, viewBounds.left + radius, viewBounds.bottom - radius) > maxDistance)
-					{
-						return false;
-					}
-				}
-			}
-			if (m_bounds.right > viewBounds.right - radius)
-			{
-				if (m_bounds.top < viewBounds.top + radius)
-				{
-					if (Point<>::getDistanceSquared(m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius, viewBounds.right - radius, viewBounds.top + radius) > maxDistance)
-					{
-						return false;
-					}
-				}
-				if (m_bounds.bottom > viewBounds.bottom - radius)
-				{
-					if (Point<>::getDistanceSquared(m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius, viewBounds.right - radius, viewBounds.bottom - radius) > maxDistance)
-					{
-						return false;
-					}
-				}
-			}
-			return true;
-		}
-		return false;
-	}
+	//bool View::getIsContaining(View* p_view) const
+	//{
+	//	Rectangle<float> viewBounds(p_view->getAbsoluteBounds());
+	//	if (p_view->getParent() != getParent())
+	//	{
+	//		viewBounds -= getParent()->getAbsoluteBounds().getTopLeft();
+	//	}
+	//	if (getIsContaining(viewBounds))
+	//	{
+	//		float radius = p_view->getCornerRadius();
+	//		float maxDistance = (m_cornerRadius - radius)*(m_cornerRadius - radius);
+	//		if (viewBounds.left < m_bounds.left + m_cornerRadius)
+	//		{
+	//			if (viewBounds.top < m_bounds.top + m_cornerRadius)
+	//			{
+	//				if (Point<>::getDistanceSquared(viewBounds.left + radius, viewBounds.top + radius, m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//			if (viewBounds.bottom > m_bounds.bottom - m_cornerRadius)
+	//			{
+	//				if (Point<>::getDistanceSquared(viewBounds.left + radius, viewBounds.bottom - radius, m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//		}
+	//		if (viewBounds.right > m_bounds.right - m_cornerRadius)
+	//		{
+	//			if (viewBounds.top < m_bounds.top + m_cornerRadius)
+	//			{
+	//				if (Point<>::getDistanceSquared(viewBounds.right - radius, viewBounds.top + radius, m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//			if (viewBounds.bottom > m_bounds.bottom - m_cornerRadius)
+	//			{
+	//				if (Point<>::getDistanceSquared(viewBounds.right - radius, viewBounds.bottom - radius, m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//		}
+	//		return true;
+	//	}
+	//	if (viewBounds.getIsContaining(m_bounds))
+	//	{
+	//		float radius = p_view->getCornerRadius();
+	//		float maxDistance = (m_cornerRadius - radius)*(m_cornerRadius - radius);
+	//		if (m_bounds.left < viewBounds.left + radius)
+	//		{
+	//			if (m_bounds.top < viewBounds.top + radius)
+	//			{
+	//				if (Point<>::getDistanceSquared(m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius, viewBounds.left + radius, viewBounds.top + radius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//			if (m_bounds.bottom > viewBounds.bottom - radius)
+	//			{
+	//				if (Point<>::getDistanceSquared(m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius, viewBounds.left + radius, viewBounds.bottom - radius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//		}
+	//		if (m_bounds.right > viewBounds.right - radius)
+	//		{
+	//			if (m_bounds.top < viewBounds.top + radius)
+	//			{
+	//				if (Point<>::getDistanceSquared(m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius, viewBounds.right - radius, viewBounds.top + radius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//			if (m_bounds.bottom > viewBounds.bottom - radius)
+	//			{
+	//				if (Point<>::getDistanceSquared(m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius, viewBounds.right - radius, viewBounds.bottom - radius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//		}
+	//		return true;
+	//	}
+	//	return false;
+	//}
 
 	//------------------------------
 
@@ -513,19 +513,19 @@ namespace AvoGUI
 
 		if (m_hasSizeChangedSinceLastElevationChange || m_elevation != p_elevation)
 		{
-			if (p_elevation > 0.00001f && m_hasShadow && p_elevation < 400.f)
+			if (getWidth() > 0.f && getHeight() > 0.f && p_elevation > 0.00001f && m_hasShadow && p_elevation < 400.f)
 			{
 				if (m_shadowImage)
 				{
 					m_shadowImage->forget();
 				}
-				m_shadowImage = m_GUI->getDrawingContext()->createRoundedRectangleShadowImage(getSize(), m_cornerRadius, p_elevation, m_theme->colors["shadow"]);
+				m_shadowImage = m_GUI->getDrawingContext()->createRectangleShadowImage(getSize(), m_corners, p_elevation, m_theme->colors["shadow"]);
 				m_shadowBounds = Rectangle<float>(
 					Point<float>(
 						0.5f*(m_bounds.right - m_bounds.left - (float)m_shadowImage->getWidth()),
 						0.35f*(m_bounds.bottom - m_bounds.top - (float)m_shadowImage->getHeight())
-						), m_shadowImage->getSize()
-					);
+					), m_shadowImage->getSize()
+				);
 				m_shadowImage->setTopLeft(m_shadowBounds.getTopLeft());
 			}
 			else
@@ -2391,6 +2391,10 @@ namespace AvoGUI
 		{
 			DWRITE_TEXT_METRICS metrics;
 			m_handle->GetMetrics(&metrics);
+
+			//DWRITE_OVERHANG_METRICS overhangMetrics;
+			//m_handle->GetOverhangMetrics(&overhangMetrics);
+
 			m_bounds.setHeight(metrics.height);
 		}
 		Point<float> getMinimumSize() override
@@ -2522,6 +2526,40 @@ namespace AvoGUI
 				return TextAlign::Right;
 			case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED:
 				return TextAlign::Fill;
+			}
+		}
+
+
+		void setReadingDirection(ReadingDirection p_readingDirection) override
+		{
+			switch (p_readingDirection)
+			{
+			case ReadingDirection::LeftToRight:
+				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_LEFT_TO_RIGHT);
+				break;
+			case ReadingDirection::RightToLeft:
+				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
+				break;
+			case ReadingDirection::TopToBottom:
+				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM);
+				break;
+			case ReadingDirection::BottomToTop:
+				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP);
+				break;
+			}
+		}
+		ReadingDirection getReadingDirection() override
+		{
+			switch (m_handle->GetReadingDirection())
+			{
+			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_LEFT_TO_RIGHT:
+				return ReadingDirection::LeftToRight;
+			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT:
+				return ReadingDirection::RightToLeft;
+			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM:
+				return ReadingDirection::TopToBottom;
+			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP:
+				return ReadingDirection::BottomToTop;
 			}
 		}
 
@@ -2913,7 +2951,7 @@ namespace AvoGUI
 
 		void setLineHeight(float p_lineHeight)
 		{
-			m_handle->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_lineHeight, p_lineHeight*0.9f);
+			m_handle->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_lineHeight, p_lineHeight*0.8f);
 		}
 		float getLineHeight()
 		{
@@ -3280,6 +3318,68 @@ namespace AvoGUI
 		std::vector<FontData*> m_fontData;
 
 		//------------------------------
+
+		void createCornerRectangleGeometry(ID2D1PathGeometry1* p_geometry, float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners, bool p_isFilled)
+		{
+			ID2D1GeometrySink* sink;
+			p_geometry->Open(&sink);
+
+			sink->SetFillMode(D2D1_FILL_MODE::D2D1_FILL_MODE_WINDING);
+			sink->BeginFigure(D2D1::Point2F(p_left, p_top + p_corners.topLeftSizeY), p_isFilled ? D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_FILLED : D2D1_FIGURE_BEGIN_HOLLOW);
+
+			if (p_corners.topLeftSizeX && p_corners.topLeftSizeY)
+			{
+				if (p_corners.topLeftType == RectangleCornerType::Round)
+				{
+					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_left + p_corners.topLeftSizeX, p_top), D2D1::SizeF(p_corners.topLeftSizeX, p_corners.topLeftSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
+				}
+				else
+				{
+					sink->AddLine(D2D1::Point2F(p_left + p_corners.topLeftSizeX, p_top));
+				}
+			}
+			sink->AddLine(D2D1::Point2F(p_right - p_corners.topRightSizeX, p_top));
+			if (p_corners.topRightSizeX && p_corners.topRightSizeY)
+			{
+				if (p_corners.topLeftType == RectangleCornerType::Round)
+				{
+					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_right, p_top + p_corners.topRightSizeY), D2D1::SizeF(p_corners.topRightSizeX, p_corners.topRightSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
+				}
+				else
+				{
+					sink->AddLine(D2D1::Point2F(p_right, p_top + p_corners.topRightSizeY));
+				}
+			}
+			sink->AddLine(D2D1::Point2F(p_right, p_bottom - p_corners.bottomRightSizeY));
+			if (p_corners.bottomRightSizeX && p_corners.bottomRightSizeY)
+			{
+				if (p_corners.topLeftType == RectangleCornerType::Round)
+				{
+					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_right - p_corners.bottomRightSizeX, p_bottom), D2D1::SizeF(p_corners.bottomRightSizeX, p_corners.bottomRightSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
+				}
+				else
+				{
+					sink->AddLine(D2D1::Point2F(p_right - p_corners.bottomRightSizeX, p_bottom));
+				}
+			}
+			sink->AddLine(D2D1::Point2F(p_left + p_corners.bottomLeftSizeX, p_bottom));
+			if (p_corners.bottomLeftSizeX && p_corners.bottomLeftSizeY)
+			{
+				if (p_corners.topLeftType == RectangleCornerType::Round)
+				{
+					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_left, p_bottom - p_corners.bottomLeftSizeY), D2D1::SizeF(p_corners.bottomLeftSizeX, p_corners.bottomLeftSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
+				}
+				else
+				{
+					sink->AddLine(D2D1::Point2F(p_left, p_bottom - p_corners.bottomLeftSizeY));
+				}
+			}
+			sink->AddLine(D2D1::Point2F(p_left, p_top + p_corners.topLeftSizeY));
+
+			sink->EndFigure(D2D1_FIGURE_END::D2D1_FIGURE_END_CLOSED);
+			sink->Close();
+			sink->Release();
+		}
 
 		void updateFontCollection()
 		{
@@ -3922,7 +4022,6 @@ namespace AvoGUI
 				), m_solidColorBrush
 			);
 		}
-
 		void fillRectangle(Point<float> const& p_size) override
 		{
 			m_context->FillRectangle(D2D1::RectF(0, 0, p_size.x, p_size.y), m_solidColorBrush);
@@ -3930,6 +4029,62 @@ namespace AvoGUI
 		void fillRectangle(float p_width, float p_height) override
 		{
 			m_context->FillRectangle(D2D1::RectF(0, 0, p_width, p_height), m_solidColorBrush);
+		}
+
+		void fillRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners) override
+		{
+			fillRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners);
+		}
+		void fillRectangle(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_corners) override
+		{
+			fillRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_corners);
+		}
+		void fillRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners) override
+		{
+			ID2D1PathGeometry1* pathGeometry;
+			s_direct2DFactory->CreatePathGeometry(&pathGeometry);
+			createCornerRectangleGeometry(pathGeometry, p_left, p_top, p_right, p_bottom, p_corners, true);
+
+			m_context->FillGeometry(pathGeometry, m_solidColorBrush);
+
+			pathGeometry->Release();
+		}
+
+		void fillRectangle(Point<float> const& p_size, RectangleCorners const& p_corners) override
+		{
+			fillRectangle(0.f, 0.f, p_size.x, p_size.y, p_corners);
+		}
+		void fillRectangle(float p_width, float p_height, RectangleCorners const& p_corners) override
+		{
+			fillRectangle(0.f, 0.f, p_width, p_height, p_corners);
+		}
+
+		void fillRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius) override
+		{
+			fillRoundedRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius);
+		}
+		void fillRoundedRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_radius) override
+		{
+			fillRoundedRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_radius);
+		}
+		void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
+		{
+			m_context->FillRoundedRectangle(
+				D2D1::RoundedRect(
+					D2D1::RectF(
+						p_left, p_top,
+						p_right, p_bottom
+					), p_radius, p_radius
+				), m_solidColorBrush
+			);
+		}
+		void fillRoundedRectangle(Point<float> const& p_size, float p_radius) override
+		{
+			fillRoundedRectangle(p_size.x, p_size.y, p_radius);
+		}
+		void fillRoundedRectangle(float p_width, float p_height, float p_radius) override
+		{
+			fillRoundedRectangle(0.f, 0.f, p_width, p_height, p_radius);
 		}
 
 		//------------------------------
@@ -3956,61 +4111,14 @@ namespace AvoGUI
 
 			strokeStyle->Release();
 		}
-
 		void strokeRectangle(Point<float> const& p_size, float p_strokeWidth = 1.f) override
 		{
 			strokeRectangle(p_size.x, p_size.y, p_strokeWidth);
 		}
 		void strokeRectangle(float p_width, float p_height, float p_strokeWidth = 1.f) override
 		{
-			ID2D1StrokeStyle* strokeStyle;
-			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
-
-			m_context->DrawRectangle(
-				D2D1::RectF(0, 0, p_width, p_height),
-				m_solidColorBrush, p_strokeWidth, strokeStyle
-			);
-
-			strokeStyle->Release();
+			strokeRectangle(0.f, 0.f, p_width, p_height, p_strokeWidth);
 		}
-
-		//------------------------------
-
-		void fillRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius) override
-		{
-			fillRoundedRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius);
-		}
-		void fillRoundedRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_radius) override
-		{
-			fillRoundedRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_radius);
-		}
-		void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
-		{
-			m_context->FillRoundedRectangle(
-				D2D1::RoundedRect(
-					D2D1::RectF(
-						p_left, p_top,
-						p_right, p_bottom
-					), p_radius, p_radius
-				), m_solidColorBrush
-			);
-		}
-
-		void fillRoundedRectangle(Point<float> const& p_size, float p_radius) override
-		{
-			fillRoundedRectangle(p_size.x, p_size.y, p_radius);
-		}
-		void fillRoundedRectangle(float p_width, float p_height, float p_radius) override
-		{
-			m_context->FillRoundedRectangle(
-				D2D1::RoundedRect(
-					D2D1::RectF(0, 0, p_width, p_height),
-					p_radius, p_radius
-				), m_solidColorBrush
-			);
-		}
-
-		//------------------------------
 
 		void strokeRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius, float p_strokeWidth = 1.f) override
 		{
@@ -4037,24 +4145,43 @@ namespace AvoGUI
 
 			strokeStyle->Release();
 		}
-
 		void strokeRoundedRectangle(Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) override
 		{
 			strokeRoundedRectangle(p_size.x, p_size.y, p_radius, p_strokeWidth);
 		}
 		void strokeRoundedRectangle(float p_width, float p_height, float p_radius, float p_strokeWidth = 1.f) override
 		{
+			strokeRoundedRectangle(0.f, 0.f, p_width, p_height, p_radius, p_strokeWidth);
+		}
+
+		void strokeRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
+		{
+			strokeRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.bottom, p_rectangle.right, p_corners, p_strokeWidth);
+		}
+		void strokeRectangle(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
+		{
+			strokeRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_corners, p_strokeWidth);
+		}
+		void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
+		{
+			ID2D1PathGeometry1* pathGeometry;
+			s_direct2DFactory->CreatePathGeometry(&pathGeometry);
+			createCornerRectangleGeometry(pathGeometry, p_left, p_top, p_right, p_bottom, p_corners, false);
+
 			ID2D1StrokeStyle* strokeStyle;
 			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
-
-			m_context->DrawRoundedRectangle(
-				D2D1::RoundedRect(
-					D2D1::RectF(0, 0, p_width, p_height), p_radius, p_radius
-				), m_solidColorBrush,
-				p_strokeWidth, strokeStyle
-			);
-
+			m_context->DrawGeometry(pathGeometry, m_solidColorBrush, p_strokeWidth, strokeStyle);
 			strokeStyle->Release();
+
+			pathGeometry->Release();
+		}
+		void strokeRectangle(Point<float> const& p_size, RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
+		{
+			strokeRectangle(0.f, 0.f, p_size.x, p_size.y, p_corners, p_strokeWidth);
+		}
+		void strokeRectangle(float p_width, float p_height, RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
+		{
+			strokeRectangle(0.f, 0.f, p_width, p_height, p_corners, p_strokeWidth);
 		}
 
 		//------------------------------
@@ -4118,7 +4245,10 @@ namespace AvoGUI
 
 		void strokeShape(Point<float> const* p_vertices, uint32 p_numberOfVertices, float p_lineThickness, bool p_isClosed) override
 		{
-			if (!p_numberOfVertices) return;
+			if (!p_numberOfVertices)
+			{
+				return;
+			}
 
 			ID2D1PathGeometry1* path;
 			s_direct2DFactory->CreatePathGeometry(&path);
@@ -4149,7 +4279,10 @@ namespace AvoGUI
 
 		void fillShape(Point<float> const* p_vertices, uint32 p_numberOfVertices) override
 		{
-			if (!p_numberOfVertices) return;
+			if (!p_numberOfVertices)
+			{
+				return;
+			}
 
 			ID2D1PathGeometry1* path;
 			s_direct2DFactory->CreatePathGeometry(&path);
@@ -4390,6 +4523,51 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void pushClipShape(std::vector<Point<float>> const& p_points) override
+		{
+			pushClipShape(p_points.data(), p_points.size());
+		}
+		void pushClipShape(Point<float> const* p_points, uint32 p_numberOfPoints) override
+		{
+			if (!p_numberOfPoints)
+			{
+				return;
+			}
+
+			ID2D1PathGeometry1* geometry;
+			s_direct2DFactory->CreatePathGeometry(&geometry);
+
+			ID2D1GeometrySink* sink;
+			geometry->Open(&sink);
+
+			sink->BeginFigure(D2D1::Point2F(p_points[0].x, p_points[0].y), D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_FILLED);
+			for (uint32 a = 1; a < p_numberOfPoints; a++)
+			{
+				sink->AddLine(D2D1::Point2F(p_points[a].x, p_points[a].y));
+			}
+			sink->EndFigure(D2D1_FIGURE_END::D2D1_FIGURE_END_CLOSED);
+
+			sink->Close();
+			sink->Release();
+
+			ID2D1Layer* layer;
+			m_context->CreateLayer(&layer);
+			m_context->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE), layer);
+
+			layer->Release();
+			geometry->Release();
+		}
+		void popClipShape() override
+		{
+			m_context->PopLayer();
+		}
+
+		//------------------------------
+
+		void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom)
+		{
+			m_context->PushAxisAlignedClip(D2D1::RectF(p_left, p_top, p_right, p_bottom), D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+		}
 		void pushClipRectangle(Rectangle<float> const& p_rectangle) override
 		{
 			m_context->PushAxisAlignedClip(
@@ -4407,6 +4585,29 @@ namespace AvoGUI
 				), D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE
 			);
 		}
+
+		void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners)
+		{
+			ID2D1PathGeometry1* geometry;
+			s_direct2DFactory->CreatePathGeometry(&geometry);
+			
+			createCornerRectangleGeometry(geometry, p_left, p_top, p_right, p_bottom, p_corners, true);
+
+			ID2D1Layer* layer;
+			m_context->CreateLayer(&layer);
+			m_context->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE), layer);
+			layer->Release();
+
+			geometry->Release();
+		}
+		void pushClipRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners)
+		{
+			pushClipRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners);
+		}
+		void pushClipRectangle(Point<float> const& p_size, RectangleCorners const& p_corners)
+		{
+			pushClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_corners);
+		}
 		void popClipRectangle() override
 		{
 			m_context->PopAxisAlignedClip();
@@ -4414,12 +4615,12 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void pushRoundedClipRectangle(Rectangle<float> const& p_rectangle, float p_radius) override
+		void pushRoundedClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
 		{
 			ID2D1RoundedRectangleGeometry* geometry;
 			s_direct2DFactory->CreateRoundedRectangleGeometry(
 				D2D1::RoundedRect(
-					D2D1::RectF(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom),
+					D2D1::RectF(p_left, p_top, p_right, p_bottom),
 					p_radius, p_radius
 				), &geometry
 			);
@@ -4431,22 +4632,13 @@ namespace AvoGUI
 			layer->Release();
 			geometry->Release();
 		}
+		void pushRoundedClipRectangle(Rectangle<float> const& p_rectangle, float p_radius) override
+		{
+			pushRoundedClipRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius);
+		}
 		void pushRoundedClipRectangle(Point<float> const& p_size, float p_radius) override
 		{
-			ID2D1RoundedRectangleGeometry* geometry;
-			s_direct2DFactory->CreateRoundedRectangleGeometry(
-				D2D1::RoundedRect(
-					D2D1::RectF(0, 0, p_size.x, p_size.y),
-					p_radius, p_radius
-				), &geometry
-			);
-
-			ID2D1Layer* layer;
-			m_context->CreateLayer(&layer);
-			m_context->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE), layer);
-
-			layer->Release();
-			geometry->Release();
+			pushRoundedClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_radius);
 		}
 		void popRoundedClipRectangle() override
 		{
@@ -4655,6 +4847,79 @@ namespace AvoGUI
 
 			return new WindowsImage(outputBitmap);
 		}
+		Image* createRectangleShadowImage(Point<uint32> const& p_size, RectangleCorners const& p_corners, float p_blur, Color const& p_color) override
+		{
+			return createRectangleShadowImage(p_size.x, p_size.y, p_corners, p_blur, p_color);
+		}
+		Image* createRectangleShadowImage(uint32 p_width, uint32 p_height, RectangleCorners const& p_corners, float p_blur, Color const& p_color) override
+		{
+			if (!p_width || !p_height || !p_color.alpha) return 0;
+
+			p_blur *= 2.f / 3.f;
+
+			// Create input bitmap
+			ID2D1Bitmap1* inputBitmap;
+			m_context->CreateBitmap(
+				D2D1::SizeU(p_width, p_height),
+				0, p_width * 4,
+				D2D1::BitmapProperties1(
+					D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_TARGET,
+					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
+				), &inputBitmap
+			);
+
+			m_context->SetTarget(inputBitmap);
+
+			m_context->BeginDraw();
+			clear();
+			setColor(Color(0.f));
+			fillRectangle(0, 0, p_width, p_height, p_corners);
+			m_context->EndDraw();
+
+			//------------------------------
+			// Appy effect
+
+			ID2D1Effect* shadowEffect;
+			m_context->CreateEffect(CLSID_D2D1Shadow, &shadowEffect);
+
+			shadowEffect->SetInput(0, inputBitmap);
+			shadowEffect->SetValue(
+				D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_COLOR,
+				D2D1::Vector4F(p_color.red, p_color.green, p_color.blue, p_color.alpha)
+			);
+			shadowEffect->SetValue(D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, p_blur);
+
+			//------------------------------
+			// Convert to bitmap
+
+			float dpiX = 0;
+			float dpiY = 0;
+			m_context->GetDpi(&dpiX, &dpiY);
+
+			ID2D1Bitmap1* outputBitmap;
+			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / 96.f, p_height + 6.f * p_blur * dpiY / 96.f);
+
+			m_context->CreateBitmap(
+				outputSize,
+				0, outputSize.width * 4,
+				D2D1::BitmapProperties1(
+					D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_TARGET,
+					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
+				), &outputBitmap
+			);
+
+			m_context->SetTarget(outputBitmap);
+			m_context->BeginDraw();
+			clear();
+			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / 96.f, p_blur * 3.f * dpiY / 96.f));
+			m_context->EndDraw();
+			m_context->SetTarget(m_targetWindowBitmap);
+
+			shadowEffect->Release();
+			inputBitmap->Release();
+
+			return new WindowsImage(outputBitmap);
+		}
 
 		Image* createRoundedRectangleShadowImage(Point<uint32> const& p_size, float p_radius, float p_blur, Color const& p_color)
 		{
@@ -4846,8 +5111,6 @@ namespace AvoGUI
 		{
 			wchar_t fontFamily[100];
 			widenString(p_textProperties.fontFamilyName, fontFamily, 100);
-			wchar_t fontLocale[100];
-			widenString(p_textProperties.fontLocaleName, fontLocale, 100);
 
 			DWRITE_FONT_STYLE fontStyle = DWRITE_FONT_STYLE_NORMAL;
 			if (p_textProperties.fontStyle == FontStyle::Italic)
@@ -4862,7 +5125,7 @@ namespace AvoGUI
 			s_directWriteFactory->CreateTextFormat(
 				fontFamily, m_fontCollection, (DWRITE_FONT_WEIGHT)p_textProperties.fontWeight,
 				fontStyle, (DWRITE_FONT_STRETCH)p_textProperties.fontStretch,
-				p_textProperties.fontSize, fontLocale,
+				p_textProperties.fontSize, L"",
 				(IDWriteTextFormat**)&m_textFormat
 			);
 			switch (p_textProperties.textAlign)
@@ -4879,6 +5142,20 @@ namespace AvoGUI
 			case TextAlign::Fill:
 				m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED);
 			}
+
+			switch (p_textProperties.readingDirection)
+			{
+			case ReadingDirection::RightToLeft:
+				m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
+				break;
+			case ReadingDirection::TopToBottom:
+				m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM);
+				break;
+			case ReadingDirection::BottomToTop:
+				m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP);
+				break;
+			}
+			m_textFormat->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_textProperties.lineHeight, p_textProperties.lineHeight*0.8f);
 
 			m_textProperties = p_textProperties;
 		}
@@ -5826,9 +6103,10 @@ namespace AvoGUI
 							view->drawShadow(m_drawingContext);
 							includeAnimationThread();
 
-							if (view->getCornerRadius())
+							RectangleCorners& corners = view->getCorners();
+							if (view->getHasCornerStyles())
 							{
-								m_drawingContext->pushRoundedClipRectangle(view->getSize(), view->getCornerRadius());
+								m_drawingContext->pushClipRectangle(view->getSize(), view->getCorners());
 							}
 							else
 							{
@@ -5852,7 +6130,7 @@ namespace AvoGUI
 								view->drawOverlay(m_drawingContext, targetRectangle);
 								includeAnimationThread();
 
-								if (view->getCornerRadius())
+								if (view->getHasCornerStyles())
 								{
 									m_drawingContext->popRoundedClipRectangle();
 								}
@@ -5884,7 +6162,7 @@ namespace AvoGUI
 						currentContainer->drawOverlay(m_drawingContext, targetRectangle);
 						includeAnimationThread();
 
-						if (currentContainer->getCornerRadius())
+						if (currentContainer->getHasCornerStyles())
 						{
 							m_drawingContext->popRoundedClipRectangle();
 						}
