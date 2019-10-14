@@ -2380,7 +2380,11 @@ namespace AvoGUI
 		{
 			DWRITE_TEXT_METRICS metrics;
 			m_handle->GetMetrics(&metrics);
-			m_bounds.setSize(metrics.width, metrics.height);
+
+			DWRITE_OVERHANG_METRICS overhangMetrics;
+			m_handle->GetOverhangMetrics(&overhangMetrics);
+
+			m_bounds.setSize(metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + overhangMetrics.top);
 		}
 		void fitWidthToText() override
 		{
@@ -2390,19 +2394,20 @@ namespace AvoGUI
 		}
 		void fitHeightToText() override
 		{
-			DWRITE_TEXT_METRICS metrics;
-			m_handle->GetMetrics(&metrics);
+			DWRITE_OVERHANG_METRICS overhangMetrics;
+			m_handle->GetOverhangMetrics(&overhangMetrics);
 
-			//DWRITE_OVERHANG_METRICS overhangMetrics;
-			//m_handle->GetOverhangMetrics(&overhangMetrics);
-
-			m_bounds.setHeight(metrics.height);
+			m_bounds.setHeight(m_handle->GetMaxHeight() + overhangMetrics.bottom + overhangMetrics.top);
 		}
 		Point<float> getMinimumSize() override
 		{
 			DWRITE_TEXT_METRICS metrics;
 			m_handle->GetMetrics(&metrics);
-			return Point<float>(metrics.width, metrics.height);
+
+			DWRITE_OVERHANG_METRICS overhangMetrics;
+			m_handle->GetOverhangMetrics(&overhangMetrics);
+
+			return Point<float>(metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + overhangMetrics.top);
 		}
 		float getMinimumWidth() override
 		{
@@ -2412,9 +2417,10 @@ namespace AvoGUI
 		}
 		float getMinimumHeight() override
 		{
-			DWRITE_TEXT_METRICS metrics;
-			m_handle->GetMetrics(&metrics);
-			return metrics.height;
+			DWRITE_OVERHANG_METRICS overhangMetrics;
+			m_handle->GetOverhangMetrics(&overhangMetrics);
+
+			return m_handle->GetMaxHeight() + overhangMetrics.bottom + overhangMetrics.top;
 		}
 
 		//------------------------------
@@ -5188,7 +5194,10 @@ namespace AvoGUI
 		}
 		void drawText(Text* p_text) override
 		{
-			m_context->DrawTextLayout(D2D1::Point2F(p_text->getTopLeft().x, p_text->getTopLeft().y), (IDWriteTextLayout*)p_text->getHandle(), m_solidColorBrush);
+			IDWriteTextLayout1* textLayout = (IDWriteTextLayout1*)p_text->getHandle();
+			DWRITE_OVERHANG_METRICS overhangMetrics;
+			textLayout->GetOverhangMetrics(&overhangMetrics);
+			m_context->DrawTextLayout(D2D1::Point2F(p_text->getTopLeft().x, p_text->getTopLeft().y + overhangMetrics.top), textLayout, m_solidColorBrush);
 		}
 		void drawText(char const* p_string, Rectangle<float> const& p_rectangle) override
 		{
