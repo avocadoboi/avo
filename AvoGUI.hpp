@@ -2232,6 +2232,12 @@ namespace AvoGUI
 			red(p_red), green(p_green), blue(p_blue), alpha(p_alpha)
 		{ }
 		/*
+			The channels are doubles in the range [0, 1].
+		*/
+		Color(double p_red, double p_green, double p_blue, double p_alpha = 1.f) :
+			red(p_red), green(p_green), blue(p_blue), alpha(p_alpha)
+		{ }
+		/*
 			The channels are in the range [0, 255]
 		*/
 		Color(uint8 p_red, uint8 p_green, uint8 p_blue, uint8 p_alpha = (uint8)255) :
@@ -2260,6 +2266,16 @@ namespace AvoGUI
 			alpha = constrain(p_alpha);
 		}
 		/*
+			Initializes the color with a grayscale value. The values are doubles in the range [0, 1].
+		*/
+		Color(double p_lightness, double p_alpha = 1.)
+		{
+			red = constrain(p_lightness);
+			green = red;
+			blue = red;
+			alpha = constrain(p_alpha);
+		}
+		/*
 			Initializes the color with a grayscale value. The values are bytes in the range [0, 255].
 		*/
 		Color(uint8 p_lightness, uint8 p_alpha = (uint8)255)
@@ -2273,6 +2289,12 @@ namespace AvoGUI
 			Creates a copy of another color but with a new alpha.
 		*/
 		Color(Color const& p_color, float p_alpha) :
+			red(p_color.red), green(p_color.green), blue(p_color.blue), alpha(p_alpha)
+		{ }
+		/*
+			Creates a copy of another color but with a new alpha.
+		*/
+		Color(Color const& p_color, double p_alpha) :
 			red(p_color.red), green(p_color.green), blue(p_color.blue), alpha(p_alpha)
 		{ }
 		/*
@@ -2362,6 +2384,44 @@ namespace AvoGUI
 			Sets the same values for the red, green and blue channels. They are floats in the range of [0, 1].
 		*/
 		void setRGB(float p_grayscale)
+		{
+			red = constrain(p_grayscale);
+			green = constrain(p_grayscale);
+			blue = constrain(p_grayscale);
+		}
+		/*
+			Sets the values for the red, green, blue and alpha channels. They are all doubles in the range of [0, 1].
+		*/
+		void setRGBA(double p_red, double p_green, double p_blue, double p_alpha = 1.f)
+		{
+			red = constrain(p_red);
+			green = constrain(p_green);
+			blue = constrain(p_blue);
+			alpha = constrain(p_alpha);
+		}
+		/*
+			Sets the same values for the red, green, blue and alpha channels. They are doubles in the range of [0, 1].
+		*/
+		void setRGBA(double p_grayscale, double p_alpha = 1.f)
+		{
+			red = constrain(p_grayscale);
+			green = constrain(p_grayscale);
+			blue = constrain(p_grayscale);
+			alpha = constrain(p_alpha);
+		}
+		/*
+			Sets the values for the red, green and blue channels. They are all doubles in the range of [0, 1].
+		*/
+		void setRGB(double p_red, double p_green, double p_blue)
+		{
+			red = constrain(p_red);
+			green = constrain(p_green);
+			blue = constrain(p_blue);
+		}
+		/*
+			Sets the same values for the red, green and blue channels. They are doubles in the range of [0, 1].
+		*/
+		void setRGB(double p_grayscale)
 		{
 			red = constrain(p_grayscale);
 			green = constrain(p_grayscale);
@@ -3223,7 +3283,6 @@ namespace AvoGUI
 		bool m_hasShadow;
 
 		float m_elevation;
-		bool m_hasSizeChangedSinceLastElevationChange;
 
 		//------------------------------
 
@@ -3271,13 +3330,19 @@ namespace AvoGUI
 				}
 			}
 		}
-
 		Point<float> calculateAbsolutePositionRelativeTo(Point<float> p_position) const;
+
 		/*
 			LIBRARY IMPLEMENTED
 			Only adds a child view to the child list of this view. 
 		*/
 		void addChild(View* p_view);
+
+		/*
+			LIBRARY IMPLEMENTED
+			Updates the shadow bounds and the shadow image.
+		*/
+		void updateShadow();
 
 	protected:
 		GUI* m_GUI;
@@ -3289,7 +3354,7 @@ namespace AvoGUI
 		*/
 		virtual void sendSizeChangeEvents()
 		{
-			m_hasSizeChangedSinceLastElevationChange = true;
+			updateShadow(); // This is to update the shadow bounds and image.
 
 			handleSizeChange();
 			for (auto viewListener = m_viewEventListeners.begin(); viewListener != m_viewEventListeners.end(); viewListener++)
@@ -6434,6 +6499,10 @@ namespace AvoGUI
 		Italic
 	};
 
+	/*
+		The horizontal stretch of the font.
+		Only some fonts have different horizontal stretch options.
+	*/
 	enum class FontStretch
 	{
 		Undefined = 0,
@@ -6780,6 +6849,7 @@ namespace AvoGUI
 		TextAlign textAlign = TextAlign::Left;
 		ReadingDirection readingDirection = ReadingDirection::LeftToRight;
 		
+		float characterSpacing = 0.f; // Only supported for text objects.
 		float lineHeight = 1.f;
 		float fontSize = 22.f;
 	};

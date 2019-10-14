@@ -86,7 +86,7 @@ namespace AvoGUI
 		{
 			return 0.f;
 		}
-		if (p_value >= 0.9999f) 
+		if (p_value >= 0.9999f)
 		{
 			return 1.f;
 		}
@@ -94,13 +94,13 @@ namespace AvoGUI
 		float t = p_value < 0.5f ? 0.25f : 0.75f;
 
 		float error = 1;
-		while (abs(error) > p_precision) 
+		while (abs(error) > p_precision)
 		{
-			error = p_value - t * ((1.f - t)*(3.f*(1.f - t)*x0 + 3.f*t*x1) + t * t);
-			t += error / (x0*(3.f - 12.f*t + 9.f*t*t) + x1 * (6.f*t - 9.f*t*t) + 3.f*t*t);
+			error = p_value - t * ((1.f - t) * (3.f * (1.f - t) * x0 + 3.f * t * x1) + t * t);
+			t += error / (x0 * (3.f - 12.f * t + 9.f * t * t) + x1 * (6.f * t - 9.f * t * t) + 3.f * t * t);
 		}
 
-		return t * ((1.f - t)*(3.f*(1.f - t)*y0 + 3.f*t*y1) + t * t);
+		return t * ((1.f - t) * (3.f * (1.f - t) * y0 + 3.f * t * y1) + t * t);
 	}
 
 	//------------------------------
@@ -149,14 +149,42 @@ namespace AvoGUI
 		}
 	}
 
+	void View::updateShadow()
+	{
+		if (getWidth() > 0.f && getHeight() > 0.f && m_elevation > 0.00001f && m_hasShadow && m_elevation < 400.f)
+		{
+			if (m_shadowImage)
+			{
+				m_shadowImage->forget();
+			}
+			m_shadowImage = m_GUI->getDrawingContext()->createRectangleShadowImage(getSize(), m_corners, m_elevation, m_theme->colors["shadow"]);
+			m_shadowBounds = Rectangle<float>(
+				Point<float>(
+					0.5f * (m_bounds.right - m_bounds.left - (float)m_shadowImage->getWidth()),
+					0.35f * (m_bounds.bottom - m_bounds.top - (float)m_shadowImage->getHeight())
+					), m_shadowImage->getSize()
+				);
+			m_shadowImage->setTopLeft(m_shadowBounds.getTopLeft());
+		}
+		else
+		{
+			if (m_shadowImage)
+			{
+				m_shadowImage->forget();
+				m_shadowImage = 0;
+			}
+			m_shadowBounds = m_bounds.createCopyAtOrigin();
+		}
+	}
+
 	//
 	// Public
 	//
 
 	View::View(View* p_parent, Rectangle<float> const& p_bounds) :
 		ProtectedRectangle(p_bounds), m_isInAnimationUpdateQueue(false), m_isVisible(true), m_isOverlay(false),
-		m_areMouseEventsEnabled(false), m_cursor(Cursor::Arrow), 
-		m_shadowBounds(p_bounds), m_shadowImage(0), m_hasShadow(true), m_elevation(0.f), m_hasSizeChangedSinceLastElevationChange(true),
+		m_areMouseEventsEnabled(false), m_cursor(Cursor::Arrow),
+		m_shadowBounds(p_bounds), m_shadowImage(0), m_hasShadow(true), m_elevation(0.f),
 		m_parent(0)
 	{
 		if (p_parent && p_parent != this)
@@ -509,56 +537,31 @@ namespace AvoGUI
 
 	void View::setElevation(float p_elevation)
 	{
-		p_elevation = float(p_elevation < 0.f)*FLT_MAX + p_elevation;
+		p_elevation = float(p_elevation < 0.f) * FLT_MAX + p_elevation;
 
-		if (m_hasSizeChangedSinceLastElevationChange || m_elevation != p_elevation)
+		if (m_elevation != p_elevation)
 		{
-			if (getWidth() > 0.f && getHeight() > 0.f && p_elevation > 0.00001f && m_hasShadow && p_elevation < 400.f)
-			{
-				if (m_shadowImage)
-				{
-					m_shadowImage->forget();
-				}
-				m_shadowImage = m_GUI->getDrawingContext()->createRectangleShadowImage(getSize(), m_corners, p_elevation, m_theme->colors["shadow"]);
-				m_shadowBounds = Rectangle<float>(
-					Point<float>(
-						0.5f*(m_bounds.right - m_bounds.left - (float)m_shadowImage->getWidth()),
-						0.35f*(m_bounds.bottom - m_bounds.top - (float)m_shadowImage->getHeight())
-					), m_shadowImage->getSize()
-				);
-				m_shadowImage->setTopLeft(m_shadowBounds.getTopLeft());
-			}
-			else
-			{
-				if (m_shadowImage)
-				{
-					m_shadowImage->forget();
-					m_shadowImage = 0;
-				}
-				m_shadowBounds = m_bounds.createCopyAtOrigin();
-			}
-
-			if (p_elevation != m_elevation)
-			{
-				m_elevation = p_elevation;
-				m_parent->updateViewDrawingIndex(this);
-			}
-			m_hasSizeChangedSinceLastElevationChange = false;
+			m_elevation = p_elevation;
+			updateShadow();
+			m_parent->updateViewDrawingIndex(this);
 		}
 	}
 
 	void View::setHasShadow(bool p_hasShadow)
 	{
-		m_hasShadow = p_hasShadow;
-		if (m_hasShadow)
+		if (m_hasShadow != p_hasShadow)
 		{
-			setElevation(m_elevation);
-		}
-		else if (m_shadowImage)
-		{
-			m_shadowImage->forget();
-			m_shadowImage = 0;
-			m_shadowBounds = m_bounds.createCopyAtOrigin();
+			m_hasShadow = p_hasShadow;
+			if (m_hasShadow)
+			{
+				updateShadow();
+			}
+			else if (m_shadowImage)
+			{
+				m_shadowImage->forget();
+				m_shadowImage = 0;
+				m_shadowBounds = m_bounds.createCopyAtOrigin();
+			}
 		}
 	}
 
@@ -595,8 +598,6 @@ namespace AvoGUI
 	{
 		if (m_GUI)
 		{
-			setElevation(m_elevation); // This is to update the shadow bounds. This isn't expensive at all, because we aren't changing the elevation.
-
 			Rectangle<float> shadowBounds(getAbsoluteShadowBounds().roundCoordinatesOutwards());
 			if (shadowBounds == m_lastInvalidatedShadowBounds || (!m_lastInvalidatedShadowBounds.getWidth() && !m_lastInvalidatedShadowBounds.getHeight()))
 			{
@@ -948,7 +949,7 @@ namespace AvoGUI
 		//------------------------------
 
 		WindowsWindow(GUI* p_GUI) :
-			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0), 
+			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0),
 			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
 			m_state(WindowState::Restored), m_isMouseOutsideWindow(true), m_mousePosition(-1, -1), m_cursorHandle(0)
 		{
@@ -1081,7 +1082,7 @@ namespace AvoGUI
 			{
 				return;
 			}
-			if (p_isFullscreen) 
+			if (p_isFullscreen)
 			{
 				m_wasWindowMaximizedBeforeFullscreen = false;
 				if (m_state == WindowState::Restored)
@@ -1101,7 +1102,7 @@ namespace AvoGUI
 			}
 			else
 			{
-				SetWindowLongPtr(m_windowHandle, GWL_STYLE, (m_wasWindowMaximizedBeforeFullscreen*WS_MAXIMIZE) | (m_styles & ~(WS_MAXIMIZE | WS_MINIMIZE)));
+				SetWindowLongPtr(m_windowHandle, GWL_STYLE, (m_wasWindowMaximizedBeforeFullscreen * WS_MAXIMIZE) | (m_styles & ~(WS_MAXIMIZE | WS_MINIMIZE)));
 				if (m_wasWindowMaximizedBeforeFullscreen)
 				{
 					SetWindowPos(m_windowHandle, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
@@ -1665,7 +1666,7 @@ namespace AvoGUI
 			SetClipboardData(CF_UNICODETEXT, clipboardData);
 			CloseClipboard();
 		}
-		
+
 		void setClipboardString(std::string const& p_string) override
 		{
 			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, p_string.size() + 1LL);
@@ -1722,7 +1723,7 @@ namespace AvoGUI
 			std::string string = "";
 
 			OpenClipboard(m_windowHandle);
-			
+
 			void* handle = GetClipboardData(CF_TEXT);
 			if (!handle)
 			{
@@ -2438,7 +2439,7 @@ namespace AvoGUI
 			m_handle->HitTestTextPosition(p_characterIndex, false, &x, &y, &metrics);
 			return Point<float>(metrics.width, metrics.height);
 		}
-		Rectangle<float> getCharacterBounds(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) override 
+		Rectangle<float> getCharacterBounds(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) override
 		{
 			Rectangle<float> result;
 			DWRITE_HIT_TEST_METRICS metrics;
@@ -2932,7 +2933,7 @@ namespace AvoGUI
 		}
 		void setCharacterSpacing(float p_characterSpacing, int32 p_startPosition, int32 p_length) override
 		{
-			m_handle->SetCharacterSpacing(p_characterSpacing*0.5f, p_characterSpacing*0.5f, 0.f, createTextRange(p_startPosition, p_length));
+			m_handle->SetCharacterSpacing(p_characterSpacing * 0.5f, p_characterSpacing * 0.5f, 0.f, createTextRange(p_startPosition, p_length));
 		}
 		float getLeadingCharacterSpacing(int32 p_characterIndex) override
 		{
@@ -2951,7 +2952,7 @@ namespace AvoGUI
 
 		void setLineHeight(float p_lineHeight)
 		{
-			m_handle->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_lineHeight, p_lineHeight*0.8f);
+			m_handle->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_lineHeight, p_lineHeight * 0.8f);
 		}
 		float getLineHeight()
 		{
@@ -3236,7 +3237,7 @@ namespace AvoGUI
 			else
 			{
 				*p_hasCurrentFile = 1;
-				m_factory->CreateCustomFontFileReference((void const*)&(*m_fontData)[m_currentFontFileIndex], sizeof(FontData*), m_fontFileLoader, &m_currentFontFile);
+				m_factory->CreateCustomFontFileReference((void const*) & (*m_fontData)[m_currentFontFileIndex], sizeof(FontData*), m_fontFileLoader, &m_currentFontFile);
 			}
 			return S_OK;
 		}
@@ -3393,7 +3394,7 @@ namespace AvoGUI
 
 	public:
 		WindowsDrawingContext(Window* p_window) :
-			m_window(p_window), m_context(0), m_swapChain(0), m_targetWindowBitmap(0), 
+			m_window(p_window), m_context(0), m_swapChain(0), m_targetWindowBitmap(0),
 			m_isVsyncEnabled(true), m_solidColorBrush(0), m_scale(1.f, 1.f), m_textFormat(0), m_fontCollection(0)
 		{
 			if (!s_imagingFactory)
@@ -3438,9 +3439,9 @@ namespace AvoGUI
 				0,
 				D3D_DRIVER_TYPE_HARDWARE,
 				0,
-				D3D11_CREATE_DEVICE_BGRA_SUPPORT 
+				D3D11_CREATE_DEVICE_BGRA_SUPPORT
 #ifdef _DEBUG 
-				| D3D11_CREATE_DEVICE_DEBUG 
+				| D3D11_CREATE_DEVICE_DEBUG
 #endif
 				,
 				featureLevels,
@@ -3965,7 +3966,7 @@ namespace AvoGUI
 
 			// Resize buffers, creating new ones
 			m_swapChain->ResizeBuffers(0, p_width, p_height, DXGI_FORMAT_UNKNOWN, 0);
-		
+
 			// Get the new back buffer and create new bitmap connected to it
 			IDXGISurface* dxgiBackBuffer = 0;
 			m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
@@ -3979,7 +3980,7 @@ namespace AvoGUI
 			);
 
 			dxgiBackBuffer->Release();
-			
+
 			m_context->SetTarget(m_targetWindowBitmap);
 		}
 		Point<uint32> getSize() override
@@ -4590,7 +4591,7 @@ namespace AvoGUI
 		{
 			ID2D1PathGeometry1* geometry;
 			s_direct2DFactory->CreatePathGeometry(&geometry);
-			
+
 			createCornerRectangleGeometry(geometry, p_left, p_top, p_right, p_bottom, p_corners, true);
 
 			ID2D1Layer* layer;
@@ -4824,7 +4825,7 @@ namespace AvoGUI
 			m_context->GetDpi(&dpiX, &dpiY);
 
 			ID2D1Bitmap1* outputBitmap;
-			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f*p_blur * dpiX / 96.f, p_height + 6.f*p_blur * dpiY / 96.f);
+			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / 96.f, p_height + 6.f * p_blur * dpiY / 96.f);
 
 			m_context->CreateBitmap(
 				outputSize,
@@ -4838,7 +4839,7 @@ namespace AvoGUI
 			m_context->SetTarget(outputBitmap);
 			m_context->BeginDraw();
 			clear();
-			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur*3.f*dpiX / 96.f, p_blur*3.f*dpiY / 96.f));
+			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / 96.f, p_blur * 3.f * dpiY / 96.f));
 			m_context->EndDraw();
 			m_context->SetTarget(m_targetWindowBitmap);
 
@@ -4971,7 +4972,7 @@ namespace AvoGUI
 			m_context->GetDpi(&dpiX, &dpiY);
 
 			ID2D1Bitmap1* outputBitmap;
-			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f*p_blur * dpiX / 96.f, p_height + 6.f*p_blur * dpiY / 96.f);
+			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / 96.f, p_height + 6.f * p_blur * dpiY / 96.f);
 
 			m_context->CreateBitmap(
 				outputSize,
@@ -4985,7 +4986,7 @@ namespace AvoGUI
 			m_context->SetTarget(outputBitmap);
 			m_context->BeginDraw();
 			clear();
-			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur*3.f*dpiX / 96.f, p_blur*3.f*dpiY / 96.f));
+			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / 96.f, p_blur * 3.f * dpiY / 96.f));
 			m_context->EndDraw();
 			m_context->SetTarget(m_targetWindowBitmap);
 
@@ -5077,8 +5078,8 @@ namespace AvoGUI
 					}
 				}
 
-				left += p_image->getBoundsPositioningX()*(boundsSize.x - width);
-				top += p_image->getBoundsPositioningY()*(boundsSize.y - height);
+				left += p_image->getBoundsPositioningX() * (boundsSize.x - width);
+				top += p_image->getBoundsPositioningY() * (boundsSize.y - height);
 			}
 
 			m_context->DrawBitmap(
@@ -5128,6 +5129,7 @@ namespace AvoGUI
 				p_textProperties.fontSize, L"",
 				(IDWriteTextFormat**)&m_textFormat
 			);
+
 			switch (p_textProperties.textAlign)
 			{
 			case TextAlign::Left:
@@ -5155,7 +5157,7 @@ namespace AvoGUI
 				m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP);
 				break;
 			}
-			m_textFormat->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_textProperties.lineHeight, p_textProperties.lineHeight*0.8f);
+			m_textFormat->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_textProperties.lineHeight, p_textProperties.lineHeight * 0.8f);
 
 			m_textProperties = p_textProperties;
 		}
@@ -5178,6 +5180,7 @@ namespace AvoGUI
 			textRange.startPosition = 0;
 			textRange.length = numberOfCharacters;
 			textLayout->SetFontSize(p_fontSize, textRange);
+			textLayout->SetCharacterSpacing(m_textProperties.characterSpacing*0.5f, m_textProperties.characterSpacing*0.5f, 0.f, textRange);
 
 			delete[] wideString;
 
@@ -5269,7 +5272,7 @@ namespace AvoGUI
 				}
 			}
 			auto timeAfter = std::chrono::steady_clock::now();
-			syncInterval = max(1000000, syncInterval + (16666667 - (timeAfter - timeBefore).count())/10);
+			syncInterval = max(1000000, syncInterval + (16666667 - (timeAfter - timeBefore).count()) / 10);
 			timeBefore = timeAfter;
 		}
 	}
@@ -5982,7 +5985,7 @@ namespace AvoGUI
 			m_invalidRectangles.clear();
 			invalidate();
 		}
-		
+
 		excludeAnimationThread();
 		uint32 numberOfEventsToProcess = m_animationUpdateQueue.size();
 		for (uint32 a = 0; a < numberOfEventsToProcess; a++)
@@ -5999,7 +6002,7 @@ namespace AvoGUI
 	void GUI::invalidateRectangle(Rectangle<float> p_rectangle)
 	{
 		p_rectangle.bound(m_bounds);
-		
+
 		if (p_rectangle.getWidth() == 0.f || p_rectangle.getHeight() == 0.f)
 		{
 			return;
@@ -6221,10 +6224,10 @@ namespace AvoGUI
 		wchar_t* filterStringBuffer = new wchar_t[100 * m_fileExtensions.size()];
 		for (uint32 a = 0; a < m_fileExtensions.size(); a++)
 		{
-			filters[a].pszName = filterStringBuffer + a*100;
+			filters[a].pszName = filterStringBuffer + a * 100;
 			widenString(m_fileExtensions[a].name, (wchar_t*)filters[a].pszName, 50);
 
-			filters[a].pszSpec = filterStringBuffer + a*100 + 50;
+			filters[a].pszSpec = filterStringBuffer + a * 100 + 50;
 			widenString(m_fileExtensions[a].extensions, (wchar_t*)filters[a].pszSpec, 50);
 
 		}
@@ -6272,7 +6275,7 @@ namespace AvoGUI
 				item->GetDisplayName(SIGDN::SIGDN_FILESYSPATH, &name);
 				p_openedFilePaths.resize(1);
 				p_openedFilePaths[0] = name;
-				
+
 				item->Release();
 			}
 		}
