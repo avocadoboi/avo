@@ -151,7 +151,7 @@ namespace AvoGUI
 
 	void View::updateShadow()
 	{
-		if (getWidth() > 0.f && getHeight() > 0.f && m_elevation > 0.00001f && m_hasShadow && m_elevation < 400.f)
+		if (getWidth() >= 1.f && getHeight() >= 1.f && m_elevation > 0.00001f && m_hasShadow && m_elevation < 400.f)
 		{
 			if (m_shadowImage)
 			{
@@ -3605,6 +3605,8 @@ namespace AvoGUI
 
 			m_textProperties.fontFamilyName = "Roboto";
 			setDefaultTextProperties(m_textProperties);
+			
+			m_context->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE::D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
 		}
 
 		~WindowsDrawingContext()
@@ -6107,60 +6109,63 @@ namespace AvoGUI
 					{
 						View* view = currentContainer->getChild(a);
 
-						if (view->getWidth() > 0.f && view->getHeight() > 0.f && view->getAbsoluteBounds().getIsIntersecting(targetRectangle) && view->getIsVisible())
+						if (view->getWidth() > 0.f && view->getHeight() > 0.f && view->getIsVisible())
 						{
-							m_drawingContext->moveOrigin(view->getTopLeft());
-
-							excludeAnimationThread();
-							view->drawShadow(m_drawingContext);
-							includeAnimationThread();
-
-							RectangleCorners& corners = view->getCorners();
-							if (view->getHasCornerStyles())
+							if (view->getAbsoluteBounds().getIsIntersecting(targetRectangle))
 							{
-								m_drawingContext->pushClipRectangle(view->getSize(), view->getCorners());
-							}
-							else
-							{
-								m_drawingContext->pushClipRectangle(view->getSize());
-							}
+								m_drawingContext->moveOrigin(view->getTopLeft());
 
-							excludeAnimationThread();
-							view->draw(m_drawingContext, targetRectangle);
-							includeAnimationThread();
-
-							if (view->getNumberOfChildren())
-							{
-								currentContainer = view;
-								startPosition = 0;
-								isDoneWithContainer = false;
-								break;
-							}
-							else
-							{
 								excludeAnimationThread();
-								view->drawOverlay(m_drawingContext, targetRectangle);
+								view->drawShadow(m_drawingContext);
 								includeAnimationThread();
 
+								RectangleCorners& corners = view->getCorners();
 								if (view->getHasCornerStyles())
 								{
-									m_drawingContext->popRoundedClipRectangle();
+									m_drawingContext->pushClipRectangle(view->getSize(), view->getCorners());
 								}
 								else
 								{
-									m_drawingContext->popClipRectangle();
+									m_drawingContext->pushClipRectangle(view->getSize());
 								}
 
+								excludeAnimationThread();
+								view->draw(m_drawingContext, targetRectangle);
+								includeAnimationThread();
+
+								if (view->getNumberOfChildren())
+								{
+									currentContainer = view;
+									startPosition = 0;
+									isDoneWithContainer = false;
+									break;
+								}
+								else
+								{
+									excludeAnimationThread();
+									view->drawOverlay(m_drawingContext, targetRectangle);
+									includeAnimationThread();
+
+									if (view->getHasCornerStyles())
+									{
+										m_drawingContext->popRoundedClipRectangle();
+									}
+									else
+									{
+										m_drawingContext->popClipRectangle();
+									}
+
+									m_drawingContext->moveOrigin(-view->getTopLeft());
+								}
+							}
+							else if (view->getAbsoluteShadowBounds().getIsIntersecting(targetRectangle))
+							{
+								m_drawingContext->moveOrigin(view->getTopLeft());
+								excludeAnimationThread();
+								view->drawShadow(m_drawingContext);
+								includeAnimationThread();
 								m_drawingContext->moveOrigin(-view->getTopLeft());
 							}
-						}
-						else if (view->getAbsoluteShadowBounds().getIsIntersecting(targetRectangle))
-						{
-							m_drawingContext->moveOrigin(view->getTopLeft());
-							excludeAnimationThread();
-							view->drawShadow(m_drawingContext);
-							includeAnimationThread();
-							m_drawingContext->moveOrigin(-view->getTopLeft());
 						}
 					}
 					if (isDoneWithContainer)
