@@ -3159,6 +3159,7 @@ namespace AvoGUI
 
 	/*
 		A theme consists of different variables that change the look and feel of the parts of the GUI that are using the theme.
+		Can be used for changing and accessing any values, colors, easings and font families that you want child views to inherit.
 	*/
 	class Theme : public ReferenceCounted
 	{
@@ -3293,7 +3294,14 @@ namespace AvoGUI
 
 		//------------------------------
 
+		bool m_isMouseHovering;
+
+		friend class GUI;
+
+		//------------------------------
+
 		/*
+			LIBRARY IMPLEMENTED
 			Moves the point(s) representing the absolute position(s) of this view and/or all children of this view (recursively).
 			The absolute positions of views are used often for mouse event targeting, among other things.
 			Because of this, it is pre-calculated in this way only when this view or a parent view has moved.
@@ -3882,8 +3890,7 @@ namespace AvoGUI
 			if (m_theme->easings[p_name] != p_easing)
 			{
 				m_theme->easings[p_name] = p_easing;
-				std::string name(std::move(p_name));
-				handleThemeEasingChange(name, p_easing);
+				handleThemeEasingChange(p_name, p_easing);
 			}
 		}
 		/*
@@ -3950,8 +3957,7 @@ namespace AvoGUI
 			if (m_theme->fontFamilies[p_name] != p_fontFamilyName)
 			{
 				m_theme->fontFamilies[p_name] = p_fontFamilyName;
-				std::string name(std::move(p_name));
-				handleThemeFontFamilyChange(name.c_str(), p_fontFamilyName);
+				handleThemeFontFamilyChange(p_name, p_fontFamilyName);
 			}
 
 		}
@@ -4035,8 +4041,7 @@ namespace AvoGUI
 			if (m_theme->values[p_name] != p_value)
 			{
 				m_theme->values[p_name] = p_value;
-				std::string name(std::move(p_name));
-				handleThemeValueChange(name, p_value);
+				handleThemeValueChange(p_name, p_value);
 			}
 		}
 		/*
@@ -5337,10 +5342,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sets whether the view is visible and can receive events.
 		*/
-		void setIsVisible(bool p_isVisible)
-		{
-			m_isVisible = p_isVisible;
-		}
+		void setIsVisible(bool p_isVisible);
 		/*
 			LIBRARY IMPLEMENTED
 			Returns whether the view is visible and can receive events.
@@ -7557,6 +7559,11 @@ namespace AvoGUI
 		*/
 		virtual void setColor(Color const& p_color) = 0;
 
+		/*
+			Sets the transparency of all graphics that will be drawn.
+		*/
+		virtual void setOpacity(float p_opacity) = 0;
+
 		//------------------------------
 
 		/*
@@ -8426,7 +8433,6 @@ namespace AvoGUI
 		{
 			if (m_isEnabled)
 			{
-				getGUI()->getWindow()->setCursor(Cursor::Hand);
 				m_isMouseHovering = true;
 				queueAnimationUpdate();
 			}

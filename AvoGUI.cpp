@@ -182,10 +182,12 @@ namespace AvoGUI
 	//
 
 	View::View(View* p_parent, Rectangle<float> const& p_bounds) :
-		ProtectedRectangle(p_bounds), m_isInAnimationUpdateQueue(false), m_isVisible(true), m_isOverlay(false),
+		ProtectedRectangle(p_bounds), 
+		m_isInAnimationUpdateQueue(false), m_isVisible(true), m_isOverlay(false),
 		m_areMouseEventsEnabled(false), m_cursor(Cursor::Arrow),
 		m_shadowBounds(p_bounds), m_shadowImage(0), m_hasShadow(true), m_elevation(0.f),
-		m_parent(0)
+		m_layerIndex(0), m_index(0), m_isMouseHovering(false),
+		m_GUI(0), m_parent(0), m_theme(0)
 	{
 		if (p_parent && p_parent != this)
 		{
@@ -198,12 +200,6 @@ namespace AvoGUI
 		}
 		else
 		{
-			m_parent = 0;
-			m_GUI = 0;
-
-			m_layerIndex = 0U;
-			m_index = 0U;
-
 			m_theme = new Theme();
 		}
 	}
@@ -352,7 +348,7 @@ namespace AvoGUI
 		}
 
 		// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
-		// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
+		// It's not the other way around because the parent lays out the children and the size of the children may change in the handler.
 		if (!m_theme)
 		{
 			m_theme = new Theme();
@@ -366,7 +362,7 @@ namespace AvoGUI
 		if (m_theme->colors[p_name] != p_color)
 		{
 			m_theme->colors[p_name] = p_color;
-			std::string name(std::move(p_name));
+			std::string name(p_name);
 			if (getGUI() == this && name == "background")
 			{
 				((GUI*)this)->getDrawingContext()->setBackgroundColor(p_color);
@@ -535,6 +531,24 @@ namespace AvoGUI
 
 	//------------------------------
 
+	void View::setIsVisible(bool p_isVisible)
+	{
+		m_isVisible = p_isVisible;
+
+		Point<float> const& mousePosition = getGUI()->getWindow()->getMousePosition();
+		if (getGUI()->getIsContaining(mousePosition))
+		{
+			MouseEvent mouseEvent;
+			mouseEvent.x = mousePosition.x;
+			mouseEvent.y = mousePosition.y;
+			mouseEvent.movementX = 0;
+			mouseEvent.movementY = 0;
+			getGUI()->handleGlobalMouseMove(mouseEvent);
+		}
+	}
+
+	//------------------------------
+
 	void View::setElevation(float p_elevation)
 	{
 		p_elevation = float(p_elevation < 0.f) * FLT_MAX + p_elevation;
@@ -644,15 +658,14 @@ namespace AvoGUI
 		bool m_isOpen;
 		Point<int32> m_position;
 		Point<uint32> m_size;
+		Point<uint32> m_minSize;
+		Point<uint32> m_maxSize;
 
 		bool m_isFullscreen;
 		RECT m_windowRectBeforeFullscreen;
 		bool m_wasWindowMaximizedBeforeFullscreen;
 
 		WindowState m_state;
-
-		Point<uint32> m_minSize;
-		Point<uint32> m_maxSize;
 
 		bool m_isMouseOutsideWindow;
 		Point<int32> m_mousePosition;
@@ -999,18 +1012,10 @@ namespace AvoGUI
 
 			m_styles = convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styleFlags);
 
-			//if (uint32(p_styleFlags & WindowStyleFlags::Maximized))
-			//	m_state = WindowState::Maximized;
-			//else if (uint32(p_styleFlags & WindowStyleFlags::Minimized))
-			//	m_state = WindowState::Minimized;
-			//else
-			//	m_state = WindowState::Restored;
-
 			RECT windowRect = { 0, 0, p_width, p_height };
 			AdjustWindowRect(&windowRect, m_styles, 0);
 
 			m_size.set(p_width, p_height);
-
 			// m_windowHandle is initialized by the WM_CREATE event, before CreateWindowEx returns.
 			CreateWindow(
 				WINDOW_CLASS_NAME,
@@ -1018,8 +1023,8 @@ namespace AvoGUI
 				m_styles,
 				p_x,
 				p_y,
-				windowRect.right - windowRect.left,
-				windowRect.bottom - windowRect.top,
+				std::ceil((windowRect.right - windowRect.left) * GetDpiForSystem()/96.f),
+				std::ceil((windowRect.bottom - windowRect.top) * GetDpiForSystem()/96.f),
 				p_parent ? (HWND)p_parent->getWindowHandle() : 0,
 				0, // No menu
 				GetModuleHandle(0),
@@ -1064,7 +1069,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// Internal method used to initialize the window handle at the right moment.
+		// Internal method used to initialize the window handle at the right moment.
 		void setWindowHandle(HWND p_handle)
 		{
 			m_windowHandle = p_handle;
@@ -3302,11 +3307,91 @@ namespace AvoGUI
 	class WindowsDrawingContext : public DrawingContext
 	{
 	public:
+		static IWICImagingFactory2* s_imagingFactory;
 		static ID2D1Factory1* s_direct2DFactory;
 		static IDWriteFactory1* s_directWriteFactory;
+
 		static FontCollectionLoader* s_fontCollectionLoader;
 		static FontFileLoader* s_fontFileLoader;
-		static IWICImagingFactory2* s_imagingFactory;
+
+		static void createStaticResources()
+		{
+			if (!s_imagingFactory)
+			{
+				CoInitialize(0);
+				CoCreateInstance(CLSID_WICImagingFactory2, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&s_imagingFactory));
+			}
+
+			//------------------------------
+
+			if (!s_direct2DFactory)
+			{
+#ifdef _DEBUG
+				D2D1_FACTORY_OPTIONS options;
+				options.debugLevel = D2D1_DEBUG_LEVEL::D2D1_DEBUG_LEVEL_INFORMATION;
+				D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, options, &s_direct2DFactory);
+#else
+				D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &s_direct2DFactory);
+#endif
+			}
+
+			if (!s_directWriteFactory)
+			{
+				DWriteCreateFactory(
+					DWRITE_FACTORY_TYPE::DWRITE_FACTORY_TYPE_ISOLATED,
+					__uuidof(s_directWriteFactory), (IUnknown**)&s_directWriteFactory
+				);
+
+				s_fontFileLoader = new FontFileLoader();
+				s_fontFileLoader->AddRef();
+				s_directWriteFactory->RegisterFontFileLoader(s_fontFileLoader);
+
+				s_fontCollectionLoader = new FontCollectionLoader(s_fontFileLoader);
+				s_fontCollectionLoader->AddRef();
+				s_directWriteFactory->RegisterFontCollectionLoader(s_fontCollectionLoader);
+			}
+		}
+		static void destroyStaticResources()
+		{
+			if (!WindowsWindow::s_numberOfWindows)
+			{
+				if (s_fontCollectionLoader)
+				{
+					if (s_directWriteFactory)
+					{
+						s_directWriteFactory->UnregisterFontCollectionLoader(s_fontCollectionLoader);
+					}
+					s_fontCollectionLoader->Release();
+					s_fontCollectionLoader = 0;
+				}
+
+				if (s_fontFileLoader)
+				{
+					if (s_directWriteFactory)
+					{
+						s_directWriteFactory->UnregisterFontFileLoader(s_fontFileLoader);
+					}
+					s_fontFileLoader->Release();
+					s_fontFileLoader = 0;
+				}
+
+				if (s_directWriteFactory)
+				{
+					s_directWriteFactory->Release();
+					s_directWriteFactory = 0;
+				}
+				if (s_direct2DFactory)
+				{
+					s_direct2DFactory->Release();
+					s_direct2DFactory = 0;
+				}
+				if (s_imagingFactory)
+				{
+					s_imagingFactory->Release();
+					s_imagingFactory = 0;
+				}
+			}
+		}
 
 	private:
 		Window* m_window;
@@ -3400,29 +3485,11 @@ namespace AvoGUI
 
 	public:
 		WindowsDrawingContext(Window* p_window) :
-			m_window(p_window), m_context(0), m_swapChain(0), m_targetWindowBitmap(0),
-			m_isVsyncEnabled(true), m_solidColorBrush(0), m_scale(1.f, 1.f), m_textFormat(0), m_fontCollection(0)
+			m_window(p_window), 
+			m_context(0), m_swapChain(0), m_targetWindowBitmap(0), m_isVsyncEnabled(true), 
+			m_solidColorBrush(0), m_scale(1.f, 1.f), 
+			m_textFormat(0), m_fontCollection(0)
 		{
-			if (!s_imagingFactory)
-			{
-				CoInitialize(0);
-				CoCreateInstance(CLSID_WICImagingFactory2, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&s_imagingFactory));
-			}
-
-			//------------------------------
-
-			if (!s_direct2DFactory)
-			{
-#ifdef _DEBUG
-				D2D1_FACTORY_OPTIONS options;
-				options.debugLevel = D2D1_DEBUG_LEVEL::D2D1_DEBUG_LEVEL_INFORMATION;
-				D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &s_direct2DFactory);
-#else
-				D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &s_direct2DFactory);
-#endif
-			}
-
-			//------------------------------
 			// Create temporary Direct3D device
 
 			ID3D11Device* d3dDevice;
@@ -3494,20 +3561,6 @@ namespace AvoGUI
 			swapChainDescription.SwapEffect = DXGI_SWAP_EFFECT::DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 			swapChainDescription.Flags = 0;
 
-			//DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreenSwapChainDescription = { };
-
-			//IDXGIOutput* output;
-			//dxgiAdapter->EnumOutputs(0, &output);
-
-			//UINT numberOfModes;
-			//DXGI_MODE_DESC modes[100];
-			//output->GetDisplayModeList(DXGI_FORMAT_B8G8R8A8_UNORM, 0, &numberOfModes, modes);
-
-			//fullscreenSwapChainDescription.RefreshRate = modes[numberOfModes - 1].RefreshRate;
-			//fullscreenSwapChainDescription.Scaling = modes[numberOfModes - 1].Scaling;
-			//fullscreenSwapChainDescription.ScanlineOrdering = modes[numberOfModes - 1].ScanlineOrdering;
-			//fullscreenSwapChainDescription.Windowed = true;
-
 			dxgiFactory->CreateSwapChainForHwnd(
 				d3dDevice, (HWND)p_window->getWindowHandle(),
 				&swapChainDescription, 0,
@@ -3515,8 +3568,6 @@ namespace AvoGUI
 			);
 
 			dxgiFactory->MakeWindowAssociation((HWND)p_window->getWindowHandle(), DXGI_MWA_NO_WINDOW_CHANGES);
-
-			//output->Release();
 
 			//------------------------------
 			// Create a target bitmap which is connected to the back buffer of the window.
@@ -3567,22 +3618,6 @@ namespace AvoGUI
 			//------------------------------
 			// Create text stuff
 
-			if (!s_directWriteFactory)
-			{
-				DWriteCreateFactory(
-					DWRITE_FACTORY_TYPE::DWRITE_FACTORY_TYPE_ISOLATED,
-					__uuidof(s_directWriteFactory), (IUnknown**)&s_directWriteFactory
-				);
-
-				s_fontFileLoader = new FontFileLoader();
-				s_fontFileLoader->AddRef();
-				s_directWriteFactory->RegisterFontFileLoader(s_fontFileLoader);
-
-				s_fontCollectionLoader = new FontCollectionLoader(s_fontFileLoader);
-				s_fontCollectionLoader->AddRef();
-				s_directWriteFactory->RegisterFontCollectionLoader(s_fontCollectionLoader);
-			}
-
 			m_fontData.reserve(8);
 			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_LIGHT, FONT_DATA_SIZE_ROBOTO_LIGHT));
 			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_SIZE_ROBOTO_REGULAR));
@@ -3631,45 +3666,6 @@ namespace AvoGUI
 			if (m_context)
 			{
 				m_context->Release();
-			}
-
-			if (!WindowsWindow::s_numberOfWindows)
-			{
-				if (s_fontCollectionLoader)
-				{
-					if (s_directWriteFactory)
-					{
-						s_directWriteFactory->UnregisterFontCollectionLoader(s_fontCollectionLoader);
-					}
-					s_fontCollectionLoader->Release();
-					s_fontCollectionLoader = 0; // Important to zero these because they're static and may be reallocated
-				}
-
-				if (s_fontFileLoader)
-				{
-					if (s_directWriteFactory)
-					{
-						s_directWriteFactory->UnregisterFontFileLoader(s_fontFileLoader);
-					}
-					s_fontFileLoader->Release();
-					s_fontFileLoader = 0;
-				}
-
-				if (s_directWriteFactory)
-				{
-					s_directWriteFactory->Release();
-					s_directWriteFactory = 0;
-				}
-				if (s_direct2DFactory)
-				{
-					s_direct2DFactory->Release();
-					s_direct2DFactory = 0;
-				}
-				if (s_imagingFactory)
-				{
-					s_imagingFactory->Release();
-					s_imagingFactory = 0;
-				}
 			}
 		}
 
@@ -5093,7 +5089,7 @@ namespace AvoGUI
 			m_context->DrawBitmap(
 				(ID2D1Bitmap*)p_image->getHandle(),
 				D2D1::RectF(left, top, left + width, top + height),
-				p_image->getOpacity(),
+				p_image->getOpacity()*m_solidColorBrush->GetOpacity(),
 				p_image->getScalingMethod() == ImageScalingMethod::Pixelated ? D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR : D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
 				D2D1::RectF(cropRectangle.left, cropRectangle.top, cropRectangle.right, cropRectangle.bottom)
 			);
@@ -5104,6 +5100,10 @@ namespace AvoGUI
 		void setColor(Color const& p_color) override
 		{
 			m_solidColorBrush->SetColor(D2D1::ColorF(p_color.red, p_color.green, p_color.blue, p_color.alpha));
+		}
+		void setOpacity(float p_opacity) override
+		{
+			m_solidColorBrush->SetOpacity(p_opacity);
 		}
 
 		//------------------------------
@@ -5251,7 +5251,6 @@ namespace AvoGUI
 
 		while (p_gui->getWindow() && p_gui->getWindow()->getIsOpen())
 		{
-
 			//if (p_gui->getHasNewWindowSize())
 			//{
 			//	p_gui->getDrawingContext()->disableVsync();
@@ -5381,6 +5380,8 @@ namespace AvoGUI
 		m_keyboardFocus(0)
 	{
 #ifdef _WIN32
+		WindowsDrawingContext::createStaticResources();
+
 		m_window = new WindowsWindow(this);
 #endif
 
@@ -5410,6 +5411,9 @@ namespace AvoGUI
 			m_drawingContext->forget();
 			m_drawingContext = 0;
 		}
+#ifdef _WIN32
+		WindowsDrawingContext::destroyStaticResources();
+#endif
 	}
 
 	void GUI::create(char const* p_title, uint32 p_x, uint32 p_y, uint32 p_width, uint32 p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
@@ -5646,27 +5650,21 @@ namespace AvoGUI
 		}
 		else
 		{
-			// Get ready for some big ol' algorithms. They're hopefully more efficient than they look like, because of the view tree structure.
-
 			View* container = this;
 			int32 startIndex = getNumberOfChildren() - 1;
 
-			bool isLastPositionInsideGUI = getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY);
-			bool isNewPositionInsideGUI = getIsContaining(p_event.x, p_event.y);
-
-			bool isContainerMouseEnterView = !isLastPositionInsideGUI;
-			bool hasFoundViewContainingNewPosition = false;
-			bool hasFoundViewContainingOldPosition = false;
+			bool isContainerMouseEnterView = !getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY);
+			bool isContainerMouseLeaveView = !getIsContaining(p_event.x, p_event.y);
 
 			MouseEvent mouseEvent = p_event;
 
 			if (getAreMouseEventsEnabled())
 			{
-				if (!isLastPositionInsideGUI)
+				if (isContainerMouseEnterView)
 				{
 					handleMouseEnter(p_event);
 				}
-				else if (!isNewPositionInsideGUI)
+				else if (isContainerMouseLeaveView)
 				{
 					handleMouseLeave(p_event);
 				}
@@ -5676,211 +5674,188 @@ namespace AvoGUI
 				}
 			}
 
-			// Mouse enter and move events
-
+			bool hasInvisibleParent = false;
+			bool hasOverlayParent = false;
+			bool hasFoundEnterViews = false;
+			bool hasFoundLeaveViews = false;
 			while (true)
 			{
-			loopStart_0:
-				hasFoundViewContainingOldPosition = false;
+				loopStart:
 				for (int32 a = startIndex; a >= 0; a--)
 				{
 					View* child = container->getChild(a);
-					if (child->getIsVisible() && child->getIsContainingAbsolute(p_event.x, p_event.y))
+
+					if (child->getIsContainingAbsolute(p_event.x, p_event.y) && child->getIsVisible() && !hasInvisibleParent)
 					{
-						if (hasFoundViewContainingNewPosition) // In this case we're just checking if the view contains only the old mouse position.
+						if (hasFoundEnterViews)
 						{
 							continue;
 						}
 
-						bool hasChildren = child->getNumberOfChildren();
-						bool areEventsEnabled = child->getAreMouseEventsEnabled();
-
-						if (areEventsEnabled)
+						if (child->getAreMouseEventsEnabled())
 						{
 							mouseEvent.x = p_event.x - child->getAbsoluteLeft();
 							mouseEvent.y = p_event.y - child->getAbsoluteTop();
 						}
-						if (hasFoundViewContainingOldPosition || isContainerMouseEnterView || !child->getIsContainingAbsolute(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+
+						bool isContainer = child->getNumberOfChildren();
+
+						if (child->m_isMouseHovering)
 						{
-							if (areEventsEnabled)
-							{
-								child->handleMouseEnter(mouseEvent);
-								if (!hasChildren)
-								{
-									child->handleMouseBackgroundEnter(mouseEvent);
-								}
-							}
-							if (hasChildren)
-							{
-								isContainerMouseEnterView = true;
-							}
-						}
-						else
-						{
-							if (!child->getIsOverlay())
-							{
-								hasFoundViewContainingOldPosition = true;
-							}
-							if (areEventsEnabled)
+							if (child->getAreMouseEventsEnabled())
 							{
 								child->handleMouseMove(mouseEvent);
 							}
 						}
-
-						if (hasChildren)
+						else
 						{
-							container = child;
-							startIndex = container->getNumberOfChildren() - 1;
-							goto loopStart_0;
-						}
-						else if (!child->getIsOverlay())
-						{
-							hasFoundViewContainingNewPosition = true;
-							if (isContainerMouseEnterView || hasFoundViewContainingOldPosition)
+							if (child->getAreMouseEventsEnabled())
 							{
-								break;
+								child->handleMouseEnter(mouseEvent);
+								if (!isContainer)
+								{
+									child->handleMouseBackgroundEnter(mouseEvent);
+								}
+							}
+							if (!isContainer)
+							{
+								child->m_isMouseHovering = true;
+								if (!hasOverlayParent && !child->getIsOverlay())
+								{
+									hasFoundEnterViews = true;
+									if (hasFoundLeaveViews)
+									{
+										break;
+									}
+								}
 							}
 						}
-					}
-					else if (!isContainerMouseEnterView && !hasFoundViewContainingOldPosition && child->getIsVisible() && !child->getIsOverlay() && child->getIsContainingAbsolute(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
-					{
-						hasFoundViewContainingOldPosition = true;
-						if (hasFoundViewContainingNewPosition)
+
+						if (isContainer)
 						{
-							break;
+							if (child->getIsOverlay())
+							{
+								hasOverlayParent = true;
+							}
+							container = child;
+							startIndex = child->getNumberOfChildren() - 1;
+							goto loopStart;
 						}
 					}
-				}
-
-				if (container->getAreMouseEventsEnabled() && !hasFoundViewContainingNewPosition && (hasFoundViewContainingOldPosition || isContainerMouseEnterView))
-				{
-					mouseEvent.x = p_event.x - container->getAbsoluteLeft();
-					mouseEvent.y = p_event.y - container->getAbsoluteTop();
-					container->handleMouseBackgroundEnter(mouseEvent);
-				}
-
-				if (!container->getIsOverlay() || container == this)
-				{
-					break;
-				}
-
-				// We only continue if the container was an overlay view.
-
-				startIndex = container->getIndex() - 1;
-				container = container->getParent();
-
-				if (isContainerMouseEnterView && startIndex > 0)
-				{
-					if (container->getIsContainingAbsolute(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+					else if (child->m_isMouseHovering)
 					{
-						isContainerMouseEnterView = false;
-					}
-				}
-				else
-				{
-					isContainerMouseEnterView = false;
-				}
-			}
-
-			// Mouse leave events
-
-			container = this;
-			startIndex = getNumberOfChildren() - 1;
-			bool isContainerMouseLeaveView = !isNewPositionInsideGUI;
-			hasFoundViewContainingNewPosition = false;
-			hasFoundViewContainingOldPosition = false;
-
-			while (true)
-			{
-			loopStart_1:
-				hasFoundViewContainingNewPosition = false;
-				for (int32 a = startIndex; a >= 0; a--)
-				{
-					View* child = container->getChild(a);
-					if (child->getIsVisible() && child->getIsContainingAbsolute(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
-					{
-						if (hasFoundViewContainingOldPosition) // In this case we're just checking if the view contains only the old mouse position.
+						if (hasFoundLeaveViews) 
 						{
 							continue;
 						}
 
-						bool hasChildren = child->getNumberOfChildren();
-						bool areEventsEnabled = child->getAreMouseEventsEnabled();
+						bool isContainer = child->getNumberOfChildren();
 
-						if (hasFoundViewContainingNewPosition || isContainerMouseLeaveView || !child->getIsContainingAbsolute(p_event.x, p_event.y))
+						if (child->getAreMouseEventsEnabled())
 						{
-							if (areEventsEnabled)
+							mouseEvent.x = p_event.x - child->getAbsoluteLeft();
+							mouseEvent.y = p_event.y - child->getAbsoluteTop();
+							child->handleMouseLeave(mouseEvent);
+							if (!isContainer)
 							{
-								mouseEvent.x = p_event.x - child->getAbsoluteLeft();
-								mouseEvent.y = p_event.y - child->getAbsoluteTop();
-								child->handleMouseLeave(mouseEvent);
-								if (!hasChildren)
+								child->handleMouseBackgroundLeave(mouseEvent);
+							}
+						}
+
+						if (isContainer)
+						{
+							if (child->getIsOverlay())
+							{
+								hasOverlayParent = true;
+							}
+							if (!child->getIsVisible())
+							{
+								hasInvisibleParent = true;
+							}
+							container = child;
+							startIndex = child->getNumberOfChildren() - 1;
+							goto loopStart;
+						}
+						else
+						{
+							child->m_isMouseHovering = false;
+							if (!hasOverlayParent && !child->getIsOverlay())
+							{
+								hasFoundLeaveViews = true;
+								if (hasFoundEnterViews)
 								{
-									child->handleMouseBackgroundLeave(mouseEvent);
+									break;
 								}
 							}
-							if (hasChildren)
-							{
-								isContainerMouseLeaveView = true;
-							}
-						}
-						else if (!child->getIsOverlay()) // Both the old and new mouse position are contained within this view.
-						{
-							hasFoundViewContainingNewPosition = true;
-						}
-
-						if (hasChildren)
-						{
-							container = child;
-							startIndex = container->getNumberOfChildren() - 1;
-							goto loopStart_1;
-						}
-						else if (!child->getIsOverlay())
-						{
-							hasFoundViewContainingOldPosition = true;
-							if (isContainerMouseLeaveView || hasFoundViewContainingNewPosition)
-							{
-								break;
-							}
 						}
 					}
-					else if (!isContainerMouseLeaveView && !hasFoundViewContainingNewPosition && child->getIsVisible() && !child->getIsOverlay() && child->getIsContainingAbsolute(p_event.x, p_event.y))
+				}
+
+				bool isMouseInContainer = container->getIsContainingAbsolute(p_event.x, p_event.y) && !hasInvisibleParent;
+
+				if (isMouseInContainer && !container->m_isMouseHovering && !hasFoundEnterViews ||
+					isMouseInContainer && container->m_isMouseHovering && hasFoundLeaveViews && !hasFoundEnterViews)
+				{
+					hasFoundEnterViews = true;
+					if (container->getAreMouseEventsEnabled())
 					{
-						hasFoundViewContainingNewPosition = true;
-						if (hasFoundViewContainingOldPosition)
-						{
-							break;
-						}
+						mouseEvent.x = p_event.x - container->getAbsoluteLeft();
+						mouseEvent.y = p_event.y - container->getAbsoluteTop();
+						container->handleMouseBackgroundEnter(mouseEvent);
 					}
 				}
-
-				if (container->getAreMouseEventsEnabled() && !hasFoundViewContainingOldPosition && (hasFoundViewContainingNewPosition || isContainerMouseLeaveView))
+				else if (!isMouseInContainer && container->m_isMouseHovering && !hasFoundLeaveViews || 
+					isMouseInContainer && container->m_isMouseHovering && !hasFoundLeaveViews && hasFoundEnterViews)
 				{
-					mouseEvent.x = p_event.x - container->getAbsoluteLeft();
-					mouseEvent.y = p_event.y - container->getAbsoluteTop();
-					container->handleMouseBackgroundLeave(mouseEvent);
+					hasFoundLeaveViews = true;
+					if (container->getAreMouseEventsEnabled())
+					{
+						mouseEvent.x = p_event.x - container->getAbsoluteLeft();
+						mouseEvent.y = p_event.y - container->getAbsoluteTop();
+						container->handleMouseBackgroundLeave(mouseEvent);
+					}
 				}
-
-				if (!container->getIsOverlay() || container == this)
+				else if (isMouseInContainer && container->m_isMouseHovering)
 				{
+					hasFoundEnterViews = true;
+					hasFoundLeaveViews = true;
+				}
+				
+				if (container == this)
+				{
+					container->m_isMouseHovering = isMouseInContainer;
 					break;
 				}
 
-				// We only continue if the container was an overlay view.
-
-				startIndex = container->getIndex() - 1;
-				container = container->getParent();
-
-				if (isContainerMouseLeaveView && startIndex > 0)
+				if (container->getIsOverlay())
 				{
-					if (container->getIsContainingAbsolute(p_event.x, p_event.y))
-					{
-						isContainerMouseLeaveView = false;
-					}
+					hasOverlayParent = false;
+					container->m_isMouseHovering = isMouseInContainer;
+					startIndex = container->getIndex() - 1;
+					container = container->getParent();
 				}
-				else
+				else 
 				{
-					isContainerMouseLeaveView = false;
+					while (container != this && isMouseInContainer != container->m_isMouseHovering)
+					{
+						container->m_isMouseHovering = isMouseInContainer;
+						startIndex = (int32)container->getIndex() - 1;
+						container = container->getParent();
+						isMouseInContainer = container->getIsContainingAbsolute(p_event.x, p_event.y) && !hasInvisibleParent;
+						if (container->getIsOverlay())
+						{
+							hasOverlayParent = false;
+						}
+						if (!container->getIsVisible())
+						{
+							hasInvisibleParent = false;
+						}
+					}
+
+					if (hasFoundLeaveViews && hasFoundEnterViews)
+					{
+						break;
+					}
 				}
 			}
 		}
