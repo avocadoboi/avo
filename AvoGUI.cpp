@@ -86,7 +86,7 @@ namespace AvoGUI
 		{
 			return 0.f;
 		}
-		if (p_value >= 0.9999f) 
+		if (p_value >= 0.9999f)
 		{
 			return 1.f;
 		}
@@ -94,13 +94,13 @@ namespace AvoGUI
 		float t = p_value < 0.5f ? 0.25f : 0.75f;
 
 		float error = 1;
-		while (abs(error) > p_precision) 
+		while (abs(error) > p_precision)
 		{
-			error = p_value - t * ((1.f - t)*(3.f*(1.f - t)*x0 + 3.f*t*x1) + t * t);
-			t += error / (x0*(3.f - 12.f*t + 9.f*t*t) + x1 * (6.f*t - 9.f*t*t) + 3.f*t*t);
+			error = p_value - t * ((1.f - t) * (3.f * (1.f - t) * x0 + 3.f * t * x1) + t * t);
+			t += error / (x0 * (3.f - 12.f * t + 9.f * t * t) + x1 * (6.f * t - 9.f * t * t) + 3.f * t * t);
 		}
 
-		return t * ((1.f - t)*(3.f*(1.f - t)*y0 + 3.f*t*y1) + t * t);
+		return t * ((1.f - t) * (3.f * (1.f - t) * y0 + 3.f * t * y1) + t * t);
 	}
 
 	//------------------------------
@@ -149,15 +149,45 @@ namespace AvoGUI
 		}
 	}
 
+	void View::updateShadow()
+	{
+		if (getWidth() >= 1.f && getHeight() >= 1.f && m_elevation > 0.00001f && m_hasShadow && m_elevation < 400.f)
+		{
+			if (m_shadowImage)
+			{
+				m_shadowImage->forget();
+			}
+			m_shadowImage = m_GUI->getDrawingContext()->createRectangleShadowImage(getSize(), m_corners, m_elevation, m_theme->colors["shadow"]);
+			m_shadowBounds = Rectangle<float>(
+				Point<float>(
+					0.5f * (m_bounds.right - m_bounds.left - (float)m_shadowImage->getWidth()),
+					0.35f * (m_bounds.bottom - m_bounds.top - (float)m_shadowImage->getHeight())
+					), m_shadowImage->getSize()
+				);
+			m_shadowImage->setTopLeft(m_shadowBounds.getTopLeft());
+		}
+		else
+		{
+			if (m_shadowImage)
+			{
+				m_shadowImage->forget();
+				m_shadowImage = 0;
+			}
+			m_shadowBounds = m_bounds.createCopyAtOrigin();
+		}
+	}
+
 	//
 	// Public
 	//
 
 	View::View(View* p_parent, Rectangle<float> const& p_bounds) :
-		ProtectedRectangle(p_bounds), m_isInAnimationUpdateQueue(false), m_isVisible(true), m_isOverlay(false),
-		m_areMouseEventsEnabled(false), m_cornerRadius(0.f), m_cursor(Cursor::Arrow), 
-		m_shadowBounds(p_bounds), m_shadowImage(0), m_hasShadow(true), m_elevation(0.f), m_hasSizeChangedSinceLastElevationChange(true),
-		m_parent(0)
+		ProtectedRectangle(p_bounds), 
+		m_isInAnimationUpdateQueue(false), m_isVisible(true), m_isOverlay(false),
+		m_areMouseEventsEnabled(false), m_cursor(Cursor::Arrow),
+		m_shadowBounds(p_bounds), m_shadowImage(0), m_hasShadow(true), m_elevation(0.f),
+		m_layerIndex(0), m_index(0), m_isMouseHovering(false),
+		m_GUI(0), m_parent(0), m_theme(0)
 	{
 		if (p_parent && p_parent != this)
 		{
@@ -170,12 +200,6 @@ namespace AvoGUI
 		}
 		else
 		{
-			m_parent = 0;
-			m_GUI = 0;
-
-			m_layerIndex = 0U;
-			m_index = 0U;
-
 			m_theme = new Theme();
 		}
 	}
@@ -324,7 +348,7 @@ namespace AvoGUI
 		}
 
 		// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
-		// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
+		// It's not the other way around because the parent lays out the children and the size of the children may change in the handler.
 		if (!m_theme)
 		{
 			m_theme = new Theme();
@@ -338,7 +362,7 @@ namespace AvoGUI
 		if (m_theme->colors[p_name] != p_color)
 		{
 			m_theme->colors[p_name] = p_color;
-			std::string name(std::move(p_name));
+			std::string name(p_name);
 			if (getGUI() == this && name == "background")
 			{
 				((GUI*)this)->getDrawingContext()->setBackgroundColor(p_color);
@@ -349,216 +373,209 @@ namespace AvoGUI
 
 	//------------------------------
 
-	bool View::getIsIntersecting(View* p_view) const
-	{
-		Rectangle<float> viewBounds(p_view->getAbsoluteBounds());
-		if (p_view->getParent() != getParent())
-		{
-			viewBounds -= getParent()->getAbsoluteBounds().getTopLeft();
-		}
-		if (m_bounds.getIsIntersecting(viewBounds))
-		{
-			if (p_view->getCornerRadius() > 0.f)
-			{
-				if (m_cornerRadius > 0.f)
-				{
-					if (viewBounds.right - p_view->getCornerRadius() < m_bounds.left + m_cornerRadius)
-					{
-						if (viewBounds.bottom - p_view->getCornerRadius() < m_bounds.top + m_cornerRadius)
-						{
-							return Point<>::getDistanceSquared(viewBounds.right - m_cornerRadius, viewBounds.bottom - m_cornerRadius, m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
-						}
-						if (viewBounds.top + p_view->getCornerRadius() > m_bounds.bottom - m_cornerRadius)
-						{
-							return Point<>::getDistanceSquared(viewBounds.right - m_cornerRadius, viewBounds.top + m_cornerRadius, m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
-						}
-					}
-					else if (viewBounds.left + p_view->getCornerRadius() > m_bounds.right - m_cornerRadius)
-					{
-						if (viewBounds.bottom - p_view->getCornerRadius() < m_bounds.top + m_cornerRadius)
-						{
-							return Point<>::getDistanceSquared(viewBounds.left + m_cornerRadius, viewBounds.bottom - m_cornerRadius, m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
-						}
-						if (viewBounds.top + p_view->getCornerRadius() > m_bounds.bottom - m_cornerRadius)
-						{
-							return Point<>::getDistanceSquared(viewBounds.left + m_cornerRadius, viewBounds.top + m_cornerRadius, m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
-						}
-					}
-					return true;
-				}
-				float radius = p_view->getCornerRadius();
-				if (m_bounds.right < viewBounds.left + radius)
-				{
-					if (m_bounds.bottom < viewBounds.top + radius)
-					{
-						return Point<>::getDistanceSquared(m_bounds.right, m_bounds.bottom, viewBounds.left + radius, viewBounds.top + radius) < radius*radius;
-					}
-					if (m_bounds.top < viewBounds.bottom - radius)
-					{
-						return Point<>::getDistanceSquared(m_bounds.right, m_bounds.top, viewBounds.left + radius, viewBounds.bottom - radius) < radius*radius;
-					}
-				}
-				else if (m_bounds.left > viewBounds.right)
-				{
-					if (m_bounds.bottom < viewBounds.top + radius)
-					{
-						return Point<>::getDistanceSquared(m_bounds.left, m_bounds.bottom, viewBounds.right - radius, viewBounds.top + radius) < radius*radius;
-					}
-					if (m_bounds.top < viewBounds.bottom - radius)
-					{
-						return Point<>::getDistanceSquared(m_bounds.left, m_bounds.top, viewBounds.right - radius, viewBounds.bottom - radius) < radius*radius;
-					}
-				}
-			}
-			return true;
-		}
-		return false;
-	}
+	//bool View::getIsIntersecting(View* p_view) const
+	//{
+	//	Rectangle<float> viewBounds(p_view->getAbsoluteBounds());
+	//	if (p_view->getParent() != getParent())
+	//	{
+	//		viewBounds -= getParent()->getAbsoluteBounds().getTopLeft();
+	//	}
+	//	if (m_bounds.getIsIntersecting(viewBounds))
+	//	{
+	//		if (p_view->getCornerRadius() > 0.f)
+	//		{
+	//			if (m_cornerRadius > 0.f)
+	//			{
+	//				if (viewBounds.right - p_view->getCornerRadius() < m_bounds.left + m_cornerRadius)
+	//				{
+	//					if (viewBounds.bottom - p_view->getCornerRadius() < m_bounds.top + m_cornerRadius)
+	//					{
+	//						return Point<>::getDistanceSquared(viewBounds.right - m_cornerRadius, viewBounds.bottom - m_cornerRadius, m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
+	//					}
+	//					if (viewBounds.top + p_view->getCornerRadius() > m_bounds.bottom - m_cornerRadius)
+	//					{
+	//						return Point<>::getDistanceSquared(viewBounds.right - m_cornerRadius, viewBounds.top + m_cornerRadius, m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
+	//					}
+	//				}
+	//				else if (viewBounds.left + p_view->getCornerRadius() > m_bounds.right - m_cornerRadius)
+	//				{
+	//					if (viewBounds.bottom - p_view->getCornerRadius() < m_bounds.top + m_cornerRadius)
+	//					{
+	//						return Point<>::getDistanceSquared(viewBounds.left + m_cornerRadius, viewBounds.bottom - m_cornerRadius, m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
+	//					}
+	//					if (viewBounds.top + p_view->getCornerRadius() > m_bounds.bottom - m_cornerRadius)
+	//					{
+	//						return Point<>::getDistanceSquared(viewBounds.left + m_cornerRadius, viewBounds.top + m_cornerRadius, m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
+	//					}
+	//				}
+	//				return true;
+	//			}
+	//			float radius = p_view->getCornerRadius();
+	//			if (m_bounds.right < viewBounds.left + radius)
+	//			{
+	//				if (m_bounds.bottom < viewBounds.top + radius)
+	//				{
+	//					return Point<>::getDistanceSquared(m_bounds.right, m_bounds.bottom, viewBounds.left + radius, viewBounds.top + radius) < radius*radius;
+	//				}
+	//				if (m_bounds.top < viewBounds.bottom - radius)
+	//				{
+	//					return Point<>::getDistanceSquared(m_bounds.right, m_bounds.top, viewBounds.left + radius, viewBounds.bottom - radius) < radius*radius;
+	//				}
+	//			}
+	//			else if (m_bounds.left > viewBounds.right)
+	//			{
+	//				if (m_bounds.bottom < viewBounds.top + radius)
+	//				{
+	//					return Point<>::getDistanceSquared(m_bounds.left, m_bounds.bottom, viewBounds.right - radius, viewBounds.top + radius) < radius*radius;
+	//				}
+	//				if (m_bounds.top < viewBounds.bottom - radius)
+	//				{
+	//					return Point<>::getDistanceSquared(m_bounds.left, m_bounds.top, viewBounds.right - radius, viewBounds.bottom - radius) < radius*radius;
+	//				}
+	//			}
+	//		}
+	//		return true;
+	//	}
+	//	return false;
+	//}
 
-	bool View::getIsContaining(View* p_view) const
+	//bool View::getIsContaining(View* p_view) const
+	//{
+	//	Rectangle<float> viewBounds(p_view->getAbsoluteBounds());
+	//	if (p_view->getParent() != getParent())
+	//	{
+	//		viewBounds -= getParent()->getAbsoluteBounds().getTopLeft();
+	//	}
+	//	if (getIsContaining(viewBounds))
+	//	{
+	//		float radius = p_view->getCornerRadius();
+	//		float maxDistance = (m_cornerRadius - radius)*(m_cornerRadius - radius);
+	//		if (viewBounds.left < m_bounds.left + m_cornerRadius)
+	//		{
+	//			if (viewBounds.top < m_bounds.top + m_cornerRadius)
+	//			{
+	//				if (Point<>::getDistanceSquared(viewBounds.left + radius, viewBounds.top + radius, m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//			if (viewBounds.bottom > m_bounds.bottom - m_cornerRadius)
+	//			{
+	//				if (Point<>::getDistanceSquared(viewBounds.left + radius, viewBounds.bottom - radius, m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//		}
+	//		if (viewBounds.right > m_bounds.right - m_cornerRadius)
+	//		{
+	//			if (viewBounds.top < m_bounds.top + m_cornerRadius)
+	//			{
+	//				if (Point<>::getDistanceSquared(viewBounds.right - radius, viewBounds.top + radius, m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//			if (viewBounds.bottom > m_bounds.bottom - m_cornerRadius)
+	//			{
+	//				if (Point<>::getDistanceSquared(viewBounds.right - radius, viewBounds.bottom - radius, m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//		}
+	//		return true;
+	//	}
+	//	if (viewBounds.getIsContaining(m_bounds))
+	//	{
+	//		float radius = p_view->getCornerRadius();
+	//		float maxDistance = (m_cornerRadius - radius)*(m_cornerRadius - radius);
+	//		if (m_bounds.left < viewBounds.left + radius)
+	//		{
+	//			if (m_bounds.top < viewBounds.top + radius)
+	//			{
+	//				if (Point<>::getDistanceSquared(m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius, viewBounds.left + radius, viewBounds.top + radius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//			if (m_bounds.bottom > viewBounds.bottom - radius)
+	//			{
+	//				if (Point<>::getDistanceSquared(m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius, viewBounds.left + radius, viewBounds.bottom - radius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//		}
+	//		if (m_bounds.right > viewBounds.right - radius)
+	//		{
+	//			if (m_bounds.top < viewBounds.top + radius)
+	//			{
+	//				if (Point<>::getDistanceSquared(m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius, viewBounds.right - radius, viewBounds.top + radius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//			if (m_bounds.bottom > viewBounds.bottom - radius)
+	//			{
+	//				if (Point<>::getDistanceSquared(m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius, viewBounds.right - radius, viewBounds.bottom - radius) > maxDistance)
+	//				{
+	//					return false;
+	//				}
+	//			}
+	//		}
+	//		return true;
+	//	}
+	//	return false;
+	//}
+
+	//------------------------------
+
+	void View::setIsVisible(bool p_isVisible)
 	{
-		Rectangle<float> viewBounds(p_view->getAbsoluteBounds());
-		if (p_view->getParent() != getParent())
+		m_isVisible = p_isVisible;
+
+		Point<float> const& mousePosition = getGUI()->getWindow()->getMousePosition();
+		if (getGUI()->getIsContaining(mousePosition))
 		{
-			viewBounds -= getParent()->getAbsoluteBounds().getTopLeft();
+			MouseEvent mouseEvent;
+			mouseEvent.x = mousePosition.x;
+			mouseEvent.y = mousePosition.y;
+			mouseEvent.movementX = 0;
+			mouseEvent.movementY = 0;
+			getGUI()->handleGlobalMouseMove(mouseEvent);
 		}
-		if (getIsContaining(viewBounds))
-		{
-			float radius = p_view->getCornerRadius();
-			float maxDistance = (m_cornerRadius - radius)*(m_cornerRadius - radius);
-			if (viewBounds.left < m_bounds.left + m_cornerRadius)
-			{
-				if (viewBounds.top < m_bounds.top + m_cornerRadius)
-				{
-					if (Point<>::getDistanceSquared(viewBounds.left + radius, viewBounds.top + radius, m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius) > maxDistance)
-					{
-						return false;
-					}
-				}
-				if (viewBounds.bottom > m_bounds.bottom - m_cornerRadius)
-				{
-					if (Point<>::getDistanceSquared(viewBounds.left + radius, viewBounds.bottom - radius, m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius) > maxDistance)
-					{
-						return false;
-					}
-				}
-			}
-			if (viewBounds.right > m_bounds.right - m_cornerRadius)
-			{
-				if (viewBounds.top < m_bounds.top + m_cornerRadius)
-				{
-					if (Point<>::getDistanceSquared(viewBounds.right - radius, viewBounds.top + radius, m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius) > maxDistance)
-					{
-						return false;
-					}
-				}
-				if (viewBounds.bottom > m_bounds.bottom - m_cornerRadius)
-				{
-					if (Point<>::getDistanceSquared(viewBounds.right - radius, viewBounds.bottom - radius, m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius) > maxDistance)
-					{
-						return false;
-					}
-				}
-			}
-			return true;
-		}
-		if (viewBounds.getIsContaining(m_bounds))
-		{
-			float radius = p_view->getCornerRadius();
-			float maxDistance = (m_cornerRadius - radius)*(m_cornerRadius - radius);
-			if (m_bounds.left < viewBounds.left + radius)
-			{
-				if (m_bounds.top < viewBounds.top + radius)
-				{
-					if (Point<>::getDistanceSquared(m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius, viewBounds.left + radius, viewBounds.top + radius) > maxDistance)
-					{
-						return false;
-					}
-				}
-				if (m_bounds.bottom > viewBounds.bottom - radius)
-				{
-					if (Point<>::getDistanceSquared(m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius, viewBounds.left + radius, viewBounds.bottom - radius) > maxDistance)
-					{
-						return false;
-					}
-				}
-			}
-			if (m_bounds.right > viewBounds.right - radius)
-			{
-				if (m_bounds.top < viewBounds.top + radius)
-				{
-					if (Point<>::getDistanceSquared(m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius, viewBounds.right - radius, viewBounds.top + radius) > maxDistance)
-					{
-						return false;
-					}
-				}
-				if (m_bounds.bottom > viewBounds.bottom - radius)
-				{
-					if (Point<>::getDistanceSquared(m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius, viewBounds.right - radius, viewBounds.bottom - radius) > maxDistance)
-					{
-						return false;
-					}
-				}
-			}
-			return true;
-		}
-		return false;
 	}
 
 	//------------------------------
 
 	void View::setElevation(float p_elevation)
 	{
-		p_elevation = float(p_elevation < 0.f)*FLT_MAX + p_elevation;
+		p_elevation = float(p_elevation < 0.f) * FLT_MAX + p_elevation;
 
-		if (m_hasSizeChangedSinceLastElevationChange || m_elevation != p_elevation)
+		if (m_elevation != p_elevation)
 		{
-			if (p_elevation > 0.00001f && m_hasShadow && p_elevation < 400.f)
-			{
-				if (m_shadowImage)
-				{
-					m_shadowImage->forget();
-				}
-				m_shadowImage = m_GUI->getDrawingContext()->createRoundedRectangleShadowImage(getSize(), m_cornerRadius, p_elevation, m_theme->colors["shadow"]);
-				m_shadowBounds = Rectangle<float>(
-					Point<float>(
-						0.5f*(m_bounds.right - m_bounds.left - (float)m_shadowImage->getWidth()),
-						0.35f*(m_bounds.bottom - m_bounds.top - (float)m_shadowImage->getHeight())
-						), m_shadowImage->getSize()
-					);
-				m_shadowImage->setTopLeft(m_shadowBounds.getTopLeft());
-			}
-			else
-			{
-				if (m_shadowImage)
-				{
-					m_shadowImage->forget();
-					m_shadowImage = 0;
-				}
-				m_shadowBounds = m_bounds.createCopyAtOrigin();
-			}
-
-			if (p_elevation != m_elevation)
-			{
-				m_elevation = p_elevation;
-				m_parent->updateViewDrawingIndex(this);
-			}
-			m_hasSizeChangedSinceLastElevationChange = false;
+			m_elevation = p_elevation;
+			updateShadow();
+			m_parent->updateViewDrawingIndex(this);
 		}
 	}
 
 	void View::setHasShadow(bool p_hasShadow)
 	{
-		m_hasShadow = p_hasShadow;
-		if (m_hasShadow)
+		if (m_hasShadow != p_hasShadow)
 		{
-			setElevation(m_elevation);
-		}
-		else if (m_shadowImage)
-		{
-			m_shadowImage->forget();
-			m_shadowImage = 0;
-			m_shadowBounds = m_bounds.createCopyAtOrigin();
+			m_hasShadow = p_hasShadow;
+			if (m_hasShadow)
+			{
+				updateShadow();
+			}
+			else if (m_shadowImage)
+			{
+				m_shadowImage->forget();
+				m_shadowImage = 0;
+				m_shadowBounds = m_bounds.createCopyAtOrigin();
+			}
 		}
 	}
 
@@ -595,8 +612,6 @@ namespace AvoGUI
 	{
 		if (m_GUI)
 		{
-			setElevation(m_elevation); // This is to update the shadow bounds. This isn't expensive at all, because we aren't changing the elevation.
-
 			Rectangle<float> shadowBounds(getAbsoluteShadowBounds().roundCoordinatesOutwards());
 			if (shadowBounds == m_lastInvalidatedShadowBounds || (!m_lastInvalidatedShadowBounds.getWidth() && !m_lastInvalidatedShadowBounds.getHeight()))
 			{
@@ -643,15 +658,14 @@ namespace AvoGUI
 		bool m_isOpen;
 		Point<int32> m_position;
 		Point<uint32> m_size;
+		Point<uint32> m_minSize;
+		Point<uint32> m_maxSize;
 
 		bool m_isFullscreen;
 		RECT m_windowRectBeforeFullscreen;
 		bool m_wasWindowMaximizedBeforeFullscreen;
 
 		WindowState m_state;
-
-		Point<uint32> m_minSize;
-		Point<uint32> m_maxSize;
 
 		bool m_isMouseOutsideWindow;
 		Point<int32> m_mousePosition;
@@ -948,7 +962,7 @@ namespace AvoGUI
 		//------------------------------
 
 		WindowsWindow(GUI* p_GUI) :
-			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0), 
+			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0),
 			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
 			m_state(WindowState::Restored), m_isMouseOutsideWindow(true), m_mousePosition(-1, -1), m_cursorHandle(0)
 		{
@@ -998,18 +1012,10 @@ namespace AvoGUI
 
 			m_styles = convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styleFlags);
 
-			//if (uint32(p_styleFlags & WindowStyleFlags::Maximized))
-			//	m_state = WindowState::Maximized;
-			//else if (uint32(p_styleFlags & WindowStyleFlags::Minimized))
-			//	m_state = WindowState::Minimized;
-			//else
-			//	m_state = WindowState::Restored;
-
 			RECT windowRect = { 0, 0, p_width, p_height };
 			AdjustWindowRect(&windowRect, m_styles, 0);
 
 			m_size.set(p_width, p_height);
-
 			// m_windowHandle is initialized by the WM_CREATE event, before CreateWindowEx returns.
 			CreateWindow(
 				WINDOW_CLASS_NAME,
@@ -1017,8 +1023,8 @@ namespace AvoGUI
 				m_styles,
 				p_x,
 				p_y,
-				windowRect.right - windowRect.left,
-				windowRect.bottom - windowRect.top,
+				std::ceil((windowRect.right - windowRect.left) * GetDpiForSystem()/96.f),
+				std::ceil((windowRect.bottom - windowRect.top) * GetDpiForSystem()/96.f),
 				p_parent ? (HWND)p_parent->getWindowHandle() : 0,
 				0, // No menu
 				GetModuleHandle(0),
@@ -1063,7 +1069,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/// Internal method used to initialize the window handle at the right moment.
+		// Internal method used to initialize the window handle at the right moment.
 		void setWindowHandle(HWND p_handle)
 		{
 			m_windowHandle = p_handle;
@@ -1081,7 +1087,7 @@ namespace AvoGUI
 			{
 				return;
 			}
-			if (p_isFullscreen) 
+			if (p_isFullscreen)
 			{
 				m_wasWindowMaximizedBeforeFullscreen = false;
 				if (m_state == WindowState::Restored)
@@ -1101,7 +1107,7 @@ namespace AvoGUI
 			}
 			else
 			{
-				SetWindowLongPtr(m_windowHandle, GWL_STYLE, (m_wasWindowMaximizedBeforeFullscreen*WS_MAXIMIZE) | (m_styles & ~(WS_MAXIMIZE | WS_MINIMIZE)));
+				SetWindowLongPtr(m_windowHandle, GWL_STYLE, (m_wasWindowMaximizedBeforeFullscreen * WS_MAXIMIZE) | (m_styles & ~(WS_MAXIMIZE | WS_MINIMIZE)));
 				if (m_wasWindowMaximizedBeforeFullscreen)
 				{
 					SetWindowPos(m_windowHandle, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
@@ -1665,7 +1671,7 @@ namespace AvoGUI
 			SetClipboardData(CF_UNICODETEXT, clipboardData);
 			CloseClipboard();
 		}
-		
+
 		void setClipboardString(std::string const& p_string) override
 		{
 			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, p_string.size() + 1LL);
@@ -1722,7 +1728,7 @@ namespace AvoGUI
 			std::string string = "";
 
 			OpenClipboard(m_windowHandle);
-			
+
 			void* handle = GetClipboardData(CF_TEXT);
 			if (!handle)
 			{
@@ -2379,7 +2385,11 @@ namespace AvoGUI
 		{
 			DWRITE_TEXT_METRICS metrics;
 			m_handle->GetMetrics(&metrics);
-			m_bounds.setSize(metrics.width, metrics.height);
+
+			DWRITE_OVERHANG_METRICS overhangMetrics;
+			m_handle->GetOverhangMetrics(&overhangMetrics);
+
+			m_bounds.setSize(metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + overhangMetrics.top);
 		}
 		void fitWidthToText() override
 		{
@@ -2389,15 +2399,20 @@ namespace AvoGUI
 		}
 		void fitHeightToText() override
 		{
-			DWRITE_TEXT_METRICS metrics;
-			m_handle->GetMetrics(&metrics);
-			m_bounds.setHeight(metrics.height);
+			DWRITE_OVERHANG_METRICS overhangMetrics;
+			m_handle->GetOverhangMetrics(&overhangMetrics);
+
+			m_bounds.setHeight(m_handle->GetMaxHeight() + overhangMetrics.bottom + overhangMetrics.top);
 		}
 		Point<float> getMinimumSize() override
 		{
 			DWRITE_TEXT_METRICS metrics;
 			m_handle->GetMetrics(&metrics);
-			return Point<float>(metrics.width, metrics.height);
+
+			DWRITE_OVERHANG_METRICS overhangMetrics;
+			m_handle->GetOverhangMetrics(&overhangMetrics);
+
+			return Point<float>(metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + overhangMetrics.top);
 		}
 		float getMinimumWidth() override
 		{
@@ -2407,9 +2422,10 @@ namespace AvoGUI
 		}
 		float getMinimumHeight() override
 		{
-			DWRITE_TEXT_METRICS metrics;
-			m_handle->GetMetrics(&metrics);
-			return metrics.height;
+			DWRITE_OVERHANG_METRICS overhangMetrics;
+			m_handle->GetOverhangMetrics(&overhangMetrics);
+
+			return m_handle->GetMaxHeight() + overhangMetrics.bottom + overhangMetrics.top;
 		}
 
 		//------------------------------
@@ -2434,7 +2450,7 @@ namespace AvoGUI
 			m_handle->HitTestTextPosition(p_characterIndex, false, &x, &y, &metrics);
 			return Point<float>(metrics.width, metrics.height);
 		}
-		Rectangle<float> getCharacterBounds(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) override 
+		Rectangle<float> getCharacterBounds(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) override
 		{
 			Rectangle<float> result;
 			DWRITE_HIT_TEST_METRICS metrics;
@@ -2522,6 +2538,40 @@ namespace AvoGUI
 				return TextAlign::Right;
 			case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED:
 				return TextAlign::Fill;
+			}
+		}
+
+
+		void setReadingDirection(ReadingDirection p_readingDirection) override
+		{
+			switch (p_readingDirection)
+			{
+			case ReadingDirection::LeftToRight:
+				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_LEFT_TO_RIGHT);
+				break;
+			case ReadingDirection::RightToLeft:
+				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
+				break;
+			case ReadingDirection::TopToBottom:
+				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM);
+				break;
+			case ReadingDirection::BottomToTop:
+				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP);
+				break;
+			}
+		}
+		ReadingDirection getReadingDirection() override
+		{
+			switch (m_handle->GetReadingDirection())
+			{
+			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_LEFT_TO_RIGHT:
+				return ReadingDirection::LeftToRight;
+			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT:
+				return ReadingDirection::RightToLeft;
+			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM:
+				return ReadingDirection::TopToBottom;
+			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP:
+				return ReadingDirection::BottomToTop;
 			}
 		}
 
@@ -2894,7 +2944,7 @@ namespace AvoGUI
 		}
 		void setCharacterSpacing(float p_characterSpacing, int32 p_startPosition, int32 p_length) override
 		{
-			m_handle->SetCharacterSpacing(p_characterSpacing*0.5f, p_characterSpacing*0.5f, 0.f, createTextRange(p_startPosition, p_length));
+			m_handle->SetCharacterSpacing(p_characterSpacing * 0.5f, p_characterSpacing * 0.5f, 0.f, createTextRange(p_startPosition, p_length));
 		}
 		float getLeadingCharacterSpacing(int32 p_characterIndex) override
 		{
@@ -2913,7 +2963,7 @@ namespace AvoGUI
 
 		void setLineHeight(float p_lineHeight)
 		{
-			m_handle->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_lineHeight, p_lineHeight*0.9f);
+			m_handle->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_lineHeight, p_lineHeight * 0.8f);
 		}
 		float getLineHeight()
 		{
@@ -3198,7 +3248,7 @@ namespace AvoGUI
 			else
 			{
 				*p_hasCurrentFile = 1;
-				m_factory->CreateCustomFontFileReference((void const*)&(*m_fontData)[m_currentFontFileIndex], sizeof(FontData*), m_fontFileLoader, &m_currentFontFile);
+				m_factory->CreateCustomFontFileReference((void const*) & (*m_fontData)[m_currentFontFileIndex], sizeof(FontData*), m_fontFileLoader, &m_currentFontFile);
 			}
 			return S_OK;
 		}
@@ -3257,11 +3307,91 @@ namespace AvoGUI
 	class WindowsDrawingContext : public DrawingContext
 	{
 	public:
+		static IWICImagingFactory2* s_imagingFactory;
 		static ID2D1Factory1* s_direct2DFactory;
 		static IDWriteFactory1* s_directWriteFactory;
+
 		static FontCollectionLoader* s_fontCollectionLoader;
 		static FontFileLoader* s_fontFileLoader;
-		static IWICImagingFactory2* s_imagingFactory;
+
+		static void createStaticResources()
+		{
+			if (!s_imagingFactory)
+			{
+				CoInitialize(0);
+				CoCreateInstance(CLSID_WICImagingFactory2, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&s_imagingFactory));
+			}
+
+			//------------------------------
+
+			if (!s_direct2DFactory)
+			{
+#ifdef _DEBUG
+				D2D1_FACTORY_OPTIONS options;
+				options.debugLevel = D2D1_DEBUG_LEVEL::D2D1_DEBUG_LEVEL_INFORMATION;
+				D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, options, &s_direct2DFactory);
+#else
+				D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &s_direct2DFactory);
+#endif
+			}
+
+			if (!s_directWriteFactory)
+			{
+				DWriteCreateFactory(
+					DWRITE_FACTORY_TYPE::DWRITE_FACTORY_TYPE_ISOLATED,
+					__uuidof(s_directWriteFactory), (IUnknown**)&s_directWriteFactory
+				);
+
+				s_fontFileLoader = new FontFileLoader();
+				s_fontFileLoader->AddRef();
+				s_directWriteFactory->RegisterFontFileLoader(s_fontFileLoader);
+
+				s_fontCollectionLoader = new FontCollectionLoader(s_fontFileLoader);
+				s_fontCollectionLoader->AddRef();
+				s_directWriteFactory->RegisterFontCollectionLoader(s_fontCollectionLoader);
+			}
+		}
+		static void destroyStaticResources()
+		{
+			if (!WindowsWindow::s_numberOfWindows)
+			{
+				if (s_fontCollectionLoader)
+				{
+					if (s_directWriteFactory)
+					{
+						s_directWriteFactory->UnregisterFontCollectionLoader(s_fontCollectionLoader);
+					}
+					s_fontCollectionLoader->Release();
+					s_fontCollectionLoader = 0;
+				}
+
+				if (s_fontFileLoader)
+				{
+					if (s_directWriteFactory)
+					{
+						s_directWriteFactory->UnregisterFontFileLoader(s_fontFileLoader);
+					}
+					s_fontFileLoader->Release();
+					s_fontFileLoader = 0;
+				}
+
+				if (s_directWriteFactory)
+				{
+					s_directWriteFactory->Release();
+					s_directWriteFactory = 0;
+				}
+				if (s_direct2DFactory)
+				{
+					s_direct2DFactory->Release();
+					s_direct2DFactory = 0;
+				}
+				if (s_imagingFactory)
+				{
+					s_imagingFactory->Release();
+					s_imagingFactory = 0;
+				}
+			}
+		}
 
 	private:
 		Window* m_window;
@@ -3281,6 +3411,68 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void createCornerRectangleGeometry(ID2D1PathGeometry1* p_geometry, float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners, bool p_isFilled)
+		{
+			ID2D1GeometrySink* sink;
+			p_geometry->Open(&sink);
+
+			sink->SetFillMode(D2D1_FILL_MODE::D2D1_FILL_MODE_WINDING);
+			sink->BeginFigure(D2D1::Point2F(p_left, p_top + p_corners.topLeftSizeY), p_isFilled ? D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_FILLED : D2D1_FIGURE_BEGIN_HOLLOW);
+
+			if (p_corners.topLeftSizeX && p_corners.topLeftSizeY)
+			{
+				if (p_corners.topLeftType == RectangleCornerType::Round)
+				{
+					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_left + p_corners.topLeftSizeX, p_top), D2D1::SizeF(p_corners.topLeftSizeX, p_corners.topLeftSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
+				}
+				else
+				{
+					sink->AddLine(D2D1::Point2F(p_left + p_corners.topLeftSizeX, p_top));
+				}
+			}
+			sink->AddLine(D2D1::Point2F(p_right - p_corners.topRightSizeX, p_top));
+			if (p_corners.topRightSizeX && p_corners.topRightSizeY)
+			{
+				if (p_corners.topLeftType == RectangleCornerType::Round)
+				{
+					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_right, p_top + p_corners.topRightSizeY), D2D1::SizeF(p_corners.topRightSizeX, p_corners.topRightSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
+				}
+				else
+				{
+					sink->AddLine(D2D1::Point2F(p_right, p_top + p_corners.topRightSizeY));
+				}
+			}
+			sink->AddLine(D2D1::Point2F(p_right, p_bottom - p_corners.bottomRightSizeY));
+			if (p_corners.bottomRightSizeX && p_corners.bottomRightSizeY)
+			{
+				if (p_corners.topLeftType == RectangleCornerType::Round)
+				{
+					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_right - p_corners.bottomRightSizeX, p_bottom), D2D1::SizeF(p_corners.bottomRightSizeX, p_corners.bottomRightSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
+				}
+				else
+				{
+					sink->AddLine(D2D1::Point2F(p_right - p_corners.bottomRightSizeX, p_bottom));
+				}
+			}
+			sink->AddLine(D2D1::Point2F(p_left + p_corners.bottomLeftSizeX, p_bottom));
+			if (p_corners.bottomLeftSizeX && p_corners.bottomLeftSizeY)
+			{
+				if (p_corners.topLeftType == RectangleCornerType::Round)
+				{
+					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_left, p_bottom - p_corners.bottomLeftSizeY), D2D1::SizeF(p_corners.bottomLeftSizeX, p_corners.bottomLeftSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
+				}
+				else
+				{
+					sink->AddLine(D2D1::Point2F(p_left, p_bottom - p_corners.bottomLeftSizeY));
+				}
+			}
+			sink->AddLine(D2D1::Point2F(p_left, p_top + p_corners.topLeftSizeY));
+
+			sink->EndFigure(D2D1_FIGURE_END::D2D1_FIGURE_END_CLOSED);
+			sink->Close();
+			sink->Release();
+		}
+
 		void updateFontCollection()
 		{
 			if (m_fontCollection)
@@ -3293,29 +3485,11 @@ namespace AvoGUI
 
 	public:
 		WindowsDrawingContext(Window* p_window) :
-			m_window(p_window), m_context(0), m_swapChain(0), m_targetWindowBitmap(0), 
-			m_isVsyncEnabled(true), m_solidColorBrush(0), m_scale(1.f, 1.f), m_textFormat(0), m_fontCollection(0)
+			m_window(p_window), 
+			m_context(0), m_swapChain(0), m_targetWindowBitmap(0), m_isVsyncEnabled(true), 
+			m_solidColorBrush(0), m_scale(1.f, 1.f), 
+			m_textFormat(0), m_fontCollection(0)
 		{
-			if (!s_imagingFactory)
-			{
-				CoInitialize(0);
-				CoCreateInstance(CLSID_WICImagingFactory2, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&s_imagingFactory));
-			}
-
-			//------------------------------
-
-			if (!s_direct2DFactory)
-			{
-#ifdef _DEBUG
-				D2D1_FACTORY_OPTIONS options;
-				options.debugLevel = D2D1_DEBUG_LEVEL::D2D1_DEBUG_LEVEL_INFORMATION;
-				D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &s_direct2DFactory);
-#else
-				D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &s_direct2DFactory);
-#endif
-			}
-
-			//------------------------------
 			// Create temporary Direct3D device
 
 			ID3D11Device* d3dDevice;
@@ -3338,9 +3512,9 @@ namespace AvoGUI
 				0,
 				D3D_DRIVER_TYPE_HARDWARE,
 				0,
-				D3D11_CREATE_DEVICE_BGRA_SUPPORT 
+				D3D11_CREATE_DEVICE_BGRA_SUPPORT
 #ifdef _DEBUG 
-				| D3D11_CREATE_DEVICE_DEBUG 
+				| D3D11_CREATE_DEVICE_DEBUG
 #endif
 				,
 				featureLevels,
@@ -3387,20 +3561,6 @@ namespace AvoGUI
 			swapChainDescription.SwapEffect = DXGI_SWAP_EFFECT::DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 			swapChainDescription.Flags = 0;
 
-			//DXGI_SWAP_CHAIN_FULLSCREEN_DESC fullscreenSwapChainDescription = { };
-
-			//IDXGIOutput* output;
-			//dxgiAdapter->EnumOutputs(0, &output);
-
-			//UINT numberOfModes;
-			//DXGI_MODE_DESC modes[100];
-			//output->GetDisplayModeList(DXGI_FORMAT_B8G8R8A8_UNORM, 0, &numberOfModes, modes);
-
-			//fullscreenSwapChainDescription.RefreshRate = modes[numberOfModes - 1].RefreshRate;
-			//fullscreenSwapChainDescription.Scaling = modes[numberOfModes - 1].Scaling;
-			//fullscreenSwapChainDescription.ScanlineOrdering = modes[numberOfModes - 1].ScanlineOrdering;
-			//fullscreenSwapChainDescription.Windowed = true;
-
 			dxgiFactory->CreateSwapChainForHwnd(
 				d3dDevice, (HWND)p_window->getWindowHandle(),
 				&swapChainDescription, 0,
@@ -3408,8 +3568,6 @@ namespace AvoGUI
 			);
 
 			dxgiFactory->MakeWindowAssociation((HWND)p_window->getWindowHandle(), DXGI_MWA_NO_WINDOW_CHANGES);
-
-			//output->Release();
 
 			//------------------------------
 			// Create a target bitmap which is connected to the back buffer of the window.
@@ -3460,22 +3618,6 @@ namespace AvoGUI
 			//------------------------------
 			// Create text stuff
 
-			if (!s_directWriteFactory)
-			{
-				DWriteCreateFactory(
-					DWRITE_FACTORY_TYPE::DWRITE_FACTORY_TYPE_ISOLATED,
-					__uuidof(s_directWriteFactory), (IUnknown**)&s_directWriteFactory
-				);
-
-				s_fontFileLoader = new FontFileLoader();
-				s_fontFileLoader->AddRef();
-				s_directWriteFactory->RegisterFontFileLoader(s_fontFileLoader);
-
-				s_fontCollectionLoader = new FontCollectionLoader(s_fontFileLoader);
-				s_fontCollectionLoader->AddRef();
-				s_directWriteFactory->RegisterFontCollectionLoader(s_fontCollectionLoader);
-			}
-
 			m_fontData.reserve(8);
 			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_LIGHT, FONT_DATA_SIZE_ROBOTO_LIGHT));
 			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_SIZE_ROBOTO_REGULAR));
@@ -3498,6 +3640,8 @@ namespace AvoGUI
 
 			m_textProperties.fontFamilyName = "Roboto";
 			setDefaultTextProperties(m_textProperties);
+			
+			m_context->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE::D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
 		}
 
 		~WindowsDrawingContext()
@@ -3522,45 +3666,6 @@ namespace AvoGUI
 			if (m_context)
 			{
 				m_context->Release();
-			}
-
-			if (!WindowsWindow::s_numberOfWindows)
-			{
-				if (s_fontCollectionLoader)
-				{
-					if (s_directWriteFactory)
-					{
-						s_directWriteFactory->UnregisterFontCollectionLoader(s_fontCollectionLoader);
-					}
-					s_fontCollectionLoader->Release();
-					s_fontCollectionLoader = 0; // Important to zero these because they're static and may be reallocated
-				}
-
-				if (s_fontFileLoader)
-				{
-					if (s_directWriteFactory)
-					{
-						s_directWriteFactory->UnregisterFontFileLoader(s_fontFileLoader);
-					}
-					s_fontFileLoader->Release();
-					s_fontFileLoader = 0;
-				}
-
-				if (s_directWriteFactory)
-				{
-					s_directWriteFactory->Release();
-					s_directWriteFactory = 0;
-				}
-				if (s_direct2DFactory)
-				{
-					s_direct2DFactory->Release();
-					s_direct2DFactory = 0;
-				}
-				if (s_imagingFactory)
-				{
-					s_imagingFactory->Release();
-					s_imagingFactory = 0;
-				}
 			}
 		}
 
@@ -3865,7 +3970,7 @@ namespace AvoGUI
 
 			// Resize buffers, creating new ones
 			m_swapChain->ResizeBuffers(0, p_width, p_height, DXGI_FORMAT_UNKNOWN, 0);
-		
+
 			// Get the new back buffer and create new bitmap connected to it
 			IDXGISurface* dxgiBackBuffer = 0;
 			m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
@@ -3879,7 +3984,7 @@ namespace AvoGUI
 			);
 
 			dxgiBackBuffer->Release();
-			
+
 			m_context->SetTarget(m_targetWindowBitmap);
 		}
 		Point<uint32> getSize() override
@@ -3922,7 +4027,6 @@ namespace AvoGUI
 				), m_solidColorBrush
 			);
 		}
-
 		void fillRectangle(Point<float> const& p_size) override
 		{
 			m_context->FillRectangle(D2D1::RectF(0, 0, p_size.x, p_size.y), m_solidColorBrush);
@@ -3930,6 +4034,62 @@ namespace AvoGUI
 		void fillRectangle(float p_width, float p_height) override
 		{
 			m_context->FillRectangle(D2D1::RectF(0, 0, p_width, p_height), m_solidColorBrush);
+		}
+
+		void fillRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners) override
+		{
+			fillRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners);
+		}
+		void fillRectangle(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_corners) override
+		{
+			fillRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_corners);
+		}
+		void fillRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners) override
+		{
+			ID2D1PathGeometry1* pathGeometry;
+			s_direct2DFactory->CreatePathGeometry(&pathGeometry);
+			createCornerRectangleGeometry(pathGeometry, p_left, p_top, p_right, p_bottom, p_corners, true);
+
+			m_context->FillGeometry(pathGeometry, m_solidColorBrush);
+
+			pathGeometry->Release();
+		}
+
+		void fillRectangle(Point<float> const& p_size, RectangleCorners const& p_corners) override
+		{
+			fillRectangle(0.f, 0.f, p_size.x, p_size.y, p_corners);
+		}
+		void fillRectangle(float p_width, float p_height, RectangleCorners const& p_corners) override
+		{
+			fillRectangle(0.f, 0.f, p_width, p_height, p_corners);
+		}
+
+		void fillRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius) override
+		{
+			fillRoundedRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius);
+		}
+		void fillRoundedRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_radius) override
+		{
+			fillRoundedRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_radius);
+		}
+		void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
+		{
+			m_context->FillRoundedRectangle(
+				D2D1::RoundedRect(
+					D2D1::RectF(
+						p_left, p_top,
+						p_right, p_bottom
+					), p_radius, p_radius
+				), m_solidColorBrush
+			);
+		}
+		void fillRoundedRectangle(Point<float> const& p_size, float p_radius) override
+		{
+			fillRoundedRectangle(p_size.x, p_size.y, p_radius);
+		}
+		void fillRoundedRectangle(float p_width, float p_height, float p_radius) override
+		{
+			fillRoundedRectangle(0.f, 0.f, p_width, p_height, p_radius);
 		}
 
 		//------------------------------
@@ -3956,61 +4116,14 @@ namespace AvoGUI
 
 			strokeStyle->Release();
 		}
-
 		void strokeRectangle(Point<float> const& p_size, float p_strokeWidth = 1.f) override
 		{
 			strokeRectangle(p_size.x, p_size.y, p_strokeWidth);
 		}
 		void strokeRectangle(float p_width, float p_height, float p_strokeWidth = 1.f) override
 		{
-			ID2D1StrokeStyle* strokeStyle;
-			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
-
-			m_context->DrawRectangle(
-				D2D1::RectF(0, 0, p_width, p_height),
-				m_solidColorBrush, p_strokeWidth, strokeStyle
-			);
-
-			strokeStyle->Release();
+			strokeRectangle(0.f, 0.f, p_width, p_height, p_strokeWidth);
 		}
-
-		//------------------------------
-
-		void fillRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius) override
-		{
-			fillRoundedRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius);
-		}
-		void fillRoundedRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_radius) override
-		{
-			fillRoundedRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_radius);
-		}
-		void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
-		{
-			m_context->FillRoundedRectangle(
-				D2D1::RoundedRect(
-					D2D1::RectF(
-						p_left, p_top,
-						p_right, p_bottom
-					), p_radius, p_radius
-				), m_solidColorBrush
-			);
-		}
-
-		void fillRoundedRectangle(Point<float> const& p_size, float p_radius) override
-		{
-			fillRoundedRectangle(p_size.x, p_size.y, p_radius);
-		}
-		void fillRoundedRectangle(float p_width, float p_height, float p_radius) override
-		{
-			m_context->FillRoundedRectangle(
-				D2D1::RoundedRect(
-					D2D1::RectF(0, 0, p_width, p_height),
-					p_radius, p_radius
-				), m_solidColorBrush
-			);
-		}
-
-		//------------------------------
 
 		void strokeRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius, float p_strokeWidth = 1.f) override
 		{
@@ -4037,24 +4150,43 @@ namespace AvoGUI
 
 			strokeStyle->Release();
 		}
-
 		void strokeRoundedRectangle(Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) override
 		{
 			strokeRoundedRectangle(p_size.x, p_size.y, p_radius, p_strokeWidth);
 		}
 		void strokeRoundedRectangle(float p_width, float p_height, float p_radius, float p_strokeWidth = 1.f) override
 		{
+			strokeRoundedRectangle(0.f, 0.f, p_width, p_height, p_radius, p_strokeWidth);
+		}
+
+		void strokeRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
+		{
+			strokeRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.bottom, p_rectangle.right, p_corners, p_strokeWidth);
+		}
+		void strokeRectangle(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
+		{
+			strokeRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_corners, p_strokeWidth);
+		}
+		void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
+		{
+			ID2D1PathGeometry1* pathGeometry;
+			s_direct2DFactory->CreatePathGeometry(&pathGeometry);
+			createCornerRectangleGeometry(pathGeometry, p_left, p_top, p_right, p_bottom, p_corners, false);
+
 			ID2D1StrokeStyle* strokeStyle;
 			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
-
-			m_context->DrawRoundedRectangle(
-				D2D1::RoundedRect(
-					D2D1::RectF(0, 0, p_width, p_height), p_radius, p_radius
-				), m_solidColorBrush,
-				p_strokeWidth, strokeStyle
-			);
-
+			m_context->DrawGeometry(pathGeometry, m_solidColorBrush, p_strokeWidth, strokeStyle);
 			strokeStyle->Release();
+
+			pathGeometry->Release();
+		}
+		void strokeRectangle(Point<float> const& p_size, RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
+		{
+			strokeRectangle(0.f, 0.f, p_size.x, p_size.y, p_corners, p_strokeWidth);
+		}
+		void strokeRectangle(float p_width, float p_height, RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
+		{
+			strokeRectangle(0.f, 0.f, p_width, p_height, p_corners, p_strokeWidth);
 		}
 
 		//------------------------------
@@ -4118,7 +4250,10 @@ namespace AvoGUI
 
 		void strokeShape(Point<float> const* p_vertices, uint32 p_numberOfVertices, float p_lineThickness, bool p_isClosed) override
 		{
-			if (!p_numberOfVertices) return;
+			if (!p_numberOfVertices)
+			{
+				return;
+			}
 
 			ID2D1PathGeometry1* path;
 			s_direct2DFactory->CreatePathGeometry(&path);
@@ -4149,7 +4284,10 @@ namespace AvoGUI
 
 		void fillShape(Point<float> const* p_vertices, uint32 p_numberOfVertices) override
 		{
-			if (!p_numberOfVertices) return;
+			if (!p_numberOfVertices)
+			{
+				return;
+			}
 
 			ID2D1PathGeometry1* path;
 			s_direct2DFactory->CreatePathGeometry(&path);
@@ -4390,6 +4528,51 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void pushClipShape(std::vector<Point<float>> const& p_points) override
+		{
+			pushClipShape(p_points.data(), p_points.size());
+		}
+		void pushClipShape(Point<float> const* p_points, uint32 p_numberOfPoints) override
+		{
+			if (!p_numberOfPoints)
+			{
+				return;
+			}
+
+			ID2D1PathGeometry1* geometry;
+			s_direct2DFactory->CreatePathGeometry(&geometry);
+
+			ID2D1GeometrySink* sink;
+			geometry->Open(&sink);
+
+			sink->BeginFigure(D2D1::Point2F(p_points[0].x, p_points[0].y), D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_FILLED);
+			for (uint32 a = 1; a < p_numberOfPoints; a++)
+			{
+				sink->AddLine(D2D1::Point2F(p_points[a].x, p_points[a].y));
+			}
+			sink->EndFigure(D2D1_FIGURE_END::D2D1_FIGURE_END_CLOSED);
+
+			sink->Close();
+			sink->Release();
+
+			ID2D1Layer* layer;
+			m_context->CreateLayer(&layer);
+			m_context->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE), layer);
+
+			layer->Release();
+			geometry->Release();
+		}
+		void popClipShape() override
+		{
+			m_context->PopLayer();
+		}
+
+		//------------------------------
+
+		void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom)
+		{
+			m_context->PushAxisAlignedClip(D2D1::RectF(p_left, p_top, p_right, p_bottom), D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+		}
 		void pushClipRectangle(Rectangle<float> const& p_rectangle) override
 		{
 			m_context->PushAxisAlignedClip(
@@ -4407,6 +4590,29 @@ namespace AvoGUI
 				), D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE
 			);
 		}
+
+		void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners)
+		{
+			ID2D1PathGeometry1* geometry;
+			s_direct2DFactory->CreatePathGeometry(&geometry);
+
+			createCornerRectangleGeometry(geometry, p_left, p_top, p_right, p_bottom, p_corners, true);
+
+			ID2D1Layer* layer;
+			m_context->CreateLayer(&layer);
+			m_context->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE), layer);
+			layer->Release();
+
+			geometry->Release();
+		}
+		void pushClipRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners)
+		{
+			pushClipRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners);
+		}
+		void pushClipRectangle(Point<float> const& p_size, RectangleCorners const& p_corners)
+		{
+			pushClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_corners);
+		}
 		void popClipRectangle() override
 		{
 			m_context->PopAxisAlignedClip();
@@ -4414,12 +4620,12 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void pushRoundedClipRectangle(Rectangle<float> const& p_rectangle, float p_radius) override
+		void pushRoundedClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
 		{
 			ID2D1RoundedRectangleGeometry* geometry;
 			s_direct2DFactory->CreateRoundedRectangleGeometry(
 				D2D1::RoundedRect(
-					D2D1::RectF(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom),
+					D2D1::RectF(p_left, p_top, p_right, p_bottom),
 					p_radius, p_radius
 				), &geometry
 			);
@@ -4431,22 +4637,13 @@ namespace AvoGUI
 			layer->Release();
 			geometry->Release();
 		}
+		void pushRoundedClipRectangle(Rectangle<float> const& p_rectangle, float p_radius) override
+		{
+			pushRoundedClipRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius);
+		}
 		void pushRoundedClipRectangle(Point<float> const& p_size, float p_radius) override
 		{
-			ID2D1RoundedRectangleGeometry* geometry;
-			s_direct2DFactory->CreateRoundedRectangleGeometry(
-				D2D1::RoundedRect(
-					D2D1::RectF(0, 0, p_size.x, p_size.y),
-					p_radius, p_radius
-				), &geometry
-			);
-
-			ID2D1Layer* layer;
-			m_context->CreateLayer(&layer);
-			m_context->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE), layer);
-
-			layer->Release();
-			geometry->Release();
+			pushRoundedClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_radius);
 		}
 		void popRoundedClipRectangle() override
 		{
@@ -4632,7 +4829,7 @@ namespace AvoGUI
 			m_context->GetDpi(&dpiX, &dpiY);
 
 			ID2D1Bitmap1* outputBitmap;
-			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f*p_blur * dpiX / 96.f, p_height + 6.f*p_blur * dpiY / 96.f);
+			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / 96.f, p_height + 6.f * p_blur * dpiY / 96.f);
 
 			m_context->CreateBitmap(
 				outputSize,
@@ -4646,7 +4843,80 @@ namespace AvoGUI
 			m_context->SetTarget(outputBitmap);
 			m_context->BeginDraw();
 			clear();
-			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur*3.f*dpiX / 96.f, p_blur*3.f*dpiY / 96.f));
+			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / 96.f, p_blur * 3.f * dpiY / 96.f));
+			m_context->EndDraw();
+			m_context->SetTarget(m_targetWindowBitmap);
+
+			shadowEffect->Release();
+			inputBitmap->Release();
+
+			return new WindowsImage(outputBitmap);
+		}
+		Image* createRectangleShadowImage(Point<uint32> const& p_size, RectangleCorners const& p_corners, float p_blur, Color const& p_color) override
+		{
+			return createRectangleShadowImage(p_size.x, p_size.y, p_corners, p_blur, p_color);
+		}
+		Image* createRectangleShadowImage(uint32 p_width, uint32 p_height, RectangleCorners const& p_corners, float p_blur, Color const& p_color) override
+		{
+			if (!p_width || !p_height || !p_color.alpha) return 0;
+
+			p_blur *= 2.f / 3.f;
+
+			// Create input bitmap
+			ID2D1Bitmap1* inputBitmap;
+			m_context->CreateBitmap(
+				D2D1::SizeU(p_width, p_height),
+				0, p_width * 4,
+				D2D1::BitmapProperties1(
+					D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_TARGET,
+					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
+				), &inputBitmap
+			);
+
+			m_context->SetTarget(inputBitmap);
+
+			m_context->BeginDraw();
+			clear();
+			setColor(Color(0.f));
+			fillRectangle(0, 0, p_width, p_height, p_corners);
+			m_context->EndDraw();
+
+			//------------------------------
+			// Appy effect
+
+			ID2D1Effect* shadowEffect;
+			m_context->CreateEffect(CLSID_D2D1Shadow, &shadowEffect);
+
+			shadowEffect->SetInput(0, inputBitmap);
+			shadowEffect->SetValue(
+				D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_COLOR,
+				D2D1::Vector4F(p_color.red, p_color.green, p_color.blue, p_color.alpha)
+			);
+			shadowEffect->SetValue(D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, p_blur);
+
+			//------------------------------
+			// Convert to bitmap
+
+			float dpiX = 0;
+			float dpiY = 0;
+			m_context->GetDpi(&dpiX, &dpiY);
+
+			ID2D1Bitmap1* outputBitmap;
+			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / 96.f, p_height + 6.f * p_blur * dpiY / 96.f);
+
+			m_context->CreateBitmap(
+				outputSize,
+				0, outputSize.width * 4,
+				D2D1::BitmapProperties1(
+					D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_TARGET,
+					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
+				), &outputBitmap
+			);
+
+			m_context->SetTarget(outputBitmap);
+			m_context->BeginDraw();
+			clear();
+			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / 96.f, p_blur * 3.f * dpiY / 96.f));
 			m_context->EndDraw();
 			m_context->SetTarget(m_targetWindowBitmap);
 
@@ -4706,7 +4976,7 @@ namespace AvoGUI
 			m_context->GetDpi(&dpiX, &dpiY);
 
 			ID2D1Bitmap1* outputBitmap;
-			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f*p_blur * dpiX / 96.f, p_height + 6.f*p_blur * dpiY / 96.f);
+			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / 96.f, p_height + 6.f * p_blur * dpiY / 96.f);
 
 			m_context->CreateBitmap(
 				outputSize,
@@ -4720,7 +4990,7 @@ namespace AvoGUI
 			m_context->SetTarget(outputBitmap);
 			m_context->BeginDraw();
 			clear();
-			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur*3.f*dpiX / 96.f, p_blur*3.f*dpiY / 96.f));
+			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / 96.f, p_blur * 3.f * dpiY / 96.f));
 			m_context->EndDraw();
 			m_context->SetTarget(m_targetWindowBitmap);
 
@@ -4812,14 +5082,14 @@ namespace AvoGUI
 					}
 				}
 
-				left += p_image->getBoundsPositioningX()*(boundsSize.x - width);
-				top += p_image->getBoundsPositioningY()*(boundsSize.y - height);
+				left += p_image->getBoundsPositioningX() * (boundsSize.x - width);
+				top += p_image->getBoundsPositioningY() * (boundsSize.y - height);
 			}
 
 			m_context->DrawBitmap(
 				(ID2D1Bitmap*)p_image->getHandle(),
 				D2D1::RectF(left, top, left + width, top + height),
-				p_image->getOpacity(),
+				p_image->getOpacity()*m_solidColorBrush->GetOpacity(),
 				p_image->getScalingMethod() == ImageScalingMethod::Pixelated ? D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR : D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
 				D2D1::RectF(cropRectangle.left, cropRectangle.top, cropRectangle.right, cropRectangle.bottom)
 			);
@@ -4830,6 +5100,10 @@ namespace AvoGUI
 		void setColor(Color const& p_color) override
 		{
 			m_solidColorBrush->SetColor(D2D1::ColorF(p_color.red, p_color.green, p_color.blue, p_color.alpha));
+		}
+		void setOpacity(float p_opacity) override
+		{
+			m_solidColorBrush->SetOpacity(p_opacity);
 		}
 
 		//------------------------------
@@ -4846,8 +5120,6 @@ namespace AvoGUI
 		{
 			wchar_t fontFamily[100];
 			widenString(p_textProperties.fontFamilyName, fontFamily, 100);
-			wchar_t fontLocale[100];
-			widenString(p_textProperties.fontLocaleName, fontLocale, 100);
 
 			DWRITE_FONT_STYLE fontStyle = DWRITE_FONT_STYLE_NORMAL;
 			if (p_textProperties.fontStyle == FontStyle::Italic)
@@ -4862,9 +5134,10 @@ namespace AvoGUI
 			s_directWriteFactory->CreateTextFormat(
 				fontFamily, m_fontCollection, (DWRITE_FONT_WEIGHT)p_textProperties.fontWeight,
 				fontStyle, (DWRITE_FONT_STRETCH)p_textProperties.fontStretch,
-				p_textProperties.fontSize, fontLocale,
+				p_textProperties.fontSize, L"",
 				(IDWriteTextFormat**)&m_textFormat
 			);
+
 			switch (p_textProperties.textAlign)
 			{
 			case TextAlign::Left:
@@ -4879,6 +5152,20 @@ namespace AvoGUI
 			case TextAlign::Fill:
 				m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED);
 			}
+
+			switch (p_textProperties.readingDirection)
+			{
+			case ReadingDirection::RightToLeft:
+				m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
+				break;
+			case ReadingDirection::TopToBottom:
+				m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM);
+				break;
+			case ReadingDirection::BottomToTop:
+				m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP);
+				break;
+			}
+			m_textFormat->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_textProperties.lineHeight, p_textProperties.lineHeight * 0.8f);
 
 			m_textProperties = p_textProperties;
 		}
@@ -4901,6 +5188,7 @@ namespace AvoGUI
 			textRange.startPosition = 0;
 			textRange.length = numberOfCharacters;
 			textLayout->SetFontSize(p_fontSize, textRange);
+			textLayout->SetCharacterSpacing(m_textProperties.characterSpacing*0.5f, m_textProperties.characterSpacing*0.5f, 0.f, textRange);
 
 			delete[] wideString;
 
@@ -4908,7 +5196,10 @@ namespace AvoGUI
 		}
 		void drawText(Text* p_text) override
 		{
-			m_context->DrawTextLayout(D2D1::Point2F(p_text->getTopLeft().x, p_text->getTopLeft().y), (IDWriteTextLayout*)p_text->getHandle(), m_solidColorBrush);
+			IDWriteTextLayout1* textLayout = (IDWriteTextLayout1*)p_text->getHandle();
+			DWRITE_OVERHANG_METRICS overhangMetrics;
+			textLayout->GetOverhangMetrics(&overhangMetrics);
+			m_context->DrawTextLayout(D2D1::Point2F(p_text->getTopLeft().x, p_text->getTopLeft().y + overhangMetrics.top), textLayout, m_solidColorBrush);
 		}
 		void drawText(char const* p_string, Rectangle<float> const& p_rectangle) override
 		{
@@ -4960,7 +5251,6 @@ namespace AvoGUI
 
 		while (p_gui->getWindow() && p_gui->getWindow()->getIsOpen())
 		{
-
 			//if (p_gui->getHasNewWindowSize())
 			//{
 			//	p_gui->getDrawingContext()->disableVsync();
@@ -4992,7 +5282,7 @@ namespace AvoGUI
 				}
 			}
 			auto timeAfter = std::chrono::steady_clock::now();
-			syncInterval = max(1000000, syncInterval + (16666667 - (timeAfter - timeBefore).count())/10);
+			syncInterval = max(1000000, syncInterval + (16666667 - (timeAfter - timeBefore).count()) / 10);
 			timeBefore = timeAfter;
 		}
 	}
@@ -5090,6 +5380,8 @@ namespace AvoGUI
 		m_keyboardFocus(0)
 	{
 #ifdef _WIN32
+		WindowsDrawingContext::createStaticResources();
+
 		m_window = new WindowsWindow(this);
 #endif
 
@@ -5119,6 +5411,9 @@ namespace AvoGUI
 			m_drawingContext->forget();
 			m_drawingContext = 0;
 		}
+#ifdef _WIN32
+		WindowsDrawingContext::destroyStaticResources();
+#endif
 	}
 
 	void GUI::create(char const* p_title, uint32 p_x, uint32 p_y, uint32 p_width, uint32 p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
@@ -5355,27 +5650,21 @@ namespace AvoGUI
 		}
 		else
 		{
-			// Get ready for some big ol' algorithms. They're hopefully more efficient than they look like, because of the view tree structure.
-
 			View* container = this;
 			int32 startIndex = getNumberOfChildren() - 1;
 
-			bool isLastPositionInsideGUI = getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY);
-			bool isNewPositionInsideGUI = getIsContaining(p_event.x, p_event.y);
-
-			bool isContainerMouseEnterView = !isLastPositionInsideGUI;
-			bool hasFoundViewContainingNewPosition = false;
-			bool hasFoundViewContainingOldPosition = false;
+			bool isContainerMouseEnterView = !getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY);
+			bool isContainerMouseLeaveView = !getIsContaining(p_event.x, p_event.y);
 
 			MouseEvent mouseEvent = p_event;
 
 			if (getAreMouseEventsEnabled())
 			{
-				if (!isLastPositionInsideGUI)
+				if (isContainerMouseEnterView)
 				{
 					handleMouseEnter(p_event);
 				}
-				else if (!isNewPositionInsideGUI)
+				else if (isContainerMouseLeaveView)
 				{
 					handleMouseLeave(p_event);
 				}
@@ -5385,211 +5674,188 @@ namespace AvoGUI
 				}
 			}
 
-			// Mouse enter and move events
-
+			bool hasInvisibleParent = false;
+			bool hasOverlayParent = false;
+			bool hasFoundEnterViews = false;
+			bool hasFoundLeaveViews = false;
 			while (true)
 			{
-			loopStart_0:
-				hasFoundViewContainingOldPosition = false;
+				loopStart:
 				for (int32 a = startIndex; a >= 0; a--)
 				{
 					View* child = container->getChild(a);
-					if (child->getIsVisible() && child->getIsContainingAbsolute(p_event.x, p_event.y))
+
+					if (child->getIsContainingAbsolute(p_event.x, p_event.y) && child->getIsVisible() && !hasInvisibleParent)
 					{
-						if (hasFoundViewContainingNewPosition) // In this case we're just checking if the view contains only the old mouse position.
+						if (hasFoundEnterViews)
 						{
 							continue;
 						}
 
-						bool hasChildren = child->getNumberOfChildren();
-						bool areEventsEnabled = child->getAreMouseEventsEnabled();
-
-						if (areEventsEnabled)
+						if (child->getAreMouseEventsEnabled())
 						{
 							mouseEvent.x = p_event.x - child->getAbsoluteLeft();
 							mouseEvent.y = p_event.y - child->getAbsoluteTop();
 						}
-						if (hasFoundViewContainingOldPosition || isContainerMouseEnterView || !child->getIsContainingAbsolute(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+
+						bool isContainer = child->getNumberOfChildren();
+
+						if (child->m_isMouseHovering)
 						{
-							if (areEventsEnabled)
-							{
-								child->handleMouseEnter(mouseEvent);
-								if (!hasChildren)
-								{
-									child->handleMouseBackgroundEnter(mouseEvent);
-								}
-							}
-							if (hasChildren)
-							{
-								isContainerMouseEnterView = true;
-							}
-						}
-						else
-						{
-							if (!child->getIsOverlay())
-							{
-								hasFoundViewContainingOldPosition = true;
-							}
-							if (areEventsEnabled)
+							if (child->getAreMouseEventsEnabled())
 							{
 								child->handleMouseMove(mouseEvent);
 							}
 						}
-
-						if (hasChildren)
+						else
 						{
-							container = child;
-							startIndex = container->getNumberOfChildren() - 1;
-							goto loopStart_0;
-						}
-						else if (!child->getIsOverlay())
-						{
-							hasFoundViewContainingNewPosition = true;
-							if (isContainerMouseEnterView || hasFoundViewContainingOldPosition)
+							if (child->getAreMouseEventsEnabled())
 							{
-								break;
+								child->handleMouseEnter(mouseEvent);
+								if (!isContainer)
+								{
+									child->handleMouseBackgroundEnter(mouseEvent);
+								}
+							}
+							if (!isContainer)
+							{
+								child->m_isMouseHovering = true;
+								if (!hasOverlayParent && !child->getIsOverlay())
+								{
+									hasFoundEnterViews = true;
+									if (hasFoundLeaveViews)
+									{
+										break;
+									}
+								}
 							}
 						}
-					}
-					else if (!isContainerMouseEnterView && !hasFoundViewContainingOldPosition && child->getIsVisible() && !child->getIsOverlay() && child->getIsContainingAbsolute(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
-					{
-						hasFoundViewContainingOldPosition = true;
-						if (hasFoundViewContainingNewPosition)
+
+						if (isContainer)
 						{
-							break;
+							if (child->getIsOverlay())
+							{
+								hasOverlayParent = true;
+							}
+							container = child;
+							startIndex = child->getNumberOfChildren() - 1;
+							goto loopStart;
 						}
 					}
-				}
-
-				if (container->getAreMouseEventsEnabled() && !hasFoundViewContainingNewPosition && (hasFoundViewContainingOldPosition || isContainerMouseEnterView))
-				{
-					mouseEvent.x = p_event.x - container->getAbsoluteLeft();
-					mouseEvent.y = p_event.y - container->getAbsoluteTop();
-					container->handleMouseBackgroundEnter(mouseEvent);
-				}
-
-				if (!container->getIsOverlay() || container == this)
-				{
-					break;
-				}
-
-				// We only continue if the container was an overlay view.
-
-				startIndex = container->getIndex() - 1;
-				container = container->getParent();
-
-				if (isContainerMouseEnterView && startIndex > 0)
-				{
-					if (container->getIsContainingAbsolute(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+					else if (child->m_isMouseHovering)
 					{
-						isContainerMouseEnterView = false;
-					}
-				}
-				else
-				{
-					isContainerMouseEnterView = false;
-				}
-			}
-
-			// Mouse leave events
-
-			container = this;
-			startIndex = getNumberOfChildren() - 1;
-			bool isContainerMouseLeaveView = !isNewPositionInsideGUI;
-			hasFoundViewContainingNewPosition = false;
-			hasFoundViewContainingOldPosition = false;
-
-			while (true)
-			{
-			loopStart_1:
-				hasFoundViewContainingNewPosition = false;
-				for (int32 a = startIndex; a >= 0; a--)
-				{
-					View* child = container->getChild(a);
-					if (child->getIsVisible() && child->getIsContainingAbsolute(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
-					{
-						if (hasFoundViewContainingOldPosition) // In this case we're just checking if the view contains only the old mouse position.
+						if (hasFoundLeaveViews) 
 						{
 							continue;
 						}
 
-						bool hasChildren = child->getNumberOfChildren();
-						bool areEventsEnabled = child->getAreMouseEventsEnabled();
+						bool isContainer = child->getNumberOfChildren();
 
-						if (hasFoundViewContainingNewPosition || isContainerMouseLeaveView || !child->getIsContainingAbsolute(p_event.x, p_event.y))
+						if (child->getAreMouseEventsEnabled())
 						{
-							if (areEventsEnabled)
+							mouseEvent.x = p_event.x - child->getAbsoluteLeft();
+							mouseEvent.y = p_event.y - child->getAbsoluteTop();
+							child->handleMouseLeave(mouseEvent);
+							if (!isContainer)
 							{
-								mouseEvent.x = p_event.x - child->getAbsoluteLeft();
-								mouseEvent.y = p_event.y - child->getAbsoluteTop();
-								child->handleMouseLeave(mouseEvent);
-								if (!hasChildren)
+								child->handleMouseBackgroundLeave(mouseEvent);
+							}
+						}
+
+						if (isContainer)
+						{
+							if (child->getIsOverlay())
+							{
+								hasOverlayParent = true;
+							}
+							if (!child->getIsVisible())
+							{
+								hasInvisibleParent = true;
+							}
+							container = child;
+							startIndex = child->getNumberOfChildren() - 1;
+							goto loopStart;
+						}
+						else
+						{
+							child->m_isMouseHovering = false;
+							if (!hasOverlayParent && !child->getIsOverlay())
+							{
+								hasFoundLeaveViews = true;
+								if (hasFoundEnterViews)
 								{
-									child->handleMouseBackgroundLeave(mouseEvent);
+									break;
 								}
 							}
-							if (hasChildren)
-							{
-								isContainerMouseLeaveView = true;
-							}
-						}
-						else if (!child->getIsOverlay()) // Both the old and new mouse position are contained within this view.
-						{
-							hasFoundViewContainingNewPosition = true;
-						}
-
-						if (hasChildren)
-						{
-							container = child;
-							startIndex = container->getNumberOfChildren() - 1;
-							goto loopStart_1;
-						}
-						else if (!child->getIsOverlay())
-						{
-							hasFoundViewContainingOldPosition = true;
-							if (isContainerMouseLeaveView || hasFoundViewContainingNewPosition)
-							{
-								break;
-							}
 						}
 					}
-					else if (!isContainerMouseLeaveView && !hasFoundViewContainingNewPosition && child->getIsVisible() && !child->getIsOverlay() && child->getIsContainingAbsolute(p_event.x, p_event.y))
+				}
+
+				bool isMouseInContainer = container->getIsContainingAbsolute(p_event.x, p_event.y) && !hasInvisibleParent;
+
+				if (isMouseInContainer && !container->m_isMouseHovering && !hasFoundEnterViews ||
+					isMouseInContainer && container->m_isMouseHovering && hasFoundLeaveViews && !hasFoundEnterViews)
+				{
+					hasFoundEnterViews = true;
+					if (container->getAreMouseEventsEnabled())
 					{
-						hasFoundViewContainingNewPosition = true;
-						if (hasFoundViewContainingOldPosition)
-						{
-							break;
-						}
+						mouseEvent.x = p_event.x - container->getAbsoluteLeft();
+						mouseEvent.y = p_event.y - container->getAbsoluteTop();
+						container->handleMouseBackgroundEnter(mouseEvent);
 					}
 				}
-
-				if (container->getAreMouseEventsEnabled() && !hasFoundViewContainingOldPosition && (hasFoundViewContainingNewPosition || isContainerMouseLeaveView))
+				else if (!isMouseInContainer && container->m_isMouseHovering && !hasFoundLeaveViews || 
+					isMouseInContainer && container->m_isMouseHovering && !hasFoundLeaveViews && hasFoundEnterViews)
 				{
-					mouseEvent.x = p_event.x - container->getAbsoluteLeft();
-					mouseEvent.y = p_event.y - container->getAbsoluteTop();
-					container->handleMouseBackgroundLeave(mouseEvent);
+					hasFoundLeaveViews = true;
+					if (container->getAreMouseEventsEnabled())
+					{
+						mouseEvent.x = p_event.x - container->getAbsoluteLeft();
+						mouseEvent.y = p_event.y - container->getAbsoluteTop();
+						container->handleMouseBackgroundLeave(mouseEvent);
+					}
 				}
-
-				if (!container->getIsOverlay() || container == this)
+				else if (isMouseInContainer && container->m_isMouseHovering)
 				{
+					hasFoundEnterViews = true;
+					hasFoundLeaveViews = true;
+				}
+				
+				if (container == this)
+				{
+					container->m_isMouseHovering = isMouseInContainer;
 					break;
 				}
 
-				// We only continue if the container was an overlay view.
-
-				startIndex = container->getIndex() - 1;
-				container = container->getParent();
-
-				if (isContainerMouseLeaveView && startIndex > 0)
+				if (container->getIsOverlay())
 				{
-					if (container->getIsContainingAbsolute(p_event.x, p_event.y))
-					{
-						isContainerMouseLeaveView = false;
-					}
+					hasOverlayParent = false;
+					container->m_isMouseHovering = isMouseInContainer;
+					startIndex = container->getIndex() - 1;
+					container = container->getParent();
 				}
-				else
+				else 
 				{
-					isContainerMouseLeaveView = false;
+					while (container != this && isMouseInContainer != container->m_isMouseHovering)
+					{
+						container->m_isMouseHovering = isMouseInContainer;
+						startIndex = (int32)container->getIndex() - 1;
+						container = container->getParent();
+						isMouseInContainer = container->getIsContainingAbsolute(p_event.x, p_event.y) && !hasInvisibleParent;
+						if (container->getIsOverlay())
+						{
+							hasOverlayParent = false;
+						}
+						if (!container->getIsVisible())
+						{
+							hasInvisibleParent = false;
+						}
+					}
+
+					if (hasFoundLeaveViews && hasFoundEnterViews)
+					{
+						break;
+					}
 				}
 			}
 		}
@@ -5705,7 +5971,7 @@ namespace AvoGUI
 			m_invalidRectangles.clear();
 			invalidate();
 		}
-		
+
 		excludeAnimationThread();
 		uint32 numberOfEventsToProcess = m_animationUpdateQueue.size();
 		for (uint32 a = 0; a < numberOfEventsToProcess; a++)
@@ -5722,7 +5988,7 @@ namespace AvoGUI
 	void GUI::invalidateRectangle(Rectangle<float> p_rectangle)
 	{
 		p_rectangle.bound(m_bounds);
-		
+
 		if (p_rectangle.getWidth() == 0.f || p_rectangle.getHeight() == 0.f)
 		{
 			return;
@@ -5818,59 +6084,63 @@ namespace AvoGUI
 					{
 						View* view = currentContainer->getChild(a);
 
-						if (view->getWidth() > 0.f && view->getHeight() > 0.f && view->getAbsoluteBounds().getIsIntersecting(targetRectangle) && view->getIsVisible())
+						if (view->getWidth() > 0.f && view->getHeight() > 0.f && view->getIsVisible())
 						{
-							m_drawingContext->moveOrigin(view->getTopLeft());
-
-							excludeAnimationThread();
-							view->drawShadow(m_drawingContext);
-							includeAnimationThread();
-
-							if (view->getCornerRadius())
+							if (view->getAbsoluteBounds().getIsIntersecting(targetRectangle))
 							{
-								m_drawingContext->pushRoundedClipRectangle(view->getSize(), view->getCornerRadius());
-							}
-							else
-							{
-								m_drawingContext->pushClipRectangle(view->getSize());
-							}
+								m_drawingContext->moveOrigin(view->getTopLeft());
 
-							excludeAnimationThread();
-							view->draw(m_drawingContext, targetRectangle);
-							includeAnimationThread();
-
-							if (view->getNumberOfChildren())
-							{
-								currentContainer = view;
-								startPosition = 0;
-								isDoneWithContainer = false;
-								break;
-							}
-							else
-							{
 								excludeAnimationThread();
-								view->drawOverlay(m_drawingContext, targetRectangle);
+								view->drawShadow(m_drawingContext);
 								includeAnimationThread();
 
-								if (view->getCornerRadius())
+								RectangleCorners& corners = view->getCorners();
+								if (view->getHasCornerStyles())
 								{
-									m_drawingContext->popRoundedClipRectangle();
+									m_drawingContext->pushClipRectangle(view->getSize(), view->getCorners());
 								}
 								else
 								{
-									m_drawingContext->popClipRectangle();
+									m_drawingContext->pushClipRectangle(view->getSize());
 								}
 
+								excludeAnimationThread();
+								view->draw(m_drawingContext, targetRectangle);
+								includeAnimationThread();
+
+								if (view->getNumberOfChildren())
+								{
+									currentContainer = view;
+									startPosition = 0;
+									isDoneWithContainer = false;
+									break;
+								}
+								else
+								{
+									excludeAnimationThread();
+									view->drawOverlay(m_drawingContext, targetRectangle);
+									includeAnimationThread();
+
+									if (view->getHasCornerStyles())
+									{
+										m_drawingContext->popRoundedClipRectangle();
+									}
+									else
+									{
+										m_drawingContext->popClipRectangle();
+									}
+
+									m_drawingContext->moveOrigin(-view->getTopLeft());
+								}
+							}
+							else if (view->getAbsoluteShadowBounds().getIsIntersecting(targetRectangle))
+							{
+								m_drawingContext->moveOrigin(view->getTopLeft());
+								excludeAnimationThread();
+								view->drawShadow(m_drawingContext);
+								includeAnimationThread();
 								m_drawingContext->moveOrigin(-view->getTopLeft());
 							}
-						}
-						else if (view->getAbsoluteShadowBounds().getIsIntersecting(targetRectangle))
-						{
-							m_drawingContext->moveOrigin(view->getTopLeft());
-							excludeAnimationThread();
-							view->drawShadow(m_drawingContext);
-							includeAnimationThread();
-							m_drawingContext->moveOrigin(-view->getTopLeft());
 						}
 					}
 					if (isDoneWithContainer)
@@ -5884,7 +6154,7 @@ namespace AvoGUI
 						currentContainer->drawOverlay(m_drawingContext, targetRectangle);
 						includeAnimationThread();
 
-						if (currentContainer->getCornerRadius())
+						if (currentContainer->getHasCornerStyles())
 						{
 							m_drawingContext->popRoundedClipRectangle();
 						}
@@ -5943,10 +6213,10 @@ namespace AvoGUI
 		wchar_t* filterStringBuffer = new wchar_t[100 * m_fileExtensions.size()];
 		for (uint32 a = 0; a < m_fileExtensions.size(); a++)
 		{
-			filters[a].pszName = filterStringBuffer + a*100;
+			filters[a].pszName = filterStringBuffer + a * 100;
 			widenString(m_fileExtensions[a].name, (wchar_t*)filters[a].pszName, 50);
 
-			filters[a].pszSpec = filterStringBuffer + a*100 + 50;
+			filters[a].pszSpec = filterStringBuffer + a * 100 + 50;
 			widenString(m_fileExtensions[a].extensions, (wchar_t*)filters[a].pszSpec, 50);
 
 		}
@@ -5994,7 +6264,7 @@ namespace AvoGUI
 				item->GetDisplayName(SIGDN::SIGDN_FILESYSPATH, &name);
 				p_openedFilePaths.resize(1);
 				p_openedFilePaths[0] = name;
-				
+
 				item->Release();
 			}
 		}

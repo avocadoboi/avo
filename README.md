@@ -190,6 +190,11 @@ To make a view recieve mouse events, all you need to do is call enableMouseEvent
 
 To make an object recieve all mouse events that the window recieves from the OS, implement AvoGUI::GlobalMouseListener and register it with getGUI()->addGlobalMouseListener().
 
+### Unicode characters
+AvoGUI supports non-ASCII UTF-8 unicode characters. To create a UTF-8 encoded string literal, simply prepend the "u8" prefix. Example: u8"Göran matar bläckfiskarna med blått bläck.". 
+
+To support right-to-left languages, set the reading direction of the text to ReadingDirection::RightToLeft. You can set the default reading direction by modifying the default TextProperties in the DrawingContext.
+
 Look around in the documentation in AvoGUI.hpp for more information about anything!
 
 ## Compatible platforms
