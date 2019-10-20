@@ -3287,8 +3287,6 @@ namespace AvoGUI
 
 		//------------------------------
 
-		std::vector<View*> m_views;
-
 		uint32 m_layerIndex;
 		uint32 m_index;
 
@@ -3356,6 +3354,8 @@ namespace AvoGUI
 		GUI* m_GUI;
 		View* m_parent;
 		Theme* m_theme;
+
+		std::vector<View*> m_children;
 
 		/*
 			LIBRARY IMPLEMENTED
@@ -3487,7 +3487,7 @@ namespace AvoGUI
 		*/
 		View* getChild(uint32 p_viewIndex)
 		{
-			return m_views[p_viewIndex];
+			return m_children[p_viewIndex];
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -3495,7 +3495,7 @@ namespace AvoGUI
 		*/
 		uint32 getNumberOfChildren()
 		{
-			return m_views.size();
+			return m_children.size();
 		}
 
 		/*
@@ -3514,32 +3514,32 @@ namespace AvoGUI
 		*/
 		Rectangle<float> calculateContentBounds() const
 		{
-			if (!m_views.size())
+			if (!m_children.size())
 			{
 				return Rectangle<float>();
 			}
 
-			float left = m_views[0]->getLeft();
-			float right = m_views[0]->getRight();
-			float top = m_views[0]->getTop();
-			float bottom = m_views[0]->getBottom();
-			for (uint32 a = 1; a < m_views.size(); a++)
+			float left = m_children[0]->getLeft();
+			float right = m_children[0]->getRight();
+			float top = m_children[0]->getTop();
+			float bottom = m_children[0]->getBottom();
+			for (uint32 a = 1; a < m_children.size(); a++)
 			{
-				if (m_views[a]->getLeft() < left)
+				if (m_children[a]->getLeft() < left)
 				{
-					left = m_views[a]->getLeft();
+					left = m_children[a]->getLeft();
 				}
-				if (m_views[a]->getTop() < top)
+				if (m_children[a]->getTop() < top)
 				{
-					top = m_views[a]->getTop();
+					top = m_children[a]->getTop();
 				}
-				if (m_views[a]->getRight() > right)
+				if (m_children[a]->getRight() > right)
 				{
-					right = m_views[a]->getRight();
+					right = m_children[a]->getRight();
 				}
-				if (m_views[a]->getBottom() > bottom)
+				if (m_children[a]->getBottom() > bottom)
 				{
-					bottom = m_views[a]->getBottom();
+					bottom = m_children[a]->getBottom();
 				}
 			}
 
@@ -3552,22 +3552,22 @@ namespace AvoGUI
 		*/
 		float calculateContentWidth() const
 		{
-			if (!m_views.size())
+			if (!m_children.size())
 			{
 				return 0.f;
 			}
 
-			float left = m_views[0]->getLeft();
-			float right = m_views[0]->getRight();
-			for (uint32 a = 1; a < m_views.size(); a++)
+			float left = m_children[0]->getLeft();
+			float right = m_children[0]->getRight();
+			for (uint32 a = 1; a < m_children.size(); a++)
 			{
-				if (m_views[a]->getLeft() < left)
+				if (m_children[a]->getLeft() < left)
 				{
-					left = m_views[a]->getLeft();
+					left = m_children[a]->getLeft();
 				}
-				if (m_views[a]->getRight() > right)
+				if (m_children[a]->getRight() > right)
 				{
-					right = m_views[a]->getRight();
+					right = m_children[a]->getRight();
 				}
 			}
 			return right - left;
@@ -3578,22 +3578,22 @@ namespace AvoGUI
 		*/
 		float calculateContentHeight() const
 		{
-			if (!m_views.size())
+			if (!m_children.size())
 			{
 				return 0.f;
 			}
 
-			float top = m_views[0]->getTop();
-			float bottom = m_views[0]->getBottom();
-			for (uint32 a = 1; a < m_views.size(); a++)
+			float top = m_children[0]->getTop();
+			float bottom = m_children[0]->getBottom();
+			for (uint32 a = 1; a < m_children.size(); a++)
 			{
-				if (m_views[a]->getTop() < top)
+				if (m_children[a]->getTop() < top)
 				{
-					top = m_views[a]->getTop();
+					top = m_children[a]->getTop();
 				}
-				if (m_views[a]->getBottom() > bottom)
+				if (m_children[a]->getBottom() > bottom)
 				{
-					bottom = m_views[a]->getBottom();
+					bottom = m_children[a]->getBottom();
 				}
 			}
 			return bottom - top;
@@ -3614,17 +3614,17 @@ namespace AvoGUI
 		*/
 		float calculateContentLeft() const
 		{
-			if (!m_views.size())
+			if (!m_children.size())
 			{
 				return 0.f;
 			}
 
-			float left = m_views[0]->getLeft();
-			for (uint32 a = 1; a < m_views.size(); a++)
+			float left = m_children[0]->getLeft();
+			for (uint32 a = 1; a < m_children.size(); a++)
 			{
-				if (m_views[a]->getLeft() < left)
+				if (m_children[a]->getLeft() < left)
 				{
-					left = m_views[a]->getLeft();
+					left = m_children[a]->getLeft();
 				}
 			}
 			return left;
@@ -3636,17 +3636,17 @@ namespace AvoGUI
 		*/
 		float calculateContentRight() const
 		{
-			if (!m_views.size())
+			if (!m_children.size())
 			{
 				return 0.f;
 			}
 
-			float right = m_views[0]->getRight();
-			for (uint32 a = 1; a < m_views.size(); a++)
+			float right = m_children[0]->getRight();
+			for (uint32 a = 1; a < m_children.size(); a++)
 			{
-				if (m_views[a]->getRight() > right)
+				if (m_children[a]->getRight() > right)
 				{
-					right = m_views[a]->getRight();
+					right = m_children[a]->getRight();
 				}
 			}
 			return right;
@@ -3658,17 +3658,17 @@ namespace AvoGUI
 		*/
 		float calculateContentTop() const
 		{
-			if (!m_views.size())
+			if (!m_children.size())
 			{
 				return 0.f;
 			}
 
-			float top = m_views[0]->getTop();
-			for (uint32 a = 1; a < m_views.size(); a++)
+			float top = m_children[0]->getTop();
+			for (uint32 a = 1; a < m_children.size(); a++)
 			{
-				if (m_views[a]->getTop() < top)
+				if (m_children[a]->getTop() < top)
 				{
-					top = m_views[a]->getTop();
+					top = m_children[a]->getTop();
 				}
 			}
 			return top;
@@ -3680,17 +3680,17 @@ namespace AvoGUI
 		*/
 		float calculateContentBottom() const
 		{
-			if (!m_views.size())
+			if (!m_children.size())
 			{
 				return 0.f;
 			}
 
-			float bottom = m_views[0]->getBottom();
-			for (uint32 a = 1; a < m_views.size(); a++)
+			float bottom = m_children[0]->getBottom();
+			for (uint32 a = 1; a < m_children.size(); a++)
 			{
-				if (m_views[a]->getBottom() > bottom)
+				if (m_children[a]->getBottom() > bottom)
 				{
-					bottom = m_views[a]->getBottom();
+					bottom = m_children[a]->getBottom();
 				}
 			}
 			return bottom;
@@ -3729,9 +3729,9 @@ namespace AvoGUI
 			Rectangle<float> contentBounds(calculateContentBounds());
 			float offsetX = p_leftPadding - contentBounds.left;
 			float offsetY = p_topPadding - contentBounds.top;
-			for (uint32 a = 0; a < m_views.size(); a++)
+			for (uint32 a = 0; a < m_children.size(); a++)
 			{
-				m_views[a]->move(offsetX, offsetY);
+				m_children[a]->move(offsetX, offsetY);
 			}
 			setSize(contentBounds.getWidth() + p_leftPadding + p_rightPadding, contentBounds.getHeight() + p_topPadding + p_bottomPadding);
 		}
@@ -3745,9 +3745,9 @@ namespace AvoGUI
 		{
 			float left = calculateContentLeft();
 			float offset = p_leftPadding - left;
-			for (uint32 a = 0; a < m_views.size(); a++)
+			for (uint32 a = 0; a < m_children.size(); a++)
 			{
-				m_views[a]->move(offset, 0.f);
+				m_children[a]->move(offset, 0.f);
 			}
 			setWidth(getWidth() + offset);
 		}
@@ -3769,9 +3769,9 @@ namespace AvoGUI
 		{
 			float top = calculateContentTop();
 			float offset = p_topPadding - top;
-			for (uint32 a = 0; a < m_views.size(); a++)
+			for (uint32 a = 0; a < m_children.size(); a++)
 			{
-				m_views[a]->move(offset, 0.f);
+				m_children[a]->move(offset, 0.f);
 			}
 			setHeight(getHeight() + offset);
 		}
@@ -8324,7 +8324,7 @@ namespace AvoGUI
 
 	public:
 		Ripple(View* p_parent, Color const& p_color = Color(1.f, 0.45f)) :
-			View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(p_color, 0.45f),
+			View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(p_color),
 			m_isEnabled(true), m_maxSize(0.f), m_size(0.f), m_circleAnimationTime(1.f), m_alphaFactor(0.f),
 			m_alphaAnimationTime(0.f), m_isMouseDown(false), m_overlayAlphaFactor(0.f), m_overlayAnimationTime(0.f),
 			m_isMouseHovering(false), m_hasHoverEffect(true)
@@ -8408,7 +8408,7 @@ namespace AvoGUI
 
 		void handleMouseDown(MouseEvent const& p_event) override
 		{
-			if (m_isEnabled)
+			if (m_isEnabled && p_event.mouseButton == MouseButton::Left)
 			{
 				m_position.set(p_event.x - getLeft(), p_event.y - getTop());
 				m_circleAnimationTime = 0.f;
@@ -8422,7 +8422,7 @@ namespace AvoGUI
 		}
 		void handleMouseUp(MouseEvent const& p_event) override
 		{
-			if (m_isMouseDown)
+			if (m_isMouseDown && p_event.mouseButton == MouseButton::Left)
 			{
 				m_isMouseDown = false;
 				m_alphaAnimationTime = 0.f;
@@ -8450,7 +8450,7 @@ namespace AvoGUI
 		{
 			if (m_hasHoverEffect)
 			{
-				m_overlayAlphaFactor = getThemeEasing("symmetrical in out").easeValue(m_overlayAnimationTime);
+				m_overlayAlphaFactor = getThemeEasing("in out").easeValue(m_overlayAnimationTime);
 
 				if (m_isMouseHovering)
 				{
@@ -8486,7 +8486,7 @@ namespace AvoGUI
 			{
 				if (m_alphaAnimationTime < 1.f)
 				{
-					m_alphaFactor = 1.f - getThemeEasing("symmetrical in out").easeValue(m_alphaAnimationTime);
+					m_alphaFactor = 1.f - getThemeEasing("in out").easeValue(m_alphaAnimationTime);
 					m_alphaAnimationTime = min(1.f, m_alphaAnimationTime + 0.05f);
 
 					queueAnimationUpdate();

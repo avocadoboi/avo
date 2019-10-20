@@ -7,6 +7,8 @@
 
 //------------------------------
 
+uint32_t frameCount = 0;
+
 class MouseView : public AvoGUI::View
 {
 private:
@@ -56,6 +58,7 @@ public:
 	void handleMouseBackgroundLeave(AvoGUI::MouseEvent const& p_event) override
 	{
 		std::cout << m_name + " mouse background leave" << "\n\n";
+		frameCount = 0;
 	}
 
 	//------------------------------
@@ -106,9 +109,20 @@ public:
 	void handleMouseBackgroundLeave(AvoGUI::MouseEvent const& p_event) override
 	{
 		std::cout << "GUI mouse background leave" << "\n\n";
+		frameCount = 0;
 	}
 
 	//------------------------------
+
+	void updateAnimations()
+	{
+		if (frameCount == 15 * 60)
+		{
+			std::system("cls");
+		}
+		frameCount++;
+		queueAnimationUpdate();
+	}
 
 	void createContent() override
 	{
@@ -138,6 +152,8 @@ public:
 		overlay->setName("Overlay");
 		overlay->setThemeColor("background", 0U);
 		overlay->setIsOverlay(true);
+
+		queueAnimationUpdate();
 	}
 };
 

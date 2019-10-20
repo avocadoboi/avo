@@ -143,8 +143,8 @@ namespace AvoGUI
 	{
 		if (p_view)
 		{
-			p_view->setIndex(m_views.size());
-			m_views.push_back(p_view);
+			p_view->setIndex(m_children.size());
+			m_children.push_back(p_view);
 			updateViewDrawingIndex(p_view);
 		}
 	}
@@ -251,50 +251,50 @@ namespace AvoGUI
 
 	void View::removeChild(View* p_view)
 	{
-		if (p_view && removeVectorElementWhileKeepingOrder(m_views, p_view))
+		if (p_view && removeVectorElementWhileKeepingOrder(m_children, p_view))
 		{
 			p_view->forget();
 		}
 	}
 	void View::removeChild(uint32 p_viewIndex)
 	{
-		m_views[p_viewIndex]->forget();
-		m_views.erase(m_views.begin() + p_viewIndex);
+		m_children[p_viewIndex]->forget();
+		m_children.erase(m_children.begin() + p_viewIndex);
 	}
 	void View::removeAllChildren()
 	{
-		if (m_views.empty()) // That function naming, ew... Why didn't they call it getIsEmpty? empty() should be emptying something >:^(
+		if (m_children.empty()) // That function naming, ew... Why didn't they call it getIsEmpty? empty() should be emptying something >:^(
 		{
 			return;
 		}
 
-		for (auto view = m_views.begin(); view != m_views.end(); view++)
+		for (auto view = m_children.begin(); view != m_children.end(); view++)
 		{
 			(*view)->forget();
 		}
-		m_views.clear();
+		m_children.clear();
 	}
 
 	void View::updateViewDrawingIndex(View* p_view)
 	{
-		uint32 numberOfViews = (uint32)m_views.size();
+		uint32 numberOfViews = (uint32)m_children.size();
 		if (numberOfViews <= 1) return;
 
 		float elevation = p_view->getElevation();
-		if (!p_view->getIndex() || (p_view->getIndex() < numberOfViews - 1U && m_views[p_view->getIndex() + 1U]->getElevation() < elevation))
+		if (!p_view->getIndex() || (p_view->getIndex() < numberOfViews - 1U && m_children[p_view->getIndex() + 1U]->getElevation() < elevation))
 		{
 			for (uint32 a = p_view->getIndex(); a < numberOfViews; a++)
 			{
-				if (a == numberOfViews - 1U || m_views[a + 1U]->getElevation() >= elevation)
+				if (a == numberOfViews - 1U || m_children[a + 1U]->getElevation() >= elevation)
 				{
-					m_views[a] = p_view;
+					m_children[a] = p_view;
 					p_view->setIndex(a);
 					return;
 				}
 				else
 				{
-					m_views[a] = m_views[a + 1U];
-					m_views[a]->setIndex(a);
+					m_children[a] = m_children[a + 1U];
+					m_children[a]->setIndex(a);
 				}
 			}
 		}
@@ -302,16 +302,16 @@ namespace AvoGUI
 		{
 			for (int32 a = p_view->getIndex(); a >= 0; a--)
 			{
-				if (!a || m_views[a - 1]->getElevation() <= elevation)
+				if (!a || m_children[a - 1]->getElevation() <= elevation)
 				{
-					m_views[a] = p_view;
+					m_children[a] = p_view;
 					p_view->setIndex(a);
 					return;
 				}
 				else
 				{
-					m_views[a] = m_views[a - 1];
-					m_views[a]->setIndex(a);
+					m_children[a] = m_children[a - 1];
+					m_children[a]->setIndex(a);
 				}
 			}
 		}
@@ -5376,7 +5376,10 @@ namespace AvoGUI
 	//
 
 	GUI::GUI() :
-		View(0, Rectangle<float>(0, 0, 0, 0)), m_drawingContext(0),
+		View(0, Rectangle<float>(0, 0, 0, 0)), 
+		m_window(0), m_drawingContext(0),
+		m_hasNewWindowSize(false), m_hasAnimationLoopStarted(false),
+		m_tooltip(0),
 		m_keyboardFocus(0)
 	{
 #ifdef _WIN32
@@ -5653,20 +5656,22 @@ namespace AvoGUI
 			View* container = this;
 			int32 startIndex = getNumberOfChildren() - 1;
 
-			bool isContainerMouseEnterView = !getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY);
-			bool isContainerMouseLeaveView = !getIsContaining(p_event.x, p_event.y);
-
 			MouseEvent mouseEvent = p_event;
+
+			std::stack<bool> wasHoveringStack;
+			wasHoveringStack.push(((View*)this)->m_isMouseHovering);
 
 			if (getAreMouseEventsEnabled())
 			{
-				if (isContainerMouseEnterView)
-				{
-					handleMouseEnter(p_event);
-				}
-				else if (isContainerMouseLeaveView)
+				if (!getIsContaining(p_event.x, p_event.y))
 				{
 					handleMouseLeave(p_event);
+					((View*)this)->m_isMouseHovering = false;
+				}
+				else if (!getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+				{
+					handleMouseEnter(p_event);
+					((View*)this)->m_isMouseHovering = true;
 				}
 				else
 				{
@@ -5680,18 +5685,13 @@ namespace AvoGUI
 			bool hasFoundLeaveViews = false;
 			while (true)
 			{
-				loopStart:
+			loopStart:
 				for (int32 a = startIndex; a >= 0; a--)
 				{
 					View* child = container->getChild(a);
 
-					if (child->getIsContainingAbsolute(p_event.x, p_event.y) && child->getIsVisible() && !hasInvisibleParent)
+					if (child->getIsContainingAbsolute(p_event.x, p_event.y) && child->getIsVisible() && !hasInvisibleParent && !hasFoundEnterViews)
 					{
-						if (hasFoundEnterViews)
-						{
-							continue;
-						}
-
 						if (child->getAreMouseEventsEnabled())
 						{
 							mouseEvent.x = p_event.x - child->getAbsoluteLeft();
@@ -5717,22 +5717,12 @@ namespace AvoGUI
 									child->handleMouseBackgroundEnter(mouseEvent);
 								}
 							}
-							if (!isContainer)
-							{
-								child->m_isMouseHovering = true;
-								if (!hasOverlayParent && !child->getIsOverlay())
-								{
-									hasFoundEnterViews = true;
-									if (hasFoundLeaveViews)
-									{
-										break;
-									}
-								}
-							}
 						}
 
 						if (isContainer)
 						{
+							wasHoveringStack.push(child->m_isMouseHovering);
+							child->m_isMouseHovering = true;
 							if (child->getIsOverlay())
 							{
 								hasOverlayParent = true;
@@ -5741,14 +5731,27 @@ namespace AvoGUI
 							startIndex = child->getNumberOfChildren() - 1;
 							goto loopStart;
 						}
-					}
-					else if (child->m_isMouseHovering)
-					{
-						if (hasFoundLeaveViews) 
+						else
 						{
-							continue;
+							if (!hasOverlayParent && !child->getIsOverlay())
+							{
+								hasFoundEnterViews = true;
+								if (child->m_isMouseHovering)
+								{
+									hasFoundLeaveViews = true;
+									break;
+								}
+								else if (hasFoundLeaveViews)
+								{
+									child->m_isMouseHovering = true;
+									break;
+								}
+							}
+							child->m_isMouseHovering = true;
 						}
-
+					}
+					else if (child->m_isMouseHovering && !hasFoundLeaveViews)
+					{
 						bool isContainer = child->getNumberOfChildren();
 
 						if (child->getAreMouseEventsEnabled())
@@ -5764,6 +5767,8 @@ namespace AvoGUI
 
 						if (isContainer)
 						{
+							wasHoveringStack.push(child->m_isMouseHovering);
+							child->m_isMouseHovering = false;
 							if (child->getIsOverlay())
 							{
 								hasOverlayParent = true;
@@ -5791,10 +5796,8 @@ namespace AvoGUI
 					}
 				}
 
-				bool isMouseInContainer = container->getIsContainingAbsolute(p_event.x, p_event.y) && !hasInvisibleParent;
-
-				if (isMouseInContainer && !container->m_isMouseHovering && !hasFoundEnterViews ||
-					isMouseInContainer && container->m_isMouseHovering && hasFoundLeaveViews && !hasFoundEnterViews)
+				if (wasHoveringStack.top() && container->m_isMouseHovering && hasFoundLeaveViews && !hasFoundEnterViews ||
+					!wasHoveringStack.top() && container->m_isMouseHovering && !hasFoundEnterViews)
 				{
 					hasFoundEnterViews = true;
 					if (container->getAreMouseEventsEnabled())
@@ -5804,8 +5807,8 @@ namespace AvoGUI
 						container->handleMouseBackgroundEnter(mouseEvent);
 					}
 				}
-				else if (!isMouseInContainer && container->m_isMouseHovering && !hasFoundLeaveViews || 
-					isMouseInContainer && container->m_isMouseHovering && !hasFoundLeaveViews && hasFoundEnterViews)
+				else if (wasHoveringStack.top() && container->m_isMouseHovering && hasFoundEnterViews && !hasFoundLeaveViews || 
+					wasHoveringStack.top() && !container->m_isMouseHovering && !hasFoundLeaveViews)
 				{
 					hasFoundLeaveViews = true;
 					if (container->getAreMouseEventsEnabled())
@@ -5815,7 +5818,7 @@ namespace AvoGUI
 						container->handleMouseBackgroundLeave(mouseEvent);
 					}
 				}
-				else if (isMouseInContainer && container->m_isMouseHovering)
+				else if (wasHoveringStack.top() && container->m_isMouseHovering)
 				{
 					hasFoundEnterViews = true;
 					hasFoundLeaveViews = true;
@@ -5823,25 +5826,23 @@ namespace AvoGUI
 				
 				if (container == this)
 				{
-					container->m_isMouseHovering = isMouseInContainer;
 					break;
 				}
 
 				if (container->getIsOverlay())
 				{
+					wasHoveringStack.pop();
 					hasOverlayParent = false;
-					container->m_isMouseHovering = isMouseInContainer;
 					startIndex = container->getIndex() - 1;
 					container = container->getParent();
 				}
 				else 
 				{
-					while (container != this && isMouseInContainer != container->m_isMouseHovering)
+					while (container != this && wasHoveringStack.top() != container->m_isMouseHovering)
 					{
-						container->m_isMouseHovering = isMouseInContainer;
+						wasHoveringStack.pop();
 						startIndex = (int32)container->getIndex() - 1;
 						container = container->getParent();
-						isMouseInContainer = container->getIsContainingAbsolute(p_event.x, p_event.y) && !hasInvisibleParent;
 						if (container->getIsOverlay())
 						{
 							hasOverlayParent = false;
