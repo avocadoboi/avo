@@ -3518,6 +3518,14 @@ namespace AvoGUI
 		{
 			return m_children.size();
 		}
+		/*
+			LIBRARY IMPLEMENTED
+			Returns a vector containing the child views that are attached to this view.
+		*/
+		std::vector<View*> const& getChildren()
+		{
+			return m_children;
+		}
 
 		/*
 			LIBRARY IMPLEMENTED
