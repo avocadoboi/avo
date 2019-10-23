@@ -184,6 +184,10 @@ public:
 
 		invalidate();
 	}
+	void handleMouseDoubleClick(AvoGUI::MouseEvent const& p_event) override
+	{
+		handleMouseDown(p_event);
+	}
 
 	void draw(AvoGUI::DrawingContext* p_context) override
 	{

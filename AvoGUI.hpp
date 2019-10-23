@@ -3249,7 +3249,17 @@ namespace AvoGUI
 			USER IMPLEMENTED
 			This gets called when a view that has registered this listener has changed its size.
 		*/
-		virtual void handleViewSizeChange(View* p_view) = 0;
+		virtual void handleViewSizeChange(View* p_view) { }
+		/*
+			USER IMPLEMENTED
+			This gets called when a view that has registered this listener has gotten a child attached to it.
+		*/
+		virtual void handleViewChildAttachment(View* p_parent, View* p_attachedChild) { }
+		/*
+			USER IMPLEMENTED
+			This gets called when a view that has registered this listener has gotten a child detached from it.
+		*/
+		virtual void handleViewChildDetachment(View* p_parent, View* p_detachedChild) { }
 	};
 
 	// forward declaration <3
@@ -3480,6 +3490,17 @@ namespace AvoGUI
 			Forgets the children views and empties this view from children.
 		*/
 		void removeAllChildren();
+
+		/*
+			USER IMPLEMENTED
+			Gets called when a child view has been added to this view.
+		*/
+		virtual void handleChildAttachment(View* p_attachedChild) { }
+		/*
+			USER IMPLEMENTED
+			Gets called when a child view has been removed from this view.
+		*/
+		virtual void handleChildDetachment(View* p_detachedChild) { }
 
 		/*
 			LIBRARY IMPLEMENTED

@@ -146,6 +146,12 @@ namespace AvoGUI
 			p_view->setIndex(m_children.size());
 			m_children.push_back(p_view);
 			updateViewDrawingIndex(p_view);
+
+			handleChildAttachment(p_view);
+			for (auto view : m_viewEventListeners)
+			{
+				view->handleViewChildAttachment(this, p_view);
+			}
 		}
 	}
 
@@ -253,13 +259,26 @@ namespace AvoGUI
 	{
 		if (p_view && removeVectorElementWhileKeepingOrder(m_children, p_view))
 		{
+			handleChildDetachment(p_view);
+			for (auto view : m_viewEventListeners)
+			{
+				view->handleViewChildDetachment(this, p_view);
+			}
+
 			p_view->forget();
 		}
 	}
 	void View::removeChild(uint32 p_viewIndex)
 	{
-		m_children[p_viewIndex]->forget();
 		m_children.erase(m_children.begin() + p_viewIndex);
+
+		View* childToRemove = m_children[p_viewIndex];
+		handleChildDetachment(childToRemove);
+		for (auto view : m_viewEventListeners)
+		{
+			view->handleViewChildDetachment(this, childToRemove);
+		}
+		childToRemove->forget();
 	}
 	void View::removeAllChildren()
 	{
@@ -268,17 +287,27 @@ namespace AvoGUI
 			return;
 		}
 
-		for (auto view = m_children.begin(); view != m_children.end(); view++)
+		while (m_children.size())
 		{
-			(*view)->forget();
+			View* child = m_children.back();
+			m_children.pop_back();
+
+			handleChildDetachment(child);
+			for (auto listener : m_viewEventListeners)
+			{
+				listener->handleViewChildDetachment(this, child);
+			}
+			child->forget();
 		}
-		m_children.clear();
 	}
 
 	void View::updateViewDrawingIndex(View* p_view)
 	{
 		uint32 numberOfViews = (uint32)m_children.size();
-		if (numberOfViews <= 1) return;
+		if (numberOfViews <= 1)
+		{
+			return;
+		}
 
 		float elevation = p_view->getElevation();
 		if (!p_view->getIndex() || (p_view->getIndex() < numberOfViews - 1U && m_children[p_view->getIndex() + 1U]->getElevation() < elevation))
