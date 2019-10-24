@@ -5993,10 +5993,13 @@ namespace AvoGUI
 			m_hasNewWindowSize = false;
 			includeAnimationThread();
 
+			Point<float> sizeBefore = getBottomLeft();
 			m_drawingContext->setSize(newSize.x, newSize.y);
 			m_bounds.set(0, 0, newSize.x, newSize.y);
 			m_lastWindowSize = newSize;
-			sendSizeChangeEvents();
+
+			sendBoundsChangeEvents(Rectangle<float>(0.f, 0.f, sizeBefore.x, sizeBefore.y));
+
 			m_tooltip->hide();
 			m_invalidRectangles.clear();
 			invalidate();
