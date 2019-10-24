@@ -3249,7 +3249,13 @@ namespace AvoGUI
 			USER IMPLEMENTED
 			This gets called when a view that has registered this listener has changed its size.
 		*/
-		virtual void handleViewSizeChange(View* p_view) { }
+		virtual void handleViewSizeChange(View* p_view, float p_previousWidth, float p_previousHeight) { }
+		/*
+			USER IMPLEMENTED
+			This gets called when a view that has registered this listener has changed any of its bounding rectangle coordinates.
+			The size and/or the position of the view may have changed.
+		*/
+		virtual void handleViewBoundsChange(View* p_view, Rectangle<float> const& p_previousBounds) { }
 		/*
 			USER IMPLEMENTED
 			This gets called when a view that has registered this listener has gotten a child attached to it.
@@ -3370,14 +3376,27 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		virtual void sendSizeChangeEvents()
+		virtual void sendBoundsChangeEvents(Rectangle<float> const& p_previousBounds)
 		{
-			updateShadow(); // This is to update the shadow bounds and image.
-
-			handleSizeChange();
-			for (auto viewListener = m_viewEventListeners.begin(); viewListener != m_viewEventListeners.end(); viewListener++)
+			if (p_previousBounds.left != m_bounds.left || p_previousBounds.right != m_bounds.right ||
+				p_previousBounds.top != m_bounds.top || p_previousBounds.bottom != m_bounds.bottom)
 			{
-				(*viewListener)->handleViewSizeChange(this);
+				if (p_previousBounds.getWidth() != m_bounds.getWidth() || p_previousBounds.getHeight() != m_bounds.getHeight())
+				{
+					updateShadow(); // This is to update the shadow bounds and image.
+
+					handleSizeChange(p_previousBounds.getWidth(), p_previousBounds.getHeight());
+					for (auto viewListener : m_viewEventListeners)
+					{
+						viewListener->handleViewSizeChange(this, p_previousBounds.getWidth(), p_previousBounds.getHeight());
+					}
+				}
+
+				handleBoundsChange(p_previousBounds);
+				for (auto viewListener : m_viewEventListeners)
+				{
+					viewListener->handleViewBoundsChange(this, p_previousBounds);
+				}
 			}
 		}
 
@@ -4097,56 +4116,9 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.
 		*/
-		void setBounds(Rectangle<float> const& p_rectangle) override
-		{
-			bool hasSizeChanged = p_rectangle.getWidth() != m_bounds.getWidth() || p_rectangle.getHeight() != m_bounds.getHeight();
-
-			float offsetX = p_rectangle.left - m_bounds.left;
-			float offsetY = p_rectangle.top - m_bounds.top;
-			if (offsetX || offsetY)
-			{
-				moveAbsolutePositions(offsetX, offsetY);
-			}
-
-			m_bounds = p_rectangle;
-
-			if (hasSizeChanged)
-			{
-				sendSizeChangeEvents();
-			}
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.
-		*/
-		void setAbsoluteBounds(Rectangle<float> const& p_rectangle)
-		{
-			bool hasSizeChanged = p_rectangle.getWidth() != m_bounds.getWidth() || p_rectangle.getHeight() != m_bounds.getHeight();
-
-			float offsetX = p_rectangle.left - m_absolutePosition.x;
-			float offsetY = p_rectangle.top - m_absolutePosition.y;
-			if (offsetX || offsetY)
-			{
-				moveAbsolutePositions(offsetX, offsetY);
-				m_bounds.left += offsetX;
-				m_bounds.top += offsetY;
-			}
-
-			m_bounds.right = m_bounds.left + p_rectangle.getWidth();
-			m_bounds.bottom = m_bounds.top + p_rectangle.getHeight();
-
-			if (hasSizeChanged)
-			{
-				sendSizeChangeEvents();
-			}
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.
-		*/
 		void setBounds(float p_left, float p_top, float p_right, float p_bottom) override
 		{
-			bool hasSizeChanged = p_right - p_left != m_bounds.getWidth() || p_bottom - p_top != m_bounds.getHeight();
+			Rectangle<float> boundsBefore = m_bounds;
 
 			float offsetX = p_left - m_bounds.left;
 			float offsetY = p_top - m_bounds.top;
@@ -4160,10 +4132,7 @@ namespace AvoGUI
 			m_bounds.right = p_right;
 			m_bounds.bottom = p_bottom;
 
-			if (hasSizeChanged)
-			{
-				sendSizeChangeEvents();
-			}
+			sendBoundsChangeEvents(boundsBefore);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4171,7 +4140,7 @@ namespace AvoGUI
 		*/
 		void setAbsoluteBounds(float p_left, float p_top, float p_right, float p_bottom)
 		{
-			bool hasSizeChanged = p_right - p_left != m_bounds.getWidth() || p_bottom - p_top != m_bounds.getHeight();
+			Rectangle<float> boundsBefore = m_bounds;
 
 			float offsetX = p_left - m_absolutePosition.x;
 			float offsetY = p_top - m_absolutePosition.y;
@@ -4185,10 +4154,7 @@ namespace AvoGUI
 			m_bounds.right = m_bounds.left + p_right - p_left;
 			m_bounds.bottom = m_bounds.top + p_bottom - p_top;
 
-			if (hasSizeChanged)
-			{
-				sendSizeChangeEvents();
-			}
+			sendBoundsChangeEvents(boundsBefore);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4196,24 +4162,7 @@ namespace AvoGUI
 		*/
 		void setBounds(Point<float> const& p_position, Point<float> const& p_size) override
 		{
-			bool hasSizeChanged = p_size.x != m_bounds.getWidth() || p_size.y != m_bounds.getHeight();
-
-			float offsetX = p_position.x - m_bounds.left;
-			float offsetY = p_position.y - m_bounds.top;
-			if (offsetX || offsetY)
-			{
-				moveAbsolutePositions(offsetX, offsetY);
-			}
-
-			m_bounds.left = p_position.x;
-			m_bounds.top = p_position.y;
-			m_bounds.right = p_position.x + p_size.x;
-			m_bounds.bottom = p_position.y + p_size.y;
-
-			if (hasSizeChanged)
-			{
-				sendSizeChangeEvents();
-			}
+			setBounds(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4221,24 +4170,23 @@ namespace AvoGUI
 		*/
 		void setAbsoluteBounds(Point<float> const& p_position, Point<float> const& p_size)
 		{
-			bool hasSizeChanged = p_size.x != m_bounds.getWidth() || p_size.y != m_bounds.getHeight();
-
-			float offsetX = p_position.x - m_absolutePosition.x;
-			float offsetY = p_position.y - m_absolutePosition.y;
-			if (offsetX || offsetY)
-			{
-				moveAbsolutePositions(offsetX, offsetY);
-				m_bounds.left += offsetX;
-				m_bounds.top += offsetY;
-			}
-
-			m_bounds.right = m_bounds.left + p_size.x;
-			m_bounds.bottom = m_bounds.top + p_size.y;
-
-			if (hasSizeChanged)
-			{
-				sendSizeChangeEvents();
-			}
+			setAbsoluteBounds(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.
+		*/
+		void setBounds(Rectangle<float> const& p_rectangle) override
+		{
+			setBounds(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.
+		*/
+		void setAbsoluteBounds(Rectangle<float> const& p_rectangle)
+		{
+			setAbsoluteBounds(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4278,8 +4226,7 @@ namespace AvoGUI
 		*/
 		void move(Point<float> const& p_offset) override
 		{
-			moveAbsolutePositions(p_offset.x, p_offset.y);
-			m_bounds += p_offset;
+			move(p_offset.x, p_offset.y);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4287,8 +4234,13 @@ namespace AvoGUI
 		*/
 		void move(float p_offsetX, float p_offsetY) override
 		{
-			moveAbsolutePositions(p_offsetX, p_offsetY);
-			m_bounds.move(p_offsetX, p_offsetY);
+			if (p_offsetX || p_offsetY)
+			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				moveAbsolutePositions(p_offsetX, p_offsetY);
+				m_bounds.move(p_offsetX, p_offsetY);
+				sendBoundsChangeEvents(boundsBefore);
+			}
 		}
 
 		//------------------------------
@@ -4300,15 +4252,7 @@ namespace AvoGUI
 		*/
 		void setTopLeft(Point<float> const& p_position, bool p_willKeepSize = true) override
 		{
-			if (p_position.x != m_bounds.left || p_position.y != m_bounds.top)
-			{
-				moveAbsolutePositions(p_position.x - m_bounds.left, p_position.y - m_bounds.top);
-				m_bounds.setTopLeft(p_position, p_willKeepSize);
-				if (!p_willKeepSize)
-				{
-					sendSizeChangeEvents();
-				}
-			}
+			setTopLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4317,17 +4261,7 @@ namespace AvoGUI
 		*/
 		void setAbsoluteTopLeft(Point<float> const& p_position, bool p_willKeepSize = true)
 		{
-			float offsetX = p_position.x - m_absolutePosition.x;
-			float offsetY = p_position.y - m_absolutePosition.y;
-			if (offsetX || offsetY)
-			{
-				m_bounds.setTopLeft(m_bounds.left + offsetX, m_bounds.top + offsetY, p_willKeepSize);
-				moveAbsolutePositions(offsetX, offsetY);
-				if (!p_willKeepSize)
-				{
-					sendSizeChangeEvents();
-				}
-			}
+			setAbsoluteTopLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4338,12 +4272,10 @@ namespace AvoGUI
 		{
 			if (p_left != m_bounds.left || p_top != m_bounds.top)
 			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(p_left - m_bounds.left, p_top - m_bounds.top);
 				m_bounds.setTopLeft(p_left, p_top, p_willKeepSize);
-				if (!p_willKeepSize)
-				{
-					sendSizeChangeEvents();
-				}
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -4357,12 +4289,10 @@ namespace AvoGUI
 			float offsetY = p_top - m_absolutePosition.y;
 			if (offsetX || offsetY)
 			{
-				m_bounds.setTopLeft(m_bounds.left + offsetX, m_bounds.top + offsetY, p_willKeepSize);
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(offsetX, offsetY);
-				if (!p_willKeepSize)
-				{
-					sendSizeChangeEvents();
-				}
+				m_bounds.setTopLeft(m_bounds.left + offsetX, m_bounds.top + offsetY, p_willKeepSize);
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -4389,20 +4319,7 @@ namespace AvoGUI
 		*/
 		void setTopRight(Point<float> const& p_position, bool p_willKeepSize = true) override
 		{
-			if (p_position.x != m_bounds.right || p_position.y != m_bounds.top)
-			{
-				if (p_willKeepSize)
-				{
-					moveAbsolutePositions(p_position.x - m_bounds.right, p_position.y - m_bounds.top);
-					m_bounds.setTopRight(p_position, p_willKeepSize);
-				}
-				else
-				{
-					moveAbsolutePositions(0, p_position.y - m_bounds.top);
-					m_bounds.setTopRight(p_position, p_willKeepSize);
-					sendSizeChangeEvents();
-				}
-			}
+			setTopLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4411,21 +4328,7 @@ namespace AvoGUI
 		*/
 		void setAbsoluteTopRight(Point<float> const& p_position, bool p_willKeepSize = true)
 		{
-			float offsetX = p_position.x - m_absolutePosition.x + m_bounds.left - m_bounds.right;
-			float offsetY = p_position.y - m_absolutePosition.y;
-			if (offsetX || offsetY)
-			{
-				m_bounds.setTopRight(m_bounds.right + offsetX, m_bounds.top + offsetY, p_willKeepSize);
-				if (p_willKeepSize)
-				{
-					moveAbsolutePositions(offsetX, offsetY);
-				}
-				else
-				{
-					moveAbsolutePositions(0, offsetY);
-					sendSizeChangeEvents();
-				}
-			}
+			setAbsoluteTopRight(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4436,17 +4339,10 @@ namespace AvoGUI
 		{
 			if (p_right != m_bounds.right || p_top != m_bounds.top)
 			{
-				if (p_willKeepSize)
-				{
-					moveAbsolutePositions(p_right - m_bounds.right, p_top - m_bounds.top);
-					m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
-				}
-				else
-				{
-					moveAbsolutePositions(0, p_top - m_bounds.top);
-					m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
-					sendSizeChangeEvents();
-				}
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				moveAbsolutePositions(p_willKeepSize ? p_right - m_bounds.right : 0, p_top - m_bounds.top);
+				m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -4460,16 +4356,10 @@ namespace AvoGUI
 			float offsetY = p_top - m_absolutePosition.y;
 			if (offsetX || offsetY)
 			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				moveAbsolutePositions(p_willKeepSize ? offsetX : 0, offsetY);
 				m_bounds.setTopRight(m_bounds.right + offsetX, m_bounds.top + offsetY, p_willKeepSize);
-				if (p_willKeepSize)
-				{
-					moveAbsolutePositions(offsetX, offsetY);
-				}
-				else
-				{
-					moveAbsolutePositions(0, offsetY);
-					sendSizeChangeEvents();
-				}
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -4496,20 +4386,7 @@ namespace AvoGUI
 		*/
 		void setBottomLeft(Point<float> const& p_position, bool p_willKeepSize = true) override
 		{
-			if (p_position.x != m_bounds.left || p_position.y != m_bounds.bottom)
-			{
-				if (p_willKeepSize)
-				{
-					moveAbsolutePositions(p_position.x - m_bounds.left, p_position.y - m_bounds.bottom);
-					m_bounds.setBottomLeft(p_position, p_willKeepSize);
-				}
-				else
-				{
-					moveAbsolutePositions(p_position.x - m_bounds.left, 0);
-					m_bounds.setBottomLeft(p_position, p_willKeepSize);
-					sendSizeChangeEvents();
-				}
-			}
+			setBottomLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4518,21 +4395,7 @@ namespace AvoGUI
 		*/
 		void setAbsoluteBottomLeft(Point<float> const& p_position, bool p_willKeepSize = true)
 		{
-			float offsetX = p_position.x - m_absolutePosition.x;
-			float offsetY = p_position.y - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
-			if (offsetX || offsetY)
-			{
-				m_bounds.setBottomLeft(m_bounds.left + offsetX, m_bounds.bottom + offsetY, p_willKeepSize);
-				if (p_willKeepSize)
-				{
-					moveAbsolutePositions(offsetX, offsetY);
-				}
-				else
-				{
-					moveAbsolutePositions(offsetX, 0);
-					sendSizeChangeEvents();
-				}
-			}
+			setAbsoluteBottomLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4543,17 +4406,10 @@ namespace AvoGUI
 		{
 			if (p_left != m_bounds.left || p_bottom != m_bounds.bottom)
 			{
-				if (p_willKeepSize)
-				{
-					moveAbsolutePositions(p_left - m_bounds.left, p_bottom - m_bounds.bottom);
-					m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
-				}
-				else
-				{
-					moveAbsolutePositions(p_left - m_bounds.left, 0);
-					m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
-					sendSizeChangeEvents();
-				}
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				moveAbsolutePositions(p_left - m_bounds.left, p_willKeepSize ? p_bottom - m_bounds.bottom : 0);
+				m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -4567,16 +4423,10 @@ namespace AvoGUI
 			float offsetY = p_bottom - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
 			if (offsetX || offsetY)
 			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				moveAbsolutePositions(offsetX, p_willKeepSize ? offsetY : 0.f);
 				m_bounds.setBottomLeft(m_bounds.left + offsetX, m_bounds.bottom + offsetY, p_willKeepSize);
-				if (p_willKeepSize)
-				{
-					moveAbsolutePositions(offsetX, offsetY);
-				}
-				else
-				{
-					moveAbsolutePositions(offsetX, 0);
-					sendSizeChangeEvents();
-				}
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -4603,19 +4453,7 @@ namespace AvoGUI
 		*/
 		void setBottomRight(Point<float> const& p_position, bool p_willKeepSize = true) override
 		{
-			if (p_position.x != m_bounds.right || p_position.y != m_bounds.bottom)
-			{
-				if (p_willKeepSize)
-				{
-					moveAbsolutePositions(p_position.x - m_bounds.right, p_position.y - m_bounds.bottom);
-					m_bounds.setBottomRight(p_position, p_willKeepSize);
-				}
-				else
-				{
-					m_bounds.setBottomRight(p_position, p_willKeepSize);
-					sendSizeChangeEvents();
-				}
-			}
+			setBottomRight(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4624,21 +4462,7 @@ namespace AvoGUI
 		*/
 		void setAbsoluteBottomRight(Point<float> const& p_position, bool p_willKeepSize = true)
 		{
-			float offsetX = p_position.x - m_absolutePosition.x + m_bounds.left - m_bounds.right;
-			float offsetY = p_position.y - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
-			if (offsetX || offsetY)
-			{
-				if (p_willKeepSize)
-				{
-					m_bounds.move(offsetX, offsetY);
-					moveAbsolutePositions(offsetX, offsetY);
-				}
-				else
-				{
-					m_bounds.moveBottomRight(offsetX, offsetY);
-					sendSizeChangeEvents();
-				}
-			}
+			setAbsoluteBottomRight(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4649,16 +4473,13 @@ namespace AvoGUI
 		{
 			if (p_right != m_bounds.right || p_bottom != m_bounds.bottom)
 			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				if (p_willKeepSize)
 				{
 					moveAbsolutePositions(p_right - m_bounds.right, p_bottom - m_bounds.bottom);
-					m_bounds.setBottomRight(p_right, p_bottom, p_willKeepSize);
 				}
-				else
-				{
-					m_bounds.setBottomRight(p_right, p_bottom, p_willKeepSize);
-					sendSizeChangeEvents();
-				}
+				m_bounds.setBottomRight(p_right, p_bottom, p_willKeepSize);
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -4672,16 +4493,17 @@ namespace AvoGUI
 			float offsetY = p_bottom - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
 			if (offsetX || offsetY)
 			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				if (p_willKeepSize)
 				{
-					m_bounds.move(offsetX, offsetY);
 					moveAbsolutePositions(offsetX, offsetY);
+					m_bounds.move(offsetX, offsetY);
 				}
 				else
 				{
 					m_bounds.moveBottomRight(offsetX, offsetY);
-					sendSizeChangeEvents();
 				}
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -4709,8 +4531,7 @@ namespace AvoGUI
 		*/
 		void setCenter(Point<float> const& p_position) override
 		{
-			moveAbsolutePositions(p_position.x - m_bounds.getCenterX(), p_position.y - m_bounds.getCenterY());
-			m_bounds.setCenter(p_position.x, p_position.y);
+			setCenter(p_position.x, p_position.y);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4718,10 +4539,7 @@ namespace AvoGUI
 		*/
 		void setAbsoluteCenter(Point<float> const& p_position)
 		{
-			float offsetX = p_position.x - m_absolutePosition.x - getWidth()*0.5f;
-			float offsetY = p_position.y - m_absolutePosition.y - getHeight()*0.5f;
-			m_bounds.move(offsetX, offsetY);
-			moveAbsolutePositions(offsetX, offsetY);
+			setAbsoluteCenter(p_position.x, p_position.y);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4729,8 +4547,13 @@ namespace AvoGUI
 		*/
 		void setCenter(float p_x, float p_y) override
 		{
-			moveAbsolutePositions(p_x - m_bounds.getCenterX(), p_y - m_bounds.getCenterY());
-			m_bounds.setCenter(p_x, p_y);
+			if (p_x != m_bounds.getCenterX() || p_y != m_bounds.getCenterY())
+			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				moveAbsolutePositions(p_x - m_bounds.getCenterX(), p_y - m_bounds.getCenterY());
+				m_bounds.setCenter(p_x, p_y);
+				sendBoundsChangeEvents(boundsBefore);
+			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4740,8 +4563,13 @@ namespace AvoGUI
 		{
 			float offsetX = p_x - m_absolutePosition.x - getWidth()*0.5f;
 			float offsetY = p_y - m_absolutePosition.y - getHeight()*0.5f;
-			m_bounds.move(offsetX, offsetY);
-			moveAbsolutePositions(offsetX, offsetY);
+			if (offsetX || offsetY)
+			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				moveAbsolutePositions(offsetX, offsetY);
+				m_bounds.move(offsetX, offsetY);
+				sendBoundsChangeEvents(boundsBefore);
+			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4749,8 +4577,13 @@ namespace AvoGUI
 		*/
 		void setCenterX(float p_x) override
 		{
-			moveAbsolutePositions(p_x - m_bounds.getCenterX(), 0);
-			m_bounds.setCenterX(p_x);
+			if (p_x != m_bounds.getCenterX())
+			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				moveAbsolutePositions(p_x - m_bounds.getCenterX(), 0);
+				m_bounds.setCenterX(p_x);
+				sendBoundsChangeEvents(boundsBefore);
+			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4758,8 +4591,14 @@ namespace AvoGUI
 		*/
 		void setAbsoluteCenterX(float p_x)
 		{
-			m_bounds.moveX(p_x - m_absolutePosition.x - getWidth()*0.5f);
-			moveAbsolutePositions(p_x - m_absolutePosition.x - getWidth()*0.5f, 0);
+			float offsetX = p_x - m_absolutePosition.x - getWidth() * 0.5f;
+			if (offsetX)
+			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				moveAbsolutePositions(offsetX, 0);
+				m_bounds.moveX(offsetX);
+				sendBoundsChangeEvents(boundsBefore);
+			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4767,8 +4606,13 @@ namespace AvoGUI
 		*/
 		void setCenterY(float p_y) override
 		{
-			moveAbsolutePositions(0, p_y - m_bounds.getCenterY());
-			m_bounds.setCenterY(p_y);
+			if (p_y != m_bounds.getCenterY())
+			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				moveAbsolutePositions(0, p_y - m_bounds.getCenterY());
+				m_bounds.setCenterY(p_y);
+				sendBoundsChangeEvents(boundsBefore);
+			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4776,8 +4620,14 @@ namespace AvoGUI
 		*/
 		void setAbsoluteCenterY(float p_y)
 		{
-			m_bounds.moveY(p_y - m_absolutePosition.y - getHeight()*0.5f);
-			moveAbsolutePositions(0, p_y - m_absolutePosition.y - getHeight()*0.5f);
+			float offsetY = p_y - m_absolutePosition.y - getHeight() * 0.5f;
+			if (offsetY)
+			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				moveAbsolutePositions(0.f, offsetY);
+				m_bounds.moveX(offsetY);
+				sendBoundsChangeEvents(boundsBefore);
+			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4839,12 +4689,10 @@ namespace AvoGUI
 		{
 			if (p_left != m_bounds.left)
 			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(p_left - m_bounds.left, 0);
 				m_bounds.setLeft(p_left, p_willKeepWidth);
-				if (!p_willKeepWidth)
-				{
-					sendSizeChangeEvents();
-				}
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -4856,12 +4704,10 @@ namespace AvoGUI
 		{
 			if (p_left != m_absolutePosition.x)
 			{
-				m_bounds.setLeft(p_left - m_absolutePosition.x + m_bounds.left, p_willKeepWidth);
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(p_left - m_absolutePosition.x, 0);
-				if (!p_willKeepWidth)
-				{
-					sendSizeChangeEvents();
-				}
+				m_bounds.setLeft(p_left - m_absolutePosition.x + m_bounds.left, p_willKeepWidth);
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -4890,12 +4736,10 @@ namespace AvoGUI
 		{
 			if (p_top != m_bounds.top)
 			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(0, p_top - m_bounds.top);
 				m_bounds.setTop(p_top, p_willKeepHeight);
-				if (!p_willKeepHeight)
-				{
-					sendSizeChangeEvents();
-				}
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -4907,12 +4751,10 @@ namespace AvoGUI
 		{
 			if (p_top != m_absolutePosition.y)
 			{
-				m_bounds.setTop(p_top - m_absolutePosition.y + m_bounds.top, p_willKeepHeight);
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(0, p_top - m_absolutePosition.y);
-				if (!p_willKeepHeight)
-				{
-					sendSizeChangeEvents();
-				}
+				m_bounds.setTop(p_top - m_absolutePosition.y + m_bounds.top, p_willKeepHeight);
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -4941,16 +4783,13 @@ namespace AvoGUI
 		{
 			if (p_right != m_bounds.right)
 			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				if (p_willKeepWidth)
 				{
 					moveAbsolutePositions(p_right - m_bounds.right, 0);
-					m_bounds.setRight(p_right, p_willKeepWidth);
 				}
-				else
-				{
-					m_bounds.setRight(p_right, p_willKeepWidth);
-					sendSizeChangeEvents();
-				}
+				m_bounds.setRight(p_right, p_willKeepWidth);
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -4963,16 +4802,17 @@ namespace AvoGUI
 			float offset = p_right - m_absolutePosition.x + m_bounds.left - m_bounds.right;
 			if (offset)
 			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				if (p_willKeepWidth)
 				{
-					m_bounds.moveX(offset);
 					moveAbsolutePositions(offset, 0);
+					m_bounds.moveX(offset);
 				}
 				else 
 				{
 					m_bounds.right += offset;
-					sendSizeChangeEvents();
 				}
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -5001,16 +4841,13 @@ namespace AvoGUI
 		{
 			if (p_bottom != m_bounds.bottom)
 			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				if (p_willKeepHeight)
 				{
 					moveAbsolutePositions(0, p_bottom - m_bounds.bottom);
-					m_bounds.setBottom(p_bottom, p_willKeepHeight);
 				}
-				else
-				{
-					m_bounds.setBottom(p_bottom, p_willKeepHeight);
-					sendSizeChangeEvents();
-				}
+				m_bounds.setBottom(p_bottom, p_willKeepHeight);
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -5023,6 +4860,7 @@ namespace AvoGUI
 			float offset = p_bottom - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
 			if (offset)
 			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				if (p_willKeepHeight)
 				{
 					m_bounds.moveY(offset);
@@ -5031,8 +4869,8 @@ namespace AvoGUI
 				else
 				{
 					m_bounds.bottom += offset;
-					sendSizeChangeEvents();
 				}
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -5062,8 +4900,9 @@ namespace AvoGUI
 		{
 			if (p_width != m_bounds.right - m_bounds.left)
 			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				m_bounds.setWidth(p_width);
-				sendSizeChangeEvents();
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -5083,8 +4922,9 @@ namespace AvoGUI
 		{
 			if (p_height != m_bounds.bottom - m_bounds.top)
 			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				m_bounds.setHeight(p_height);
-				sendSizeChangeEvents();
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -5102,11 +4942,7 @@ namespace AvoGUI
 		*/
 		void setSize(Point<float> const& p_size) override
 		{
-			if (p_size.x != m_bounds.right - m_bounds.left || p_size.y != m_bounds.bottom - m_bounds.top)
-			{
-				m_bounds.setSize(p_size);
-				sendSizeChangeEvents();
-			}
+			setSize(p_size.x, p_size.y);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -5116,8 +4952,9 @@ namespace AvoGUI
 		{
 			if (p_width != m_bounds.right - m_bounds.left || p_height != m_bounds.bottom - m_bounds.top)
 			{
+				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
 				m_bounds.setSize(p_width, p_height);
-				sendSizeChangeEvents();
+				sendBoundsChangeEvents(boundsBefore);
 			}
 		}
 		/*
@@ -5658,9 +5495,22 @@ namespace AvoGUI
 
 		/*
 			USER IMPLEMENTED
-			Implement this method in your view if you want to update things when the size ofthe view has been changed.
+			Implement this method in your view if you want to update things when the size of the view has been changed.
 		*/
 		virtual void handleSizeChange() { }
+		/*
+			LIBRARY IMPLEMENTED
+			This calls handleSizeChange() by default. Override this method if you need to know the previous size of the view.
+		*/
+		virtual void handleSizeChange(float p_previousWidth, float p_previousHeight)
+		{
+			handleSizeChange();
+		}
+		/*
+			USER IMPLEMENTED
+			Implement this method in your view if you want to update things when the bounds of the view have been changed.
+		*/
+		virtual void handleBoundsChange(Rectangle<float> const& p_previousBounds) { }
 
 		/*
 			LIBRARY IMPLEMENTED
@@ -7711,7 +7561,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void sendSizeChangeEvents() override
+		void sendBoundsChangeEvents(AvoGUI::Rectangle<float> const& p_previousBounds) override
 		{
 			if ((uint32)getWidth() != m_lastWindowSize.x || (uint32)getHeight() != m_lastWindowSize.y)
 			{
@@ -7719,7 +7569,7 @@ namespace AvoGUI
 			}
 			else
 			{
-				View::sendSizeChangeEvents();
+				View::sendBoundsChangeEvents(p_previousBounds);
 			}
 		}
 
@@ -8429,7 +8279,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void handleViewSizeChange(View* p_view) override
+		void handleViewSizeChange(View* p_view, float p_previousWidth, float p_previousHeight) override
 		{
 			setSize(p_view->getSize());
 			m_maxSize = 2.f * Point<>::getDistanceFast(m_position, Point<float>(m_position.x < getWidth() * 0.5 ? getWidth() : 0, m_position.y < getHeight() * 0.5 ? getHeight() : 0));
