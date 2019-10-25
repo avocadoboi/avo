@@ -1489,8 +1489,8 @@ namespace AvoGUI
 		*/
 		Rectangle<RectangleType>& moveY(RectangleType p_offsetY)
 		{
-			left += p_offsetY;
-			right += p_offsetY;
+			top += p_offsetY;
+			bottom += p_offsetY;
 			return *this;
 		}
 
@@ -1768,9 +1768,9 @@ namespace AvoGUI
 		{
 			m_bounds.moveX(p_offsetX);
 		}
-		virtual void moveY(float p_offsetX)
+		virtual void moveY(float p_offsetY)
 		{
-			m_bounds.moveY(p_offsetX);
+			m_bounds.moveY(p_offsetY);
 		}
 
 		//------------------------------
