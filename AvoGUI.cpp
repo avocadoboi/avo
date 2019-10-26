@@ -304,7 +304,7 @@ namespace AvoGUI
 	void View::updateViewDrawingIndex(View* p_view)
 	{
 		uint32 numberOfViews = (uint32)m_children.size();
-		if (numberOfViews <= 1)
+		if (numberOfViews <= 1 || p_view->getParent() != this)
 		{
 			return;
 		}
@@ -562,17 +562,20 @@ namespace AvoGUI
 
 	void View::setIsVisible(bool p_isVisible)
 	{
-		m_isVisible = p_isVisible;
-
-		Point<float> const& mousePosition = getGUI()->getWindow()->getMousePosition();
-		if (getGUI()->getIsContaining(mousePosition))
+		if (p_isVisible != m_isVisible)
 		{
-			MouseEvent mouseEvent;
-			mouseEvent.x = mousePosition.x;
-			mouseEvent.y = mousePosition.y;
-			mouseEvent.movementX = 0;
-			mouseEvent.movementY = 0;
-			getGUI()->handleGlobalMouseMove(mouseEvent);
+			m_isVisible = p_isVisible;
+
+			//Point<float> const& mousePosition = getGUI()->getWindow()->getMousePosition();
+			//if (getGUI()->getIsContaining(mousePosition))
+			//{
+			//	MouseEvent mouseEvent;
+			//	mouseEvent.x = mousePosition.x;
+			//	mouseEvent.y = mousePosition.y;
+			//	mouseEvent.movementX = 0;
+			//	mouseEvent.movementY = 0;
+			//	getGUI()->handleGlobalMouseMove(mouseEvent);
+			//}
 		}
 	}
 
@@ -1860,6 +1863,11 @@ namespace AvoGUI
 				RECT rect;
 				GetWindowRect(m_windowHandle, &rect);
 				m_position.set(rect.left, rect.top);
+
+				return 0;
+			}
+			case WM_VSCROLL:
+			{
 
 				return 0;
 			}
@@ -6094,7 +6102,7 @@ namespace AvoGUI
 			//	std::cout << "(" << rect.left << ", " << rect.top << ", " << rect.right << ", " << rect.bottom << ")\n";
 			//}
 			//std::cout << "\n\n";
-			includeAnimationThread();
+			//includeAnimationThread();
 
 			Point<uint32> size(m_drawingContext->getSize());
 			for (auto const& targetRectangle : invalidRectangles)
@@ -6106,9 +6114,9 @@ namespace AvoGUI
 				m_drawingContext->pushClipRectangle(targetRectangle);
 				m_drawingContext->clear(m_theme->colors["background"]);
 
-				excludeAnimationThread();
+				//excludeAnimationThread();
 				draw(m_drawingContext, targetRectangle);
-				includeAnimationThread();
+				//includeAnimationThread();
 
 				while (true)
 				{
@@ -6123,9 +6131,9 @@ namespace AvoGUI
 							{
 								m_drawingContext->moveOrigin(view->getTopLeft());
 
-								excludeAnimationThread();
+								//excludeAnimationThread();
 								view->drawShadow(m_drawingContext);
-								includeAnimationThread();
+								//includeAnimationThread();
 
 								RectangleCorners& corners = view->getCorners();
 								if (view->getHasCornerStyles())
@@ -6137,9 +6145,9 @@ namespace AvoGUI
 									m_drawingContext->pushClipRectangle(view->getSize());
 								}
 
-								excludeAnimationThread();
+								//excludeAnimationThread();
 								view->draw(m_drawingContext, targetRectangle);
-								includeAnimationThread();
+								//includeAnimationThread();
 
 								if (view->getNumberOfChildren())
 								{
@@ -6150,9 +6158,9 @@ namespace AvoGUI
 								}
 								else
 								{
-									excludeAnimationThread();
+									//excludeAnimationThread();
 									view->drawOverlay(m_drawingContext, targetRectangle);
-									includeAnimationThread();
+									//includeAnimationThread();
 
 									if (view->getHasCornerStyles())
 									{
@@ -6169,9 +6177,9 @@ namespace AvoGUI
 							else if (view->getAbsoluteShadowBounds().getIsIntersecting(targetRectangle))
 							{
 								m_drawingContext->moveOrigin(view->getTopLeft());
-								excludeAnimationThread();
+								//excludeAnimationThread();
 								view->drawShadow(m_drawingContext);
-								includeAnimationThread();
+								//includeAnimationThread();
 								m_drawingContext->moveOrigin(-view->getTopLeft());
 							}
 						}
@@ -6183,9 +6191,9 @@ namespace AvoGUI
 							break;
 						}
 
-						excludeAnimationThread();
+						//excludeAnimationThread();
 						currentContainer->drawOverlay(m_drawingContext, targetRectangle);
-						includeAnimationThread();
+						//includeAnimationThread();
 
 						if (currentContainer->getHasCornerStyles())
 						{
@@ -6205,6 +6213,7 @@ namespace AvoGUI
 
 				m_drawingContext->popClipRectangle();
 			}
+			includeAnimationThread();
 			m_drawingContext->finishDrawing(invalidRectangles);
 		}
 		else
