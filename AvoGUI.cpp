@@ -223,6 +223,11 @@ namespace AvoGUI
 
 	void View::setParent(View* p_container)
 	{
+		if (p_container == m_parent)
+		{
+			return;
+		}
+
 		if (m_parent)
 		{
 			remember();
@@ -1866,17 +1871,12 @@ namespace AvoGUI
 
 				return 0;
 			}
-			case WM_VSCROLL:
-			{
-
-				return 0;
-			}
 			case WM_MOUSEWHEEL:
 			{
 				POINT mousePosition;
 				mousePosition.x = GET_X_LPARAM(p_data_b);
 				mousePosition.y = GET_Y_LPARAM(p_data_b);
-
+				
 				ScreenToClient(m_windowHandle, &mousePosition);
 
 				float delta = float(GET_WHEEL_DELTA_WPARAM(p_data_a)) / 120.f;
@@ -1913,7 +1913,6 @@ namespace AvoGUI
 				m_GUI->includeAnimationThread();
 
 				SetCapture(m_windowHandle);
-
 				return 0;
 			}
 			case WM_LBUTTONUP:
