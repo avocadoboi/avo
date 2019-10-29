@@ -5590,6 +5590,13 @@ namespace AvoGUI
 				willClose = false;
 			}
 		}
+		if (willClose)
+		{
+			for (View* listener : m_pressedMouseEventListeners)
+			{
+				listener->forget();
+			}
+		}
 		return willClose;
 	}
 	void GUI::handleWindowMinimize(WindowEvent const& p_event)
@@ -5647,12 +5654,17 @@ namespace AvoGUI
 		std::vector<View*> targets;
 		getTopMouseListenersAt(p_event.x, p_event.y, targets);
 
+		for (View* view : m_pressedMouseEventListeners)
+		{
+			view->forget();
+			continue;
+		}
 		m_pressedMouseEventListeners.clear();
 
 		MouseEvent event = p_event;
 		if (targets.size())
 		{
-			for (auto view : targets)
+			for (View* view : targets)
 			{
 				Point<float> position = view->getAbsoluteBounds().getTopLeft();
 				event.x = p_event.x - position.x;
@@ -5660,6 +5672,8 @@ namespace AvoGUI
 
 				view->handleMouseDown(event);
 				m_pressedMouseEventListeners.push_back(view);
+				view->remember();
+				continue;
 			}
 		}
 
@@ -5667,7 +5681,7 @@ namespace AvoGUI
 
 		if (m_globalMouseEventListeners.size())
 		{
-			for (auto listener : m_globalMouseEventListeners)
+			for (GlobalMouseListener* listener : m_globalMouseEventListeners)
 			{
 				listener->handleGlobalMouseDown(p_event);
 			}
@@ -5784,7 +5798,7 @@ namespace AvoGUI
 				{
 					View* child = container->getChild(a);
 
-					if (child->getIsContainingAbsolute(p_event.x, p_event.y) && child->getIsVisible() && !hasInvisibleParent && !hasFoundEnterViews)
+					if (container->m_isMouseHovering && child->getIsContainingAbsolute(p_event.x, p_event.y) && child->getIsVisible() && !hasInvisibleParent && !hasFoundEnterViews)
 					{
 						if (child->getAreMouseEventsEnabled())
 						{
@@ -6047,6 +6061,7 @@ namespace AvoGUI
 	void GUI::queueAnimationUpdateForView(View* p_view)
 	{
 		m_animationUpdateQueue.push_back(p_view);
+		p_view->remember();
 	}
 
 	void GUI::updateQueuedAnimations()
@@ -6076,6 +6091,7 @@ namespace AvoGUI
 		{
 			m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval();
 			m_animationUpdateQueue.front()->updateAnimations();
+			m_animationUpdateQueue.front()->forget();
 			m_animationUpdateQueue.pop_front();
 		}
 		includeAnimationThread();
