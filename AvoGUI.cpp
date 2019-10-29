@@ -262,14 +262,15 @@ namespace AvoGUI
 
 	void View::removeChild(View* p_view)
 	{
-		if (p_view && removeVectorElementWhileKeepingOrder(m_children, p_view))
+		if (p_view && p_view->getParent() == this)
 		{
+			m_children.erase(m_children.begin() + p_view->getIndex());
+
 			handleChildDetachment(p_view);
 			for (auto view : m_viewEventListeners)
 			{
 				view->handleViewChildDetachment(this, p_view);
 			}
-
 			p_view->forget();
 		}
 	}
@@ -2336,6 +2337,52 @@ namespace AvoGUI
 		float getOpacity() const override
 		{
 			return m_opacity;
+		}
+
+		//------------------------------
+
+		float getInnerWidth() const override
+		{
+			if (m_boundsSizing != ImageBoundsSizing::Stretch && m_boundsSizing == ImageBoundsSizing::Contain != m_bounds.getWidth() / m_bounds.getHeight() < m_image->GetSize().width / m_image->GetSize().height)
+			{
+				return m_bounds.getHeight() * m_image->GetSize().width / m_image->GetSize().height;
+			}
+			return m_bounds.getWidth();
+		}
+		float getInnerHeight() const override
+		{
+			if (m_boundsSizing != ImageBoundsSizing::Stretch && m_boundsSizing == ImageBoundsSizing::Contain != m_bounds.getWidth() / m_bounds.getHeight() > m_image->GetSize().width / m_image->GetSize().height)
+			{
+				return m_bounds.getWidth() * m_image->GetSize().height / m_image->GetSize().width;
+			}
+			return m_bounds.getHeight();
+		}
+		Point<float> getInnerSize() const override
+		{
+			return Point<float>(getInnerWidth(), getInnerHeight());
+		}
+		Rectangle<float> getInnerBounds() const override
+		{
+			if (m_boundsSizing == ImageBoundsSizing::Stretch)
+			{
+				return m_bounds;
+			}
+
+			Rectangle<float> innerBounds = m_bounds;
+
+			bool areBoundsProportionallyWider = m_bounds.getWidth() / m_bounds.getHeight() > m_image->GetSize().width / m_image->GetSize().height;
+			if (m_boundsSizing == ImageBoundsSizing::Fill != areBoundsProportionallyWider)
+			{
+				innerBounds.setWidth(m_bounds.getHeight() * m_image->GetSize().width / m_image->GetSize().height);
+			}
+			else if (m_boundsSizing == ImageBoundsSizing::Contain != areBoundsProportionallyWider)
+			{
+				innerBounds.setHeight(m_bounds.getWidth() * m_image->GetSize().height / m_image->GetSize().width);
+			}
+
+			innerBounds.move(m_boundsPositioning.x * (m_bounds.getWidth() - innerBounds.getWidth()), m_boundsPositioning.y * (m_bounds.getHeight() - innerBounds.getHeight()));
+
+			return innerBounds;
 		}
 
 		//------------------------------
@@ -5040,7 +5087,7 @@ namespace AvoGUI
 
 		Image* createImage(void const* p_pixelData, uint32 p_width, uint32 p_height) override
 		{
-			ID2D1Bitmap1* bitmap;
+			ID2D1Bitmap1* bitmap = 0;
 			m_context->CreateBitmap(
 				D2D1::Size(p_width, p_height),
 				p_pixelData, p_width * 4,
@@ -5049,6 +5096,32 @@ namespace AvoGUI
 					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
 				), &bitmap
 			);
+			return new WindowsImage(bitmap);
+		}
+		Image* createImage(void const* p_imageData, uint32 p_size) override
+		{
+			IWICStream* stream = 0;
+			s_imagingFactory->CreateStream(&stream);
+			stream->InitializeFromMemory((BYTE*)p_imageData, p_size);
+
+			IWICBitmapDecoder* decoder = 0;
+			s_imagingFactory->CreateDecoderFromStream(stream, 0, WICDecodeMetadataCacheOnDemand, &decoder);
+
+			IWICBitmapFrameDecode* frame = 0;
+			decoder->GetFrame(0, &frame);
+
+			IWICFormatConverter* formatConverter = 0;
+			s_imagingFactory->CreateFormatConverter(&formatConverter);
+			formatConverter->Initialize(frame, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, 0, 0.f, WICBitmapPaletteTypeMedianCut);
+
+			ID2D1Bitmap* bitmap;
+			m_context->CreateBitmapFromWicBitmap(formatConverter, 0, &bitmap);
+
+			formatConverter->Release();
+			frame->Release();
+			decoder->Release();
+			stream->Release();
+
 			return new WindowsImage(bitmap);
 		}
 		Image* createImage(char const* p_filePath) override
@@ -5079,6 +5152,23 @@ namespace AvoGUI
 
 			return new WindowsImage(bitmap);
 		}
+		Image* createImage(void* p_handle) override
+		{
+			IWICBitmap* wicBitmap = 0;
+			s_imagingFactory->CreateBitmapFromHICON((HICON)p_handle, &wicBitmap);
+			
+			IWICFormatConverter* formatConverter = 0;
+			s_imagingFactory->CreateFormatConverter(&formatConverter);
+			formatConverter->Initialize(wicBitmap, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, 0, 0.f, WICBitmapPaletteTypeMedianCut);
+
+			ID2D1Bitmap* bitmap;
+			m_context->CreateBitmapFromWicBitmap(formatConverter, &bitmap);
+
+			formatConverter->Release();
+			wicBitmap->Release();
+
+			return new WindowsImage(bitmap);
+		}
 
 		//------------------------------
 
@@ -5088,43 +5178,11 @@ namespace AvoGUI
 			Point<float> const& imageSize = cropRectangle.getSize();
 			Point<float> const& boundsSize = p_image->getSize();
 
-			float left = p_image->getLeft();
-			float top = p_image->getTop();
-			float width = boundsSize.x;
-			float height = boundsSize.y;
-
-			if (p_image->getBoundsSizing() != ImageBoundsSizing::Stretch)
-			{
-				if (p_image->getBoundsSizing() == ImageBoundsSizing::Fill)
-				{
-					if (boundsSize.x / boundsSize.y > imageSize.x / imageSize.y)
-					{
-						height = imageSize.y * width / imageSize.x;
-					}
-					else
-					{
-						width = imageSize.x * height / imageSize.y;
-					}
-				}
-				else if (p_image->getBoundsSizing() == ImageBoundsSizing::Contain)
-				{
-					if (boundsSize.x / boundsSize.y > imageSize.x / imageSize.y)
-					{
-						width = imageSize.x * height / imageSize.y;
-					}
-					else
-					{
-						height = imageSize.y * width / imageSize.x;
-					}
-				}
-
-				left += p_image->getBoundsPositioningX() * (boundsSize.x - width);
-				top += p_image->getBoundsPositioningY() * (boundsSize.y - height);
-			}
+			Rectangle<float> innerBounds = p_image->getInnerBounds();
 
 			m_context->DrawBitmap(
 				(ID2D1Bitmap*)p_image->getHandle(),
-				D2D1::RectF(left, top, left + width, top + height),
+				D2D1::RectF(innerBounds.left, innerBounds.top, innerBounds.right, innerBounds.bottom),
 				p_image->getOpacity()*m_solidColorBrush->GetOpacity(),
 				p_image->getScalingMethod() == ImageScalingMethod::Pixelated ? D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR : D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
 				D2D1::RectF(cropRectangle.left, cropRectangle.top, cropRectangle.right, cropRectangle.bottom)

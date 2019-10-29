@@ -5405,6 +5405,14 @@ namespace AvoGUI
 		{
 			removeVectorElementWhileKeepingOrder(m_viewEventListeners, p_eventListener);
 		}
+		/*
+			LIBRARY IMPLEMENTED
+			This only removes a pointer from a list, it doesn't forget it or anything.
+		*/
+		void removeViewListener(uint32 p_index)
+		{
+			m_viewEventListeners.erase(m_viewEventListeners.begin() + p_index);
+		}
 
 		//------------------------------
 		
@@ -6247,10 +6255,12 @@ namespace AvoGUI
 	public:
 		/*
 			Sets a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
+			This is in original image DIP coordinates, meaning sizing is not taken into account.
 		*/
 		virtual void setCropRectangle(Rectangle<float> const& p_rectangle) = 0;
 		/*
 			Returns a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
+			This is in original image DIP coordinates, meaning sizing is not taken into account.
 		*/
 		virtual Rectangle<float> const& getCropRectangle() const = 0;
 
@@ -6337,6 +6347,25 @@ namespace AvoGUI
 			Returns how opaque the image is being drawn.
 		*/
 		virtual float getOpacity() const = 0;
+
+		//------------------------------
+
+		/*
+			Returns the drawn width of the image within the bounds, calculated using the sizing options and the crop rectangle.
+		*/
+		virtual float getInnerWidth() const = 0;
+		/*
+			Returns the drawn height of the image within the bounds, calculated using the sizing options and the crop rectangle.
+		*/
+		virtual float getInnerHeight() const = 0;
+		/*
+			Returns the drawn size of the image within the bounds, calculated using the sizing options and the crop rectangle.
+		*/
+		virtual Point<float> getInnerSize() const = 0;
+		/*
+			Returns the drawn inner bounds of the image within the outer bounds, calculated using the positioning options, sizing options and the crop rectangle.
+		*/
+		virtual Rectangle<float> getInnerBounds() const = 0;
 
 		//------------------------------
 
@@ -7421,14 +7450,26 @@ namespace AvoGUI
 			p_width and p_height are in pixels.
 		*/
 		virtual Image* createImage(void const* p_pixelData, uint32 p_width, uint32 p_height) = 0;
-
+		/*
+			Loads an image from the data of an image file.
+			p_imageData is a memory block which is p_size bytes in size.
+		*/
+		virtual Image* createImage(void const* p_imageData, uint32 p_size) = 0;
 		/*
 			Loads an image from a file. Most standard image formats/codecs are supported.
 			p_filePath is the path, relative or absolute, to the image file to be loaded.
 			If this returns 0, then the file path is probably incorrect.
 		*/
 		virtual Image* createImage(char const* p_filePath) = 0;
+		/*
+			Creates an image from an OS-specific handle.
 
+			On Windows, it is an HICON.
+		*/
+		virtual Image* createImage(void* p_handle) = 0;
+		/*
+			Draws an image, placed according to the image's bounds and positioning/scaling options.
+		*/
 		virtual void drawImage(Image* p_image) = 0;
 
 		//------------------------------
@@ -8488,6 +8529,25 @@ namespace AvoGUI
 			{
 				m_text->setCharacterSpacing(p_newValue);
 				updateSize();
+			}
+		}
+		void handleThemeColorChange(std::string const& p_name, Color const& p_newColor)
+		{
+			if (m_emphasis == Emphasis::High)
+			{
+				if (p_name == (m_isAccent ? "secondary" : "primary"))
+				{
+					m_currentColor = p_newColor;
+				}
+				else if (p_name == (m_isAccent ? "on secondary" : "on primary"))
+				{
+					m_currentColor = p_newColor;
+				}
+			}
+			else if (p_name == (m_isAccent ? "secondary on background" : "primary on background"))
+			{
+				m_currentColor = p_newColor;
+				m_ripple->setColor(p_newColor);
 			}
 		}
 
