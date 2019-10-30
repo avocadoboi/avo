@@ -5769,22 +5769,38 @@ namespace AvoGUI
 			std::stack<bool> wasHoveringStack;
 			wasHoveringStack.push(((View*)this)->m_isMouseHovering);
 
-			if (getAreMouseEventsEnabled())
+			if (getIsContaining(p_event.x, p_event.y))
 			{
-				if (!getIsContaining(p_event.x, p_event.y))
+				if (((View*)this)->m_isMouseHovering)
 				{
-					handleMouseLeave(p_event);
-					((View*)this)->m_isMouseHovering = false;
+					if (getAreMouseEventsEnabled())
+					{
+						handleMouseMove(p_event);
+					}
 				}
-				else if (!getIsContaining(p_event.x - p_event.movementX, p_event.y - p_event.movementY))
+				else if (getAreMouseEventsEnabled())
 				{
 					handleMouseEnter(p_event);
-					((View*)this)->m_isMouseHovering = true;
+
+					if (startIndex < 0)
+					{
+						handleMouseBackgroundEnter(p_event);
+					}
 				}
-				else
+				((View*)this)->m_isMouseHovering = true;
+			}
+			else if (((View*)this)->m_isMouseHovering)
+			{
+				if (getAreMouseEventsEnabled())
 				{
-					handleMouseMove(p_event);
+					handleMouseLeave(p_event);
+
+					if (startIndex < 0)
+					{
+						handleMouseBackgroundLeave(p_event);
+					}
 				}
+				((View*)this)->m_isMouseHovering = false;
 			}
 
 			bool hasInvisibleParent = false;
