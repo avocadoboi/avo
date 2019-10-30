@@ -2400,6 +2400,7 @@ namespace AvoGUI
 	private:
 		IDWriteTextLayout1* m_handle;
 		std::string m_string;
+		bool m_isTopTrimmed;
 
 		DWRITE_TEXT_RANGE createTextRange(int32 p_startPosition, int32 p_length)
 		{
@@ -2411,13 +2412,13 @@ namespace AvoGUI
 
 	public:
 		WindowsText(IDWriteTextLayout1* p_handle, std::string const& p_string, Rectangle<float> const& p_bounds) :
-			m_handle(p_handle), m_string(p_string)
+			m_handle(p_handle), m_string(p_string), m_isTopTrimmed(false)
 		{
 			m_bounds = p_bounds;
 			if (!m_bounds.right && !m_bounds.bottom)
 			{
 				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_NO_WRAP);
-				fitBoundsToText();
+				fitSizeToText();
 			}
 			else
 			{
@@ -2464,7 +2465,7 @@ namespace AvoGUI
 			return WordWrapping::Never;
 		}
 
-		void fitBoundsToText() override
+		void fitSizeToText() override
 		{
 			DWRITE_TEXT_METRICS metrics;
 			m_handle->GetMetrics(&metrics);
@@ -2472,7 +2473,7 @@ namespace AvoGUI
 			DWRITE_OVERHANG_METRICS overhangMetrics;
 			m_handle->GetOverhangMetrics(&overhangMetrics);
 
-			m_bounds.setSize(metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + overhangMetrics.top);
+			m_bounds.setSize(metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed*overhangMetrics.top);
 		}
 		void fitWidthToText() override
 		{
@@ -2485,7 +2486,7 @@ namespace AvoGUI
 			DWRITE_OVERHANG_METRICS overhangMetrics;
 			m_handle->GetOverhangMetrics(&overhangMetrics);
 
-			m_bounds.setHeight(m_handle->GetMaxHeight() + overhangMetrics.bottom + overhangMetrics.top);
+			m_bounds.setHeight(m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed * overhangMetrics.top);
 		}
 		Point<float> getMinimumSize() override
 		{
@@ -2495,7 +2496,7 @@ namespace AvoGUI
 			DWRITE_OVERHANG_METRICS overhangMetrics;
 			m_handle->GetOverhangMetrics(&overhangMetrics);
 
-			return Point<float>(metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + overhangMetrics.top);
+			return Point<float>(metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed * overhangMetrics.top);
 		}
 		float getMinimumWidth() override
 		{
@@ -2508,7 +2509,18 @@ namespace AvoGUI
 			DWRITE_OVERHANG_METRICS overhangMetrics;
 			m_handle->GetOverhangMetrics(&overhangMetrics);
 
-			return m_handle->GetMaxHeight() + overhangMetrics.bottom + overhangMetrics.top;
+			return m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed * overhangMetrics.top;
+		}
+
+		//------------------------------
+
+		void setIsTopTrimmed(bool p_isTopTrimmed)
+		{
+			m_isTopTrimmed = p_isTopTrimmed;
+		}
+		bool getIsTopTrimmed()
+		{
+			return m_isTopTrimmed;
 		}
 
 		//------------------------------
@@ -5291,8 +5303,11 @@ namespace AvoGUI
 		void drawText(Text* p_text) override
 		{
 			IDWriteTextLayout1* textLayout = (IDWriteTextLayout1*)p_text->getHandle();
-			DWRITE_OVERHANG_METRICS overhangMetrics;
-			textLayout->GetOverhangMetrics(&overhangMetrics);
+			DWRITE_OVERHANG_METRICS overhangMetrics = { 0 };
+			if (p_text->getIsTopTrimmed())
+			{
+				textLayout->GetOverhangMetrics(&overhangMetrics);
+			}
 			m_context->DrawTextLayout(D2D1::Point2F(p_text->getTopLeft().x, p_text->getTopLeft().y + overhangMetrics.top), textLayout, m_solidColorBrush);
 		}
 		void drawText(char const* p_string, Rectangle<float> const& p_rectangle) override

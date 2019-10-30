@@ -6461,18 +6461,24 @@ namespace AvoGUI
 
 		/*
 			Sets the size of the bounding box to fit the text.
+			There may still be space between the tallest character in the text and the top edge of the bounds.
+			If you want the text to be positioned without any space on the top, call setIsTopTrimmed(true) before this.
 		*/
-		virtual void fitBoundsToText() = 0;
+		virtual void fitSizeToText() = 0;
 		/*
 			Sets the width of the bounding box to fit the text.
 		*/
 		virtual void fitWidthToText() = 0;
 		/*
 			Sets the height of the bounding box to fit the text.
+			There may still be space between the tallest character in the text and the top edge of the bounds.
+			If you want the text to be positioned without any space on the top, call setIsTopTrimmed(true) before this.
 		*/
 		virtual void fitHeightToText() = 0;
 		/*
 			Returns the smallest size to contain the actual text.
+			If getIsTopTrimmed() == false, the height includes the space between the top of the tallest character
+			and the top edge of the bounds.
 		*/
 		virtual Point<float> getMinimumSize() = 0;
 		/*
@@ -6481,8 +6487,28 @@ namespace AvoGUI
 		virtual float getMinimumWidth() = 0;
 		/*
 			Returns the smallest height to contain the actual text.
+			If getIsTopTrimmed() == false, this includes the space between the top of the tallest character
+			and the top edge of the bounds.
 		*/
 		virtual float getMinimumHeight() = 0;
+
+		//------------------------------
+
+		/*
+			Sets whether the top of the text is trimmed so that there is no space between the top of the tallest
+			character of the text and the top edge of the bounds.
+
+			If this is false, the text is positioned within the bounds so that the baseline is at a fixed position,
+			and there may be space above the characters in the text to allow this. This is the default.
+
+			Setting this to true can be useful when you want to perfectly center text vertically.
+		*/
+		virtual void setIsTopTrimmed(bool p_isTopTrimmed) = 0;
+		/*
+			Returns whether the top of the text is trimmed so that there is no space between the top of the tallest 
+			character of the text and the top edge of the bounds. This is false by default.
+		*/
+		virtual bool getIsTopTrimmed() = 0;
 
 		//------------------------------
 
@@ -8010,7 +8036,7 @@ namespace AvoGUI
 						m_text->forget();
 					}
 					m_text = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("tooltip font size"));
-					m_text->fitBoundsToText();
+					m_text->fitSizeToText();
 					setSize(m_text->getWidth() + 1.6 * getThemeValue("tooltip font size"), m_text->getHeight() + getThemeValue("tooltip font size") * 1.f);
 					m_text->setCenter(getWidth() * 0.5f, getHeight() * 0.5f);
 				}
@@ -8684,7 +8710,7 @@ namespace AvoGUI
 				m_text->setWordWrapping(WordWrapping::Never);
 				m_text->setCharacterSpacing(getThemeValue("button character spacing"));
 				m_text->setFontWeight(FontWeight::Medium);
-				m_text->fitBoundsToText();
+				m_text->fitSizeToText();
 			}
 			else 
 			{
@@ -9034,7 +9060,7 @@ namespace AvoGUI
 				if (m_text)
 				{
 					m_text->setFontFamily(p_newFontFamily);
-					m_text->fitBoundsToText();
+					m_text->fitSizeToText();
 				}
 			}
 		}
@@ -9825,7 +9851,7 @@ namespace AvoGUI
 			if (m_text)
 			{
 				m_text->setFontSize(p_fontSize);
-				m_text->fitBoundsToText();
+				m_text->fitSizeToText();
 				setHeight(m_text->getHeight() + 3.f);
 			}
 			else
@@ -9927,12 +9953,12 @@ namespace AvoGUI
 				if (m_labelText)
 				{
 					m_labelText->setFontFamily(p_newFontFamilyName);
-					m_labelText->fitBoundsToText();
+					m_labelText->fitSizeToText();
 				}
 				if (m_prefixText)
 				{
 					m_prefixText->setFontFamily(p_newFontFamilyName);
-					m_prefixText->fitBoundsToText();
+					m_prefixText->fitSizeToText();
 					m_editableText->setLeft(m_prefixText->getRight() + 1.f, false);
 					if (m_labelText)
 					{
@@ -9942,7 +9968,7 @@ namespace AvoGUI
 				if (m_suffixText)
 				{
 					m_suffixText->setFontFamily(p_newFontFamilyName);
-					m_suffixText->fitBoundsToText();
+					m_suffixText->fitSizeToText();
 					m_editableText->setRight(m_suffixText->getRight() - 1.f, false);
 				}
 			}
@@ -9954,17 +9980,17 @@ namespace AvoGUI
 				if (m_labelText)
 				{
 					m_labelText->setFontSize(p_newValue);
-					m_labelText->fitBoundsToText();
+					m_labelText->fitSizeToText();
 				}
 				if (m_prefixText)
 				{
 					m_prefixText->setFontSize(p_newValue);
-					m_prefixText->fitBoundsToText();
+					m_prefixText->fitSizeToText();
 				}
 				if (m_suffixText)
 				{
 					m_suffixText->setFontSize(p_newValue);
-					m_suffixText->fitBoundsToText();
+					m_suffixText->fitSizeToText();
 				}
 				m_editableText->setFontSize(p_newValue);
 			}
@@ -10137,7 +10163,7 @@ namespace AvoGUI
 				m_labelText = getGUI()->getDrawingContext()->createText(p_label, getThemeValue("text field font size"));
 				m_labelText->setFontFamily(getThemeFontFamily("main"));
 				m_labelText->setFontWeight(AvoGUI::FontWeight::Regular);
-				m_labelText->fitBoundsToText();
+				m_labelText->fitSizeToText();
 				if (m_type == Type::Filled)
 				{
 					m_labelText->setCenterY(getHeight() * 0.5f);
@@ -10178,7 +10204,7 @@ namespace AvoGUI
 			m_prefixText = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("text field font size"));
 			m_prefixText->setFontFamily(getThemeFontFamily("main"));
 			m_prefixText->setFontWeight(AvoGUI::FontWeight::Regular);
-			m_prefixText->fitBoundsToText();
+			m_prefixText->fitSizeToText();
 			if (m_type == Type::Filled)
 			{
 				m_prefixText->setBottom(getThemeValue("text field filled padding bottom"));
@@ -10224,7 +10250,7 @@ namespace AvoGUI
 			m_suffixText = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("text field font size"));
 			m_suffixText->setFontFamily(getThemeFontFamily("main"));
 			m_suffixText->setFontWeight(AvoGUI::FontWeight::Regular);
-			m_suffixText->fitBoundsToText();
+			m_suffixText->fitSizeToText();
 			if (m_type == Type::Filled)
 			{
 				m_suffixText->setBottom(getThemeValue("text field filled padding bottom"));
