@@ -3359,6 +3359,14 @@ namespace AvoGUI
 			Only adds a child view to the child list of this view. 
 		*/
 		void addChild(View* p_view);
+		/*
+			LIBRARY IMPLEMENTED
+			This doesn't change the actual index of this view, it only helps the view keep track of its current index.
+		*/
+		void setIndex(uint32 p_index)
+		{
+			m_index = p_index;
+		}
 
 		/*
 			LIBRARY IMPLEMENTED
@@ -5141,7 +5149,7 @@ namespace AvoGUI
 					}
 					else if (p_x > m_bounds.right - m_corners.topRightSizeX && p_y < m_bounds.top + m_corners.topRightSizeY)
 					{
-						if (m_corners.topLeftType == RectangleCornerType::Round)
+						if (m_corners.topRightType == RectangleCornerType::Round)
 						{
 							return Point<>::getLengthSquared(m_bounds.right - m_corners.topRightSizeX - p_x, (m_bounds.top + m_corners.topRightSizeY - p_y) * m_corners.topRightSizeX / m_corners.topRightSizeY) < m_corners.topRightSizeX * m_corners.topRightSizeX;
 						}
@@ -5149,17 +5157,17 @@ namespace AvoGUI
 					}
 					else if (p_x < m_bounds.left + m_corners.bottomLeftSizeX && p_y > m_bounds.bottom - m_corners.bottomLeftSizeY)
 					{
-						if (m_corners.topLeftType == RectangleCornerType::Round)
+						if (m_corners.bottomLeftType == RectangleCornerType::Round)
 						{
-							return Point<>::getLengthSquared(m_bounds.left + m_corners.bottomLeftSizeX - p_x, (m_bounds.bottom + m_corners.bottomLeftSizeY - p_y) * m_corners.bottomLeftSizeX / m_corners.bottomLeftSizeY) < m_corners.bottomLeftSizeX * m_corners.bottomLeftSizeX;
+							return Point<>::getLengthSquared(m_bounds.left + m_corners.bottomLeftSizeX - p_x, (m_bounds.bottom - m_corners.bottomLeftSizeY - p_y) * m_corners.bottomLeftSizeX / m_corners.bottomLeftSizeY) < m_corners.bottomLeftSizeX * m_corners.bottomLeftSizeX;
 						}
 						return p_y < m_bounds.bottom - m_corners.bottomLeftSizeY + (p_x - m_bounds.left) * m_corners.bottomLeftSizeY / m_corners.bottomLeftSizeX;
 					}
 					else if (p_x > m_bounds.right - m_corners.bottomRightSizeX && p_y > m_bounds.bottom - m_corners.bottomRightSizeY)
 					{
-						if (m_corners.topLeftType == RectangleCornerType::Round)
+						if (m_corners.bottomRightType == RectangleCornerType::Round)
 						{
-							return Point<>::getLengthSquared(m_bounds.right - m_corners.bottomRightSizeX - p_x, (m_bounds.top + m_corners.bottomRightSizeY - p_y) * m_corners.bottomRightSizeX / m_corners.bottomRightSizeY) < m_corners.bottomRightSizeX * m_corners.bottomRightSizeX;
+							return Point<>::getLengthSquared(m_bounds.right - m_corners.bottomRightSizeX - p_x, (m_bounds.bottom - m_corners.bottomRightSizeY - p_y) * m_corners.bottomRightSizeX / m_corners.bottomRightSizeY) < m_corners.bottomRightSizeX * m_corners.bottomRightSizeX;
 						}
 						return p_y < m_bounds.bottom - (m_bounds.right - p_x) * m_corners.bottomRightSizeY / m_corners.bottomRightSizeX;
 					}
@@ -5333,16 +5341,6 @@ namespace AvoGUI
 			return m_shadowBounds;
 		}
 
-		/*
-			LIBRARY IMPLEMENTED
-			This is only used by the library from the parent of this view. 
-			It doesn't change the actual index of this view, it only helps the view keep track of its current index. 
-			I apologize for the ambiguousness here, couldn't find any better way...
-		*/
-		void setIndex(uint32 p_index)
-		{
-			m_index = p_index;
-		}
 		/*
 			LIBRARY IMPLEMENTED
 			Returns the index of this view relative to its siblings.

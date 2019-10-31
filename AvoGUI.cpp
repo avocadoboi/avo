@@ -264,21 +264,20 @@ namespace AvoGUI
 	{
 		if (p_view && p_view->getParent() == this)
 		{
-			m_children.erase(m_children.begin() + p_view->getIndex());
-
-			handleChildDetachment(p_view);
-			for (auto view : m_viewEventListeners)
-			{
-				view->handleViewChildDetachment(this, p_view);
-			}
-			p_view->forget();
+			removeChild(p_view->getIndex());
 		}
 	}
 	void View::removeChild(uint32 p_viewIndex)
 	{
-		m_children.erase(m_children.begin() + p_viewIndex);
-
 		View* childToRemove = m_children[p_viewIndex];
+
+		for (uint32 a = p_viewIndex; a < m_children.size() - 1; a++)
+		{
+			m_children[a] = m_children[a + 1];
+			m_children[a]->setIndex(a);
+		}
+		m_children.pop_back();
+
 		handleChildDetachment(childToRemove);
 		for (auto view : m_viewEventListeners)
 		{
@@ -5786,20 +5785,20 @@ namespace AvoGUI
 
 			if (getIsContaining(p_event.x, p_event.y))
 			{
-				if (((View*)this)->m_isMouseHovering)
+				if (getAreMouseEventsEnabled())
 				{
-					if (getAreMouseEventsEnabled())
+					if (((View*)this)->m_isMouseHovering)
 					{
 						handleMouseMove(p_event);
 					}
-				}
-				else if (getAreMouseEventsEnabled())
-				{
-					handleMouseEnter(p_event);
-
-					if (startIndex < 0)
+					else
 					{
-						handleMouseBackgroundEnter(p_event);
+						handleMouseEnter(p_event);
+
+						if (startIndex < 0)
+						{
+							handleMouseBackgroundEnter(p_event);
+						}
 					}
 				}
 				((View*)this)->m_isMouseHovering = true;
@@ -5818,183 +5817,187 @@ namespace AvoGUI
 				((View*)this)->m_isMouseHovering = false;
 			}
 
-			bool hasInvisibleParent = false;
-			bool hasOverlayParent = false;
-			bool hasFoundEnterViews = false;
-			bool hasFoundLeaveViews = false;
-			while (true)
+			if (startIndex)
 			{
-			loopStart:
-				for (int32 a = startIndex; a >= 0; a--)
+				bool hasInvisibleParent = false;
+				bool hasOverlayParent = false;
+				bool hasFoundEnterViews = false;
+				bool hasFoundLeaveViews = false;
+				while (true)
 				{
-					View* child = container->getChild(a);
-
-					if (container->m_isMouseHovering && child->getIsContainingAbsolute(p_event.x, p_event.y) && child->getIsVisible() && !hasInvisibleParent && !hasFoundEnterViews)
+				loopStart:
+					for (int32 a = startIndex; a >= 0; a--)
 					{
-						if (child->getAreMouseEventsEnabled())
-						{
-							mouseEvent.x = p_event.x - child->getAbsoluteLeft();
-							mouseEvent.y = p_event.y - child->getAbsoluteTop();
-						}
+						View* child = container->getChild(a);
 
-						bool isContainer = child->getNumberOfChildren();
-
-						if (child->m_isMouseHovering)
+						if (container->m_isMouseHovering && child->getIsContainingAbsolute(p_event.x, p_event.y) && child->getIsVisible() && !hasInvisibleParent && !hasFoundEnterViews)
 						{
 							if (child->getAreMouseEventsEnabled())
 							{
-								child->handleMouseMove(mouseEvent);
+								mouseEvent.x = p_event.x - child->getAbsoluteLeft();
+								mouseEvent.y = p_event.y - child->getAbsoluteTop();
+							}
+
+							bool isContainer = child->getNumberOfChildren();
+
+							if (child->m_isMouseHovering)
+							{
+								if (child->getAreMouseEventsEnabled())
+								{
+									child->handleMouseMove(mouseEvent);
+								}
+							}
+							else
+							{
+								if (child->getAreMouseEventsEnabled())
+								{
+									child->handleMouseEnter(mouseEvent);
+									if (!isContainer)
+									{
+										child->handleMouseBackgroundEnter(mouseEvent);
+									}
+								}
+							}
+
+							if (isContainer)
+							{
+								wasHoveringStack.push(child->m_isMouseHovering);
+								child->m_isMouseHovering = true;
+								if (child->getIsOverlay())
+								{
+									hasOverlayParent = true;
+								}
+								container = child;
+								startIndex = child->getNumberOfChildren() - 1;
+								goto loopStart;
+							}
+							else
+							{
+								if (!hasOverlayParent && !child->getIsOverlay())
+								{
+									hasFoundEnterViews = true;
+									if (child->m_isMouseHovering)
+									{
+										hasFoundLeaveViews = true;
+										break;
+									}
+									else if (hasFoundLeaveViews)
+									{
+										child->m_isMouseHovering = true;
+										break;
+									}
+								}
+								child->m_isMouseHovering = true;
 							}
 						}
-						else
+						else if (child->m_isMouseHovering && !hasFoundLeaveViews)
 						{
+							bool isContainer = child->getNumberOfChildren();
+
 							if (child->getAreMouseEventsEnabled())
 							{
-								child->handleMouseEnter(mouseEvent);
+								mouseEvent.x = p_event.x - child->getAbsoluteLeft();
+								mouseEvent.y = p_event.y - child->getAbsoluteTop();
+								child->handleMouseLeave(mouseEvent);
 								if (!isContainer)
 								{
-									child->handleMouseBackgroundEnter(mouseEvent);
+									child->handleMouseBackgroundLeave(mouseEvent);
 								}
 							}
-						}
 
-						if (isContainer)
-						{
-							wasHoveringStack.push(child->m_isMouseHovering);
-							child->m_isMouseHovering = true;
-							if (child->getIsOverlay())
+							if (isContainer)
 							{
-								hasOverlayParent = true;
+								wasHoveringStack.push(child->m_isMouseHovering);
+								child->m_isMouseHovering = false;
+
+								if (child->getIsOverlay())
+								{
+									hasOverlayParent = true;
+								}
+								if (!child->getIsVisible())
+								{
+									hasInvisibleParent = true;
+								}
+								container = child;
+								startIndex = child->getNumberOfChildren() - 1;
+								goto loopStart;
 							}
-							container = child;
-							startIndex = child->getNumberOfChildren() - 1;
-							goto loopStart;
-						}
-						else
-						{
-							if (!hasOverlayParent && !child->getIsOverlay())
+							else
 							{
-								hasFoundEnterViews = true;
-								if (child->m_isMouseHovering)
+								child->m_isMouseHovering = false;
+								if (!hasOverlayParent && !child->getIsOverlay())
 								{
 									hasFoundLeaveViews = true;
-									break;
-								}
-								else if (hasFoundLeaveViews)
-								{
-									child->m_isMouseHovering = true;
-									break;
-								}
-							}
-							child->m_isMouseHovering = true;
-						}
-					}
-					else if (child->m_isMouseHovering && !hasFoundLeaveViews)
-					{
-						bool isContainer = child->getNumberOfChildren();
-
-						if (child->getAreMouseEventsEnabled())
-						{
-							mouseEvent.x = p_event.x - child->getAbsoluteLeft();
-							mouseEvent.y = p_event.y - child->getAbsoluteTop();
-							child->handleMouseLeave(mouseEvent);
-							if (!isContainer)
-							{
-								child->handleMouseBackgroundLeave(mouseEvent);
-							}
-						}
-
-						if (isContainer)
-						{
-							wasHoveringStack.push(child->m_isMouseHovering);
-							child->m_isMouseHovering = false;
-							if (child->getIsOverlay())
-							{
-								hasOverlayParent = true;
-							}
-							if (!child->getIsVisible())
-							{
-								hasInvisibleParent = true;
-							}
-							container = child;
-							startIndex = child->getNumberOfChildren() - 1;
-							goto loopStart;
-						}
-						else
-						{
-							child->m_isMouseHovering = false;
-							if (!hasOverlayParent && !child->getIsOverlay())
-							{
-								hasFoundLeaveViews = true;
-								if (hasFoundEnterViews)
-								{
-									break;
+									if (hasFoundEnterViews)
+									{
+										break;
+									}
 								}
 							}
 						}
 					}
-				}
 
-				if (wasHoveringStack.top() && container->m_isMouseHovering && hasFoundLeaveViews && !hasFoundEnterViews ||
-					!wasHoveringStack.top() && container->m_isMouseHovering && !hasFoundEnterViews)
-				{
-					hasFoundEnterViews = true;
-					if (container->getAreMouseEventsEnabled())
+					if (wasHoveringStack.top() && container->m_isMouseHovering && hasFoundLeaveViews && !hasFoundEnterViews ||
+						!wasHoveringStack.top() && container->m_isMouseHovering && !hasFoundEnterViews)
 					{
-						mouseEvent.x = p_event.x - container->getAbsoluteLeft();
-						mouseEvent.y = p_event.y - container->getAbsoluteTop();
-						container->handleMouseBackgroundEnter(mouseEvent);
-					}
-				}
-				else if (wasHoveringStack.top() && container->m_isMouseHovering && hasFoundEnterViews && !hasFoundLeaveViews || 
-					wasHoveringStack.top() && !container->m_isMouseHovering && !hasFoundLeaveViews)
-				{
-					hasFoundLeaveViews = true;
-					if (container->getAreMouseEventsEnabled())
-					{
-						mouseEvent.x = p_event.x - container->getAbsoluteLeft();
-						mouseEvent.y = p_event.y - container->getAbsoluteTop();
-						container->handleMouseBackgroundLeave(mouseEvent);
-					}
-				}
-				else if (wasHoveringStack.top() && container->m_isMouseHovering)
-				{
-					hasFoundEnterViews = true;
-					hasFoundLeaveViews = true;
-				}
-				
-				if (container == this)
-				{
-					break;
-				}
-
-				if (container->getIsOverlay())
-				{
-					wasHoveringStack.pop();
-					hasOverlayParent = false;
-					startIndex = container->getIndex() - 1;
-					container = container->getParent();
-				}
-				else 
-				{
-					while (container != this && wasHoveringStack.top() != container->m_isMouseHovering)
-					{
-						wasHoveringStack.pop();
-						startIndex = (int32)container->getIndex() - 1;
-						container = container->getParent();
-						if (container->getIsOverlay())
+						hasFoundEnterViews = true;
+						if (container->getAreMouseEventsEnabled())
 						{
-							hasOverlayParent = false;
-						}
-						if (!container->getIsVisible())
-						{
-							hasInvisibleParent = false;
+							mouseEvent.x = p_event.x - container->getAbsoluteLeft();
+							mouseEvent.y = p_event.y - container->getAbsoluteTop();
+							container->handleMouseBackgroundEnter(mouseEvent);
 						}
 					}
+					else if (wasHoveringStack.top() && container->m_isMouseHovering && hasFoundEnterViews && !hasFoundLeaveViews ||
+						wasHoveringStack.top() && !container->m_isMouseHovering && !hasFoundLeaveViews)
+					{
+						hasFoundLeaveViews = true;
+						if (container->getAreMouseEventsEnabled())
+						{
+							mouseEvent.x = p_event.x - container->getAbsoluteLeft();
+							mouseEvent.y = p_event.y - container->getAbsoluteTop();
+							container->handleMouseBackgroundLeave(mouseEvent);
+						}
+					}
+					else if (wasHoveringStack.top() && container->m_isMouseHovering)
+					{
+						hasFoundEnterViews = true;
+						hasFoundLeaveViews = true;
+					}
 
-					if (hasFoundLeaveViews && hasFoundEnterViews)
+					if (container == this)
 					{
 						break;
+					}
+
+					if (container->getIsOverlay())
+					{
+						wasHoveringStack.pop();
+						hasOverlayParent = false;
+						startIndex = container->getIndex() - 1;
+						container = container->getParent();
+					}
+					else
+					{
+						while (container != this && wasHoveringStack.top() != container->m_isMouseHovering)
+						{
+							wasHoveringStack.pop();
+							startIndex = (int32)container->getIndex() - 1;
+							container = container->getParent();
+							if (container->getIsOverlay())
+							{
+								hasOverlayParent = false;
+							}
+							if (!container->getIsVisible())
+							{
+								hasInvisibleParent = false;
+							}
+						}
+
+						if (hasFoundLeaveViews && hasFoundEnterViews)
+						{
+							break;
+						}
 					}
 				}
 			}
