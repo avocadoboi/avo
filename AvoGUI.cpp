@@ -1898,6 +1898,12 @@ namespace AvoGUI
 						return HTBOTTOMRIGHT;
 					case WindowBorderArea::Dragging:
 						return HTCAPTION;
+					case WindowBorderArea::CloseButton:
+						return HTCLOSE;
+					case WindowBorderArea::MinimizeButton:
+						return HTMINBUTTON;
+					case WindowBorderArea::MaximizeButton:
+						return HTMAXBUTTON;
 					case WindowBorderArea::None:
 						return HTCLIENT;
 					}

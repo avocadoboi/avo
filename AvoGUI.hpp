@@ -5928,6 +5928,9 @@ namespace AvoGUI
 		BottomResize,
 		BottomRightResize,
 		Dragging, // The area of the window is used for dragging the window, normally the title bar.
+		CloseButton, // When this area of the window is clicked, the window closes.
+		MinimizeButton, // When this area of the window is clicked, the window minimizes.
+		MaximizeButton, // When this area of the window is clicked, the window maximizes.
 		None // The area of the window is not part of the window border, meaning any mouse events are handled only by the GUI.
 	};
 
