@@ -23,12 +23,14 @@
 #include <dwrite_1.h>
 #include <wincodec.h>
 #include <comdef.h>
+#include <dwmapi.h>
 
 #pragma comment(lib, "d2d1")
 #pragma comment(lib, "d3d11")
 #pragma comment(lib, "dxguid")
 #pragma comment(lib, "dwrite")
 #pragma comment(lib, "windowscodecs")
+#pragma comment(lib, "Dwmapi")
 #endif
 
 //------------------------------
@@ -704,19 +706,19 @@ namespace AvoGUI
 
 		WindowState m_state;
 
-		bool m_isMouseOutsideWindow;
+		bool m_isMouseOutsideClientArea;
 		Point<int32> m_mousePosition;
 		HCURSOR m_cursorHandle;
 		Cursor m_cursorType;
 
 		uint32 convertWindowStyleFlagsToWindowsWindowStyleFlags(WindowStyleFlags p_styleFlags)
 		{
-			uint32 styles = WS_SYSMENU;
+			uint32 styles = WS_POPUP;
 
-			if (uint32(p_styleFlags & WindowStyleFlags::Visible))
+			if (!uint32(p_styleFlags & WindowStyleFlags::Invisible))
 				styles |= WS_VISIBLE;
 			if (uint32(p_styleFlags & WindowStyleFlags::Border))
-				styles |= WS_CAPTION;
+				styles |= WS_CAPTION | WS_SYSMENU;
 			if (uint32(p_styleFlags & WindowStyleFlags::Child))
 				styles |= WS_CHILD;
 
@@ -1001,15 +1003,15 @@ namespace AvoGUI
 		WindowsWindow(GUI* p_GUI) :
 			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0),
 			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
-			m_state(WindowState::Restored), m_isMouseOutsideWindow(true), m_mousePosition(-1, -1), m_cursorHandle(0)
+			m_state(WindowState::Restored), m_isMouseOutsideClientArea(true), m_mousePosition(-1, -1), m_cursorHandle(0)
 		{
 			m_cursorType = (Cursor)-1;
 			setCursor(Cursor::Arrow);
 		}
 		WindowsWindow(GUI* p_GUI, char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) :
-			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0),
+			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles(p_styleFlags), m_styles(0),
 			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
-			m_state(WindowState::Restored), m_isMouseOutsideWindow(true), m_mousePosition(-1, -1), m_cursorHandle(0)
+			m_state(WindowState::Restored), m_isMouseOutsideClientArea(true), m_mousePosition(-1, -1), m_cursorHandle(0)
 		{
 			m_GUI = p_GUI;
 			m_isFullscreen = false;
@@ -1047,6 +1049,7 @@ namespace AvoGUI
 				RegisterClass(&windowClass);
 			}
 
+			m_crossPlatformStyles = p_styleFlags;
 			m_styles = convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styleFlags);
 
 			RECT windowRect = { 0, 0, p_width, p_height };
@@ -1069,6 +1072,11 @@ namespace AvoGUI
 			);
 
 			UpdateWindow(m_windowHandle);
+
+			if (uint32(p_styleFlags & WindowStyleFlags::CustomBorder))
+			{
+				SetWindowPos(m_windowHandle, 0, p_x, p_y, m_size.x, m_size.y, SWP_NOZORDER);
+			}
 
 			s_numberOfWindows++;
 		}
@@ -1664,7 +1672,7 @@ namespace AvoGUI
 				DestroyCursor(m_cursorHandle);
 			}
 			m_cursorHandle = LoadCursor(0, name);
-			if (!m_isMouseOutsideWindow)
+			if (!m_isMouseOutsideClientArea)
 			{
 				SetCursor(m_cursorHandle);
 			}
@@ -1811,6 +1819,91 @@ namespace AvoGUI
 
 				return 0;
 			}
+			case WM_NCCALCSIZE:
+			{
+				if (uint32(m_crossPlatformStyles & WindowStyleFlags::CustomBorder) && p_data_a)
+				{
+					//NCCALCSIZE_PARAMS* parameters = (NCCALCSIZE_PARAMS*)p_data_b;
+					return 0;
+				}
+			}
+			case WM_NCMOUSEMOVE:
+			{
+				if (uint32(m_crossPlatformStyles & WindowStyleFlags::CustomBorder) && GetCapture() != m_windowHandle)
+				{
+					POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
+					ScreenToClient(m_windowHandle, &mousePosition);
+
+					bool wasMousePositionInsideWindow = m_mousePosition.x >= 0 && m_mousePosition.y >= 0 && m_mousePosition.x < m_size.x && m_mousePosition.y < m_size.y;
+					if (!m_isMouseOutsideClientArea || m_isMouseOutsideClientArea && !wasMousePositionInsideWindow) // Is was outside of the nonclient area before this mousemove.
+					{
+						TRACKMOUSEEVENT trackStructure = { };
+						trackStructure.dwFlags = TME_LEAVE | TME_NONCLIENT;
+						trackStructure.cbSize = sizeof(TRACKMOUSEEVENT);
+						trackStructure.hwndTrack = m_windowHandle;
+						TrackMouseEvent(&trackStructure);
+						if (!m_isMouseOutsideClientArea)
+						{
+							// The window will recieve WM_MOUSELEAVE - no need for extra mouse events, so return.
+							m_isMouseOutsideClientArea = true;
+							return 0;
+						}
+					}
+
+					// We want the GUI to recieve mouse move events even when the mouse is inside the nonclient area of the window - 
+					// because it is in this case part of the GUI (since the CustomBorder style flag is true).
+					if (wasMousePositionInsideWindow)
+					{
+						MouseEvent mouseEvent;
+						mouseEvent.x = mousePosition.x;
+						mouseEvent.y = mousePosition.y;
+						mouseEvent.movementX = mousePosition.x - m_mousePosition.x;
+						mouseEvent.movementY = mousePosition.y - m_mousePosition.y;
+
+						m_mousePosition.x = mousePosition.x;
+						m_mousePosition.y = mousePosition.y;
+
+						m_GUI->excludeAnimationThread();
+						m_GUI->handleGlobalMouseMove(mouseEvent);
+						m_GUI->includeAnimationThread();
+					}
+
+					return 0;
+				}
+			}
+			case WM_NCHITTEST:
+			{
+				if (uint32(m_crossPlatformStyles & WindowStyleFlags::CustomBorder))
+				{
+					POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
+					ScreenToClient(m_windowHandle, &mousePosition);
+
+					switch (m_GUI->getWindowBorderAreaAtPosition(mousePosition.x, mousePosition.y))
+					{
+					case WindowBorderArea::TopLeftResize:
+						return HTTOPLEFT;
+					case WindowBorderArea::TopResize:
+						return HTTOP;
+					case WindowBorderArea::TopRightResize:
+						return HTTOPRIGHT;
+					case WindowBorderArea::LeftResize:
+						return HTLEFT;
+					case WindowBorderArea::RightResize:
+						return HTRIGHT;
+					case WindowBorderArea::BottomLeftResize:
+						return HTBOTTOMLEFT;
+					case WindowBorderArea::BottomResize:
+						return HTBOTTOM;
+					case WindowBorderArea::BottomRightResize:
+						return HTBOTTOMRIGHT;
+					case WindowBorderArea::Dragging:
+						return HTCAPTION;
+					case WindowBorderArea::None:
+						return HTCLIENT;
+					}
+				}
+				return 1;
+			}
 			case WM_SIZE:
 			{
 				m_GUI->excludeAnimationThread();
@@ -1913,6 +2006,7 @@ namespace AvoGUI
 				m_GUI->includeAnimationThread();
 
 				SetCapture(m_windowHandle);
+
 				return 0;
 			}
 			case WM_LBUTTONUP:
@@ -2064,12 +2158,10 @@ namespace AvoGUI
 			}
 			case WM_MOUSEMOVE:
 			{
-				ModifierKeyFlags modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
 				int32 x = GET_X_LPARAM(p_data_b);
 				int32 y = GET_Y_LPARAM(p_data_b);
 
-				if ((x == m_mousePosition.x && y == m_mousePosition.y) || (GetCapture() != m_windowHandle && (x < 0 || y < 0 || x >= getWidth() || y >= getHeight())))
+				if (x == m_mousePosition.x && y == m_mousePosition.y)
 				{
 					return 0;
 				}
@@ -2079,7 +2171,6 @@ namespace AvoGUI
 				mouseEvent.y = y;
 				mouseEvent.movementX = x - m_mousePosition.x;
 				mouseEvent.movementY = y - m_mousePosition.y;
-				mouseEvent.modifierKeys = modifierKeys;
 
 				m_mousePosition.x = x;
 				m_mousePosition.y = y;
@@ -2088,29 +2179,41 @@ namespace AvoGUI
 				m_GUI->handleGlobalMouseMove(mouseEvent);
 				m_GUI->includeAnimationThread();
 
-				if (m_isMouseOutsideWindow)
+				if (m_isMouseOutsideClientArea)
 				{
 					SetCursor(m_cursorHandle);
 
+					// This is to make the window recieve WM_MOUSELEAVE.
 					TRACKMOUSEEVENT trackStructure = { };
 					trackStructure.dwFlags = TME_LEAVE;
 					trackStructure.cbSize = sizeof(TRACKMOUSEEVENT);
 					trackStructure.hwndTrack = m_windowHandle;
 					TrackMouseEvent(&trackStructure);
 
-					m_isMouseOutsideWindow = false;
+					m_isMouseOutsideClientArea = false;
 				}
 
 				return 0;
 			}
+			case WM_NCMOUSELEAVE:
 			case WM_MOUSELEAVE:
 			{
-				m_isMouseOutsideWindow = true;
 				if (GetCapture() != m_windowHandle)
 				{
 					POINT mousePosition;
 					GetCursorPos(&mousePosition);
 					ScreenToClient(m_windowHandle, &mousePosition);
+
+					if (mousePosition.x >= 0 && mousePosition.y >= 0 && mousePosition.x < m_size.x && mousePosition.y < m_size.y)
+					{
+						// If it's a WM_MOUSELEAVE message, then it has entered the nonclient area if the new mouse position still is inside the window.
+						// If it's a WM_NCMOUSELEAVE message, then it has entered the client area.
+						// Note that both these cases would mean that the window has the CustomBorder style flag set.
+						m_isMouseOutsideClientArea = p_message == WM_MOUSELEAVE; 
+						return 0;
+					}
+
+					m_isMouseOutsideClientArea = true;
 
 					MouseEvent mouseEvent;
 					mouseEvent.x = mousePosition.x;
@@ -5166,8 +5269,13 @@ namespace AvoGUI
 		Image* createImage(void* p_handle) override
 		{
 			IWICBitmap* wicBitmap = 0;
-			s_imagingFactory->CreateBitmapFromHICON((HICON)p_handle, &wicBitmap);
-			
+			HRESULT result = s_imagingFactory->CreateBitmapFromHICON((HICON)p_handle, &wicBitmap);
+
+			if (result < 0)
+			{
+				result = s_imagingFactory->CreateBitmapFromHBITMAP((HBITMAP)p_handle, 0, WICBitmapAlphaChannelOption::WICBitmapUseAlpha, &wicBitmap);
+			}
+
 			IWICFormatConverter* formatConverter = 0;
 			s_imagingFactory->CreateFormatConverter(&formatConverter);
 			formatConverter->Initialize(wicBitmap, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, 0, 0.f, WICBitmapPaletteTypeMedianCut);
@@ -5668,13 +5776,6 @@ namespace AvoGUI
 		std::vector<View*> targets;
 		getTopMouseListenersAt(p_event.x, p_event.y, targets);
 
-		for (View* view : m_pressedMouseEventListeners)
-		{
-			view->forget();
-			continue;
-		}
-		m_pressedMouseEventListeners.clear();
-
 		MouseEvent event = p_event;
 		if (targets.size())
 		{
@@ -5714,6 +5815,11 @@ namespace AvoGUI
 
 				view->handleMouseUp(event);
 			}
+			for (View* view : m_pressedMouseEventListeners)
+			{
+				view->forget();
+			}
+			m_pressedMouseEventListeners.clear();
 
 			if (p_event.x != m_mouseDownPosition.x || p_event.y != m_mouseDownPosition.y)
 			{
@@ -5763,7 +5869,7 @@ namespace AvoGUI
 
 	void GUI::handleGlobalMouseMove(MouseEvent const& p_event)
 	{
-		if (m_pressedMouseEventListeners.size() && (p_event.modifierKeys & ModifierKeyFlags::LeftMouse || p_event.modifierKeys & ModifierKeyFlags::MiddleMouse || p_event.modifierKeys & ModifierKeyFlags::RightMouse))
+		if (m_pressedMouseEventListeners.size())
 		{
 			MouseEvent mouseEvent = p_event;
 			for (auto pressedView : m_pressedMouseEventListeners)
@@ -6028,6 +6134,8 @@ namespace AvoGUI
 				view->handleMouseScroll(event);
 			}
 		}
+
+		handleGlobalMouseMove(p_event);
 
 		if (m_globalMouseEventListeners.size())
 		{

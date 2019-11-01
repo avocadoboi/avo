@@ -5888,16 +5888,19 @@ namespace AvoGUI
 
 	enum class WindowStyleFlags
 	{
+		None = 0x0UL, // Borderless window.
 		Border = 0x1UL,
-		Visible = 0x2UL,
+		Invisible = 0x2UL, // Makes the window invisible at first. You can make it visible afterwards.
 		Child = 0x4UL,
 		Minimized = 0x8UL,
 		Maximized = 0x10UL,
 		MinimizeBox = 0x20UL,
 		MaximizeBox = 0x40UL,
 		ResizeBorder = 0x80UL,
-		Default = Border | Visible | MinimizeBox | MaximizeBox | ResizeBorder,
-		DefaultNoResize = Border | Visible | MinimizeBox
+		CustomBorder = 0x100UL, // This makes the client area take up the full window, and the GUI determines which areas are for resizing and moving the window.
+		Default = Border | MinimizeBox | MaximizeBox | ResizeBorder,
+		DefaultCustom = ResizeBorder | CustomBorder,
+		DefaultNoResize = Border | MinimizeBox
 	};
 
 	constexpr WindowStyleFlags operator&(WindowStyleFlags p_left, WindowStyleFlags p_right)
@@ -5913,6 +5916,20 @@ namespace AvoGUI
 		p_left = p_left | p_right;
 		return p_left;
 	}
+
+	enum class WindowBorderArea
+	{
+		TopLeftResize,
+		TopResize,
+		TopRightResize,
+		LeftResize,
+		RightResize,
+		BottomLeftResize,
+		BottomResize,
+		BottomRightResize,
+		Dragging, // The area of the window is used for dragging the window, normally the title bar.
+		None // The area of the window is not part of the window border, meaning any mouse events are handled only by the GUI.
+	};
 
 	enum class WindowState
 	{
@@ -7488,7 +7505,7 @@ namespace AvoGUI
 		/*
 			Creates an image from an OS-specific handle.
 
-			On Windows, it is an HICON.
+			On Windows, it is an HICON or HBITMAP.
 		*/
 		virtual Image* createImage(void* p_handle) = 0;
 		/*
@@ -7750,6 +7767,56 @@ namespace AvoGUI
 			Sends the event down to global and targeted mouse event listeners.
 		*/
 		virtual void handleGlobalMouseScroll(MouseEvent const& p_event) override;
+
+		//------------------------------
+
+		/*
+			LIBRARY IMPLEMENTED
+			This is only called if the window of the GUI has the custom border style.
+			It returns what part of the window border is under the given coordinates.
+
+			The default implementation only handles the window resizing border areas, at the edges of the GUI.
+			You can override this and either keep the default implementation and only add handling of window dragging areas
+			(when the standard implementation returns WindowBorderArea::None), or detect all resize areas yourself too.
+		*/
+		virtual WindowBorderArea getWindowBorderAreaAtPosition(float p_x, float p_y)
+		{
+			float borderWidth = 5.f;
+
+			if (p_y < borderWidth)
+			{
+				if (p_x < borderWidth)
+				{
+					return WindowBorderArea::TopLeftResize;
+				}
+				if (p_x >= getWidth() - borderWidth)
+				{
+					return WindowBorderArea::TopRightResize;
+				}
+				return WindowBorderArea::TopResize;
+			}
+			if (p_y >= getHeight() - borderWidth)
+			{
+				if (p_x < borderWidth)
+				{
+					return WindowBorderArea::BottomLeftResize;
+				}
+				if (p_x >= getWidth() - borderWidth)
+				{
+					return WindowBorderArea::BottomRightResize;
+				}
+				return WindowBorderArea::BottomResize;
+			}
+			if (p_x < borderWidth)
+			{
+				return WindowBorderArea::LeftResize;
+			}
+			if (p_x >= getWidth() - borderWidth)
+			{
+				return WindowBorderArea::RightResize;
+			}
+			return WindowBorderArea::None;
+		}
 
 		//------------------------------
 
