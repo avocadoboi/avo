@@ -5894,13 +5894,13 @@ namespace AvoGUI
 		Child = 0x4UL,
 		Minimized = 0x8UL,
 		Maximized = 0x10UL,
-		MinimizeBox = 0x20UL,
-		MaximizeBox = 0x40UL,
+		MinimizeButton = 0x20UL,
+		MaximizeButton = 0x40UL,
 		ResizeBorder = 0x80UL,
 		CustomBorder = 0x100UL, // This makes the client area take up the full window, and the GUI determines which areas are for resizing and moving the window.
-		Default = Border | MinimizeBox | MaximizeBox | ResizeBorder,
-		DefaultCustom = ResizeBorder | CustomBorder,
-		DefaultNoResize = Border | MinimizeBox
+		DefaultCustom = CustomBorder | ResizeBorder | Border,
+		Default = Border | MinimizeButton | MaximizeButton | ResizeBorder,
+		DefaultNoResize = Border | MinimizeButton
 	};
 
 	constexpr WindowStyleFlags operator&(WindowStyleFlags p_left, WindowStyleFlags p_right)
@@ -5919,6 +5919,7 @@ namespace AvoGUI
 
 	enum class WindowBorderArea
 	{
+		None = 0, // The area of the window is not part of the window border, meaning any mouse events are handled only by the GUI.
 		TopLeftResize,
 		TopResize,
 		TopRightResize,
@@ -5927,11 +5928,7 @@ namespace AvoGUI
 		BottomLeftResize,
 		BottomResize,
 		BottomRightResize,
-		Dragging, // The area of the window is used for dragging the window, normally the title bar.
-		CloseButton, // When this area of the window is clicked, the window closes.
-		MinimizeButton, // When this area of the window is clicked, the window minimizes.
-		MaximizeButton, // When this area of the window is clicked, the window maximizes.
-		None // The area of the window is not part of the window border, meaning any mouse events are handled only by the GUI.
+		Dragging // The area of the window is used for dragging the window, normally the title bar.
 	};
 
 	enum class WindowState
@@ -7785,30 +7782,37 @@ namespace AvoGUI
 		virtual WindowBorderArea getWindowBorderAreaAtPosition(float p_x, float p_y)
 		{
 			float borderWidth = 5.f;
+			float diagonalBorderWidth = 7.f;
 
-			if (p_y < borderWidth)
+			if (p_y < diagonalBorderWidth)
 			{
-				if (p_x < borderWidth)
+				if (p_x < diagonalBorderWidth)
 				{
 					return WindowBorderArea::TopLeftResize;
 				}
-				if (p_x >= getWidth() - borderWidth)
+				if (p_x >= getWidth() - diagonalBorderWidth)
 				{
 					return WindowBorderArea::TopRightResize;
 				}
-				return WindowBorderArea::TopResize;
+				if (p_y < borderWidth)
+				{
+					return WindowBorderArea::TopResize;
+				}
 			}
-			if (p_y >= getHeight() - borderWidth)
+			if (p_y >= getHeight() - diagonalBorderWidth)
 			{
-				if (p_x < borderWidth)
+				if (p_x < diagonalBorderWidth)
 				{
 					return WindowBorderArea::BottomLeftResize;
 				}
-				if (p_x >= getWidth() - borderWidth)
+				if (p_x >= getWidth() - diagonalBorderWidth)
 				{
 					return WindowBorderArea::BottomRightResize;
 				}
-				return WindowBorderArea::BottomResize;
+				if (p_y >= getHeight() - borderWidth)
+				{
+					return WindowBorderArea::BottomResize;
+				}
 			}
 			if (p_x < borderWidth)
 			{

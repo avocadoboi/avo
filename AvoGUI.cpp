@@ -727,9 +727,9 @@ namespace AvoGUI
 			else if (uint32(p_styleFlags & WindowStyleFlags::Maximized))
 				styles |= WS_MAXIMIZE;
 
-			if (uint32(p_styleFlags & WindowStyleFlags::MinimizeBox))
+			if (uint32(p_styleFlags & WindowStyleFlags::MinimizeButton))
 				styles |= WS_MINIMIZEBOX;
-			if (uint32(p_styleFlags & WindowStyleFlags::MaximizeBox))
+			if (uint32(p_styleFlags & WindowStyleFlags::MaximizeButton))
 				styles |= WS_MAXIMIZEBOX;
 			if (uint32(p_styleFlags & WindowStyleFlags::ResizeBorder))
 				styles |= WS_THICKFRAME;
@@ -1071,8 +1071,6 @@ namespace AvoGUI
 				this // Additional window data
 			);
 
-			UpdateWindow(m_windowHandle);
-
 			if (uint32(p_styleFlags & WindowStyleFlags::CustomBorder))
 			{
 				SetWindowPos(m_windowHandle, 0, p_x, p_y, m_size.x, m_size.y, SWP_NOZORDER);
@@ -1186,14 +1184,17 @@ namespace AvoGUI
 
 		void maximize() override
 		{
+			m_state = WindowState::Maximized;
 			ShowWindow(m_windowHandle, SW_MAXIMIZE);
 		}
 		void minimize() override
 		{
+			m_state = WindowState::Minimized;
 			ShowWindow(m_windowHandle, SW_MINIMIZE);
 		}
 		void restore() override
 		{
+			m_state = WindowState::Restored;
 			ShowWindow(m_windowHandle, SW_RESTORE);
 		}
 
@@ -1819,13 +1820,57 @@ namespace AvoGUI
 
 				return 0;
 			}
+			case WM_ACTIVATE:
+			{
+				if (uint32(m_crossPlatformStyles & WindowStyleFlags::CustomBorder))
+				{
+					MARGINS margins = { 0, 0, 1, 0 };
+					DwmExtendFrameIntoClientArea(m_windowHandle, &margins);
+
+					DWORD flags = DWMNCRP_ENABLED;
+					DwmSetWindowAttribute(m_windowHandle, DWMWA_NCRENDERING_POLICY, &flags, sizeof(DWORD));
+					return 0;
+				}
+				break;
+			}
+			//case WM_WINDOWPOSCHANGING:
+			//{
+			//	if (uint32(m_crossPlatformStyles & WindowStyleFlags::CustomBorder))
+			//	{
+			//		WINDOWPOS* position = (WINDOWPOS*)p_data_b;
+			//		if (IsMaximized(m_windowHandle) && !(position->flags & SWP_NOSIZE))
+			//		{
+			//			MONITORINFO info = { };
+			//			info.cbSize = sizeof(MONITORINFO);
+			//			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
+
+			//			position->x = info.rcWork.left;
+			//			position->y = info.rcWork.top;
+			//			position->cx = info.rcWork.right - info.rcWork.left;
+			//			position->cy = info.rcWork.bottom - info.rcWork.top;
+			//			return 0;
+			//		}
+			//	}
+			//	break;
+			//}
 			case WM_NCCALCSIZE:
 			{
 				if (uint32(m_crossPlatformStyles & WindowStyleFlags::CustomBorder) && p_data_a)
 				{
-					//NCCALCSIZE_PARAMS* parameters = (NCCALCSIZE_PARAMS*)p_data_b;
+					NCCALCSIZE_PARAMS* parameters = (NCCALCSIZE_PARAMS*)p_data_b;
+
+					if (IsMaximized(m_windowHandle))
+					{
+						MONITORINFO info = { };
+						info.cbSize = sizeof(MONITORINFO);
+						GetMonitorInfo(MonitorFromRect(parameters->rgrc, MONITOR_DEFAULTTONEAREST), &info);
+
+						parameters->rgrc[0] = info.rcWork;
+					}
+
 					return 0;
 				}
+				break;
 			}
 			case WM_NCMOUSEMOVE:
 			{
@@ -1850,9 +1895,11 @@ namespace AvoGUI
 						}
 					}
 
+					m_isMouseOutsideClientArea = true;
+
 					// We want the GUI to recieve mouse move events even when the mouse is inside the nonclient area of the window - 
 					// because it is in this case part of the GUI (since the CustomBorder style flag is true).
-					if (wasMousePositionInsideWindow)
+					if (mousePosition.x >= 0 && mousePosition.y >= 0 && mousePosition.x < m_size.x && mousePosition.y < m_size.y)
 					{
 						MouseEvent mouseEvent;
 						mouseEvent.x = mousePosition.x;
@@ -1867,18 +1914,23 @@ namespace AvoGUI
 						m_GUI->handleGlobalMouseMove(mouseEvent);
 						m_GUI->includeAnimationThread();
 					}
-
 					return 0;
 				}
+				break;
 			}
 			case WM_NCHITTEST:
 			{
-				if (uint32(m_crossPlatformStyles & WindowStyleFlags::CustomBorder))
+				if (uint32(m_crossPlatformStyles & WindowStyleFlags::CustomBorder) && p_data_b)
 				{
 					POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
 					ScreenToClient(m_windowHandle, &mousePosition);
 
-					switch (m_GUI->getWindowBorderAreaAtPosition(mousePosition.x, mousePosition.y))
+					WindowBorderArea area = m_GUI->getWindowBorderAreaAtPosition(mousePosition.x, mousePosition.y);
+					if (IsMaximized(m_windowHandle) && area != WindowBorderArea::Dragging && area != WindowBorderArea::None)
+					{
+						return HTCLIENT;
+					}
+					switch (area)
 					{
 					case WindowBorderArea::TopLeftResize:
 						return HTTOPLEFT;
@@ -1898,17 +1950,12 @@ namespace AvoGUI
 						return HTBOTTOMRIGHT;
 					case WindowBorderArea::Dragging:
 						return HTCAPTION;
-					case WindowBorderArea::CloseButton:
-						return HTCLOSE;
-					case WindowBorderArea::MinimizeButton:
-						return HTMINBUTTON;
-					case WindowBorderArea::MaximizeButton:
-						return HTMAXBUTTON;
 					case WindowBorderArea::None:
 						return HTCLIENT;
 					}
+					return 0;
 				}
-				return 1;
+				break;
 			}
 			case WM_SIZE:
 			{
@@ -2226,12 +2273,13 @@ namespace AvoGUI
 					mouseEvent.y = mousePosition.y;
 					mouseEvent.movementX = mousePosition.x - m_mousePosition.x;
 					mouseEvent.movementY = mousePosition.y - m_mousePosition.y;
-					m_GUI->excludeAnimationThread();
-					m_GUI->handleGlobalMouseMove(mouseEvent);
-					m_GUI->includeAnimationThread();
 
 					m_mousePosition.x = mousePosition.x;
 					m_mousePosition.y = mousePosition.y;
+
+					m_GUI->excludeAnimationThread();
+					m_GUI->handleGlobalMouseMove(mouseEvent);
+					m_GUI->includeAnimationThread();
 				}
 				return 0;
 			}
@@ -5485,7 +5533,7 @@ namespace AvoGUI
 
 				wasLastFrameDrawn = true;
 
-				if (!p_gui->getDrawingContext()->getIsVsyncEnabled())
+				if (p_gui->getDrawingContext() && !p_gui->getDrawingContext()->getIsVsyncEnabled())
 				{
 					std::this_thread::sleep_for(std::chrono::nanoseconds(syncInterval));
 					//p_gui->getDrawingContext()->enableVsync();
@@ -6219,7 +6267,6 @@ namespace AvoGUI
 			excludeAnimationThread();
 			Point<float> newSize = m_newWindowSize;
 			m_hasNewWindowSize = false;
-			includeAnimationThread();
 
 			Point<float> sizeBefore = getBottomLeft();
 			m_drawingContext->setSize(newSize.x, newSize.y);
@@ -6231,6 +6278,7 @@ namespace AvoGUI
 			m_tooltip->hide();
 			m_invalidRectangles.clear();
 			invalidate();
+			includeAnimationThread();
 		}
 
 		excludeAnimationThread();
