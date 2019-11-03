@@ -3324,7 +3324,7 @@ namespace AvoGUI
 		{
 			m_absolutePosition.move(p_offsetX, p_offsetY);
 
-			if (p_willUpdateChildren)
+			if (p_willUpdateChildren && m_children.size())
 			{
 				View* currentContainer = this;
 				View* child = 0;
@@ -5898,7 +5898,7 @@ namespace AvoGUI
 		MaximizeButton = 0x40UL,
 		ResizeBorder = 0x80UL,
 		CustomBorder = 0x100UL, // This makes the client area take up the full window, and the GUI determines which areas are for resizing and moving the window.
-		DefaultCustom = CustomBorder | ResizeBorder | Border,
+		DefaultCustom = CustomBorder | ResizeBorder | Border | MaximizeButton,
 		Default = Border | MinimizeButton | MaximizeButton | ResizeBorder,
 		DefaultNoResize = Border | MinimizeButton
 	};
@@ -5959,30 +5959,35 @@ namespace AvoGUI
 			Creates the window. To close it, use close().
 		
 			p_title is the text that appears in the title bar of the window (if it has a border).
-			p_x is the position of the left edge of the window relative to the left edge of the screen.
-			p_y is the position of the top edge of the window relative to the top edge of the screen.
-			p_width is the width of the client area in pixels.
-			p_height is the height of the client area in pixels.
+
+			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
+			of the primary monitor and the top edge of the window are aligned, and 1 means the right edges are aligned.
+
+			p_positionFactorY is the vertical position of the window, expressed as a factor between 0 and 1, where 0 means the top edge
+			of the primary monitor and the top edge of the window are aligned, and 1 means the bottom edges are aligned.
+
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(char const* p_title, int32 p_x, int32 p_y, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		virtual void create(char const* p_title, float p_x, float p_y, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
 		/*
 			Creates the window in the center of the screen. To close it, use close().
 		
 			p_title is the text that appears in the title bar of the window (if it has a border).
-			p_width is the width of the client area in pixels.
-			p_height is the height of the client area in pixels.
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		virtual void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
 
 		/*
-			Closes the OS window and destroys it. To recreate it, use create(...).
+			Closes the window, if the GUI associated with the window allows it.
+			The animation thread will then safely destroy the window when it has terminated.
 		*/
 		virtual void close() = 0;
-
 		/*
 			Returns whether the OS window has been created and exists.
 		*/
@@ -6005,7 +6010,7 @@ namespace AvoGUI
 		/*
 			Returns the OS-specific window object associated with this window.
 		*/
-		virtual void* getWindowHandle() const = 0;
+		virtual void* getNativeHandle() const = 0;
 
 		//------------------------------
 
@@ -6804,6 +6809,36 @@ namespace AvoGUI
 		float lineHeight = 1.f;
 		float fontSize = 22.f;
 	};
+
+	//class Gradient
+	//{
+	//private:
+	//	std::vector<Color> m_colors;
+	//	std::vector<float> m_positions;
+	//	float m_angle;
+	//	bool m_isRadial;
+
+	//public:
+	//	void addStop(Color const& p_color, float p_position);
+
+	//	/*
+	//		Sets whether the gradient is radial or linear.
+	//		A radial gradient 
+	//	*/
+	//	void setIsRadial(bool p_isRadial);
+	//	bool getIsRadial();
+
+	//	/*
+	//		Sets the direction of the gradient, if it is linear.
+	//		The angle is expressed in radians.
+	//	*/
+	//	void setAngle(float p_radians);
+	//	/*
+	//		Returns the direction of the gradient, if it is linear.
+	//		The angle is expressed in radians.
+	//	*/
+	//	float getAngle();
+	//};
 
 	/*
 		An abstract drawing context, created by a GUI to be used to create objects 
@@ -7612,8 +7647,8 @@ namespace AvoGUI
 		std::vector<Rectangle<float>> m_invalidRectangles;
 
 		std::recursive_mutex m_animationThreadMutex;
-		std::thread::id m_animationThreadID;
 		bool m_hasAnimationLoopStarted;
+		bool m_willClose;
 
 		//------------------------------
 
@@ -7665,28 +7700,44 @@ namespace AvoGUI
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
 		
-			p_title is the text that appears in the title bar of the window (if it has a border).
-			p_x is the position of the left edge of the window relative to the left edge of the screen.
-			p_y is the position of the top edge of the window relative to the top edge of the screen.
-			p_width is the width of the client area in pixels.
-			p_height is the height of the client area in pixels.
+			p_title is the text that appears in the title bar of the window (if it has an OS border).
+			
+			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge 
+			of the primary monitor and the top edge of the window are aligned, and 1 means the right edges are aligned.
+			
+			p_positionFactorY is the vertical position of the window, expressed as a factor between 0 and 1, where 0 means the top edge 
+			of the primary monitor and the top edge of the window are aligned, and 1 means the bottom edges are aligned.
+			
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, is only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(char const* p_title, uint32 p_x, uint32 p_y, uint32 p_width, uint32 p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
+		void create(char const* p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
 		/*
 			LIBRARY IMPLEMENTED
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
 		
-			p_title is the text that appears in the title bar of the window (if it has a border).
-			p_width is the width of the client area in pixels.
-			p_height is the height of the client area in pixels.
+			p_title is the text that appears in the title bar of the window (if it has an OS border).
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, is only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
+		void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
+
+		//------------------------------
+
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether the GUI and its window is awaiting being closed by the animation/drawing thread.
+		*/
+		bool getWillClose()
+		{
+			return m_willClose;
+		}
 
 		//------------------------------
 
@@ -7723,6 +7774,11 @@ namespace AvoGUI
 			Sends the event down to all window listeners.
 		*/
 		void handleWindowMaximize(WindowEvent const& p_event) override;
+		/*
+			LIBRARY IMPLEMENTED
+			Sends the event down to all window listeners.
+		*/
+		void handleWindowRestore(WindowEvent const& p_event) override;
 		/*
 			LIBRARY IMPLEMENTED
 			Resizes the buffers held by the drawing context and updates the size of the GUI, as well as sends the event down to all window listeners.

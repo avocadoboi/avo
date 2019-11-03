@@ -1029,7 +1029,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void create(char const* p_title, int32 p_x, int32 p_y, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
+		void create(char const* p_title, float p_x, float p_y, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
 		{
 			if (m_windowHandle)
 			{
@@ -1042,54 +1042,65 @@ namespace AvoGUI
 				windowClass.lpszClassName = WINDOW_CLASS_NAME;
 				windowClass.hInstance = GetModuleHandle(0);
 				windowClass.lpfnWndProc = handleGlobalEvents;
-				windowClass.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+				windowClass.hbrBackground = (HBRUSH)0;
 				windowClass.hCursor = 0;
 				windowClass.style = CS_DBLCLKS;
 
 				RegisterClass(&windowClass);
 			}
 
+			//------------------------------
+
 			m_crossPlatformStyles = p_styleFlags;
 			m_styles = convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styleFlags);
 
+			// Calculate nonclient window rectangle from client size.
 			RECT windowRect = { 0, 0, p_width, p_height };
 			AdjustWindowRect(&windowRect, m_styles, 0);
 
-			m_size.set(p_width, p_height);
-			// m_windowHandle is initialized by the WM_CREATE event, before CreateWindowEx returns.
+			m_size.set(p_width, p_height); // Client area
+
+			RECT workArea;
+			SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
+
+			// m_windowHandle is initialized by the WM_CREATE event, before CreateWindow returns.
 			CreateWindow(
 				WINDOW_CLASS_NAME,
 				p_title,
 				m_styles,
-				p_x,
-				p_y,
+				windowRect.left + p_x * (workArea.right - workArea.left - windowRect.right + windowRect.left),
+				windowRect.top + p_y * (workArea.bottom - workArea.top - windowRect.bottom + windowRect.top),
 				std::ceil((windowRect.right - windowRect.left) * GetDpiForSystem()/96.f),
 				std::ceil((windowRect.bottom - windowRect.top) * GetDpiForSystem()/96.f),
-				p_parent ? (HWND)p_parent->getWindowHandle() : 0,
+				p_parent ? (HWND)p_parent->getNativeHandle() : 0,
 				0, // No menu
 				GetModuleHandle(0),
-				this // Additional window data
+				this // Additional window data - the instance
 			);
 
 			if (uint32(p_styleFlags & WindowStyleFlags::CustomBorder))
 			{
-				SetWindowPos(m_windowHandle, 0, p_x, p_y, m_size.x, m_size.y, SWP_NOZORDER);
+				SetWindowPos(
+					m_windowHandle, 0, 
+					p_x * (workArea.right - workArea.left - p_width),
+					p_y * (workArea.bottom - workArea.top - p_height),
+					m_size.x, m_size.y,
+					SWP_NOZORDER
+				);
 			}
 
 			s_numberOfWindows++;
 		}
-		void create(char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
+		void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
 		{
-			create(p_title, (GetSystemMetrics(SM_CXSCREEN) - p_width) / 2, (GetSystemMetrics(SM_CYSCREEN) - p_height) / 2, p_width, p_height, p_styleFlags, p_parent);
+			create(p_title, 0.5f, 0.5f, p_width, p_height, p_styleFlags, p_parent);
 		}
 
 		void close() override
 		{
 			if (m_windowHandle)
 			{
-				m_isOpen = false;
-				DestroyWindow(m_windowHandle);
-				m_windowHandle = 0;
+				SendMessage(m_windowHandle, WM_CLOSE, 0, 0);
 			}
 		}
 		bool getIsOpen() const override
@@ -1113,11 +1124,11 @@ namespace AvoGUI
 		//------------------------------
 
 		// Internal method used to initialize the window handle at the right moment.
-		void setWindowHandle(HWND p_handle)
+		void setNativeHandle(HWND p_handle)
 		{
 			m_windowHandle = p_handle;
 		}
-		void* getWindowHandle() const override
+		void* getNativeHandle() const override
 		{
 			return m_windowHandle;
 		}
@@ -1184,23 +1195,19 @@ namespace AvoGUI
 
 		void maximize() override
 		{
-			m_state = WindowState::Maximized;
 			ShowWindow(m_windowHandle, SW_MAXIMIZE);
 		}
 		void minimize() override
 		{
-			m_state = WindowState::Minimized;
 			ShowWindow(m_windowHandle, SW_MINIMIZE);
 		}
 		void restore() override
 		{
-			m_state = WindowState::Restored;
 			ShowWindow(m_windowHandle, SW_RESTORE);
 		}
 
 		void setState(WindowState p_state) override
 		{
-			m_state = p_state;
 			if (p_state == WindowState::Maximized)
 				ShowWindow(m_windowHandle, SW_MAXIMIZE);
 			else if (p_state == WindowState::Minimized)
@@ -1833,6 +1840,21 @@ namespace AvoGUI
 				}
 				break;
 			}
+			case WM_PAINT:
+			{
+				return 0;
+			}
+			case WM_ERASEBKGND:
+			{
+				HDC deviceContext = (HDC)p_data_a;
+
+				RECT rectangle;
+				GetUpdateRect(m_windowHandle, &rectangle, false);
+				Color color = m_GUI->getDrawingContext()->getBackgroundColor();
+				FillRect(deviceContext, &rectangle, CreateSolidBrush(RGB(color.red * 255, color.green * 255, color.blue * 255)));
+
+				return 1; // We erased it.
+			}
 			//case WM_WINDOWPOSCHANGING:
 			//{
 			//	if (uint32(m_crossPlatformStyles & WindowStyleFlags::CustomBorder))
@@ -1981,10 +2003,10 @@ namespace AvoGUI
 						m_GUI->handleWindowMaximize(windowEvent);
 						m_state = WindowState::Maximized;
 					}
-					else if (p_data_a == SIZE_RESTORED)
+					else if (p_data_a == SIZE_RESTORED && m_state != WindowState::Restored)
 					{
+						m_GUI->handleWindowRestore(windowEvent);
 						m_state = WindowState::Restored;
-
 					}
 					m_GUI->handleWindowSizeChange(windowEvent);
 				}
@@ -2329,15 +2351,21 @@ namespace AvoGUI
 			}
 			case WM_CLOSE:
 			{
-				WindowEvent windowEvent;
-				windowEvent.window = this;
-				m_GUI->excludeAnimationThread();
-				bool willClose = m_GUI->handleWindowClose(windowEvent);
-				m_GUI->includeAnimationThread();
-				if (willClose)
+				if (m_GUI->getWillClose())
 				{
-					close();
+					m_isOpen = false;
+					DestroyWindow(m_windowHandle);
+					m_windowHandle = 0;
 				}
+				else
+				{
+					WindowEvent windowEvent;
+					windowEvent.window = this;
+					m_GUI->excludeAnimationThread();
+					m_GUI->handleWindowClose(windowEvent);
+					m_GUI->includeAnimationThread();
+				}
+
 				return 0;
 			}
 			case WM_DESTROY:
@@ -2365,7 +2393,7 @@ namespace AvoGUI
 			{
 				window = (WindowsWindow*)((CREATESTRUCT*)p_data_b)->lpCreateParams;
 				SetWindowLongPtr(p_windowHandle, GWLP_USERDATA, (LONG_PTR)window);
-				window->setWindowHandle(p_windowHandle);
+				window->setNativeHandle(p_windowHandle);
 			}
 			else
 			{
@@ -3813,12 +3841,12 @@ namespace AvoGUI
 			swapChainDescription.Flags = 0;
 
 			dxgiFactory->CreateSwapChainForHwnd(
-				d3dDevice, (HWND)p_window->getWindowHandle(),
+				d3dDevice, (HWND)p_window->getNativeHandle(),
 				&swapChainDescription, 0,
 				0, &m_swapChain
 			);
 
-			dxgiFactory->MakeWindowAssociation((HWND)p_window->getWindowHandle(), DXGI_MWA_NO_WINDOW_CHANGES);
+			dxgiFactory->MakeWindowAssociation((HWND)p_window->getNativeHandle(), DXGI_MWA_NO_WINDOW_CHANGES);
 
 			//------------------------------
 			// Create a target bitmap which is connected to the back buffer of the window.
@@ -3905,19 +3933,25 @@ namespace AvoGUI
 			if (m_solidColorBrush)
 			{
 				m_solidColorBrush->Release();
+				m_solidColorBrush = 0;
 			}
 			if (m_targetWindowBitmap)
 			{
 				m_targetWindowBitmap->Release();
+				m_targetWindowBitmap = 0;
 			}
 			if (m_swapChain)
 			{
 				m_swapChain->Release();
+				m_swapChain = 0;
 			}
 			if (m_context)
 			{
 				m_context->Release();
+				m_context = 0;
 			}
+
+			destroyStaticResources();
 		}
 
 		//------------------------------
@@ -3959,6 +3993,8 @@ namespace AvoGUI
 			}
 			else
 			{
+				// Just triggers a buffer swap.
+
 				RECT rect = { 0, 0,	1, 1 };
 				DXGI_PRESENT_PARAMETERS presentParameters;
 				presentParameters.DirtyRectsCount = 1;
@@ -4021,10 +4057,9 @@ namespace AvoGUI
 			{
 				DXGI_RGBA color;
 				m_swapChain->GetBackgroundColor(&color);
-
 				return Color(color.r, color.g, color.b, color.a);
 			}
-			return Color(0.5f, 0.5f, 0.5f);
+			return Color(0.5f);
 		}
 
 		//------------------------------
@@ -4212,12 +4247,6 @@ namespace AvoGUI
 			// Release the old target bitmap
 			m_context->SetTarget(0);
 			m_targetWindowBitmap->Release();
-
-			//IDXGISurface* dxgiBackBuffer;
-			//m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
-			//DXGI_SURFACE_DESC description;
-			//dxgiBackBuffer->GetDesc(&description);
-			//dxgiBackBuffer->Release();
 
 			// Resize buffers, creating new ones
 			m_swapChain->ResizeBuffers(0, p_width, p_height, DXGI_FORMAT_UNKNOWN, 0);
@@ -5509,22 +5538,18 @@ namespace AvoGUI
 	FontCollectionLoader* WindowsDrawingContext::s_fontCollectionLoader = 0;
 	FontFileLoader* WindowsDrawingContext::s_fontFileLoader = 0;
 	IWICImagingFactory2* WindowsDrawingContext::s_imagingFactory = 0;
+#endif
+#pragma endregion
 
 	void runAnimationLoop(GUI* p_gui)
 	{
-		HWND windowHandle = (HWND)p_gui->getWindow()->getWindowHandle();
-
 		int32 syncInterval = 16666667;
 		auto timeBefore = std::chrono::steady_clock::now();
 
 		bool wasLastFrameDrawn = false;
 
-		while (p_gui->getWindow() && p_gui->getWindow()->getIsOpen())
+		while (!p_gui->getWillClose())
 		{
-			//if (p_gui->getHasNewWindowSize())
-			//{
-			//	p_gui->getDrawingContext()->disableVsync();
-			//}
 			p_gui->updateQueuedAnimations();
 
 			if (p_gui->getNeedsRedrawing())
@@ -5533,10 +5558,9 @@ namespace AvoGUI
 
 				wasLastFrameDrawn = true;
 
-				if (p_gui->getDrawingContext() && !p_gui->getDrawingContext()->getIsVsyncEnabled())
+				if (!p_gui->getDrawingContext()->getIsVsyncEnabled())
 				{
 					std::this_thread::sleep_for(std::chrono::nanoseconds(syncInterval));
-					//p_gui->getDrawingContext()->enableVsync();
 				}
 			}
 			else
@@ -5555,10 +5579,10 @@ namespace AvoGUI
 			syncInterval = max(1000000, syncInterval + (16666667 - (timeAfter - timeBefore).count()) / 10);
 			timeBefore = timeAfter;
 		}
-	}
 
-#endif
-#pragma endregion
+		// This will cause window to be destroyed, because p_gui->getWillClose() is true.
+		p_gui->getWindow()->close();
+	}
 
 	//------------------------------
 	// class GUI
@@ -5648,7 +5672,7 @@ namespace AvoGUI
 	GUI::GUI() :
 		View(0, Rectangle<float>(0, 0, 0, 0)), 
 		m_window(0), m_drawingContext(0),
-		m_hasNewWindowSize(false), m_hasAnimationLoopStarted(false),
+		m_hasNewWindowSize(false), m_hasAnimationLoopStarted(false), m_willClose(false),
 		m_tooltip(0),
 		m_keyboardFocus(0)
 	{
@@ -5684,20 +5708,18 @@ namespace AvoGUI
 			m_drawingContext->forget();
 			m_drawingContext = 0;
 		}
-#ifdef _WIN32
-		WindowsDrawingContext::destroyStaticResources();
-#endif
 	}
 
-	void GUI::create(char const* p_title, uint32 p_x, uint32 p_y, uint32 p_width, uint32 p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
+	void GUI::create(char const* p_title, float p_x, float p_y, float p_width, float p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
 	{
 		m_bounds = Rectangle<float>(0, 0, p_width, p_height);
 		setAbsoluteBounds(m_bounds);
-		m_window->create(p_title, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
+		m_window->create(p_title, p_x, p_y, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
 	}
-	void GUI::create(char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
+	void GUI::create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
 	{
 		m_bounds = Rectangle<float>(0, 0, p_width, p_height);
+		setAbsoluteBounds(m_bounds);
 		m_window->create(p_title, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
 	}
 
@@ -5766,27 +5788,28 @@ namespace AvoGUI
 				willClose = false;
 			}
 		}
-		if (willClose)
-		{
-			for (View* listener : m_pressedMouseEventListeners)
-			{
-				listener->forget();
-			}
-		}
-		return willClose;
+		m_willClose = willClose;
+		return false; // Doesn't matter here.
 	}
 	void GUI::handleWindowMinimize(WindowEvent const& p_event)
 	{
-		for (auto listener : m_windowEventListeners)
+		for (WindowListener* listener : m_windowEventListeners)
 		{
 			listener->handleWindowMinimize(p_event);
 		}
 	}
 	void GUI::handleWindowMaximize(WindowEvent const& p_event)
 	{
-		for (auto listener : m_windowEventListeners)
+		for (WindowListener* listener : m_windowEventListeners)
 		{
 			listener->handleWindowMaximize(p_event);
+		}
+	}
+	void GUI::handleWindowRestore(WindowEvent const& p_event)
+	{
+		for (WindowListener* listener : m_windowEventListeners)
+		{
+			listener->handleWindowRestore(p_event);
 		}
 	}
 	void GUI::handleWindowSizeChange(WindowEvent const& p_event)
@@ -5799,12 +5822,11 @@ namespace AvoGUI
 			listener->handleWindowSizeChange(p_event);
 		}
 
-		if (!m_hasAnimationLoopStarted && m_drawingContext)
+		if (!m_hasAnimationLoopStarted)
 		{
 			m_hasAnimationLoopStarted = true;
 
 			std::thread animationThread(runAnimationLoop, this);
-			m_animationThreadID = animationThread.get_id();
 			animationThread.detach();
 		}
 	}
@@ -6508,6 +6530,8 @@ namespace AvoGUI
 	}
 
 	//------------------------------
+	// class OpenFileDialog
+	//------------------------------
 
 	void OpenFileDialog::open(std::vector<std::wstring>& p_openedFilePaths)
 	{
@@ -6540,7 +6564,7 @@ namespace AvoGUI
 			dialog->SetOptions(options | FOS_ALLOWMULTISELECT);
 		}
 
-		HRESULT result = dialog->Show(HWND(m_gui ? m_gui->getWindow()->getWindowHandle() : 0));
+		HRESULT result = dialog->Show(HWND(m_gui ? m_gui->getWindow()->getNativeHandle() : 0));
 
 		if (SUCCEEDED(result))
 		{
@@ -6615,7 +6639,7 @@ namespace AvoGUI
 			dialog->SetOptions(options | FOS_ALLOWMULTISELECT);
 		}
 
-		HRESULT result = dialog->Show(HWND(m_gui ? m_gui->getWindow()->getWindowHandle() : 0));
+		HRESULT result = dialog->Show(HWND(m_gui ? m_gui->getWindow()->getNativeHandle() : 0));
 
 		if (SUCCEEDED(result))
 		{
