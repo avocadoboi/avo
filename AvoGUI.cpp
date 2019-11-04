@@ -1840,10 +1840,6 @@ namespace AvoGUI
 				}
 				break;
 			}
-			case WM_PAINT:
-			{
-				return 0;
-			}
 			case WM_ERASEBKGND:
 			{
 				HDC deviceContext = (HDC)p_data_a;
