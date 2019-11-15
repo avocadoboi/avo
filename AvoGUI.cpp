@@ -14,9 +14,9 @@
 #include <windowsx.h>
 #include <ShObjIdl.h>
 #include <d2d1effects.h>
-#include <d2d1.h>
-#include <d2d1_1.h>
-#include <d2d1_1helper.h>
+//#include <d2d1.h>
+#include <d2d1_2.h>
+#include <d2d1_2helper.h>
 #include <d3d11.h>
 #include <d3d11_1.h>
 #include <dwrite.h>
@@ -2412,7 +2412,7 @@ namespace AvoGUI
 #endif
 #pragma endregion
 
-	class WindowsImage : public Image
+	class Direct2DImage : public Image
 	{
 	private:
 		ID2D1Bitmap* m_image;
@@ -2425,14 +2425,14 @@ namespace AvoGUI
 		float m_opacity;
 
 	public:
-		WindowsImage(ID2D1Bitmap* p_image) :
+		Direct2DImage(ID2D1Bitmap* p_image) :
 			m_image(p_image), m_scalingMethod(ImageScalingMethod::Smooth), m_boundsSizing(ImageBoundsSizing::Stretch),
 			m_boundsPositioning(0.5f, 0.5f), m_cropRectangle(0.f, 0.f, p_image->GetSize().width, p_image->GetSize().height),
 			m_opacity(1.f)
 		{
 			m_bounds = m_cropRectangle;
 		}
-		~WindowsImage()
+		~Direct2DImage()
 		{
 			m_image->Release();
 		}
@@ -2575,7 +2575,7 @@ namespace AvoGUI
 
 	//------------------------------
 
-	class WindowsText : public Text
+	class DirectWriteText : public Text
 	{
 	private:
 		IDWriteTextLayout1* m_handle;
@@ -2591,7 +2591,7 @@ namespace AvoGUI
 		}
 
 	public:
-		WindowsText(IDWriteTextLayout1* p_handle, std::string const& p_string, Rectangle<float> const& p_bounds) :
+		DirectWriteText(IDWriteTextLayout1* p_handle, std::string const& p_string, Rectangle<float> const& p_bounds) :
 			m_handle(p_handle), m_string(p_string), m_isTopTrimmed(false)
 		{
 			m_bounds = p_bounds;
@@ -2605,7 +2605,7 @@ namespace AvoGUI
 				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_EMERGENCY_BREAK);
 			}
 		}
-		~WindowsText()
+		~DirectWriteText()
 		{
 			m_handle->Release();
 		}
@@ -3579,11 +3579,67 @@ namespace AvoGUI
 		}
 	};
 
+	//------------------------------
+
+	class Direct2DGeometry : 
+		public Geometry
+	{
+	private:
+		ID2D1Geometry* m_geometry;
+		ID2D1GeometryRealization* m_strokedRealization;
+		ID2D1GeometryRealization* m_filledRealization;
+
+	public:
+		Direct2DGeometry(ID2D1Geometry* p_geometry) :
+			m_geometry(p_geometry), m_strokedRealization(0), m_filledRealization(0)
+		{
+		}
+		~Direct2DGeometry()
+		{
+			if (m_strokedRealization)
+			{
+				m_strokedRealization->Release();
+			}
+			if (m_filledRealization)
+			{
+				m_filledRealization->Release();
+			}
+			if (m_geometry)
+			{
+				m_geometry->Release();
+			}
+		}
+
+		void setStrokedRealization(ID2D1GeometryRealization* p_realization)
+		{
+			m_strokedRealization = p_realization;
+		}
+		void setFilledRealization(ID2D1GeometryRealization* p_realization)
+		{
+			m_strokedRealization = p_realization;
+		}
+
+		ID2D1Geometry* getGeometry()
+		{
+			return m_geometry;
+		}
+		ID2D1GeometryRealization* getStrokedRealization()
+		{
+			return m_strokedRealization;
+		}
+		ID2D1GeometryRealization* getFilledRealization()
+		{
+			return m_filledRealization;
+		}
+	};
+
+	//------------------------------
+
 	class WindowsDrawingContext : public DrawingContext
 	{
 	public:
 		static IWICImagingFactory2* s_imagingFactory;
-		static ID2D1Factory1* s_direct2DFactory;
+		static ID2D1Factory2* s_direct2DFactory;
 		static IDWriteFactory1* s_directWriteFactory;
 
 		static FontCollectionLoader* s_fontCollectionLoader;
@@ -3671,13 +3727,14 @@ namespace AvoGUI
 	private:
 		Window* m_window;
 
-		ID2D1DeviceContext* m_context;
+		ID2D1DeviceContext1* m_context;
 		IDXGISwapChain1* m_swapChain;
 		ID2D1Bitmap1* m_targetWindowBitmap;
 		bool m_isVsyncEnabled;
 
 		ID2D1SolidColorBrush* m_solidColorBrush;
-		D2D1_STROKE_STYLE_PROPERTIES m_strokeStyle;
+		D2D1_STROKE_STYLE_PROPERTIES1 m_strokeStyleProperties;
+		ID2D1StrokeStyle1* m_strokeStyle;
 		Point<float> m_scale;
 
 		IDWriteTextFormat* m_textFormat;
@@ -3747,6 +3804,14 @@ namespace AvoGUI
 			sink->Close();
 			sink->Release();
 		}
+		void updateStrokeStyle()
+		{
+			if (m_strokeStyle)
+			{
+				m_strokeStyle->Release();
+			}
+			s_direct2DFactory->CreateStrokeStyle(m_strokeStyleProperties, 0, 0, &m_strokeStyle);
+		}
 
 		void updateFontCollection()
 		{
@@ -3756,6 +3821,41 @@ namespace AvoGUI
 			}
 			std::vector<FontData*>* fontDataPointer = &m_fontData;
 			s_directWriteFactory->CreateCustomFontCollection(s_fontCollectionLoader, &fontDataPointer, sizeof(std::vector<FontData*>*), &m_fontCollection);
+		}
+
+		void realizeStrokedGeometry(Direct2DGeometry* p_geometry, float p_strokeWidth)
+		{
+			if (!p_geometry->getStrokedRealization())
+			{
+				D2D1_MATRIX_3X2_F transform;
+				m_context->GetTransform(&transform);
+
+				float dpiX = 96.f;
+				float dpiY = 96.f;
+				m_context->GetDpi(&dpiX, &dpiY);
+
+				ID2D1GeometryRealization* geometryRealization = 0;
+				m_context->CreateStrokedGeometryRealization(p_geometry->getGeometry(), D2D1::ComputeFlatteningTolerance(transform, dpiX, dpiY), p_strokeWidth, m_strokeStyle, &geometryRealization);
+
+				p_geometry->setStrokedRealization(geometryRealization);
+			}
+		}
+		void realizeFilledGeometry(Direct2DGeometry* p_geometry)
+		{
+			if (!p_geometry->getFilledRealization())
+			{
+				D2D1_MATRIX_3X2_F transform;
+				m_context->GetTransform(&transform);
+
+				float dpiX = 96.f;
+				float dpiY = 96.f;
+				m_context->GetDpi(&dpiX, &dpiY);
+
+				ID2D1GeometryRealization* geometryRealization = 0;
+				m_context->CreateFilledGeometryRealization(p_geometry->getGeometry(), D2D1::ComputeFlatteningTolerance(transform, dpiX, dpiY), &geometryRealization);
+
+				p_geometry->setFilledRealization(geometryRealization);
+			}
 		}
 
 	public:
@@ -3816,7 +3916,7 @@ namespace AvoGUI
 			//------------------------------
 			// Create Direct2D device and device context.
 
-			ID2D1Device* direct2DDevice = 0;
+			ID2D1Device1* direct2DDevice = 0;
 			s_direct2DFactory->CreateDevice(dxgiDevice, &direct2DDevice);
 			direct2DDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_ENABLE_MULTITHREADED_OPTIMIZATIONS, &m_context);
 
@@ -3882,13 +3982,15 @@ namespace AvoGUI
 
 			m_context->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), &m_solidColorBrush);
 
-			m_strokeStyle.dashCap = D2D1_CAP_STYLE_FLAT;
-			m_strokeStyle.dashOffset = 1.f;
-			m_strokeStyle.dashStyle = D2D1_DASH_STYLE_SOLID;
-			m_strokeStyle.lineJoin = D2D1_LINE_JOIN_ROUND;
-			m_strokeStyle.miterLimit = 0.f;
-			m_strokeStyle.startCap = D2D1_CAP_STYLE_FLAT;
-			m_strokeStyle.endCap = D2D1_CAP_STYLE_FLAT;
+			m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE_FLAT;
+			m_strokeStyleProperties.dashOffset = 1.f;
+			m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE_SOLID;
+			m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN_ROUND;
+			m_strokeStyleProperties.miterLimit = 0.f;
+			m_strokeStyleProperties.startCap = D2D1_CAP_STYLE_FLAT;
+			m_strokeStyleProperties.endCap = D2D1_CAP_STYLE_FLAT;
+
+			updateStrokeStyle();
 
 			//------------------------------
 			// Create text stuff
@@ -3930,6 +4032,11 @@ namespace AvoGUI
 			{
 				m_solidColorBrush->Release();
 				m_solidColorBrush = 0;
+			}
+			if (m_strokeStyle)
+			{
+				m_strokeStyle->Release();
+				m_strokeStyle = 0;
 			}
 			if (m_targetWindowBitmap)
 			{
@@ -4380,17 +4487,12 @@ namespace AvoGUI
 		}
 		void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth = 1.f) override
 		{
-			ID2D1StrokeStyle* strokeStyle;
-			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
-
 			m_context->DrawRectangle(
 				D2D1::RectF(
 					p_left, p_top, p_right, p_bottom
 				), m_solidColorBrush,
-				p_strokeWidth, strokeStyle
+				p_strokeWidth, m_strokeStyle
 			);
-
-			strokeStyle->Release();
 		}
 		void strokeRectangle(Point<float> const& p_size, float p_strokeWidth = 1.f) override
 		{
@@ -4411,9 +4513,6 @@ namespace AvoGUI
 		}
 		void strokeRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_strokeWidth = 1.f) override
 		{
-			ID2D1StrokeStyle* strokeStyle;
-			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
-
 			m_context->DrawRoundedRectangle(
 				D2D1::RoundedRect(
 					D2D1::RectF(
@@ -4421,10 +4520,8 @@ namespace AvoGUI
 						p_right, p_bottom
 					), p_radius, p_radius
 				), m_solidColorBrush,
-				p_strokeWidth, strokeStyle
+				p_strokeWidth, m_strokeStyle
 			);
-
-			strokeStyle->Release();
 		}
 		void strokeRoundedRectangle(Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) override
 		{
@@ -4449,10 +4546,7 @@ namespace AvoGUI
 			s_direct2DFactory->CreatePathGeometry(&pathGeometry);
 			createCornerRectangleGeometry(pathGeometry, p_left, p_top, p_right, p_bottom, p_corners, false);
 
-			ID2D1StrokeStyle* strokeStyle;
-			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
-			m_context->DrawGeometry(pathGeometry, m_solidColorBrush, p_strokeWidth, strokeStyle);
-			strokeStyle->Release();
+			m_context->DrawGeometry(pathGeometry, m_solidColorBrush, p_strokeWidth, m_strokeStyle);
 
 			pathGeometry->Release();
 		}
@@ -4487,18 +4581,13 @@ namespace AvoGUI
 		};
 		void strokeCircle(float p_x, float p_y, float p_radius, float p_strokeWidth = 1.f)
 		{
-			ID2D1StrokeStyle* strokeStyle;
-			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
-
 			m_context->DrawEllipse(
 				D2D1::Ellipse(
 					D2D1::Point2F(p_x, p_y),
 					p_radius, p_radius
 				), m_solidColorBrush,
-				p_strokeWidth, strokeStyle
+				p_strokeWidth, m_strokeStyle
 			);
-
-			strokeStyle->Release();
 		}
 
 		//------------------------------
@@ -4509,17 +4598,12 @@ namespace AvoGUI
 		}
 		void drawLine(float p_x0, float p_y0, float p_x1, float p_y1, float p_thickness = 1.f) override
 		{
-			ID2D1StrokeStyle* strokeStyle;
-			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
-
 			m_context->DrawLine(
 				D2D1::Point2F(p_x0, p_y0),
 				D2D1::Point2F(p_x1, p_y1),
 				m_solidColorBrush,
-				p_thickness, strokeStyle
+				p_thickness, m_strokeStyle
 			);
-
-			strokeStyle->Release();
 		}
 
 		//------------------------------
@@ -4545,10 +4629,7 @@ namespace AvoGUI
 
 			sink->Close();
 
-			ID2D1StrokeStyle* strokeStyle;
-			s_direct2DFactory->CreateStrokeStyle(m_strokeStyle, 0, 0, &strokeStyle);
-			m_context->DrawGeometry(path, m_solidColorBrush, p_lineThickness, strokeStyle);
-			strokeStyle->Release();
+			m_context->DrawGeometry(path, m_solidColorBrush, p_lineThickness, m_strokeStyle);
 
 			sink->Release();
 			path->Release();
@@ -4591,64 +4672,174 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void strokeGeometry(Geometry* p_geometry, float p_strokeWidth) override
+		{
+			if (!((Direct2DGeometry*)p_geometry)->getStrokedRealization())
+			{
+				realizeStrokedGeometry((Direct2DGeometry*)p_geometry, p_strokeWidth);
+			}
+			m_context->DrawGeometryRealization(((Direct2DGeometry*)p_geometry)->getStrokedRealization(), m_solidColorBrush);
+		}
+		void fillGeometry(Geometry* p_geometry) override
+		{
+			if (!((Direct2DGeometry*)p_geometry)->getStrokedRealization())
+			{
+				realizeFilledGeometry((Direct2DGeometry*)p_geometry);
+			}
+			m_context->DrawGeometryRealization(((Direct2DGeometry*)p_geometry)->getStrokedRealization(), m_solidColorBrush);
+		}
+
+		//------------------------------
+
+		Geometry* createRoundedRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
+		{
+			ID2D1RoundedRectangleGeometry* geometry;
+			s_direct2DFactory->CreateRoundedRectangleGeometry(
+				D2D1::RoundedRect(
+					D2D1::RectF(p_left, p_top, p_right, p_bottom),
+					p_radius, p_radius
+				), &geometry
+			);
+
+			return new Direct2DGeometry((ID2D1Geometry*)geometry);
+		}
+		Geometry* createRoundedRectangleGeometry(Point<float> const& p_position, Point<float> const& p_size, float p_radius) override
+		{
+			return createRoundedRectangleGeometry(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_radius);
+		}
+		Geometry* createRoundedRectangleGeometry(Rectangle<float> const& p_rectangle, float p_radius) override
+		{
+			return createRoundedRectangleGeometry(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius);
+		}
+		Geometry* createRoundedRectangleGeometry(float p_width, float p_height, float p_radius) override
+		{
+			return createRoundedRectangleGeometry(0.f, 0.f, p_width, p_height, p_radius);
+		}
+		Geometry* createRoundedRectangleGeometry(Point<float> const& p_size, float p_radius) override
+		{
+			return createRoundedRectangleGeometry(0.f, 0.f, p_size.x, p_size.y, p_radius);
+		}
+
+		Geometry* createCornerRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners) override
+		{
+			ID2D1PathGeometry1* pathGeometry = 0;
+			s_direct2DFactory->CreatePathGeometry(&pathGeometry);
+			createCornerRectangleGeometry(pathGeometry, p_left, p_top, p_right, p_bottom, p_corners, true);
+
+			return new Direct2DGeometry((ID2D1Geometry*)pathGeometry);
+		}
+		Geometry* createCornerRectangleGeometry(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_corners)
+		{
+			return createCornerRectangleGeometry(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_corners);
+		}
+		Geometry* createCornerRectangleGeometry(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners)
+		{
+			return createCornerRectangleGeometry(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners);
+		}
+		Geometry* createCornerRectangleGeometry(float p_width, float p_height, RectangleCorners const& p_corners)
+		{
+			return createCornerRectangleGeometry(0.f, 0.f, p_width, p_height, p_corners);
+		}
+		Geometry* createCornerRectangleGeometry(Point<float> const& p_size, RectangleCorners const& p_corners)
+		{
+			return createCornerRectangleGeometry(0.f, 0.f, p_size.x, p_size.y, p_corners);
+		}
+
+		//------------------------------
+
+		Geometry* createPolygonGeometry(std::vector<Point<float>> const& p_vertices) override
+		{
+			return createPolygonGeometry(p_vertices.data(), p_vertices.size());
+		}
+		Geometry* createPolygonGeometry(Point<float> const* p_vertices, uint32 p_numberOfVertices) override
+		{
+			if (!p_numberOfVertices)
+			{
+				return 0;
+			}
+
+			ID2D1PathGeometry1* path;
+			s_direct2DFactory->CreatePathGeometry(&path);
+			
+			ID2D1GeometrySink* sink;
+			path->Open(&sink);
+
+			sink->BeginFigure(D2D1::Point2F(p_vertices[0].x, p_vertices[0].y), D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_FILLED);
+			for (uint32 a = 1; a < p_numberOfVertices; a++)
+			{
+				sink->AddLine(D2D1::Point2F(p_vertices[a].x, p_vertices[a].y));
+			}
+			sink->EndFigure(D2D1_FIGURE_END::D2D1_FIGURE_END_CLOSED);
+
+			sink->Close();
+			sink->Release();
+
+			return new Direct2DGeometry(path);
+		}
+
+		//------------------------------
+
 		void setLineCap(LineCap p_lineCap) override
 		{
 			switch (p_lineCap)
 			{
 			case LineCap::Flat:
-				m_strokeStyle.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
-				m_strokeStyle.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
-				return;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				break;
 			case LineCap::Round:
-				m_strokeStyle.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
-				m_strokeStyle.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
-				return;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				break;
 			case LineCap::Square:
-				m_strokeStyle.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
-				m_strokeStyle.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
-				return;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				break;
 			case LineCap::Triangle:
-				m_strokeStyle.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
-				m_strokeStyle.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
 			}
+			updateStrokeStyle();
 		}
 		void setStartLineCap(LineCap p_lineCap) override
 		{
 			switch (p_lineCap)
 			{
 			case LineCap::Flat:
-				m_strokeStyle.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
-				return;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				break;
 			case LineCap::Round:
-				m_strokeStyle.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
-				return;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				break;
 			case LineCap::Square:
-				m_strokeStyle.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
-				return;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				break;
 			case LineCap::Triangle:
-				m_strokeStyle.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
 			}
+			updateStrokeStyle();
 		}
 		void setEndLineCap(LineCap p_lineCap) override
 		{
 			switch (p_lineCap)
 			{
 			case LineCap::Flat:
-				m_strokeStyle.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
-				return;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				break;
 			case LineCap::Round:
-				m_strokeStyle.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
-				return;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				break;
 			case LineCap::Square:
-				m_strokeStyle.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
-				return;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				break;
 			case LineCap::Triangle:
-				m_strokeStyle.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
 			}
+			updateStrokeStyle();
 		}
 		LineCap getStartLineCap() override
 		{
-			switch (m_strokeStyle.startCap)
+			switch (m_strokeStyleProperties.startCap)
 			{
 			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT:
 				return LineCap::Flat;
@@ -4663,7 +4854,7 @@ namespace AvoGUI
 		}
 		LineCap getEndLineCap() override
 		{
-			switch (m_strokeStyle.endCap)
+			switch (m_strokeStyleProperties.endCap)
 			{
 			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT:
 				return LineCap::Flat;
@@ -4684,19 +4875,20 @@ namespace AvoGUI
 			switch (p_lineJoin)
 			{
 			case LineJoin::Bevel:
-				m_strokeStyle.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_BEVEL;
+				m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_BEVEL;
 				break;
 			case LineJoin::Miter:
-				m_strokeStyle.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_MITER;
+				m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_MITER;
 				break;
 			case LineJoin::Round:
-				m_strokeStyle.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_ROUND;
+				m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_ROUND;
 				break;
 			}
+			updateStrokeStyle();
 		}
 		LineJoin getLineJoin() override
 		{
-			switch (m_strokeStyle.lineJoin)
+			switch (m_strokeStyleProperties.lineJoin)
 			{
 			case D2D1_LINE_JOIN::D2D1_LINE_JOIN_BEVEL:
 				return LineJoin::Bevel;
@@ -4710,11 +4902,12 @@ namespace AvoGUI
 
 		void setLineJoinMiterLimit(float p_miterLimit) override
 		{
-			m_strokeStyle.miterLimit = p_miterLimit;
+			m_strokeStyleProperties.miterLimit = p_miterLimit;
+			updateStrokeStyle();
 		}
 		float getLineJoinMiterLimit() override
 		{
-			return m_strokeStyle.miterLimit;
+			return m_strokeStyleProperties.miterLimit;
 		}
 
 		//------------------------------
@@ -4724,27 +4917,28 @@ namespace AvoGUI
 			switch (p_dashStyle)
 			{
 			case LineDashStyle::Solid:
-				m_strokeStyle.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_SOLID;
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_SOLID;
 				break;
 			case LineDashStyle::Dash:
-				m_strokeStyle.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH;
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH;
 				break;
 			case LineDashStyle::Dot:
-				m_strokeStyle.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DOT;
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DOT;
 				break;
 			case LineDashStyle::DashDot:
-				m_strokeStyle.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT;
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT;
 				break;
 			case LineDashStyle::DashDotDot:
-				m_strokeStyle.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT_DOT;
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT_DOT;
 				break;
 			case LineDashStyle::Custom:
-				m_strokeStyle.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_CUSTOM;
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_CUSTOM;
 			}
+			updateStrokeStyle();
 		}
 		LineDashStyle getLineDashStyle() override
 		{
-			switch (m_strokeStyle.dashStyle)
+			switch (m_strokeStyleProperties.dashStyle)
 			{
 			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_SOLID:
 				return LineDashStyle::Solid;
@@ -4763,11 +4957,12 @@ namespace AvoGUI
 
 		void setLineDashOffset(float p_dashOffset) override
 		{
-			m_strokeStyle.dashOffset = p_dashOffset;
+			m_strokeStyleProperties.dashOffset = p_dashOffset;
+			updateStrokeStyle();
 		}
 		float getLineDashOffset() override
 		{
-			return m_strokeStyle.dashOffset;
+			return m_strokeStyleProperties.dashOffset;
 		}
 
 		void setLineDashCap(LineCap p_dashCap) override
@@ -4775,21 +4970,22 @@ namespace AvoGUI
 			switch (p_dashCap)
 			{
 			case LineCap::Flat:
-				m_strokeStyle.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
 				break;
 			case LineCap::Round:
-				m_strokeStyle.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
 				break;
 			case LineCap::Square:
-				m_strokeStyle.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
 				break;
 			case LineCap::Triangle:
-				m_strokeStyle.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
 			}
+			updateStrokeStyle();
 		}
 		LineCap getLineDashCap() override
 		{
-			switch (m_strokeStyle.dashCap)
+			switch (m_strokeStyleProperties.dashCap)
 			{
 			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT:
 				return LineCap::Flat;
@@ -4800,6 +4996,13 @@ namespace AvoGUI
 			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE:
 				return LineCap::Triangle;
 			}
+		}
+
+		//------------------------------
+
+		void pushClipGeometry(Geometry* p_geometry) override
+		{
+			m_context->PushLayer(D2D1::LayerParameters1(D2D1::InfiniteRect(), ((Direct2DGeometry*)p_geometry)->getGeometry()), 0);
 		}
 
 		//------------------------------
@@ -4831,11 +5034,8 @@ namespace AvoGUI
 			sink->Close();
 			sink->Release();
 
-			ID2D1Layer* layer;
-			m_context->CreateLayer(&layer);
-			m_context->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE), layer);
+			m_context->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geometry), 0);
 
-			layer->Release();
 			geometry->Release();
 		}
 		void popClipShape() override
@@ -4845,7 +5045,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom)
+		void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom) override
 		{
 			m_context->PushAxisAlignedClip(D2D1::RectF(p_left, p_top, p_right, p_bottom), D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
 		}
@@ -4874,10 +5074,7 @@ namespace AvoGUI
 
 			createCornerRectangleGeometry(geometry, p_left, p_top, p_right, p_bottom, p_corners, true);
 
-			ID2D1Layer* layer;
-			m_context->CreateLayer(&layer);
-			m_context->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE), layer);
-			layer->Release();
+			m_context->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE), 0);
 
 			geometry->Release();
 		}
@@ -4920,10 +5117,6 @@ namespace AvoGUI
 		void pushRoundedClipRectangle(Point<float> const& p_size, float p_radius) override
 		{
 			pushRoundedClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_radius);
-		}
-		void popRoundedClipRectangle() override
-		{
-			m_context->PopLayer();
 		}
 
 		//------------------------------
@@ -5060,7 +5253,7 @@ namespace AvoGUI
 
 			delete[] pixels;
 
-			return new WindowsImage(outputBitmap);
+			return new Direct2DImage(outputBitmap);
 			*/
 
 			if (!p_width || !p_height || !p_color.alpha) return 0;
@@ -5126,7 +5319,7 @@ namespace AvoGUI
 			shadowEffect->Release();
 			inputBitmap->Release();
 
-			return new WindowsImage(outputBitmap);
+			return new Direct2DImage(outputBitmap);
 		}
 		Image* createRectangleShadowImage(Point<uint32> const& p_size, RectangleCorners const& p_corners, float p_blur, Color const& p_color) override
 		{
@@ -5199,7 +5392,7 @@ namespace AvoGUI
 			shadowEffect->Release();
 			inputBitmap->Release();
 
-			return new WindowsImage(outputBitmap);
+			return new Direct2DImage(outputBitmap);
 		}
 
 		Image* createRoundedRectangleShadowImage(Point<uint32> const& p_size, float p_radius, float p_blur, Color const& p_color)
@@ -5273,7 +5466,7 @@ namespace AvoGUI
 			shadowEffect->Release();
 			inputBitmap->Release();
 
-			return new WindowsImage(outputBitmap);
+			return new Direct2DImage(outputBitmap);
 		}
 
 		//------------------------------
@@ -5289,7 +5482,7 @@ namespace AvoGUI
 					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
 				), &bitmap
 			);
-			return new WindowsImage(bitmap);
+			return new Direct2DImage(bitmap);
 		}
 		Image* createImage(void const* p_imageData, uint32 p_size) override
 		{
@@ -5315,7 +5508,7 @@ namespace AvoGUI
 			decoder->Release();
 			stream->Release();
 
-			return new WindowsImage(bitmap);
+			return new Direct2DImage(bitmap);
 		}
 		Image* createImage(char const* p_filePath) override
 		{
@@ -5343,7 +5536,7 @@ namespace AvoGUI
 			frame->Release();
 			decoder->Release();
 
-			return new WindowsImage(bitmap);
+			return new Direct2DImage(bitmap);
 		}
 		Image* createImage(void* p_handle) override
 		{
@@ -5352,6 +5545,10 @@ namespace AvoGUI
 
 			if (result < 0)
 			{
+				if (wicBitmap)
+				{
+					wicBitmap->Release();
+				}
 				result = s_imagingFactory->CreateBitmapFromHBITMAP((HBITMAP)p_handle, 0, WICBitmapAlphaChannelOption::WICBitmapUseAlpha, &wicBitmap);
 			}
 
@@ -5365,7 +5562,7 @@ namespace AvoGUI
 			formatConverter->Release();
 			wicBitmap->Release();
 
-			return new WindowsImage(bitmap);
+			return new Direct2DImage(bitmap);
 		}
 
 		//------------------------------
@@ -5484,7 +5681,7 @@ namespace AvoGUI
 
 			delete[] wideString;
 
-			return new WindowsText(textLayout, p_string, p_bounds);
+			return new DirectWriteText(textLayout, p_string, p_bounds);
 		}
 		void drawText(Text* p_text) override
 		{
@@ -5529,7 +5726,7 @@ namespace AvoGUI
 			drawText(p_string, Rectangle<float>(p_position.x, p_position.y, m_context->GetSize().width * 2, m_context->GetSize().height * 2));
 		}
 	};
-	ID2D1Factory1* WindowsDrawingContext::s_direct2DFactory = 0;
+	ID2D1Factory2* WindowsDrawingContext::s_direct2DFactory = 0;
 	IDWriteFactory1* WindowsDrawingContext::s_directWriteFactory = 0;
 	FontCollectionLoader* WindowsDrawingContext::s_fontCollectionLoader = 0;
 	FontFileLoader* WindowsDrawingContext::s_fontFileLoader = 0;
@@ -6414,7 +6611,8 @@ namespace AvoGUI
 
 						if (view->getWidth() > 0.f && view->getHeight() > 0.f && view->getIsVisible())
 						{
-							if (view->getAbsoluteBounds().getIsIntersecting(targetRectangle))
+							if (view->getAbsoluteBounds().getIsIntersecting(targetRectangle) && 
+								view->getIsIntersecting(0.f, 0.f, currentContainer->getWidth(), currentContainer->getHeight()))
 							{
 								m_drawingContext->moveOrigin(view->getTopLeft());
 
@@ -6451,7 +6649,7 @@ namespace AvoGUI
 
 									if (view->getHasCornerStyles())
 									{
-										m_drawingContext->popRoundedClipRectangle();
+										m_drawingContext->popClipShape();
 									}
 									else
 									{
@@ -6484,7 +6682,7 @@ namespace AvoGUI
 
 						if (currentContainer->getHasCornerStyles())
 						{
-							m_drawingContext->popRoundedClipRectangle();
+							m_drawingContext->popClipShape();
 						}
 						else
 						{

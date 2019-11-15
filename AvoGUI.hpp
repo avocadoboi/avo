@@ -1698,6 +1698,15 @@ namespace AvoGUI
 			Returns whether another rectangle is fully inside this rectangle.
 		*/
 		template<typename ParameterRectangleType>
+		bool getIsContaining(ParameterRectangleType p_left, ParameterRectangleType p_top, ParameterRectangleType p_right, ParameterRectangleType p_bottom) const
+		{
+			return p_left >= left && p_right <= right
+				&& p_top >= top && p_bottom <= bottom;
+		}
+		/*
+			Returns whether another rectangle is fully inside this rectangle.
+		*/
+		template<typename ParameterRectangleType>
 		bool getIsContaining(Rectangle<ParameterRectangleType> const& p_rectangle) const
 		{
 			return p_rectangle.left >= left && p_rectangle.right <= right
@@ -1707,6 +1716,16 @@ namespace AvoGUI
 			Returns whether a protected rectangle is fully inside this rectangle.
 		*/
 		bool getIsContaining(ProtectedRectangle* p_protectedRectangle) const;
+
+		/*
+			Returns whether this rectangle intersects/overlaps/touches another rectangle.
+		*/
+		template<typename ParameterRectangleType>
+		bool getIsIntersecting(ParameterRectangleType p_left, ParameterRectangleType p_top, ParameterRectangleType p_right, ParameterRectangleType p_bottom) const
+		{
+			return p_right >= left && p_bottom >= top
+				&& p_left <= right && p_top <= bottom;
+		}
 		/*
 			Returns whether this rectangle intersects/overlaps/touches another rectangle.
 		*/
@@ -1952,15 +1971,23 @@ namespace AvoGUI
 
 		//------------------------------
 
+		virtual bool getIsIntersecting(float p_left, float p_top, float p_right, float p_bottom) const
+		{
+			return m_bounds.getIsIntersecting(p_left, p_top, p_right, p_bottom);
+		}
 		virtual bool getIsIntersecting(Rectangle<float> const& p_rectangle) const
 		{
 			return m_bounds.getIsIntersecting(p_rectangle);
 		}
 		virtual bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const
 		{
-			return m_bounds.getIsIntersecting(p_protectedRectangle);
+			return m_bounds.getIsIntersecting(p_protectedRectangle->getBounds());
 		}
 
+		virtual bool getIsContaining(float p_left, float p_top, float p_right, float p_bottom) const
+		{
+			return m_bounds.getIsContaining(p_left, p_top, p_right, p_bottom);
+		}
 		virtual bool getIsContaining(Rectangle<float> const& p_rectangle) const
 		{
 			return m_bounds.getIsContaining(p_rectangle);
@@ -1969,6 +1996,7 @@ namespace AvoGUI
 		{
 			return m_bounds.getIsContaining(p_rectangle);
 		}
+
 		virtual bool getIsContaining(float p_x, float p_y) const
 		{
 			return m_bounds.getIsContaining(p_x, p_y);
@@ -4980,50 +5008,54 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns whether this view intersects/overlaps a rectangle that is relative to the top left corner of the parent.
 		*/
-		bool getIsIntersecting(Rectangle<float> const& p_rectangle) const override
+		bool getIsIntersecting(float p_left, float p_top, float p_right, float p_bottom) const override
 		{
 			if (m_corners.topLeftSizeX && m_corners.topLeftSizeY || m_corners.topRightSizeX && m_corners.topRightSizeY ||
 				m_corners.bottomLeftSizeX && m_corners.bottomLeftSizeY || m_corners.bottomRightSizeX && m_corners.bottomRightSizeY)
 			{
-				if (m_bounds.getIsIntersecting(p_rectangle))
+				if (m_bounds.getIsIntersecting(p_left, p_top, p_right, p_bottom))
 				{
-					if (p_rectangle.right < m_bounds.left + m_corners.topLeftSizeX && p_rectangle.bottom < m_bounds.top + m_corners.topLeftSizeY)
+					if (p_right < m_bounds.left + m_corners.topLeftSizeX && p_bottom < m_bounds.top + m_corners.topLeftSizeY)
 					{
 						if (m_corners.topLeftType == RectangleCornerType::Round)
 						{
-							return Point<>::getLengthSquared(m_bounds.left + m_corners.topLeftSizeX - p_rectangle.right, (m_bounds.top + m_corners.topLeftSizeY - p_rectangle.bottom) * m_corners.topLeftSizeX / m_corners.topLeftSizeY) < m_corners.topLeftSizeX * m_corners.topLeftSizeX;
+							return Point<>::getLengthSquared(m_bounds.left + m_corners.topLeftSizeX - p_right, (m_bounds.top + m_corners.topLeftSizeY - p_bottom) * m_corners.topLeftSizeX / m_corners.topLeftSizeY) < m_corners.topLeftSizeX * m_corners.topLeftSizeX;
 						}
-						return p_rectangle.bottom > m_bounds.top + m_corners.topLeftSizeY - (p_rectangle.right - m_bounds.left) * m_corners.topLeftSizeY / m_corners.topLeftSizeX;
+						return p_bottom > m_bounds.top + m_corners.topLeftSizeY - (p_right - m_bounds.left) * m_corners.topLeftSizeY / m_corners.topLeftSizeX;
 					}
-					else if (p_rectangle.right < m_bounds.left + m_corners.bottomLeftSizeX && p_rectangle.top > m_bounds.bottom - m_corners.bottomLeftSizeY)
+					else if (p_right < m_bounds.left + m_corners.bottomLeftSizeX && p_top > m_bounds.bottom - m_corners.bottomLeftSizeY)
 					{
 						if (m_corners.topLeftType == RectangleCornerType::Round)
 						{
-							return Point<>::getLengthSquared(m_bounds.left + m_corners.bottomLeftSizeX - p_rectangle.right, (m_bounds.bottom - m_corners.bottomLeftSizeY - p_rectangle.top) * m_corners.bottomLeftSizeX / m_corners.bottomLeftSizeY) < m_corners.bottomLeftSizeX * m_corners.bottomLeftSizeX;
+							return Point<>::getLengthSquared(m_bounds.left + m_corners.bottomLeftSizeX - p_right, (m_bounds.bottom - m_corners.bottomLeftSizeY - p_top) * m_corners.bottomLeftSizeX / m_corners.bottomLeftSizeY) < m_corners.bottomLeftSizeX * m_corners.bottomLeftSizeX;
 						}
-						return p_rectangle.top < m_bounds.bottom - m_corners.bottomLeftSizeY + (p_rectangle.right - m_bounds.left) * m_corners.bottomLeftSizeY / m_corners.bottomLeftSizeX;
+						return p_top < m_bounds.bottom - m_corners.bottomLeftSizeY + (p_right - m_bounds.left) * m_corners.bottomLeftSizeY / m_corners.bottomLeftSizeX;
 					}
-					else if (p_rectangle.left > m_bounds.right - m_corners.topRightSizeX && p_rectangle.bottom < m_bounds.top + m_corners.topRightSizeY)
+					else if (p_left > m_bounds.right - m_corners.topRightSizeX && p_bottom < m_bounds.top + m_corners.topRightSizeY)
 					{
 						if (m_corners.topLeftType == RectangleCornerType::Round)
 						{
-							return Point<>::getLengthSquared(m_bounds.right - m_corners.topRightSizeX - p_rectangle.left, (m_bounds.top + m_corners.topRightSizeY - p_rectangle.bottom) * m_corners.topRightSizeX / m_corners.topRightSizeY) < m_corners.topRightSizeX * m_corners.topRightSizeX;
+							return Point<>::getLengthSquared(m_bounds.right - m_corners.topRightSizeX - p_left, (m_bounds.top + m_corners.topRightSizeY - p_bottom) * m_corners.topRightSizeX / m_corners.topRightSizeY) < m_corners.topRightSizeX * m_corners.topRightSizeX;
 						}
-						return p_rectangle.bottom > m_bounds.top + (m_bounds.right - p_rectangle.left) * m_corners.topRightSizeY / m_corners.topRightSizeX;
+						return p_bottom > m_bounds.top + (m_bounds.right - p_left) * m_corners.topRightSizeY / m_corners.topRightSizeX;
 					}
-					else if (p_rectangle.left > m_bounds.right - m_corners.bottomRightSizeX && p_rectangle.top > m_bounds.bottom - m_corners.bottomRightSizeY)
+					else if (p_left > m_bounds.right - m_corners.bottomRightSizeX && p_top > m_bounds.bottom - m_corners.bottomRightSizeY)
 					{
 						if (m_corners.topLeftType == RectangleCornerType::Round)
 						{
-							return Point<>::getLengthSquared(m_bounds.right - m_corners.bottomRightSizeX - p_rectangle.left, (m_bounds.bottom - m_corners.bottomRightSizeY - p_rectangle.top) * m_corners.bottomRightSizeX / m_corners.bottomRightSizeY) < m_corners.bottomRightSizeX * m_corners.bottomRightSizeX;
+							return Point<>::getLengthSquared(m_bounds.right - m_corners.bottomRightSizeX - p_left, (m_bounds.bottom - m_corners.bottomRightSizeY - p_top) * m_corners.bottomRightSizeX / m_corners.bottomRightSizeY) < m_corners.bottomRightSizeX * m_corners.bottomRightSizeX;
 						}
-						return p_rectangle.top < m_bounds.bottom - (m_bounds.right - p_rectangle.left) * m_corners.bottomRightSizeY / m_corners.bottomRightSizeX;
+						return p_top < m_bounds.bottom - (m_bounds.right - p_left) * m_corners.bottomRightSizeY / m_corners.bottomRightSizeX;
 					}
 					return true;
 				}
 				return false;
 			}
-			return m_bounds.getIsIntersecting(p_rectangle);
+			return m_bounds.getIsIntersecting(p_left, p_top, p_right, p_bottom);
+		}
+		bool getIsIntersecting(Rectangle<float> const& p_rectangle) const override
+		{
+			return getIsIntersecting(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -5031,7 +5063,7 @@ namespace AvoGUI
 		*/
 		bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const override
 		{
-			return getIsIntersecting(p_protectedRectangle->getBounds());
+			return getIsIntersecting(p_protectedRectangle->getLeft(), p_protectedRectangle->getTop(), p_protectedRectangle->getRight(), p_protectedRectangle->getBottom());
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -5045,65 +5077,65 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns whether a rectangle can be contained within this view. The rectangle is relative to the parent of this view.
 		*/
-		bool getIsContaining(Rectangle<float> const& p_rectangle) const override
+		bool getIsContaining(float p_left, float p_top, float p_right, float p_bottom) const override
 		{
 			if (m_corners.topLeftSizeX && m_corners.topLeftSizeY || m_corners.topRightSizeX && m_corners.topRightSizeY ||
 				m_corners.bottomLeftSizeX && m_corners.bottomLeftSizeY || m_corners.bottomRightSizeX && m_corners.bottomRightSizeY)
 			{
-				if (m_bounds.getIsContaining(p_rectangle))
+				if (m_bounds.getIsContaining(p_left, p_top, p_right, p_bottom))
 				{
-					if (p_rectangle.left < m_bounds.left + m_corners.topLeftSizeX && p_rectangle.top < m_bounds.top + m_corners.topLeftSizeY)
+					if (p_left < m_bounds.left + m_corners.topLeftSizeX && p_top < m_bounds.top + m_corners.topLeftSizeY)
 					{
 						if (m_corners.topLeftType == RectangleCornerType::Round)
 						{
-							if (Point<>::getLengthSquared(m_bounds.left + m_corners.topLeftSizeX - p_rectangle.left, (m_bounds.top + m_corners.topLeftSizeY - p_rectangle.top)*m_corners.topLeftSizeX/m_corners.topLeftSizeY) > m_corners.topLeftSizeX*m_corners.topLeftSizeX)
+							if (Point<>::getLengthSquared(m_bounds.left + m_corners.topLeftSizeX - p_left, (m_bounds.top + m_corners.topLeftSizeY - p_top)*m_corners.topLeftSizeX/m_corners.topLeftSizeY) > m_corners.topLeftSizeX*m_corners.topLeftSizeX)
 							{
 								return false;
 							}
 						}
-						else if (p_rectangle.top > m_bounds.top + m_corners.topLeftSizeY - (p_rectangle.left - m_bounds.left) * m_corners.topLeftSizeY / m_corners.topLeftSizeX)
+						else if (p_top > m_bounds.top + m_corners.topLeftSizeY - (p_left - m_bounds.left) * m_corners.topLeftSizeY / m_corners.topLeftSizeX)
 						{
 							return false;
 						}
 					}
-					else if (p_rectangle.left < m_bounds.left + m_corners.bottomLeftSizeX && p_rectangle.bottom > m_bounds.bottom - m_corners.bottomLeftSizeY)
+					else if (p_left < m_bounds.left + m_corners.bottomLeftSizeX && p_bottom > m_bounds.bottom - m_corners.bottomLeftSizeY)
 					{
 						if (m_corners.topLeftType == RectangleCornerType::Round)
 						{
-							if (Point<>::getLengthSquared(m_bounds.left + m_corners.bottomLeftSizeX - p_rectangle.left, (m_bounds.bottom - m_corners.bottomLeftSizeY - p_rectangle.bottom) * m_corners.bottomLeftSizeX / m_corners.bottomLeftSizeY) > m_corners.bottomLeftSizeX*m_corners.bottomLeftSizeX)
+							if (Point<>::getLengthSquared(m_bounds.left + m_corners.bottomLeftSizeX - p_left, (m_bounds.bottom - m_corners.bottomLeftSizeY - p_bottom) * m_corners.bottomLeftSizeX / m_corners.bottomLeftSizeY) > m_corners.bottomLeftSizeX*m_corners.bottomLeftSizeX)
 							{
 								return false;
 							}
 						}
-						else if (p_rectangle.bottom < m_bounds.bottom - m_corners.bottomLeftSizeY + (m_bounds.right - p_rectangle.left) * m_corners.topRightSizeY / m_corners.topRightSizeX)
+						else if (p_bottom < m_bounds.bottom - m_corners.bottomLeftSizeY + (m_bounds.right - p_left) * m_corners.topRightSizeY / m_corners.topRightSizeX)
 						{
 							return false;
 						}
 					}
-					else if (p_rectangle.right > m_bounds.right - m_corners.topRightSizeX && p_rectangle.top < m_bounds.top + m_corners.topRightSizeY)
+					else if (p_right > m_bounds.right - m_corners.topRightSizeX && p_top < m_bounds.top + m_corners.topRightSizeY)
 					{
 						if (m_corners.topLeftType == RectangleCornerType::Round)
 						{
-							if (Point<>::getLengthSquared(m_bounds.right - m_corners.topRightSizeX - p_rectangle.right, (m_bounds.top + m_corners.topRightSizeY - p_rectangle.top) * m_corners.topRightSizeX / m_corners.topRightSizeY) > m_corners.topRightSizeX* m_corners.topRightSizeX)
+							if (Point<>::getLengthSquared(m_bounds.right - m_corners.topRightSizeX - p_right, (m_bounds.top + m_corners.topRightSizeY - p_top) * m_corners.topRightSizeX / m_corners.topRightSizeY) > m_corners.topRightSizeX* m_corners.topRightSizeX)
 							{
 								return false;
 							}
 						}
-						else if (p_rectangle.top > m_bounds.top + (m_bounds.right - p_rectangle.right) * m_corners.topRightSizeY / m_corners.topRightSizeY)
+						else if (p_top > m_bounds.top + (m_bounds.right - p_right) * m_corners.topRightSizeY / m_corners.topRightSizeY)
 						{
 							return false;
 						}
 					}
-					else if (p_rectangle.right > m_bounds.right - m_corners.bottomRightSizeX && p_rectangle.bottom > m_bounds.bottom - m_corners.bottomRightSizeY)
+					else if (p_right > m_bounds.right - m_corners.bottomRightSizeX && p_bottom > m_bounds.bottom - m_corners.bottomRightSizeY)
 					{
 						if (m_corners.topLeftType == RectangleCornerType::Round)
 						{
-							if (Point<>::getLengthSquared(m_bounds.right - m_corners.bottomRightSizeX - p_rectangle.right, (m_bounds.bottom - m_corners.bottomRightSizeY - p_rectangle.bottom) * m_corners.bottomRightSizeX / m_corners.bottomRightSizeY) > m_corners.bottomRightSizeX* m_corners.bottomRightSizeX)
+							if (Point<>::getLengthSquared(m_bounds.right - m_corners.bottomRightSizeX - p_right, (m_bounds.bottom - m_corners.bottomRightSizeY - p_bottom) * m_corners.bottomRightSizeX / m_corners.bottomRightSizeY) > m_corners.bottomRightSizeX* m_corners.bottomRightSizeX)
 							{
 								return false;
 							}
 						}
-						else if (p_rectangle.bottom < m_bounds.bottom - (m_bounds.right - p_rectangle.right) * m_corners.bottomRightSizeY / m_corners.bottomRightSizeX)
+						else if (p_bottom < m_bounds.bottom - (m_bounds.right - p_right) * m_corners.bottomRightSizeY / m_corners.bottomRightSizeX)
 						{
 							return false;
 						}
@@ -5112,7 +5144,11 @@ namespace AvoGUI
 				}
 				return false;
 			}
-			return m_bounds.getIsContaining(p_rectangle);
+			return m_bounds.getIsContaining(p_left, p_top, p_right, p_bottom);
+		}
+		bool getIsContaining(Rectangle<float> const& p_rectangle)
+		{
+			return getIsContaining(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -5120,7 +5156,7 @@ namespace AvoGUI
 		*/
 		bool getIsContaining(ProtectedRectangle* p_rectangle) const override
 		{
-			return getIsContaining(p_rectangle->getBounds());
+			return getIsContaining(p_rectangle->getLeft(), p_rectangle->getTop(), p_rectangle->getRight(), p_rectangle->getBottom());
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -6813,20 +6849,34 @@ namespace AvoGUI
 	//class Gradient
 	//{
 	//private:
+	//	Point<float> m_origin;
 	//	std::vector<Color> m_colors;
 	//	std::vector<float> m_positions;
 	//	float m_angle;
 	//	bool m_isRadial;
 
 	//public:
+	//	/*
+	//		Adds a color position to the gradient.
+	//		p_position is expressed as a factor that is relative to the geometry of the shape being drawn with the gradient.
+	//	*/
 	//	void addStop(Color const& p_color, float p_position);
 
 	//	/*
 	//		Sets whether the gradient is radial or linear.
-	//		A radial gradient 
+	//		A radial gradient goes from the origin and out in all directions from the origin.
+	//		A linear gradient goes from one edge of the shape to the opposite side.
 	//	*/
 	//	void setIsRadial(bool p_isRadial);
+	//	/*
+	//		Returns whether the gradient is radial or linear.
+	//	*/
 	//	bool getIsRadial();
+
+	//	void setOrigin(float p_x, float p_y)
+	//	{
+
+	//	}
 
 	//	/*
 	//		Sets the direction of the gradient, if it is linear.
@@ -6839,6 +6889,12 @@ namespace AvoGUI
 	//	*/
 	//	float getAngle();
 	//};
+
+	/*
+		Platform-specific interface for cached geometry that can be created and drawn by a DrawingContext.
+		Used to accelerate drawing.
+	*/
+	class Geometry : public ReferenceCounted { };
 
 	/*
 		An abstract drawing context, created by a GUI to be used to create objects 
@@ -7040,7 +7096,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Resets all graphics drawing transformations, so that every coordinate used in any drawing operation is unaltered, and relative to the top-left corner of the window.
+			Resets all graphics drawing transformations, so that every coordinate used in any drawing operation is unaltered, and relative to the top-left corner of the target.
 		*/
 		virtual void resetTransformations() = 0;
 
@@ -7314,6 +7370,90 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
+			Draws a stroked cached geometry with its coordinates relative to the origin.
+			If you want to move the geometry, use moveOrigin().
+			If you want to scale the geometry, use scale().
+			You can also change the stroke color with setColor().
+		*/
+		virtual void strokeGeometry(Geometry* p_geometry, float p_strokeWidth = 1.f) = 0;
+		/*
+			Draws a filled cached geometry with its coordinates relative to the origin.
+			If you want to move the geometry, use moveOrigin().
+			If you want to scale the geometry, use scale().
+			You can also change the fill color with setColor().
+		*/
+		virtual void fillGeometry(Geometry* p_geometry) = 0;
+
+		//------------------------------
+
+		/*
+			Creates a Geometry object which represents a rounded rectangle.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry* createRoundedRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, float p_radius) = 0;
+		/*
+			Creates a Geometry object which represents a rounded rectangle.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry* createRoundedRectangleGeometry(Point<float> const& p_position, Point<float> const& p_size, float p_radius) = 0;
+		/*
+			Creates a Geometry object which represents a rounded rectangle.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry* createRoundedRectangleGeometry(Rectangle<float> const& p_rectangle, float p_radius) = 0;
+		/*
+			Creates a Geometry object which represents a rounded rectangle at the origin.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry* createRoundedRectangleGeometry(float p_width, float p_height, float p_radius) = 0;
+		/*
+			Creates a Geometry object which represents a rounded rectangle at the origin.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry* createRoundedRectangleGeometry(Point<float> const& p_size, float p_radius) = 0;
+
+		/*
+			Creates a Geometry object which represents a rectangle with custom corners.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry* createCornerRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners) = 0;
+		/*
+			Creates a Geometry object which represents a rectangle with custom corners.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry* createCornerRectangleGeometry(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_corners) = 0;
+		/*
+			Creates a Geometry object which represents a rectangle with custom corners.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry* createCornerRectangleGeometry(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners) = 0;
+		/*
+			Creates a Geometry object which represents a rectangle with custom corners at the origin.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry* createCornerRectangleGeometry(float p_width, float p_height, RectangleCorners const& p_corners) = 0;
+		/*
+			Creates a Geometry object which represents a rectangle with custom corners at the origin.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry* createCornerRectangleGeometry(Point<float> const& p_size, RectangleCorners const& p_corners) = 0;
+
+		//------------------------------
+
+		/*
+			Creates a geometry object which represents a polygon.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry* createPolygonGeometry(std::vector<Point<float>> const& p_vertices) = 0;
+		/*
+			Creates a geometry object which represents a polygon.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry* createPolygonGeometry(Point<float> const* p_vertices, uint32 p_numberOfVertices) = 0;
+
+		//------------------------------
+
+		/*
 			Changes the way both start- and endpoints of lines are drawn.
 		*/
 		virtual void setLineCap(LineCap p_lineCap) = 0;
@@ -7386,16 +7526,26 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
+			After calling this, all graphics drawn outside the cached geometry will be invisible, on pixel level.
+		*/
+		virtual void pushClipGeometry(Geometry* p_geometry) = 0;
+
+		//------------------------------
+
+		/*
 			After calling this, all graphics drawn outside the polygon will be invisible, on pixel level.
+			Call popClipShape to remove the last pushed clip shape.
 		*/
 		virtual void pushClipShape(std::vector<Point<float>> const& p_points) = 0;
 		/*
 			After calling this, all graphics drawn outside the polygon will be invisible, on pixel level.
+			Call popClipShape to remove the last pushed clip shape.
 		*/
 		virtual void pushClipShape(Point<float> const* p_points, uint32 p_numberOfPoints) = 0;
 
 		/*
 			This removes the last added clipping shape.
+			Use this when the last pushed clip shape was not a regular axis-aligned rectangle.
 		*/
 		virtual void popClipShape() = 0;
 
@@ -7403,57 +7553,62 @@ namespace AvoGUI
 
 		/*
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
+			Call popClipRectangle to remove the last pushed clip rectangle.
 		*/
 		virtual void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom) = 0;
 		/*
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
+			Call popClipRectangle to remove the last pushed clip rectangle.
 		*/
 		virtual void pushClipRectangle(Rectangle<float> const& p_rectangle) = 0;
 		/*
 			After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
 			p_size is the size of the clip rectangle positioned at the origin.
+			Call popClipRectangle to remove the last pushed clip rectangle.
 		*/
 		virtual void pushClipRectangle(Point<float> const& p_size) = 0;
 
 		/*
+			This removes the last added clipping rectangle.
+			Only use this when the last pushed clip was a regular axis-aligned rectangle, without custom corners.
+		*/
+		virtual void popClipRectangle() = 0;
+
+		/*
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
+			Call popClipRectangle to remove the last pushed clip corner rectangle.
 		*/
 		virtual void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners) = 0;
 		/*
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
+			Call popClipRectangle to remove the last pushed clip corner rectangle.
 		*/
 		virtual void pushClipRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners) = 0;
 		/*
 			After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
 			p_size is the size of the clip rectangle positioned at the origin.
+			Call popClipShape to remove the last pushed clip corner rectangle.
 		*/
 		virtual void pushClipRectangle(Point<float> const& p_size, RectangleCorners const& p_corners) = 0;
-
-		/*
-			This removes the last added clipping rectangle.
-		*/
-		virtual void popClipRectangle() = 0;
 
 		//------------------------------
 
 		/*
 			After calling this, all graphics drawn outside the rounded rectangle will be invisible, on pixel-level.
+			Call popClipShape to remove the last pushed rounded clip rectangle.
 		*/
 		virtual void pushRoundedClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) = 0;
 		/*
 			After calling this, all graphics drawn outside the rounded rectangle will be invisible, on pixel-level.
+			Call popClipShape to remove the last pushed rounded clip rectangle.
 		*/
 		virtual void pushRoundedClipRectangle(Rectangle<float> const& p_rectangle, float p_radius) = 0;
 		/*
 			After calling this, all graphics drawn outside a rounded rectangle at the origin with the given size and radius will be invisible, on pixel level.
-		
 			p_size is the size of the rounded clip rectangle positioned at the origin.
+			Call popClipShape to remove the last pushed rounded clip rectangle.
 		*/
 		virtual void pushRoundedClipRectangle(Point<float> const& p_size, float p_radius) = 0;
-		/*
-			This removes the last added rounded clipping rectangle.
-		*/
-		virtual void popRoundedClipRectangle() = 0;
 
 		//------------------------------
 
