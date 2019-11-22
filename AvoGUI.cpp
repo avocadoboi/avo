@@ -186,6 +186,22 @@ namespace AvoGUI
 	}
 
 	//
+	// Protected
+	//
+
+	void View::updateClipGeometry()
+	{
+		if (getHasCornerStyles())
+		{
+			if (m_clipGeometry)
+			{
+				m_clipGeometry->forget();
+			}
+			m_clipGeometry = getGUI()->getDrawingContext()->createCornerRectangleGeometry(getSize(), m_corners);
+		}
+	}
+
+	//
 	// Public
 	//
 
@@ -217,6 +233,10 @@ namespace AvoGUI
 		if (m_shadowImage)
 		{
 			m_shadowImage->forget();
+		}
+		if (m_clipGeometry)
+		{
+			m_clipGeometry->forget();
 		}
 		removeAllChildren();
 	}
@@ -5769,7 +5789,7 @@ namespace AvoGUI
 				}
 			}
 			auto timeAfter = std::chrono::steady_clock::now();
-			syncInterval = max(1000000, syncInterval + (16666667 - (timeAfter - timeBefore).count()) / 10);
+			syncInterval = max(1000000, syncInterval + 0.5*(16666667 - (timeAfter - timeBefore).count()));
 			timeBefore = timeAfter;
 		}
 
@@ -5877,8 +5897,6 @@ namespace AvoGUI
 
 		m_GUI = this;
 
-		m_tooltip = new Tooltip(this);
-
 		//------------------------------
 
 		m_windowEventListeners.reserve(5);
@@ -5963,6 +5981,8 @@ namespace AvoGUI
 		m_drawingContext = new WindowsDrawingContext(m_window);
 #endif
 
+		m_tooltip = new Tooltip(this);
+
 		m_lastWindowSize = m_window->getSize();
 		createContent();
 
@@ -5982,6 +6002,25 @@ namespace AvoGUI
 			}
 		}
 		m_willClose = willClose;
+		if (willClose)
+		{
+			if (m_animationUpdateQueue.size())
+			{
+				for (View* view : m_animationUpdateQueue)
+				{
+					view->forget();
+				}
+				m_animationUpdateQueue.clear();
+			}
+			if (m_pressedMouseEventListeners.size())
+			{
+				for (View* view : m_pressedMouseEventListeners)
+				{
+					view->forget();
+				}
+				m_pressedMouseEventListeners.clear();
+			}
+		}
 		return false; // Doesn't matter here.
 	}
 	void GUI::handleWindowMinimize(WindowEvent const& p_event)
@@ -6623,7 +6662,8 @@ namespace AvoGUI
 								RectangleCorners& corners = view->getCorners();
 								if (view->getHasCornerStyles())
 								{
-									m_drawingContext->pushClipRectangle(view->getSize(), view->getCorners());
+									m_drawingContext->pushClipGeometry(view->m_clipGeometry);
+									//m_drawingContext->pushClipRectangle(view->getSize(), view->getCorners());
 								}
 								else
 								{

@@ -3301,6 +3301,7 @@ namespace AvoGUI
 	class GUI;
 	class DrawingContext;
 	class Image;
+	class Geometry;
 	class MouseEvent;
 	enum class Cursor;
 
@@ -3417,8 +3418,9 @@ namespace AvoGUI
 			if (p_previousBounds.left != m_bounds.left || p_previousBounds.right != m_bounds.right ||
 				p_previousBounds.top != m_bounds.top || p_previousBounds.bottom != m_bounds.bottom)
 			{
-				if (p_previousBounds.getWidth() != m_bounds.getWidth() || p_previousBounds.getHeight() != m_bounds.getHeight())
+				if (abs(p_previousBounds.getWidth() - m_bounds.getWidth()) > 0.0001 || abs(p_previousBounds.getHeight() - m_bounds.getHeight()) > 0.0001)
 				{
+					updateClipGeometry();
 					updateShadow(); // This is to update the shadow bounds and image.
 
 					handleSizeChange(p_previousBounds.getWidth(), p_previousBounds.getHeight());
@@ -3456,6 +3458,15 @@ namespace AvoGUI
 			This gets called whenever a theme value has changed, not including initialization.
 		*/
 		virtual void handleThemeValueChange(std::string const& p_name, float p_newValue) { };
+
+		Geometry* m_clipGeometry;
+		/*
+			LIBRARY IMPLEMENTED
+			This is called whenever the clipping geometry of the view needs to be updated.
+			You can override this if you want a custom clipping geometry.
+		*/
+		virtual void updateClipGeometry();
+
 
 	public:
 		View(View* p_parent, Rectangle<float> const& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
@@ -5274,7 +5285,8 @@ namespace AvoGUI
 			m_corners.topRightSizeX = m_corners.topRightSizeY = p_radius;
 			m_corners.bottomLeftSizeX = m_corners.bottomLeftSizeY = p_radius;
 			m_corners.bottomRightSizeX = m_corners.bottomRightSizeY = p_radius;
-			m_corners.topLeftType = RectangleCornerType::Round;
+			m_corners.topLeftType = m_corners.topRightType = m_corners.bottomLeftType = m_corners.bottomRightType = RectangleCornerType::Round;
+			updateClipGeometry();
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -5286,7 +5298,8 @@ namespace AvoGUI
 			m_corners.topRightSizeX = m_corners.topRightSizeY = p_topRightRadius;
 			m_corners.bottomLeftSizeX = m_corners.bottomLeftSizeY = p_bottomLeftRadius;
 			m_corners.bottomRightSizeX = m_corners.bottomRightSizeY = p_bottomRightRadius;
-			m_corners.topLeftType = RectangleCornerType::Round;
+			m_corners.topLeftType = m_corners.topRightType = m_corners.bottomLeftType = m_corners.bottomRightType = RectangleCornerType::Round;
+			updateClipGeometry();
 		}
 
 		/*
@@ -5299,7 +5312,8 @@ namespace AvoGUI
 			m_corners.topRightSizeX = m_corners.topRightSizeY = p_cutSize;
 			m_corners.bottomLeftSizeX = m_corners.bottomLeftSizeY = p_cutSize;
 			m_corners.bottomRightSizeX = m_corners.bottomRightSizeY = p_cutSize;
-			m_corners.topLeftType = RectangleCornerType::Cut;
+			m_corners.topLeftType = m_corners.topRightType = m_corners.bottomLeftType = m_corners.bottomRightType = RectangleCornerType::Cut;
+			updateClipGeometry();
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -5311,7 +5325,8 @@ namespace AvoGUI
 			m_corners.topRightSizeX = m_corners.topRightSizeY = p_topRightSize;
 			m_corners.bottomLeftSizeX = m_corners.bottomLeftSizeY = p_bottomLeftSize;
 			m_corners.bottomRightSizeX = m_corners.bottomRightSizeY = p_bottomRightSize;
-			m_corners.topLeftType = RectangleCornerType::Cut;
+			m_corners.topLeftType = m_corners.topRightType = m_corners.bottomLeftType = m_corners.bottomRightType = RectangleCornerType::Cut;
+			updateClipGeometry();
 		}
 
 		/*
@@ -5320,6 +5335,7 @@ namespace AvoGUI
 		void setCorners(RectangleCorners const& p_corners)
 		{
 			m_corners = p_corners;
+			updateClipGeometry();
 		}
 		/*
 			Returns the shapes of the corners of the view.
