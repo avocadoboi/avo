@@ -1043,7 +1043,6 @@ namespace AvoGUI
 		}
 		~WindowsWindow()
 		{
-			close();
 			DestroyCursor(m_cursorHandle);
 		}
 
@@ -1375,6 +1374,44 @@ namespace AvoGUI
 			info.cbSize = sizeof(MONITORINFO);
 			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
 			return info.rcMonitor.bottom - info.rcMonitor.top;
+		}
+
+		//------------------------------
+
+		Rectangle<uint32> getWorkAreaBounds() const override
+		{
+			MONITORINFO info = { };
+			info.cbSize = sizeof(MONITORINFO);
+			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
+			return Rectangle<uint32>(info.rcWork.left, info.rcWork.top, info.rcWork.right, info.rcWork.bottom);
+		}
+		Point<uint32> getWorkAreaPosition() const override
+		{
+			MONITORINFO info = { };
+			info.cbSize = sizeof(MONITORINFO);
+			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
+			return Point<uint32>(info.rcWork.left, info.rcWork.top);
+		}
+		Point<uint32> getWorkAreaSize() const override
+		{
+			MONITORINFO info = { };
+			info.cbSize = sizeof(MONITORINFO);
+			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
+			return Point<uint32>(info.rcWork.right - info.rcWork.left, info.rcWork.bottom - info.rcWork.top);
+		}
+		uint32 getWorkAreaWidth() const override
+		{
+			MONITORINFO info = { };
+			info.cbSize = sizeof(MONITORINFO);
+			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
+			return info.rcWork.right - info.rcWork.left;
+		}
+		uint32 getWorkAreaHeight() const override
+		{
+			MONITORINFO info = { };
+			info.cbSize = sizeof(MONITORINFO);
+			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
+			return info.rcWork.bottom - info.rcWork.top;
 		}
 
 		//------------------------------
@@ -2387,6 +2424,7 @@ namespace AvoGUI
 			case WM_DESTROY:
 			{
 				s_numberOfWindows--;
+				m_GUI->forget();
 				if (!s_numberOfWindows)
 				{
 					UnregisterClass(WINDOW_CLASS_NAME, GetModuleHandle(0));
@@ -5793,7 +5831,7 @@ namespace AvoGUI
 			timeBefore = timeAfter;
 		}
 
-		// This will cause window to be destroyed, because p_gui->getWillClose() is true.
+		// This will cause the window to be destroyed, because p_gui->getWillClose() is true.
 		p_gui->getWindow()->close();
 	}
 
@@ -5886,7 +5924,6 @@ namespace AvoGUI
 		View(0, Rectangle<float>(0, 0, 0, 0)), 
 		m_window(0), m_drawingContext(0),
 		m_hasNewWindowSize(false), m_hasAnimationLoopStarted(false), m_willClose(false),
-		m_tooltip(0),
 		m_keyboardFocus(0)
 	{
 #ifdef _WIN32
@@ -5904,11 +5941,6 @@ namespace AvoGUI
 	}
 	GUI::~GUI()
 	{
-		if (m_tooltip)
-		{
-			m_tooltip->forget();
-			m_tooltip = 0;
-		}
 		if (m_window)
 		{
 			m_window->forget();
@@ -5980,8 +6012,6 @@ namespace AvoGUI
 		}
 		m_drawingContext = new WindowsDrawingContext(m_window);
 #endif
-
-		m_tooltip = new Tooltip(this);
 
 		m_lastWindowSize = m_window->getSize();
 		createContent();
@@ -6492,22 +6522,6 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void GUI::setTooltipView(Tooltip* p_tooltip)
-	{
-		if (m_tooltip)
-		{
-			m_tooltip->setParent(0);
-		}
-		p_tooltip->setParent(this);
-		m_tooltip = p_tooltip;
-	}
-	Tooltip* GUI::getTooltipView()
-	{
-		return m_tooltip;
-	}
-
-	//------------------------------
-
 	void GUI::queueAnimationUpdateForView(View* p_view)
 	{
 		m_animationUpdateQueue.push_back(p_view);
@@ -6529,7 +6543,6 @@ namespace AvoGUI
 
 			sendBoundsChangeEvents(Rectangle<float>(0.f, 0.f, sizeBefore.x, sizeBefore.y));
 
-			m_tooltip->hide();
 			m_invalidRectangles.clear();
 			invalidate();
 			includeAnimationThread();

@@ -2251,7 +2251,7 @@ namespace AvoGUI
 		//------------------------------
 
 		Color() :
-			red(0.f), green(0.f), blue(0.f), alpha(0.f)
+			red(0.f), green(0.f), blue(0.f), alpha(1.f)
 		{ }
 		/*
 			The channels are floats in the range [0, 1].
@@ -6013,17 +6013,16 @@ namespace AvoGUI
 			p_title is the text that appears in the title bar of the window (if it has a border).
 
 			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
-			of the primary monitor and the top edge of the window are aligned, and 1 means the right edges are aligned.
+			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
 
-			p_positionFactorY is the vertical position of the window, expressed as a factor between 0 and 1, where 0 means the top edge
-			of the primary monitor and the top edge of the window are aligned, and 1 means the bottom edges are aligned.
+			p_positionFactorY is the vertical equivalent to p_positionFactorX.
 
 			p_width is the width of the client area in DIPs (device independent pixels).
 			p_height is the height of the client area in DIPs (device independent pixels).
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(char const* p_title, float p_x, float p_y, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		virtual void create(char const* p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
 		/*
 			Creates the window in the center of the screen. To close it, use close().
 		
@@ -6119,111 +6118,139 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Sets the position of the window relative to the top-left corner of the screen.
+			Sets the position of the window relative to the top-left corner of the screen, in pixel units.
 		*/
 		virtual void setPosition(Point<int32> const& p_position) = 0;
 		/*
-			Sets the position of the window relative to the top-left corner of the screen.
+			Sets the position of the window relative to the top-left corner of the screen, in pixel units.
 		*/
 		virtual void setPosition(int32 p_x, int32 p_y) = 0;
 		/*
-			Returns the position of the window relative to the top-left corner of the screen.
+			Returns the position of the window relative to the top-left corner of the screen, in pixel units.
 		*/
 		virtual Point<int32> const& getPosition() const = 0;
 		/*
-			Returns the position of the left edge of the window relative to the top-left corner of the screen.
+			Returns the position of the left edge of the window relative to the top-left corner of the screen, in pixel units.
 		*/
 		virtual int32 getPositionX() const = 0;
 		/*
-			Returns the position of the left edge of the window relative to the top-left corner of the screen.
+			Returns the position of the top edge of the window relative to the top-left corner of the screen, in pixel units.
 		*/
 		virtual int32 getPositionY() const = 0;
 
 		/*
-			Sets the size of the client area of the window, in pixels.
+			Sets the size of the client area of the window, in pixel units.
 		*/
 		virtual void setSize(Point<uint32> const& p_size) = 0;
 		/*
-			Sets the size of the client area of the window, in pixels.
+			Sets the size of the client area of the window, in pixel units.
 		*/
 		virtual void setSize(uint32 p_width, uint32 p_height) = 0;
 		/*
-			Returns the size of the client area of the window, in pixels.
+			Returns the size of the client area of the window, in pixel units.
 		*/
 		virtual Point<uint32> const& getSize() const = 0;
 		/*
-			Returns the width of the client area of the window, in pixels.
+			Returns the width of the client area of the window, in pixel units.
 		*/
 		virtual uint32 getWidth() const = 0;
 		/*
-			Returns the height of the client area of the window, in pixels.
+			Returns the height of the client area of the window, in pixel units.
 		*/
 		virtual uint32 getHeight() const = 0;
 
 		/*
-			Sets the smallest allowed size for the window when the user is resizing it.
+			Sets the smallest allowed size for the window when the user is resizing it, in pixel units.
 		*/
 		virtual void setMinSize(Point<uint32> const& p_minSize) = 0;
 		/*
-			Sets the smallest allowed size for the window when the user is resizing it.
+			Sets the smallest allowed size for the window when the user is resizing it, in pixel units.
 		*/
 		virtual void setMinSize(uint32 p_minWidth, uint32 p_minHeight) = 0;
 		/*
-			Returns the smallest allowed size for the window when the user is resizing it.
+			Returns the smallest allowed size for the window when the user is resizing it, in pixel units.
 		*/
 		virtual Point<uint32> getMinSize() const = 0;
 		/*
-			Returns the smallest allowed width for the window when the user is resizing it.
+			Returns the smallest allowed width for the window when the user is resizing it, in pixel units.
 		*/
 		virtual uint32 getMinWidth() const = 0;
 		/*
-			Returns the smallest allowed height for the window when the user is resizing it.
+			Returns the smallest allowed height for the window when the user is resizing it, in pixel units.
 		*/
 		virtual uint32 getMinHeight() const = 0;
 
 		/*
-			Sets the biggest allowed size for the window when the user is resizing it.
+			Sets the biggest allowed size for the window when the user is resizing it, in pixel units.
 		*/
 		virtual void setMaxSize(Point<uint32> const& p_maxSize) = 0;
 		/*
-			Sets the biggest allowed size for the window when the user is resizing it.
+			Sets the biggest allowed size for the window when the user is resizing it, in pixel units.
 		*/
 		virtual void setMaxSize(uint32 p_maxWidth, uint32 p_maxHeight) = 0;
 		/*
-			Returns the biggest allowed size for the window when the user is resizing it.
+			Returns the biggest allowed size for the window when the user is resizing it, in pixel units.
 		*/
 		virtual Point<uint32> getMaxSize() const = 0;
 		/*
-			Returns the biggest allowed width for the window when the user is resizing it.
+			Returns the biggest allowed width for the window when the user is resizing it, in pixel units.
 		*/
 		virtual uint32 getMaxWidth() const = 0;
 		/*
-			Returns the biggest allowed height for the window when the user is resizing it.
+			Returns the biggest allowed height for the window when the user is resizing it, in pixel units.
 		*/
 		virtual uint32 getMaxHeight() const = 0;
 
 		//------------------------------
 
 		/*
-			Returns the bounds of the current monitor used by the window
+			Returns the bounds of the current monitor used by the window, in pixel units.
 		*/
 		virtual Rectangle<uint32> getMonitorBounds() const = 0;
 		/*
-			Returns the size of the current monitor used by the window.
+			Returns the virtual position of the current monitor used by the window relative to other monitors, in pixel units.
 		*/
 		virtual Point<uint32> getMonitorPosition() const = 0;
 		/*
-			Returns the size of the current monitor used by the window.
+			Returns the size of the current monitor used by the window, in pixel units.
 		*/
 		virtual Point<uint32> getMonitorSize() const = 0;
 		/*
-			Returns the width of the current monitor used by the window.
+			Returns the width of the current monitor used by the window, in pixel units.
 		*/
 		virtual uint32 getMonitorWidth() const = 0;
 		/*
-			Returns the height of the current monitor used by the window.
+			Returns the height of the current monitor used by the window, in pixel units.
 		*/
 		virtual uint32 getMonitorHeight() const = 0;
+
+		//------------------------------
+
+		/*
+			Returns the bounds of the work area of the monitor currently used by the window, in pixel units.
+			This excludes the taskbar on Windows.
+		*/
+		virtual Rectangle<uint32> getWorkAreaBounds() const = 0;
+		/*
+			Returns the virtual position of the work area of the monitor currently used by the window, in pixel units.
+			This excludes the taskbar on Windows.
+		*/
+		virtual Point<uint32> getWorkAreaPosition() const = 0;
+		/*
+			Returns the size of the work area of the monitor currently used by the window, in pixel units.
+			This excludes the taskbar on Windows.
+		*/
+		virtual Point<uint32> getWorkAreaSize() const = 0;
+		/*
+			Returns the width of the work area of the monitor currently used by the window, in pixel units.
+			This excludes the taskbar on Windows.
+		*/
+		virtual uint32 getWorkAreaWidth() const = 0;
+		/*
+			Returns the height of the work area of the monitor currently used by the window, in pixel units.
+			This excludes the taskbar on Windows.
+		*/
+		virtual uint32 getWorkAreaHeight() const = 0;
 
 		//------------------------------
 
@@ -7795,11 +7822,10 @@ namespace AvoGUI
 
 	//------------------------------
 
-	class Tooltip;
-
 	/*
-		The highest view in the view hierarchy.
-		Is connected to a window which it holds and recieves events from.
+		The highest, "root" view in the view hierarchy.
+		It is connected to a window which it holds and recieves events from.
+		When the window has been closed and destroyed, forget() is called on the GUI.
 	*/
 	class GUI : public View, public WindowListener, public GlobalMouseListener
 	{
@@ -7820,10 +7846,6 @@ namespace AvoGUI
 		std::recursive_mutex m_animationThreadMutex;
 		bool m_hasAnimationLoopStarted;
 		bool m_willClose;
-
-		//------------------------------
-
-		Tooltip* m_tooltip;
 
 		//------------------------------
 
@@ -7874,15 +7896,14 @@ namespace AvoGUI
 			p_title is the text that appears in the title bar of the window (if it has an OS border).
 			
 			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge 
-			of the primary monitor and the top edge of the window are aligned, and 1 means the right edges are aligned.
+			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
 			
-			p_positionFactorY is the vertical position of the window, expressed as a factor between 0 and 1, where 0 means the top edge 
-			of the primary monitor and the top edge of the window are aligned, and 1 means the bottom edges are aligned.
+			p_positionFactorY is the vertical equivalent to p_positionFactorX.
 			
 			p_width is the width of the client area in DIPs (device independent pixels).
 			p_height is the height of the client area in DIPs (device independent pixels).
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
-			p_parent is an optional parent GUI, is only used if the Child bit is turned on in p_windowFlags.
+			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
 		void create(char const* p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
 		/*
@@ -7895,7 +7916,7 @@ namespace AvoGUI
 			p_width is the width of the client area in DIPs (device independent pixels).
 			p_height is the height of the client area in DIPs (device independent pixels).
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
-			p_parent is an optional parent GUI, is only used if the Child bit is turned on in p_windowFlags.
+			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
 		void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
 
@@ -8180,19 +8201,6 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			LIBRARY IMPLEMENTED
-			Sets the view used for showing tooltips. This can be your own view that inherits Tooltip.
-		*/
-		void setTooltipView(Tooltip* p_tooltip);
-		/*
-			LIBRARY IMPLEMENTED
-			Returns the view used for showing tooltips.
-		*/
-		Tooltip* getTooltipView();
-
-		//------------------------------
-
-		/*
 			USER IMPLEMENTED
 			This is called after the window and drawing context have been created. 
 			It is a good idea to initialize your GUI in this method, but do the layout in handleSizeChange() - it is called right after creation too.
@@ -8289,8 +8297,8 @@ namespace AvoGUI
 	//------------------------------
 
 	/*
-		Shows a short info message about a view. This is a virtual class with standard implementation.
-		You can create your own tooltip that inherits this class, and then give it to the GUI.
+		Shows a short info message about a view. 
+		The parent of a tooltip is the GUI.
 	*/
 	class Tooltip : public View
 	{
@@ -8786,6 +8794,7 @@ namespace AvoGUI
 	private:
 		Text* m_text;
 
+		Tooltip* m_tooltipView;
 		char const* m_tooltipString;
 
 		Image* m_icon;
@@ -8878,7 +8887,7 @@ namespace AvoGUI
 
 	public:
 		Button(View* p_parent, char const* p_text = "", Emphasis p_emphasis = Emphasis::High, bool p_isAccent = false) :
-			View(p_parent), m_text(0), m_tooltipString(""),
+			View(p_parent), m_text(0), m_tooltipView(0), m_tooltipString(""),
 			m_icon(0), m_pressAnimationTime(1.f), m_emphasis(p_emphasis), m_isEnabled(true),
 			m_colorAnimationTime(1.f)
 		{
@@ -9074,11 +9083,13 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Sets a string to be shown as a tooltip when the mouse hovers over the button. Should give the user additional information about the button's purpose.
+			Sets a string to be shown as a tooltip when the mouse hovers over the button. 
+			Should give the user additional information about the button's purpose.
 			An empty string disables the tooltip.
 		*/
-		void setTooltip(char const* p_info)
+		void setTooltip(Tooltip* p_tooltipView, char const* p_info)
 		{
+			m_tooltipView = p_tooltipView;
 			m_tooltipString = p_info;
 		}
 
@@ -9086,9 +9097,9 @@ namespace AvoGUI
 
 		void handleMouseBackgroundEnter(MouseEvent const& p_event) override 
 		{ 
-			if (m_tooltipString != "")
+			if (m_tooltipView && m_tooltipString != "")
 			{
-				getGUI()->getTooltipView()->show(m_tooltipString, getAbsoluteBounds());
+				m_tooltipView->show(m_tooltipString, getAbsoluteBounds());
 			}
 		}
 		void handleMouseMove(MouseEvent const& p_event) override
@@ -9097,9 +9108,9 @@ namespace AvoGUI
 		}
 		void handleMouseBackgroundLeave(MouseEvent const& p_event) override
 		{
-			if (m_tooltipString != "")
+			if (m_tooltipView && m_tooltipString != "")
 			{
-				getGUI()->getTooltipView()->hide();
+				m_tooltipView->hide();
 			}
 			m_isMouseHovering = false;
 		}
