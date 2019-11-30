@@ -4378,19 +4378,19 @@ namespace AvoGUI
 		{
 			D2D1::Matrix3x2F transform;
 			m_context->GetTransform(&transform);
-			m_context->SetTransform(transform * D2D1::Matrix3x2F::Rotation(p_radians));
+			m_context->SetTransform(transform * D2D1::Matrix3x2F::Rotation(p_radians * 180.f / PI));
 		}
 		void rotate(float p_radians, Point<float> const& p_origin) override
 		{
 			D2D1::Matrix3x2F transform;
 			m_context->GetTransform(&transform);
-			m_context->SetTransform(transform * D2D1::Matrix3x2F::Rotation(p_radians, D2D1::Point2F(p_origin.x, p_origin.y)));
+			m_context->SetTransform(transform * D2D1::Matrix3x2F::Rotation(p_radians * 180.f / PI, D2D1::Point2F(p_origin.x, p_origin.y)));
 		}
 		void rotate(float p_radians, float p_originX, float p_originY) override
 		{
 			D2D1::Matrix3x2F transform;
 			m_context->GetTransform(&transform);
-			m_context->SetTransform(transform * D2D1::Matrix3x2F::Rotation(p_radians, D2D1::Point2F(p_originX, p_originY)));
+			m_context->SetTransform(transform * D2D1::Matrix3x2F::Rotation(p_radians * 180.f / PI, D2D1::Point2F(p_originX, p_originY)));
 		}
 
 		//------------------------------
@@ -4750,11 +4750,11 @@ namespace AvoGUI
 		}
 		void fillGeometry(Geometry* p_geometry) override
 		{
-			if (!((Direct2DGeometry*)p_geometry)->getStrokedRealization())
+			if (!((Direct2DGeometry*)p_geometry)->getFilledRealization())
 			{
 				realizeFilledGeometry((Direct2DGeometry*)p_geometry);
 			}
-			m_context->DrawGeometryRealization(((Direct2DGeometry*)p_geometry)->getStrokedRealization(), m_currentBrush);
+			m_context->DrawGeometryRealization(((Direct2DGeometry*)p_geometry)->getFilledRealization(), m_currentBrush);
 		}
 
 		//------------------------------
