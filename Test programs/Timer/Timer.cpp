@@ -4,6 +4,5 @@
 
 int main()
 {
-	TimerApp* app = new TimerApp();
-	app->forget();
+	new TimerApp();
 }

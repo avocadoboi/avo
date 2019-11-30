@@ -6889,49 +6889,117 @@ namespace AvoGUI
 		float fontSize = 22.f;
 	};
 
-	//class Gradient
-	//{
-	//private:
-	//	Point<float> m_origin;
-	//	std::vector<Color> m_colors;
-	//	std::vector<float> m_positions;
-	//	float m_angle;
-	//	bool m_isRadial;
+	class Gradient
+	{
+	private:
+		Point<float> m_startPosition;
+		Point<float> m_endPosition;
+		Point<float> m_radius;
 
-	//public:
-	//	/*
-	//		Adds a color position to the gradient.
-	//		p_position is expressed as a factor that is relative to the geometry of the shape being drawn with the gradient.
-	//	*/
-	//	void addStop(Color const& p_color, float p_position);
+		std::vector<Color> m_colors;
+		std::vector<float> m_positions;
+		bool m_isRadial;
 
-	//	/*
-	//		Sets whether the gradient is radial or linear.
-	//		A radial gradient goes from the origin and out in all directions from the origin.
-	//		A linear gradient goes from one edge of the shape to the opposite side.
-	//	*/
-	//	void setIsRadial(bool p_isRadial);
-	//	/*
-	//		Returns whether the gradient is radial or linear.
-	//	*/
-	//	bool getIsRadial();
+	public:
+		Gradient() :
+			m_isRadial(false)
+		{
+			m_colors.reserve(5);
+			m_positions.reserve(5);
+		}
 
-	//	void setOrigin(float p_x, float p_y)
-	//	{
+		/*
+			Adds a color position to the gradient.
+			p_position is expressed as a factor that is relative to the start and end positions if it's linear and to the radius if it's radial.
+		*/
+		void addStop(Color const& p_color, float p_position)
+		{
+			m_colors.push_back(p_color);
+			m_positions.push_back(p_position);
+		}
+		uint32 getNumberOfStops() const
+		{
+			return m_colors.size();
+		}
 
-	//	}
+		Color const& getStopColor(uint32 p_index) const
+		{
+			return m_colors[p_index];
+		}
+		float getStopPosition(uint32 p_index) const
+		{
+			return m_positions[p_index];
+		}
 
-	//	/*
-	//		Sets the direction of the gradient, if it is linear.
-	//		The angle is expressed in radians.
-	//	*/
-	//	void setAngle(float p_radians);
-	//	/*
-	//		Returns the direction of the gradient, if it is linear.
-	//		The angle is expressed in radians.
-	//	*/
-	//	float getAngle();
-	//};
+		/*
+			Sets whether the gradient is radial or linear.
+			A radial gradient goes from the start position and out in all directions.
+			A linear gradient goes linearly from the start position to the end position.
+		*/
+		void setIsRadial(bool p_isRadial)
+		{
+			m_isRadial = p_isRadial;
+		}
+		/*
+			Returns whether the gradient is radial or linear.
+		*/
+		bool getIsRadial() const
+		{
+			return m_isRadial;
+		}
+
+		void setStartPosition(Point<float> const& p_startPosition)
+		{
+			m_startPosition = p_startPosition;
+		}
+		void setStartPosition(float p_x, float p_y)
+		{
+			m_startPosition.set(p_x, p_y);
+		}
+		Point<float> const& getStartPosition() const
+		{
+			return m_startPosition;
+		}
+
+		void setEndPosition(Point<float> const& p_endPosition)
+		{
+			m_endPosition = p_endPosition;
+		}
+		void setEndPosition(float p_x, float p_y)
+		{
+			m_endPosition.set(p_x, p_y);
+		}
+		Point<float> const& getEndPosition() const
+		{
+			return m_endPosition;
+		}
+
+		void setRadius(float p_radius)
+		{
+			m_radius = p_radius;
+		}
+		void setRadius(Point<float> const& p_radius)
+		{
+			m_radius = p_radius;
+		}
+		void setRadius(float p_radiusX, float p_radiusY)
+		{
+			m_radius.set(p_radiusX, p_radiusY);
+		}
+		Point<float> const& getRadius() const
+		{
+			return m_radius;
+		}
+		float getRadiusX() const
+		{
+			return m_radius.x;
+		}
+		float getRadiusY() const
+		{
+			return m_radius.y;
+		}
+
+	};
 
 	/*
 		Platform-specific interface for cached geometry that can be created and drawn by a DrawingContext.
@@ -7749,6 +7817,10 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
+			Sets the gradient being used as the brush when drawing shape.
+		*/
+		virtual void setGradientBrush(Gradient const& p_gradient) = 0;
+		/*
 			Sets the color being used when drawing shapes.
 		*/
 		virtual void setColor(Color const& p_color) = 0;
@@ -7841,6 +7913,8 @@ namespace AvoGUI
 		Point<uint32> m_newWindowSize;
 		bool m_hasNewWindowSize;
 		std::deque<View*> m_animationUpdateQueue;
+
+		std::mutex m_invalidRectanglesMutex;
 		std::vector<Rectangle<float>> m_invalidRectangles;
 
 		std::recursive_mutex m_animationThreadMutex;
@@ -8911,6 +8985,10 @@ namespace AvoGUI
 			{
 				m_text->forget();
 			}
+			if (m_icon)
+			{
+				m_icon->forget();
+			}
 		}
 
 		//------------------------------
@@ -9376,11 +9454,12 @@ namespace AvoGUI
 		}
 		//void handleThemeValueChange(std::string const& p_name, float p_value) override
 		//{
+
 		//}
 
 	public:
 		EditableText(View* p_parent, float p_width = 0.f, float p_fontSize = 12.f) :
-			View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*1.2f + 3.f)), 
+			View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*1.2f)), 
 			m_text(0), m_textDrawingOffsetX(0.f), m_fontSize(p_fontSize), m_textAlign(TextAlign::Left),
 			m_caretIndex(0), m_isCaretVisible(false), m_caretFrameCount(0), 
 			m_selectionEndIndex(0), m_isSelectingWithMouse(false), m_isSelectionVisible(false)
@@ -10010,6 +10089,7 @@ namespace AvoGUI
 			{
 				p_newCaretIndex = m_caretIndex;
 			}
+
 			std::string newString = p_string;
 			for (auto listener : m_listeners)
 			{
@@ -10018,6 +10098,7 @@ namespace AvoGUI
 					return;
 				}
 			}
+
 			if (m_text)
 			{
 				m_text->forget();
@@ -10045,14 +10126,12 @@ namespace AvoGUI
 			}
 
 			m_text = getGUI()->getDrawingContext()->createText(newString.c_str(), m_fontSize);
-			m_text->setTop(2.f);
 			m_text->setFontFamily(getThemeFontFamily("main"));
 			m_text->setFontWeight(FontWeight::Regular);
-
-			m_text->fitHeightToText();
-
-			m_text->setWidth(getWidth());
 			m_text->setTextAlign(m_textAlign);
+			m_text->setWidth(getWidth());
+			m_text->setTop(2.f);
+			m_text->setBottom(getHeight(), false);
 
 			if (p_newCaretIndex > (int32)m_text->getString().size())
 			{
@@ -10161,13 +10240,8 @@ namespace AvoGUI
 			if (m_text)
 			{
 				m_text->setFontSize(p_fontSize);
-				m_text->fitSizeToText();
-				setHeight(m_text->getHeight() + 3.f);
 			}
-			else
-			{
-				setHeight(p_fontSize * 1.2f + 3.f);
-			}
+			setHeight(p_fontSize * 1.2f);
 			invalidate();
 		}
 		float getFontSize()
@@ -10214,12 +10288,12 @@ namespace AvoGUI
 				if (m_isSelectionVisible)
 				{
 					p_context->setColor(getThemeColor("selection"));
-					p_context->fillRectangle(m_caretPosition.x, 0.f, m_selectionEndPosition.x, m_selectionEndPosition.y + m_fontSize * 1.2f);
+					p_context->fillRectangle(m_caretPosition.x, 0.f, m_selectionEndPosition.x, getHeight());
 				}
 			}
 			if (m_isCaretVisible && !m_isSelectionVisible)
 			{
-				p_context->drawLine(m_caretPosition.x, 0.f, m_caretPosition.x, m_caretPosition.y + m_fontSize * 1.2f, 1.f);
+				p_context->drawLine(m_caretPosition.x, 0.f, m_caretPosition.x, getHeight(), 1.f);
 			}
 			p_context->moveOrigin(-m_textDrawingOffsetX, 0.f);
 		}
@@ -10358,9 +10432,6 @@ namespace AvoGUI
 			m_isMouseHovering(false), m_hoverAnimationTime(0.f), m_hoverAnimationValue(0.f),
 			m_type(p_type)
 		{
-			m_bounds.right = p_width;
-			m_bounds.bottom = getThemeValue("text field font size") * 1.2f * getThemeValue("text field height") + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined);
-
 			setLabel(p_label);
 			setCursor(Cursor::Ibeam);
 			enableMouseEvents();
@@ -10370,6 +10441,17 @@ namespace AvoGUI
 			m_editableText->setLeft(getThemeValue("text field padding left"));
 			m_editableText->setRight(p_width - getThemeValue("text field padding right"), false);
 			m_editableText->addEditableTextListener(this);
+
+			setSize(p_width, getThemeValue("text field font size") * 1.2f * getThemeValue("text field height") + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
+
+			if (p_type == Type::Filled)
+			{
+				setCorners(AvoGUI::RectangleCorners(5.f, 5.f, 0.f, 0.f));
+			}
+			else
+			{
+				setCornerRadius(5.f);
+			}
 
 			setString("");
 
@@ -10514,14 +10596,14 @@ namespace AvoGUI
 			m_prefixText = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("text field font size"));
 			m_prefixText->setFontFamily(getThemeFontFamily("main"));
 			m_prefixText->setFontWeight(AvoGUI::FontWeight::Regular);
-			m_prefixText->fitSizeToText();
+			m_prefixText->setHeight(m_prefixText->getFontSize()*1.2f);
 			if (m_type == Type::Filled)
 			{
 				m_prefixText->setBottom(getThemeValue("text field filled padding bottom"));
 			}
 			else
 			{
-				m_prefixText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f + 1.5f);
+				m_prefixText->setTop(m_editableText->getTop() + 2.f);
 			}
 			m_prefixText->setLeft(getThemeValue("text field padding left"));
 
@@ -10560,14 +10642,14 @@ namespace AvoGUI
 			m_suffixText = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("text field font size"));
 			m_suffixText->setFontFamily(getThemeFontFamily("main"));
 			m_suffixText->setFontWeight(AvoGUI::FontWeight::Regular);
-			m_suffixText->fitSizeToText();
+			m_suffixText->setHeight(m_suffixText->getFontSize()*1.2f);
 			if (m_type == Type::Filled)
 			{
 				m_suffixText->setBottom(getThemeValue("text field filled padding bottom"));
 			}
 			else
 			{
-				m_suffixText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f + 1.5f);
+				m_suffixText->setTop(m_editableText->getTop() + 2.f);
 			}
 			m_suffixText->setRight(getWidth() - getThemeValue("text field padding right"));
 
@@ -10736,8 +10818,7 @@ namespace AvoGUI
 			if (m_type == Type::Filled)
 			{
 				p_context->setColor(Color(interpolate(getThemeColor("background"), getThemeColor("on background"), 0.05f + 0.05f * min(m_hoverAnimationValue*0.3f + m_focusAnimationValue, 1.f)), 1.f));
-				p_context->fillRoundedRectangle(getSize(), 5.f);
-				p_context->fillRectangle(Rectangle<float>(0.f, getHeight() - 5.f, getWidth(), getHeight()));
+				p_context->fillRectangle(getSize());
 				p_context->setColor(Color(getThemeColor("on background"), 0.4));
 				p_context->drawLine(0.f, getHeight() - 1.f, getWidth(), getHeight() - 0.5f, 1.f);
 				if (m_focusAnimationValue > 0.01f)
@@ -10760,7 +10841,7 @@ namespace AvoGUI
 			else if (m_type == Type::Outlined)
 			{
 				p_context->setColor(m_labelColor);
-				p_context->strokeRoundedRectangle(Rectangle<float>(1.f, 1.f + TEXT_FIELD_OUTLINED_PADDING_LABEL, getWidth() - 1.f, getHeight() - 1.f), 5.f, m_focusAnimationValue + 1.f);
+				p_context->strokeRectangle(Rectangle<float>(1.f, 1.f + TEXT_FIELD_OUTLINED_PADDING_LABEL, getWidth() - 1.f, getHeight() - 1.f), getCorners(), m_focusAnimationValue + 1.f);
 
 				if (m_labelText)
 				{
@@ -10779,6 +10860,11 @@ namespace AvoGUI
 				}
 			}
 
+			if (m_prefixText)
+			{
+				p_context->setColor(Color(getThemeColor("on background"), 0.5f/* * (m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f)*/));
+				p_context->drawText(m_prefixText);
+			}
 			if (m_suffixText)
 			{
 				p_context->setColor(Color(getThemeColor("on background"), 0.5f/* * (m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f)*/));

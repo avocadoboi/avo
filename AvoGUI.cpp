@@ -3791,8 +3791,14 @@ namespace AvoGUI
 		bool m_isVsyncEnabled;
 
 		ID2D1SolidColorBrush* m_solidColorBrush;
+		ID2D1LinearGradientBrush* m_linearGradientBrush;
+		ID2D1RadialGradientBrush* m_radialGradientBrush;
+		ID2D1Brush* m_currentBrush;
+		float m_brushOpacity;
+
 		D2D1_STROKE_STYLE_PROPERTIES1 m_strokeStyleProperties;
 		ID2D1StrokeStyle1* m_strokeStyle;
+
 		Point<float> m_scale;
 
 		IDWriteTextFormat* m_textFormat;
@@ -3823,7 +3829,7 @@ namespace AvoGUI
 			sink->AddLine(D2D1::Point2F(p_right - p_corners.topRightSizeX, p_top));
 			if (p_corners.topRightSizeX && p_corners.topRightSizeY)
 			{
-				if (p_corners.topLeftType == RectangleCornerType::Round)
+				if (p_corners.topRightType == RectangleCornerType::Round)
 				{
 					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_right, p_top + p_corners.topRightSizeY), D2D1::SizeF(p_corners.topRightSizeX, p_corners.topRightSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
 				}
@@ -3835,7 +3841,7 @@ namespace AvoGUI
 			sink->AddLine(D2D1::Point2F(p_right, p_bottom - p_corners.bottomRightSizeY));
 			if (p_corners.bottomRightSizeX && p_corners.bottomRightSizeY)
 			{
-				if (p_corners.topLeftType == RectangleCornerType::Round)
+				if (p_corners.bottomRightType == RectangleCornerType::Round)
 				{
 					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_right - p_corners.bottomRightSizeX, p_bottom), D2D1::SizeF(p_corners.bottomRightSizeX, p_corners.bottomRightSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
 				}
@@ -3847,7 +3853,7 @@ namespace AvoGUI
 			sink->AddLine(D2D1::Point2F(p_left + p_corners.bottomLeftSizeX, p_bottom));
 			if (p_corners.bottomLeftSizeX && p_corners.bottomLeftSizeY)
 			{
-				if (p_corners.topLeftType == RectangleCornerType::Round)
+				if (p_corners.bottomLeftType == RectangleCornerType::Round)
 				{
 					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_left, p_bottom - p_corners.bottomLeftSizeY), D2D1::SizeF(p_corners.bottomLeftSizeX, p_corners.bottomLeftSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
 				}
@@ -3920,7 +3926,8 @@ namespace AvoGUI
 		WindowsDrawingContext(Window* p_window) :
 			m_window(p_window), 
 			m_context(0), m_swapChain(0), m_targetWindowBitmap(0), m_isVsyncEnabled(true), 
-			m_solidColorBrush(0), m_scale(1.f, 1.f), 
+			m_solidColorBrush(0), m_linearGradientBrush(0), m_radialGradientBrush(0),
+			m_brushOpacity(1.f), m_scale(1.f, 1.f), 
 			m_textFormat(0), m_fontCollection(0)
 		{
 			// Create temporary Direct3D device
@@ -4039,6 +4046,7 @@ namespace AvoGUI
 			//------------------------------
 
 			m_context->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), &m_solidColorBrush);
+			m_currentBrush = m_solidColorBrush;
 
 			m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE_FLAT;
 			m_strokeStyleProperties.dashOffset = 1.f;
@@ -4089,27 +4097,30 @@ namespace AvoGUI
 			if (m_solidColorBrush)
 			{
 				m_solidColorBrush->Release();
-				m_solidColorBrush = 0;
+			}
+			if (m_linearGradientBrush)
+			{
+				m_linearGradientBrush->Release();
+			}
+			if (m_radialGradientBrush)
+			{
+				m_radialGradientBrush->Release();
 			}
 			if (m_strokeStyle)
 			{
 				m_strokeStyle->Release();
-				m_strokeStyle = 0;
 			}
 			if (m_targetWindowBitmap)
 			{
 				m_targetWindowBitmap->Release();
-				m_targetWindowBitmap = 0;
 			}
 			if (m_swapChain)
 			{
 				m_swapChain->Release();
-				m_swapChain = 0;
 			}
 			if (m_context)
 			{
 				m_context->Release();
-				m_context = 0;
 			}
 
 			destroyStaticResources();
@@ -4152,19 +4163,19 @@ namespace AvoGUI
 				m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
 				//delete[] updatedRects;
 			}
-			else
-			{
-				// Just triggers a buffer swap.
+			//else
+			//{
+			//	// Just triggers a buffer swap.
 
-				RECT rect = { 0, 0,	1, 1 };
-				DXGI_PRESENT_PARAMETERS presentParameters;
-				presentParameters.DirtyRectsCount = 1;
-				presentParameters.pDirtyRects = &rect;
-				presentParameters.pScrollOffset = 0;
-				presentParameters.pScrollRect = 0;
+			//	RECT rect = { 0, 0, 1, 1 };
+			//	DXGI_PRESENT_PARAMETERS presentParameters;
+			//	presentParameters.DirtyRectsCount = 1;
+			//	presentParameters.pDirtyRects = &rect;
+			//	presentParameters.pScrollOffset = 0;
+			//	presentParameters.pScrollRect = 0;
 
-				m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
-			}
+			//	m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
+			//}
 
 		}
 
@@ -4465,16 +4476,16 @@ namespace AvoGUI
 				D2D1::RectF(
 					p_left, p_top,
 					p_right, p_bottom
-				), m_solidColorBrush
+				), m_currentBrush
 			);
 		}
 		void fillRectangle(Point<float> const& p_size) override
 		{
-			m_context->FillRectangle(D2D1::RectF(0, 0, p_size.x, p_size.y), m_solidColorBrush);
+			m_context->FillRectangle(D2D1::RectF(0, 0, p_size.x, p_size.y), m_currentBrush);
 		}
 		void fillRectangle(float p_width, float p_height) override
 		{
-			m_context->FillRectangle(D2D1::RectF(0, 0, p_width, p_height), m_solidColorBrush);
+			m_context->FillRectangle(D2D1::RectF(0, 0, p_width, p_height), m_currentBrush);
 		}
 
 		void fillRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners) override
@@ -4491,7 +4502,7 @@ namespace AvoGUI
 			s_direct2DFactory->CreatePathGeometry(&pathGeometry);
 			createCornerRectangleGeometry(pathGeometry, p_left, p_top, p_right, p_bottom, p_corners, true);
 
-			m_context->FillGeometry(pathGeometry, m_solidColorBrush);
+			m_context->FillGeometry(pathGeometry, m_currentBrush);
 
 			pathGeometry->Release();
 		}
@@ -4521,7 +4532,7 @@ namespace AvoGUI
 						p_left, p_top,
 						p_right, p_bottom
 					), p_radius, p_radius
-				), m_solidColorBrush
+				), m_currentBrush
 			);
 		}
 		void fillRoundedRectangle(Point<float> const& p_size, float p_radius) override
@@ -4548,7 +4559,7 @@ namespace AvoGUI
 			m_context->DrawRectangle(
 				D2D1::RectF(
 					p_left, p_top, p_right, p_bottom
-				), m_solidColorBrush,
+				), m_currentBrush,
 				p_strokeWidth, m_strokeStyle
 			);
 		}
@@ -4577,7 +4588,7 @@ namespace AvoGUI
 						p_left, p_top,
 						p_right, p_bottom
 					), p_radius, p_radius
-				), m_solidColorBrush,
+				), m_currentBrush,
 				p_strokeWidth, m_strokeStyle
 			);
 		}
@@ -4592,7 +4603,7 @@ namespace AvoGUI
 
 		void strokeRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
 		{
-			strokeRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.bottom, p_rectangle.right, p_corners, p_strokeWidth);
+			strokeRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners, p_strokeWidth);
 		}
 		void strokeRectangle(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
 		{
@@ -4604,7 +4615,7 @@ namespace AvoGUI
 			s_direct2DFactory->CreatePathGeometry(&pathGeometry);
 			createCornerRectangleGeometry(pathGeometry, p_left, p_top, p_right, p_bottom, p_corners, false);
 
-			m_context->DrawGeometry(pathGeometry, m_solidColorBrush, p_strokeWidth, m_strokeStyle);
+			m_context->DrawGeometry(pathGeometry, m_currentBrush, p_strokeWidth, m_strokeStyle);
 
 			pathGeometry->Release();
 		}
@@ -4629,7 +4640,7 @@ namespace AvoGUI
 				D2D1::Ellipse(
 					D2D1::Point2F(p_x, p_y),
 					p_radius, p_radius
-				), m_solidColorBrush
+				), m_currentBrush
 			);
 		}
 
@@ -4643,7 +4654,7 @@ namespace AvoGUI
 				D2D1::Ellipse(
 					D2D1::Point2F(p_x, p_y),
 					p_radius, p_radius
-				), m_solidColorBrush,
+				), m_currentBrush,
 				p_strokeWidth, m_strokeStyle
 			);
 		}
@@ -4659,7 +4670,7 @@ namespace AvoGUI
 			m_context->DrawLine(
 				D2D1::Point2F(p_x0, p_y0),
 				D2D1::Point2F(p_x1, p_y1),
-				m_solidColorBrush,
+				m_currentBrush,
 				p_thickness, m_strokeStyle
 			);
 		}
@@ -4687,7 +4698,7 @@ namespace AvoGUI
 
 			sink->Close();
 
-			m_context->DrawGeometry(path, m_solidColorBrush, p_lineThickness, m_strokeStyle);
+			m_context->DrawGeometry(path, m_currentBrush, p_lineThickness, m_strokeStyle);
 
 			sink->Release();
 			path->Release();
@@ -4718,7 +4729,7 @@ namespace AvoGUI
 
 			sink->Close();
 
-			m_context->FillGeometry(path, m_solidColorBrush);
+			m_context->FillGeometry(path, m_currentBrush);
 
 			sink->Release();
 			path->Release();
@@ -4736,7 +4747,7 @@ namespace AvoGUI
 			{
 				realizeStrokedGeometry((Direct2DGeometry*)p_geometry, p_strokeWidth);
 			}
-			m_context->DrawGeometryRealization(((Direct2DGeometry*)p_geometry)->getStrokedRealization(), m_solidColorBrush);
+			m_context->DrawGeometryRealization(((Direct2DGeometry*)p_geometry)->getStrokedRealization(), m_currentBrush);
 		}
 		void fillGeometry(Geometry* p_geometry) override
 		{
@@ -4744,7 +4755,7 @@ namespace AvoGUI
 			{
 				realizeFilledGeometry((Direct2DGeometry*)p_geometry);
 			}
-			m_context->DrawGeometryRealization(((Direct2DGeometry*)p_geometry)->getStrokedRealization(), m_solidColorBrush);
+			m_context->DrawGeometryRealization(((Direct2DGeometry*)p_geometry)->getStrokedRealization(), m_currentBrush);
 		}
 
 		//------------------------------
@@ -5636,7 +5647,7 @@ namespace AvoGUI
 			m_context->DrawBitmap(
 				(ID2D1Bitmap*)p_image->getHandle(),
 				D2D1::RectF(innerBounds.left, innerBounds.top, innerBounds.right, innerBounds.bottom),
-				p_image->getOpacity()*m_solidColorBrush->GetOpacity(),
+				p_image->getOpacity()* m_currentBrush->GetOpacity(),
 				p_image->getScalingMethod() == ImageScalingMethod::Pixelated ? D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR : D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
 				D2D1::RectF(cropRectangle.left, cropRectangle.top, cropRectangle.right, cropRectangle.bottom)
 			);
@@ -5644,13 +5655,71 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void setGradientBrush(Gradient const& p_gradient) override
+		{
+			D2D1_GRADIENT_STOP* gradientStops = new D2D1_GRADIENT_STOP[p_gradient.getNumberOfStops()];
+			for (uint32 a = 0; a < p_gradient.getNumberOfStops(); a++)
+			{
+				AvoGUI::Color const& color = p_gradient.getStopColor(a);
+				gradientStops[a].color = D2D1::ColorF(color.red, color.green, color.blue, color.alpha);
+				gradientStops[a].position = p_gradient.getStopPosition(a);
+			}
+
+			ID2D1GradientStopCollection* stopCollection = 0;
+			m_context->CreateGradientStopCollection(gradientStops, p_gradient.getNumberOfStops(), &stopCollection);
+			delete[] gradientStops;
+
+			if (p_gradient.getIsRadial())
+			{
+				if (m_radialGradientBrush)
+				{
+					m_radialGradientBrush->Release();
+				}
+				m_context->CreateRadialGradientBrush(
+					D2D1::RadialGradientBrushProperties(
+						D2D1::Point2F(p_gradient.getStartPosition().x, p_gradient.getStartPosition().y), 
+						D2D1_POINT_2F(), 
+						p_gradient.getRadiusX(), p_gradient.getRadiusY()
+					), 
+					stopCollection, &m_radialGradientBrush
+				);
+				m_currentBrush = m_radialGradientBrush;
+			}
+			else
+			{
+				if (m_linearGradientBrush)
+				{
+					m_linearGradientBrush->Release();
+				}
+				m_context->CreateLinearGradientBrush(
+					D2D1::LinearGradientBrushProperties(
+						D2D1::Point2F(p_gradient.getStartPosition().x, p_gradient.getStartPosition().y),
+						D2D1::Point2F(p_gradient.getEndPosition().x, p_gradient.getEndPosition().y)
+					),
+					stopCollection, &m_linearGradientBrush
+				);
+				m_currentBrush = m_linearGradientBrush;
+			}
+			m_currentBrush->SetOpacity(m_brushOpacity);
+			stopCollection->Release();
+		}
 		void setColor(Color const& p_color) override
 		{
 			m_solidColorBrush->SetColor(D2D1::ColorF(p_color.red, p_color.green, p_color.blue, p_color.alpha));
+			m_currentBrush = m_solidColorBrush;
 		}
 		void setOpacity(float p_opacity) override
 		{
+			m_brushOpacity = p_opacity;
 			m_solidColorBrush->SetOpacity(p_opacity);
+			if (m_linearGradientBrush)
+			{
+				m_linearGradientBrush->SetOpacity(m_brushOpacity);
+			}
+			if (m_radialGradientBrush)
+			{
+				m_radialGradientBrush->SetOpacity(m_brushOpacity);
+			}
 		}
 
 		//------------------------------
@@ -5818,6 +5887,7 @@ namespace AvoGUI
 			{
 				if (wasLastFrameDrawn)
 				{
+					p_gui->invalidateRectangle(Rectangle<float>(0, 0, 1, 1));
 					p_gui->drawViews();
 					wasLastFrameDrawn = false;
 				}
@@ -6581,6 +6651,7 @@ namespace AvoGUI
 			if (rectangle)
 			{
 				isDone = true;
+				m_invalidRectanglesMutex.lock();
 				for (uint32 a = 0; a < m_invalidRectangles.size(); a++)
 				{
 					if (a != rectangleIndex)
@@ -6600,10 +6671,12 @@ namespace AvoGUI
 						}
 					}
 				}
+				m_invalidRectanglesMutex.unlock();
 			}
 			else
 			{
 				isDone = true;
+				m_invalidRectanglesMutex.lock();
 				for (uint32 a = 0; a < m_invalidRectangles.size(); a++)
 				{
 					if (m_invalidRectangles[a].getIsIntersecting(p_rectangle))
@@ -6616,11 +6689,14 @@ namespace AvoGUI
 						break;
 					}
 				}
+				m_invalidRectanglesMutex.unlock();
 			}
 		}
 		if (willAdd)
 		{
+			m_invalidRectanglesMutex.lock();
 			m_invalidRectangles.push_back(p_rectangle);
+			m_invalidRectanglesMutex.unlock();
 		}
 	}
 
@@ -6630,8 +6706,9 @@ namespace AvoGUI
 		{
 			m_drawingContext->beginDrawing();
 
-			excludeAnimationThread();
+			m_invalidRectanglesMutex.lock();
 			std::vector<Rectangle<float>> invalidRectangles = std::move(m_invalidRectangles);
+			m_invalidRectanglesMutex.unlock();
 			//std::cout << "Invalid rectangles:\n";
 			//for (auto rect : invalidRectangles)
 			//{
@@ -6640,6 +6717,7 @@ namespace AvoGUI
 			//std::cout << "\n\n";
 			//includeAnimationThread();
 
+			excludeAnimationThread();
 			Point<uint32> size(m_drawingContext->getSize());
 			for (auto const& targetRectangle : invalidRectangles)
 			{
@@ -6676,7 +6754,6 @@ namespace AvoGUI
 								if (view->getHasCornerStyles())
 								{
 									m_drawingContext->pushClipGeometry(view->m_clipGeometry);
-									//m_drawingContext->pushClipRectangle(view->getSize(), view->getCorners());
 								}
 								else
 								{
@@ -6754,10 +6831,10 @@ namespace AvoGUI
 			includeAnimationThread();
 			m_drawingContext->finishDrawing(invalidRectangles);
 		}
-		else
-		{
-			m_drawingContext->finishDrawing(std::vector<Rectangle<float>>());
-		}
+		//else
+		//{
+		//	m_drawingContext->finishDrawing(std::vector<Rectangle<float>>());
+		//}
 	}
 
 	//------------------------------
