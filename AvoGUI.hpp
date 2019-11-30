@@ -103,10 +103,15 @@ namespace AvoGUI
 	}
 
 	/*
-		Returns a random double between 0 and 1. It just uses the standard library random header.
-		Convenient function.
+		Returns a random double between 0 and 1 from a uniform distribution. 
+		It just uses the standard library random header. Convenient function.
 	*/
 	double random();
+	/*
+		Returns a random double between 0 and 1 from a normal distribution with standard deviation 1 and mean 0.
+		It just uses the standard library random header. Convenient function.
+	*/
+	double randomNormal();
 
 	/*
 		Returns the biggest of two numbers.
@@ -368,20 +373,22 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void set(PointType p_x, PointType p_y)
+		Point<PointType>& set(PointType p_x, PointType p_y)
 		{
 			x = p_x;
 			y = p_y;
+			return *this;
 		}
 		/*
 			Sets the polar coordinates of the point.
 			p_angle is the angle between the ray to the point and the x-axis, counter-clockwise.
 			p_length is the distance from the origin of the coordinates.
 		*/
-		void setPolar(double p_angle, double p_length = 1.f)
+		Point<PointType>& setPolar(double p_angle, double p_length = 1.f)
 		{
 			x = std::cos(p_angle) * p_length;
 			y = std::sin(p_angle) * p_length;
+			return *this;
 		}
 
 		//------------------------------
@@ -509,7 +516,8 @@ namespace AvoGUI
 		{
 			return Point<PointType>(x*(PointType)p_point.x, y*(PointType)p_point.y);
 		}
-		Point<PointType> operator*(double p_factor) const
+		template<typename T>
+		Point<PointType> operator*(T p_factor) const
 		{
 			return Point<PointType>(x*p_factor, y*p_factor);
 		}
@@ -557,13 +565,13 @@ namespace AvoGUI
 		Point<PointType>& operator/=(Point<T> const& p_point)
 		{
 			x /= (PointType)p_point.x;
-			x /= (PointType)p_point.y;
+			y /= (PointType)p_point.y;
 			return *this;
 		}
 		Point<PointType>& operator/=(double p_divisor)
 		{
 			x /= p_divisor;
-			x /= p_divisor;
+			y /= p_divisor;
 			return *this;
 		}
 
@@ -874,11 +882,22 @@ namespace AvoGUI
 		}
 	};
 
+	template<typename T1, typename T2>
+	Point<T2> operator*(T1 p_factor, Point<T2> const& p_point)
+	{
+		return Point<T2>(p_point.x * p_factor, p_point.y * p_factor);
+	}
+	template<typename T1, typename T2>
+	Point<T2> operator/(T1 p_dividend, Point<T2> const& p_point)
+	{
+		return Point<T2>(p_dividend / p_point.x, p_dividend/p_point.y);
+	}
+
 	/*
 		Linearly interpolates between p_start and p_end. This means we are calculating a point on the line segment between the two points.
 	*/
-	template<typename Type>
-	Point<Type> interpolate(Point<Type> const& p_start, Point<Type> const& p_end, double p_progress)
+	template<typename T>
+	Point<T> interpolate(Point<T> const& p_start, Point<T> const& p_end, double p_progress)
 	{
 		return p_start * (1.0 - p_progress) + p_end * (p_progress);
 	}

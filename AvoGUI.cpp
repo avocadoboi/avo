@@ -38,10 +38,15 @@ namespace AvoGUI
 {
 	std::default_random_engine randomEngine(time(0));
 	std::uniform_real_distribution<double> uniformDistribution(0.0, 1.0);
+	std::normal_distribution<double> normalDistribution(0.0, 1.0);
 
 	double random()
 	{
 		return uniformDistribution(randomEngine);
+	}
+	double randomNormal()
+	{
+		return normalDistribution(randomEngine);
 	}
 
 	//------------------------------
