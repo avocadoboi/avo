@@ -1,6 +1,6 @@
 #pragma once
 
-char const* const ICON_RESTART_PATH = "restart icon.png"; // "Test programs/Timer/restart icon.png";
+char const* const ICON_RESTART_PATH = /*"restart icon.png";*/ "Test programs/Timer/restart icon.png";
 unsigned int const TIMER_SPIRAL_RESOLUTION = 360U;
 float const TIMER_SPIRAL_STEEPNESS = 0.4f;
 float const TIMER_SPIRAL_PADDING = 20.f;

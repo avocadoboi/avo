@@ -13,6 +13,7 @@ class TimerApp : public AvoGUI::GUI
 private:
 	MainScreen* m_mainScreen;
 	TimeoutScreen* m_timeoutScreen;
+	AvoGUI::Tooltip* m_tooltip;
 
 public:
 	TimerApp() : 
@@ -20,6 +21,13 @@ public:
 	{
 		create("The best timer that exists", 2.f*(TIMER_SPIRAL_RADIUS + TIMER_SPIRAL_PADDING), 2.f*(TIMER_SPIRAL_RADIUS + TIMER_SPIRAL_PADDING), AvoGUI::WindowStyleFlags::DefaultNoResize);
 		run();
+	}
+
+	//------------------------------
+
+	AvoGUI::Tooltip* getTooltip()
+	{
+		return m_tooltip;
 	}
 
 	//------------------------------

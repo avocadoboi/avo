@@ -35,7 +35,7 @@ MainScreen::MainScreen(TimerApp* p_timerApp) :
 	textFieldContainer->enableMouseEvents();
 
 	m_textField_hours = new AvoGUI::TextField(textFieldContainer, AvoGUI::TextField::Type::Outlined, "", TIMER_TEXT_FIELD_WIDTH);
-	m_textField_hours->setSuffixString(" H");
+	m_textField_hours->setSuffixString(" 1");
 	m_textField_hours->setTextAlign(AvoGUI::TextAlign::Right);
 	m_textField_hours->setString("1");
 
@@ -90,7 +90,7 @@ MainScreen::MainScreen(TimerApp* p_timerApp) :
 	m_button_restart->setCornerRadius(m_button_restart->getWidth() * 0.5f);
 	m_button_restart->setLeft(m_text_timeLeft->getRight() + 5.f);
 	m_button_restart->setCenterY(m_text_timeLeft->getCenterY());
-	m_button_restart->setTooltip("Restart timer");
+	m_button_restart->setTooltip(((TimerApp*)getGUI())->getTooltip(), "Restart timer");
 	m_button_restart->addButtonListener(this);
 }
 
