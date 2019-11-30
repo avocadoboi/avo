@@ -795,7 +795,7 @@ namespace AvoGUI
 			double atan2 = std::atan2(y, x);
 			if (atan2 < 0.)
 			{
-				return atan2 + TWO_PI;
+				return atan2 + TAU;
 			}
 			return atan2;
 		}
@@ -808,7 +808,7 @@ namespace AvoGUI
 			double atan2 = std::atan2(y - p_originY, x - p_originX);
 			if (atan2 < 0.)
 			{
-				return atan2 + TWO_PI;
+				return atan2 + TAU;
 			}
 			return atan2;
 		}
@@ -821,7 +821,7 @@ namespace AvoGUI
 			double atan2 = std::atan2(y - p_origin.y, x - p_origin.x);
 			if (atan2 < 0.)
 			{
-				return atan2 + TWO_PI;
+				return atan2 + TAU;
 			}
 			return atan2;
 		}
