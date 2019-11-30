@@ -3674,7 +3674,7 @@ namespace AvoGUI
 		}
 		void setFilledRealization(ID2D1GeometryRealization* p_realization)
 		{
-			m_strokedRealization = p_realization;
+			m_filledRealization = p_realization;
 		}
 
 		ID2D1Geometry* getGeometry()
