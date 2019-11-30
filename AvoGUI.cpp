@@ -14,7 +14,6 @@
 #include <windowsx.h>
 #include <ShObjIdl.h>
 #include <d2d1effects.h>
-//#include <d2d1.h>
 #include <d2d1_2.h>
 #include <d2d1_2helper.h>
 #include <d3d11.h>
@@ -3791,8 +3790,13 @@ namespace AvoGUI
 		bool m_isVsyncEnabled;
 
 		ID2D1SolidColorBrush* m_solidColorBrush;
+		ID2D1LinearGradientBrush* m_linearGradientBrush;
+		ID2D1RadialGradientBrush* m_radialGradientBrush;
+		ID2D1Brush* m_currentBrush;
+
 		D2D1_STROKE_STYLE_PROPERTIES1 m_strokeStyleProperties;
 		ID2D1StrokeStyle1* m_strokeStyle;
+
 		Point<float> m_scale;
 
 		IDWriteTextFormat* m_textFormat;
@@ -3920,6 +3924,7 @@ namespace AvoGUI
 		WindowsDrawingContext(Window* p_window) :
 			m_window(p_window), 
 			m_context(0), m_swapChain(0), m_targetWindowBitmap(0), m_isVsyncEnabled(true), 
+			m_linearGradientBrush(0), m_radialGradientBrush(0),
 			m_solidColorBrush(0), m_scale(1.f, 1.f), 
 			m_textFormat(0), m_fontCollection(0)
 		{
@@ -5644,6 +5649,51 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void setGradientBrush(Gradient const& p_gradient) override
+		{
+			D2D1_GRADIENT_STOP* gradientStops = new D2D1_GRADIENT_STOP[p_gradient.getNumberOfStops()];
+			for (uint32 a = 0; a < p_gradient.getNumberOfStops(); a++)
+			{
+				AvoGUI::Color const& color = p_gradient.getStopColor(a);
+				gradientStops[a].color = D2D1::ColorF(color.red, color.green, color.blue, color.alpha);
+				gradientStops[a].position = p_gradient.getStopPosition(a);
+			}
+
+			ID2D1GradientStopCollection* stopCollection = 0;
+			m_context->CreateGradientStopCollection(gradientStops, p_gradient.getNumberOfStops(), &stopCollection);
+
+			if (p_gradient.getIsRadial())
+			{
+				if (m_radialGradientBrush)
+				{
+					m_radialGradientBrush->Release();
+				}
+				m_context->CreateRadialGradientBrush(
+					D2D1::RadialGradientBrushProperties(
+						D2D1::Point2F(p_gradient.getStartPosition().x, p_gradient.getStartPosition().y), 
+						D2D1_POINT_2F(), 
+						p_gradient.getRadiusX(), p_gradient.getRadiusY()
+					), 
+					stopCollection, &m_radialGradientBrush
+				);
+				m_currentBrush = m_radialGradientBrush;
+			}
+			else
+			{
+				if (m_linearGradientBrush)
+				{
+					m_linearGradientBrush->Release();
+				}
+				m_context->CreateLinearGradientBrush(
+					D2D1::LinearGradientBrushProperties(
+						D2D1::Point2F(p_gradient.getStartPosition().x, p_gradient.getStartPosition().y),
+						D2D1::Point2F(p_gradient.getEndPosition().x, p_gradient.getEndPosition().y)
+					),
+					stopCollection, &m_linearGradientBrush
+				);
+				m_currentBrush = m_linearGradientBrush;
+			}
+		}
 		void setColor(Color const& p_color) override
 		{
 			m_solidColorBrush->SetColor(D2D1::ColorF(p_color.red, p_color.green, p_color.blue, p_color.alpha));
@@ -6581,6 +6631,7 @@ namespace AvoGUI
 			if (rectangle)
 			{
 				isDone = true;
+				m_invalidRectanglesMutex.lock();
 				for (uint32 a = 0; a < m_invalidRectangles.size(); a++)
 				{
 					if (a != rectangleIndex)
@@ -6600,10 +6651,12 @@ namespace AvoGUI
 						}
 					}
 				}
+				m_invalidRectanglesMutex.unlock();
 			}
 			else
 			{
 				isDone = true;
+				m_invalidRectanglesMutex.lock();
 				for (uint32 a = 0; a < m_invalidRectangles.size(); a++)
 				{
 					if (m_invalidRectangles[a].getIsIntersecting(p_rectangle))
@@ -6616,11 +6669,14 @@ namespace AvoGUI
 						break;
 					}
 				}
+				m_invalidRectanglesMutex.unlock();
 			}
 		}
 		if (willAdd)
 		{
+			m_invalidRectanglesMutex.lock();
 			m_invalidRectangles.push_back(p_rectangle);
+			m_invalidRectanglesMutex.unlock();
 		}
 	}
 
@@ -6630,8 +6686,9 @@ namespace AvoGUI
 		{
 			m_drawingContext->beginDrawing();
 
-			excludeAnimationThread();
+			m_invalidRectanglesMutex.lock();
 			std::vector<Rectangle<float>> invalidRectangles = std::move(m_invalidRectangles);
+			m_invalidRectanglesMutex.unlock();
 			//std::cout << "Invalid rectangles:\n";
 			//for (auto rect : invalidRectangles)
 			//{
@@ -6640,6 +6697,7 @@ namespace AvoGUI
 			//std::cout << "\n\n";
 			//includeAnimationThread();
 
+			excludeAnimationThread();
 			Point<uint32> size(m_drawingContext->getSize());
 			for (auto const& targetRectangle : invalidRectangles)
 			{

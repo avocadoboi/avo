@@ -731,6 +731,104 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
+			Rotates the vector anticlockwise by p_angle radians so that it keeps its length.
+		*/
+		void rotate(double p_angle)
+		{
+			PointType xBefore = x;
+			double cos = std::cos(p_angle);
+			double sin = std::sin(p_angle);
+			x = x * cos - y * sin;
+			y = y * cos + xBefore * sin;
+		}
+		/*
+			Rotates the point anticlockwise relative to (p_originX, p_originY) by p_angle radians so that it keeps its distance from that origin point.
+		*/
+		void rotate(double p_angle, PointType p_originX, PointType p_originY)
+		{
+			PointType xBefore = x;
+			double cos = std::cos(p_angle);
+			double sin = std::sin(p_angle);
+			x = (x - p_originX) * cos - (y - p_originY) * sin + p_originX;
+			y = (y - p_originY) * cos + (xBefore - p_originX) * sin + p_originY;
+
+		}
+		/*
+			Rotates the point anticlockwise relative to p_origin by p_angle radians so that it keeps its distance from p_origin.
+		*/
+		void rotate(double p_angle, Point<PointType> const& p_origin)
+		{
+			rotate(p_angle, p_origin.x, p_origin.y);
+		}
+
+		/*
+			Rotates the vector so that its angle is equal to p_angle radians.
+		*/
+		void setAngle(double p_angle)
+		{
+			double length = getLength();
+			x = std::cos(p_angle) * length;
+			y = std::sin(p_angle) * length;
+		}
+		/*
+			Rotates the vector so that its angle relative to (p_originX, p_originY) is p_angle radians.
+		*/
+		void setAngle(double p_angle, PointType p_originX, PointType p_originY)
+		{
+			double length = getDistance(p_originX, p_originY);
+			x = std::cos(p_angle) * length + p_originX;
+			y = std::sin(p_angle) * length + p_originY;
+		}
+		/*
+			Rotates the vector so that its angle relative to p_origin is p_angle radians.
+		*/
+		void setAngle(double p_angle, Point<PointType> const& p_origin)
+		{
+			setAngle(p_angle, p_origin.x, p_origin.y);
+		}
+
+		/*
+			Returns the angle between the ray to the point and the x-axis, in radians and in the range [0, 2pi].
+		*/
+		double getAngle() const
+		{
+			double atan2 = std::atan2(y, x);
+			if (atan2 < 0.)
+			{
+				return atan2 + TWO_PI;
+			}
+			return atan2;
+		}
+		/*
+			Returns the angle between the ray to the point and the x-axis, relative to (p_originX, p_originY).
+			Angle is in radians and in the range [0, 2pi].
+		*/
+		double getAngle(PointType p_originX, PointType p_originY) const
+		{
+			double atan2 = std::atan2(y - p_originY, x - p_originX);
+			if (atan2 < 0.)
+			{
+				return atan2 + TWO_PI;
+			}
+			return atan2;
+		}
+		/*
+			Returns the angle between the ray to the point and the x-axis, relative to p_origin.
+			Angle is in radians and in the range [0, 2pi].
+		*/
+		double getAngle(Point<PointType> const& p_origin) const
+		{
+			double atan2 = std::atan2(y - p_origin.y, x - p_origin.x);
+			if (atan2 < 0.)
+			{
+				return atan2 + TWO_PI;
+			}
+			return atan2;
+		}
+
+		//------------------------------
+
+		/*
 			Uses an accurate but slower algorithm to set the length of the 2d vector to 1.
 			The angle remains the same.
 		*/
@@ -6889,49 +6987,99 @@ namespace AvoGUI
 		float fontSize = 22.f;
 	};
 
-	//class Gradient
-	//{
-	//private:
-	//	Point<float> m_origin;
-	//	std::vector<Color> m_colors;
-	//	std::vector<float> m_positions;
-	//	float m_angle;
-	//	bool m_isRadial;
+	class Gradient
+	{
+	private:
+		Point<float> m_startPosition;
+		Point<float> m_endPosition;
+		Point<float> m_radius;
 
-	//public:
-	//	/*
-	//		Adds a color position to the gradient.
-	//		p_position is expressed as a factor that is relative to the geometry of the shape being drawn with the gradient.
-	//	*/
-	//	void addStop(Color const& p_color, float p_position);
+		std::vector<Color> m_colors;
+		std::vector<float> m_positions;
+		float m_angle;
+		bool m_isRadial;
 
-	//	/*
-	//		Sets whether the gradient is radial or linear.
-	//		A radial gradient goes from the origin and out in all directions from the origin.
-	//		A linear gradient goes from one edge of the shape to the opposite side.
-	//	*/
-	//	void setIsRadial(bool p_isRadial);
-	//	/*
-	//		Returns whether the gradient is radial or linear.
-	//	*/
-	//	bool getIsRadial();
+	public:
+		/*
+			Adds a color position to the gradient.
+			p_position is expressed as a factor that is relative to the start and end positions if it's linear and to the radius if it's radial.
+		*/
+		void addStop(Color const& p_color, float p_position)
+		{
+			m_colors.push_back(p_color);
+			m_positions.push_back(p_position);
+		}
+		uint32 getNumberOfStops() const
+		{
+			return m_colors.size();
+		}
 
-	//	void setOrigin(float p_x, float p_y)
-	//	{
+		Color const& getStopColor(uint32 p_index) const
+		{
+			return m_colors[p_index];
+		}
+		float getStopPosition(uint32 p_index) const
+		{
+			return m_positions[p_index];
+		}
 
-	//	}
+		/*
+			Sets whether the gradient is radial or linear.
+			A radial gradient goes from the start position and out in all directions.
+			A linear gradient goes linearly from the start position to the end position.
+		*/
+		void setIsRadial(bool p_isRadial)
+		{
+			m_isRadial = p_isRadial;
+		}
+		/*
+			Returns whether the gradient is radial or linear.
+		*/
+		bool getIsRadial() const
+		{
+			return m_isRadial;
+		}
 
-	//	/*
-	//		Sets the direction of the gradient, if it is linear.
-	//		The angle is expressed in radians.
-	//	*/
-	//	void setAngle(float p_radians);
-	//	/*
-	//		Returns the direction of the gradient, if it is linear.
-	//		The angle is expressed in radians.
-	//	*/
-	//	float getAngle();
-	//};
+		void setStartPosition(float p_x, float p_y)
+		{
+			m_startPosition.set(p_x, p_y);
+		}
+		Point<float> const& getStartPosition() const
+		{
+			return m_startPosition;
+		}
+
+		void setEndPosition(float p_x, float p_y)
+		{
+			m_startPosition.set(p_x, p_y);
+		}
+		Point<float> const& getEndPosition() const
+		{
+			return m_startPosition;
+		}
+
+		void setRadius(Point<float> const& p_radius)
+		{
+			m_radius = p_radius;
+		}
+		void setRadius(float p_radiusX, float p_radiusY)
+		{
+			m_radius.set(p_radiusX, p_radiusY);
+		}
+		Point<float> const& getRadius() const
+		{
+			return m_radius;
+		}
+		float getRadiusX() const
+		{
+			return m_radius.x;
+		}
+		float getRadiusY() const
+		{
+			return m_radius.y;
+		}
+
+	};
 
 	/*
 		Platform-specific interface for cached geometry that can be created and drawn by a DrawingContext.
@@ -7121,18 +7269,21 @@ namespace AvoGUI
 		/*
 			Rotates all future graphics drawing, with an angle in radians. Graphics will be rotated relative to the origin.
 			p_radians is the angle to rotate, in radians.
+			Positive angle is clockwise and negative is anticlockwise.
 		*/
 		virtual void rotate(float p_radians) = 0;
 		/*
 			Rotates all future graphics drawing, with an angle in radians. 
 			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
 			p_radians is the angle to rotate, in radians.
+			Positive angle is clockwise and negative is anticlockwise.
 		*/
 		virtual void rotate(float p_radians, Point<float> const& p_origin) = 0;
 		/*
 			Rotates all future graphics drawing, with an angle in radians. 
 			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
 			p_radians is the angle to rotate, in radians.
+			Positive angle is clockwise and negative is anticlockwise.
 		*/
 		virtual void rotate(float p_radians, float p_originX, float p_originY) = 0;
 
@@ -7749,6 +7900,10 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
+			
+		*/
+		virtual void setGradientBrush(Gradient const& p_gradient) = 0;
+		/*
 			Sets the color being used when drawing shapes.
 		*/
 		virtual void setColor(Color const& p_color) = 0;
@@ -7841,6 +7996,8 @@ namespace AvoGUI
 		Point<uint32> m_newWindowSize;
 		bool m_hasNewWindowSize;
 		std::deque<View*> m_animationUpdateQueue;
+
+		std::mutex m_invalidRectanglesMutex;
 		std::vector<Rectangle<float>> m_invalidRectangles;
 
 		std::recursive_mutex m_animationThreadMutex;

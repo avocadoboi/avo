@@ -4,6 +4,7 @@ class Card : public AvoGUI::View
 {
 private:
 	AvoGUI::Text* m_text;
+	AvoGUI::Gradient m_gradient;
 
 public:
 	Card(View* p_parent) :
@@ -17,6 +18,15 @@ public:
 		m_text->setFontWeight(AvoGUI::FontWeight::Light);
 		m_text->setWordWrapping(AvoGUI::WordWrapping::WholeWord);
 		m_text->setReadingDirection(AvoGUI::ReadingDirection::RightToLeft);
+
+		m_gradient.addStop(AvoGUI::Color(255, 0, 0), 0.f);
+		m_gradient.addStop(AvoGUI::Color(0, 0, 255), 1.f);
+		m_gradient.setIsRadial(false);
+		m_gradient.setEndPosition(100, 100);
+	}
+	~Card()
+	{
+		m_text->forget();
 	}
 
 	void handleSizeChange()
@@ -34,8 +44,10 @@ public:
 		p_context->setColor(AvoGUI::Color(1.f));
 		p_context->fillRectangle(getSize());
 
+		p_context->setGradientBrush(m_gradient);
+
 		//p_context->setColor(AvoGUI::Color(0.1f, 0.9f, 0.7f));
-		//p_context->fillRectangle(m_text->getBounds());
+		p_context->fillRectangle(m_text->getBounds());
 
 		p_context->setColor(AvoGUI::Color(0.f));
 		p_context->drawText(m_text);
