@@ -114,6 +114,7 @@ public:
 			delete renderer;
 		}
 		delete[] m_pixels;
+		m_pixels = 0;
 	}
 
 	char* getPixels()

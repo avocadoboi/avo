@@ -1133,6 +1133,20 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void setTitle(char const* p_title) override
+		{
+			SetWindowText(m_windowHandle, p_title);
+		}
+		std::string getTitle() override
+		{
+			std::string string;
+			string.resize(100);
+			GetWindowText(m_windowHandle, string.data(), string.size());
+			return std::move(string);
+		}
+
+		//------------------------------
+
 		void setStyles(WindowStyleFlags p_styles) override
 		{
 			SetWindowLongPtr(m_windowHandle, GWL_STYLE, convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styles));

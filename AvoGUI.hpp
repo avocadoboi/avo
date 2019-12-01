@@ -6186,6 +6186,17 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
+			Sets the text shown in the titlebar.
+		*/
+		virtual void setTitle(char const* p_title) const = 0;
+		/*
+			Returns the text shown in the titlebar.
+		*/
+		virtual std::string getTitle() const = 0;
+
+		//------------------------------
+
+		/*
 			Changes the styles that determine how the window is drawn by the OS. 
 			These are set when the window is created, and you can change them afterwards here.
 		*/

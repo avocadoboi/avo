@@ -11,6 +11,10 @@ void MandelbrotRenderer::render()
 		{
 			for (uint32 y = m_partIndex * HEIGHT_PER_THREAD; y < m_partIndex * HEIGHT_PER_THREAD + HEIGHT_PER_THREAD; y++)
 			{
+				if (!m_viewer->getPixels())
+				{
+					return;
+				}
 				char* pixel = m_viewer->getPixels() + 4 * (x + (uint32)WIDTH * y);
 
 				double translatedX = x / m_viewer->getWidth() * GLOBAL_SCALE_X * m_viewer->getScale() + m_viewer->getOffsetX();
