@@ -3,11 +3,13 @@
 //------------------------------
 
 float const BOID_SCALE = 15.f;
-float const BOID_VIEW_RADIUS = 40.f;
-float const BOID_SPEED = 3.f;
-float const BOID_POSITIONING_SPEED = 2.f;
-float const BOID_ALIGNMENT_SPEED = 3.f;
-float const BOID_AVOIDANCE_SPEED = 1.5f;
+float const BOID_VIEW_RADIUS = 50.f;
+float const BOID_SPEED = 2.f;
+float const BOID_POSITIONING_SPEED = 2.7f;
+float const BOID_ALIGNMENT_SPEED = 2.6f;
+float const BOID_AVOIDANCE_SPEED = 1.f;
+
+//float const MOUSE_OBSTACLE_RADIUS = 50.f;
 
 //------------------------------
 
@@ -75,8 +77,19 @@ public:
 
 	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
 	{
-		m_boids.push_back(Boid());
-		m_boids.back().position.set(p_event.x, p_event.y);
+		if (p_event.mouseButton == AvoGUI::MouseButton::Left)
+		{
+			m_boids.push_back(Boid());
+			m_boids.back().position.set(p_event.x, p_event.y);
+		}
+	}
+	void handleMouseMove(AvoGUI::MouseEvent const& p_event) override
+	{
+		if (getWindow()->getIsMouseButtonDown(AvoGUI::MouseButton::Left) && AvoGUI::Point<float>::getLengthSquared(p_event.movementX, p_event.movementY) > 5*5)
+		{
+			m_boids.push_back(Boid());
+			m_boids.back().position.set(p_event.x, p_event.y);
+		}
 	}
 	void handleMouseDoubleClick(AvoGUI::MouseEvent const& p_event) override
 	{
@@ -87,6 +100,8 @@ public:
 
 	void updateAnimations() override
 	{
+		AvoGUI::Point<float> mousePosition = getWindow()->getMousePosition();
+		bool willAvoidMouse = getWindow()->getIsMouseButtonDown(AvoGUI::MouseButton::Right);
 		for (uint32 a = 0; a < m_boids.size(); a++)
 		{
 			AvoGUI::Point<float> averagePosition;
@@ -104,11 +119,23 @@ public:
 						averageVelocity += m_boids[b].velocity;
 						numberOfBoidsWithinRadius++;
 
-						m_boids[a].acceleration -= BOID_AVOIDANCE_SPEED*0.05f*delta / delta.getLengthSquared();
-						m_boids[a].hue += 0.001f*(m_boids[b].hue - m_boids[a].hue);
+						m_boids[a].acceleration -= BOID_AVOIDANCE_SPEED*0.05f*delta / AvoGUI::max(delta.getLengthSquared(), 0.01f);
+						m_boids[a].hue += 0.0001f*(m_boids[b].hue - m_boids[a].hue);
 					}
 				}
 			}
+
+			if (willAvoidMouse)
+			{
+				AvoGUI::Point<float> delta = mousePosition - m_boids[a].position;
+				float lengthSquared = AvoGUI::max(delta.getLengthSquared(), 10.f);
+				m_boids[a].acceleration -= 10.f*delta / lengthSquared;
+
+				m_boids[a].hue += 50.f/lengthSquared;
+
+				//m_boids[a].acceleration -= delta.normalizeFast()*0.1f;
+			}
+
 			if (numberOfBoidsWithinRadius)
 			{
 				averagePosition /= numberOfBoidsWithinRadius;
@@ -116,6 +143,7 @@ public:
 				m_boids[a].position += BOID_POSITIONING_SPEED * 0.001f * (averagePosition - m_boids[a].position);
 				m_boids[a].acceleration += BOID_ALIGNMENT_SPEED * 0.005f*(averageVelocity.normalizeFast()* BOID_SPEED - m_boids[a].velocity);
 			}
+
 			//m_boids[a].acceleration += AvoGUI::Point<float>().setPolar(AvoGUI::random()*AvoGUI::TAU, BOID_SPEED*0.01f);
 
 			m_boids[a].velocity += m_boids[a].acceleration;
@@ -155,6 +183,12 @@ public:
 			p_context->fillGeometry(m_boidGeometry);
 			p_context->resetTransformations();
 		}
+
+		//if (getWindow()->getIsMouseButtonDown(AvoGUI::MouseButton::Right))
+		//{
+		//	p_context->setColor(AvoGUI::Color(1.f, 1.f, 1.f, 0.05f));
+		//	p_context->fillCircle(getWindow()->getMousePosition(), MOUSE_OBSTACLE_RADIUS);
+		//}
 	}
 };
 
