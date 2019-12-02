@@ -1137,11 +1137,11 @@ namespace AvoGUI
 		{
 			SetWindowText(m_windowHandle, p_title);
 		}
-		std::string getTitle() override
+		std::string getTitle() const override
 		{
 			std::string string;
 			string.resize(100);
-			GetWindowText(m_windowHandle, string.data(), string.size());
+			GetWindowText(m_windowHandle, (char*)string.data(), string.size());
 			return std::move(string);
 		}
 

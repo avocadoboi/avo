@@ -6188,7 +6188,7 @@ namespace AvoGUI
 		/*
 			Sets the text shown in the titlebar.
 		*/
-		virtual void setTitle(char const* p_title) const = 0;
+		virtual void setTitle(char const* p_title) = 0;
 		/*
 			Returns the text shown in the titlebar.
 		*/
