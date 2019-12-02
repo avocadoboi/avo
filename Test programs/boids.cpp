@@ -5,10 +5,11 @@
 float const BOID_SCALE = 15.f;
 float const BOID_VIEW_RADIUS = 50.f;
 float const BOID_SPEED = 2.f;
-float const BOID_POSITIONING_SPEED = 2.7f;
-float const BOID_ALIGNMENT_SPEED = 2.6f;
+float const BOID_COHESION_SPEED = 3.3f;
+float const BOID_ALIGNMENT_SPEED = 2.4f;
 float const BOID_AVOIDANCE_SPEED = 1.f;
 
+float const EDGE_REPEAT_PADDING = 500.f;
 //float const MOUSE_OBSTACLE_RADIUS = 50.f;
 
 //------------------------------
@@ -140,7 +141,7 @@ public:
 			{
 				averagePosition /= numberOfBoidsWithinRadius;
 				averageVelocity /= numberOfBoidsWithinRadius;
-				m_boids[a].position += BOID_POSITIONING_SPEED * 0.001f * (averagePosition - m_boids[a].position);
+				m_boids[a].position += BOID_COHESION_SPEED * 0.001f * (averagePosition - m_boids[a].position);
 				m_boids[a].acceleration += BOID_ALIGNMENT_SPEED * 0.005f*(averageVelocity.normalizeFast()* BOID_SPEED - m_boids[a].velocity);
 			}
 
@@ -150,21 +151,21 @@ public:
 			m_boids[a].position += m_boids[a].velocity;
 			m_boids[a].acceleration = 0.f;
 
-			if (m_boids[a].position.x < -BOID_SCALE)
+			if (m_boids[a].position.x < -EDGE_REPEAT_PADDING)
 			{
-				m_boids[a].position.x += getWidth() + BOID_SCALE;
+				m_boids[a].position.x += getWidth() + EDGE_REPEAT_PADDING;
 			}
-			if (m_boids[a].position.y < -BOID_SCALE)
+			if (m_boids[a].position.y < -EDGE_REPEAT_PADDING)
 			{
-				m_boids[a].position.y += getHeight() + BOID_SCALE;
+				m_boids[a].position.y += getHeight() + EDGE_REPEAT_PADDING;
 			}
-			if (m_boids[a].position.x >= getWidth() + BOID_SCALE)
+			if (m_boids[a].position.x >= getWidth() + EDGE_REPEAT_PADDING)
 			{
-				m_boids[a].position.x -= getWidth() + BOID_SCALE;
+				m_boids[a].position.x -= getWidth() + EDGE_REPEAT_PADDING;
 			}
-			if (m_boids[a].position.y >= getHeight() + BOID_SCALE)
+			if (m_boids[a].position.y >= getHeight() + EDGE_REPEAT_PADDING)
 			{
-				m_boids[a].position.y -= getHeight() + BOID_SCALE;
+				m_boids[a].position.y -= getHeight() + EDGE_REPEAT_PADDING;
 			}
 		}
 

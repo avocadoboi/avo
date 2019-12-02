@@ -724,6 +724,8 @@ namespace AvoGUI
 		Point<uint32> m_minSize;
 		Point<uint32> m_maxSize;
 
+		float m_dipToPixelFactor;
+
 		bool m_isFullscreen;
 		RECT m_windowRectBeforeFullscreen;
 		bool m_wasWindowMaximizedBeforeFullscreen;
@@ -735,16 +737,20 @@ namespace AvoGUI
 		HCURSOR m_cursorHandle;
 		Cursor m_cursorType;
 
-		uint32 convertWindowStyleFlagsToWindowsWindowStyleFlags(WindowStyleFlags p_styleFlags)
+		uint32 convertWindowStyleFlagsToWindowsWindowStyleFlags(WindowStyleFlags p_styleFlags, bool p_hasParent)
 		{
-			uint32 styles = WS_POPUP;
+			uint32 styles = 0;
+
+			if (p_hasParent)
+			{
+				//styles |= WS_CHILD;
+				styles |= WS_POPUP;
+			}
 
 			if (!uint32(p_styleFlags & WindowStyleFlags::Invisible))
 				styles |= WS_VISIBLE;
 			if (uint32(p_styleFlags & WindowStyleFlags::Border))
 				styles |= WS_CAPTION | WS_SYSMENU;
-			if (uint32(p_styleFlags & WindowStyleFlags::Child))
-				styles |= WS_CHILD;
 
 			if (uint32(p_styleFlags & WindowStyleFlags::Minimized))
 				styles |= WS_MINIMIZE;
@@ -1075,26 +1081,52 @@ namespace AvoGUI
 			//------------------------------
 
 			m_crossPlatformStyles = p_styleFlags;
-			m_styles = convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styleFlags);
+			m_styles = convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styleFlags, p_parent);
+
+			m_dipToPixelFactor = GetDpiForSystem() / 96.f;
 
 			// Calculate nonclient window rectangle from client size.
-			RECT windowRect = { 0, 0, p_width, p_height };
+			RECT windowRect = { 0, 0, std::ceil(p_width * m_dipToPixelFactor), std::ceil(p_height * m_dipToPixelFactor) };
+			m_size.set(windowRect.right, windowRect.bottom); // Client area
+
 			AdjustWindowRect(&windowRect, m_styles, 0);
 
-			m_size.set(p_width, p_height); // Client area
 
-			RECT workArea;
-			SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
+			//------------------------------
+
+			//RECT workArea;
+			//SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
+
+			POINT cursorPosition = { 0 };
+			GetCursorPos(&cursorPosition);
+			m_mousePosition.set(cursorPosition.x, cursorPosition.y);
+
+			RECT parentRect = { 0 };
+
+			if (p_parent)
+			{
+				GetWindowRect((HWND)p_parent->getNativeHandle(), &parentRect);
+			}
+			else
+			{
+				HMONITOR monitor = MonitorFromPoint(cursorPosition, MONITOR_DEFAULTTONEAREST);
+				MONITORINFO monitorInfo;
+				monitorInfo.cbSize = sizeof(MONITORINFO);
+				GetMonitorInfo(monitor, &monitorInfo);
+				parentRect = monitorInfo.rcWork;
+			}
+
+			//------------------------------
 
 			// m_windowHandle is initialized by the WM_CREATE event, before CreateWindow returns.
 			CreateWindow(
 				WINDOW_CLASS_NAME,
 				p_title,
 				m_styles,
-				windowRect.left + p_x * (workArea.right - workArea.left - windowRect.right + windowRect.left),
-				windowRect.top + p_y * (workArea.bottom - workArea.top - windowRect.bottom + windowRect.top),
-				std::ceil((windowRect.right - windowRect.left) * GetDpiForSystem()/96.f),
-				std::ceil((windowRect.bottom - windowRect.top) * GetDpiForSystem()/96.f),
+				parentRect.left + windowRect.left + p_x * (parentRect.right - parentRect.left - windowRect.right + windowRect.left),
+				parentRect.top + windowRect.top + p_y * (parentRect.bottom - parentRect.top - windowRect.bottom + windowRect.top),
+				windowRect.right - windowRect.left,
+				windowRect.bottom - windowRect.top,
 				p_parent ? (HWND)p_parent->getNativeHandle() : 0,
 				0, // No menu
 				GetModuleHandle(0),
@@ -1105,8 +1137,8 @@ namespace AvoGUI
 			{
 				SetWindowPos(
 					m_windowHandle, 0, 
-					p_x * (workArea.right - workArea.left - p_width),
-					p_y * (workArea.bottom - workArea.top - p_height),
+					parentRect.left + p_x * (parentRect.right - parentRect.left - m_size.x),
+					parentRect.top + p_y * (parentRect.bottom - parentRect.top - m_size.y),
 					m_size.x, m_size.y,
 					SWP_NOZORDER
 				);
@@ -1133,6 +1165,17 @@ namespace AvoGUI
 
 		//------------------------------
 
+		void enableUserInteraction() override
+		{
+			EnableWindow(m_windowHandle, true);
+		}
+		void disableUserInteraction() override
+		{
+			EnableWindow(m_windowHandle, false);
+		}
+
+		//------------------------------
+
 		void setTitle(char const* p_title) override
 		{
 			SetWindowText(m_windowHandle, p_title);
@@ -1149,7 +1192,7 @@ namespace AvoGUI
 
 		void setStyles(WindowStyleFlags p_styles) override
 		{
-			SetWindowLongPtr(m_windowHandle, GWL_STYLE, convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styles));
+			SetWindowLongPtr(m_windowHandle, GWL_STYLE, convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styles, GetParent(m_windowHandle)));
 			SetWindowPos(m_windowHandle, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
 		}
 		WindowStyleFlags getStyles() const override
@@ -1282,78 +1325,76 @@ namespace AvoGUI
 			return m_position.y;
 		}
 
-		void setSize(Point<uint32> const& p_size) override
+		void setSize(Point<float> const& p_size) override
 		{
-			RECT windowRect = { 0, 0, p_size.x, p_size.y };
+			RECT windowRect = { 0, 0, std::ceil(p_size.x * m_dipToPixelFactor), std::ceil(p_size.y * m_dipToPixelFactor) };
 			AdjustWindowRect(&windowRect, m_styles, 0);
 			SetWindowPos(m_windowHandle, 0, 0, 0, windowRect.right - windowRect.left, windowRect.bottom - windowRect.top, SWP_NOMOVE | SWP_NOZORDER);
-			m_size = p_size;
 		}
-		void setSize(uint32 p_width, uint32 p_height) override
+		void setSize(float p_width, float p_height) override
 		{
-			RECT windowRect = { 0, 0, p_width, p_height };
+			RECT windowRect = { 0, 0, std::ceil(p_width * m_dipToPixelFactor), std::ceil(p_height * m_dipToPixelFactor) };
 			AdjustWindowRect(&windowRect, m_styles, 0);
 			SetWindowPos(m_windowHandle, 0, 0, 0, windowRect.right - windowRect.left, windowRect.bottom - windowRect.top, SWP_NOMOVE | SWP_NOZORDER);
-			m_size.set(p_width, p_height);
 		}
 
-		Point<uint32> const& getSize() const override
+		Point<float> const& getSize() const override
 		{
-			return m_size;
+			return m_size / m_dipToPixelFactor;
 		}
-		uint32 getWidth() const override
+		float getWidth() const override
 		{
-			return m_size.x;
+			return m_size.x / m_dipToPixelFactor;
 		}
-		uint32 getHeight() const override
+		float getHeight() const override
 		{
-			return m_size.y;
+			return m_size.y / m_dipToPixelFactor;
 		}
 
 		//------------------------------
 
-		void setMinSize(Point<uint32> const& p_minSize) override
+		void setMinSize(Point<float> const& p_minSize) override
 		{
-			m_minSize = p_minSize;
+			m_minSize = p_minSize*m_dipToPixelFactor;
 		}
-		void setMinSize(uint32 p_minWidth, uint32 p_minHeight) override
+		void setMinSize(float p_minWidth, float p_minHeight) override
 		{
-			m_minSize.x = p_minWidth;
-			m_minSize.y = p_minHeight;
+			m_minSize.x = p_minWidth * m_dipToPixelFactor;
+			m_minSize.y = p_minHeight * m_dipToPixelFactor;
 		}
-		Point<uint32> getMinSize() const override
+		Point<float> getMinSize() const override
 		{
-			return m_minSize;
+			return m_minSize/m_dipToPixelFactor;
 		}
-		uint32 getMinWidth() const override
+		float getMinWidth() const override
 		{
-			return m_minSize.x;
+			return m_minSize.x/ m_dipToPixelFactor;
 		}
-		uint32 getMinHeight() const override
+		float getMinHeight() const override
 		{
-			return m_minSize.y;
+			return m_minSize.y/ m_dipToPixelFactor;
 		}
 
-		void setMaxSize(Point<uint32> const& p_maxSize) override
+		void setMaxSize(Point<float> const& p_maxSize) override
 		{
-			m_maxSize = p_maxSize;
+			m_maxSize = p_maxSize* m_dipToPixelFactor;
 		}
-		void setMaxSize(uint32 p_maxWidth, uint32 p_maxHeight) override
+		void setMaxSize(float p_maxWidth, float p_maxHeight) override
 		{
-			m_maxSize.x = p_maxWidth;
-			m_maxSize.y = p_maxHeight;
+			m_maxSize.x = p_maxWidth* m_dipToPixelFactor;
+			m_maxSize.y = p_maxHeight* m_dipToPixelFactor;
 		}
-		Point<uint32> getMaxSize() const override
+		Point<float> getMaxSize() const override
 		{
-			return m_maxSize;
+			return m_maxSize/ m_dipToPixelFactor;
 		}
-		uint32 getMaxWidth() const override
+		float getMaxWidth() const override
 		{
-			return m_maxSize.x;
+			return m_maxSize.x/ m_dipToPixelFactor;
 		}
-		uint32 getMaxHeight() const override
+		float getMaxHeight() const override
 		{
-			return m_maxSize.y;
+			return m_maxSize.y/ m_dipToPixelFactor;
 		}
 
 		//------------------------------
@@ -1704,9 +1745,9 @@ namespace AvoGUI
 			}
 			return false;
 		}
-		Point<int32> const& getMousePosition() const override
+		Point<float> const& getMousePosition() const override
 		{
-			return m_mousePosition;
+			return m_mousePosition / m_dipToPixelFactor;
 		}
 
 		//------------------------------
@@ -3745,7 +3786,7 @@ namespace AvoGUI
 			if (!s_directWriteFactory)
 			{
 				DWriteCreateFactory(
-					DWRITE_FACTORY_TYPE::DWRITE_FACTORY_TYPE_ISOLATED,
+					DWRITE_FACTORY_TYPE::DWRITE_FACTORY_TYPE_SHARED,
 					__uuidof(s_directWriteFactory), (IUnknown**)&s_directWriteFactory
 				);
 

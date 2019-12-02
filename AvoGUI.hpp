@@ -6082,7 +6082,6 @@ namespace AvoGUI
 		None = 0x0UL, // Borderless window.
 		Border = 0x1UL,
 		Invisible = 0x2UL, // Makes the window invisible at first. You can make it visible afterwards.
-		Child = 0x4UL,
 		Minimized = 0x8UL,
 		Maximized = 0x10UL,
 		MinimizeButton = 0x20UL,
@@ -6182,6 +6181,19 @@ namespace AvoGUI
 			Returns whether the OS window has been created and exists.
 		*/
 		virtual bool getIsOpen() const = 0;
+
+		//------------------------------
+
+		/*
+			Usually used for the parent of a popup window when the popup is closed.
+			Makes the window recieve mouse and keyboard events again.
+		*/
+		virtual void enableUserInteraction() = 0;
+		/*
+			Usually used for the parent of a popup window when the popup is opened.
+			Makes the window not recieve any mouse and keyboard events, until enableUserInteraction is called.
+		*/
+		virtual void disableUserInteraction() = 0;
 
 		//------------------------------
 
@@ -6289,67 +6301,67 @@ namespace AvoGUI
 		virtual int32 getPositionY() const = 0;
 
 		/*
-			Sets the size of the client area of the window, in pixel units.
+			Sets the size of the client area of the window, in dip units.
 		*/
-		virtual void setSize(Point<uint32> const& p_size) = 0;
+		virtual void setSize(Point<float> const& p_size) = 0;
 		/*
-			Sets the size of the client area of the window, in pixel units.
+			Sets the size of the client area of the window, in dip units.
 		*/
-		virtual void setSize(uint32 p_width, uint32 p_height) = 0;
+		virtual void setSize(float p_width, float p_height) = 0;
 		/*
-			Returns the size of the client area of the window, in pixel units.
+			Returns the size of the client area of the window, in dip units.
 		*/
-		virtual Point<uint32> const& getSize() const = 0;
+		virtual Point<float> const& getSize() const = 0;
 		/*
-			Returns the width of the client area of the window, in pixel units.
+			Returns the width of the client area of the window, in dip units.
 		*/
-		virtual uint32 getWidth() const = 0;
+		virtual float getWidth() const = 0;
 		/*
-			Returns the height of the client area of the window, in pixel units.
+			Returns the height of the client area of the window, in dip units.
 		*/
-		virtual uint32 getHeight() const = 0;
+		virtual float getHeight() const = 0;
 
 		/*
-			Sets the smallest allowed size for the window when the user is resizing it, in pixel units.
+			Sets the smallest allowed size for the window when the user is resizing it, in dip units.
 		*/
-		virtual void setMinSize(Point<uint32> const& p_minSize) = 0;
+		virtual void setMinSize(Point<float> const& p_minSize) = 0;
 		/*
-			Sets the smallest allowed size for the window when the user is resizing it, in pixel units.
+			Sets the smallest allowed size for the window when the user is resizing it, in dip units.
 		*/
-		virtual void setMinSize(uint32 p_minWidth, uint32 p_minHeight) = 0;
+		virtual void setMinSize(float p_minWidth, float p_minHeight) = 0;
 		/*
-			Returns the smallest allowed size for the window when the user is resizing it, in pixel units.
+			Returns the smallest allowed size for the window when the user is resizing it, in dip units.
 		*/
-		virtual Point<uint32> getMinSize() const = 0;
+		virtual Point<float> getMinSize() const = 0;
 		/*
-			Returns the smallest allowed width for the window when the user is resizing it, in pixel units.
+			Returns the smallest allowed width for the window when the user is resizing it, in dip units.
 		*/
-		virtual uint32 getMinWidth() const = 0;
+		virtual float getMinWidth() const = 0;
 		/*
-			Returns the smallest allowed height for the window when the user is resizing it, in pixel units.
+			Returns the smallest allowed height for the window when the user is resizing it, in dip units.
 		*/
-		virtual uint32 getMinHeight() const = 0;
+		virtual float getMinHeight() const = 0;
 
 		/*
-			Sets the biggest allowed size for the window when the user is resizing it, in pixel units.
+			Sets the biggest allowed size for the window when the user is resizing it, in dip units.
 		*/
-		virtual void setMaxSize(Point<uint32> const& p_maxSize) = 0;
+		virtual void setMaxSize(Point<float> const& p_maxSize) = 0;
 		/*
-			Sets the biggest allowed size for the window when the user is resizing it, in pixel units.
+			Sets the biggest allowed size for the window when the user is resizing it, in dip units.
 		*/
-		virtual void setMaxSize(uint32 p_maxWidth, uint32 p_maxHeight) = 0;
+		virtual void setMaxSize(float p_maxWidth, float p_maxHeight) = 0;
 		/*
-			Returns the biggest allowed size for the window when the user is resizing it, in pixel units.
+			Returns the biggest allowed size for the window when the user is resizing it, in dip units.
 		*/
-		virtual Point<uint32> getMaxSize() const = 0;
+		virtual Point<float> getMaxSize() const = 0;
 		/*
-			Returns the biggest allowed width for the window when the user is resizing it, in pixel units.
+			Returns the biggest allowed width for the window when the user is resizing it, in dip units.
 		*/
-		virtual uint32 getMaxWidth() const = 0;
+		virtual float getMaxWidth() const = 0;
 		/*
-			Returns the biggest allowed height for the window when the user is resizing it, in pixel units.
+			Returns the biggest allowed height for the window when the user is resizing it, in dip units.
 		*/
-		virtual uint32 getMaxHeight() const = 0;
+		virtual float getMaxHeight() const = 0;
 
 		//------------------------------
 
@@ -6415,7 +6427,7 @@ namespace AvoGUI
 		/*
 			Returns the position of the mouse cursor, relative to the top-left corner of the window.
 		*/
-		virtual Point<int32> const& getMousePosition() const = 0;
+		virtual Point<float> const& getMousePosition() const = 0;
 
 		//------------------------------
 
@@ -8464,7 +8476,6 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Should only need to be used internally. 
 			This locks the animation thread mutex, so that the critical section in the animation thread does not run until the mutex is unlocked again (or the other way around).
 		*/
 		void excludeAnimationThread()
@@ -8473,7 +8484,6 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Should only need to be used internally. 
 			This unlocks the animation thread mutex, so that the critical section in the animation thread is allowed to run.
 		*/
 		void includeAnimationThread()
