@@ -42,6 +42,7 @@
 #include <map>
 #include <thread>
 #include <mutex>
+#include <atomic>
 #include <condition_variable>
 
 // For debugging.
@@ -8122,6 +8123,9 @@ namespace AvoGUI
 			}
 		}
 
+		std::thread m_animationThread;
+		void thread_runAnimationLoop();
+
 	public:
 		GUI();
 		~GUI();
@@ -8132,6 +8136,8 @@ namespace AvoGUI
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
 		
+			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+
 			p_title is the text that appears in the title bar of the window (if it has an OS border).
 			
 			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge 
@@ -8150,6 +8156,8 @@ namespace AvoGUI
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+
+			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
 		
 			p_title is the text that appears in the title bar of the window (if it has an OS border).
 			p_width is the width of the client area in DIPs (device independent pixels).
@@ -8158,6 +8166,32 @@ namespace AvoGUI
 			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
 		void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
+
+		/*
+			LIBRARY IMPLEMENTED
+			This waits for all threads to finish, and returns when the window has been closed.
+			It also forgets the GUI afterwards.
+			This should be used on the main thread since all threads are often terminated by the OS when the main thread exits.
+		*/
+		void waitForFinish()
+		{
+			// The GUI is forgotten from the animation thread (to allow for cleanup when it's detached),
+			// but the join call needs to return before the GUI is destroyed, hence the remember() and forget() here.
+			remember();
+			m_animationThread.join();
+			forget();
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			This detaches the GUI from the creator thread, so that it continues to run independently.
+			The GUI is forgotten automatically when the window has closed.
+			This is recommended to be used for child GUIs like popup windows and such, since the parent thread needs to continue running 
+			and can't wait for the child GUI to finish.
+		*/
+		void detachFromParent()
+		{
+			m_animationThread.detach();
+		}
 
 		//------------------------------
 
@@ -8510,25 +8544,9 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Returns whether the GUi has invalid rectangles.
-		*/
-		bool getNeedsRedrawing()
-		{
-			return m_invalidRectangles.size();
-		}
-		/*
-			LIBRARY IMPLEMENTED
 			Draws the invalid rectangles of the GUI. This method should only be called internally by the library. Use draw() to draw things directly on the GUI.
 		*/
 		void drawViews();
-
-		//------------------------------
-
-		/*
-			LIBRARY IMPLEMENTED
-			This runs the global event loop and blocks until all windows have been destroyed.
-		*/
-		static void run();
 	};
 
 	//------------------------------
@@ -9133,6 +9151,7 @@ namespace AvoGUI
 			setCornerRadius(4.f);
 
 			m_ripple = new Ripple(this);
+			m_ripple->setCursor(Cursor::Hand);
 
 			setIsAccent(p_isAccent);
 			if (p_emphasis == Emphasis::High)
@@ -9181,7 +9200,7 @@ namespace AvoGUI
 
 				if (m_isMouseHovering)
 				{
-					getGUI()->getWindow()->setCursor(Cursor::Arrow);
+					//getGUI()->getWindow()->setCursor(Cursor::Arrow);
 				}
 			}
 		}
@@ -9201,7 +9220,7 @@ namespace AvoGUI
 
 				if (m_isMouseHovering)
 				{
-					getGUI()->getWindow()->setCursor(Cursor::Hand);
+					//getGUI()->getWindow()->setCursor(Cursor::Hand);
 				}
 			}
 		}

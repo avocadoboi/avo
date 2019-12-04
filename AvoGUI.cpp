@@ -707,7 +707,6 @@ namespace AvoGUI
 
 #pragma region Platform-specific window implementations
 #ifdef _WIN32
-	void runAnimationLoop(GUI* p_gui);
 
 	class WindowsWindow : public Window
 	{
@@ -743,7 +742,6 @@ namespace AvoGUI
 
 			if (p_hasParent)
 			{
-				//styles |= WS_CHILD;
 				styles |= WS_POPUP;
 			}
 
@@ -1024,41 +1022,11 @@ namespace AvoGUI
 			}
 		}
 
-	public:
-		static uint32 s_numberOfWindows;
-		static char const* const WINDOW_CLASS_NAME;
-
-		//------------------------------
-
-		WindowsWindow(GUI* p_GUI) :
-			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0),
-			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
-			m_state(WindowState::Restored), m_isMouseOutsideClientArea(true), m_mousePosition(-1, -1), m_cursorHandle(0)
-		{
-			m_cursorType = (Cursor)-1;
-			setCursor(Cursor::Arrow);
-		}
-		WindowsWindow(GUI* p_GUI, char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) :
-			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles(p_styleFlags), m_styles(0),
-			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
-			m_state(WindowState::Restored), m_isMouseOutsideClientArea(true), m_mousePosition(-1, -1), m_cursorHandle(0)
-		{
-			m_GUI = p_GUI;
-			m_isFullscreen = false;
-
-			create(p_title, p_width, p_height, p_styleFlags, p_parent);
-
-			m_cursorType = (Cursor)-1;
-			setCursor(Cursor::Arrow);
-		}
-		~WindowsWindow()
-		{
-			DestroyCursor(m_cursorHandle);
-		}
-
-		//------------------------------
-
-		void create(char const* p_title, float p_x, float p_y, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
+		bool m_hasCreatedWindow;
+		std::condition_variable m_hasCreatedWindowConditionVariable;
+		std::mutex m_hasCreatedWindowMutex;
+		std::thread m_messageThread;
+		void thread_createAndRun(char const* p_title, float p_x, float p_y, float p_width, float p_height, Window* p_parent)
 		{
 			if (m_windowHandle)
 			{
@@ -1080,9 +1048,6 @@ namespace AvoGUI
 
 			//------------------------------
 
-			m_crossPlatformStyles = p_styleFlags;
-			m_styles = convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styleFlags, p_parent);
-
 			m_dipToPixelFactor = GetDpiForSystem() / 96.f;
 
 			// Calculate nonclient window rectangle from client size.
@@ -1091,11 +1056,7 @@ namespace AvoGUI
 
 			AdjustWindowRect(&windowRect, m_styles, 0);
 
-
 			//------------------------------
-
-			//RECT workArea;
-			//SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
 
 			POINT cursorPosition = { 0 };
 			GetCursorPos(&cursorPosition);
@@ -1133,18 +1094,70 @@ namespace AvoGUI
 				this // Additional window data - the instance
 			);
 
-			if (uint32(p_styleFlags & WindowStyleFlags::CustomBorder))
+			if (uint32(m_crossPlatformStyles & WindowStyleFlags::CustomBorder))
 			{
 				SetWindowPos(
-					m_windowHandle, 0, 
+					m_windowHandle, 0,
 					parentRect.left + p_x * (parentRect.right - parentRect.left - m_size.x),
 					parentRect.top + p_y * (parentRect.bottom - parentRect.top - m_size.y),
 					m_size.x, m_size.y,
 					SWP_NOZORDER
 				);
 			}
-
 			s_numberOfWindows++;
+
+			MSG message = { };
+			while (GetMessage(&message, 0, 0, 0))
+			{
+				TranslateMessage(&message);
+				DispatchMessage(&message);
+			}
+
+		}
+
+	public:
+		static std::atomic<uint32> s_numberOfWindows;
+		static char const* const WINDOW_CLASS_NAME;
+
+		//------------------------------
+
+		WindowsWindow(GUI* p_GUI) :
+			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0),
+			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
+			m_state(WindowState::Restored), m_isMouseOutsideClientArea(true), m_mousePosition(-1, -1), m_cursorHandle(0)
+		{
+			m_cursorType = (Cursor)-1;
+			setCursor(Cursor::Arrow);
+		}
+		WindowsWindow(GUI* p_GUI, char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) :
+			m_GUI(p_GUI), m_windowHandle(0), m_crossPlatformStyles(p_styleFlags), m_styles(0),
+			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
+			m_state(WindowState::Restored), m_isMouseOutsideClientArea(true), m_mousePosition(-1, -1), m_cursorHandle(0)
+		{
+			create(p_title, p_width, p_height, p_styleFlags, p_parent);
+
+			m_cursorType = (Cursor)-1;
+			setCursor(Cursor::Arrow);
+		}
+		~WindowsWindow()
+		{
+			m_messageThread.join();
+			DestroyCursor(m_cursorHandle);
+		}
+
+		//------------------------------
+
+		void create(char const* p_title, float p_x, float p_y, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
+		{
+			m_crossPlatformStyles = p_styleFlags;
+			m_styles = convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styleFlags, p_parent);
+			
+			m_messageThread = std::thread(&WindowsWindow::thread_createAndRun, this, p_title, p_x, p_y, p_width, p_height, p_parent);
+			if (!m_hasCreatedWindow)
+			{
+				std::unique_lock<std::mutex> lock(m_hasCreatedWindowMutex);
+				m_hasCreatedWindowConditionVariable.wait(lock, [=] { return (bool)m_hasCreatedWindow; });
+			}
 		}
 		void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) override
 		{
@@ -1168,6 +1181,8 @@ namespace AvoGUI
 		void enableUserInteraction() override
 		{
 			EnableWindow(m_windowHandle, true);
+			SetActiveWindow(m_windowHandle);
+			SetForegroundWindow(m_windowHandle);
 		}
 		void disableUserInteraction() override
 		{
@@ -1197,8 +1212,7 @@ namespace AvoGUI
 		}
 		WindowStyleFlags getStyles() const override
 		{
-			GetWindowLongPtr(m_windowHandle, GWL_STYLE);
-			return WindowStyleFlags::Default;
+			return m_crossPlatformStyles;
 		}
 
 		//------------------------------
@@ -1936,10 +1950,14 @@ namespace AvoGUI
 			case WM_CREATE:
 			{
 				m_isOpen = true;
-
 				WindowEvent event;
 				event.window = this;
 				m_GUI->handleWindowCreate(event);
+
+				m_hasCreatedWindowMutex.lock();
+				m_hasCreatedWindow = true;
+				m_hasCreatedWindowMutex.unlock();
+				m_hasCreatedWindowConditionVariable.notify_one();
 
 				return 0;
 			}
@@ -1967,26 +1985,6 @@ namespace AvoGUI
 
 				return 1; // We erased it.
 			}
-			//case WM_WINDOWPOSCHANGING:
-			//{
-			//	if (uint32(m_crossPlatformStyles & WindowStyleFlags::CustomBorder))
-			//	{
-			//		WINDOWPOS* position = (WINDOWPOS*)p_data_b;
-			//		if (IsMaximized(m_windowHandle) && !(position->flags & SWP_NOSIZE))
-			//		{
-			//			MONITORINFO info = { };
-			//			info.cbSize = sizeof(MONITORINFO);
-			//			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
-
-			//			position->x = info.rcWork.left;
-			//			position->y = info.rcWork.top;
-			//			position->cx = info.rcWork.right - info.rcWork.left;
-			//			position->cy = info.rcWork.bottom - info.rcWork.top;
-			//			return 0;
-			//		}
-			//	}
-			//	break;
-			//}
 			case WM_NCCALCSIZE:
 			{
 				if (uint32(m_crossPlatformStyles & WindowStyleFlags::CustomBorder) && p_data_a)
@@ -2467,7 +2465,6 @@ namespace AvoGUI
 				{
 					m_isOpen = false;
 					DestroyWindow(m_windowHandle);
-					m_windowHandle = 0;
 				}
 				else
 				{
@@ -2482,13 +2479,13 @@ namespace AvoGUI
 			}
 			case WM_DESTROY:
 			{
+				m_windowHandle = 0;
 				s_numberOfWindows--;
-				m_GUI->forget();
 				if (!s_numberOfWindows)
 				{
 					UnregisterClass(WINDOW_CLASS_NAME, GetModuleHandle(0));
-					PostQuitMessage(0);
 				}
+				PostQuitMessage(0);
 
 				return 0;
 			}
@@ -2523,7 +2520,7 @@ namespace AvoGUI
 			return DefWindowProc(p_windowHandle, p_message, p_data_a, p_data_b);
 		}
 	};
-	uint32 WindowsWindow::s_numberOfWindows;
+	std::atomic<uint32> WindowsWindow::s_numberOfWindows;
 	char const* const WindowsWindow::WINDOW_CLASS_NAME = "AvoGUI window class";
 
 #endif
@@ -2764,46 +2761,46 @@ namespace AvoGUI
 
 		void fitSizeToText() override
 		{
-			DWRITE_TEXT_METRICS metrics;
+			DWRITE_TEXT_METRICS metrics = { 0 };
 			m_handle->GetMetrics(&metrics);
 
-			DWRITE_OVERHANG_METRICS overhangMetrics;
+			DWRITE_OVERHANG_METRICS overhangMetrics = { 0 };
 			m_handle->GetOverhangMetrics(&overhangMetrics);
 
 			m_bounds.setSize(metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed*overhangMetrics.top);
 		}
 		void fitWidthToText() override
 		{
-			DWRITE_TEXT_METRICS metrics;
+			DWRITE_TEXT_METRICS metrics = { 0 };
 			m_handle->GetMetrics(&metrics);
 			m_bounds.setWidth(metrics.width);
 		}
 		void fitHeightToText() override
 		{
-			DWRITE_OVERHANG_METRICS overhangMetrics;
+			DWRITE_OVERHANG_METRICS overhangMetrics = { 0 };
 			m_handle->GetOverhangMetrics(&overhangMetrics);
 
 			m_bounds.setHeight(m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed * overhangMetrics.top);
 		}
 		Point<float> getMinimumSize() override
 		{
-			DWRITE_TEXT_METRICS metrics;
+			DWRITE_TEXT_METRICS metrics = { 0 };
 			m_handle->GetMetrics(&metrics);
 
-			DWRITE_OVERHANG_METRICS overhangMetrics;
+			DWRITE_OVERHANG_METRICS overhangMetrics = { 0 };
 			m_handle->GetOverhangMetrics(&overhangMetrics);
 
 			return Point<float>(metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed * overhangMetrics.top);
 		}
 		float getMinimumWidth() override
 		{
-			DWRITE_TEXT_METRICS metrics;
+			DWRITE_TEXT_METRICS metrics = { 0 };
 			m_handle->GetMetrics(&metrics);
 			return metrics.width;
 		}
 		float getMinimumHeight() override
 		{
-			DWRITE_OVERHANG_METRICS overhangMetrics;
+			DWRITE_OVERHANG_METRICS overhangMetrics = { 0 };
 			m_handle->GetOverhangMetrics(&overhangMetrics);
 
 			return m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed * overhangMetrics.top;
@@ -2825,7 +2822,7 @@ namespace AvoGUI
 		Point<float> getCharacterPosition(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) override
 		{
 			Point<float> result;
-			DWRITE_HIT_TEST_METRICS metrics;
+			DWRITE_HIT_TEST_METRICS metrics = { 0 };
 			m_handle->HitTestTextPosition(p_characterIndex, false, &result.x, &result.y, &metrics);
 			if (p_isRelativeToOrigin)
 			{
@@ -2838,14 +2835,14 @@ namespace AvoGUI
 		{
 			float x;
 			float y;
-			DWRITE_HIT_TEST_METRICS metrics;
+			DWRITE_HIT_TEST_METRICS metrics = { 0 };
 			m_handle->HitTestTextPosition(p_characterIndex, false, &x, &y, &metrics);
 			return Point<float>(metrics.width, metrics.height);
 		}
 		Rectangle<float> getCharacterBounds(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) override
 		{
 			Rectangle<float> result;
-			DWRITE_HIT_TEST_METRICS metrics;
+			DWRITE_HIT_TEST_METRICS metrics = { 0 };
 			m_handle->HitTestTextPosition(p_characterIndex, false, &result.left, &result.top, &metrics);
 			if (p_isRelativeToOrigin)
 			{
@@ -2864,7 +2861,7 @@ namespace AvoGUI
 		{
 			int isTrailingHit;
 			int isInside;
-			DWRITE_HIT_TEST_METRICS metrics;
+			DWRITE_HIT_TEST_METRICS metrics = { 0 };
 			m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * getLeft(), p_pointY - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
 			return metrics.textPosition + isTrailingHit * isInside;
 		}
@@ -2876,7 +2873,7 @@ namespace AvoGUI
 		{
 			int isTrailingHit;
 			int isInside;
-			DWRITE_HIT_TEST_METRICS metrics;
+			DWRITE_HIT_TEST_METRICS metrics = { 0 };
 			m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * getLeft(), p_pointY - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
 			*p_outCharacterIndex = metrics.textPosition + isTrailingHit * isInside;
 			p_outCharacterPosition->set(metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * getLeft(), metrics.top + p_isRelativeToOrigin * getTop());
@@ -2889,7 +2886,7 @@ namespace AvoGUI
 		{
 			int isTrailingHit;
 			int isInside;
-			DWRITE_HIT_TEST_METRICS metrics;
+			DWRITE_HIT_TEST_METRICS metrics = { 0 };
 			m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * getLeft(), p_pointY - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
 			*p_outCharacterIndex = metrics.textPosition + isTrailingHit * isInside;
 			p_outCharacterBounds->left = metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * getLeft();
@@ -2932,7 +2929,6 @@ namespace AvoGUI
 				return TextAlign::Fill;
 			}
 		}
-
 
 		void setReadingDirection(ReadingDirection p_readingDirection) override
 		{
@@ -3467,13 +3463,13 @@ namespace AvoGUI
 		}
 		ULONG __stdcall Release() override
 		{
-			InterlockedDecrement(&m_referenceCount);
-			if (!m_referenceCount)
+			uint32 referenceCount = InterlockedDecrement(&m_referenceCount);
+			if (!referenceCount)
 			{
 				delete this;
 				return 0;
 			}
-			return m_referenceCount;
+			return referenceCount;
 		}
 		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override
 		{
@@ -3533,13 +3529,13 @@ namespace AvoGUI
 		}
 		ULONG __stdcall Release() override
 		{
-			InterlockedDecrement(&m_referenceCount);
-			if (!m_referenceCount)
+			uint32 referenceCount = InterlockedDecrement(&m_referenceCount);
+			if (!referenceCount)
 			{
 				delete this;
 				return 0;
 			}
-			return m_referenceCount;
+			return referenceCount;
 		}
 		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object)
 		{
@@ -3597,13 +3593,13 @@ namespace AvoGUI
 		}
 		ULONG __stdcall Release() override
 		{
-			InterlockedDecrement(&m_referenceCount);
-			if (!m_referenceCount)
+			uint32 referenceCount = InterlockedDecrement(&m_referenceCount);
+			if (!referenceCount)
 			{
 				delete this;
 				return 0;
 			}
-			return m_referenceCount;
+			return referenceCount;
 		}
 		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override
 		{
@@ -3666,13 +3662,13 @@ namespace AvoGUI
 		}
 		ULONG __stdcall Release() override
 		{
-			InterlockedDecrement(&m_referenceCount);
-			if (!m_referenceCount)
+			uint32 referenceCount = InterlockedDecrement(&m_referenceCount);
+			if (!referenceCount)
 			{
 				delete this;
 				return 0;
 			}
-			return m_referenceCount;
+			return referenceCount;
 		}
 		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override
 		{
@@ -5920,50 +5916,6 @@ namespace AvoGUI
 #endif
 #pragma endregion
 
-	void runAnimationLoop(GUI* p_gui)
-	{
-		int32 syncInterval = 16666667;
-		auto timeBefore = std::chrono::steady_clock::now();
-
-		bool wasLastFrameDrawn = false;
-
-		while (!p_gui->getWillClose())
-		{
-			p_gui->updateQueuedAnimations();
-
-			if (p_gui->getNeedsRedrawing())
-			{
-				p_gui->drawViews();
-
-				wasLastFrameDrawn = true;
-
-				if (!p_gui->getDrawingContext()->getIsVsyncEnabled())
-				{
-					std::this_thread::sleep_for(std::chrono::nanoseconds(syncInterval));
-				}
-			}
-			else
-			{
-				if (wasLastFrameDrawn)
-				{
-					p_gui->invalidateRectangle(Rectangle<float>(0, 0, 1, 1));
-					p_gui->drawViews();
-					wasLastFrameDrawn = false;
-				}
-				else
-				{
-					std::this_thread::sleep_for(std::chrono::nanoseconds(syncInterval));
-				}
-			}
-			auto timeAfter = std::chrono::steady_clock::now();
-			syncInterval = max(1000000, syncInterval + 0.5*(16666667 - (timeAfter - timeBefore).count()));
-			timeBefore = timeAfter;
-		}
-
-		// This will cause the window to be destroyed, because p_gui->getWillClose() is true.
-		p_gui->getWindow()->close();
-	}
-
 	//------------------------------
 	// class GUI
 	//------------------------------
@@ -6044,6 +5996,51 @@ namespace AvoGUI
 		getTopMouseListenersAt(Point<float>(p_x, p_y), p_result);
 	}
 
+	void GUI::thread_runAnimationLoop()
+	{
+		int32 syncInterval = 16666667;
+		auto timeBefore = std::chrono::steady_clock::now();
+
+		bool wasLastFrameDrawn = false;
+
+		while (!m_willClose)
+		{
+			updateQueuedAnimations();
+
+			if (m_invalidRectangles.size())
+			{
+				drawViews();
+
+				wasLastFrameDrawn = true;
+
+				if (!getDrawingContext()->getIsVsyncEnabled())
+				{
+					std::this_thread::sleep_for(std::chrono::nanoseconds(syncInterval));
+				}
+			}
+			else
+			{
+				if (wasLastFrameDrawn)
+				{
+					// Just to force a buffer swap.
+					invalidateRectangle(Rectangle<float>(0, 0, 1, 1));
+					drawViews();
+					wasLastFrameDrawn = false;
+				}
+				else
+				{
+					std::this_thread::sleep_for(std::chrono::nanoseconds(syncInterval));
+				}
+			}
+			auto timeAfter = std::chrono::steady_clock::now();
+			syncInterval = max(1000000, syncInterval + 0.5 * (16666667 - (timeAfter - timeBefore).count()));
+			timeBefore = timeAfter;
+		}
+
+		// This will cause the window to be destroyed, because getWillClose() is true.
+		m_window->close();
+		forget(); // To allow for cleanup if the animation thread is detached.
+	}
 
 	//
 	// Public
@@ -6057,11 +6054,12 @@ namespace AvoGUI
 	{
 #ifdef _WIN32
 		WindowsDrawingContext::createStaticResources();
-
 		m_window = new WindowsWindow(this);
 #endif
 
 		m_GUI = this;
+
+		m_animationThread = std::thread(&GUI::thread_runAnimationLoop, this);
 
 		//------------------------------
 
@@ -6134,11 +6132,11 @@ namespace AvoGUI
 
 	void GUI::handleWindowCreate(WindowEvent const& p_event)
 	{
-#ifdef _WIN32
 		if (m_drawingContext)
 		{
 			m_drawingContext->forget();
 		}
+#ifdef _WIN32
 		m_drawingContext = new WindowsDrawingContext(m_window);
 #endif
 
@@ -6180,7 +6178,7 @@ namespace AvoGUI
 				m_pressedMouseEventListeners.clear();
 			}
 		}
-		return false; // Doesn't matter here.
+		return willClose;
 	}
 	void GUI::handleWindowMinimize(WindowEvent const& p_event)
 	{
@@ -6213,13 +6211,10 @@ namespace AvoGUI
 			listener->handleWindowSizeChange(p_event);
 		}
 
-		if (!m_hasAnimationLoopStarted)
-		{
-			m_hasAnimationLoopStarted = true;
-
-			std::thread animationThread(runAnimationLoop, this);
-			animationThread.detach();
-		}
+		//if (!m_hasAnimationLoopStarted)
+		//{
+		//	m_hasAnimationLoopStarted = true;
+		//}
 	}
 	void GUI::handleWindowFocus(WindowEvent const& p_event)
 	{
@@ -6390,7 +6385,7 @@ namespace AvoGUI
 				((View*)this)->m_isMouseHovering = false;
 			}
 
-			if (startIndex)
+			if (startIndex >= 0)
 			{
 				bool hasInvisibleParent = false;
 				bool hasOverlayParent = false;
@@ -6894,22 +6889,6 @@ namespace AvoGUI
 		//{
 		//	m_drawingContext->finishDrawing(std::vector<Rectangle<float>>());
 		//}
-	}
-
-	//------------------------------
-	// Static
-
-	void GUI::run()
-	{
-#ifdef _WIN32
-		MSG message = { };
-
-		while (GetMessage(&message, 0, 0, 0))
-		{
-			TranslateMessage(&message);
-			DispatchMessage(&message);
-		}
-#endif
 	}
 
 	//------------------------------
