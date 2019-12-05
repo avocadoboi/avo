@@ -8068,6 +8068,7 @@ namespace AvoGUI
 	class GUI : public View, public WindowListener, public GlobalMouseListener
 	{
 	private:
+		GUI* m_parent;
 		Window* m_window;
 		DrawingContext* m_drawingContext;
 
@@ -8191,6 +8192,15 @@ namespace AvoGUI
 		void detachFromParent()
 		{
 			m_animationThread.detach();
+		}
+
+		/*
+			Returns the GUI that owns the parent window of the window of this GUI.
+			If the window does not have a parent, it returns 0.
+		*/
+		GUI* getParent()
+		{
+			return m_parent;
 		}
 
 		//------------------------------

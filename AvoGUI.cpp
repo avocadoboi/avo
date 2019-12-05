@@ -1952,7 +1952,10 @@ namespace AvoGUI
 				m_isOpen = true;
 				WindowEvent event;
 				event.window = this;
+
+				m_GUI->excludeAnimationThread();
 				m_GUI->handleWindowCreate(event);
+				m_GUI->includeAnimationThread();
 
 				m_hasCreatedWindowMutex.lock();
 				m_hasCreatedWindow = true;
@@ -3445,14 +3448,14 @@ namespace AvoGUI
 	class FontFileStream : public IDWriteFontFileStream
 	{
 	private:
-		FontData* m_fontData;
-
-		//------------------------------
-
+		FontData m_fontData;
 		ULONG m_referenceCount;
 
 	public:
-		FontFileStream(FontData* p_fontData) : m_referenceCount(0), m_fontData(p_fontData) { }
+		FontFileStream(FontData* p_fontData) : 
+			m_referenceCount(0), m_fontData(*p_fontData)
+		{ 
+		}
 
 		//------------------------------
 		// The IUnknown methods...
@@ -3487,22 +3490,23 @@ namespace AvoGUI
 
 		HRESULT __stdcall ReadFileFragment(void const** p_fragment, UINT64 p_fileOffset, UINT64 p_fragmentSize, void** p_fragmentContext) override
 		{
-			if (p_fileOffset + p_fragmentSize > m_fontData->dataSize || !p_fragmentSize)
+			if (p_fileOffset + p_fragmentSize > m_fontData.dataSize || !p_fragmentSize)
 			{
 				*p_fragment = 0;
 				*p_fragmentContext = 0;
 				return E_FAIL;
 			}
 
-			*p_fragment = (char const*)m_fontData->data + p_fileOffset;
+			*p_fragment = (char const*)m_fontData.data + p_fileOffset;
 			*p_fragmentContext = 0;
+
 			return S_OK;
 		}
 		void __stdcall ReleaseFileFragment(void* p_fragmentContext) override { }
 
 		HRESULT __stdcall GetFileSize(UINT64* p_fileSize) override
 		{
-			*p_fileSize = m_fontData->dataSize;
+			*p_fileSize = m_fontData.dataSize;
 			return S_OK;
 		}
 		HRESULT __stdcall GetLastWriteTime(UINT64* p_lastWriteTime) override
@@ -3518,7 +3522,10 @@ namespace AvoGUI
 		uint32 m_referenceCount;
 
 	public:
-		FontFileLoader() : m_referenceCount(0) { }
+		FontFileLoader() : 
+			m_referenceCount(0) 
+		{ 
+		}
 
 		//------------------------------
 		// The IUnknown methods...
@@ -3553,12 +3560,12 @@ namespace AvoGUI
 
 		HRESULT __stdcall CreateStreamFromKey(void const* p_data, UINT32 p_dataSize, IDWriteFontFileStream** p_stream)
 		{
-			if (p_dataSize != sizeof(FontData*) || !p_data)
+			if (p_dataSize != sizeof(FontData**) || !p_data)
 			{
 				*p_stream = 0;
 				return E_INVALIDARG;
 			}
-			*p_stream = new FontFileStream(*((FontData**)p_data));
+			*p_stream = new FontFileStream(*(FontData**)p_data);
 			(*p_stream)->AddRef();
 			return S_OK;
 		}
@@ -3636,7 +3643,7 @@ namespace AvoGUI
 			else
 			{
 				*p_hasCurrentFile = 1;
-				m_factory->CreateCustomFontFileReference((void const*) & (*m_fontData)[m_currentFontFileIndex], sizeof(FontData*), m_fontFileLoader, &m_currentFontFile);
+				m_factory->CreateCustomFontFileReference((void const*)(m_fontData->data() + m_currentFontFileIndex), sizeof(FontData**), m_fontFileLoader, &m_currentFontFile);
 			}
 			return S_OK;
 		}
@@ -3939,7 +3946,7 @@ namespace AvoGUI
 				m_fontCollection->Release();
 			}
 			std::vector<FontData*>* fontDataPointer = &m_fontData;
-			s_directWriteFactory->CreateCustomFontCollection(s_fontCollectionLoader, &fontDataPointer, sizeof(std::vector<FontData*>*), &m_fontCollection);
+			s_directWriteFactory->CreateCustomFontCollection(s_fontCollectionLoader, &fontDataPointer, sizeof(std::vector<FontData*>**), &m_fontCollection);
 		}
 
 		void realizeStrokedGeometry(Direct2DGeometry* p_geometry, float p_strokeWidth)
@@ -6048,7 +6055,7 @@ namespace AvoGUI
 
 	GUI::GUI() :
 		View(0, Rectangle<float>(0, 0, 0, 0)), 
-		m_window(0), m_drawingContext(0),
+		m_parent(0), m_window(0), m_drawingContext(0),
 		m_hasNewWindowSize(false), m_hasAnimationLoopStarted(false), m_willClose(false),
 		m_keyboardFocus(0)
 	{
@@ -6082,12 +6089,22 @@ namespace AvoGUI
 
 	void GUI::create(char const* p_title, float p_x, float p_y, float p_width, float p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
 	{
+		if (p_parent)
+		{
+			m_parent = p_parent;
+		}
+
 		m_bounds = Rectangle<float>(0, 0, p_width, p_height);
 		setAbsoluteBounds(m_bounds);
 		m_window->create(p_title, p_x, p_y, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
 	}
 	void GUI::create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
 	{
+		if (p_parent)
+		{
+			m_parent = p_parent;
+		}
+
 		m_bounds = Rectangle<float>(0, 0, p_width, p_height);
 		setAbsoluteBounds(m_bounds);
 		m_window->create(p_title, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
