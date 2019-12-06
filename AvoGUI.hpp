@@ -4563,7 +4563,7 @@ namespace AvoGUI
 		*/
 		Point<float> getAbsoluteTopRight() const
 		{
-			return Point<float>(m_absolutePosition.x + m_bounds.right - m_bounds.left, m_bounds.top);
+			return Point<float>(m_absolutePosition.x + m_bounds.right - m_bounds.left, m_absolutePosition.y);
 		}
 
 		/*
@@ -6089,7 +6089,7 @@ namespace AvoGUI
 		MaximizeButton = 0x40UL,
 		ResizeBorder = 0x80UL,
 		CustomBorder = 0x100UL, // This makes the client area take up the full window, and the GUI determines which areas are for resizing and moving the window.
-		DefaultCustom = CustomBorder | ResizeBorder | Border | MaximizeButton,
+		DefaultCustom = CustomBorder | ResizeBorder | Border | MaximizeButton | MinimizeButton,
 		Default = Border | MinimizeButton | MaximizeButton | ResizeBorder,
 		DefaultNoResize = Border | MinimizeButton
 	};
@@ -6428,7 +6428,7 @@ namespace AvoGUI
 		/*
 			Returns the position of the mouse cursor, relative to the top-left corner of the window.
 		*/
-		virtual Point<float> const& getMousePosition() const = 0;
+		virtual Point<float> getMousePosition() const = 0;
 
 		//------------------------------
 
@@ -7052,116 +7052,176 @@ namespace AvoGUI
 		float fontSize = 22.f;
 	};
 
-	class Gradient
+	class LinearGradient : 
+		public ReferenceCounted
 	{
-	private:
-		Point<float> m_startPosition;
-		Point<float> m_endPosition;
-		Point<float> m_radius;
-
-		std::vector<Color> m_colors;
-		std::vector<float> m_positions;
-		bool m_isRadial;
-
 	public:
-		Gradient() :
-			m_isRadial(false)
-		{
-			m_colors.reserve(5);
-			m_positions.reserve(5);
-		}
+		/*
+			Sets an offset in the start and end positions.
+		*/
+		virtual void setOffset(Point<float> const& p_offset) = 0;
+		/*
+			Sets an offset in the start and end positions.
+		*/
+		virtual void setOffset(float p_x, float p_y) = 0;
+		/*
+			Sets the horizontal offset in the start position.
+		*/
+		virtual void setOffsetX(float p_x) = 0;
+		/*
+			Sets the vertical offset in the start position.
+		*/
+		virtual void setOffsetY(float p_y) = 0;
 
 		/*
-			Adds a color position to the gradient.
-			p_position is expressed as a factor that is relative to the start and end positions if it's linear and to the radius if it's radial.
+			Returns the offset in the start and end positions.
 		*/
-		void addStop(Color const& p_color, float p_position)
-		{
-			m_colors.push_back(p_color);
-			m_positions.push_back(p_position);
-		}
-		uint32 getNumberOfStops() const
-		{
-			return m_colors.size();
-		}
-
-		Color const& getStopColor(uint32 p_index) const
-		{
-			return m_colors[p_index];
-		}
-		float getStopPosition(uint32 p_index) const
-		{
-			return m_positions[p_index];
-		}
+		virtual Point<float> const& getOffset() const = 0;
+		/*
+			Returns the horizontal offset in the start and end positions.
+		*/
+		virtual float getOffsetX() const = 0;
+		/*
+			Returns the vertical offset in the start and end positions.
+		*/
+		virtual float getOffsetY() const = 0;
 
 		/*
-			Sets whether the gradient is radial or linear.
-			A radial gradient goes from the start position and out in all directions.
-			A linear gradient goes linearly from the start position to the end position.
+			Sets the coordinates where the gradient will start, relative to the origin.
 		*/
-		void setIsRadial(bool p_isRadial)
-		{
-			m_isRadial = p_isRadial;
-		}
+		virtual void setStartPosition(Point<float> const& p_startPosition) = 0;
 		/*
-			Returns whether the gradient is radial or linear.
+			Sets the coordinates relative to the origin where the gradient will start.
 		*/
-		bool getIsRadial() const
-		{
-			return m_isRadial;
-		}
+		virtual void setStartPosition(float p_x, float p_y) = 0;
+		/*
+			Returns the coordinates relative to the origin where the gradient will start.
+		*/
+		virtual Point<float> const& getStartPosition() const = 0;
+		/*
+			Returns the X coordinate relative to the origin where the gradient will start.
+		*/
+		virtual float getStartPositionX() const = 0;
+		/*
+			Returns the Y coordinate relative to the origin where the gradient will start.
+		*/
+		virtual float getStartPositionY() const = 0;
 
-		void setStartPosition(Point<float> const& p_startPosition)
-		{
-			m_startPosition = p_startPosition;
-		}
-		void setStartPosition(float p_x, float p_y)
-		{
-			m_startPosition.set(p_x, p_y);
-		}
-		Point<float> const& getStartPosition() const
-		{
-			return m_startPosition;
-		}
+		/*
+			Sets the coordinates relative to the origin where the gradient will end.
+		*/
+		virtual void setEndPosition(Point<float> const& p_endPosition) = 0;
+		/*
+			Sets the coordinates relative to the origin where the gradient will end.
+		*/
+		virtual void setEndPosition(float p_x, float p_y) = 0;
+		/*
+			Returns the coordinates relative to the origin where the gradient will end.
+		*/
+		virtual Point<float> const& getEndPosition() const = 0;
+		/*
+			Returns the X coordinate relative to the origin where the gradient will end.
+		*/
+		virtual float getEndPositionX() const = 0;
+		/*
+			Returns the Y coordinate relative to the origin where the gradient will end.
+		*/
+		virtual float getEndPositionY() const = 0;
+	};
+	class RadialGradient : 
+		public ReferenceCounted
+	{
+		/*
+			Sets an offset in the start position.
+		*/
+		virtual void setOffset(Point<float> const& p_offset) = 0;
+		/*
+			Sets an offset in the start position.
+		*/
+		virtual void setOffset(float p_x, float p_y) = 0;
+		/*
+			Sets the horizontal offset in the start position.
+		*/
+		virtual void setOffsetX(float p_x) = 0;
+		/*
+			Sets the vertical offset in the start position.
+		*/
+		virtual void setOffsetY(float p_y) = 0;
+		/*
+			Returns the offset in the start position.
+		*/
+		virtual Point<float> const& getOffset() const = 0;
+		/*
+			Returns the horizontal offset in the start position.
+		*/
+		virtual float getOffsetX() const = 0;
+		/*
+			Returns the vertical offset in the start position.
+		*/
+		virtual float getOffsetY() const = 0;
 
-		void setEndPosition(Point<float> const& p_endPosition)
-		{
-			m_endPosition = p_endPosition;
-		}
-		void setEndPosition(float p_x, float p_y)
-		{
-			m_endPosition.set(p_x, p_y);
-		}
-		Point<float> const& getEndPosition() const
-		{
-			return m_endPosition;
-		}
+		/*
+			Sets the coordinates where the gradient will start, relative to the origin.
+		*/
+		virtual void setStartPosition(Point<float> const& p_startPosition) = 0;
+		/*
+			Sets the coordinates relative to the origin where the gradient will start.
+		*/
+		virtual void setStartPosition(float p_x, float p_y) = 0;
+		/*
+			Returns the coordinates relative to the origin where the gradient will start.
+		*/
+		virtual Point<float> const& getStartPosition() const = 0;
+		/*
+			Returns the X coordinate relative to the origin where the gradient will start.
+		*/
+		virtual float getStartPositionX() const = 0;
+		/*
+			Returns the Y coordinate relative to the origin where the gradient will start.
+		*/
+		virtual float getStartPositionY() const = 0;
 
-		void setRadius(float p_radius)
-		{
-			m_radius = p_radius;
-		}
-		void setRadius(Point<float> const& p_radius)
-		{
-			m_radius = p_radius;
-		}
-		void setRadius(float p_radiusX, float p_radiusY)
-		{
-			m_radius.set(p_radiusX, p_radiusY);
-		}
-		Point<float> const& getRadius() const
-		{
-			return m_radius;
-		}
-		float getRadiusX() const
-		{
-			return m_radius.x;
-		}
-		float getRadiusY() const
-		{
-			return m_radius.y;
-		}
+		/*
+			Sets the horizontal and vertical size of the gradient.
+		*/
+		virtual void setRadius(float p_radius) = 0;
+		/*
+			Sets the horizontal and vertical size of the gradient.
+		*/
+		virtual void setRadius(Point<float> const& p_radius) = 0;
+		/*
+			Sets the horizontal and vertical size of the gradient.
+		*/
+		virtual void setRadius(float p_radiusX, float p_radiusY) = 0;
+		/*
+			Returns the horizontal and vertical size of the gradient.
+		*/
+		virtual Point<float> const& getRadius() const = 0;
+		/*
+			Returns the horizontal size of the gradient.
+		*/
+		virtual float getRadiusX() const = 0;
+		/*
+			Returns the vertical size of the gradient.
+		*/
+		virtual float getRadiusY() const = 0;
+	};
 
+	/*
+		A class representing a position and a color, used to make a gradient.
+		The position between 0 and 1 and is relative to the start and end positions if it's linear,
+		and relative to the start position and radius if it's radial.
+	*/
+	class GradientStop
+	{
+	public:
+		AvoGUI::Color color;
+		float position;
+
+		GradientStop(AvoGUI::Color const& p_color, float p_position) :
+			color(p_color), position(p_position)
+		{
+		}
 	};
 
 	/*
@@ -7406,177 +7466,177 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Draws a filled rectangle using the current color. 
-			Change color being used with method setColor.
+			Draws a filled rectangle using the current color or gradient. 
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(Rectangle<float> const& p_rectangle) = 0;
 		/*
-			Draws a filled rectangle using the current color. 
-			Change color being used with method setColor.
+			Draws a filled rectangle using the current color or gradient. 
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(Point<float> const& p_position, Point<float> const& p_size) = 0;
 		/*
-			Draws a filled rectangle using the current color. 
-			Change color being used with method setColor.
+			Draws a filled rectangle using the current color or gradient. 
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(float p_left, float p_top, float p_right, float p_bottom) = 0;
 		/*
-			Draws a filled rectangle at the origin using the current color. 
-			Change color being used with method setColor.
+			Draws a filled rectangle at the origin using the current color or gradient. 
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(Point<float> const& p_size) = 0;
 		/*
-			Draws a filled rectangle at the origin using the current color. 
-			Change color being used with method setColor.
+			Draws a filled rectangle at the origin using the current color or gradient. 
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(float p_width, float p_height) = 0;
 
 		/*
-			Draws a filled rectangle with custom corners using the current color.
-			Change color being used with method setColor.
+			Draws a filled rectangle with custom corners using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_rectangleCorners) = 0;
 		/*
-			Draws a filled rectangle with custom corners using the current color.
-			Change color being used with method setColor.
+			Draws a filled rectangle with custom corners using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_rectangleCorners) = 0;
 		/*
-			Draws a filled rectangle with custom corners using the current color.
-			Change color being used with method setColor.
+			Draws a filled rectangle with custom corners using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_rectangleCorners) = 0;
 
 		/*
-			Draws a filled rectangle with custom corners at the origin using the current color.
-			Change color being used with method setColor.
+			Draws a filled rectangle with custom corners at the origin using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(Point<float> const& p_size, RectangleCorners const& p_rectangleCorners) = 0;
 		/*
-			Draws a filled rectangle with custom corners at the origin using the current color.
-			Change color being used with method setColor.
+			Draws a filled rectangle with custom corners at the origin using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(float p_width, float p_height, RectangleCorners const& p_rectangleCorners) = 0;
 
 		/*
-			Draws a filled rounded rectangle using the current color.
-			Change color being used with method setColor.
+			Draws a filled rounded rectangle using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius) = 0;
 		/*
-			Draws a filled rounded rectangle using the current color.
-			Change color being used with method setColor.
+			Draws a filled rounded rectangle using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRoundedRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_radius) = 0;
 		/*
-			Draws a filled rounded rectangle using the current color.
-			Change color being used with method setColor.
+			Draws a filled rounded rectangle using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) = 0;
 		/*
-			Draws a filled rounded rectangle at the origin using the current color.
-			Change color being used with method setColor.
+			Draws a filled rounded rectangle at the origin using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRoundedRectangle(Point<float> const& p_size, float p_radius) = 0;
 		/*
-			Draws a filled rounded rectangle at the origin using the current color.
-			Change color being used with method setColor.
+			Draws a filled rounded rectangle at the origin using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRoundedRectangle(float p_width, float p_height, float p_radius) = 0;
 
 		//------------------------------
 
 		/*
-			Draws a rectangle outline using the current color. 
-			Change the color being used with the method setColor.
+			Draws a rectangle outline using the current color or gradient. 
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(Rectangle<float> const& p_rectangle, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rectangle outline using the current color. 
-			Change the color being used with the method setColor.
+			Draws a rectangle outline using the current color or gradient. 
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rectangle outline using the current color. 
-			Change the color being used with the method setColor.
+			Draws a rectangle outline using the current color or gradient. 
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rectangle outline at the origin using the current color. 
-			Change the color being used with the method setColor.
+			Draws a rectangle outline at the origin using the current color or gradient. 
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(Point<float> const& p_size, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rectangle outline at the origin using the current color. 
-			Change the color being used with the method setColor.
+			Draws a rectangle outline at the origin using the current color or gradient. 
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(float p_width, float p_height, float p_strokeWidth = 1.f) = 0;
 
 		/*
-			Draws a rectangle outline with custom corners using the current color.
-			Change the color being used with the method setColor.
+			Draws a rectangle outline with custom corners using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rectangle outline with custom corners using the current color.
-			Change the color being used with the method setColor.
+			Draws a rectangle outline with custom corners using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rectangle outline with custom corners using the current color.
-			Change the color being used with the method setColor.
+			Draws a rectangle outline with custom corners using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rectangle outline at the origin with custom corners using the current color.
-			Change the color being used with the method setColor.
+			Draws a rectangle outline at the origin with custom corners using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(Point<float> const& p_size, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rectangle outline at the origin with custom corners using the current color.
-			Change the color being used with the method setColor.
+			Draws a rectangle outline at the origin with custom corners using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(float p_width, float p_height, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
 
 		/*
-			Draws a rounded rectangle outline using the current color.
-			Change the color being used with the method setColor.
+			Draws a rounded rectangle outline using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rounded rectangle outline using the current color.
-			Change the color being used with the method setColor.
+			Draws a rounded rectangle outline using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRoundedRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rounded rectangle outline using the current color.
-			Change the color being used with the method setColor.
+			Draws a rounded rectangle outline using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_strokeWidth = 1.f) = 0;
 
 		/*
-			Draws a rounded rectangle outline at the origin using the current color.
-			Change the color being used with the method setColor.
+			Draws a rounded rectangle outline at the origin using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRoundedRectangle(Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rounded rectangle outline at the origin using the current color.
-			Change the color being used with the method setColor.
+			Draws a rounded rectangle outline at the origin using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRoundedRectangle(float p_width, float p_height, float p_radius, float p_strokeWidth = 1.f) = 0;
 
 		//------------------------------
 
 		/*
-			Draws a filled circle using the current color. 
-			Change the color being used with the method setColor.
+			Draws a filled circle using the current color or gradient. 
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		
 			p_position is the center position of the circle.
 		*/
 		virtual void fillCircle(Point<float> const& p_position, float p_radius) = 0;
 		/*
-			Draws a filled circle using the current color. 
-			Change the color being used with the method setColor.
+			Draws a filled circle using the current color or gradient. 
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		
 			p_x is the horizontal center position of the circle.
 			p_y is the vertical center position of the circle.
@@ -7584,15 +7644,15 @@ namespace AvoGUI
 		virtual void fillCircle(float p_x, float p_y, float p_radius) = 0;
 
 		/*
-			Draws a circle outline using the current color. 
-			Change the color being used with the method setColor.
+			Draws a circle outline using the current color or gradient. 
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		
 			p_position is the center position of the circle.
 		*/
 		virtual void strokeCircle(Point<float> const& p_position, float p_radius, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a circle outline using the current color. 
-			Change the color being used with the method setColor.
+			Draws a circle outline using the current color or gradient. 
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		
 			p_position is the center position of the circle.
 		*/
@@ -7601,13 +7661,13 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Draws a straight line between two points using the current color. 
-			Change the color being used with the method setColor.
+			Draws a straight line between two points using the current color or gradient. 
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void drawLine(Point<float> const& p_point_0, Point<float> const& p_point_1, float p_thickness = 1.f) = 0;
 		/*
-			Draws a straight line between two points using the current color. 
-			Change the color being used with the method setColor.
+			Draws a straight line between two points using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void drawLine(float p_x0, float p_y0, float p_x1, float p_y1, float p_thickness = 1.f) = 0;
 
@@ -7631,13 +7691,13 @@ namespace AvoGUI
 		*/
 		virtual void strokeShape(Point<float> const* p_vertices, uint32 p_numberOfVertices, float p_lineThickness, bool p_isClosed = false) = 0;
 		/*
-			Fills a custom shape with the current color.
+			Fills a custom shape with the current color or gradient.
 
 			p_shape is a vector of points that make up the shape.
 		*/
 		virtual void fillShape(std::vector<Point<float>> const& p_vertices) = 0;
 		/*
-			Fills a custom shape with the current color.
+			Fills a custom shape with the current color or gradient.
 		
 			p_vertices is an array of points that make up the shape.
 			p_numberOfVertices is he number of points that make up the shape.
@@ -7983,11 +8043,41 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Sets the gradient being used as the brush when drawing shape.
+			Creates a linear gradient that can be used as a brush when drawing things.
 		*/
-		virtual void setGradientBrush(Gradient const& p_gradient) = 0;
+		virtual LinearGradient* createLinearGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_endX, float p_endY) = 0;
 		/*
-			Sets the color being used when drawing shapes.
+			Creates a linear gradient that can be used as a brush when drawing things.
+		*/
+		virtual LinearGradient* createLinearGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, Point<float> const& p_endPosition) = 0;
+
+		/*
+			Creates a radial gradient that can be used as a brush when drawing things.
+		*/
+		virtual RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radiusX, float p_radiusY) = 0;
+		/*
+			Creates a radial gradient that can be used as a brush when drawing things.
+		*/
+		virtual RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, float p_radiusX, float p_radiusY) = 0;
+		/*
+			Creates a radial gradient that can be used as a brush when drawing things.
+		*/
+		virtual RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, float p_radius) = 0;
+		/*
+			Creates a radial gradient that can be used as a brush when drawing things.
+		*/
+		virtual RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, Point<float> const& p_radius) = 0;
+
+		/*
+			Sets a linear gradient to be used as the brush when drawing things.
+		*/
+		virtual void setGradient(LinearGradient* p_gradient) = 0;
+		/*
+			Sets a radial gradient to be used as the brush when drawing things.
+		*/
+		virtual void setGradient(RadialGradient* p_gradient) = 0;
+		/*
+			Sets a color to be used when drawing things.
 		*/
 		virtual void setColor(Color const& p_color) = 0;
 
@@ -8951,6 +9041,7 @@ namespace AvoGUI
 		{
 			if (m_isEnabled)
 			{
+				View::handleMouseBackgroundEnter(p_event);
 				m_isMouseHovering = true;
 				queueAnimationUpdate();
 			}

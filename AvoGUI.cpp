@@ -1759,7 +1759,7 @@ namespace AvoGUI
 			}
 			return false;
 		}
-		Point<float> const& getMousePosition() const override
+		Point<float> getMousePosition() const override
 		{
 			return m_mousePosition / m_dipToPixelFactor;
 		}
@@ -3755,7 +3755,224 @@ namespace AvoGUI
 
 	//------------------------------
 
-	class WindowsDrawingContext : public DrawingContext
+	class Direct2DLinearGradient :
+		public LinearGradient
+	{
+	private:
+		ID2D1LinearGradientBrush* m_brush;
+
+	public:
+		Direct2DLinearGradient(ID2D1LinearGradientBrush* p_brush) :
+			m_brush(p_brush)
+		{
+		}
+		~Direct2DLinearGradient()
+		{
+			m_brush->Release();
+		}
+
+		//------------------------------
+
+		ID2D1LinearGradientBrush* getHandle()
+		{
+			return m_brush;
+		}
+
+		//------------------------------
+
+		void setOffset(Point<float> const& p_offset) override
+		{
+			m_brush->SetTransform(D2D1::Matrix3x2F::Translation(p_offset.x, p_offset.y));
+		}
+		void setOffset(float p_x, float p_y) override
+		{
+			m_brush->SetTransform(D2D1::Matrix3x2F::Translation(p_x, p_y));
+		}
+		void setOffsetX(float p_x) override
+		{
+			m_brush->SetTransform(D2D1::Matrix3x2F::Translation(p_x, getOffsetY()));
+		}
+		void setOffsetY(float p_y) override
+		{
+			m_brush->SetTransform(D2D1::Matrix3x2F::Translation(getOffsetX(), p_y));
+		}
+		Point<float> const& getOffset() const override
+		{
+			D2D1::Matrix3x2F matrix;
+			m_brush->GetTransform(&matrix);
+			return Point<float>(matrix._31, matrix._32);
+		}
+		float getOffsetX() const override
+		{
+			D2D1::Matrix3x2F matrix;
+			m_brush->GetTransform(&matrix);
+			return matrix._31;
+		}
+		float getOffsetY() const override
+		{
+			D2D1::Matrix3x2F matrix;
+			m_brush->GetTransform(&matrix);
+			return matrix._32;
+		}
+
+		void setStartPosition(Point<float> const& p_startPosition) override
+		{
+			m_brush->SetStartPoint(D2D1::Point2F(p_startPosition.x, p_startPosition.y));
+		}
+		void setStartPosition(float p_x, float p_y) override
+		{
+			m_brush->SetStartPoint(D2D1::Point2F(p_x, p_y));
+		}
+		Point<float> const& getStartPosition() const override
+		{
+			return Point<float>(m_brush->GetStartPoint().x, m_brush->GetStartPoint().y);
+		}
+		float getStartPositionX() const override
+		{
+			return m_brush->GetStartPoint().x;
+		}
+		float getStartPositionY() const override
+		{
+			return m_brush->GetStartPoint().y;
+		}
+
+		void setEndPosition(Point<float> const& p_endPosition) override
+		{
+			m_brush->SetEndPoint(D2D1::Point2F(p_endPosition.x, p_endPosition.y));
+		}
+		void setEndPosition(float p_x, float p_y) override
+		{
+			m_brush->SetEndPoint(D2D1::Point2F(p_x, p_y));
+		}
+		Point<float> const& getEndPosition() const override
+		{
+			return Point<float>(m_brush->GetEndPoint().x, m_brush->GetEndPoint().y);
+		}
+		float getEndPositionX() const override
+		{
+			return m_brush->GetEndPoint().x;
+		}
+		float getEndPositionY() const override
+		{
+			return m_brush->GetEndPoint().y;
+		}
+	};
+
+	//------------------------------
+
+	class Direct2DRadialGradient :
+		public RadialGradient
+	{
+	private:
+		ID2D1RadialGradientBrush* m_brush;
+
+	public:
+		Direct2DRadialGradient(ID2D1RadialGradientBrush* p_brush) :
+			m_brush(p_brush)
+		{
+		}
+		~Direct2DRadialGradient()
+		{
+			m_brush->Release();
+		}
+
+		//------------------------------
+
+		ID2D1RadialGradientBrush* getHandle()
+		{
+			return m_brush;
+		}
+
+		//------------------------------
+
+		void setOffset(Point<float> const& p_offset) override
+		{
+			m_brush->SetTransform(D2D1::Matrix3x2F::Translation(p_offset.x, p_offset.y));
+		}
+		void setOffset(float p_x, float p_y) override
+		{
+			m_brush->SetTransform(D2D1::Matrix3x2F::Translation(p_x, p_y));
+		}
+		void setOffsetX(float p_x) override
+		{
+			m_brush->SetTransform(D2D1::Matrix3x2F::Translation(p_x, getOffsetY()));
+		}
+		void setOffsetY(float p_y) override
+		{
+			m_brush->SetTransform(D2D1::Matrix3x2F::Translation(getOffsetX(), p_y));
+		}
+		Point<float> const& getOffset() const override
+		{
+			D2D1::Matrix3x2F matrix;
+			m_brush->GetTransform(&matrix);
+			return Point<float>(matrix._31, matrix._32);
+		}
+		float getOffsetX() const override
+		{
+			D2D1::Matrix3x2F matrix;
+			m_brush->GetTransform(&matrix);
+			return matrix._31;
+		}
+		float getOffsetY() const override
+		{
+			D2D1::Matrix3x2F matrix;
+			m_brush->GetTransform(&matrix);
+			return matrix._32;
+		}
+		void setStartPosition(Point<float> const& p_startPosition) override
+		{
+			m_brush->SetCenter(D2D1::Point2F(p_startPosition.x, p_startPosition.y));
+		}
+		void setStartPosition(float p_x, float p_y) override
+		{
+			m_brush->SetCenter(D2D1::Point2F(p_x, p_y));
+		}
+		Point<float> const& getStartPosition() const override
+		{
+			return Point<float>(m_brush->GetCenter().x, m_brush->GetCenter().y);
+		}
+		float getStartPositionX() const override
+		{
+			return m_brush->GetCenter().x;
+		}
+		float getStartPositionY() const override
+		{
+			return m_brush->GetCenter().y;
+		}
+
+		void setRadius(float p_radius) override
+		{
+			m_brush->SetRadiusX(p_radius);
+			m_brush->SetRadiusY(p_radius);
+		}
+		void setRadius(Point<float> const& p_radius) override
+		{
+			m_brush->SetRadiusX(p_radius.x);
+			m_brush->SetRadiusY(p_radius.y);
+		}
+		void setRadius(float p_radiusX, float p_radiusY) override
+		{
+			m_brush->SetRadiusX(p_radiusX);
+			m_brush->SetRadiusY(p_radiusY);
+		}
+		Point<float> const& getRadius() const override
+		{
+			return Point<float>(m_brush->GetRadiusX(), m_brush->GetRadiusY());
+		}
+		float getRadiusX() const override
+		{
+			return m_brush->GetRadiusX();
+		}
+		float getRadiusY() const override
+		{
+			return m_brush->GetRadiusY();
+		}
+	};
+
+	//------------------------------
+
+	class WindowsDrawingContext : 
+		public DrawingContext
 	{
 	public:
 		static IWICImagingFactory2* s_imagingFactory;
@@ -3853,8 +4070,6 @@ namespace AvoGUI
 		bool m_isVsyncEnabled;
 
 		ID2D1SolidColorBrush* m_solidColorBrush;
-		ID2D1LinearGradientBrush* m_linearGradientBrush;
-		ID2D1RadialGradientBrush* m_radialGradientBrush;
 		ID2D1Brush* m_currentBrush;
 		float m_brushOpacity;
 
@@ -3988,7 +4203,7 @@ namespace AvoGUI
 		WindowsDrawingContext(Window* p_window) :
 			m_window(p_window), 
 			m_context(0), m_swapChain(0), m_targetWindowBitmap(0), m_isVsyncEnabled(true), 
-			m_solidColorBrush(0), m_linearGradientBrush(0), m_radialGradientBrush(0),
+			m_solidColorBrush(0), 
 			m_brushOpacity(1.f), m_scale(1.f, 1.f), 
 			m_textFormat(0), m_fontCollection(0)
 		{
@@ -4159,14 +4374,6 @@ namespace AvoGUI
 			if (m_solidColorBrush)
 			{
 				m_solidColorBrush->Release();
-			}
-			if (m_linearGradientBrush)
-			{
-				m_linearGradientBrush->Release();
-			}
-			if (m_radialGradientBrush)
-			{
-				m_radialGradientBrush->Release();
 			}
 			if (m_strokeStyle)
 			{
@@ -4534,6 +4741,7 @@ namespace AvoGUI
 		}
 		void fillRectangle(float p_left, float p_top, float p_right, float p_bottom) override
 		{
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->FillRectangle(
 				D2D1::RectF(
 					p_left, p_top,
@@ -4543,10 +4751,12 @@ namespace AvoGUI
 		}
 		void fillRectangle(Point<float> const& p_size) override
 		{
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->FillRectangle(D2D1::RectF(0, 0, p_size.x, p_size.y), m_currentBrush);
 		}
 		void fillRectangle(float p_width, float p_height) override
 		{
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->FillRectangle(D2D1::RectF(0, 0, p_width, p_height), m_currentBrush);
 		}
 
@@ -4564,6 +4774,7 @@ namespace AvoGUI
 			s_direct2DFactory->CreatePathGeometry(&pathGeometry);
 			createCornerRectangleGeometry(pathGeometry, p_left, p_top, p_right, p_bottom, p_corners, true);
 
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->FillGeometry(pathGeometry, m_currentBrush);
 
 			pathGeometry->Release();
@@ -4588,6 +4799,7 @@ namespace AvoGUI
 		}
 		void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
 		{
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->FillRoundedRectangle(
 				D2D1::RoundedRect(
 					D2D1::RectF(
@@ -4618,6 +4830,7 @@ namespace AvoGUI
 		}
 		void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth = 1.f) override
 		{
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->DrawRectangle(
 				D2D1::RectF(
 					p_left, p_top, p_right, p_bottom
@@ -4644,6 +4857,7 @@ namespace AvoGUI
 		}
 		void strokeRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_strokeWidth = 1.f) override
 		{
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->DrawRoundedRectangle(
 				D2D1::RoundedRect(
 					D2D1::RectF(
@@ -4677,6 +4891,7 @@ namespace AvoGUI
 			s_direct2DFactory->CreatePathGeometry(&pathGeometry);
 			createCornerRectangleGeometry(pathGeometry, p_left, p_top, p_right, p_bottom, p_corners, false);
 
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->DrawGeometry(pathGeometry, m_currentBrush, p_strokeWidth, m_strokeStyle);
 
 			pathGeometry->Release();
@@ -4698,6 +4913,7 @@ namespace AvoGUI
 		}
 		void fillCircle(float p_x, float p_y, float p_radius) override
 		{
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->FillEllipse(
 				D2D1::Ellipse(
 					D2D1::Point2F(p_x, p_y),
@@ -4712,6 +4928,7 @@ namespace AvoGUI
 		};
 		void strokeCircle(float p_x, float p_y, float p_radius, float p_strokeWidth = 1.f)
 		{
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->DrawEllipse(
 				D2D1::Ellipse(
 					D2D1::Point2F(p_x, p_y),
@@ -4729,6 +4946,7 @@ namespace AvoGUI
 		}
 		void drawLine(float p_x0, float p_y0, float p_x1, float p_y1, float p_thickness = 1.f) override
 		{
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->DrawLine(
 				D2D1::Point2F(p_x0, p_y0),
 				D2D1::Point2F(p_x1, p_y1),
@@ -4760,6 +4978,7 @@ namespace AvoGUI
 
 			sink->Close();
 
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->DrawGeometry(path, m_currentBrush, p_lineThickness, m_strokeStyle);
 
 			sink->Release();
@@ -4791,6 +5010,7 @@ namespace AvoGUI
 
 			sink->Close();
 
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->FillGeometry(path, m_currentBrush);
 
 			sink->Release();
@@ -4809,6 +5029,7 @@ namespace AvoGUI
 			{
 				realizeStrokedGeometry((Direct2DGeometry*)p_geometry, p_strokeWidth);
 			}
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->DrawGeometryRealization(((Direct2DGeometry*)p_geometry)->getStrokedRealization(), m_currentBrush);
 		}
 		void fillGeometry(Geometry* p_geometry) override
@@ -4817,6 +5038,7 @@ namespace AvoGUI
 			{
 				realizeFilledGeometry((Direct2DGeometry*)p_geometry);
 			}
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->DrawGeometryRealization(((Direct2DGeometry*)p_geometry)->getFilledRealization(), m_currentBrush);
 		}
 
@@ -5706,6 +5928,7 @@ namespace AvoGUI
 
 			Rectangle<float> innerBounds = p_image->getInnerBounds();
 
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->DrawBitmap(
 				(ID2D1Bitmap*)p_image->getHandle(),
 				D2D1::RectF(innerBounds.left, innerBounds.top, innerBounds.right, innerBounds.bottom),
@@ -5717,54 +5940,75 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setGradientBrush(Gradient const& p_gradient) override
+		LinearGradient* createLinearGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_endX, float p_endY) override
 		{
-			D2D1_GRADIENT_STOP* gradientStops = new D2D1_GRADIENT_STOP[p_gradient.getNumberOfStops()];
-			for (uint32 a = 0; a < p_gradient.getNumberOfStops(); a++)
+			D2D1_GRADIENT_STOP* gradientStops = new D2D1_GRADIENT_STOP[p_gradientStops.size()];
+			for (uint32 a = 0; a < p_gradientStops.size(); a++)
 			{
-				AvoGUI::Color const& color = p_gradient.getStopColor(a);
+				AvoGUI::Color const& color = p_gradientStops[a].color;
 				gradientStops[a].color = D2D1::ColorF(color.red, color.green, color.blue, color.alpha);
-				gradientStops[a].position = p_gradient.getStopPosition(a);
+				gradientStops[a].position = p_gradientStops[a].position;
 			}
 
 			ID2D1GradientStopCollection* stopCollection = 0;
-			m_context->CreateGradientStopCollection(gradientStops, p_gradient.getNumberOfStops(), &stopCollection);
+			m_context->CreateGradientStopCollection(gradientStops, p_gradientStops.size(), &stopCollection);
 			delete[] gradientStops;
 
-			if (p_gradient.getIsRadial())
-			{
-				if (m_radialGradientBrush)
-				{
-					m_radialGradientBrush->Release();
-				}
-				m_context->CreateRadialGradientBrush(
-					D2D1::RadialGradientBrushProperties(
-						D2D1::Point2F(p_gradient.getStartPosition().x, p_gradient.getStartPosition().y), 
-						D2D1_POINT_2F(), 
-						p_gradient.getRadiusX(), p_gradient.getRadiusY()
-					), 
-					stopCollection, &m_radialGradientBrush
-				);
-				m_currentBrush = m_radialGradientBrush;
-			}
-			else
-			{
-				if (m_linearGradientBrush)
-				{
-					m_linearGradientBrush->Release();
-				}
-				m_context->CreateLinearGradientBrush(
-					D2D1::LinearGradientBrushProperties(
-						D2D1::Point2F(p_gradient.getStartPosition().x, p_gradient.getStartPosition().y),
-						D2D1::Point2F(p_gradient.getEndPosition().x, p_gradient.getEndPosition().y)
-					),
-					stopCollection, &m_linearGradientBrush
-				);
-				m_currentBrush = m_linearGradientBrush;
-			}
-			m_currentBrush->SetOpacity(m_brushOpacity);
+			ID2D1LinearGradientBrush* brush = 0;
+			m_context->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(p_startX, p_startY), D2D1::Point2F(p_endX, p_endY)), stopCollection, &brush);
+
 			stopCollection->Release();
+
+			return new Direct2DLinearGradient(brush);
 		}
+		LinearGradient* createLinearGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, Point<float> const& p_endPosition) override
+		{
+			return createLinearGradient(p_gradientStops, p_startPosition.x, p_startPosition.y, p_endPosition.x, p_endPosition.y);
+		}
+
+		RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radiusX, float p_radiusY) override
+		{
+			D2D1_GRADIENT_STOP* gradientStops = new D2D1_GRADIENT_STOP[p_gradientStops.size()];
+			for (uint32 a = 0; a < p_gradientStops.size(); a++)
+			{
+				AvoGUI::Color const& color = p_gradientStops[a].color;
+				gradientStops[a].color = D2D1::ColorF(color.red, color.green, color.blue, color.alpha);
+				gradientStops[a].position = p_gradientStops[a].position;
+			}
+
+			ID2D1GradientStopCollection* stopCollection = 0;
+			m_context->CreateGradientStopCollection(gradientStops, p_gradientStops.size(), &stopCollection);
+			delete[] gradientStops;
+
+			ID2D1RadialGradientBrush* brush = 0;
+			m_context->CreateRadialGradientBrush(D2D1::RadialGradientBrushProperties(D2D1::Point2F(p_startX, p_startY), D2D1_POINT_2F(), p_radiusX, p_radiusY), stopCollection, &brush);
+
+			stopCollection->Release();
+
+			return new Direct2DRadialGradient(brush);
+		}
+		RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, float p_radiusX, float p_radiusY) override
+		{
+			return createRadialGradient(p_gradientStops, p_startPosition.x, p_startPosition.y, p_radiusX, p_radiusY);
+		}
+		RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, float p_radius) override
+		{
+			return createRadialGradient(p_gradientStops, p_startPosition.x, p_startPosition.y, p_radius, p_radius);
+		}
+		RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, Point<float> const& p_radius) override
+		{
+			return createRadialGradient(p_gradientStops, p_startPosition.x, p_startPosition.y, p_radius.x, p_radius.y);
+		}
+
+		void setGradient(LinearGradient* p_gradient) override
+		{
+			m_currentBrush = ((Direct2DLinearGradient*)p_gradient)->getHandle();
+		}
+		void setGradient(RadialGradient* p_gradient) override
+		{
+			m_currentBrush = ((Direct2DRadialGradient*)p_gradient)->getHandle();
+		}
+
 		void setColor(Color const& p_color) override
 		{
 			m_solidColorBrush->SetColor(D2D1::ColorF(p_color.red, p_color.green, p_color.blue, p_color.alpha));
@@ -5773,15 +6017,6 @@ namespace AvoGUI
 		void setOpacity(float p_opacity) override
 		{
 			m_brushOpacity = p_opacity;
-			m_solidColorBrush->SetOpacity(p_opacity);
-			if (m_linearGradientBrush)
-			{
-				m_linearGradientBrush->SetOpacity(m_brushOpacity);
-			}
-			if (m_radialGradientBrush)
-			{
-				m_radialGradientBrush->SetOpacity(m_brushOpacity);
-			}
 		}
 
 		//------------------------------
@@ -5880,7 +6115,8 @@ namespace AvoGUI
 			{
 				textLayout->GetOverhangMetrics(&overhangMetrics);
 			}
-			m_context->DrawTextLayout(D2D1::Point2F(p_text->getTopLeft().x, p_text->getTopLeft().y + overhangMetrics.top), textLayout, m_solidColorBrush);
+			m_currentBrush->SetOpacity(m_brushOpacity);
+			m_context->DrawTextLayout(D2D1::Point2F(p_text->getTopLeft().x, p_text->getTopLeft().y + overhangMetrics.top), textLayout, m_currentBrush);
 		}
 		void drawText(char const* p_string, Rectangle<float> const& p_rectangle) override
 		{
@@ -5890,10 +6126,11 @@ namespace AvoGUI
 			wchar_t* wideString = new wchar_t[numberOfCharacters];
 			MultiByteToWideChar(CP_UTF8, 0, p_string, -1, wideString, numberOfCharacters);
 
+			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->DrawTextA(
 				wideString, numberOfCharacters, m_textFormat,
 				D2D1::RectF(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom),
-				m_solidColorBrush, D2D1_DRAW_TEXT_OPTIONS::D2D1_DRAW_TEXT_OPTIONS_NONE
+				m_currentBrush, D2D1_DRAW_TEXT_OPTIONS::D2D1_DRAW_TEXT_OPTIONS_NONE
 			);
 
 			delete[] wideString;
@@ -6897,6 +7134,7 @@ namespace AvoGUI
 					}
 				}
 
+				drawOverlay(m_drawingContext, targetRectangle);
 				m_drawingContext->popClipRectangle();
 			}
 			includeAnimationThread();
