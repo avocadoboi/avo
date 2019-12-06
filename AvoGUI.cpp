@@ -213,6 +213,7 @@ namespace AvoGUI
 		ProtectedRectangle(p_bounds), 
 		m_isInAnimationUpdateQueue(false), m_isVisible(true), m_isOverlay(false),
 		m_areMouseEventsEnabled(false), m_cursor(Cursor::Arrow),
+		m_opacity(1.f),
 		m_shadowBounds(p_bounds), m_shadowImage(0), m_hasShadow(true), m_elevation(0.f),
 		m_layerIndex(0), m_index(0), m_isMouseHovering(false),
 		m_GUI(0), m_parent(0), m_theme(0)
@@ -699,7 +700,7 @@ namespace AvoGUI
 		if (m_shadowImage && m_hasShadow)
 		{
 			p_drawingContext->setColor(Color(1.f));
-			p_drawingContext->drawImage(m_shadowImage);
+			p_drawingContext->drawImage(m_shadowImage, m_opacity);
 		}
 	}
 
@@ -5353,18 +5354,23 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void pushClipGeometry(Geometry* p_geometry) override
+		void pushClipGeometry(Geometry* p_geometry, float p_opacity) override
 		{
-			m_context->PushLayer(D2D1::LayerParameters1(D2D1::InfiniteRect(), ((Direct2DGeometry*)p_geometry)->getGeometry()), 0);
+			m_context->PushLayer(
+				D2D1::LayerParameters1(
+					D2D1::InfiniteRect(), ((Direct2DGeometry*)p_geometry)->getGeometry(), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, 
+					D2D1::IdentityMatrix(), p_opacity, 0, D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND | D2D1_LAYER_OPTIONS1_IGNORE_ALPHA // Improves performance :^)
+				), 0
+			);
 		}
 
 		//------------------------------
 
-		void pushClipShape(std::vector<Point<float>> const& p_points) override
+		void pushClipShape(std::vector<Point<float>> const& p_points, float p_opacity) override
 		{
-			pushClipShape(p_points.data(), p_points.size());
+			pushClipShape(p_points.data(), p_points.size(), p_opacity);
 		}
-		void pushClipShape(Point<float> const* p_points, uint32 p_numberOfPoints) override
+		void pushClipShape(Point<float> const* p_points, uint32 p_numberOfPoints, float p_opacity) override
 		{
 			if (!p_numberOfPoints)
 			{
@@ -5387,7 +5393,12 @@ namespace AvoGUI
 			sink->Close();
 			sink->Release();
 
-			m_context->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geometry), 0);
+			m_context->PushLayer(
+				D2D1::LayerParameters1(
+					D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
+					D2D1::IdentityMatrix(), p_opacity, 0, D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND | D2D1_LAYER_OPTIONS1_IGNORE_ALPHA // Improves performance :^)
+				), 0
+			);
 
 			geometry->Release();
 		}
@@ -5398,46 +5409,59 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom) override
+		void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_opacity) override
 		{
-			m_context->PushAxisAlignedClip(D2D1::RectF(p_left, p_top, p_right, p_bottom), D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
+			if (p_opacity > 0.99607843137) // 254/255
+			{
+				m_context->PushAxisAlignedClip(
+					D2D1::RectF(p_left, p_top, p_right, p_bottom), 
+					D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE
+				);
+			}
+			else
+			{
+				ID2D1RectangleGeometry* geometry = 0;
+				s_direct2DFactory->CreateRectangleGeometry(D2D1::RectF(p_left, p_top, p_right, p_bottom), &geometry);
+				m_context->PushLayer(
+					D2D1::LayerParameters1(
+						D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
+						D2D1::IdentityMatrix(), p_opacity, 0, D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND | D2D1_LAYER_OPTIONS1_IGNORE_ALPHA // Improves performance :^)
+					), 0
+				);
+				geometry->Release();
+			}
 		}
-		void pushClipRectangle(Rectangle<float> const& p_rectangle) override
+		void pushClipRectangle(Rectangle<float> const& p_rectangle, float p_opacity) override
 		{
-			m_context->PushAxisAlignedClip(
-				D2D1::RectF(
-					p_rectangle.left, p_rectangle.top,
-					p_rectangle.right, p_rectangle.bottom
-				), D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE
-			);
+			pushClipRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_opacity);
 		}
-		void pushClipRectangle(Point<float> const& p_size) override
+		void pushClipRectangle(Point<float> const& p_size, float p_opacity) override
 		{
-			m_context->PushAxisAlignedClip(
-				D2D1::RectF(
-					0, 0, p_size.x, p_size.y
-				), D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE
-			);
+			pushClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_opacity);
 		}
 
-		void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners)
+		void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners, float p_opacity)
 		{
 			ID2D1PathGeometry1* geometry;
 			s_direct2DFactory->CreatePathGeometry(&geometry);
 
 			createCornerRectangleGeometry(geometry, p_left, p_top, p_right, p_bottom, p_corners, true);
 
-			m_context->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE), 0);
-
+			m_context->PushLayer(
+				D2D1::LayerParameters1(
+					D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
+					D2D1::IdentityMatrix(), p_opacity, 0, D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND | D2D1_LAYER_OPTIONS1_IGNORE_ALPHA // Improves performance :^)
+				), 0
+			);
 			geometry->Release();
 		}
-		void pushClipRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners)
+		void pushClipRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners, float p_opacity)
 		{
-			pushClipRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners);
+			pushClipRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners, p_opacity);
 		}
-		void pushClipRectangle(Point<float> const& p_size, RectangleCorners const& p_corners)
+		void pushClipRectangle(Point<float> const& p_size, RectangleCorners const& p_corners, float p_opacity)
 		{
-			pushClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_corners);
+			pushClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_corners, p_opacity);
 		}
 		void popClipRectangle() override
 		{
@@ -5446,7 +5470,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void pushRoundedClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
+		void pushRoundedClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_opacity) override
 		{
 			ID2D1RoundedRectangleGeometry* geometry;
 			s_direct2DFactory->CreateRoundedRectangleGeometry(
@@ -5458,18 +5482,22 @@ namespace AvoGUI
 
 			ID2D1Layer* layer;
 			m_context->CreateLayer(&layer);
-			m_context->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE), layer);
-
+			m_context->PushLayer(
+				D2D1::LayerParameters1(
+					D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
+					D2D1::IdentityMatrix(), p_opacity, 0, D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND | D2D1_LAYER_OPTIONS1_IGNORE_ALPHA // Improves performance :^)
+				), 0
+			);
 			layer->Release();
 			geometry->Release();
 		}
-		void pushRoundedClipRectangle(Rectangle<float> const& p_rectangle, float p_radius) override
+		void pushRoundedClipRectangle(Rectangle<float> const& p_rectangle, float p_radius, float p_opacity) override
 		{
-			pushRoundedClipRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius);
+			pushRoundedClipRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius, p_opacity);
 		}
-		void pushRoundedClipRectangle(Point<float> const& p_size, float p_radius) override
+		void pushRoundedClipRectangle(Point<float> const& p_size, float p_radius, float p_opacity) override
 		{
-			pushRoundedClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_radius);
+			pushRoundedClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_radius, p_opacity);
 		}
 
 		//------------------------------
@@ -5920,7 +5948,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void drawImage(Image* p_image) override
+		void drawImage(Image* p_image, float p_multiplicativeOpacity) override
 		{
 			Rectangle<float> const& cropRectangle = p_image->getCropRectangle();
 			Point<float> const& imageSize = cropRectangle.getSize();
@@ -5932,7 +5960,7 @@ namespace AvoGUI
 			m_context->DrawBitmap(
 				(ID2D1Bitmap*)p_image->getHandle(),
 				D2D1::RectF(innerBounds.left, innerBounds.top, innerBounds.right, innerBounds.bottom),
-				p_image->getOpacity()* m_currentBrush->GetOpacity(),
+				p_image->getOpacity()* m_currentBrush->GetOpacity() * p_multiplicativeOpacity,
 				p_image->getScalingMethod() == ImageScalingMethod::Pixelated ? D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR : D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
 				D2D1::RectF(cropRectangle.left, cropRectangle.top, cropRectangle.right, cropRectangle.bottom)
 			);
@@ -7025,7 +7053,7 @@ namespace AvoGUI
 			//std::cout << "\n\n";
 			//includeAnimationThread();
 
-			excludeAnimationThread();
+			excludeAnimationThread(); // State needs to be static during drawing.
 			Point<uint32> size(m_drawingContext->getSize());
 			for (auto const& targetRectangle : invalidRectangles)
 			{
@@ -7036,9 +7064,7 @@ namespace AvoGUI
 				m_drawingContext->pushClipRectangle(targetRectangle);
 				m_drawingContext->clear(m_theme->colors["background"]);
 
-				//excludeAnimationThread();
 				draw(m_drawingContext, targetRectangle);
-				//includeAnimationThread();
 
 				while (true)
 				{
@@ -7054,23 +7080,19 @@ namespace AvoGUI
 							{
 								m_drawingContext->moveOrigin(view->getTopLeft());
 
-								//excludeAnimationThread();
 								view->drawShadow(m_drawingContext);
-								//includeAnimationThread();
 
 								RectangleCorners& corners = view->getCorners();
 								if (view->getHasCornerStyles())
 								{
-									m_drawingContext->pushClipGeometry(view->m_clipGeometry);
+									m_drawingContext->pushClipGeometry(view->m_clipGeometry, view->m_opacity);
 								}
 								else
 								{
-									m_drawingContext->pushClipRectangle(view->getSize());
+									m_drawingContext->pushClipRectangle(view->getSize(), view->m_opacity);
 								}
 
-								//excludeAnimationThread();
 								view->draw(m_drawingContext, targetRectangle);
-								//includeAnimationThread();
 
 								if (view->getNumberOfChildren())
 								{
@@ -7081,11 +7103,9 @@ namespace AvoGUI
 								}
 								else
 								{
-									//excludeAnimationThread();
 									view->drawOverlay(m_drawingContext, targetRectangle);
-									//includeAnimationThread();
 
-									if (view->getHasCornerStyles())
+									if (view->getHasCornerStyles() || view->m_opacity <= 0.99607843137) // 254/255
 									{
 										m_drawingContext->popClipShape();
 									}
@@ -7100,9 +7120,7 @@ namespace AvoGUI
 							else if (view->getAbsoluteShadowBounds().getIsIntersecting(targetRectangle))
 							{
 								m_drawingContext->moveOrigin(view->getTopLeft());
-								//excludeAnimationThread();
 								view->drawShadow(m_drawingContext);
-								//includeAnimationThread();
 								m_drawingContext->moveOrigin(-view->getTopLeft());
 							}
 						}
@@ -7114,11 +7132,9 @@ namespace AvoGUI
 							break;
 						}
 
-						//excludeAnimationThread();
 						currentContainer->drawOverlay(m_drawingContext, targetRectangle);
-						//includeAnimationThread();
 
-						if (currentContainer->getHasCornerStyles())
+						if (currentContainer->getHasCornerStyles() || currentContainer->m_opacity <= 0.99607843137) // 254/255
 						{
 							m_drawingContext->popClipShape();
 						}

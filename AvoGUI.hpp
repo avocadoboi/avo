@@ -3458,6 +3458,7 @@ namespace AvoGUI
 		bool m_areMouseEventsEnabled;
 		Cursor m_cursor;
 
+		float m_opacity;
 		RectangleCorners m_corners;
 
 		//------------------------------
@@ -3631,6 +3632,23 @@ namespace AvoGUI
 		bool getIsOverlay()
 		{
 			return m_isOverlay;
+		}
+
+		//------------------------------
+
+		/*
+			Sets how opaque the view and its children are (multiplied with parent opacity).
+		*/
+		void setOpacity(float p_opacity)
+		{
+			m_opacity = p_opacity;
+		}
+		/*
+			Returns how opaque the view and its children are (multiplied with parent opacity).
+		*/
+		float getOpacity()
+		{
+			return m_opacity;
 		}
 
 		//------------------------------
@@ -7864,21 +7882,24 @@ namespace AvoGUI
 
 		/*
 			After calling this, all graphics drawn outside the cached geometry will be invisible, on pixel level.
+			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
-		virtual void pushClipGeometry(Geometry* p_geometry) = 0;
+		virtual void pushClipGeometry(Geometry* p_geometry, float p_opacity = 1.f) = 0;
 
 		//------------------------------
 
 		/*
 			After calling this, all graphics drawn outside the polygon will be invisible, on pixel level.
 			Call popClipShape to remove the last pushed clip shape.
+			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
-		virtual void pushClipShape(std::vector<Point<float>> const& p_points) = 0;
+		virtual void pushClipShape(std::vector<Point<float>> const& p_points, float p_opacity = 1.f) = 0;
 		/*
 			After calling this, all graphics drawn outside the polygon will be invisible, on pixel level.
 			Call popClipShape to remove the last pushed clip shape.
+			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
-		virtual void pushClipShape(Point<float> const* p_points, uint32 p_numberOfPoints) = 0;
+		virtual void pushClipShape(Point<float> const* p_points, uint32 p_numberOfPoints, float p_opacity = 1.f) = 0;
 
 		/*
 			This removes the last added clipping shape.
@@ -7892,18 +7913,18 @@ namespace AvoGUI
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
 			Call popClipRectangle to remove the last pushed clip rectangle.
 		*/
-		virtual void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom) = 0;
+		virtual void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_opacity = 1.f) = 0;
 		/*
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
 			Call popClipRectangle to remove the last pushed clip rectangle.
 		*/
-		virtual void pushClipRectangle(Rectangle<float> const& p_rectangle) = 0;
+		virtual void pushClipRectangle(Rectangle<float> const& p_rectangle, float p_opacity = 1.f) = 0;
 		/*
 			After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
 			p_size is the size of the clip rectangle positioned at the origin.
 			Call popClipRectangle to remove the last pushed clip rectangle.
 		*/
-		virtual void pushClipRectangle(Point<float> const& p_size) = 0;
+		virtual void pushClipRectangle(Point<float> const& p_size, float p_opacity = 1.f) = 0;
 
 		/*
 			This removes the last added clipping rectangle.
@@ -7914,38 +7935,44 @@ namespace AvoGUI
 		/*
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
 			Call popClipRectangle to remove the last pushed clip corner rectangle.
+			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
-		virtual void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners) = 0;
+		virtual void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
 		/*
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
 			Call popClipRectangle to remove the last pushed clip corner rectangle.
+			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
-		virtual void pushClipRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners) = 0;
+		virtual void pushClipRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
 		/*
 			After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
 			p_size is the size of the clip rectangle positioned at the origin.
 			Call popClipShape to remove the last pushed clip corner rectangle.
+			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
-		virtual void pushClipRectangle(Point<float> const& p_size, RectangleCorners const& p_corners) = 0;
+		virtual void pushClipRectangle(Point<float> const& p_size, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
 
 		//------------------------------
 
 		/*
 			After calling this, all graphics drawn outside the rounded rectangle will be invisible, on pixel-level.
 			Call popClipShape to remove the last pushed rounded clip rectangle.
+			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
-		virtual void pushRoundedClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) = 0;
+		virtual void pushRoundedClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_opacity = 1.f) = 0;
 		/*
 			After calling this, all graphics drawn outside the rounded rectangle will be invisible, on pixel-level.
 			Call popClipShape to remove the last pushed rounded clip rectangle.
+			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
-		virtual void pushRoundedClipRectangle(Rectangle<float> const& p_rectangle, float p_radius) = 0;
+		virtual void pushRoundedClipRectangle(Rectangle<float> const& p_rectangle, float p_radius, float p_opacity = 1.f) = 0;
 		/*
 			After calling this, all graphics drawn outside a rounded rectangle at the origin with the given size and radius will be invisible, on pixel level.
 			p_size is the size of the rounded clip rectangle positioned at the origin.
 			Call popClipShape to remove the last pushed rounded clip rectangle.
+			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
-		virtual void pushRoundedClipRectangle(Point<float> const& p_size, float p_radius) = 0;
+		virtual void pushRoundedClipRectangle(Point<float> const& p_size, float p_radius, float p_opacity = 1.f) = 0;
 
 		//------------------------------
 
@@ -8038,7 +8065,7 @@ namespace AvoGUI
 		/*
 			Draws an image, placed according to the image's bounds and positioning/scaling options.
 		*/
-		virtual void drawImage(Image* p_image) = 0;
+		virtual void drawImage(Image* p_image, float p_multiplicativeOpacity = 1.f) = 0;
 
 		//------------------------------
 
