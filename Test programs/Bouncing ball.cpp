@@ -24,7 +24,8 @@ public:
 	AvoGUI::Point<double> draggingVelocity;
 	bool isDragged;
 
-	Ball()
+	Ball() :
+		radius(0.), acceleration(0.), isDragged(false)
 	{
 		color.setHSBA(AvoGUI::random(), 1.f, 1.f);
 	}
@@ -185,6 +186,5 @@ public:
 int main()
 {
 	Application* application = new Application();
-	AvoGUI::GUI::run();
-	application->forget();
+	application->waitForFinish();
 }

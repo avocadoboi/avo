@@ -1958,11 +1958,6 @@ namespace AvoGUI
 				m_GUI->handleWindowCreate(event);
 				m_GUI->includeAnimationThread();
 
-				m_hasCreatedWindowMutex.lock();
-				m_hasCreatedWindow = true;
-				m_hasCreatedWindowMutex.unlock();
-				m_hasCreatedWindowConditionVariable.notify_one();
-
 				return 0;
 			}
 			case WM_ACTIVATE:
@@ -2101,7 +2096,11 @@ namespace AvoGUI
 					POINT mousePosition;
 					GetCursorPos(&mousePosition);
 
-					if (WindowFromPoint(mousePosition) == m_windowHandle)
+					bool isMouseOverWindow = WindowFromPoint(mousePosition) == m_windowHandle;
+
+					ScreenToClient(m_windowHandle, &mousePosition);
+
+					if (mousePosition.x >= 0 && mousePosition.y >= 0 && mousePosition.x < m_size.x && mousePosition.y < m_size.y && isMouseOverWindow)
 					{
 						// If it's a WM_MOUSELEAVE message, then it has entered the nonclient area if the new mouse position still is inside the window.
 						// If it's a WM_NCMOUSELEAVE message, then it has entered the client area.
@@ -2111,8 +2110,6 @@ namespace AvoGUI
 					}
 
 					m_isMouseOutsideClientArea = true;
-
-					ScreenToClient(m_windowHandle, &mousePosition);
 
 					MouseEvent mouseEvent;
 					mouseEvent.x = mousePosition.x;
@@ -2171,12 +2168,13 @@ namespace AvoGUI
 			}
 			case WM_SIZE:
 			{
-				m_GUI->excludeAnimationThread();
 				WindowEvent windowEvent;
 				windowEvent.window = this;
 				if (p_data_a == SIZE_MINIMIZED)
 				{
+					m_GUI->excludeAnimationThread();
 					m_GUI->handleWindowMinimize(windowEvent);
+					m_GUI->includeAnimationThread();
 					m_state = WindowState::Minimized;
 				}
 				else
@@ -2188,6 +2186,7 @@ namespace AvoGUI
 					windowEvent.width = width;
 					windowEvent.height = height;
 
+					m_GUI->excludeAnimationThread();
 					if (p_data_a == SIZE_MAXIMIZED)
 					{
 						m_GUI->handleWindowMaximize(windowEvent);
@@ -2199,8 +2198,16 @@ namespace AvoGUI
 						m_state = WindowState::Restored;
 					}
 					m_GUI->handleWindowSizeChange(windowEvent);
+					m_GUI->includeAnimationThread();
 				}
-				m_GUI->includeAnimationThread();
+
+				if (!m_hasCreatedWindow)
+				{
+					m_hasCreatedWindowMutex.lock();
+					m_hasCreatedWindow = true;
+					m_hasCreatedWindowMutex.unlock();
+					m_hasCreatedWindowConditionVariable.notify_one();
+				}
 				return 0;
 			}
 			case WM_GETMINMAXINFO:
@@ -4683,7 +4690,10 @@ namespace AvoGUI
 		}
 		void setSize(uint32 p_width, uint32 p_height) override
 		{
-			if (m_context->GetSize().width == p_width && m_context->GetSize().height == p_height)
+			D2D1_SIZE_F oldSize = m_context->GetSize();
+			//if (oldSize.width >= p_width && oldSize.width < p_width + 200 &&
+				//oldSize.height >= p_height && oldSize.height < p_height + 200)
+			if (oldSize.width == p_width && oldSize.height == p_height)
 			{
 				return;
 			}
@@ -6017,6 +6027,10 @@ namespace AvoGUI
 
 			return new Direct2DRadialGradient(brush);
 		}
+		RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radius) override
+		{
+			return createRadialGradient(p_gradientStops, p_startX, p_startY, p_radius, p_radius);
+		}
 		RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, float p_radiusX, float p_radiusY) override
 		{
 			return createRadialGradient(p_gradientStops, p_startPosition.x, p_startPosition.y, p_radiusX, p_radiusY);
@@ -6333,8 +6347,6 @@ namespace AvoGUI
 
 		m_GUI = this;
 
-		m_animationThread = std::thread(&GUI::thread_runAnimationLoop, this);
-
 		//------------------------------
 
 		m_windowEventListeners.reserve(5);
@@ -6364,6 +6376,8 @@ namespace AvoGUI
 		m_bounds = Rectangle<float>(0, 0, p_width, p_height);
 		setAbsoluteBounds(m_bounds);
 		m_window->create(p_title, p_x, p_y, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
+
+		m_animationThread = std::thread(&GUI::thread_runAnimationLoop, this);
 	}
 	void GUI::create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags, GUI* p_parent)
 	{
@@ -6375,6 +6389,8 @@ namespace AvoGUI
 		m_bounds = Rectangle<float>(0, 0, p_width, p_height);
 		setAbsoluteBounds(m_bounds);
 		m_window->create(p_title, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
+
+		m_animationThread = std::thread(&GUI::thread_runAnimationLoop, this);
 	}
 
 	//------------------------------

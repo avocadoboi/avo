@@ -162,6 +162,5 @@ public:
 int main()
 {
 	MouseEventsTest* application = new MouseEventsTest();
-	application->run();
-	application->forget();
+	application->waitForFinish();
 }

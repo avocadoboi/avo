@@ -220,6 +220,5 @@ public:
 int main()
 {
 	FourInARow* gui = new FourInARow();
-	AvoGUI::GUI::run();
-	gui->forget();
+	gui->waitForFinish();
 }

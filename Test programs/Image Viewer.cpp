@@ -8,7 +8,7 @@ float const ANIMATION_SPEED = 0.2f;
 
 //------------------------------
 
-class ImageViewer : public AvoGUI::GUI, public AvoGUI::KeyboardEventListener
+class ImageViewer : public AvoGUI::GUI, public AvoGUI::KeyboardListener
 {
 private:
 	AvoGUI::Image* m_image;
@@ -38,7 +38,7 @@ public:
 		enableMouseEvents();
 		setKeyboardFocus(this);
 
-		m_theme->colors["background"] = AvoGUI::Color(0.3f);
+		setThemeColor("background", AvoGUI::Color(0.3f));
 
 		m_image = getDrawingContext()->createImage(m_filePath);
 		m_image->setCenter(getCenter());
@@ -96,7 +96,7 @@ public:
 	}
 	void handleMouseMove(AvoGUI::MouseEvent const& p_event) override
 	{
-		if (p_event.modifierKeys == AvoGUI::ModifierKeyFlags::LeftMouse)
+		if (getWindow()->getIsMouseButtonDown(AvoGUI::MouseButton::Left))
 		{
 			m_targetImageBounds.move(p_event.movementX, p_event.movementY);
 			queueAnimationUpdate();
@@ -165,7 +165,7 @@ public:
 		m_message->setFontWeight(AvoGUI::FontWeight::Regular);
 		m_message->setCharacterSpacing(0.3f);
 		m_message->setLineHeight(1.1f);
-		m_message->minimizeSize();
+		m_message->fitSizeToText();
 
 		m_button_ok = new AvoGUI::Button(this, "OK");
 		m_button_ok->setCenter(m_message->getCenterX());
@@ -200,14 +200,12 @@ int main(int p_numberOfArguments, char** p_arguments)
 	if (p_numberOfArguments > 1)
 	{
 		ImageViewer* viewer = new ImageViewer(p_arguments[1]);
-		viewer->run();
-		viewer->forget();
+		viewer->waitForFinish();
 	}
 	else
 	{
 		MessageBox* message = new MessageBox();
-		message->run();
-		message->forget();
+		message->waitForFinish();
 	}
 	return 1;
 }

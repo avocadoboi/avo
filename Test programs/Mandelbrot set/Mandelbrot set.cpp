@@ -74,5 +74,5 @@ void MandelbrotRenderer::render()
 int main()
 {
 	MandelbrotViewer* app = new MandelbrotViewer();
-	AvoGUI::GUI::run();
+	app->waitForFinish();
 }

@@ -8077,7 +8077,7 @@ namespace AvoGUI
 		/*
 			Creates a linear gradient that can be used as a brush when drawing things.
 		*/
-		virtual LinearGradient* createLinearGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_endX, float p_endY) = 0;
+		virtual LinearGradient* createLinearGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX = 0.f, float p_startY = 0.f, float p_endX = 0.f, float p_endY = 0.f) = 0;
 		/*
 			Creates a linear gradient that can be used as a brush when drawing things.
 		*/
@@ -8086,7 +8086,11 @@ namespace AvoGUI
 		/*
 			Creates a radial gradient that can be used as a brush when drawing things.
 		*/
-		virtual RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radiusX, float p_radiusY) = 0;
+		virtual RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX = 0.f, float p_startY = 0.f, float p_radiusX = 0.f, float p_radiusY = 0.f) = 0;
+		/*
+			Creates a radial gradient that can be used as a brush when drawing things.
+		*/
+		virtual RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radius) = 0;
 		/*
 			Creates a radial gradient that can be used as a brush when drawing things.
 		*/
@@ -10802,6 +10806,13 @@ namespace AvoGUI
 		void removeEditableTextListener(EditableTextListener* p_listener)
 		{
 			m_editableText->removeEditableTextListener(p_listener);
+		}
+
+		//------------------------------
+
+		EditableText* getEditableText()
+		{
+			return m_editableText;
 		}
 
 		//------------------------------

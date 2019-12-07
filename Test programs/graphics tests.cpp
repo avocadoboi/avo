@@ -4,7 +4,7 @@ class Card : public AvoGUI::View
 {
 private:
 	AvoGUI::Text* m_text;
-	AvoGUI::Gradient m_gradient;
+	AvoGUI::LinearGradient* m_gradient;
 
 public:
 	Card(View* p_parent) :
@@ -18,13 +18,12 @@ public:
 		m_text->setWordWrapping(AvoGUI::WordWrapping::WholeWord);
 		m_text->setReadingDirection(AvoGUI::ReadingDirection::RightToLeft);
 
-		m_gradient.addStop(AvoGUI::Color(255, 0, 0), 0.f);
-		m_gradient.addStop(AvoGUI::Color(0, 0, 255), 1.f);
-		m_gradient.setIsRadial(false);
+		m_gradient = getGUI()->getDrawingContext()->createLinearGradient({ { AvoGUI::Color(255, 0, 0), 0.f }, { AvoGUI::Color(0, 0, 255), 1.f } });
 	}
 	~Card()
 	{
 		m_text->forget();
+		m_gradient->forget();
 	}
 
 	void handleSizeChange()
@@ -36,12 +35,12 @@ public:
 		m_text->setTop(18.f);
 		setHeight(m_text->getBottom() + 18.f);
 
-		m_gradient.setEndPosition(getSize());
+		m_gradient->setEndPosition(getSize());
 	}
 
 	void draw(AvoGUI::DrawingContext* p_context)
 	{
-		p_context->setGradientBrush(m_gradient);
+		p_context->setGradient(m_gradient);
 		p_context->fillRectangle(getSize());
 
 		p_context->setColor(AvoGUI::Color(1.f));
@@ -82,5 +81,5 @@ public:
 int main()
 {
 	GUI* gui = new GUI();
-	AvoGUI::GUI::run();
+	gui->waitForFinish();
 }

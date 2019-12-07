@@ -25,7 +25,7 @@ public:
 
 	//------------------------------
 
-	void handleViewSizeChange(View* p_view) override
+	void handleViewSizeChange(View* p_view, float p_previousWidth, float p_previousHeight) override
 	{
 		m_image->setSize(getParent()->getSize());
 		setSize(getParent()->getSize());
@@ -45,6 +45,8 @@ private:
 	AvoGUI::View* m_viewContainer;
 	AvoGUI::TextField* m_textField_firstName;
 	AvoGUI::TextField* m_textField_lastName;
+
+	AvoGUI::Tooltip* m_tooltip;
 
 public:
 	MyGUI() :
@@ -103,22 +105,24 @@ public:
 
 		enableMouseEvents();
 
+		m_tooltip = new AvoGUI::Tooltip(this);
+
 		m_viewContainer = new AvoGUI::View(this);
 		m_viewContainer->enableMouseEvents();
 
 		AvoGUI::Button* button_yes = new AvoGUI::Button(m_viewContainer, "YES");
-		button_yes->setTooltip("Tooltip 0");
+		button_yes->setTooltip(m_tooltip, "Tooltip 0");
 		button_yes->addButtonListener(this);
 
 		AvoGUI::Button* button_no = new AvoGUI::Button(m_viewContainer, "NO", AvoGUI::Button::Emphasis::Medium);
 		button_no->setLeft(button_yes->getRight() + 10.f);
-		button_no->setTooltip("Tooltip 1");
+		button_no->setTooltip(m_tooltip, "Tooltip 1");
 		button_no->addButtonListener(this);
 
 		AvoGUI::Button* button_readMore = new AvoGUI::Button(m_viewContainer, "READ MORE", AvoGUI::Button::Emphasis::Low);
 		button_readMore->setCenterX(button_no->getRight()*0.5f);
 		button_readMore->setTop(button_no->getBottom() + 15.f);
-		button_readMore->setTooltip("tooltip 2");
+		button_readMore->setTooltip(m_tooltip, "tooltip 2");
 		button_readMore->addButtonListener(this);
 
 		m_textField_firstName = new AvoGUI::TextField(m_viewContainer, AvoGUI::TextField::Type::Outlined, "First name", 150.f);
@@ -142,6 +146,5 @@ public:
 int main()
 {
 	MyGUI* gui = new MyGUI();
-	AvoGUI::GUI::run();
-	gui->forget();
+	gui->waitForFinish();
 }

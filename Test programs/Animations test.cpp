@@ -46,6 +46,5 @@ public:
 int main()
 {
 	AnimationsTest* test = new AnimationsTest();
-	AvoGUI::GUI::run();
-	test->forget();
+	test->waitForFinish();
 }

@@ -71,7 +71,6 @@ public:
 		m_text_numberOfCollisions(0), m_numberOfCollisions(0), m_text_numberOfDigits(0), m_textField_numberOfDigits(0), m_restartButton(0)
 	{
 		create("Pi day!", (uint32_t)windowWidth, (uint32_t)windowHeight, AvoGUI::WindowStyleFlags::DefaultNoResize);
-		run();
 	}
 
 	void createContent()
@@ -80,8 +79,8 @@ public:
 		m_restartButton->setTopRight(getRight() - 10.f, 10.f);
 		m_restartButton->addButtonListener(this);
 
-		setThemeValue("text field height", 2.05f);
-		setThemeValue("text field font size", 14.f);
+		setThemeValue("text field height", 2.f);
+		setThemeValue("text field font size", 16.f);
 		m_textField_numberOfDigits = new AvoGUI::TextField(this, AvoGUI::TextField::Type::Outlined);
 		m_textField_numberOfDigits->setTextAlign(AvoGUI::TextAlign::Center);
 		m_textField_numberOfDigits->setWidth(40.f);
@@ -168,7 +167,7 @@ public:
 		if (numberOfCollisionsBefore != m_numberOfCollisions)
 		{
 			createText();
-			invalidateRectangle(m_text_numberOfCollisions->getLeft(), m_text_numberOfCollisions->getTop(), 300.f, m_text_numberOfCollisions->getBottom());
+			invalidateRectangle(m_text_numberOfCollisions->getLeft(), m_text_numberOfCollisions->getTop(), 300.f, m_text_numberOfCollisions->getBottom() + 1.f);
 		}
 
 		if (m_firstBlock.position < getWidth())
@@ -192,5 +191,6 @@ public:
 
 int main()
 { 
-	(new PiDay())->forget();
+	PiDay* app = new PiDay();
+	app->waitForFinish();
 }

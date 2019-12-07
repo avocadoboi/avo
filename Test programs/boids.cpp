@@ -103,7 +103,6 @@ public:
 	void updateAnimations() override
 	{
 		AvoGUI::Point<float> mousePosition = getWindow()->getMousePosition();
-		std::cout << mousePosition.x << ", " << mousePosition.y;
 		bool willAvoidMouse = getWindow()->getIsMouseButtonDown(AvoGUI::MouseButton::Right);
 		for (uint32 a = 0; a < m_boids.size(); a++)
 		{
