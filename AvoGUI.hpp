@@ -6005,6 +6005,11 @@ namespace AvoGUI
 			p_event is an object that contains information about the mouse event.
 		*/
 		virtual void handleGlobalMouseScroll(MouseEvent const& p_event) { }
+		/*
+			USER IMPLEMENTED
+			Gets called when the cursor has been moved from the GUI.
+		*/
+		virtual void handleGlobalMouseLeave(MouseEvent const& p_event) { }
 	};
 
 	//------------------------------
@@ -8410,6 +8415,11 @@ namespace AvoGUI
 			Sends the event down to global and targeted mouse event listeners.
 		*/
 		virtual void handleGlobalMouseMove(MouseEvent const& p_event) override;
+		/*
+			LIBRARY IMPLEMENTED
+			Sends the event down to global and targeted mouse event listeners.
+		*/
+		virtual void handleGlobalMouseLeave(MouseEvent const& p_event) override;
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.

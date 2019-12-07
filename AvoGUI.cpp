@@ -1984,7 +1984,7 @@ namespace AvoGUI
 
 				RECT rectangle;
 				GetUpdateRect(m_windowHandle, &rectangle, false);
-				Color color = m_GUI->getDrawingContext()->getBackgroundColor();
+				Color color = m_GUI->getDrawingContext()->getBackgroundColor(); // Thread safe I think?
 				FillRect(deviceContext, &rectangle, CreateSolidBrush(RGB(color.red * 255, color.green * 255, color.blue * 255)));
 
 				return 1; // We erased it.
@@ -2023,7 +2023,7 @@ namespace AvoGUI
 						trackStructure.cbSize = sizeof(TRACKMOUSEEVENT);
 						trackStructure.hwndTrack = m_windowHandle;
 						TrackMouseEvent(&trackStructure);
-						if (!m_isMouseOutsideClientArea)
+						if (m_isMouseOutsideClientArea)
 						{
 							// The window will recieve WM_MOUSELEAVE - no need for extra mouse events, so return.
 							m_isMouseOutsideClientArea = true;
@@ -2053,6 +2053,82 @@ namespace AvoGUI
 					return 0;
 				}
 				break;
+			}
+			case WM_MOUSEMOVE:
+			{
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
+
+				if (x == m_mousePosition.x && y == m_mousePosition.y)
+				{
+					return 0;
+				}
+
+				MouseEvent mouseEvent;
+				mouseEvent.x = x;
+				mouseEvent.y = y;
+				mouseEvent.movementX = x - m_mousePosition.x;
+				mouseEvent.movementY = y - m_mousePosition.y;
+
+				m_mousePosition.x = x;
+				m_mousePosition.y = y;
+
+				m_GUI->excludeAnimationThread();
+				m_GUI->handleGlobalMouseMove(mouseEvent);
+				m_GUI->includeAnimationThread();
+
+				if (m_isMouseOutsideClientArea)
+				{
+					SetCursor(m_cursorHandle);
+
+					// This is to make the window recieve WM_MOUSELEAVE.
+					TRACKMOUSEEVENT trackStructure = { };
+					trackStructure.dwFlags = TME_LEAVE;
+					trackStructure.cbSize = sizeof(TRACKMOUSEEVENT);
+					trackStructure.hwndTrack = m_windowHandle;
+					TrackMouseEvent(&trackStructure);
+
+					m_isMouseOutsideClientArea = false;
+				}
+
+				return 0;
+			}
+			case WM_NCMOUSELEAVE:
+			case WM_MOUSELEAVE:
+			{
+				if (GetCapture() != m_windowHandle)
+				{
+					POINT mousePosition;
+					GetCursorPos(&mousePosition);
+
+					if (WindowFromPoint(mousePosition) == m_windowHandle)
+					{
+						// If it's a WM_MOUSELEAVE message, then it has entered the nonclient area if the new mouse position still is inside the window.
+						// If it's a WM_NCMOUSELEAVE message, then it has entered the client area.
+						// Note that both these cases would mean that the window has the CustomBorder style flag set.
+						m_isMouseOutsideClientArea = p_message == WM_MOUSELEAVE;
+						return 0;
+					}
+
+					m_isMouseOutsideClientArea = true;
+
+					ScreenToClient(m_windowHandle, &mousePosition);
+
+					MouseEvent mouseEvent;
+					mouseEvent.x = mousePosition.x;
+					mouseEvent.y = mousePosition.y;
+					mouseEvent.movementX = mousePosition.x - m_mousePosition.x;
+					mouseEvent.movementY = mousePosition.y - m_mousePosition.y;
+
+					m_mousePosition.x = mousePosition.x;
+					m_mousePosition.y = mousePosition.y;
+
+					m_GUI->excludeAnimationThread();
+					m_GUI->handleGlobalMouseMove(mouseEvent);
+					m_GUI->handleGlobalMouseLeave(mouseEvent);
+					m_GUI->includeAnimationThread();
+				}
+				return 0;
 			}
 			case WM_NCHITTEST:
 			{
@@ -2343,80 +2419,6 @@ namespace AvoGUI
 				m_GUI->handleGlobalMouseDoubleClick(mouseEvent);
 				m_GUI->includeAnimationThread();
 
-				return 0;
-			}
-			case WM_MOUSEMOVE:
-			{
-				int32 x = GET_X_LPARAM(p_data_b);
-				int32 y = GET_Y_LPARAM(p_data_b);
-
-				if (x == m_mousePosition.x && y == m_mousePosition.y)
-				{
-					return 0;
-				}
-
-				MouseEvent mouseEvent;
-				mouseEvent.x = x;
-				mouseEvent.y = y;
-				mouseEvent.movementX = x - m_mousePosition.x;
-				mouseEvent.movementY = y - m_mousePosition.y;
-
-				m_mousePosition.x = x;
-				m_mousePosition.y = y;
-
-				m_GUI->excludeAnimationThread();
-				m_GUI->handleGlobalMouseMove(mouseEvent);
-				m_GUI->includeAnimationThread();
-
-				if (m_isMouseOutsideClientArea)
-				{
-					SetCursor(m_cursorHandle);
-
-					// This is to make the window recieve WM_MOUSELEAVE.
-					TRACKMOUSEEVENT trackStructure = { };
-					trackStructure.dwFlags = TME_LEAVE;
-					trackStructure.cbSize = sizeof(TRACKMOUSEEVENT);
-					trackStructure.hwndTrack = m_windowHandle;
-					TrackMouseEvent(&trackStructure);
-
-					m_isMouseOutsideClientArea = false;
-				}
-
-				return 0;
-			}
-			case WM_NCMOUSELEAVE:
-			case WM_MOUSELEAVE:
-			{
-				if (GetCapture() != m_windowHandle)
-				{
-					POINT mousePosition;
-					GetCursorPos(&mousePosition);
-					ScreenToClient(m_windowHandle, &mousePosition);
-
-					if (mousePosition.x >= 0 && mousePosition.y >= 0 && mousePosition.x < m_size.x && mousePosition.y < m_size.y)
-					{
-						// If it's a WM_MOUSELEAVE message, then it has entered the nonclient area if the new mouse position still is inside the window.
-						// If it's a WM_NCMOUSELEAVE message, then it has entered the client area.
-						// Note that both these cases would mean that the window has the CustomBorder style flag set.
-						m_isMouseOutsideClientArea = p_message == WM_MOUSELEAVE; 
-						return 0;
-					}
-
-					m_isMouseOutsideClientArea = true;
-
-					MouseEvent mouseEvent;
-					mouseEvent.x = mousePosition.x;
-					mouseEvent.y = mousePosition.y;
-					mouseEvent.movementX = mousePosition.x - m_mousePosition.x;
-					mouseEvent.movementY = mousePosition.y - m_mousePosition.y;
-
-					m_mousePosition.x = mousePosition.x;
-					m_mousePosition.y = mousePosition.y;
-
-					m_GUI->excludeAnimationThread();
-					m_GUI->handleGlobalMouseMove(mouseEvent);
-					m_GUI->includeAnimationThread();
-				}
 				return 0;
 			}
 			case WM_KEYDOWN:
@@ -6626,7 +6628,7 @@ namespace AvoGUI
 		else
 		{
 			View* container = this;
-			int32 startIndex = getNumberOfChildren() - 1;
+			int32 startIndex = m_children.size() - 1;
 
 			MouseEvent mouseEvent = p_event;
 
@@ -6635,7 +6637,7 @@ namespace AvoGUI
 
 			if (getIsContaining(p_event.x, p_event.y))
 			{
-				if (getAreMouseEventsEnabled())
+				if (m_areMouseEventsEnabled)
 				{
 					if (((View*)this)->m_isMouseHovering)
 					{
@@ -6678,7 +6680,7 @@ namespace AvoGUI
 				loopStart:
 					for (int32 a = startIndex; a >= 0; a--)
 					{
-						View* child = container->getChild(a);
+						View* child = container->m_children[a];
 
 						if (container->m_isMouseHovering && child->getIsContainingAbsolute(p_event.x, p_event.y) && child->getIsVisible() && !hasInvisibleParent && !hasFoundEnterViews)
 						{
@@ -6688,7 +6690,7 @@ namespace AvoGUI
 								mouseEvent.y = p_event.y - child->getAbsoluteTop();
 							}
 
-							bool isContainer = child->getNumberOfChildren();
+							bool isContainer = child->m_children.size();
 
 							if (child->m_isMouseHovering)
 							{
@@ -6858,6 +6860,84 @@ namespace AvoGUI
 			for (auto listener : m_globalMouseEventListeners)
 			{
 				listener->handleGlobalMouseMove(p_event);
+			}
+		}
+	}
+	void GUI::handleGlobalMouseLeave(MouseEvent const& p_event)
+	{
+		if (((View*)this)->m_isMouseHovering)
+		{
+			if (getAreMouseEventsEnabled())
+			{
+				handleMouseLeave(p_event);
+				handleMouseBackgroundLeave(p_event);
+			}
+			((View*)this)->m_isMouseHovering = false;
+		}
+
+		MouseEvent event = p_event;
+
+		View* container = this;
+		int32 startIndex = m_children.size() - 1;
+		int32 numberOfOverlayParents = 0;
+		while (true)
+		{
+			loopStart:
+			for (int32 a = startIndex; a >= 0; a--)
+			{
+				View* child = container->m_children[a];
+
+				if (child->m_isMouseHovering)
+				{
+					event.x = p_event.x - child->getAbsoluteLeft();
+					event.y = p_event.y - child->getAbsoluteTop();
+					child->handleMouseLeave(event);
+					child->handleMouseBackgroundLeave(event);
+					child->m_isMouseHovering = false;
+
+					if (child->m_children.size())
+					{
+						startIndex = child->m_children.size() - 1;
+						container = child;
+						if (container->m_isOverlay)
+						{
+							numberOfOverlayParents++;
+						}
+						goto loopStart;
+					}
+					else if (!child->m_isOverlay)
+					{
+						break;
+					}
+				}
+			}
+			if (container == this)
+			{
+				break;
+			}
+			else if (container->m_isOverlay)
+			{
+				startIndex = container->m_index - 1;
+				container = container->m_parent;
+				numberOfOverlayParents--;
+			}
+			else if (numberOfOverlayParents)
+			{
+				while (!container->m_isOverlay && container != this)
+				{
+					container = container->m_parent;
+				}
+				if (container == this)
+				{
+					break;
+				}
+				startIndex = container->m_index - 1;
+				container = container->m_parent;
+				numberOfOverlayParents--;
+			}
+			else
+			{
+				break;
 			}
 		}
 	}
