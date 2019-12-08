@@ -32,7 +32,7 @@ public:
 //------------------------------
 
 class Boids :
-	AvoGUI::GUI
+	AvoGUI::Gui
 {
 private:
 	std::vector<Boid> m_boids;

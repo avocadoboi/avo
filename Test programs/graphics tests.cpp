@@ -13,12 +13,12 @@ public:
 		setCornerCutSize(20.f, 0.f, 0.f, 20.f);
 		setElevation(4.f);
 
-		m_text = getGUI()->getDrawingContext()->createText(u8"بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا ", 24.f);
+		m_text = getGui()->getDrawingContext()->createText(u8"بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا ", 24.f);
 		m_text->setFontWeight(AvoGUI::FontWeight::Light);
 		m_text->setWordWrapping(AvoGUI::WordWrapping::WholeWord);
 		m_text->setReadingDirection(AvoGUI::ReadingDirection::RightToLeft);
 
-		m_gradient = getGUI()->getDrawingContext()->createLinearGradient({ { AvoGUI::Color(255, 0, 0), 0.f }, { AvoGUI::Color(0, 0, 255), 1.f } });
+		m_gradient = getGui()->getDrawingContext()->createLinearGradient({ { AvoGUI::Color(255, 0, 0), 0.f }, { AvoGUI::Color(0, 0, 255), 1.f } });
 	}
 	~Card()
 	{
@@ -48,7 +48,7 @@ public:
 	}
 };
 
-class GUI : public AvoGUI::GUI
+class GUI : public AvoGUI::Gui
 {
 private:
 	Card* m_card;

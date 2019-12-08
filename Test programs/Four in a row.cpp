@@ -35,7 +35,7 @@ public:
 		setSize(250, 150);
 		setIsVisible(false);
 
-		m_text = getGUI()->getDrawingContext()->createText("won!", 20.f);
+		m_text = getGui()->getDrawingContext()->createText("won!", 20.f);
 		m_text->setCenter(getWidth() * 0.65f, getHeight()*0.5f);
 	}
 
@@ -96,7 +96,7 @@ public:
 //------------------------------
 
 class FourInARow : 
-	public AvoGUI::GUI
+	public AvoGUI::Gui
 {
 private:
 	YouWon* m_youWon;

@@ -40,11 +40,11 @@ private:
 			{
 				fileName = fileName.substr(0, 10) + "...";
 			}
-			m_text_currentSoundFileName = getGUI()->getDrawingContext()->createText(fileName.c_str(), 12.f);
+			m_text_currentSoundFileName = getGui()->getDrawingContext()->createText(fileName.c_str(), 12.f);
 		}
 		else
 		{
-			m_text_currentSoundFileName = getGUI()->getDrawingContext()->createText("(none)", 12.f);
+			m_text_currentSoundFileName = getGui()->getDrawingContext()->createText("(none)", 12.f);
 		}
 		m_text_currentSoundFileName->setLeft(m_text_sound->getRight() + 2.f);
 		m_text_currentSoundFileName->setFontWeight(AvoGUI::FontWeight::Regular);
@@ -66,9 +66,9 @@ public:
 
 		m_openFileDialog.setFileExtensions({ { "Audio files", "*.mp3;*.wav" } });
 
-		m_text_sound = getGUI()->getDrawingContext()->createText("Sound: ", 12.f);
+		m_text_sound = getGui()->getDrawingContext()->createText("Sound: ", 12.f);
 
-		m_text_currentSoundFileName = getGUI()->getDrawingContext()->createText("(none)", 12.f);
+		m_text_currentSoundFileName = getGui()->getDrawingContext()->createText("(none)", 12.f);
 		m_text_currentSoundFileName->setLeft(m_text_sound->getRight() + 2.f);
 		m_text_currentSoundFileName->setFontWeight(AvoGUI::FontWeight::Regular);
 
@@ -213,11 +213,11 @@ private:
 			float angle = std::ceil(m_currentAngle * 3600.f) / 3600.f;
 			float minutes = (angle - (uint32)angle) * 60.f;
 			uint32 seconds = std::round((minutes - (uint32)minutes) * 60.f);
-			m_text_timeLeft = getGUI()->getDrawingContext()->createText(((angle < 10 ? "0" + AvoGUI::convertNumberToString((uint32)angle) : AvoGUI::convertNumberToString((uint32)angle)) + (minutes < 10 ? ":0" : ":") + AvoGUI::convertNumberToString((uint32)minutes) + (seconds < 10u ? ":0" : ":") + AvoGUI::convertNumberToString(seconds)).c_str(), 23.f);
+			m_text_timeLeft = getGui()->getDrawingContext()->createText(((angle < 10 ? "0" + AvoGUI::convertNumberToString((uint32)angle) : AvoGUI::convertNumberToString((uint32)angle)) + (minutes < 10 ? ":0" : ":") + AvoGUI::convertNumberToString((uint32)minutes) + (seconds < 10u ? ":0" : ":") + AvoGUI::convertNumberToString(seconds)).c_str(), 23.f);
 		}
 		else
 		{
-			m_text_timeLeft = getGUI()->getDrawingContext()->createText("00:00:00", 23.f);
+			m_text_timeLeft = getGui()->getDrawingContext()->createText("00:00:00", 23.f);
 		}
 
 		m_text_timeLeft->setFontWeight(AvoGUI::FontWeight::Regular);
@@ -229,7 +229,7 @@ public:
 
 	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
 	{
-		getGUI()->setKeyboardFocus(0);
+		getGui()->setKeyboardFocus(0);
 		if (AvoGUI::Point<>::getLengthSquared(p_event.x - getWidth() * 0.5f, p_event.y - getHeight() * 0.5f) >
 			AvoGUI::Point<>::getLengthSquared(m_spiralVertices[m_numberOfSpiralVerticesInTotal - 1].x - getWidth() * 0.5f, m_spiralVertices[m_numberOfSpiralVerticesInTotal - 1].y - getHeight() * 0.5f))
 		{
@@ -298,17 +298,17 @@ public:
 		{
 			if (m_textField_hours->getHasKeyboardFocus())
 			{
-				getGUI()->setKeyboardFocus(m_textField_minutes);
+				getGui()->setKeyboardFocus(m_textField_minutes);
 			}
 			else if (m_textField_minutes->getHasKeyboardFocus())
 			{
-				getGUI()->setKeyboardFocus(m_textField_seconds);
+				getGui()->setKeyboardFocus(m_textField_seconds);
 			}
 			else
 			{
-				getGUI()->setKeyboardFocus(m_textField_hours);
+				getGui()->setKeyboardFocus(m_textField_hours);
 			}
-			((AvoGUI::EditableText*)getGUI()->getKeyboardFocus())->selectAll();
+			((AvoGUI::EditableText*)getGui()->getKeyboardFocus())->selectAll();
 		}
 	}
 

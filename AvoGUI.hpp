@@ -39,7 +39,7 @@
 #include <sstream>
 #include <vector>
 #include <deque>
-#include <map>
+#include <unordered_map>
 #include <thread>
 #include <mutex>
 #include <atomic>
@@ -3332,10 +3332,10 @@ namespace AvoGUI
 	class Theme : public ReferenceCounted
 	{
 	public:
-		std::map<char const*, Color> colors;
-		std::map<char const*, Easing> easings;
-		std::map<char const*, char const*> fontFamilies;
-		std::map<char const*, float> values;
+		std::unordered_map<char const*, Color> colors;
+		std::unordered_map<char const*, Easing> easings;
+		std::unordered_map<char const*, char const*> fontFamilies;
+		std::unordered_map<char const*, float> values;
 
 		/*
 			This initializes the default theme. 
@@ -3402,6 +3402,7 @@ namespace AvoGUI
 			values["text field padding right"] = 14.f;
 			values["text field filled padding bottom"] = 9.f;
 		}
+		virtual ~Theme() { }
 	};
 
 #pragma endregion
@@ -3438,7 +3439,7 @@ namespace AvoGUI
 
 	// forward declaration <3
 
-	class GUI;
+	class Gui;
 	class DrawingContext;
 	class Image;
 	class Geometry;
@@ -3475,12 +3476,13 @@ namespace AvoGUI
 
 		uint32 m_layerIndex;
 		uint32 m_index;
+		uint64 m_id;
 
 		//------------------------------
 
 		bool m_isMouseHovering;
 
-		friend class GUI;
+		friend class Gui;
 
 		//------------------------------
 
@@ -3537,7 +3539,11 @@ namespace AvoGUI
 		{
 			m_index = p_index;
 		}
-
+		/*
+			LIBRARY IMPLEMENTED
+			Makes sure the view is drawn at the correct time, according to elevation.
+		*/
+		void updateViewDrawingIndex(View* p_view);
 		/*
 			LIBRARY IMPLEMENTED
 			Updates the shadow bounds and the shadow image.
@@ -3545,7 +3551,7 @@ namespace AvoGUI
 		void updateShadow();
 
 	protected:
-		GUI* m_GUI;
+		Gui* m_gui;
 		View* m_parent;
 		Theme* m_theme;
 
@@ -3608,9 +3614,14 @@ namespace AvoGUI
 		*/
 		virtual void updateClipGeometry();
 
-
 	public:
 		View(View* p_parent, Rectangle<float> const& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
+		template<typename T>
+		View(View* p_parent, T p_id, Rectangle<float> const& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f)) :
+			View(p_parent, p_bounds)
+		{
+			setId(p_id);
+		}
 		virtual ~View();
 
 		//------------------------------
@@ -3677,9 +3688,19 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns a pointer to the highest view in the hierarchy, the GUI.
 		*/
-		GUI* getGUI() const
+		Gui* getGui() const
 		{
-			return m_GUI;
+			return m_gui;
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Returns a pointer to the highest view in the hierarchy, the GUI.
+			It is cast to another pointer type.
+		*/
+		template<typename T>
+		T* getGui() const
+		{
+			return (T*)m_gui;
 		}
 
 		/*
@@ -3695,6 +3716,14 @@ namespace AvoGUI
 		View* getParent() const
 		{
 			return m_parent;
+		}
+		/*
+			Returns a pointer to the parent of this view, casted to a pointer of another type.
+		*/
+		template<typename T>
+		T* getParent() const
+		{
+			return (T*)m_parent;
 		}
 
 		/*
@@ -3730,15 +3759,24 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns the child view at an index.
 		*/
-		View* getChild(uint32 p_viewIndex)
+		View* getChild(uint32 p_viewIndex) const
 		{
 			return m_children[p_viewIndex];
 		}
 		/*
 			LIBRARY IMPLEMENTED
+			Returns the child view at an index, casted to a pointer of another type.
+		*/
+		template<typename T>
+		T* getChild(uint32 p_viewIndex) const
+		{
+			return (T*)m_children[p_viewIndex];
+		}
+		/*
+			LIBRARY IMPLEMENTED
 			Returns the number of child views that are attached to this view.
 		*/
-		uint32 getNumberOfChildren()
+		uint32 getNumberOfChildren() const
 		{
 			return m_children.size();
 		}
@@ -3746,17 +3784,46 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns a vector containing the child views that are attached to this view.
 		*/
-		std::vector<View*> const& getChildren()
+		std::vector<View*> const& getChildren() const
 		{
 			return m_children;
 		}
 
 		/*
 			LIBRARY IMPLEMENTED
-			Makes sure the view is drawn at the correct time, according to elevation. 
-			You shouldn't need to use this method, it is used internally.
+			Sets an ID that can be used to retrieve the view from the view hierarchy.
+			The type is cast to uint64 and could be for example a string literal or any pointer.
 		*/
-		void updateViewDrawingIndex(View* p_view);
+		template<typename T>
+		void setId(T p_id)
+		{
+			setId((uint64)p_id);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Sets an ID that can be used to retrieve the view from the view hierarchy.
+		*/
+		void setId(uint64 p_id);
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the ID that can be used to retrieve the view from the view hierarchy.
+			The ID is 0 by default.
+			The type is cast from uint64 to T and could be for example a string literal or any pointer.
+		*/
+		template<typename T>
+		T getId() const
+		{
+			return m_id;
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the ID that can be used to retrieve the view from the view hierarchy.
+			The ID is 0 by default.
+		*/
+		uint64 getId() const
+		{
+			return m_id;
+		}
 
 		//------------------------------
 
@@ -6158,7 +6225,7 @@ namespace AvoGUI
 		Unknown
 	};
 
-	class GUI;
+	class Gui;
 
 	/*
 		An abstract window, which has an OS-specific implementation. 
@@ -8191,10 +8258,10 @@ namespace AvoGUI
 		It is connected to a window which it holds and recieves events from.
 		When the window has been closed and destroyed, forget() is called on the GUI.
 	*/
-	class GUI : public View, public WindowListener, public GlobalMouseListener
+	class Gui : public View, public WindowListener, public GlobalMouseListener
 	{
 	private:
-		GUI* m_parent;
+		Gui* m_parent;
 		Window* m_window;
 		DrawingContext* m_drawingContext;
 
@@ -8238,6 +8305,11 @@ namespace AvoGUI
 
 		//------------------------------
 
+		std::unordered_map<uint64, View*> m_viewsById;
+		friend class View;
+
+		//------------------------------
+
 		void sendBoundsChangeEvents(AvoGUI::Rectangle<float> const& p_previousBounds) override
 		{
 			if ((uint32)getWidth() != m_lastWindowSize.x || (uint32)getHeight() != m_lastWindowSize.y)
@@ -8254,8 +8326,8 @@ namespace AvoGUI
 		void thread_runAnimationLoop();
 
 	public:
-		GUI();
-		~GUI();
+		Gui();
+		~Gui();
 
 		/*
 			LIBRARY IMPLEMENTED
@@ -8277,7 +8349,7 @@ namespace AvoGUI
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(char const* p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
+		void create(char const* p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
 		/*
 			LIBRARY IMPLEMENTED
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
@@ -8292,7 +8364,7 @@ namespace AvoGUI
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, GUI* p_parent = 0);
+		void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
 
 		/*
 			LIBRARY IMPLEMENTED
@@ -8324,7 +8396,7 @@ namespace AvoGUI
 			Returns the GUI that owns the parent window of the window of this GUI.
 			If the window does not have a parent, it returns 0.
 		*/
-		GUI* getParent()
+		Gui* getParent()
 		{
 			return m_parent;
 		}
@@ -8352,6 +8424,24 @@ namespace AvoGUI
 			Returns the topmost non-overlay view which contains the coordinates given.
 		*/
 		View* getViewAt(float p_x, float p_y);
+		/*
+			LIBRARY IMPLEMENTED
+			Finds the view that has a certain ID previously set by you.
+		*/
+		template<typename T>
+		View* getViewById(T p_id)
+		{
+			return m_viewsById[(uint64)p_id];
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Finds the view that has a certain ID previously set by you.
+		*/
+		template<typename T, typename U>
+		T* getViewById(U p_id)
+		{
+			return (T*)m_viewsById[(uint64)p_id];
+		}
 
 		//------------------------------
 
@@ -8738,13 +8828,13 @@ namespace AvoGUI
 					{
 						m_text->forget();
 					}
-					m_text = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("tooltip font size"));
+					m_text = getGui()->getDrawingContext()->createText(p_string, getThemeValue("tooltip font size"));
 					m_text->fitSizeToText();
 					setSize(m_text->getWidth() + 1.6 * getThemeValue("tooltip font size"), m_text->getHeight() + getThemeValue("tooltip font size") * 1.f);
 					m_text->setCenter(getWidth() * 0.5f, getHeight() * 0.5f);
 				}
 
-				if (p_targetRectangle.bottom + 7.f + getHeight() >= getGUI()->getHeight())
+				if (p_targetRectangle.bottom + 7.f + getHeight() >= getGui()->getHeight())
 				{
 					setBottom(max(1.f, p_targetRectangle.top - 7.f), true);
 				}
@@ -8752,7 +8842,7 @@ namespace AvoGUI
 				{
 					setTop(p_targetRectangle.bottom + 7.f, true);
 				}
-				setCenterX(max(1.f + getWidth() * 0.5f, min(getGUI()->getWidth() - getWidth() * 0.5f - 1.f, p_targetRectangle.getCenterX())));
+				setCenterX(max(1.f + getWidth() * 0.5f, min(getGui()->getWidth() - getWidth() * 0.5f - 1.f, p_targetRectangle.getCenterX())));
 
 				m_opacityAnimationTime = 0.f;
 				m_opacity = 0.f;
@@ -8843,7 +8933,7 @@ namespace AvoGUI
 		};
 
 	private:
-		GUI* m_gui;
+		Gui* m_gui;
 
 		bool m_canSelectMultipleFiles;
 		std::vector<FileExtensionFilter> m_fileExtensions;
@@ -8854,7 +8944,7 @@ namespace AvoGUI
 			m_gui(0),
 			m_canSelectMultipleFiles(false), m_title("Open file...")
 		{ }
-		OpenFileDialog(GUI* p_gui) :
+		OpenFileDialog(Gui* p_gui) :
 			m_gui(p_gui),
 			m_canSelectMultipleFiles(false), m_title("Open file...")
 		{ }
@@ -9415,7 +9505,7 @@ namespace AvoGUI
 			}
 			if (p_string[0])
 			{
-				m_text = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("button font size"));
+				m_text = getGui()->getDrawingContext()->createText(p_string, getThemeValue("button font size"));
 				m_text->setFontFamily(m_theme->fontFamilies["main"]);
 				m_text->setWordWrapping(WordWrapping::Never);
 				m_text->setCharacterSpacing(getThemeValue("button character spacing"));
@@ -9887,7 +9977,7 @@ namespace AvoGUI
 				//setString("");
 			}
 
-			getGUI()->setKeyboardFocus(this);
+			getGui()->setKeyboardFocus(this);
 
 			invalidate();
 			queueAnimationUpdate();
@@ -9968,7 +10058,7 @@ namespace AvoGUI
 		}
 		void handleKeyboardKeyDown(KeyboardEvent const& p_event) override
 		{
-			Window* window = getGUI()->getWindow();
+			Window* window = getGui()->getWindow();
 			if (m_isSelectionVisible && (p_event.key == KeyboardKey::Backspace || p_event.key == KeyboardKey::Delete) && m_caretIndex != m_selectionEndIndex)
 			{
 				std::string string = m_text->getString();
@@ -10449,7 +10539,7 @@ namespace AvoGUI
 				return;
 			}
 
-			m_text = getGUI()->getDrawingContext()->createText(newString.c_str(), m_fontSize);
+			m_text = getGui()->getDrawingContext()->createText(newString.c_str(), m_fontSize);
 			m_text->setFontFamily(getThemeFontFamily("main"));
 			m_text->setFontWeight(FontWeight::Regular);
 			m_text->setTextAlign(m_textAlign);
@@ -10588,7 +10678,7 @@ namespace AvoGUI
 
 		void updateAnimations() override
 		{
-			if (getGUI()->getKeyboardFocus() == this)
+			if (getGui()->getKeyboardFocus() == this)
 			{
 				if (m_caretFrameCount % (uint32)getThemeValue("editable text caret blink rate") == 0 && !m_isSelectionVisible)
 				{
@@ -10883,7 +10973,7 @@ namespace AvoGUI
 			}
 			else
 			{
-				m_labelText = getGUI()->getDrawingContext()->createText(p_label, getThemeValue("text field font size"));
+				m_labelText = getGui()->getDrawingContext()->createText(p_label, getThemeValue("text field font size"));
 				m_labelText->setFontFamily(getThemeFontFamily("main"));
 				m_labelText->setFontWeight(AvoGUI::FontWeight::Regular);
 				m_labelText->fitSizeToText();
@@ -10924,7 +11014,7 @@ namespace AvoGUI
 				m_prefixText = 0;
 				return;
 			}
-			m_prefixText = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("text field font size"));
+			m_prefixText = getGui()->getDrawingContext()->createText(p_string, getThemeValue("text field font size"));
 			m_prefixText->setFontFamily(getThemeFontFamily("main"));
 			m_prefixText->setFontWeight(AvoGUI::FontWeight::Regular);
 			m_prefixText->setHeight(m_prefixText->getFontSize()*1.2f);
@@ -10970,7 +11060,7 @@ namespace AvoGUI
 				m_suffixText = 0;
 				return;
 			}
-			m_suffixText = getGUI()->getDrawingContext()->createText(p_string, getThemeValue("text field font size"));
+			m_suffixText = getGui()->getDrawingContext()->createText(p_string, getThemeValue("text field font size"));
 			m_suffixText->setFontFamily(getThemeFontFamily("main"));
 			m_suffixText->setFontWeight(AvoGUI::FontWeight::Regular);
 			m_suffixText->setHeight(m_suffixText->getFontSize()*1.2f);
@@ -11082,7 +11172,7 @@ namespace AvoGUI
 
 		void handleKeyboardFocusGain() override
 		{
-			getGUI()->setKeyboardFocus(m_editableText);
+			getGui()->setKeyboardFocus(m_editableText);
 		}
 		void handleEditableTextFocusGain(EditableText* p_editableText) override
 		{
@@ -11100,14 +11190,14 @@ namespace AvoGUI
 		*/
 		bool getHasKeyboardFocus()
 		{
-			return m_editableText == getGUI()->getKeyboardFocus();
+			return m_editableText == getGui()->getKeyboardFocus();
 		}
 
 		//------------------------------
 
 		void updateAnimations() override
 		{
-			if (getGUI()->getKeyboardFocus() == m_editableText)
+			if (getGui()->getKeyboardFocus() == m_editableText)
 			{
 				if (m_focusAnimationValue < 1.f)
 				{

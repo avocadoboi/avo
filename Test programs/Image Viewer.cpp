@@ -8,7 +8,7 @@ float const ANIMATION_SPEED = 0.2f;
 
 //------------------------------
 
-class ImageViewer : public AvoGUI::GUI, public AvoGUI::KeyboardListener
+class ImageViewer : public AvoGUI::Gui, public AvoGUI::KeyboardListener
 {
 private:
 	AvoGUI::Image* m_image;
@@ -143,7 +143,7 @@ public:
 
 //------------------------------
 
-class MessageBox : public AvoGUI::GUI, public AvoGUI::ButtonListener
+class MessageBox : public AvoGUI::Gui, public AvoGUI::ButtonListener
 {
 private:
 	AvoGUI::Text* m_message;
@@ -161,7 +161,7 @@ public:
 
 	void createContent() override
 	{
-		m_message = getGUI()->getDrawingContext()->createText("No image was given the image viewer. Please open an image using the viewer as the opener.", 16.f, AvoGUI::Rectangle<float>(25.f, 20.f, getWidth() - 25.f, 1000.f));
+		m_message = getGui()->getDrawingContext()->createText("No image was given the image viewer. Please open an image using the viewer as the opener.", 16.f, AvoGUI::Rectangle<float>(25.f, 20.f, getWidth() - 25.f, 1000.f));
 		m_message->setFontWeight(AvoGUI::FontWeight::Regular);
 		m_message->setCharacterSpacing(0.3f);
 		m_message->setLineHeight(1.1f);

@@ -72,7 +72,7 @@ public:
 
 //------------------------------
 
-class MouseEventsTest : public AvoGUI::GUI
+class MouseEventsTest : public AvoGUI::Gui
 {
 public:
 	MouseEventsTest()

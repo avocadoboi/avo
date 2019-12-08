@@ -38,7 +38,7 @@ public:
 
 //------------------------------
 
-class PiDay : public AvoGUI::GUI, public AvoGUI::ButtonListener, public AvoGUI::EditableTextListener
+class PiDay : public AvoGUI::Gui, public AvoGUI::ButtonListener, public AvoGUI::EditableTextListener
 {
 private:
 	Block m_firstBlock;
@@ -62,7 +62,7 @@ private:
 	}
 	void createText()
 	{
-		m_text_numberOfCollisions = getGUI()->getDrawingContext()->createText(std::to_string(m_numberOfCollisions).c_str(), 35.f);
+		m_text_numberOfCollisions = getGui()->getDrawingContext()->createText(std::to_string(m_numberOfCollisions).c_str(), 35.f);
 		m_text_numberOfCollisions->setTopLeft(20.f, 10.f);
 	}
 
@@ -88,7 +88,7 @@ public:
 		m_textField_numberOfDigits->addEditableTextListener(this);
 		m_textField_numberOfDigits->setString(std::to_string((uint32_t)NUMBER_OF_DIGITS));
 
-		m_text_numberOfDigits = getGUI()->getDrawingContext()->createText("PI digits:", 18.f);
+		m_text_numberOfDigits = getGui()->getDrawingContext()->createText("PI digits:", 18.f);
 		m_text_numberOfDigits->setRight(m_textField_numberOfDigits->getLeft() - 7.f);
 		m_text_numberOfDigits->setCenterY(m_textField_numberOfDigits->getCenterY() + 2.f);
 		m_text_numberOfDigits->setFontWeight(AvoGUI::FontWeight::Regular);

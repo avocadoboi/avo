@@ -14,7 +14,7 @@ public:
 	{
 		p_parent->addViewListener(this);
 
-		m_image = getGUI()->getDrawingContext()->createImage(p_filePath);
+		m_image = getGui()->getDrawingContext()->createImage(p_filePath);
 		m_image->setBoundsPositioning(0.5f, 0.5f);
 		m_image->setBoundsSizing(AvoGUI::ImageBoundsSizing::Contain);
 	}
@@ -39,7 +39,7 @@ public:
 
 //------------------------------
 
-class MyGUI : public AvoGUI::GUI, public AvoGUI::ButtonListener
+class MyGUI : public AvoGUI::Gui, public AvoGUI::ButtonListener
 {
 private:
 	AvoGUI::View* m_viewContainer;

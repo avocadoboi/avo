@@ -44,7 +44,7 @@ public:
 
 //------------------------------
 
-class Application : public AvoGUI::GUI
+class Application : public AvoGUI::Gui
 {
 private:
 	Ball m_ball;

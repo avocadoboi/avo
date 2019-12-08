@@ -1,6 +1,6 @@
 #include "..//AvoGUI.hpp"
 
-class AnimationsTest : public AvoGUI::GUI
+class AnimationsTest : public AvoGUI::Gui
 {
 private:
 	AvoGUI::Point<float> m_startPosition;

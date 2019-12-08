@@ -11,7 +11,7 @@ MainScreen::MainScreen(TimerApp* p_timerApp) :
 	m_soundOpener(0)
 {
 	enableMouseEvents();
-	getGUI()->addGlobalKeyboardListener(this);
+	getGui()->addGlobalKeyboardListener(this);
 
 	//------------------------------
 
@@ -84,13 +84,13 @@ MainScreen::MainScreen(TimerApp* p_timerApp) :
 	m_button_restart = new AvoGUI::Button(this, "", AvoGUI::Button::Emphasis::Medium);
 	m_button_restart->setWidth(27.f);
 	m_button_restart->setHeight(27.f);
-	AvoGUI::Image* icon = getGUI()->getDrawingContext()->createImage(ICON_RESTART_PATH);
+	AvoGUI::Image* icon = getGui()->getDrawingContext()->createImage(ICON_RESTART_PATH);
 	icon->setSize(18.f, 18.f);
 	m_button_restart->setIcon(icon);
 	m_button_restart->setCornerRadius(m_button_restart->getWidth() * 0.5f);
 	m_button_restart->setLeft(m_text_timeLeft->getRight() + 5.f);
 	m_button_restart->setCenterY(m_text_timeLeft->getCenterY());
-	m_button_restart->setTooltip(((TimerApp*)getGUI())->getTooltip(), "Restart timer");
+	m_button_restart->setTooltip(((TimerApp*)getGui())->getTooltip(), "Restart timer");
 	m_button_restart->addButtonListener(this);
 }
 
@@ -140,19 +140,19 @@ void MainScreen::updateAnimations()
 			m_currentAngle = AvoGUI::max(0.f, m_startAngle - std::chrono::duration<float>(std::chrono::steady_clock::now() - m_timeStart).count() / 3600.f);
 		}
 
-		if (getGUI()->getWindow()->getState() != AvoGUI::WindowState::Minimized && std::ceil(angleBefore * 3600) != std::ceil(m_currentAngle * 3600))
+		if (getGui()->getWindow()->getState() != AvoGUI::WindowState::Minimized && std::ceil(angleBefore * 3600) != std::ceil(m_currentAngle * 3600))
 		{
 			updateTimeLeftText();
 			invalidate();
 		}
 		if (angleBefore > 0.f && angleBefore <= 1.f / 3600.f && !m_currentAngle)
 		{
-			if (getGUI()->getWindow()->getState() == AvoGUI::WindowState::Minimized)
+			if (getGui()->getWindow()->getState() == AvoGUI::WindowState::Minimized)
 			{
 				updateTimeLeftText();
 			}
 			m_soundOpener->playSound();
-			((TimerApp*)getGUI())->showTimeoutScreen();
+			getGui<TimerApp>()->showTimeoutScreen();
 			return;
 		}
 	}

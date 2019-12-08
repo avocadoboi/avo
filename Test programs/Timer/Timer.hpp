@@ -8,7 +8,7 @@
 
 //------------------------------
 
-class TimerApp : public AvoGUI::GUI
+class TimerApp : public AvoGUI::Gui
 {
 private:
 	MainScreen* m_mainScreen;
@@ -20,7 +20,7 @@ public:
 		m_mainScreen(0), m_timeoutScreen(0)
 	{
 		create("The best timer that exists", 2.f*(TIMER_SPIRAL_RADIUS + TIMER_SPIRAL_PADDING), 2.f*(TIMER_SPIRAL_RADIUS + TIMER_SPIRAL_PADDING), AvoGUI::WindowStyleFlags::DefaultNoResize);
-		run();
+		waitForFinish();
 	}
 
 	//------------------------------
