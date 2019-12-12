@@ -3793,6 +3793,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sets an ID that can be used to retrieve the view from the view hierarchy.
 			The type is cast to uint64 and could be for example a string literal or any pointer.
+			p_id cannot be 0.
 		*/
 		template<typename T>
 		void setId(T p_id)
@@ -3802,6 +3803,7 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 			Sets an ID that can be used to retrieve the view from the view hierarchy.
+			p_id cannot be 0.
 		*/
 		void setId(uint64 p_id);
 		/*
@@ -5725,9 +5727,13 @@ namespace AvoGUI
 		/*
 			USER IMPLEMENTED
 			Gets called when a mouse button has been double clicked while the mouse pointer is above the view.
+			The default implementation calls handleMouseUp.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleMouseDoubleClick(MouseEvent const& p_event) { }
+		virtual void handleMouseDoubleClick(MouseEvent const& p_event) 
+		{
+			handleMouseUp(p_event);
+		}
 
 		/*
 			USER IMPLEMENTED
@@ -6179,7 +6185,7 @@ namespace AvoGUI
 		MaximizeButton = 0x40UL,
 		ResizeBorder = 0x80UL,
 		CustomBorder = 0x100UL, // This makes the client area take up the full window, and the GUI determines which areas are for resizing and moving the window.
-		DefaultCustom = CustomBorder | ResizeBorder | Border | MaximizeButton | MinimizeButton,
+		DefaultCustom = CustomBorder | MaximizeButton | MinimizeButton,
 		Default = Border | MinimizeButton | MaximizeButton | ResizeBorder,
 		DefaultNoResize = Border | MinimizeButton
 	};
@@ -9430,10 +9436,10 @@ namespace AvoGUI
 
 				m_ripple->disable();
 
-				if (m_isMouseHovering)
-				{
-					//getGUI()->getWindow()->setCursor(Cursor::Arrow);
-				}
+				//if (m_isMouseHovering)
+				//{
+				//	getGui()->getWindow()->setCursor(Cursor::Arrow);
+				//}
 			}
 		}
 
@@ -9450,10 +9456,10 @@ namespace AvoGUI
 
 				m_ripple->enable();
 
-				if (m_isMouseHovering)
-				{
-					//getGUI()->getWindow()->setCursor(Cursor::Hand);
-				}
+				//if (m_isMouseHovering)
+				//{
+				//	getGui()->getWindow()->setCursor(getCursor());
+				//}
 			}
 		}
 

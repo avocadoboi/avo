@@ -1068,7 +1068,7 @@ namespace AvoGUI
 			m_dipToPixelFactor = GetDpiForSystem() / 96.f;
 
 			// Calculate nonclient window rectangle from client size.
-			RECT windowRect = { 0, 0, std::ceil(p_width * m_dipToPixelFactor), std::ceil(p_height * m_dipToPixelFactor) };
+			RECT windowRect = { 0, 0, (int)std::ceil(p_width * m_dipToPixelFactor), (int)std::ceil(p_height * m_dipToPixelFactor) };
 			m_size.set(windowRect.right, windowRect.bottom); // Client area
 
 			AdjustWindowRect(&windowRect, m_styles, 0);
@@ -1358,13 +1358,13 @@ namespace AvoGUI
 
 		void setSize(Point<float> const& p_size) override
 		{
-			RECT windowRect = { 0, 0, std::ceil(p_size.x * m_dipToPixelFactor), std::ceil(p_size.y * m_dipToPixelFactor) };
+			RECT windowRect = { 0, 0, (int)std::ceil(p_size.x * m_dipToPixelFactor), (int)std::ceil(p_size.y * m_dipToPixelFactor) };
 			AdjustWindowRect(&windowRect, m_styles, 0);
 			SetWindowPos(m_windowHandle, 0, 0, 0, windowRect.right - windowRect.left, windowRect.bottom - windowRect.top, SWP_NOMOVE | SWP_NOZORDER);
 		}
 		void setSize(float p_width, float p_height) override
 		{
-			RECT windowRect = { 0, 0, std::ceil(p_width * m_dipToPixelFactor), std::ceil(p_height * m_dipToPixelFactor) };
+			RECT windowRect = { 0, 0, (int)std::ceil(p_width * m_dipToPixelFactor), (int)std::ceil(p_height * m_dipToPixelFactor) };
 			AdjustWindowRect(&windowRect, m_styles, 0);
 			SetWindowPos(m_windowHandle, 0, 0, 0, windowRect.right - windowRect.left, windowRect.bottom - windowRect.top, SWP_NOMOVE | SWP_NOZORDER);
 		}
@@ -2229,7 +2229,7 @@ namespace AvoGUI
 			case WM_GETMINMAXINFO:
 			{
 				MINMAXINFO* minMaxInfo = (MINMAXINFO*)p_data_b;
-				RECT rect = { 0, 0, m_minSize.x, m_minSize.y };
+				RECT rect = { 0, 0, (int)m_minSize.x, (int)m_minSize.y };
 				AdjustWindowRect(&rect, m_styles, 0);
 
 				if (m_minSize.x > 0U || m_minSize.y > 0U)
@@ -2473,7 +2473,7 @@ namespace AvoGUI
 			case WM_CHAR:
 			{
 				bool isRepeated = p_data_b & (1 << 30);
-				char character = p_data_a;
+				char character = (char)p_data_a;
 
 				KeyboardEvent keyboardEvent;
 				keyboardEvent.character = character;
@@ -4287,7 +4287,7 @@ namespace AvoGUI
 			ID2D1Device1* direct2DDevice = 0;
 			s_direct2DFactory->CreateDevice(dxgiDevice, &direct2DDevice);
 			direct2DDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_ENABLE_MULTITHREADED_OPTIMIZATIONS, &m_context);
-
+			
 			//------------------------------
 			// Create swap chain, which holds the back buffer and is connected to the window.
 
@@ -4386,7 +4386,7 @@ namespace AvoGUI
 
 			m_textProperties.fontFamilyName = "Roboto";
 			setDefaultTextProperties(m_textProperties);
-			
+
 			m_context->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE::D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
 		}
 
@@ -4510,21 +4510,27 @@ namespace AvoGUI
 		{
 			if (m_swapChain)
 			{
-				DXGI_RGBA color;
-				color.r = p_color.red;
-				color.g = p_color.green;
-				color.b = p_color.blue;
-				color.a = p_color.alpha;
-				m_swapChain->SetBackgroundColor(&color);
+				D2D1_COLOR_F direct2DColor = D2D1::ConvertColorSpace(D2D1_COLOR_SPACE::D2D1_COLOR_SPACE_SRGB, D2D1_COLOR_SPACE::D2D1_COLOR_SPACE_SCRGB, D2D1::ColorF(p_color.red, p_color.green, p_color.blue, p_color.alpha));
+
+				DXGI_RGBA dxgiColor;
+				dxgiColor.r = direct2DColor.r;
+				dxgiColor.g = direct2DColor.g;
+				dxgiColor.b = direct2DColor.b;
+				dxgiColor.a = direct2DColor.a;
+
+				m_swapChain->SetBackgroundColor(&dxgiColor);
 			}
 		}
 		Color getBackgroundColor()
 		{
 			if (m_swapChain)
 			{
-				DXGI_RGBA color;
-				m_swapChain->GetBackgroundColor(&color);
-				return Color(color.r, color.g, color.b, color.a);
+				DXGI_RGBA dxgiColor;
+				m_swapChain->GetBackgroundColor(&dxgiColor);
+
+				D2D1_COLOR_F direct2DColor = D2D1::ConvertColorSpace(D2D1_COLOR_SPACE::D2D1_COLOR_SPACE_SCRGB, D2D1_COLOR_SPACE::D2D1_COLOR_SPACE_SRGB, D2D1::ColorF(dxgiColor.r, dxgiColor.g, dxgiColor.b, dxgiColor.a));
+
+				return Color(direct2DColor.r, direct2DColor.g, direct2DColor.b, direct2DColor.a);
 			}
 			return Color(0.5f);
 		}
@@ -7369,10 +7375,10 @@ namespace AvoGUI
 		wchar_t* filterStringBuffer = new wchar_t[100 * m_fileExtensions.size()];
 		for (uint32 a = 0; a < m_fileExtensions.size(); a++)
 		{
-			filters[a].pszName = filterStringBuffer + a * 100;
+			filters[a].pszName = filterStringBuffer + a * 100LL;
 			widenString(m_fileExtensions[a].name, (wchar_t*)filters[a].pszName, 50);
 
-			filters[a].pszSpec = filterStringBuffer + a * 100 + 50;
+			filters[a].pszSpec = filterStringBuffer + a * 100LL + 50;
 			widenString(m_fileExtensions[a].extensions, (wchar_t*)filters[a].pszSpec, 50);
 		}
 		dialog->SetFileTypes(m_fileExtensions.size(), filters);
