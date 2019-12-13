@@ -117,16 +117,16 @@ namespace AvoGUI
 	/*
 		Returns the biggest of two numbers.
 	*/
-	template<typename Type>
-	Type max(Type p_a, Type p_b)
+	template<typename T>
+	T max(T p_a, T p_b)
 	{
 		return p_a > p_b ? p_a : p_b;
 	}
 	/*
 		Returns the biggest of three numbers.
 	*/
-	template<typename Type>
-	Type max(Type p_a, Type p_b, Type p_c)
+	template<typename T>
+	T max(T p_a, T p_b, T p_c)
 	{
 		return p_a > p_b ? (p_a > p_c ? p_a : p_c) : (p_b > p_c ? p_b : p_c);
 	}
@@ -134,16 +134,16 @@ namespace AvoGUI
 	/*
 		Returns the smallest of two numbers.
 	*/
-	template<typename Type>
-	Type min(Type p_a, Type p_b)
+	template<typename T>
+	T min(T p_a, T p_b)
 	{
 		return p_a < p_b ? p_a : p_b;
 	}
 	/*
 		Returns the smallest of three numbers.
 	*/
-	template<typename Type>
-	Type min(Type p_a, Type p_b, Type p_c)
+	template<typename T>
+	T min(T p_a, T p_b, T p_c)
 	{
 		return p_a < p_b ? (p_a < p_c ? p_a : p_c) : (p_b < p_c ? p_b : p_c);
 	}
@@ -170,8 +170,8 @@ namespace AvoGUI
 		Clips p_value so that the returned value is never below p_min or above p_max. 
 		If p_min <= p_value <= p_max, then the returned value is equal to p_value.
 	*/
-	template<typename Type>
-	Type constrain(Type p_value, Type p_min = 0, Type p_max = 1)
+	template<typename T>
+	T constrain(T p_value, T p_min = 0, T p_max = 1)
 	{
 		return p_value < p_min ? p_min : (p_value > p_max ? p_max : p_value);
 	}
@@ -181,10 +181,10 @@ namespace AvoGUI
 	/*
 		Returns -1 if the number is negative, 0 if it's 0 and 1 if it's positive.
 	*/
-	template<typename Type>
-	inline Type sign(Type p_number)
+	template<typename T>
+	inline T sign(T p_number)
 	{
-		return (p_number > (Type)0) - (p_number < (Type)0);
+		return (p_number > (T)0) - (p_number < (T)0);
 	}
 
 	//------------------------------
@@ -192,8 +192,8 @@ namespace AvoGUI
 	/*
 		Removes an element from a vector. The function returns true if the element existed in the vector and was removed.
 	*/
-	template<typename Type>
-	bool removeVectorElementWhileKeepingOrder(std::vector<Type>& p_vector, Type p_value)
+	template<typename T>
+	bool removeVectorElementWhileKeepingOrder(std::vector<T>& p_vector, T p_value)
 	{
 		for (auto element = p_vector.begin(); element != p_vector.end(); element++)
 		{
@@ -210,8 +210,8 @@ namespace AvoGUI
 		Removes an element from a vector without keeping the order of the elements in the vector, making it more efficient. 
 		The function returns true if the element existed in the vector and was removed (replaced by the last element).
 	*/
-	template<typename Type>
-	bool removeVectorElementWithoutKeepingOrder(std::vector<Type>& p_vector, Type p_element)
+	template<typename T>
+	bool removeVectorElementWithoutKeepingOrder(std::vector<T>& p_vector, T p_element)
 	{
 		for (auto element = p_vector.begin(); element != p_vector.end(); element++)
 		{
