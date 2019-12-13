@@ -2,7 +2,7 @@
 
 //------------------------------
 
-int32 const NUMBER_OF_COLUMNS = 8;
+int32 const NUMBER_OF_COLUMNS = 7;
 int32 const NUMBER_OF_ROWS = 6;
 
 float const CELL_WIDTH = 100.f;
@@ -176,10 +176,10 @@ public:
 						}
 					}
 
+					m_playerNumber = m_playerNumber == 1 ? 2 : 1;
 					break;
 				}
 			}
-			m_playerNumber = m_playerNumber == 1 ? 2 : 1;
 		}
 
 		invalidate();

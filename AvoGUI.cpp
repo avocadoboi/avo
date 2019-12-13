@@ -1,5 +1,7 @@
 #include "AvoGUI.hpp"
 
+#include "Font data.hpp"
+
 //------------------------------
 
 #include <stack>
@@ -310,6 +312,7 @@ namespace AvoGUI
 		if (p_container)
 		{
 			m_parent = p_container;
+			m_gui = m_parent->getGui();
 
 			m_index = m_parent->getNumberOfChildren();
 			if (m_parent == this)
