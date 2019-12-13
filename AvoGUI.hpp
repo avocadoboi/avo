@@ -382,7 +382,7 @@ namespace AvoGUI
 		}
 		/*
 			Sets the polar coordinates of the point.
-			p_angle is the angle between the ray to the point and the x-axis, counter-clockwise.
+			p_angle is the angle in radians between the ray to the point and the x-axis, counter-clockwise.
 			p_length is the distance from the origin of the coordinates.
 		*/
 		Point<PointType>& setPolar(double p_angle, double p_length = 1.f)
@@ -2342,7 +2342,7 @@ namespace AvoGUI
 		}
 
 		/*
-			Returns the number of pointers to the dynamic object that have been remembered.
+			Returns the number of pointers to the dynamically allocated object that have been remembered.
 		*/
 		uint32 getReferenceCount()
 		{
@@ -3896,7 +3896,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Returns the hight of the smallest possible rectangle that contains all child views belonging to this View.
+			Returns the height of the smallest possible rectangle that contains all child views belonging to this View.
 		*/
 		float calculateContentHeight() const
 		{
@@ -4112,27 +4112,8 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 
-			If p_name is any of the strings below, it has a default color that can be changed.
+			Some values of p_name have a default color that can be changed.
 			These colors may be used by views that come with the library, but you could use them yourself too.
-
-			"background"
-			"on background"
-
-			"primary"
-			"primary on background"
-			"on primary"
-
-			"secondary"
-			"secondary on background"
-			"on secondary"
-
-			"tooltip background"
-			"tooltip on background"
-
-			"selection"
-
-			"shadow"
-
 			If it is anything else, the color is kept in the theme and you can use it yourself.
 
 			if p_willAffectChildren is true, all children and views below those too will change this color in their themes.
@@ -4152,16 +4133,8 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 
-			If p_name is any of the strings below, it has a default easing that can be changed.
+			Some values of p_name have a default easing that can be changed.
 			These easings may be used by views that come with the library, but you could use them yourself too.
-
-			"in"
-			"out"
-			"in out"
-			"symmetrical in out"
-
-			"ripple"
-
 			If it is anything else, the easing is kept in the theme and you can use it yourself.
 
 			if p_willAffectChildren is true, all children and views below those too will change this easing in their themes.
@@ -4227,8 +4200,8 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 
 			p_name can be used to identify the usage or type of the font family, while p_fontFamilyName is the actual name of the font family.
-			If p_name is "main" it has a default font family name that can be changed.
-			That font family may be used by views that come with the library, but you can use it yourself too.
+			Some values of p_name have default font family names that can be changed.
+			Those font families may be used by views that come with the library, but you can use them yourself too.
 			If p_name is anything else, the font family is kept in the theme and you can use it yourself.
 
 			if p_willAffectChildren is true, all children and views below those too will change this font family in their themes.
@@ -4295,25 +4268,9 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 
-			If p_name is any of the strings below, it has a default value that can be changed.
+			Some values of p_name have a default value that can be changed.
 			These values may be used by views that come with the library, but you could use them yourself too.
-			
-			"hover animation speed"
-
-			"tooltip font size"
-
-			"button font size"
-			"button character spacing"
-
-			"editable text caret blink rate"
-
-			"text field font size"
-			"text field height"
-			"text field padding left"
-			"text field padding right"
-			"text field filled padding bottom"
-
-			If it is anything else, the value is kept in the theme and you can use it yourself.
+			If p_name is anything else, the value is kept in the theme and you can use it yourself.
 
 			if p_willAffectChildren is true, all children and views below those too will change this value in their themes.
 
@@ -5291,6 +5248,10 @@ namespace AvoGUI
 			}
 			return m_bounds.getIsIntersecting(p_left, p_top, p_right, p_bottom);
 		}
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether this view intersects/overlaps a rectangle that is relative to the top left corner of the parent.
+		*/
 		bool getIsIntersecting(Rectangle<float> const& p_rectangle) const override
 		{
 			return getIsIntersecting(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
@@ -5384,6 +5345,10 @@ namespace AvoGUI
 			}
 			return m_bounds.getIsContaining(p_left, p_top, p_right, p_bottom);
 		}
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether a rectangle can be contained within this view. The rectangle is relative to the parent of this view.
+		*/
 		bool getIsContaining(Rectangle<float> const& p_rectangle)
 		{
 			return getIsContaining(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
