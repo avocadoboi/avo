@@ -4,7 +4,7 @@ AvoGUI is a graphical application development library in c++ that is designed to
 The project is inspired by Google's Material Design guidelines and includes some Material Design controls to help the user make good looking and feeling applications quickly.
 
 ## Getting started
-All you need to do is add AvoGUI.hpp and AvoGUI.cpp to your project, and you're ready to start.
+All you need to do is add "AvoGUI.hpp", "AvoGUI.cpp" and "Font data.hpp" to your project, and you're ready to start.
 
 ### Creating your GUI class
 It is a good idea to create a class that inherits AvoGUI::GUI. The GUI is made up of a view tree structure, where every view has a parent, some have one or more children and some have one or more siblings. The GUI is the only view that doesn't have a parent, and it is the topmost view in the tree (depending on how you think about a tree, hmmm).
