@@ -6150,7 +6150,7 @@ namespace AvoGUI
 		MaximizeButton = 0x40UL,
 		ResizeBorder = 0x80UL,
 		CustomBorder = 0x100UL, // This makes the client area take up the full window, and the GUI determines which areas are for resizing and moving the window.
-		DefaultCustom = CustomBorder | MaximizeButton | MinimizeButton,
+		DefaultCustom = CustomBorder | MaximizeButton | MinimizeButton | ResizeBorder,
 		Default = Border | MinimizeButton | MaximizeButton | ResizeBorder,
 		DefaultNoResize = Border | MinimizeButton
 	};
