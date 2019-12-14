@@ -264,7 +264,8 @@ namespace AvoGUI
 		m_shadowBounds(p_bounds), m_shadowImage(0), m_hasShadow(true), m_elevation(0.f),
 		m_layerIndex(0), m_index(0), m_id(0),
 		m_isMouseHovering(false),
-		m_gui(0), m_parent(0), m_theme(0)
+		m_gui(0), m_parent(0), m_theme(0),
+		m_clipGeometry(0)
 	{
 		if (p_parent && p_parent != this)
 		{
@@ -4232,8 +4233,9 @@ namespace AvoGUI
 		WindowsDrawingContext(Window* p_window) :
 			m_window(p_window), 
 			m_context(0), m_swapChain(0), m_targetWindowBitmap(0), m_isVsyncEnabled(true), 
-			m_solidColorBrush(0), 
-			m_brushOpacity(1.f), m_scale(1.f, 1.f), 
+			m_solidColorBrush(0), m_currentBrush(0), m_brushOpacity(1.f), 
+			m_strokeStyle(0),
+			m_scale(1.f, 1.f), 
 			m_textFormat(0), m_fontCollection(0)
 		{
 			// Create temporary Direct3D device
@@ -4361,6 +4363,7 @@ namespace AvoGUI
 			m_strokeStyleProperties.miterLimit = 0.f;
 			m_strokeStyleProperties.startCap = D2D1_CAP_STYLE_FLAT;
 			m_strokeStyleProperties.endCap = D2D1_CAP_STYLE_FLAT;
+			m_strokeStyleProperties.transformType = D2D1_STROKE_TRANSFORM_TYPE::D2D1_STROKE_TRANSFORM_TYPE_NORMAL;
 
 			updateStrokeStyle();
 
