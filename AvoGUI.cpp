@@ -1144,20 +1144,22 @@ namespace AvoGUI
 
 		WindowsWindow(Gui* p_gui) :
 			m_gui(p_gui), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0),
-			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
-			m_state(WindowState::Restored), m_isMouseOutsideClientArea(true), m_mousePosition(-1, -1), m_cursorHandle(0)
+			m_isOpen(false), m_dipToPixelFactor(1.f), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
+			m_state(WindowState::Restored), m_isMouseOutsideClientArea(true), m_mousePosition(-1, -1), 
+			m_cursorHandle(0), m_cursorType((Cursor)-1),
+			m_hasCreatedWindow(false)
 		{
-			m_cursorType = (Cursor)-1;
 			setCursor(Cursor::Arrow);
 		}
 		WindowsWindow(Gui* p_gui, char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) :
 			m_gui(p_gui), m_windowHandle(0), m_crossPlatformStyles(p_styleFlags), m_styles(0),
-			m_isOpen(false), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
-			m_state(WindowState::Restored), m_isMouseOutsideClientArea(true), m_mousePosition(-1, -1), m_cursorHandle(0)
+			m_isOpen(false), m_dipToPixelFactor(1.f), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
+			m_state(WindowState::Restored), m_isMouseOutsideClientArea(true), m_mousePosition(-1, -1), 
+			m_cursorHandle(0), m_cursorType((Cursor)-1),
+			m_hasCreatedWindow(false)
 		{
 			create(p_title, p_width, p_height, p_styleFlags, p_parent);
 
-			m_cursorType = (Cursor)-1;
 			setCursor(Cursor::Arrow);
 		}
 		~WindowsWindow()
@@ -6244,6 +6246,7 @@ namespace AvoGUI
 	{
 		if (getAreMouseEventsEnabled())
 		{
+			remember();
 			p_result = { this };
 		}
 		else
@@ -6272,6 +6275,7 @@ namespace AvoGUI
 					{
 						if (child->getAreMouseEventsEnabled())
 						{
+							child->remember();
 							p_result.push_back(child);
 						}
 						container = child;
@@ -6282,6 +6286,7 @@ namespace AvoGUI
 					{
 						if (child->getAreMouseEventsEnabled())
 						{
+							child->remember();
 							p_result.push_back(child);
 						}
 
@@ -6577,8 +6582,6 @@ namespace AvoGUI
 
 				view->handleMouseDown(event);
 				m_pressedMouseEventListeners.push_back(view);
-				view->remember();
-				continue;
 			}
 		}
 
@@ -6638,13 +6641,17 @@ namespace AvoGUI
 		MouseEvent event = p_event;
 		if (targets.size())
 		{
-			for (auto view : targets)
+			for (View* view : targets)
 			{
 				Point<float> position = view->getAbsoluteBounds().getTopLeft();
 				event.x = p_event.x - position.x;
 				event.y = p_event.y - position.y;
 
 				view->handleMouseDoubleClick(event);
+			}
+			for (View* view : targets)
+			{
+				view->forget();
 			}
 		}
 
@@ -6993,13 +7000,17 @@ namespace AvoGUI
 		MouseEvent event = p_event;
 		if (targets.size())
 		{
-			for (auto view : targets)
+			for (View* view : targets)
 			{
 				Point<float> position = view->getAbsoluteBounds().getTopLeft();
 				event.x = p_event.x - position.x;
 				event.y = p_event.y - position.y;
 
 				view->handleMouseScroll(event);
+			}
+			for (View* view : targets)
+			{
+				view->forget();
 			}
 		}
 
