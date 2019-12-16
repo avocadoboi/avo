@@ -246,6 +246,11 @@ namespace AvoGUI
 		{
 			if (m_clipGeometry)
 			{
+				if (m_clipGeometry->getReferenceCount() > 1)
+				{
+					m_clipGeometry->forget();
+					return;
+				}
 				m_clipGeometry->forget();
 			}
 			m_clipGeometry = getGui()->getDrawingContext()->createCornerRectangleGeometry(getSize(), m_corners);
@@ -293,6 +298,18 @@ namespace AvoGUI
 			m_clipGeometry->forget();
 		}
 		removeAllChildren();
+	}
+
+	//------------------------------
+
+	void View::setClipGeometry(Geometry* p_geometry)
+	{
+		if (m_clipGeometry)
+		{
+			m_clipGeometry->forget();
+		}
+		p_geometry->remember();
+		m_clipGeometry = p_geometry;
 	}
 
 	//------------------------------

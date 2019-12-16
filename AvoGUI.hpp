@@ -3567,7 +3567,6 @@ namespace AvoGUI
 			{
 				if (abs(p_previousBounds.getWidth() - m_bounds.getWidth()) > 0.001 || abs(p_previousBounds.getHeight() - m_bounds.getHeight()) > 0.001)
 				{
-					updateClipGeometry();
 					updateShadow(); // This is to update the shadow bounds and image.
 
 					handleSizeChange(p_previousBounds.getWidth(), p_previousBounds.getHeight());
@@ -3575,6 +3574,8 @@ namespace AvoGUI
 					{
 						viewListener->handleViewSizeChange(this, p_previousBounds.getWidth(), p_previousBounds.getHeight());
 					}
+
+					updateClipGeometry();
 				}
 
 				handleBoundsChange(p_previousBounds);
@@ -3610,7 +3611,7 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 			This is called whenever the clipping geometry of the view needs to be updated.
-			You can override this if you want a custom clipping geometry.
+			You can override this if you want a custom clipping geometry - just remember to forget() the old one if it's not null.
 		*/
 		virtual void updateClipGeometry();
 
@@ -3623,6 +3624,22 @@ namespace AvoGUI
 			setId(p_id);
 		}
 		virtual ~View();
+
+		//------------------------------
+
+		/*
+			Sets the geometry being used to clip the view's contents.
+			The clip geometry of the view is by default updated automatically in the updateGeometry method when the size has changed, but only if the old geometry's reference count is equal to 1. 
+			Note that hit testing is not by default affected by this, override getIsContaining(float p_x, float p_y) if you want custom hit testing. 
+		*/
+		void setClipGeometry(Geometry* p_geometry);
+		/*
+			Returns the geometry being used to clip the view's contents.
+		*/
+		Geometry* getClipGeometry()
+		{
+			return m_clipGeometry;
+		}
 
 		//------------------------------
 
@@ -5202,8 +5219,9 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 			Returns whether this view intersects/overlaps a rectangle that is relative to the top left corner of the parent.
+			If you have a custom clipping geometry, you could override this.
 		*/
-		bool getIsIntersecting(float p_left, float p_top, float p_right, float p_bottom) const override
+		virtual bool getIsIntersecting(float p_left, float p_top, float p_right, float p_bottom) const override
 		{
 			if (m_corners.topLeftSizeX && m_corners.topLeftSizeY || m_corners.topRightSizeX && m_corners.topRightSizeY ||
 				m_corners.bottomLeftSizeX && m_corners.bottomLeftSizeY || m_corners.bottomRightSizeX && m_corners.bottomRightSizeY)
@@ -5275,8 +5293,9 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 			Returns whether a rectangle can be contained within this view. The rectangle is relative to the parent of this view.
+			If you have a custom clipping geometry, you could override this.
 		*/
-		bool getIsContaining(float p_left, float p_top, float p_right, float p_bottom) const override
+		virtual bool getIsContaining(float p_left, float p_top, float p_right, float p_bottom) const override
 		{
 			if (m_corners.topLeftSizeX && m_corners.topLeftSizeY || m_corners.topRightSizeX && m_corners.topRightSizeY ||
 				m_corners.bottomLeftSizeX && m_corners.bottomLeftSizeY || m_corners.bottomRightSizeX && m_corners.bottomRightSizeY)
@@ -5370,8 +5389,9 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 			Returns whether a point is within the bounds of this view. The point is relative to the parent of this view.
+			If you have a custom clipping geometry, you could override this.
 		*/
-		bool getIsContaining(float p_x, float p_y) const override
+		virtual bool getIsContaining(float p_x, float p_y) const override
 		{
 			if (m_corners.topLeftSizeX && m_corners.topLeftSizeY || m_corners.topRightSizeX && m_corners.topRightSizeY ||
 				m_corners.bottomLeftSizeX && m_corners.bottomLeftSizeY || m_corners.bottomRightSizeX && m_corners.bottomRightSizeY)
