@@ -5542,6 +5542,7 @@ namespace AvoGUI
 		}
 
 		/*
+			LIBRARY IMPLEMENTED
 			Sets the shapes of the corners of the view.
 		*/
 		void setCorners(RectangleCorners const& p_corners)
@@ -5550,13 +5551,17 @@ namespace AvoGUI
 			updateClipGeometry();
 		}
 		/*
+			LIBRARY IMPLEMENTED
 			Returns the shapes of the corners of the view.
 		*/
 		RectangleCorners& getCorners()
 		{
 			return m_corners;
 		}
-
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether any of the corners of the view are non-rectangular.
+		*/
 		bool getHasCornerStyles()
 		{
 			return m_corners.topLeftSizeX && m_corners.topLeftSizeY || m_corners.topRightSizeX && m_corners.topRightSizeY || 
