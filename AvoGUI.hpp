@@ -752,58 +752,63 @@ namespace AvoGUI
 		/*
 			Rotates the vector anticlockwise by p_angle radians so that it keeps its length.
 		*/
-		void rotate(double p_angle)
+		Point<PointType>& rotate(double p_angle)
 		{
 			PointType xBefore = x;
 			double cos = std::cos(p_angle);
 			double sin = std::sin(p_angle);
 			x = x * cos - y * sin;
 			y = y * cos + xBefore * sin;
+			return *this;
 		}
 		/*
 			Rotates the point anticlockwise relative to (p_originX, p_originY) by p_angle radians so that it keeps its distance from that origin point.
 		*/
-		void rotate(double p_angle, PointType p_originX, PointType p_originY)
+		Point<PointType>& rotate(double p_angle, PointType p_originX, PointType p_originY)
 		{
 			PointType xBefore = x;
 			double cos = std::cos(p_angle);
 			double sin = std::sin(p_angle);
 			x = (x - p_originX) * cos - (y - p_originY) * sin + p_originX;
 			y = (y - p_originY) * cos + (xBefore - p_originX) * sin + p_originY;
-
+			return *this;
 		}
 		/*
 			Rotates the point anticlockwise relative to p_origin by p_angle radians so that it keeps its distance from p_origin.
 		*/
-		void rotate(double p_angle, Point<PointType> const& p_origin)
+		Point<PointType>& rotate(double p_angle, Point<PointType> const& p_origin)
 		{
 			rotate(p_angle, p_origin.x, p_origin.y);
+			return *this;
 		}
 
 		/*
 			Rotates the vector so that its angle is equal to p_angle radians.
 		*/
-		void setAngle(double p_angle)
+		Point<PointType>& setAngle(double p_angle)
 		{
 			double length = getLength();
 			x = std::cos(p_angle) * length;
 			y = std::sin(p_angle) * length;
+			return *this;
 		}
 		/*
 			Rotates the vector so that its angle relative to (p_originX, p_originY) is p_angle radians.
 		*/
-		void setAngle(double p_angle, PointType p_originX, PointType p_originY)
+		Point<PointType>& setAngle(double p_angle, PointType p_originX, PointType p_originY)
 		{
 			double length = getDistance(p_originX, p_originY);
 			x = std::cos(p_angle) * length + p_originX;
 			y = std::sin(p_angle) * length + p_originY;
+			return *this;
 		}
 		/*
 			Rotates the vector so that its angle relative to p_origin is p_angle radians.
 		*/
-		void setAngle(double p_angle, Point<PointType> const& p_origin)
+		Point<PointType>& setAngle(double p_angle, Point<PointType> const& p_origin)
 		{
 			setAngle(p_angle, p_origin.x, p_origin.y);
+			return *this;
 		}
 
 		/*
@@ -900,7 +905,7 @@ namespace AvoGUI
 	template<typename T>
 	Point<T> interpolate(Point<T> const& p_start, Point<T> const& p_end, double p_progress)
 	{
-		return p_start * (1.0 - p_progress) + p_end * (p_progress);
+		return p_start * (1.0 - p_progress) + p_end * p_progress;
 	}
 
 	//------------------------------
@@ -3560,31 +3565,7 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		virtual void sendBoundsChangeEvents(Rectangle<float> const& p_previousBounds)
-		{
-			if (p_previousBounds.left != m_bounds.left || p_previousBounds.right != m_bounds.right ||
-				p_previousBounds.top != m_bounds.top || p_previousBounds.bottom != m_bounds.bottom)
-			{
-				if (abs(p_previousBounds.getWidth() - m_bounds.getWidth()) > 0.001 || abs(p_previousBounds.getHeight() - m_bounds.getHeight()) > 0.001)
-				{
-					updateShadow(); // This is to update the shadow bounds and image.
-
-					handleSizeChange(p_previousBounds.getWidth(), p_previousBounds.getHeight());
-					for (auto viewListener : m_viewEventListeners)
-					{
-						viewListener->handleViewSizeChange(this, p_previousBounds.getWidth(), p_previousBounds.getHeight());
-					}
-
-					updateClipGeometry();
-				}
-
-				handleBoundsChange(p_previousBounds);
-				for (auto viewListener : m_viewEventListeners)
-				{
-					viewListener->handleViewBoundsChange(this, p_previousBounds);
-				}
-			}
-		}
+		virtual void sendBoundsChangeEvents(Rectangle<float> const& p_previousBounds);
 
 		/*
 			USER IMPLEMENTED

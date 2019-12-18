@@ -240,6 +240,44 @@ namespace AvoGUI
 	// Protected
 	//
 
+	void View::sendBoundsChangeEvents(Rectangle<float> const& p_previousBounds)
+	{
+		if (p_previousBounds.left != m_bounds.left || p_previousBounds.right != m_bounds.right ||
+			p_previousBounds.top != m_bounds.top || p_previousBounds.bottom != m_bounds.bottom)
+		{
+			if (fabsf(p_previousBounds.getWidth() - m_bounds.getWidth()) > 0.001f || fabsf(p_previousBounds.getHeight() - m_bounds.getHeight()) > 0.001f)
+			{
+				updateShadow(); // This is to update the shadow bounds and image.
+
+				handleSizeChange(p_previousBounds.getWidth(), p_previousBounds.getHeight());
+				for (auto viewListener : m_viewEventListeners)
+				{
+					viewListener->handleViewSizeChange(this, p_previousBounds.getWidth(), p_previousBounds.getHeight());
+				}
+
+				updateClipGeometry();
+			}
+
+			if (getParent())
+			{
+				Point<float> const& mousePosition = getGui()->getWindow()->getMousePosition() - getParent()->getAbsoluteTopLeft();
+				if (getIsContaining(mousePosition) != p_previousBounds.getIsContaining(mousePosition))
+				{
+					MouseEvent event;
+					event.x = mousePosition.x + getParent()->getAbsoluteLeft();
+					event.y = mousePosition.y + getParent()->getAbsoluteTop();
+					getGui()->handleGlobalMouseMove(event);
+				}
+			}
+
+			handleBoundsChange(p_previousBounds);
+			for (auto viewListener : m_viewEventListeners)
+			{
+				viewListener->handleViewBoundsChange(this, p_previousBounds);
+			}
+		}
+	}
+
 	void View::updateClipGeometry()
 	{
 		if (getHasCornerStyles())
