@@ -1015,6 +1015,19 @@ namespace AvoGUI
 
 		//------------------------------
 
+		template<typename OffsetType>
+		Rectangle<RectangleType> operator+(Point<OffsetType> const& p_offset)
+		{
+			return Rectangle<RectangleType>(left + (RectangleType)p_offset.x, top + (RectangleType)p_offset.y, right + (RectangleType)p_offset.x, bottom + (RectangleType)p_offset.y);
+		}
+		template<typename OffsetType>
+		Rectangle<RectangleType> operator-(Point<OffsetType> const& p_offset)
+		{
+			return Rectangle<RectangleType>(left - (RectangleType)p_offset.x, top - (RectangleType)p_offset.y, right - (RectangleType)p_offset.x, bottom - (RectangleType)p_offset.y);
+		}
+
+		//------------------------------
+
 		template<typename ParameterRectangleType>
 		bool operator==(Rectangle<ParameterRectangleType> const& p_rectangle) const
 		{
