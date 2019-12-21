@@ -3343,6 +3343,13 @@ namespace AvoGUI
 		COLOR_BLUE_GRAY_800 = 0xFF37474F,
 		COLOR_BLUE_GRAY_900 = 0xFF263238;
 
+	//
+	// Font family names
+	//
+
+	char const* const FONT_FAMILY_ROBOTO = "Roboto";
+	char const* const FONT_FAMILY_MATERIAL_ICONS = "Material Icons";
+
 	/*
 		A theme consists of different variables that change the look and feel of the parts of the GUI that are using the theme.
 		Can be used for changing and accessing any values, colors, easings and font families that you want child views to inherit.
@@ -5493,6 +5500,7 @@ namespace AvoGUI
 			m_corners.bottomRightSizeX = m_corners.bottomRightSizeY = p_radius;
 			m_corners.topLeftType = m_corners.topRightType = m_corners.bottomLeftType = m_corners.bottomRightType = RectangleCornerType::Round;
 			updateClipGeometry();
+			updateShadow();
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -5506,6 +5514,7 @@ namespace AvoGUI
 			m_corners.bottomRightSizeX = m_corners.bottomRightSizeY = p_bottomRightRadius;
 			m_corners.topLeftType = m_corners.topRightType = m_corners.bottomLeftType = m_corners.bottomRightType = RectangleCornerType::Round;
 			updateClipGeometry();
+			updateShadow();
 		}
 
 		/*
@@ -5520,6 +5529,7 @@ namespace AvoGUI
 			m_corners.bottomRightSizeX = m_corners.bottomRightSizeY = p_cutSize;
 			m_corners.topLeftType = m_corners.topRightType = m_corners.bottomLeftType = m_corners.bottomRightType = RectangleCornerType::Cut;
 			updateClipGeometry();
+			updateShadow();
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -5533,6 +5543,7 @@ namespace AvoGUI
 			m_corners.bottomRightSizeX = m_corners.bottomRightSizeY = p_bottomRightSize;
 			m_corners.topLeftType = m_corners.topRightType = m_corners.bottomLeftType = m_corners.bottomRightType = RectangleCornerType::Cut;
 			updateClipGeometry();
+			updateShadow();
 		}
 
 		/*
@@ -5543,6 +5554,7 @@ namespace AvoGUI
 		{
 			m_corners = p_corners;
 			updateClipGeometry();
+			updateShadow();
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -5947,7 +5959,7 @@ namespace AvoGUI
 	enum class ModifierKeyFlags
 	{
 		None = 0UL,
-		Ctrl = 0x1UL,
+		Control = 0x1UL,
 		Alt = 0x2UL,
 		Shift = 0x4UL,
 		LeftMouse = 0x8UL,
@@ -7944,6 +7956,7 @@ namespace AvoGUI
 
 		/*
 			After calling this, all graphics drawn outside the cached geometry will be invisible, on pixel level.
+			Call popClipShape to remove the last pushed clip geometry.
 			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
 		virtual void pushClipGeometry(Geometry* p_geometry, float p_opacity = 1.f) = 0;
@@ -7965,7 +7978,6 @@ namespace AvoGUI
 
 		/*
 			This removes the last added clipping shape.
-			Use this when the last pushed clip shape was not a regular axis-aligned rectangle.
 		*/
 		virtual void popClipShape() = 0;
 
@@ -7973,36 +7985,30 @@ namespace AvoGUI
 
 		/*
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
-			Call popClipRectangle to remove the last pushed clip rectangle.
+			Call popClipShape to remove the last pushed clip rectangle.
 		*/
 		virtual void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_opacity = 1.f) = 0;
 		/*
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
-			Call popClipRectangle to remove the last pushed clip rectangle.
+			Call popClipShape to remove the last pushed clip rectangle.
 		*/
 		virtual void pushClipRectangle(Rectangle<float> const& p_rectangle, float p_opacity = 1.f) = 0;
 		/*
 			After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
 			p_size is the size of the clip rectangle positioned at the origin.
-			Call popClipRectangle to remove the last pushed clip rectangle.
+			Call popClipShape to remove the last pushed clip rectangle.
 		*/
 		virtual void pushClipRectangle(Point<float> const& p_size, float p_opacity = 1.f) = 0;
 
 		/*
-			This removes the last added clipping rectangle.
-			Only use this when the last pushed clip was a regular axis-aligned rectangle, without custom corners.
-		*/
-		virtual void popClipRectangle() = 0;
-
-		/*
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
-			Call popClipRectangle to remove the last pushed clip corner rectangle.
+			Call popClipShape to remove the last pushed clip corner rectangle.
 			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
 		virtual void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
 		/*
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
-			Call popClipRectangle to remove the last pushed clip corner rectangle.
+			Call popClipShape to remove the last pushed clip corner rectangle.
 			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
 		virtual void pushClipRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
@@ -9292,38 +9298,6 @@ namespace AvoGUI
 
 		std::vector<ButtonListener*> m_buttonListeners;
 
-		void updateSize()
-		{
-			if (m_text)
-			{
-				float sizeFactor = getThemeValue("button font size") / 14.f;
-				if (m_icon)
-				{
-					m_icon->setSize(16.f*sizeFactor, 16.f*sizeFactor);
-					m_icon->setCenter(sizeFactor*38.f * 0.5f, getHeight() * 0.5f);
-
-					m_text->setLeft(38.f*sizeFactor);
-					setSize(round(m_text->getWidth()) + sizeFactor*(16.f + 38.f), round(m_text->getHeight()) + 17.f * sizeFactor);
-				}
-				else
-				{
-					if (m_text->getWidth() >= 32.f*sizeFactor)
-					{
-						setSize(round(m_text->getWidth()) + 32.f*sizeFactor, round(m_text->getHeight()) + 17.f*sizeFactor);
-					}
-					else
-					{
-						setSize(64.f*sizeFactor, round(m_text->getHeight()) + 17.f*sizeFactor);
-					}
-					m_text->setCenter(getCenter() - getTopLeft());
-				}
-			}
-			else if (m_icon)
-			{
-				m_icon->setCenter(getCenter() - getTopLeft());
-			}
-		}
-
 	protected:
 		void handleThemeValueChange(std::string const& p_name, float p_newValue) override
 		{
@@ -9346,11 +9320,8 @@ namespace AvoGUI
 		{
 			if (m_emphasis == Emphasis::High)
 			{
-				if (p_name == (m_isAccent ? "secondary" : "primary"))
-				{
-					m_currentColor = p_newColor;
-				}
-				else if (p_name == (m_isAccent ? "on secondary" : "on primary"))
+				if (p_name == (m_isAccent ? "secondary" : "primary") ||
+					p_name == (m_isAccent ? "on secondary" : "on primary"))
 				{
 					m_currentColor = p_newColor;
 				}
@@ -9358,7 +9329,7 @@ namespace AvoGUI
 			else if (p_name == (m_isAccent ? "secondary on background" : "primary on background"))
 			{
 				m_currentColor = p_newColor;
-				m_ripple->setColor(p_newColor);
+				m_ripple->setColor(AvoGUI::Color(p_newColor, 0.3f));
 			}
 		}
 
@@ -9392,6 +9363,40 @@ namespace AvoGUI
 			if (m_icon)
 			{
 				m_icon->forget();
+			}
+		}
+
+		//------------------------------
+
+		void updateSize()
+		{
+			if (m_text)
+			{
+				float sizeFactor = getThemeValue("button font size") / 14.f;
+				if (m_icon)
+				{
+					m_icon->setSize(16.f * sizeFactor, 16.f * sizeFactor);
+					m_icon->setCenter(sizeFactor * 38.f * 0.5f, getHeight() * 0.5f);
+
+					m_text->setLeft(38.f * sizeFactor);
+					setSize(round(m_text->getWidth()) + sizeFactor * (16.f + 38.f), round(m_text->getHeight()) + 17.f * sizeFactor);
+				}
+				else
+				{
+					if (m_text->getWidth() >= 32.f * sizeFactor)
+					{
+						setSize(round(m_text->getWidth()) + 32.f * sizeFactor, round(m_text->getHeight()) + 17.f * sizeFactor);
+					}
+					else
+					{
+						setSize(64.f * sizeFactor, round(m_text->getHeight()) + 17.f * sizeFactor);
+					}
+					m_text->setCenter(getCenter() - getTopLeft());
+				}
+			}
+			else if (m_icon)
+			{
+				m_icon->setCenter(getCenter() - getTopLeft());
 			}
 		}
 
@@ -9500,6 +9505,7 @@ namespace AvoGUI
 				m_text->setWordWrapping(WordWrapping::Never);
 				m_text->setCharacterSpacing(getThemeValue("button character spacing"));
 				m_text->setFontWeight(FontWeight::Medium);
+				//m_text->setIsTopTrimmed(true);
 				m_text->fitSizeToText();
 			}
 			else 
@@ -9514,7 +9520,11 @@ namespace AvoGUI
 		*/
 		char const* getString()
 		{
-			return m_text->getString().c_str();
+			if (m_text)
+			{
+				return m_text->getString().c_str();
+			}
+			return "";
 		}
 
 		/*
@@ -9598,7 +9608,7 @@ namespace AvoGUI
 		}
 		void handleMouseDown(MouseEvent const& p_event) override
 		{
-			if (m_isEnabled && m_emphasis == Emphasis::High)
+			if (p_event.mouseButton == MouseButton::Left && m_isEnabled && m_emphasis == Emphasis::High)
 			{
 				m_isPressed = true;
 				m_isRaising = true;
@@ -9608,16 +9618,19 @@ namespace AvoGUI
 		}
 		void handleMouseUp(MouseEvent const& p_event) override
 		{
-			if (m_emphasis == Emphasis::High)
+			if (p_event.mouseButton == MouseButton::Left)
 			{
-				m_isPressed = false;
-				queueAnimationUpdate();
-			}
-			if (m_isEnabled && getIsContaining(p_event.x + getLeft(), p_event.y + getTop()))
-			{
-				for (uint32 a = 0; a < m_buttonListeners.size(); a++)
+				if (m_emphasis == Emphasis::High)
 				{
-					m_buttonListeners[a]->handleButtonClick(this);
+					m_isPressed = false;
+					queueAnimationUpdate();
+				}
+				if (m_isEnabled && getIsContaining(p_event.x + getLeft(), p_event.y + getTop()))
+				{
+					for (uint32 a = 0; a < m_buttonListeners.size(); a++)
+					{
+						m_buttonListeners[a]->handleButtonClick(this);
+					}
 				}
 			}
 		}
@@ -10832,7 +10845,9 @@ namespace AvoGUI
 	public:
 		TextField(View* p_parent, Type p_type = Type::Filled, char const* p_label = "", float p_width = 120.f) :
 			View(p_parent),
+			m_editableText(0),
 			m_labelText(0), m_focusAnimationTime(0.f), m_focusAnimationValue(0.f),
+			m_prefixText(0), m_suffixText(0),
 			m_isMouseHovering(false), m_hoverAnimationTime(0.f), m_hoverAnimationValue(0.f),
 			m_type(p_type)
 		{
@@ -11283,4 +11298,946 @@ namespace AvoGUI
 			}
 		}
 	};
+}
+
+/*
+	These are the codepoints for the material icon font!
+*/
+namespace MaterialIcons
+{
+	constexpr char const* THREED_ROTATION = u8"\ue84d";
+	constexpr char const* AC_UNIT = u8"\ueb3b";
+	constexpr char const* ACCESS_ALARM = u8"\ue190";
+	constexpr char const* ACCESS_ALARMS = u8"\ue191";
+	constexpr char const* ACCESS_TIME = u8"\ue192";
+	constexpr char const* ACCESSIBILITY = u8"\ue84e";
+	constexpr char const* ACCESSIBLE = u8"\ue914";
+	constexpr char const* ACCOUNT_BALANCE = u8"\ue84f";
+	constexpr char const* ACCOUNT_BALANCE_WALLET = u8"\ue850";
+	constexpr char const* ACCOUNT_BOX = u8"\ue851";
+	constexpr char const* ACCOUNT_CIRCLE = u8"\ue853";
+	constexpr char const* ADB = u8"\ue60e";
+	constexpr char const* ADD = u8"\ue145";
+	constexpr char const* ADD_A_PHOTO = u8"\ue439";
+	constexpr char const* ADD_ALARM = u8"\ue193";
+	constexpr char const* ADD_ALERT = u8"\ue003";
+	constexpr char const* ADD_BOX = u8"\ue146";
+	constexpr char const* ADD_CIRCLE = u8"\ue147";
+	constexpr char const* ADD_CIRCLE_OUTLINE = u8"\ue148";
+	constexpr char const* ADD_LOCATION = u8"\ue567";
+	constexpr char const* ADD_SHOPPING_CART = u8"\ue854";
+	constexpr char const* ADD_TO_PHOTOS = u8"\ue39d";
+	constexpr char const* ADD_TO_QUEUE = u8"\ue05c";
+	constexpr char const* ADJUST = u8"\ue39e";
+	constexpr char const* AIRLINE_SEAT_FLAT = u8"\ue630";
+	constexpr char const* AIRLINE_SEAT_FLAT_ANGLED = u8"\ue631";
+	constexpr char const* AIRLINE_SEAT_INDIVIDUAL_SUITE = u8"\ue632";
+	constexpr char const* AIRLINE_SEAT_LEGROOM_EXTRA = u8"\ue633";
+	constexpr char const* AIRLINE_SEAT_LEGROOM_NORMAL = u8"\ue634";
+	constexpr char const* AIRLINE_SEAT_LEGROOM_REDUCED = u8"\ue635";
+	constexpr char const* AIRLINE_SEAT_RECLINE_EXTRA = u8"\ue636";
+	constexpr char const* AIRLINE_SEAT_RECLINE_NORMAL = u8"\ue637";
+	constexpr char const* AIRPLANEMODE_ACTIVE = u8"\ue195";
+	constexpr char const* AIRPLANEMODE_INACTIVE = u8"\ue194";
+	constexpr char const* AIRPLAY = u8"\ue055";
+	constexpr char const* AIRPORT_SHUTTLE = u8"\ueb3c";
+	constexpr char const* ALARM = u8"\ue855";
+	constexpr char const* ALARM_ADD = u8"\ue856";
+	constexpr char const* ALARM_OFF = u8"\ue857";
+	constexpr char const* ALARM_ON = u8"\ue858";
+	constexpr char const* ALBUM = u8"\ue019";
+	constexpr char const* ALL_INCLUSIVE = u8"\ueb3d";
+	constexpr char const* ALL_OUT = u8"\ue90b";
+	constexpr char const* ANDROID = u8"\ue859";
+	constexpr char const* ANNOUNCEMENT = u8"\ue85a";
+	constexpr char const* APPS = u8"\ue5c3";
+	constexpr char const* ARCHIVE = u8"\ue149";
+	constexpr char const* ARROW_BACK = u8"\ue5c4";
+	constexpr char const* ARROW_DOWNWARD = u8"\ue5db";
+	constexpr char const* ARROW_DROP_DOWN = u8"\ue5c5";
+	constexpr char const* ARROW_DROP_DOWN_CIRCLE = u8"\ue5c6";
+	constexpr char const* ARROW_DROP_UP = u8"\ue5c7";
+	constexpr char const* ARROW_FORWARD = u8"\ue5c8";
+	constexpr char const* ARROW_UPWARD = u8"\ue5d8";
+	constexpr char const* ART_TRACK = u8"\ue060";
+	constexpr char const* ASPECT_RATIO = u8"\ue85b";
+	constexpr char const* ASSESSMENT = u8"\ue85c";
+	constexpr char const* ASSIGNMENT = u8"\ue85d";
+	constexpr char const* ASSIGNMENT_IND = u8"\ue85e";
+	constexpr char const* ASSIGNMENT_LATE = u8"\ue85f";
+	constexpr char const* ASSIGNMENT_RETURN = u8"\ue860";
+	constexpr char const* ASSIGNMENT_RETURNED = u8"\ue861";
+	constexpr char const* ASSIGNMENT_TURNED_IN = u8"\ue862";
+	constexpr char const* ASSISTANT = u8"\ue39f";
+	constexpr char const* ASSISTANT_PHOTO = u8"\ue3a0";
+	constexpr char const* ATTACH_FILE = u8"\ue226";
+	constexpr char const* ATTACH_MONEY = u8"\ue227";
+	constexpr char const* ATTACHMENT = u8"\ue2bc";
+	constexpr char const* AUDIOTRACK = u8"\ue3a1";
+	constexpr char const* AUTORENEW = u8"\ue863";
+	constexpr char const* AV_TIMER = u8"\ue01b";
+	constexpr char const* BACKSPACE = u8"\ue14a";
+	constexpr char const* BACKUP = u8"\ue864";
+	constexpr char const* BATTERY_ALERT = u8"\ue19c";
+	constexpr char const* BATTERY_CHARGING_FULL = u8"\ue1a3";
+	constexpr char const* BATTERY_FULL = u8"\ue1a4";
+	constexpr char const* BATTERY_STD = u8"\ue1a5";
+	constexpr char const* BATTERY_UNKNOWN = u8"\ue1a6";
+	constexpr char const* BEACH_ACCESS = u8"\ueb3e";
+	constexpr char const* BEENHERE = u8"\ue52d";
+	constexpr char const* BLOCK = u8"\ue14b";
+	constexpr char const* BLUETOOTH = u8"\ue1a7";
+	constexpr char const* BLUETOOTH_AUDIO = u8"\ue60f";
+	constexpr char const* BLUETOOTH_CONNECTED = u8"\ue1a8";
+	constexpr char const* BLUETOOTH_DISABLED = u8"\ue1a9";
+	constexpr char const* BLUETOOTH_SEARCHING = u8"\ue1aa";
+	constexpr char const* BLUR_CIRCULAR = u8"\ue3a2";
+	constexpr char const* BLUR_LINEAR = u8"\ue3a3";
+	constexpr char const* BLUR_OFF = u8"\ue3a4";
+	constexpr char const* BLUR_ON = u8"\ue3a5";
+	constexpr char const* BOOK = u8"\ue865";
+	constexpr char const* BOOKMARK = u8"\ue866";
+	constexpr char const* BOOKMARK_BORDER = u8"\ue867";
+	constexpr char const* BORDER_ALL = u8"\ue228";
+	constexpr char const* BORDER_BOTTOM = u8"\ue229";
+	constexpr char const* BORDER_CLEAR = u8"\ue22a";
+	constexpr char const* BORDER_COLOR = u8"\ue22b";
+	constexpr char const* BORDER_HORIZONTAL = u8"\ue22c";
+	constexpr char const* BORDER_INNER = u8"\ue22d";
+	constexpr char const* BORDER_LEFT = u8"\ue22e";
+	constexpr char const* BORDER_OUTER = u8"\ue22f";
+	constexpr char const* BORDER_RIGHT = u8"\ue230";
+	constexpr char const* BORDER_STYLE = u8"\ue231";
+	constexpr char const* BORDER_TOP = u8"\ue232";
+	constexpr char const* BORDER_VERTICAL = u8"\ue233";
+	constexpr char const* BRANDING_WATERMARK = u8"\ue06b";
+	constexpr char const* BRIGHTNESS_1 = u8"\ue3a6";
+	constexpr char const* BRIGHTNESS_2 = u8"\ue3a7";
+	constexpr char const* BRIGHTNESS_3 = u8"\ue3a8";
+	constexpr char const* BRIGHTNESS_4 = u8"\ue3a9";
+	constexpr char const* BRIGHTNESS_5 = u8"\ue3aa";
+	constexpr char const* BRIGHTNESS_6 = u8"\ue3ab";
+	constexpr char const* BRIGHTNESS_7 = u8"\ue3ac";
+	constexpr char const* BRIGHTNESS_AUTO = u8"\ue1ab";
+	constexpr char const* BRIGHTNESS_HIGH = u8"\ue1ac";
+	constexpr char const* BRIGHTNESS_LOW = u8"\ue1ad";
+	constexpr char const* BRIGHTNESS_MEDIUM = u8"\ue1ae";
+	constexpr char const* BROKEN_IMAGE = u8"\ue3ad";
+	constexpr char const* BRUSH = u8"\ue3ae";
+	constexpr char const* BUBBLE_CHART = u8"\ue6dd";
+	constexpr char const* BUG_REPORT = u8"\ue868";
+	constexpr char const* BUILD = u8"\ue869";
+	constexpr char const* BURST_MODE = u8"\ue43c";
+	constexpr char const* BUSINESS = u8"\ue0af";
+	constexpr char const* BUSINESS_CENTER = u8"\ueb3f";
+	constexpr char const* CACHED = u8"\ue86a";
+	constexpr char const* CAKE = u8"\ue7e9";
+	constexpr char const* CALL = u8"\ue0b0";
+	constexpr char const* CALL_END = u8"\ue0b1";
+	constexpr char const* CALL_MADE = u8"\ue0b2";
+	constexpr char const* CALL_MERGE = u8"\ue0b3";
+	constexpr char const* CALL_MISSED = u8"\ue0b4";
+	constexpr char const* CALL_MISSED_OUTGOING = u8"\ue0e4";
+	constexpr char const* CALL_RECEIVED = u8"\ue0b5";
+	constexpr char const* CALL_SPLIT = u8"\ue0b6";
+	constexpr char const* CALL_TO_ACTION = u8"\ue06c";
+	constexpr char const* CAMERA = u8"\ue3af";
+	constexpr char const* CAMERA_ALT = u8"\ue3b0";
+	constexpr char const* CAMERA_ENHANCE = u8"\ue8fc";
+	constexpr char const* CAMERA_FRONT = u8"\ue3b1";
+	constexpr char const* CAMERA_REAR = u8"\ue3b2";
+	constexpr char const* CAMERA_ROLL = u8"\ue3b3";
+	constexpr char const* CANCEL = u8"\ue5c9";
+	constexpr char const* CARD_GIFTCARD = u8"\ue8f6";
+	constexpr char const* CARD_MEMBERSHIP = u8"\ue8f7";
+	constexpr char const* CARD_TRAVEL = u8"\ue8f8";
+	constexpr char const* CASINO = u8"\ueb40";
+	constexpr char const* CAST = u8"\ue307";
+	constexpr char const* CAST_CONNECTED = u8"\ue308";
+	constexpr char const* CENTER_FOCUS_STRONG = u8"\ue3b4";
+	constexpr char const* CENTER_FOCUS_WEAK = u8"\ue3b5";
+	constexpr char const* CHANGE_HISTORY = u8"\ue86b";
+	constexpr char const* CHAT = u8"\ue0b7";
+	constexpr char const* CHAT_BUBBLE = u8"\ue0ca";
+	constexpr char const* CHAT_BUBBLE_OUTLINE = u8"\ue0cb";
+	constexpr char const* CHECK = u8"\ue5ca";
+	constexpr char const* CHECK_BOX = u8"\ue834";
+	constexpr char const* CHECK_BOX_OUTLINE_BLANK = u8"\ue835";
+	constexpr char const* CHECK_CIRCLE = u8"\ue86c";
+	constexpr char const* CHEVRON_LEFT = u8"\ue5cb";
+	constexpr char const* CHEVRON_RIGHT = u8"\ue5cc";
+	constexpr char const* CHILD_CARE = u8"\ueb41";
+	constexpr char const* CHILD_FRIENDLY = u8"\ueb42";
+	constexpr char const* CHROME_READER_MODE = u8"\ue86d";
+	constexpr char const* CLASS = u8"\ue86e";
+	constexpr char const* CLEAR = u8"\ue14c";
+	constexpr char const* CLEAR_ALL = u8"\ue0b8";
+	constexpr char const* CLOSE = u8"\ue5cd";
+	constexpr char const* CLOSED_CAPTION = u8"\ue01c";
+	constexpr char const* CLOUD = u8"\ue2bd";
+	constexpr char const* CLOUD_CIRCLE = u8"\ue2be";
+	constexpr char const* CLOUD_DONE = u8"\ue2bf";
+	constexpr char const* CLOUD_DOWNLOAD = u8"\ue2c0";
+	constexpr char const* CLOUD_OFF = u8"\ue2c1";
+	constexpr char const* CLOUD_QUEUE = u8"\ue2c2";
+	constexpr char const* CLOUD_UPLOAD = u8"\ue2c3";
+	constexpr char const* CODE = u8"\ue86f";
+	constexpr char const* COLLECTIONS = u8"\ue3b6";
+	constexpr char const* COLLECTIONS_BOOKMARK = u8"\ue431";
+	constexpr char const* COLOR_LENS = u8"\ue3b7";
+	constexpr char const* COLORIZE = u8"\ue3b8";
+	constexpr char const* COMMENT = u8"\ue0b9";
+	constexpr char const* COMPARE = u8"\ue3b9";
+	constexpr char const* COMPARE_ARROWS = u8"\ue915";
+	constexpr char const* COMPUTER = u8"\ue30a";
+	constexpr char const* CONFIRMATION_NUMBER = u8"\ue638";
+	constexpr char const* CONTACT_MAIL = u8"\ue0d0";
+	constexpr char const* CONTACT_PHONE = u8"\ue0cf";
+	constexpr char const* CONTACTS = u8"\ue0ba";
+	constexpr char const* CONTENT_COPY = u8"\ue14d";
+	constexpr char const* CONTENT_CUT = u8"\ue14e";
+	constexpr char const* CONTENT_PASTE = u8"\ue14f";
+	constexpr char const* CONTROL_POINT = u8"\ue3ba";
+	constexpr char const* CONTROL_POINT_DUPLICATE = u8"\ue3bb";
+	constexpr char const* COPYRIGHT = u8"\ue90c";
+	constexpr char const* CREATE = u8"\ue150";
+	constexpr char const* CREATE_NEW_FOLDER = u8"\ue2cc";
+	constexpr char const* CREDIT_CARD = u8"\ue870";
+	constexpr char const* CROP = u8"\ue3be";
+	constexpr char const* CROP_16_9 = u8"\ue3bc";
+	constexpr char const* CROP_3_2 = u8"\ue3bd";
+	constexpr char const* CROP_5_4 = u8"\ue3bf";
+	constexpr char const* CROP_7_5 = u8"\ue3c0";
+	constexpr char const* CROP_DIN = u8"\ue3c1";
+	constexpr char const* CROP_FREE = u8"\ue3c2";
+	constexpr char const* CROP_LANDSCAPE = u8"\ue3c3";
+	constexpr char const* CROP_ORIGINAL = u8"\ue3c4";
+	constexpr char const* CROP_PORTRAIT = u8"\ue3c5";
+	constexpr char const* CROP_ROTATE = u8"\ue437";
+	constexpr char const* CROP_SQUARE = u8"\ue3c6";
+	constexpr char const* DASHBOARD = u8"\ue871";
+	constexpr char const* DATA_USAGE = u8"\ue1af";
+	constexpr char const* DATE_RANGE = u8"\ue916";
+	constexpr char const* DEHAZE = u8"\ue3c7";
+	constexpr char const* DELETE = u8"\ue872";
+	constexpr char const* DELETE_FOREVER = u8"\ue92b";
+	constexpr char const* DELETE_SWEEP = u8"\ue16c";
+	constexpr char const* DESCRIPTION = u8"\ue873";
+	constexpr char const* DESKTOP_MAC = u8"\ue30b";
+	constexpr char const* DESKTOP_WINDOWS = u8"\ue30c";
+	constexpr char const* DETAILS = u8"\ue3c8";
+	constexpr char const* DEVELOPER_BOARD = u8"\ue30d";
+	constexpr char const* DEVELOPER_MODE = u8"\ue1b0";
+	constexpr char const* DEVICE_HUB = u8"\ue335";
+	constexpr char const* DEVICES = u8"\ue1b1";
+	constexpr char const* DEVICES_OTHER = u8"\ue337";
+	constexpr char const* DIALER_SIP = u8"\ue0bb";
+	constexpr char const* DIALPAD = u8"\ue0bc";
+	constexpr char const* DIRECTIONS = u8"\ue52e";
+	constexpr char const* DIRECTIONS_BIKE = u8"\ue52f";
+	constexpr char const* DIRECTIONS_BOAT = u8"\ue532";
+	constexpr char const* DIRECTIONS_BUS = u8"\ue530";
+	constexpr char const* DIRECTIONS_CAR = u8"\ue531";
+	constexpr char const* DIRECTIONS_RAILWAY = u8"\ue534";
+	constexpr char const* DIRECTIONS_RUN = u8"\ue566";
+	constexpr char const* DIRECTIONS_SUBWAY = u8"\ue533";
+	constexpr char const* DIRECTIONS_TRANSIT = u8"\ue535";
+	constexpr char const* DIRECTIONS_WALK = u8"\ue536";
+	constexpr char const* DISC_FULL = u8"\ue610";
+	constexpr char const* DNS = u8"\ue875";
+	constexpr char const* DO_NOT_DISTURB = u8"\ue612";
+	constexpr char const* DO_NOT_DISTURB_ALT = u8"\ue611";
+	constexpr char const* DO_NOT_DISTURB_OFF = u8"\ue643";
+	constexpr char const* DO_NOT_DISTURB_ON = u8"\ue644";
+	constexpr char const* DOCK = u8"\ue30e";
+#ifdef DOMAIN
+#undef DOMAIN
+#endif
+	constexpr char const* DOMAIN = u8"\ue7ee";
+	constexpr char const* DONE = u8"\ue876";
+	constexpr char const* DONE_ALL = u8"\ue877";
+	constexpr char const* DONUT_LARGE = u8"\ue917";
+	constexpr char const* DONUT_SMALL = u8"\ue918";
+	constexpr char const* DRAFTS = u8"\ue151";
+	constexpr char const* DRAG_HANDLE = u8"\ue25d";
+	constexpr char const* DRIVE_ETA = u8"\ue613";
+	constexpr char const* DVR = u8"\ue1b2";
+	constexpr char const* EDIT = u8"\ue3c9";
+	constexpr char const* EDIT_LOCATION = u8"\ue568";
+	constexpr char const* EJECT = u8"\ue8fb";
+	constexpr char const* EMAIL = u8"\ue0be";
+	constexpr char const* ENHANCED_ENCRYPTION = u8"\ue63f";
+	constexpr char const* EQUALIZER = u8"\ue01d";
+	constexpr char const* ERROR = u8"\ue000";
+	constexpr char const* ERROR_OUTLINE = u8"\ue001";
+	constexpr char const* EURO_SYMBOL = u8"\ue926";
+	constexpr char const* EV_STATION = u8"\ue56d";
+	constexpr char const* EVENT = u8"\ue878";
+	constexpr char const* EVENT_AVAILABLE = u8"\ue614";
+	constexpr char const* EVENT_BUSY = u8"\ue615";
+	constexpr char const* EVENT_NOTE = u8"\ue616";
+	constexpr char const* EVENT_SEAT = u8"\ue903";
+	constexpr char const* EXIT_TO_APP = u8"\ue879";
+	constexpr char const* EXPAND_LESS = u8"\ue5ce";
+	constexpr char const* EXPAND_MORE = u8"\ue5cf";
+	constexpr char const* EXPLICIT = u8"\ue01e";
+	constexpr char const* EXPLORE = u8"\ue87a";
+	constexpr char const* EXPOSURE = u8"\ue3ca";
+	constexpr char const* EXPOSURE_NEG_1 = u8"\ue3cb";
+	constexpr char const* EXPOSURE_NEG_2 = u8"\ue3cc";
+	constexpr char const* EXPOSURE_PLUS_1 = u8"\ue3cd";
+	constexpr char const* EXPOSURE_PLUS_2 = u8"\ue3ce";
+	constexpr char const* EXPOSURE_ZERO = u8"\ue3cf";
+	constexpr char const* EXTENSION = u8"\ue87b";
+	constexpr char const* FACE = u8"\ue87c";
+	constexpr char const* FAST_FORWARD = u8"\ue01f";
+	constexpr char const* FAST_REWIND = u8"\ue020";
+	constexpr char const* FAVORITE = u8"\ue87d";
+	constexpr char const* FAVORITE_BORDER = u8"\ue87e";
+	constexpr char const* FEATURED_PLAY_LIST = u8"\ue06d";
+	constexpr char const* FEATURED_VIDEO = u8"\ue06e";
+	constexpr char const* FEEDBACK = u8"\ue87f";
+	constexpr char const* FIBER_DVR = u8"\ue05d";
+	constexpr char const* FIBER_MANUAL_RECORD = u8"\ue061";
+	constexpr char const* FIBER_NEW = u8"\ue05e";
+	constexpr char const* FIBER_PIN = u8"\ue06a";
+	constexpr char const* FIBER_SMART_RECORD = u8"\ue062";
+	constexpr char const* FILE_DOWNLOAD = u8"\ue2c4";
+	constexpr char const* FILE_UPLOAD = u8"\ue2c6";
+	constexpr char const* FILTER = u8"\ue3d3";
+	constexpr char const* FILTER_1 = u8"\ue3d0";
+	constexpr char const* FILTER_2 = u8"\ue3d1";
+	constexpr char const* FILTER_3 = u8"\ue3d2";
+	constexpr char const* FILTER_4 = u8"\ue3d4";
+	constexpr char const* FILTER_5 = u8"\ue3d5";
+	constexpr char const* FILTER_6 = u8"\ue3d6";
+	constexpr char const* FILTER_7 = u8"\ue3d7";
+	constexpr char const* FILTER_8 = u8"\ue3d8";
+	constexpr char const* FILTER_9 = u8"\ue3d9";
+	constexpr char const* FILTER_9_PLUS = u8"\ue3da";
+	constexpr char const* FILTER_B_AND_W = u8"\ue3db";
+	constexpr char const* FILTER_CENTER_FOCUS = u8"\ue3dc";
+	constexpr char const* FILTER_DRAMA = u8"\ue3dd";
+	constexpr char const* FILTER_FRAMES = u8"\ue3de";
+	constexpr char const* FILTER_HDR = u8"\ue3df";
+	constexpr char const* FILTER_LIST = u8"\ue152";
+	constexpr char const* FILTER_NONE = u8"\ue3e0";
+	constexpr char const* FILTER_TILT_SHIFT = u8"\ue3e2";
+	constexpr char const* FILTER_VINTAGE = u8"\ue3e3";
+	constexpr char const* FIND_IN_PAGE = u8"\ue880";
+	constexpr char const* FIND_REPLACE = u8"\ue881";
+	constexpr char const* FINGERPRINT = u8"\ue90d";
+	constexpr char const* FIRST_PAGE = u8"\ue5dc";
+	constexpr char const* FITNESS_CENTER = u8"\ueb43";
+	constexpr char const* FLAG = u8"\ue153";
+	constexpr char const* FLARE = u8"\ue3e4";
+	constexpr char const* FLASH_AUTO = u8"\ue3e5";
+	constexpr char const* FLASH_OFF = u8"\ue3e6";
+	constexpr char const* FLASH_ON = u8"\ue3e7";
+	constexpr char const* FLIGHT = u8"\ue539";
+	constexpr char const* FLIGHT_LAND = u8"\ue904";
+	constexpr char const* FLIGHT_TAKEOFF = u8"\ue905";
+	constexpr char const* FLIP = u8"\ue3e8";
+	constexpr char const* FLIP_TO_BACK = u8"\ue882";
+	constexpr char const* FLIP_TO_FRONT = u8"\ue883";
+	constexpr char const* FOLDER = u8"\ue2c7";
+	constexpr char const* FOLDER_OPEN = u8"\ue2c8";
+	constexpr char const* FOLDER_SHARED = u8"\ue2c9";
+	constexpr char const* FOLDER_SPECIAL = u8"\ue617";
+	constexpr char const* FONT_DOWNLOAD = u8"\ue167";
+	constexpr char const* FORMAT_ALIGN_CENTER = u8"\ue234";
+	constexpr char const* FORMAT_ALIGN_JUSTIFY = u8"\ue235";
+	constexpr char const* FORMAT_ALIGN_LEFT = u8"\ue236";
+	constexpr char const* FORMAT_ALIGN_RIGHT = u8"\ue237";
+	constexpr char const* FORMAT_BOLD = u8"\ue238";
+	constexpr char const* FORMAT_CLEAR = u8"\ue239";
+	constexpr char const* FORMAT_COLOR_FILL = u8"\ue23a";
+	constexpr char const* FORMAT_COLOR_RESET = u8"\ue23b";
+	constexpr char const* FORMAT_COLOR_TEXT = u8"\ue23c";
+	constexpr char const* FORMAT_INDENT_DECREASE = u8"\ue23d";
+	constexpr char const* FORMAT_INDENT_INCREASE = u8"\ue23e";
+	constexpr char const* FORMAT_ITALIC = u8"\ue23f";
+	constexpr char const* FORMAT_LINE_SPACING = u8"\ue240";
+	constexpr char const* FORMAT_LIST_BULLETED = u8"\ue241";
+	constexpr char const* FORMAT_LIST_NUMBERED = u8"\ue242";
+	constexpr char const* FORMAT_PAINT = u8"\ue243";
+	constexpr char const* FORMAT_QUOTE = u8"\ue244";
+	constexpr char const* FORMAT_SHAPES = u8"\ue25e";
+	constexpr char const* FORMAT_SIZE = u8"\ue245";
+	constexpr char const* FORMAT_STRIKETHROUGH = u8"\ue246";
+	constexpr char const* FORMAT_TEXTDIRECTION_L_TO_R = u8"\ue247";
+	constexpr char const* FORMAT_TEXTDIRECTION_R_TO_L = u8"\ue248";
+	constexpr char const* FORMAT_UNDERLINED = u8"\ue249";
+	constexpr char const* FORUM = u8"\ue0bf";
+	constexpr char const* FORWARD = u8"\ue154";
+	constexpr char const* FORWARD_10 = u8"\ue056";
+	constexpr char const* FORWARD_30 = u8"\ue057";
+	constexpr char const* FORWARD_5 = u8"\ue058";
+	constexpr char const* FREE_BREAKFAST = u8"\ueb44";
+	constexpr char const* FULLSCREEN = u8"\ue5d0";
+	constexpr char const* FULLSCREEN_EXIT = u8"\ue5d1";
+	constexpr char const* FUNCTIONS = u8"\ue24a";
+	constexpr char const* G_TRANSLATE = u8"\ue927";
+	constexpr char const* GAMEPAD = u8"\ue30f";
+	constexpr char const* GAMES = u8"\ue021";
+	constexpr char const* GAVEL = u8"\ue90e";
+	constexpr char const* GESTURE = u8"\ue155";
+	constexpr char const* GET_APP = u8"\ue884";
+	constexpr char const* GIF = u8"\ue908";
+	constexpr char const* GOLF_COURSE = u8"\ueb45";
+	constexpr char const* GPS_FIXED = u8"\ue1b3";
+	constexpr char const* GPS_NOT_FIXED = u8"\ue1b4";
+	constexpr char const* GPS_OFF = u8"\ue1b5";
+	constexpr char const* GRADE = u8"\ue885";
+	constexpr char const* GRADIENT = u8"\ue3e9";
+	constexpr char const* GRAIN = u8"\ue3ea";
+	constexpr char const* GRAPHIC_EQ = u8"\ue1b8";
+	constexpr char const* GRID_OFF = u8"\ue3eb";
+	constexpr char const* GRID_ON = u8"\ue3ec";
+	constexpr char const* GROUP = u8"\ue7ef";
+	constexpr char const* GROUP_ADD = u8"\ue7f0";
+	constexpr char const* GROUP_WORK = u8"\ue886";
+	constexpr char const* HD = u8"\ue052";
+	constexpr char const* HDR_OFF = u8"\ue3ed";
+	constexpr char const* HDR_ON = u8"\ue3ee";
+	constexpr char const* HDR_STRONG = u8"\ue3f1";
+	constexpr char const* HDR_WEAK = u8"\ue3f2";
+	constexpr char const* HEADSET = u8"\ue310";
+	constexpr char const* HEADSET_MIC = u8"\ue311";
+	constexpr char const* HEALING = u8"\ue3f3";
+	constexpr char const* HEARING = u8"\ue023";
+	constexpr char const* HELP = u8"\ue887";
+	constexpr char const* HELP_OUTLINE = u8"\ue8fd";
+	constexpr char const* HIGH_QUALITY = u8"\ue024";
+	constexpr char const* HIGHLIGHT = u8"\ue25f";
+	constexpr char const* HIGHLIGHT_OFF = u8"\ue888";
+	constexpr char const* HISTORY = u8"\ue889";
+	constexpr char const* HOME = u8"\ue88a";
+	constexpr char const* HOT_TUB = u8"\ueb46";
+	constexpr char const* HOTEL = u8"\ue53a";
+	constexpr char const* HOURGLASS_EMPTY = u8"\ue88b";
+	constexpr char const* HOURGLASS_FULL = u8"\ue88c";
+	constexpr char const* HTTP = u8"\ue902";
+	constexpr char const* HTTPS = u8"\ue88d";
+	constexpr char const* IMAGE = u8"\ue3f4";
+	constexpr char const* IMAGE_ASPECT_RATIO = u8"\ue3f5";
+	constexpr char const* IMPORT_CONTACTS = u8"\ue0e0";
+	constexpr char const* IMPORT_EXPORT = u8"\ue0c3";
+	constexpr char const* IMPORTANT_DEVICES = u8"\ue912";
+	constexpr char const* INBOX = u8"\ue156";
+	constexpr char const* INDETERMINATE_CHECK_BOX = u8"\ue909";
+	constexpr char const* INFO = u8"\ue88e";
+	constexpr char const* INFO_OUTLINE = u8"\ue88f";
+	constexpr char const* INPUT = u8"\ue890";
+	constexpr char const* INSERT_CHART = u8"\ue24b";
+	constexpr char const* INSERT_COMMENT = u8"\ue24c";
+	constexpr char const* INSERT_DRIVE_FILE = u8"\ue24d";
+	constexpr char const* INSERT_EMOTICON = u8"\ue24e";
+	constexpr char const* INSERT_INVITATION = u8"\ue24f";
+	constexpr char const* INSERT_LINK = u8"\ue250";
+	constexpr char const* INSERT_PHOTO = u8"\ue251";
+	constexpr char const* INVERT_COLORS = u8"\ue891";
+	constexpr char const* INVERT_COLORS_OFF = u8"\ue0c4";
+	constexpr char const* ISO = u8"\ue3f6";
+	constexpr char const* KEYBOARD = u8"\ue312";
+	constexpr char const* KEYBOARD_ARROW_DOWN = u8"\ue313";
+	constexpr char const* KEYBOARD_ARROW_LEFT = u8"\ue314";
+	constexpr char const* KEYBOARD_ARROW_RIGHT = u8"\ue315";
+	constexpr char const* KEYBOARD_ARROW_UP = u8"\ue316";
+	constexpr char const* KEYBOARD_BACKSPACE = u8"\ue317";
+	constexpr char const* KEYBOARD_CAPSLOCK = u8"\ue318";
+	constexpr char const* KEYBOARD_HIDE = u8"\ue31a";
+	constexpr char const* KEYBOARD_RETURN = u8"\ue31b";
+	constexpr char const* KEYBOARD_TAB = u8"\ue31c";
+	constexpr char const* KEYBOARD_VOICE = u8"\ue31d";
+	constexpr char const* KITCHEN = u8"\ueb47";
+	constexpr char const* LABEL = u8"\ue892";
+	constexpr char const* LABEL_OUTLINE = u8"\ue893";
+	constexpr char const* LANDSCAPE = u8"\ue3f7";
+	constexpr char const* LANGUAGE = u8"\ue894";
+	constexpr char const* LAPTOP = u8"\ue31e";
+	constexpr char const* LAPTOP_CHROMEBOOK = u8"\ue31f";
+	constexpr char const* LAPTOP_MAC = u8"\ue320";
+	constexpr char const* LAPTOP_WINDOWS = u8"\ue321";
+	constexpr char const* LAST_PAGE = u8"\ue5dd";
+	constexpr char const* LAUNCH = u8"\ue895";
+	constexpr char const* LAYERS = u8"\ue53b";
+	constexpr char const* LAYERS_CLEAR = u8"\ue53c";
+	constexpr char const* LEAK_ADD = u8"\ue3f8";
+	constexpr char const* LEAK_REMOVE = u8"\ue3f9";
+	constexpr char const* LENS = u8"\ue3fa";
+	constexpr char const* LIBRARY_ADD = u8"\ue02e";
+	constexpr char const* LIBRARY_BOOKS = u8"\ue02f";
+	constexpr char const* LIBRARY_MUSIC = u8"\ue030";
+	constexpr char const* LIGHTBULB_OUTLINE = u8"\ue90f";
+	constexpr char const* LINE_STYLE = u8"\ue919";
+	constexpr char const* LINE_WEIGHT = u8"\ue91a";
+	constexpr char const* LINEAR_SCALE = u8"\ue260";
+	constexpr char const* LINK = u8"\ue157";
+	constexpr char const* LINKED_CAMERA = u8"\ue438";
+	constexpr char const* LIST = u8"\ue896";
+	constexpr char const* LIVE_HELP = u8"\ue0c6";
+	constexpr char const* LIVE_TV = u8"\ue639";
+	constexpr char const* LOCAL_ACTIVITY = u8"\ue53f";
+	constexpr char const* LOCAL_AIRPORT = u8"\ue53d";
+	constexpr char const* LOCAL_ATM = u8"\ue53e";
+	constexpr char const* LOCAL_BAR = u8"\ue540";
+	constexpr char const* LOCAL_CAFE = u8"\ue541";
+	constexpr char const* LOCAL_CAR_WASH = u8"\ue542";
+	constexpr char const* LOCAL_CONVENIENCE_STORE = u8"\ue543";
+	constexpr char const* LOCAL_DINING = u8"\ue556";
+	constexpr char const* LOCAL_DRINK = u8"\ue544";
+	constexpr char const* LOCAL_FLORIST = u8"\ue545";
+	constexpr char const* LOCAL_GAS_STATION = u8"\ue546";
+	constexpr char const* LOCAL_GROCERY_STORE = u8"\ue547";
+	constexpr char const* LOCAL_HOSPITAL = u8"\ue548";
+	constexpr char const* LOCAL_HOTEL = u8"\ue549";
+	constexpr char const* LOCAL_LAUNDRY_SERVICE = u8"\ue54a";
+	constexpr char const* LOCAL_LIBRARY = u8"\ue54b";
+	constexpr char const* LOCAL_MALL = u8"\ue54c";
+	constexpr char const* LOCAL_MOVIES = u8"\ue54d";
+	constexpr char const* LOCAL_OFFER = u8"\ue54e";
+	constexpr char const* LOCAL_PARKING = u8"\ue54f";
+	constexpr char const* LOCAL_PHARMACY = u8"\ue550";
+	constexpr char const* LOCAL_PHONE = u8"\ue551";
+	constexpr char const* LOCAL_PIZZA = u8"\ue552";
+	constexpr char const* LOCAL_PLAY = u8"\ue553";
+	constexpr char const* LOCAL_POST_OFFICE = u8"\ue554";
+	constexpr char const* LOCAL_PRINTSHOP = u8"\ue555";
+	constexpr char const* LOCAL_SEE = u8"\ue557";
+	constexpr char const* LOCAL_SHIPPING = u8"\ue558";
+	constexpr char const* LOCAL_TAXI = u8"\ue559";
+	constexpr char const* LOCATION_CITY = u8"\ue7f1";
+	constexpr char const* LOCATION_DISABLED = u8"\ue1b6";
+	constexpr char const* LOCATION_OFF = u8"\ue0c7";
+	constexpr char const* LOCATION_ON = u8"\ue0c8";
+	constexpr char const* LOCATION_SEARCHING = u8"\ue1b7";
+	constexpr char const* LOCK = u8"\ue897";
+	constexpr char const* LOCK_OPEN = u8"\ue898";
+	constexpr char const* LOCK_OUTLINE = u8"\ue899";
+	constexpr char const* LOOKS = u8"\ue3fc";
+	constexpr char const* LOOKS_3 = u8"\ue3fb";
+	constexpr char const* LOOKS_4 = u8"\ue3fd";
+	constexpr char const* LOOKS_5 = u8"\ue3fe";
+	constexpr char const* LOOKS_6 = u8"\ue3ff";
+	constexpr char const* LOOKS_ONE = u8"\ue400";
+	constexpr char const* LOOKS_TWO = u8"\ue401";
+	constexpr char const* LOOP = u8"\ue028";
+	constexpr char const* LOUPE = u8"\ue402";
+	constexpr char const* LOW_PRIORITY = u8"\ue16d";
+	constexpr char const* LOYALTY = u8"\ue89a";
+	constexpr char const* MAIL = u8"\ue158";
+	constexpr char const* MAIL_OUTLINE = u8"\ue0e1";
+	constexpr char const* MAP = u8"\ue55b";
+	constexpr char const* MARKUNREAD = u8"\ue159";
+	constexpr char const* MARKUNREAD_MAILBOX = u8"\ue89b";
+	constexpr char const* MEMORY = u8"\ue322";
+	constexpr char const* MENU = u8"\ue5d2";
+	constexpr char const* MERGE_TYPE = u8"\ue252";
+	constexpr char const* MESSAGE = u8"\ue0c9";
+	constexpr char const* MIC = u8"\ue029";
+	constexpr char const* MIC_NONE = u8"\ue02a";
+	constexpr char const* MIC_OFF = u8"\ue02b";
+	constexpr char const* MMS = u8"\ue618";
+	constexpr char const* MODE_COMMENT = u8"\ue253";
+	constexpr char const* MODE_EDIT = u8"\ue254";
+	constexpr char const* MONETIZATION_ON = u8"\ue263";
+	constexpr char const* MONEY_OFF = u8"\ue25c";
+	constexpr char const* MONOCHROME_PHOTOS = u8"\ue403";
+	constexpr char const* MOOD = u8"\ue7f2";
+	constexpr char const* MOOD_BAD = u8"\ue7f3";
+	constexpr char const* MORE = u8"\ue619";
+	constexpr char const* MORE_HORIZ = u8"\ue5d3";
+	constexpr char const* MORE_VERT = u8"\ue5d4";
+	constexpr char const* MOTORCYCLE = u8"\ue91b";
+	constexpr char const* MOUSE = u8"\ue323";
+	constexpr char const* MOVE_TO_INBOX = u8"\ue168";
+	constexpr char const* MOVIE = u8"\ue02c";
+	constexpr char const* MOVIE_CREATION = u8"\ue404";
+	constexpr char const* MOVIE_FILTER = u8"\ue43a";
+	constexpr char const* MULTILINE_CHART = u8"\ue6df";
+	constexpr char const* MUSIC_NOTE = u8"\ue405";
+	constexpr char const* MUSIC_VIDEO = u8"\ue063";
+	constexpr char const* MY_LOCATION = u8"\ue55c";
+	constexpr char const* NATURE = u8"\ue406";
+	constexpr char const* NATURE_PEOPLE = u8"\ue407";
+	constexpr char const* NAVIGATE_BEFORE = u8"\ue408";
+	constexpr char const* NAVIGATE_NEXT = u8"\ue409";
+	constexpr char const* NAVIGATION = u8"\ue55d";
+	constexpr char const* NEAR_ME = u8"\ue569";
+	constexpr char const* NETWORK_CELL = u8"\ue1b9";
+	constexpr char const* NETWORK_CHECK = u8"\ue640";
+	constexpr char const* NETWORK_LOCKED = u8"\ue61a";
+	constexpr char const* NETWORK_WIFI = u8"\ue1ba";
+	constexpr char const* NEW_RELEASES = u8"\ue031";
+	constexpr char const* NEXT_WEEK = u8"\ue16a";
+	constexpr char const* NFC = u8"\ue1bb";
+	constexpr char const* NO_ENCRYPTION = u8"\ue641";
+	constexpr char const* NO_SIM = u8"\ue0cc";
+	constexpr char const* NOT_INTERESTED = u8"\ue033";
+	constexpr char const* NOTE = u8"\ue06f";
+	constexpr char const* NOTE_ADD = u8"\ue89c";
+	constexpr char const* NOTIFICATIONS = u8"\ue7f4";
+	constexpr char const* NOTIFICATIONS_ACTIVE = u8"\ue7f7";
+	constexpr char const* NOTIFICATIONS_NONE = u8"\ue7f5";
+	constexpr char const* NOTIFICATIONS_OFF = u8"\ue7f6";
+	constexpr char const* NOTIFICATIONS_PAUSED = u8"\ue7f8";
+	constexpr char const* OFFLINE_PIN = u8"\ue90a";
+	constexpr char const* ONDEMAND_VIDEO = u8"\ue63a";
+	constexpr char const* OPACITY = u8"\ue91c";
+	constexpr char const* OPEN_IN_BROWSER = u8"\ue89d";
+	constexpr char const* OPEN_IN_NEW = u8"\ue89e";
+	constexpr char const* OPEN_WITH = u8"\ue89f";
+	constexpr char const* PAGES = u8"\ue7f9";
+	constexpr char const* PAGEVIEW = u8"\ue8a0";
+	constexpr char const* PALETTE = u8"\ue40a";
+	constexpr char const* PAN_TOOL = u8"\ue925";
+	constexpr char const* PANORAMA = u8"\ue40b";
+	constexpr char const* PANORAMA_FISH_EYE = u8"\ue40c";
+	constexpr char const* PANORAMA_HORIZONTAL = u8"\ue40d";
+	constexpr char const* PANORAMA_VERTICAL = u8"\ue40e";
+	constexpr char const* PANORAMA_WIDE_ANGLE = u8"\ue40f";
+	constexpr char const* PARTY_MODE = u8"\ue7fa";
+	constexpr char const* PAUSE = u8"\ue034";
+	constexpr char const* PAUSE_CIRCLE_FILLED = u8"\ue035";
+	constexpr char const* PAUSE_CIRCLE_OUTLINE = u8"\ue036";
+	constexpr char const* PAYMENT = u8"\ue8a1";
+	constexpr char const* PEOPLE = u8"\ue7fb";
+	constexpr char const* PEOPLE_OUTLINE = u8"\ue7fc";
+	constexpr char const* PERM_CAMERA_MIC = u8"\ue8a2";
+	constexpr char const* PERM_CONTACT_CALENDAR = u8"\ue8a3";
+	constexpr char const* PERM_DATA_SETTING = u8"\ue8a4";
+	constexpr char const* PERM_DEVICE_INFORMATION = u8"\ue8a5";
+	constexpr char const* PERM_IDENTITY = u8"\ue8a6";
+	constexpr char const* PERM_MEDIA = u8"\ue8a7";
+	constexpr char const* PERM_PHONE_MSG = u8"\ue8a8";
+	constexpr char const* PERM_SCAN_WIFI = u8"\ue8a9";
+	constexpr char const* PERSON = u8"\ue7fd";
+	constexpr char const* PERSON_ADD = u8"\ue7fe";
+	constexpr char const* PERSON_OUTLINE = u8"\ue7ff";
+	constexpr char const* PERSON_PIN = u8"\ue55a";
+	constexpr char const* PERSON_PIN_CIRCLE = u8"\ue56a";
+	constexpr char const* PERSONAL_VIDEO = u8"\ue63b";
+	constexpr char const* PETS = u8"\ue91d";
+	constexpr char const* PHONE = u8"\ue0cd";
+	constexpr char const* PHONE_ANDROID = u8"\ue324";
+	constexpr char const* PHONE_BLUETOOTH_SPEAKER = u8"\ue61b";
+	constexpr char const* PHONE_FORWARDED = u8"\ue61c";
+	constexpr char const* PHONE_IN_TALK = u8"\ue61d";
+	constexpr char const* PHONE_IPHONE = u8"\ue325";
+	constexpr char const* PHONE_LOCKED = u8"\ue61e";
+	constexpr char const* PHONE_MISSED = u8"\ue61f";
+	constexpr char const* PHONE_PAUSED = u8"\ue620";
+	constexpr char const* PHONELINK = u8"\ue326";
+	constexpr char const* PHONELINK_ERASE = u8"\ue0db";
+	constexpr char const* PHONELINK_LOCK = u8"\ue0dc";
+	constexpr char const* PHONELINK_OFF = u8"\ue327";
+	constexpr char const* PHONELINK_RING = u8"\ue0dd";
+	constexpr char const* PHONELINK_SETUP = u8"\ue0de";
+	constexpr char const* PHOTO = u8"\ue410";
+	constexpr char const* PHOTO_ALBUM = u8"\ue411";
+	constexpr char const* PHOTO_CAMERA = u8"\ue412";
+	constexpr char const* PHOTO_FILTER = u8"\ue43b";
+	constexpr char const* PHOTO_LIBRARY = u8"\ue413";
+	constexpr char const* PHOTO_SIZE_SELECT_ACTUAL = u8"\ue432";
+	constexpr char const* PHOTO_SIZE_SELECT_LARGE = u8"\ue433";
+	constexpr char const* PHOTO_SIZE_SELECT_SMALL = u8"\ue434";
+	constexpr char const* PICTURE_AS_PDF = u8"\ue415";
+	constexpr char const* PICTURE_IN_PICTURE = u8"\ue8aa";
+	constexpr char const* PICTURE_IN_PICTURE_ALT = u8"\ue911";
+	constexpr char const* PIE_CHART = u8"\ue6c4";
+	constexpr char const* PIE_CHART_OUTLINED = u8"\ue6c5";
+	constexpr char const* PIN_DROP = u8"\ue55e";
+	constexpr char const* PLACE = u8"\ue55f";
+	constexpr char const* PLAY_ARROW = u8"\ue037";
+	constexpr char const* PLAY_CIRCLE_FILLED = u8"\ue038";
+	constexpr char const* PLAY_CIRCLE_OUTLINE = u8"\ue039";
+	constexpr char const* PLAY_FOR_WORK = u8"\ue906";
+	constexpr char const* PLAYLIST_ADD = u8"\ue03b";
+	constexpr char const* PLAYLIST_ADD_CHECK = u8"\ue065";
+	constexpr char const* PLAYLIST_PLAY = u8"\ue05f";
+	constexpr char const* PLUS_ONE = u8"\ue800";
+	constexpr char const* POLL = u8"\ue801";
+	constexpr char const* POLYMER = u8"\ue8ab";
+	constexpr char const* POOL = u8"\ueb48";
+	constexpr char const* PORTABLE_WIFI_OFF = u8"\ue0ce";
+	constexpr char const* PORTRAIT = u8"\ue416";
+	constexpr char const* POWER = u8"\ue63c";
+	constexpr char const* POWER_INPUT = u8"\ue336";
+	constexpr char const* POWER_SETTINGS_NEW = u8"\ue8ac";
+	constexpr char const* PREGNANT_WOMAN = u8"\ue91e";
+	constexpr char const* PRESENT_TO_ALL = u8"\ue0df";
+	constexpr char const* PRINT = u8"\ue8ad";
+	constexpr char const* PRIORITY_HIGH = u8"\ue645";
+	constexpr char const* PUBLIC = u8"\ue80b";
+	constexpr char const* PUBLISH = u8"\ue255";
+	constexpr char const* QUERY_BUILDER = u8"\ue8ae";
+	constexpr char const* QUESTION_ANSWER = u8"\ue8af";
+	constexpr char const* QUEUE = u8"\ue03c";
+	constexpr char const* QUEUE_MUSIC = u8"\ue03d";
+	constexpr char const* QUEUE_PLAY_NEXT = u8"\ue066";
+	constexpr char const* RADIO = u8"\ue03e";
+	constexpr char const* RADIO_BUTTON_CHECKED = u8"\ue837";
+	constexpr char const* RADIO_BUTTON_UNCHECKED = u8"\ue836";
+	constexpr char const* RATE_REVIEW = u8"\ue560";
+	constexpr char const* RECEIPT = u8"\ue8b0";
+	constexpr char const* RECENT_ACTORS = u8"\ue03f";
+	constexpr char const* RECORD_VOICE_OVER = u8"\ue91f";
+	constexpr char const* REDEEM = u8"\ue8b1";
+	constexpr char const* REDO = u8"\ue15a";
+	constexpr char const* REFRESH = u8"\ue5d5";
+	constexpr char const* REMOVE = u8"\ue15b";
+	constexpr char const* REMOVE_CIRCLE = u8"\ue15c";
+	constexpr char const* REMOVE_CIRCLE_OUTLINE = u8"\ue15d";
+	constexpr char const* REMOVE_FROM_QUEUE = u8"\ue067";
+	constexpr char const* REMOVE_RED_EYE = u8"\ue417";
+	constexpr char const* REMOVE_SHOPPING_CART = u8"\ue928";
+	constexpr char const* REORDER = u8"\ue8fe";
+	constexpr char const* REPEAT = u8"\ue040";
+	constexpr char const* REPEAT_ONE = u8"\ue041";
+	constexpr char const* REPLAY = u8"\ue042";
+	constexpr char const* REPLAY_10 = u8"\ue059";
+	constexpr char const* REPLAY_30 = u8"\ue05a";
+	constexpr char const* REPLAY_5 = u8"\ue05b";
+	constexpr char const* REPLY = u8"\ue15e";
+	constexpr char const* REPLY_ALL = u8"\ue15f";
+	constexpr char const* REPORT = u8"\ue160";
+	constexpr char const* REPORT_PROBLEM = u8"\ue8b2";
+	constexpr char const* RESTAURANT = u8"\ue56c";
+	constexpr char const* RESTAURANT_MENU = u8"\ue561";
+	constexpr char const* RESTORE = u8"\ue8b3";
+	constexpr char const* RESTORE_PAGE = u8"\ue929";
+	constexpr char const* RING_VOLUME = u8"\ue0d1";
+	constexpr char const* ROOM = u8"\ue8b4";
+	constexpr char const* ROOM_SERVICE = u8"\ueb49";
+	constexpr char const* ROTATE_90_DEGREES_CCW = u8"\ue418";
+	constexpr char const* ROTATE_LEFT = u8"\ue419";
+	constexpr char const* ROTATE_RIGHT = u8"\ue41a";
+	constexpr char const* ROUNDED_CORNER = u8"\ue920";
+	constexpr char const* ROUTER = u8"\ue328";
+	constexpr char const* ROWING = u8"\ue921";
+	constexpr char const* RSS_FEED = u8"\ue0e5";
+	constexpr char const* RV_HOOKUP = u8"\ue642";
+	constexpr char const* SATELLITE = u8"\ue562";
+	constexpr char const* SAVE = u8"\ue161";
+	constexpr char const* SCANNER = u8"\ue329";
+	constexpr char const* SCHEDULE = u8"\ue8b5";
+	constexpr char const* SCHOOL = u8"\ue80c";
+	constexpr char const* SCREEN_LOCK_LANDSCAPE = u8"\ue1be";
+	constexpr char const* SCREEN_LOCK_PORTRAIT = u8"\ue1bf";
+	constexpr char const* SCREEN_LOCK_ROTATION = u8"\ue1c0";
+	constexpr char const* SCREEN_ROTATION = u8"\ue1c1";
+	constexpr char const* SCREEN_SHARE = u8"\ue0e2";
+	constexpr char const* SD_CARD = u8"\ue623";
+	constexpr char const* SD_STORAGE = u8"\ue1c2";
+	constexpr char const* SEARCH = u8"\ue8b6";
+	constexpr char const* SECURITY = u8"\ue32a";
+	constexpr char const* SELECT_ALL = u8"\ue162";
+	constexpr char const* SEND = u8"\ue163";
+	constexpr char const* SENTIMENT_DISSATISFIED = u8"\ue811";
+	constexpr char const* SENTIMENT_NEUTRAL = u8"\ue812";
+	constexpr char const* SENTIMENT_SATISFIED = u8"\ue813";
+	constexpr char const* SENTIMENT_VERY_DISSATISFIED = u8"\ue814";
+	constexpr char const* SENTIMENT_VERY_SATISFIED = u8"\ue815";
+	constexpr char const* SETTINGS = u8"\ue8b8";
+	constexpr char const* SETTINGS_APPLICATIONS = u8"\ue8b9";
+	constexpr char const* SETTINGS_BACKUP_RESTORE = u8"\ue8ba";
+	constexpr char const* SETTINGS_BLUETOOTH = u8"\ue8bb";
+	constexpr char const* SETTINGS_BRIGHTNESS = u8"\ue8bd";
+	constexpr char const* SETTINGS_CELL = u8"\ue8bc";
+	constexpr char const* SETTINGS_ETHERNET = u8"\ue8be";
+	constexpr char const* SETTINGS_INPUT_ANTENNA = u8"\ue8bf";
+	constexpr char const* SETTINGS_INPUT_COMPONENT = u8"\ue8c0";
+	constexpr char const* SETTINGS_INPUT_COMPOSITE = u8"\ue8c1";
+	constexpr char const* SETTINGS_INPUT_HDMI = u8"\ue8c2";
+	constexpr char const* SETTINGS_INPUT_SVIDEO = u8"\ue8c3";
+	constexpr char const* SETTINGS_OVERSCAN = u8"\ue8c4";
+	constexpr char const* SETTINGS_PHONE = u8"\ue8c5";
+	constexpr char const* SETTINGS_POWER = u8"\ue8c6";
+	constexpr char const* SETTINGS_REMOTE = u8"\ue8c7";
+	constexpr char const* SETTINGS_SYSTEM_DAYDREAM = u8"\ue1c3";
+	constexpr char const* SETTINGS_VOICE = u8"\ue8c8";
+	constexpr char const* SHARE = u8"\ue80d";
+	constexpr char const* SHOP = u8"\ue8c9";
+	constexpr char const* SHOP_TWO = u8"\ue8ca";
+	constexpr char const* SHOPPING_BASKET = u8"\ue8cb";
+	constexpr char const* SHOPPING_CART = u8"\ue8cc";
+	constexpr char const* SHORT_TEXT = u8"\ue261";
+	constexpr char const* SHOW_CHART = u8"\ue6e1";
+	constexpr char const* SHUFFLE = u8"\ue043";
+	constexpr char const* SIGNAL_CELLULAR_4_BAR = u8"\ue1c8";
+	constexpr char const* SIGNAL_CELLULAR_CONNECTED_NO_INTERNET_4_BAR = u8"\ue1cd";
+	constexpr char const* SIGNAL_CELLULAR_NO_SIM = u8"\ue1ce";
+	constexpr char const* SIGNAL_CELLULAR_NULL = u8"\ue1cf";
+	constexpr char const* SIGNAL_CELLULAR_OFF = u8"\ue1d0";
+	constexpr char const* SIGNAL_WIFI_4_BAR = u8"\ue1d8";
+	constexpr char const* SIGNAL_WIFI_4_BAR_LOCK = u8"\ue1d9";
+	constexpr char const* SIGNAL_WIFI_OFF = u8"\ue1da";
+	constexpr char const* SIM_CARD = u8"\ue32b";
+	constexpr char const* SIM_CARD_ALERT = u8"\ue624";
+	constexpr char const* SKIP_NEXT = u8"\ue044";
+	constexpr char const* SKIP_PREVIOUS = u8"\ue045";
+	constexpr char const* SLIDESHOW = u8"\ue41b";
+	constexpr char const* SLOW_MOTION_VIDEO = u8"\ue068";
+	constexpr char const* SMARTPHONE = u8"\ue32c";
+	constexpr char const* SMOKE_FREE = u8"\ueb4a";
+	constexpr char const* SMOKING_ROOMS = u8"\ueb4b";
+	constexpr char const* SMS = u8"\ue625";
+	constexpr char const* SMS_FAILED = u8"\ue626";
+	constexpr char const* SNOOZE = u8"\ue046";
+	constexpr char const* SORT = u8"\ue164";
+	constexpr char const* SORT_BY_ALPHA = u8"\ue053";
+	constexpr char const* SPA = u8"\ueb4c";
+	constexpr char const* SPACE_BAR = u8"\ue256";
+	constexpr char const* SPEAKER = u8"\ue32d";
+	constexpr char const* SPEAKER_GROUP = u8"\ue32e";
+	constexpr char const* SPEAKER_NOTES = u8"\ue8cd";
+	constexpr char const* SPEAKER_NOTES_OFF = u8"\ue92a";
+	constexpr char const* SPEAKER_PHONE = u8"\ue0d2";
+	constexpr char const* SPELLCHECK = u8"\ue8ce";
+	constexpr char const* STAR = u8"\ue838";
+	constexpr char const* STAR_BORDER = u8"\ue83a";
+	constexpr char const* STAR_HALF = u8"\ue839";
+	constexpr char const* STARS = u8"\ue8d0";
+	constexpr char const* STAY_CURRENT_LANDSCAPE = u8"\ue0d3";
+	constexpr char const* STAY_CURRENT_PORTRAIT = u8"\ue0d4";
+	constexpr char const* STAY_PRIMARY_LANDSCAPE = u8"\ue0d5";
+	constexpr char const* STAY_PRIMARY_PORTRAIT = u8"\ue0d6";
+	constexpr char const* STOP = u8"\ue047";
+	constexpr char const* STOP_SCREEN_SHARE = u8"\ue0e3";
+	constexpr char const* STORAGE = u8"\ue1db";
+	constexpr char const* STORE = u8"\ue8d1";
+	constexpr char const* STORE_MALL_DIRECTORY = u8"\ue563";
+	constexpr char const* STRAIGHTEN = u8"\ue41c";
+	constexpr char const* STREETVIEW = u8"\ue56e";
+	constexpr char const* STRIKETHROUGH_S = u8"\ue257";
+	constexpr char const* STYLE = u8"\ue41d";
+	constexpr char const* SUBDIRECTORY_ARROW_LEFT = u8"\ue5d9";
+	constexpr char const* SUBDIRECTORY_ARROW_RIGHT = u8"\ue5da";
+	constexpr char const* SUBJECT = u8"\ue8d2";
+	constexpr char const* SUBSCRIPTIONS = u8"\ue064";
+	constexpr char const* SUBTITLES = u8"\ue048";
+	constexpr char const* SUBWAY = u8"\ue56f";
+	constexpr char const* SUPERVISOR_ACCOUNT = u8"\ue8d3";
+	constexpr char const* SURROUND_SOUND = u8"\ue049";
+	constexpr char const* SWAP_CALLS = u8"\ue0d7";
+	constexpr char const* SWAP_HORIZ = u8"\ue8d4";
+	constexpr char const* SWAP_VERT = u8"\ue8d5";
+	constexpr char const* SWAP_VERTICAL_CIRCLE = u8"\ue8d6";
+	constexpr char const* SWITCH_CAMERA = u8"\ue41e";
+	constexpr char const* SWITCH_VIDEO = u8"\ue41f";
+	constexpr char const* SYNC = u8"\ue627";
+	constexpr char const* SYNC_DISABLED = u8"\ue628";
+	constexpr char const* SYNC_PROBLEM = u8"\ue629";
+	constexpr char const* SYSTEM_UPDATE = u8"\ue62a";
+	constexpr char const* SYSTEM_UPDATE_ALT = u8"\ue8d7";
+	constexpr char const* TAB = u8"\ue8d8";
+	constexpr char const* TAB_UNSELECTED = u8"\ue8d9";
+	constexpr char const* TABLET = u8"\ue32f";
+	constexpr char const* TABLET_ANDROID = u8"\ue330";
+	constexpr char const* TABLET_MAC = u8"\ue331";
+	constexpr char const* TAG_FACES = u8"\ue420";
+	constexpr char const* TAP_AND_PLAY = u8"\ue62b";
+	constexpr char const* TERRAIN = u8"\ue564";
+	constexpr char const* TEXT_FIELDS = u8"\ue262";
+	constexpr char const* TEXT_FORMAT = u8"\ue165";
+	constexpr char const* TEXTSMS = u8"\ue0d8";
+	constexpr char const* TEXTURE = u8"\ue421";
+	constexpr char const* THEATERS = u8"\ue8da";
+	constexpr char const* THUMB_DOWN = u8"\ue8db";
+	constexpr char const* THUMB_UP = u8"\ue8dc";
+	constexpr char const* THUMBS_UP_DOWN = u8"\ue8dd";
+	constexpr char const* TIME_TO_LEAVE = u8"\ue62c";
+	constexpr char const* TIMELAPSE = u8"\ue422";
+	constexpr char const* TIMELINE = u8"\ue922";
+	constexpr char const* TIMER = u8"\ue425";
+	constexpr char const* TIMER_10 = u8"\ue423";
+	constexpr char const* TIMER_3 = u8"\ue424";
+	constexpr char const* TIMER_OFF = u8"\ue426";
+	constexpr char const* TITLE = u8"\ue264";
+	constexpr char const* TOC = u8"\ue8de";
+	constexpr char const* TODAY = u8"\ue8df";
+	constexpr char const* TOLL = u8"\ue8e0";
+	constexpr char const* TONALITY = u8"\ue427";
+	constexpr char const* TOUCH_APP = u8"\ue913";
+	constexpr char const* TOYS = u8"\ue332";
+	constexpr char const* TRACK_CHANGES = u8"\ue8e1";
+	constexpr char const* TRAFFIC = u8"\ue565";
+	constexpr char const* TRAIN = u8"\ue570";
+	constexpr char const* TRAM = u8"\ue571";
+	constexpr char const* TRANSFER_WITHIN_A_STATION = u8"\ue572";
+	constexpr char const* TRANSFORM = u8"\ue428";
+	constexpr char const* TRANSLATE = u8"\ue8e2";
+	constexpr char const* TRENDING_DOWN = u8"\ue8e3";
+	constexpr char const* TRENDING_FLAT = u8"\ue8e4";
+	constexpr char const* TRENDING_UP = u8"\ue8e5";
+	constexpr char const* TUNE = u8"\ue429";
+	constexpr char const* TURNED_IN = u8"\ue8e6";
+	constexpr char const* TURNED_IN_NOT = u8"\ue8e7";
+	constexpr char const* TV = u8"\ue333";
+	constexpr char const* UNARCHIVE = u8"\ue169";
+	constexpr char const* UNDO = u8"\ue166";
+	constexpr char const* UNFOLD_LESS = u8"\ue5d6";
+	constexpr char const* UNFOLD_MORE = u8"\ue5d7";
+	constexpr char const* UPDATE = u8"\ue923";
+	constexpr char const* USB = u8"\ue1e0";
+	constexpr char const* VERIFIED_USER = u8"\ue8e8";
+	constexpr char const* VERTICAL_ALIGN_BOTTOM = u8"\ue258";
+	constexpr char const* VERTICAL_ALIGN_CENTER = u8"\ue259";
+	constexpr char const* VERTICAL_ALIGN_TOP = u8"\ue25a";
+	constexpr char const* VIBRATION = u8"\ue62d";
+	constexpr char const* VIDEO_CALL = u8"\ue070";
+	constexpr char const* VIDEO_LABEL = u8"\ue071";
+	constexpr char const* VIDEO_LIBRARY = u8"\ue04a";
+	constexpr char const* VIDEOCAM = u8"\ue04b";
+	constexpr char const* VIDEOCAM_OFF = u8"\ue04c";
+	constexpr char const* VIDEOGAME_ASSET = u8"\ue338";
+	constexpr char const* VIEW_AGENDA = u8"\ue8e9";
+	constexpr char const* VIEW_ARRAY = u8"\ue8ea";
+	constexpr char const* VIEW_CAROUSEL = u8"\ue8eb";
+	constexpr char const* VIEW_COLUMN = u8"\ue8ec";
+	constexpr char const* VIEW_COMFY = u8"\ue42a";
+	constexpr char const* VIEW_COMPACT = u8"\ue42b";
+	constexpr char const* VIEW_DAY = u8"\ue8ed";
+	constexpr char const* VIEW_HEADLINE = u8"\ue8ee";
+	constexpr char const* VIEW_LIST = u8"\ue8ef";
+	constexpr char const* VIEW_MODULE = u8"\ue8f0";
+	constexpr char const* VIEW_QUILT = u8"\ue8f1";
+	constexpr char const* VIEW_STREAM = u8"\ue8f2";
+	constexpr char const* VIEW_WEEK = u8"\ue8f3";
+	constexpr char const* VIGNETTE = u8"\ue435";
+	constexpr char const* VISIBILITY = u8"\ue8f4";
+	constexpr char const* VISIBILITY_OFF = u8"\ue8f5";
+	constexpr char const* VOICE_CHAT = u8"\ue62e";
+	constexpr char const* VOICEMAIL = u8"\ue0d9";
+	constexpr char const* VOLUME_DOWN = u8"\ue04d";
+	constexpr char const* VOLUME_MUTE = u8"\ue04e";
+	constexpr char const* VOLUME_OFF = u8"\ue04f";
+	constexpr char const* VOLUME_UP = u8"\ue050";
+	constexpr char const* VPN_KEY = u8"\ue0da";
+	constexpr char const* VPN_LOCK = u8"\ue62f";
+	constexpr char const* WALLPAPER = u8"\ue1bc";
+	constexpr char const* WARNING = u8"\ue002";
+	constexpr char const* WATCH = u8"\ue334";
+	constexpr char const* WATCH_LATER = u8"\ue924";
+	constexpr char const* WB_AUTO = u8"\ue42c";
+	constexpr char const* WB_CLOUDY = u8"\ue42d";
+	constexpr char const* WB_INCANDESCENT = u8"\ue42e";
+	constexpr char const* WB_IRIDESCENT = u8"\ue436";
+	constexpr char const* WB_SUNNY = u8"\ue430";
+	constexpr char const* WC = u8"\ue63d";
+	constexpr char const* WEB = u8"\ue051";
+	constexpr char const* WEB_ASSET = u8"\ue069";
+	constexpr char const* WEEKEND = u8"\ue16b";
+	constexpr char const* WHATSHOT = u8"\ue80e";
+	constexpr char const* WIDGETS = u8"\ue1bd";
+	constexpr char const* WIFI = u8"\ue63e";
+	constexpr char const* WIFI_LOCK = u8"\ue1e1";
+	constexpr char const* WIFI_TETHERING = u8"\ue1e2";
+	constexpr char const* WORK = u8"\ue8f9";
+	constexpr char const* WRAP_TEXT = u8"\ue25b";
+	constexpr char const* YOUTUBE_SEARCHED_FOR = u8"\ue8fa";
+	constexpr char const* ZOOM_IN = u8"\ue8ff";
+	constexpr char const* ZOOM_OUT = u8"\ue900";
+	constexpr char const* ZOOM_OUT_MAP = u8"\ue56b";
 }

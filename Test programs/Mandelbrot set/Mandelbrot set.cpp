@@ -4,14 +4,14 @@
 
 void MandelbrotRenderer::render()
 {
-	while (true)
+	while (m_viewer->getIsRunning())
 	{
 		m_needsRendering = false;
 		for (uint32 x = 0; x < WIDTH; x++)
 		{
 			for (uint32 y = m_partIndex * HEIGHT_PER_THREAD; y < m_partIndex * HEIGHT_PER_THREAD + HEIGHT_PER_THREAD; y++)
 			{
-				if (!m_viewer->getPixels())
+				if (!m_viewer->getPixels() || !m_viewer->getIsRunning())
 				{
 					return;
 				}
@@ -59,6 +59,11 @@ void MandelbrotRenderer::render()
 		m_viewer->invalidateRectangle(m_image->getBounds());
 
 		//invalidate();
+
+		if (!m_viewer->getIsRunning())
+		{
+			return;
+		}
 
 		if (!m_needsRendering)
 		{

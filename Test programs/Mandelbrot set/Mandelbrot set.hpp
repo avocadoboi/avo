@@ -27,18 +27,20 @@ private:
 	bool m_needsRendering;
 	std::condition_variable m_needsRenderingConditionVariable;
 	std::mutex m_needsRenderingMutex;
+	std::thread m_renderingThread;
 
 	void render();
 
 public:
 	MandelbrotRenderer(MandelbrotViewer* p_app, uint32 p_partIndex) :
-		m_viewer(p_app), m_partIndex(p_partIndex)
+		m_viewer(p_app), m_partIndex(p_partIndex), m_image(0), m_needsRendering(false)
 	{
-		std::thread thread = std::thread(&MandelbrotRenderer::render, this);
-		thread.detach();
+		m_renderingThread = std::thread(&MandelbrotRenderer::render, this);
 	}
 	~MandelbrotRenderer()
 	{
+		startRender();
+		m_renderingThread.join();
 		if (m_image)
 		{
 			m_image->forget();
@@ -67,7 +69,7 @@ public:
 //------------------------------
 
 class MandelbrotViewer :
-	public AvoGUI::GUI
+	public AvoGUI::Gui
 {
 private:
 	std::vector<MandelbrotRenderer*> m_renderers;
@@ -127,6 +129,11 @@ public:
 		{
 			m_renderers[a]->startRender();
 		}
+	}
+
+	bool getIsRunning()
+	{
+		return m_isRunning;
 	}
 
 	double getScale()

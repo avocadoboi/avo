@@ -845,7 +845,7 @@ namespace AvoGUI
 			ModifierKeyFlags modifierFlags = ModifierKeyFlags::None;
 
 			if (p_keyState & MK_CONTROL)
-				modifierFlags |= ModifierKeyFlags::Ctrl;
+				modifierFlags |= ModifierKeyFlags::Control;
 			if (p_keyState & MK_SHIFT)
 				modifierFlags |= ModifierKeyFlags::Shift;
 			if (p_keyState & MK_LBUTTON)
@@ -1188,7 +1188,6 @@ namespace AvoGUI
 				TranslateMessage(&message);
 				DispatchMessage(&message);
 			}
-
 		}
 
 	public:
@@ -2035,6 +2034,19 @@ namespace AvoGUI
 				m_gui->handleWindowCreate(event);
 				m_gui->includeAnimationThread();
 
+				// LCS_WINDOWS_COLOR_SPACE is the default colorspace, but we want the background erase 
+				// color to be consistent with the colors of Direct2D and other potential graphics APIs 
+				// so it is changed to the sRGB color space.
+				LOGCOLORSPACEA colorSpaceSettings;
+				colorSpaceSettings.lcsSignature = LCS_SIGNATURE;
+				colorSpaceSettings.lcsVersion = 0x400;
+				colorSpaceSettings.lcsSize = sizeof(colorSpaceSettings);
+				colorSpaceSettings.lcsCSType = LCS_sRGB;
+				colorSpaceSettings.lcsIntent = LCS_GM_ABS_COLORIMETRIC;
+
+				HCOLORSPACE colorSpace = CreateColorSpaceA(&colorSpaceSettings);
+				SetColorSpace(GetDC(m_windowHandle), colorSpace);
+
 				return 0;
 			}
 			case WM_ACTIVATE:
@@ -2554,6 +2566,7 @@ namespace AvoGUI
 				if (m_gui->getWillClose())
 				{
 					m_isOpen = false;
+					DeleteColorSpace(GetColorSpace(GetDC(m_windowHandle)));
 					DestroyWindow(m_windowHandle);
 				}
 				else
@@ -4156,6 +4169,8 @@ namespace AvoGUI
 		ID2D1Bitmap1* m_targetWindowBitmap;
 		bool m_isVsyncEnabled;
 
+		std::stack<bool> m_clipTypeStack;
+
 		ID2D1SolidColorBrush* m_solidColorBrush;
 		ID2D1Brush* m_currentBrush;
 		float m_brushOpacity;
@@ -4432,6 +4447,7 @@ namespace AvoGUI
 			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_SIZE_ROBOTO_REGULAR));
 			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_MEDIUM, FONT_DATA_SIZE_ROBOTO_MEDIUM));
 			m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_BOLD, FONT_DATA_SIZE_ROBOTO_BOLD));
+			m_fontData.push_back(new FontData(FONT_DATA_MATERIAL_ICONS, FONT_DATA_SIZE_MATERIAL_ICONS));
 			updateFontCollection();
 
 			// Just for debugging...
@@ -4573,13 +4589,11 @@ namespace AvoGUI
 		{
 			if (m_swapChain)
 			{
-				D2D1_COLOR_F direct2DColor = D2D1::ConvertColorSpace(D2D1_COLOR_SPACE::D2D1_COLOR_SPACE_SRGB, D2D1_COLOR_SPACE::D2D1_COLOR_SPACE_SCRGB, D2D1::ColorF(p_color.red, p_color.green, p_color.blue, p_color.alpha));
-
 				DXGI_RGBA dxgiColor;
-				dxgiColor.r = direct2DColor.r;
-				dxgiColor.g = direct2DColor.g;
-				dxgiColor.b = direct2DColor.b;
-				dxgiColor.a = direct2DColor.a;
+				dxgiColor.r = p_color.red;
+				dxgiColor.g = p_color.green;
+				dxgiColor.b = p_color.blue;
+				dxgiColor.a = p_color.alpha;
 
 				m_swapChain->SetBackgroundColor(&dxgiColor);
 			}
@@ -4591,9 +4605,7 @@ namespace AvoGUI
 				DXGI_RGBA dxgiColor;
 				m_swapChain->GetBackgroundColor(&dxgiColor);
 
-				D2D1_COLOR_F direct2DColor = D2D1::ConvertColorSpace(D2D1_COLOR_SPACE::D2D1_COLOR_SPACE_SCRGB, D2D1_COLOR_SPACE::D2D1_COLOR_SPACE_SRGB, D2D1::ColorF(dxgiColor.r, dxgiColor.g, dxgiColor.b, dxgiColor.a));
-
-				return Color(direct2DColor.r, direct2DColor.g, direct2DColor.b, direct2DColor.a);
+				return Color(dxgiColor.r, dxgiColor.g, dxgiColor.b, dxgiColor.a);
 			}
 			return Color(0.5f);
 		}
@@ -5459,6 +5471,7 @@ namespace AvoGUI
 					D2D1::IdentityMatrix(), p_opacity, 0, D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND | D2D1_LAYER_OPTIONS1_IGNORE_ALPHA // Improves performance :^)
 				), 0
 			);
+			m_clipTypeStack.push(true);
 		}
 
 		//------------------------------
@@ -5496,24 +5509,37 @@ namespace AvoGUI
 					D2D1::IdentityMatrix(), p_opacity, 0, D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND | D2D1_LAYER_OPTIONS1_IGNORE_ALPHA // Improves performance :^)
 				), 0
 			);
+			m_clipTypeStack.push(true);
 
 			geometry->Release();
 		}
 		void popClipShape() override
 		{
-			m_context->PopLayer();
+			if (m_clipTypeStack.size())
+			{
+				if (m_clipTypeStack.top())
+				{
+					m_context->PopLayer();
+				}
+				else
+				{
+					m_context->PopAxisAlignedClip();
+				}
+				m_clipTypeStack.pop();
+			}
 		}
 
 		//------------------------------
 
 		void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_opacity) override
 		{
-			if (p_opacity > 0.99607843137) // 254/255
+			if (p_opacity > 0.99607843137f) // 254/255
 			{
 				m_context->PushAxisAlignedClip(
 					D2D1::RectF(p_left, p_top, p_right, p_bottom), 
 					D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE
 				);
+				m_clipTypeStack.push(false);
 			}
 			else
 			{
@@ -5526,6 +5552,7 @@ namespace AvoGUI
 					), 0
 				);
 				geometry->Release();
+				m_clipTypeStack.push(true);
 			}
 		}
 		void pushClipRectangle(Rectangle<float> const& p_rectangle, float p_opacity) override
@@ -5551,6 +5578,7 @@ namespace AvoGUI
 				), 0
 			);
 			geometry->Release();
+			m_clipTypeStack.push(true);
 		}
 		void pushClipRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners, float p_opacity)
 		{
@@ -5559,10 +5587,6 @@ namespace AvoGUI
 		void pushClipRectangle(Point<float> const& p_size, RectangleCorners const& p_corners, float p_opacity)
 		{
 			pushClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_corners, p_opacity);
-		}
-		void popClipRectangle() override
-		{
-			m_context->PopAxisAlignedClip();
 		}
 
 		//------------------------------
@@ -5587,6 +5611,7 @@ namespace AvoGUI
 			);
 			layer->Release();
 			geometry->Release();
+			m_clipTypeStack.push(true);
 		}
 		void pushRoundedClipRectangle(Rectangle<float> const& p_rectangle, float p_radius, float p_opacity) override
 		{
@@ -6261,7 +6286,7 @@ namespace AvoGUI
 				D2D1::RectF(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom),
 				m_currentBrush, D2D1_DRAW_TEXT_OPTIONS::D2D1_DRAW_TEXT_OPTIONS_NONE
 			);
-
+			//m_context->Reset
 			delete[] wideString;
 		}
 		void drawText(char const* p_string, float p_left, float p_top, float p_right, float p_bottom) override
@@ -6721,14 +6746,21 @@ namespace AvoGUI
 
 	void Gui::handleGlobalMouseMove(MouseEvent const& p_event)
 	{
+		// This is false if it's called from a view just to send mouse leave and mouse enter events,
+		// if a view has been moved from the mouse for example.
+		bool wasMouseReallyMoved = p_event.movementX || p_event.movementY;
+
 		if (m_pressedMouseEventListeners.size())
 		{
-			MouseEvent mouseEvent = p_event;
-			for (auto pressedView : m_pressedMouseEventListeners)
+			if (wasMouseReallyMoved)
 			{
-				mouseEvent.x = p_event.x - pressedView->getAbsoluteLeft();
-				mouseEvent.y = p_event.y - pressedView->getAbsoluteTop();
-				pressedView->handleMouseMove(mouseEvent);
+				MouseEvent mouseEvent = p_event;
+				for (auto pressedView : m_pressedMouseEventListeners)
+				{
+					mouseEvent.x = p_event.x - pressedView->getAbsoluteLeft();
+					mouseEvent.y = p_event.y - pressedView->getAbsoluteTop();
+					pressedView->handleMouseMove(mouseEvent);
+				}
 			}
 		}
 		else
@@ -6747,7 +6779,10 @@ namespace AvoGUI
 				{
 					if (((View*)this)->m_isMouseHovering)
 					{
-						handleMouseMove(p_event);
+						if (wasMouseReallyMoved)
+						{
+							handleMouseMove(p_event);
+						}
 					}
 					else
 					{
@@ -6800,7 +6835,7 @@ namespace AvoGUI
 
 							if (child->m_isMouseHovering)
 							{
-								if (child->getAreMouseEventsEnabled())
+								if (child->getAreMouseEventsEnabled() && wasMouseReallyMoved)
 								{
 									child->handleMouseMove(mouseEvent);
 								}
@@ -6961,7 +6996,7 @@ namespace AvoGUI
 			}
 		}
 
-		if (m_globalMouseEventListeners.size())
+		if (m_globalMouseEventListeners.size() && wasMouseReallyMoved)
 		{
 			for (auto listener : m_globalMouseEventListeners)
 			{
@@ -7244,7 +7279,6 @@ namespace AvoGUI
 			//includeAnimationThread();
 
 			excludeAnimationThread(); // State needs to be static during drawing.
-			Point<uint32> size(m_drawingContext->getSize());
 			for (auto const& targetRectangle : invalidRectangles)
 			{
 				View* currentContainer = this;
@@ -7295,14 +7329,7 @@ namespace AvoGUI
 								{
 									view->drawOverlay(m_drawingContext, targetRectangle);
 
-									if (view->getHasCornerStyles() || view->m_opacity <= 0.99607843137) // 254/255
-									{
-										m_drawingContext->popClipShape();
-									}
-									else
-									{
-										m_drawingContext->popClipRectangle();
-									}
+									m_drawingContext->popClipShape();
 
 									m_drawingContext->moveOrigin(-view->getTopLeft());
 								}
@@ -7324,14 +7351,7 @@ namespace AvoGUI
 
 						currentContainer->drawOverlay(m_drawingContext, targetRectangle);
 
-						if (currentContainer->getHasCornerStyles() || currentContainer->m_opacity <= 0.99607843137) // 254/255
-						{
-							m_drawingContext->popClipShape();
-						}
-						else
-						{
-							m_drawingContext->popClipRectangle();
-						}
+						m_drawingContext->popClipShape();
 
 						m_drawingContext->moveOrigin(-currentContainer->getTopLeft());
 
@@ -7341,7 +7361,7 @@ namespace AvoGUI
 				}
 
 				drawOverlay(m_drawingContext, targetRectangle);
-				m_drawingContext->popClipRectangle();
+				m_drawingContext->popClipShape();
 			}
 			includeAnimationThread();
 			m_drawingContext->finishDrawing(invalidRectangles);
