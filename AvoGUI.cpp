@@ -324,6 +324,10 @@ namespace AvoGUI
 	}
 	View::~View()
 	{
+		if (m_id)
+		{
+			m_gui->m_viewsById.erase(m_id);
+		}
 		m_theme->forget();
 		if (m_shadowImage)
 		{
@@ -7419,10 +7423,6 @@ namespace AvoGUI
 			includeAnimationThread();
 			m_drawingContext->finishDrawing(invalidRectangles);
 		}
-		//else
-		//{
-		//	m_drawingContext->finishDrawing(std::vector<Rectangle<float>>());
-		//}
 	}
 
 	//------------------------------

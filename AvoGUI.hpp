@@ -8446,20 +8446,32 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 			Finds the view that has a certain ID previously set by you.
+			Returns 0 if no view has that ID.
 		*/
 		template<typename T>
 		View* getViewById(T p_id)
 		{
-			return m_viewsById[(uint64)p_id];
+			auto iterator = m_viewsById.find((uint64)p_id);
+			if (iterator == m_viewsById.end())
+			{
+				return 0;
+			}
+			return *iterator;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 			Finds the view that has a certain ID previously set by you.
+			Returns 0 if no view has that ID.
 		*/
 		template<typename T, typename U>
 		T* getViewById(U p_id)
 		{
-			return (T*)m_viewsById[(uint64)p_id];
+			auto iterator = m_viewsById.find((uint64)p_id);
+			if (iterator == m_viewsById.end())
+			{
+				return 0;
+			}
+			return (T*)*iterator;
 		}
 
 		//------------------------------
