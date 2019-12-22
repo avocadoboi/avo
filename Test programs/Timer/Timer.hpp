@@ -11,13 +11,12 @@
 class TimerApp : public AvoGUI::Gui
 {
 private:
-	MainScreen* m_mainScreen;
-	TimeoutScreen* m_timeoutScreen;
-	AvoGUI::Tooltip* m_tooltip;
+	MainScreen* m_mainScreen = 0;
+	TimeoutScreen* m_timeoutScreen = 0;
+	AvoGUI::Tooltip* m_tooltip = 0;
 
 public:
-	TimerApp() : 
-		m_mainScreen(0), m_timeoutScreen(0)
+	TimerApp()
 	{
 		create("The best timer that exists", 2.f*(TIMER_SPIRAL_RADIUS + TIMER_SPIRAL_PADDING), 2.f*(TIMER_SPIRAL_RADIUS + TIMER_SPIRAL_PADDING), AvoGUI::WindowStyleFlags::DefaultNoResize);
 		waitForFinish();
@@ -34,6 +33,8 @@ public:
 
 	void createContent() override
 	{
+		m_tooltip = new AvoGUI::Tooltip(this);
+
 		m_mainScreen = new MainScreen(this);
 		m_timeoutScreen = new TimeoutScreen(this);
 		m_timeoutScreen->setIsVisible(false);

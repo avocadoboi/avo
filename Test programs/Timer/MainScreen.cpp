@@ -1,14 +1,56 @@
 #include "MainScreen.hpp"
 #include "Timer.hpp"
 
+#include <Windows.h>
+#pragma comment(lib, "winmm")
+#undef min
+#undef max
+
+//------------------------------
+// class SoundOpener
+//------------------------------
+
+void SoundOpener::playSound()
+{
+	if (m_soundFilePath.size())
+	{
+		if (getIsSoundFileMp3())
+		{
+			mciSendString(("open \"" + m_soundFilePath + "\" type mpegvideo alias mp3").c_str(), 0, 0, 0);
+			mciSendString("play mp3 from 0 repeat", 0, 0, 0);
+		}
+		else
+		{
+			PlaySoundA(m_soundFilePath.c_str(), GetModuleHandle(0), SND_LOOP | SND_ASYNC | SND_FILENAME);
+		}
+	}
+}
+
+void SoundOpener::stopSound()
+{
+	if (m_soundFilePath.size())
+	{
+		if (getIsSoundFileMp3())
+		{
+			mciSendString("stop mp3", 0, 0, 0);
+			mciSendString("close mp3", 0, 0, 0);
+		}
+		else
+		{
+			PlaySoundA(0, GetModuleHandle(0), 0);
+		}
+	}
+}
+
+//------------------------------
+// class MainScreen
+//------------------------------
+
 MainScreen::MainScreen(TimerApp* p_timerApp) :
 	View(p_timerApp, p_timerApp->getBounds()),
 	m_willRestart(false),
-	m_spiralVertices(0), m_numberOfSpiralVerticesInTotal(0),
-	m_startAngle(0.f), m_currentAngle(0.f), m_isDraggingSpiral(false), m_hasDraggedSpiral(false),
-	m_text_timeLeft(0), m_button_restart(0),
-	m_textField_hours(0), m_textField_minutes(0), m_textField_seconds(0),
-	m_soundOpener(0)
+	m_numberOfSpiralVerticesInTotal(0),
+	m_startAngle(0.f), m_currentAngle(0.f), m_isDraggingSpiral(false), m_hasDraggedSpiral(false)
 {
 	enableMouseEvents();
 	getGui()->addGlobalKeyboardListener(this);
@@ -35,7 +77,7 @@ MainScreen::MainScreen(TimerApp* p_timerApp) :
 	textFieldContainer->enableMouseEvents();
 
 	m_textField_hours = new AvoGUI::TextField(textFieldContainer, AvoGUI::TextField::Type::Outlined, "", TIMER_TEXT_FIELD_WIDTH);
-	m_textField_hours->setSuffixString(" 1");
+	m_textField_hours->setSuffixString(" H");
 	m_textField_hours->setTextAlign(AvoGUI::TextAlign::Right);
 	m_textField_hours->setString("1");
 
@@ -81,16 +123,18 @@ MainScreen::MainScreen(TimerApp* p_timerApp) :
 
 	updateTimeLeftText();
 
-	m_button_restart = new AvoGUI::Button(this, "", AvoGUI::Button::Emphasis::Medium);
+	m_button_restart = new AvoGUI::Button(this, MaterialIcons::REPLAY, AvoGUI::Button::Emphasis::Medium);
+	m_button_restart->getText()->setFontFamily(AvoGUI::FONT_FAMILY_MATERIAL_ICONS);
+	m_button_restart->getText()->setFontSize(18.f);
+	m_button_restart->getText()->setIsTopTrimmed(true);
+	m_button_restart->getText()->setSize(17.5f);
+	m_button_restart->getText()->setCenter(27.f * 0.5f);
 	m_button_restart->setWidth(27.f);
 	m_button_restart->setHeight(27.f);
-	AvoGUI::Image* icon = getGui()->getDrawingContext()->createImage(ICON_RESTART_PATH);
-	icon->setSize(18.f, 18.f);
-	m_button_restart->setIcon(icon);
 	m_button_restart->setCornerRadius(m_button_restart->getWidth() * 0.5f);
 	m_button_restart->setLeft(m_text_timeLeft->getRight() + 5.f);
 	m_button_restart->setCenterY(m_text_timeLeft->getCenterY());
-	m_button_restart->setTooltip(((TimerApp*)getGui())->getTooltip(), "Restart timer");
+	m_button_restart->setTooltip(getGui<TimerApp>()->getTooltip(), "Restart timer");
 	m_button_restart->addButtonListener(this);
 }
 

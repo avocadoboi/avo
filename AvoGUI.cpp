@@ -7316,8 +7316,6 @@ namespace AvoGUI
 	{
 		if (m_invalidRectangles.size())
 		{
-			m_drawingContext->beginDrawing();
-
 			m_invalidRectanglesMutex.lock();
 			std::vector<Rectangle<float>> invalidRectangles = std::move(m_invalidRectangles);
 			m_invalidRectanglesMutex.unlock();
@@ -7330,6 +7328,9 @@ namespace AvoGUI
 			//includeAnimationThread();
 
 			excludeAnimationThread(); // State needs to be static during drawing.
+
+			m_drawingContext->beginDrawing();
+
 			for (auto const& targetRectangle : invalidRectangles)
 			{
 				View* currentContainer = this;

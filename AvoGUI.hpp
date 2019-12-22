@@ -8849,7 +8849,7 @@ namespace AvoGUI
 					}
 					m_text = getGui()->getDrawingContext()->createText(p_string, getThemeValue("tooltip font size"));
 					m_text->fitSizeToText();
-					setSize(m_text->getWidth() + 1.6 * getThemeValue("tooltip font size"), m_text->getHeight() + getThemeValue("tooltip font size") * 1.f);
+					setSize(m_text->getWidth() + 1.5f * getThemeValue("tooltip font size"), m_text->getHeight() + getThemeValue("tooltip font size") * 1.5f);
 					m_text->setCenter(getWidth() * 0.5f, getHeight() * 0.5f);
 				}
 
@@ -9298,12 +9298,12 @@ namespace AvoGUI
 		};
 
 	private:
-		Text* m_text;
+		Text* m_text = 0;
 
-		Tooltip* m_tooltipView;
+		Tooltip* m_tooltipView = 0;
 		char const* m_tooltipString;
 
-		Image* m_icon;
+		Image* m_icon = 0;
 
 		float m_pressAnimationTime;
 		bool m_isPressed;
@@ -9317,7 +9317,7 @@ namespace AvoGUI
 
 		bool m_isMouseHovering;
 
-		Ripple* m_ripple;
+		Ripple* m_ripple = 0;
 
 		std::vector<ButtonListener*> m_buttonListeners;
 
@@ -9358,8 +9358,8 @@ namespace AvoGUI
 
 	public:
 		Button(View* p_parent, char const* p_text = "", Emphasis p_emphasis = Emphasis::High, bool p_isAccent = false) :
-			View(p_parent), m_text(0), m_tooltipView(0), m_tooltipString(""),
-			m_icon(0), m_pressAnimationTime(1.f), m_emphasis(p_emphasis), m_isEnabled(true),
+			View(p_parent), m_tooltipString(""),
+			m_pressAnimationTime(1.f), m_emphasis(p_emphasis), m_isEnabled(true),
 			m_colorAnimationTime(1.f)
 		{
 			setString(p_text);
@@ -9402,17 +9402,17 @@ namespace AvoGUI
 					m_icon->setCenter(sizeFactor * 38.f * 0.5f, getHeight() * 0.5f);
 
 					m_text->setLeft(38.f * sizeFactor);
-					setSize(round(m_text->getWidth()) + sizeFactor * (16.f + 38.f), round(m_text->getHeight()) + 17.f * sizeFactor);
+					setSize(round(m_text->getWidth()) + sizeFactor * (16.f + 38.f), round(m_text->getHeight()) + 20.f * sizeFactor);
 				}
 				else
 				{
 					if (m_text->getWidth() >= 32.f * sizeFactor)
 					{
-						setSize(round(m_text->getWidth()) + 32.f * sizeFactor, round(m_text->getHeight()) + 17.f * sizeFactor);
+						setSize(round(m_text->getWidth()) + 32.f * sizeFactor, round(m_text->getHeight()) + 20.f * sizeFactor);
 					}
 					else
 					{
-						setSize(64.f * sizeFactor, round(m_text->getHeight()) + 17.f * sizeFactor);
+						setSize(64.f * sizeFactor, round(m_text->getHeight()) + 20.f * sizeFactor);
 					}
 					m_text->setCenter(getCenter() - getTopLeft());
 				}

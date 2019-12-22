@@ -1,10 +1,5 @@
 #pragma once
 
-#include <Windows.h>
-#pragma comment(lib, "winmm")
-#undef min
-#undef max
-
 #include <fstream>
 
 #include "../../AvoGUI.hpp"
@@ -15,9 +10,9 @@
 class SoundOpener : public AvoGUI::View, public AvoGUI::ButtonListener
 {
 private:
-	AvoGUI::Text* m_text_sound;
-	AvoGUI::Text* m_text_currentSoundFileName;
-	AvoGUI::Button* m_button_open;
+	AvoGUI::Text* m_text_sound = 0;
+	AvoGUI::Text* m_text_currentSoundFileName = 0;
+	AvoGUI::Button* m_button_open = 0;
 
 	std::string m_soundFilePath;
 
@@ -59,8 +54,7 @@ private:
 
 public:
 	SoundOpener(AvoGUI::View* p_parent) :
-		View(p_parent),
-		m_text_sound(0), m_text_currentSoundFileName(0), m_button_open(0)
+		View(p_parent)
 	{
 		enableMouseEvents();
 
@@ -120,37 +114,9 @@ public:
 		}
 	}
 
-	void playSound()
-	{
-		if (m_soundFilePath.size())
-		{
-			if (getIsSoundFileMp3())
-			{
-				mciSendString(("open \"" + m_soundFilePath + "\" type mpegvideo alias mp3").c_str(), 0, 0, 0);
-				mciSendString("play mp3 from 0 repeat", 0, 0, 0);
-			}
-			else
-			{
-				PlaySoundA(m_soundFilePath.c_str(), GetModuleHandle(0), SND_LOOP | SND_ASYNC | SND_FILENAME);
-			}
-		}
-	}
+	void playSound();
 
-	void stopSound()
-	{
-		if (m_soundFilePath.size())
-		{
-			if (getIsSoundFileMp3())
-			{
-				mciSendString("stop mp3", 0, 0, 0);
-				mciSendString("close mp3", 0, 0, 0);
-			}
-			else
-			{
-				PlaySoundA(0, GetModuleHandle(0), 0);
-			}
-		}
-	}
+	void stopSound();
 
 	//------------------------------
 
@@ -184,21 +150,21 @@ private:
 	std::chrono::time_point<std::chrono::steady_clock> m_timeStart;
 	bool m_willRestart;
 
-	AvoGUI::Point<float>* m_spiralVertices;
+	AvoGUI::Point<float>* m_spiralVertices = 0;
 	uint32 m_numberOfSpiralVerticesInTotal;
 	float m_startAngle;
 	float m_currentAngle;
 	bool m_isDraggingSpiral;
 	bool m_hasDraggedSpiral;
 
-	AvoGUI::Text* m_text_timeLeft;
-	AvoGUI::Button* m_button_restart;
+	AvoGUI::Text* m_text_timeLeft = 0;
+	AvoGUI::Button* m_button_restart = 0;
 
-	AvoGUI::TextField* m_textField_hours;
-	AvoGUI::TextField* m_textField_minutes;
-	AvoGUI::TextField* m_textField_seconds;
+	AvoGUI::TextField* m_textField_hours = 0;
+	AvoGUI::TextField* m_textField_minutes = 0;
+	AvoGUI::TextField* m_textField_seconds = 0;
 
-	SoundOpener* m_soundOpener;
+	SoundOpener* m_soundOpener = 0;
 
 	//------------------------------
 
