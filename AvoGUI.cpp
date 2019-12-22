@@ -304,11 +304,9 @@ namespace AvoGUI
 		m_isInAnimationUpdateQueue(false), m_isVisible(true), m_isOverlay(false),
 		m_areMouseEventsEnabled(false), m_cursor(Cursor::Arrow),
 		m_opacity(1.f),
-		m_shadowBounds(p_bounds), m_shadowImage(0), m_hasShadow(true), m_elevation(0.f),
+		m_shadowBounds(p_bounds), m_hasShadow(true), m_elevation(0.f),
 		m_layerIndex(0), m_index(0), m_id(0),
-		m_isMouseHovering(false),
-		m_gui(0), m_parent(0), m_theme(0),
-		m_clipGeometry(0)
+		m_isMouseHovering(false)
 	{
 		if (p_parent && p_parent != this)
 		{
@@ -789,28 +787,28 @@ namespace AvoGUI
 	private:
 		Gui* m_gui;
 
-		HWND m_windowHandle;
+		HWND m_windowHandle = 0;
 		WindowStyleFlags m_crossPlatformStyles;
-		uint32 m_styles;
+		uint32 m_styles = 0;
 
-		bool m_isOpen;
+		bool m_isOpen = false;
 		Point<int32> m_position;
 		Point<uint32> m_size;
 		Point<uint32> m_minSize;
 		Point<uint32> m_maxSize;
 
-		float m_dipToPixelFactor;
+		float m_dipToPixelFactor = 1.f;
 
-		bool m_isFullscreen;
+		bool m_isFullscreen = false;
 		RECT m_windowRectBeforeFullscreen;
-		bool m_wasWindowMaximizedBeforeFullscreen;
+		bool m_wasWindowMaximizedBeforeFullscreen = false;
 
-		WindowState m_state;
+		WindowState m_state = WindowState::Restored;
 
-		bool m_isMouseOutsideClientArea;
+		bool m_isMouseOutsideClientArea = true;
 		Point<int32> m_mousePosition;
-		HCURSOR m_cursorHandle;
-		Cursor m_cursorType;
+		HCURSOR m_cursorHandle = 0;
+		Cursor m_cursorType = (Cursor)-1;
 
 		uint32 convertWindowStyleFlagsToWindowsWindowStyleFlags(WindowStyleFlags p_styleFlags, bool p_hasParent)
 		{
@@ -1098,7 +1096,7 @@ namespace AvoGUI
 			}
 		}
 
-		bool m_hasCreatedWindow;
+		bool m_hasCreatedWindow = false;
 		std::condition_variable m_hasCreatedWindowConditionVariable;
 		std::mutex m_hasCreatedWindowMutex;
 		std::thread m_messageThread;
@@ -1197,20 +1195,14 @@ namespace AvoGUI
 		//------------------------------
 
 		WindowsWindow(Gui* p_gui) :
-			m_gui(p_gui), m_windowHandle(0), m_crossPlatformStyles((WindowStyleFlags)0), m_styles(0),
-			m_isOpen(false), m_dipToPixelFactor(1.f), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
-			m_state(WindowState::Restored), m_isMouseOutsideClientArea(true), m_mousePosition(-1, -1), 
-			m_cursorHandle(0), m_cursorType((Cursor)-1),
-			m_hasCreatedWindow(false)
+			m_gui(p_gui), m_crossPlatformStyles((WindowStyleFlags)0),
+			m_mousePosition(-1, -1)
 		{
 			setCursor(Cursor::Arrow);
 		}
 		WindowsWindow(Gui* p_gui, char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) :
-			m_gui(p_gui), m_windowHandle(0), m_crossPlatformStyles(p_styleFlags), m_styles(0),
-			m_isOpen(false), m_dipToPixelFactor(1.f), m_isFullscreen(false), m_wasWindowMaximizedBeforeFullscreen(false),
-			m_state(WindowState::Restored), m_isMouseOutsideClientArea(true), m_mousePosition(-1, -1), 
-			m_cursorHandle(0), m_cursorType((Cursor)-1),
-			m_hasCreatedWindow(false)
+			m_gui(p_gui), m_crossPlatformStyles(p_styleFlags), 
+			m_mousePosition(-1, -1)
 		{
 			create(p_title, p_width, p_height, p_styleFlags, p_parent);
 
@@ -2643,9 +2635,9 @@ namespace AvoGUI
 
 	public:
 		Direct2DImage(ID2D1Bitmap* p_image) :
-			m_image(p_image), m_scalingMethod(ImageScalingMethod::Smooth), m_boundsSizing(ImageBoundsSizing::Stretch),
-			m_boundsPositioning(0.5f, 0.5f), m_cropRectangle(0.f, 0.f, p_image->GetSize().width, p_image->GetSize().height),
-			m_opacity(1.f)
+			m_image(p_image), 
+			m_scalingMethod(ImageScalingMethod::Smooth), m_boundsSizing(ImageBoundsSizing::Stretch), m_boundsPositioning(0.5f, 0.5f), 
+			m_cropRectangle(0.f, 0.f, p_image->GetSize().width, p_image->GetSize().height), m_opacity(1.f)
 		{
 			m_bounds = m_cropRectangle;
 		}
@@ -3548,12 +3540,12 @@ namespace AvoGUI
 	class FontFileStream : public IDWriteFontFileStream
 	{
 	private:
+		ULONG m_referenceCount = 0;
 		FontData m_fontData;
-		ULONG m_referenceCount;
 
 	public:
 		FontFileStream(FontData* p_fontData) : 
-			m_referenceCount(0), m_fontData(*p_fontData)
+			m_fontData(*p_fontData)
 		{ 
 		}
 
@@ -3619,11 +3611,10 @@ namespace AvoGUI
 	class FontFileLoader : public IDWriteFontFileLoader
 	{
 	private:
-		uint32 m_referenceCount;
+		uint32 m_referenceCount = 0;
 
 	public:
-		FontFileLoader() : 
-			m_referenceCount(0) 
+		FontFileLoader()
 		{ 
 		}
 
@@ -3673,7 +3664,7 @@ namespace AvoGUI
 	class FontFileEnumerator : public IDWriteFontFileEnumerator
 	{
 	private:
-		uint32 m_referenceCount;
+		uint32 m_referenceCount = 0;
 
 		//------------------------------
 
@@ -3681,13 +3672,13 @@ namespace AvoGUI
 		FontFileLoader* m_fontFileLoader;
 
 		std::vector<FontData*>* m_fontData;
-		IDWriteFontFile* m_currentFontFile;
+		IDWriteFontFile* m_currentFontFile = 0;
 		int32 m_currentFontFileIndex;
 
 	public:
 		FontFileEnumerator(IDWriteFactory* p_factory, FontFileLoader* p_fontFileLoader, std::vector<FontData*>* p_data) :
-			m_referenceCount(0), m_factory(p_factory), m_fontFileLoader(p_fontFileLoader), m_fontData(p_data),
-			m_currentFontFileIndex(-1), m_currentFontFile(0)
+			m_factory(p_factory), m_fontFileLoader(p_fontFileLoader), m_fontData(p_data),
+			m_currentFontFileIndex(-1)
 		{
 		}
 
@@ -3751,12 +3742,12 @@ namespace AvoGUI
 	class FontCollectionLoader : public IDWriteFontCollectionLoader
 	{
 	private:
-		uint32 m_referenceCount;
+		uint32 m_referenceCount = 0;
 		FontFileLoader* m_fontFileLoader;
 
 	public:
 		FontCollectionLoader(FontFileLoader* p_fontFileLoader) :
-			m_referenceCount(0), m_fontFileLoader(p_fontFileLoader)
+			m_fontFileLoader(p_fontFileLoader)
 		{
 		}
 
@@ -3806,12 +3797,12 @@ namespace AvoGUI
 	{
 	private:
 		ID2D1Geometry* m_geometry;
-		ID2D1GeometryRealization* m_strokedRealization;
-		ID2D1GeometryRealization* m_filledRealization;
+		ID2D1GeometryRealization* m_strokedRealization = 0;
+		ID2D1GeometryRealization* m_filledRealization = 0;
 
 	public:
 		Direct2DGeometry(ID2D1Geometry* p_geometry) :
-			m_geometry(p_geometry), m_strokedRealization(0), m_filledRealization(0)
+			m_geometry(p_geometry)
 		{
 		}
 		~Direct2DGeometry()
@@ -4071,7 +4062,30 @@ namespace AvoGUI
 
 	//------------------------------
 
-	class WindowsDrawingContext : 
+	class Direct2DDrawingState : DrawingState
+	{
+	private:
+		ID2D1DrawingStateBlock1* m_drawingState;
+
+	public:
+		Direct2DDrawingState(ID2D1DrawingStateBlock1* p_drawingState) :
+			m_drawingState(p_drawingState)
+		{
+		}
+		~Direct2DDrawingState()
+		{
+			m_drawingState->Release();
+		}
+
+		ID2D1DrawingStateBlock1* getHandle()
+		{
+			return m_drawingState;
+		}
+	};
+
+	//------------------------------
+
+	class Direct2DDrawingContext : 
 		public DrawingContext
 	{
 	public:
@@ -4162,26 +4176,26 @@ namespace AvoGUI
 		}
 
 	private:
-		Window* m_window;
+		Window* m_window = 0;
 
-		ID2D1DeviceContext1* m_context;
-		IDXGISwapChain1* m_swapChain;
-		ID2D1Bitmap1* m_targetWindowBitmap;
+		ID2D1DeviceContext1* m_context = 0;
+		IDXGISwapChain1* m_swapChain = 0;
+		ID2D1Bitmap1* m_targetWindowBitmap = 0;
 		bool m_isVsyncEnabled;
 
 		std::stack<bool> m_clipTypeStack;
 
-		ID2D1SolidColorBrush* m_solidColorBrush;
-		ID2D1Brush* m_currentBrush;
+		ID2D1SolidColorBrush* m_solidColorBrush = 0;
+		ID2D1Brush* m_currentBrush = 0;
 		float m_brushOpacity;
 
 		D2D1_STROKE_STYLE_PROPERTIES1 m_strokeStyleProperties;
-		ID2D1StrokeStyle1* m_strokeStyle;
+		ID2D1StrokeStyle1* m_strokeStyle = 0;
 
 		Point<float> m_scale;
 
-		IDWriteTextFormat* m_textFormat;
-		IDWriteFontCollection* m_fontCollection;
+		IDWriteTextFormat* m_textFormat = 0;
+		IDWriteFontCollection* m_fontCollection = 0;
 		std::vector<FontData*> m_fontData;
 
 		//------------------------------
@@ -4302,13 +4316,11 @@ namespace AvoGUI
 		}
 
 	public:
-		WindowsDrawingContext(Window* p_window) :
+		Direct2DDrawingContext(Window* p_window) :
 			m_window(p_window), 
-			m_context(0), m_swapChain(0), m_targetWindowBitmap(0), m_isVsyncEnabled(true), 
-			m_solidColorBrush(0), m_currentBrush(0), m_brushOpacity(1.f), 
-			m_strokeStyle(0),
-			m_scale(1.f, 1.f), 
-			m_textFormat(0), m_fontCollection(0)
+			m_isVsyncEnabled(true), 
+			m_brushOpacity(1.f), 
+			m_scale(1.f, 1.f)
 		{
 			// Create temporary Direct3D device
 
@@ -4469,7 +4481,7 @@ namespace AvoGUI
 			m_context->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE::D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
 		}
 
-		~WindowsDrawingContext()
+		~Direct2DDrawingContext()
 		{
 			for (uint32 a = 0; a < m_fontData.size(); a++)
 			{
@@ -4551,6 +4563,21 @@ namespace AvoGUI
 			//	m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
 			//}
 
+		}
+
+		DrawingState* createDrawingState() override
+		{
+			ID2D1DrawingStateBlock1* drawingState = 0;
+			s_direct2DFactory->CreateDrawingStateBlock(&drawingState);
+			return (DrawingState*)(new Direct2DDrawingState(drawingState));
+		}
+		void saveDrawingState(DrawingState* p_drawingState) override
+		{
+			m_context->SaveDrawingState(((Direct2DDrawingState*)p_drawingState)->getHandle());
+		}
+		void restoreDrawingState(DrawingState* p_drawingState) override
+		{
+			m_context->RestoreDrawingState(((Direct2DDrawingState*)p_drawingState)->getHandle());
 		}
 
 		//------------------------------
@@ -4795,8 +4822,17 @@ namespace AvoGUI
 				return;
 			}
 
-			// Release the old target bitmap
-			m_context->SetTarget(0);
+			ID2D1Image* oldTarget = 0;
+			m_context->GetTarget(&oldTarget);
+
+			bool wasOldTargetWindow = oldTarget == m_targetWindowBitmap;
+			if (wasOldTargetWindow)
+			{
+				m_context->SetTarget(0);
+			}
+			oldTarget->Release();
+
+			// Release the old window bitmap
 			m_targetWindowBitmap->Release();
 
 			// Resize buffers, creating new ones
@@ -4816,7 +4852,10 @@ namespace AvoGUI
 
 			dxgiBackBuffer->Release();
 
-			m_context->SetTarget(m_targetWindowBitmap);
+			if (wasOldTargetWindow)
+			{
+				m_context->SetTarget(m_targetWindowBitmap);
+			}
 		}
 		Point<uint32> getSize() override
 		{
@@ -5763,6 +5802,9 @@ namespace AvoGUI
 
 			p_blur *= 2.f / 3.f;
 
+			ID2D1Image* targetBefore = 0;
+			m_context->GetTarget(&targetBefore);
+
 			// Create input bitmap
 			ID2D1Bitmap1* inputBitmap;
 			m_context->CreateBitmap(
@@ -5817,10 +5859,11 @@ namespace AvoGUI
 			clear();
 			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / 96.f, p_blur * 3.f * dpiY / 96.f));
 			m_context->EndDraw();
-			m_context->SetTarget(m_targetWindowBitmap);
+			m_context->SetTarget(targetBefore);
 
 			shadowEffect->Release();
 			inputBitmap->Release();
+			targetBefore->Release();
 
 			return new Direct2DImage(outputBitmap);
 		}
@@ -5833,6 +5876,9 @@ namespace AvoGUI
 			if (!p_width || !p_height || !p_color.alpha) return 0;
 
 			p_blur *= 2.f / 3.f;
+
+			ID2D1Image* targetBefore = 0;
+			m_context->GetTarget(&targetBefore);
 
 			// Create input bitmap
 			ID2D1Bitmap1* inputBitmap;
@@ -5850,7 +5896,7 @@ namespace AvoGUI
 			m_context->BeginDraw();
 			clear();
 			setColor(Color(0.f));
-			fillRectangle(0, 0, p_width, p_height, p_corners);
+			fillRectangle(p_width, p_height, p_corners);
 			m_context->EndDraw();
 
 			//------------------------------
@@ -5890,10 +5936,11 @@ namespace AvoGUI
 			clear();
 			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / 96.f, p_blur * 3.f * dpiY / 96.f));
 			m_context->EndDraw();
-			m_context->SetTarget(m_targetWindowBitmap);
+			m_context->SetTarget(targetBefore);
 
 			shadowEffect->Release();
 			inputBitmap->Release();
+			targetBefore->Release();
 
 			return new Direct2DImage(outputBitmap);
 		}
@@ -5907,6 +5954,9 @@ namespace AvoGUI
 			if (!p_width || !p_height || !p_color.alpha) return 0;
 
 			p_blur *= 2.f / 3.f;
+
+			ID2D1Image* targetBefore = 0;
+			m_context->GetTarget(&targetBefore);
 
 			// Create input bitmap
 			ID2D1Bitmap1* inputBitmap;
@@ -5964,10 +6014,11 @@ namespace AvoGUI
 			clear();
 			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / 96.f, p_blur * 3.f * dpiY / 96.f));
 			m_context->EndDraw();
-			m_context->SetTarget(m_targetWindowBitmap);
+			m_context->SetTarget(targetBefore);
 
 			shadowEffect->Release();
 			inputBitmap->Release();
+			targetBefore->Release();
 
 			return new Direct2DImage(outputBitmap);
 		}
@@ -6073,9 +6124,6 @@ namespace AvoGUI
 		void drawImage(Image* p_image, float p_multiplicativeOpacity) override
 		{
 			Rectangle<float> const& cropRectangle = p_image->getCropRectangle();
-			Point<float> const& imageSize = cropRectangle.getSize();
-			Point<float> const& boundsSize = p_image->getSize();
-
 			Rectangle<float> innerBounds = p_image->getInnerBounds();
 
 			m_currentBrush->SetOpacity(m_brushOpacity);
@@ -6286,7 +6334,6 @@ namespace AvoGUI
 				D2D1::RectF(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom),
 				m_currentBrush, D2D1_DRAW_TEXT_OPTIONS::D2D1_DRAW_TEXT_OPTIONS_NONE
 			);
-			//m_context->Reset
 			delete[] wideString;
 		}
 		void drawText(char const* p_string, float p_left, float p_top, float p_right, float p_bottom) override
@@ -6306,11 +6353,11 @@ namespace AvoGUI
 			drawText(p_string, Rectangle<float>(p_position.x, p_position.y, m_context->GetSize().width * 2, m_context->GetSize().height * 2));
 		}
 	};
-	ID2D1Factory2* WindowsDrawingContext::s_direct2DFactory = 0;
-	IDWriteFactory1* WindowsDrawingContext::s_directWriteFactory = 0;
-	FontCollectionLoader* WindowsDrawingContext::s_fontCollectionLoader = 0;
-	FontFileLoader* WindowsDrawingContext::s_fontFileLoader = 0;
-	IWICImagingFactory2* WindowsDrawingContext::s_imagingFactory = 0;
+	ID2D1Factory2* Direct2DDrawingContext::s_direct2DFactory = 0;
+	IDWriteFactory1* Direct2DDrawingContext::s_directWriteFactory = 0;
+	FontCollectionLoader* Direct2DDrawingContext::s_fontCollectionLoader = 0;
+	FontFileLoader* Direct2DDrawingContext::s_fontFileLoader = 0;
+	IWICImagingFactory2* Direct2DDrawingContext::s_imagingFactory = 0;
 #endif
 #pragma endregion
 
@@ -6448,13 +6495,11 @@ namespace AvoGUI
 	//
 
 	Gui::Gui() :
-		View(0, Rectangle<float>(0, 0, 0, 0)), 
-		m_parent(0), m_window(0), m_drawingContext(0),
-		m_hasNewWindowSize(false), m_hasAnimationLoopStarted(false), m_willClose(false),
-		m_keyboardFocus(0)
+		View(0), 
+		m_hasNewWindowSize(false), m_hasAnimationLoopStarted(false), m_willClose(false)
 	{
 #ifdef _WIN32
-		WindowsDrawingContext::createStaticResources();
+		Direct2DDrawingContext::createStaticResources();
 		m_window = new WindowsWindow(this);
 #endif
 
@@ -6471,6 +6516,11 @@ namespace AvoGUI
 		{
 			m_window->forget();
 			m_window = 0;
+		}
+		if (m_drawingContextState)
+		{
+			m_drawingContextState->forget();
+			m_drawingContextState = 0;
 		}
 		if (m_drawingContext)
 		{
@@ -6550,8 +6600,9 @@ namespace AvoGUI
 			m_drawingContext->forget();
 		}
 #ifdef _WIN32
-		m_drawingContext = new WindowsDrawingContext(m_window);
+		m_drawingContext = new Direct2DDrawingContext(m_window);
 #endif
+		m_drawingContextState = m_drawingContext->createDrawingState();
 
 		m_lastWindowSize = m_window->getSize();
 		createContent();
@@ -7363,6 +7414,7 @@ namespace AvoGUI
 				drawOverlay(m_drawingContext, targetRectangle);
 				m_drawingContext->popClipShape();
 			}
+			m_drawingContext->restoreDrawingState(m_drawingContextState);
 			includeAnimationThread();
 			m_drawingContext->finishDrawing(invalidRectangles);
 		}

@@ -3492,7 +3492,7 @@ namespace AvoGUI
 		Point<float> m_absolutePosition;
 		Rectangle<float> m_lastInvalidatedShadowBounds;
 		Rectangle<float> m_shadowBounds;
-		Image* m_shadowImage;
+		Image* m_shadowImage = 0;
 		bool m_hasShadow;
 
 		float m_elevation;
@@ -3576,9 +3576,9 @@ namespace AvoGUI
 		void updateShadow();
 
 	protected:
-		Gui* m_gui;
-		View* m_parent;
-		Theme* m_theme;
+		Gui* m_gui = 0;
+		View* m_parent = 0;
+		Theme* m_theme = 0;
 
 		std::vector<View*> m_children;
 
@@ -3608,7 +3608,7 @@ namespace AvoGUI
 		*/
 		virtual void handleThemeValueChange(std::string const& p_name, float p_newValue) { };
 
-		Geometry* m_clipGeometry;
+		Geometry* m_clipGeometry = 0;
 		/*
 			LIBRARY IMPLEMENTED
 			This is called whenever the clipping geometry of the view needs to be updated.
@@ -7323,8 +7323,14 @@ namespace AvoGUI
 	class Geometry : public ReferenceCounted { };
 
 	/*
-		An abstract drawing context, created by a GUI to be used to create objects 
-		like text and images as well as to draw graphics in views.
+		Used to store the drawing state of a DrawingContext, which includes the current transformations.
+		Create one with DrawingContext::createDrawingState().
+	*/
+	class DrawingState : public ReferenceCounted { };
+
+	/*
+		A drawing context interface, created by a GUI to be used to create objects 
+		like text and images (and more) as well as to draw graphics in views.
 	*/
 	class DrawingContext : public ReferenceCounted
 	{
@@ -7340,6 +7346,22 @@ namespace AvoGUI
 			Finishes the drawing and shows it. The GUI calls this for you.
 		*/
 		virtual void finishDrawing(std::vector<Rectangle<float>> const& p_updatedRectangles) = 0;
+
+		//------------------------------
+
+		/*
+			Creates a drawing state object.
+			It can be re-used and you can call saveDrawingState and restoreDrawingState as many times as you want.
+		*/
+		virtual DrawingState* createDrawingState() = 0;
+		/*
+			Saves the internal drawing state of the drawing context in a DrawingState object.
+		*/
+		virtual void saveDrawingState(DrawingState* p_drawingState) = 0;
+		/*
+			Loads the internal drawing state of the drawing context from a DrawingState object.
+		*/
+		virtual void restoreDrawingState(DrawingState* p_drawingState) = 0;
 
 		//------------------------------
 
@@ -7532,15 +7554,15 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Resizes the drawing buffers. The GUI calls this for you when it is being resized.
+			Resizes the drawing buffers for the window. The GUI calls this for you when it is being resized.
 		*/
 		virtual void setSize(Point<uint32> const& p_size) = 0;
 		/*
-			Resizes the drawing buffers. The GUI calls this for you when it is being resized.
+			Resizes the drawing buffers for the window. The GUI calls this for you when it is being resized.
 		*/
 		virtual void setSize(uint32 p_width, uint32 p_height) = 0;
 		/*
-			Returns the size of the drawing buffers.
+			Returns the size of the drawing buffers for the window.
 		*/
 		virtual Point<uint32> getSize() = 0;
 
@@ -8257,9 +8279,10 @@ namespace AvoGUI
 	class Gui : public View, public WindowListener, public GlobalMouseListener
 	{
 	private:
-		Gui* m_parent;
-		Window* m_window;
-		DrawingContext* m_drawingContext;
+		Gui* m_parent = 0;
+		Window* m_window = 0;
+		DrawingContext* m_drawingContext = 0;
+		DrawingState* m_drawingContextState = 0;
 
 		std::vector<WindowListener*> m_windowEventListeners;
 
@@ -8297,7 +8320,7 @@ namespace AvoGUI
 		//------------------------------
 
 		std::vector<KeyboardListener*> m_globalKeyboardEventListeners;
-		KeyboardListener* m_keyboardFocus;
+		KeyboardListener* m_keyboardFocus = 0;
 
 		//------------------------------
 
