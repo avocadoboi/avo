@@ -8456,7 +8456,7 @@ namespace AvoGUI
 			{
 				return 0;
 			}
-			return *iterator;
+			return (*iterator).second;
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -8471,7 +8471,7 @@ namespace AvoGUI
 			{
 				return 0;
 			}
-			return (T*)*iterator;
+			return (T*)(*iterator).second;
 		}
 
 		//------------------------------
