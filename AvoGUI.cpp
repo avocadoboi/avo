@@ -4,6 +4,7 @@
 
 //------------------------------
 
+#include <codecvt>
 #include <stack>
 #include <random>
 #include <time.h>
@@ -53,25 +54,25 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void widenString(char const* p_input, wchar_t* p_output, uint32 p_numberOfCharactersInResult)
+	void convertUtf8ToUtf16(char const* p_input, wchar_t* p_output, uint32 p_numberOfCharactersInResult)
 	{
 #ifdef _WIN32
 		MultiByteToWideChar(CP_UTF8, 0, p_input, -1, p_output, p_numberOfCharactersInResult);
 #endif
 	}
-	uint32 getNumberOfCharactersInWidenedString(char const* p_input)
+	uint32 getNumberOfCharactersInUtfConvertedString(char const* p_input)
 	{
 #ifdef _WIN32
 		return MultiByteToWideChar(CP_UTF8, 0, p_input, -1, 0, 0);
 #endif
 	}
-	void narrowString(wchar_t const* p_input, char* p_output, uint32 p_numberOfCharactersInResult)
+	void convertUtf16ToUtf8(wchar_t const* p_input, char* p_output, uint32 p_numberOfCharactersInResult)
 	{
 #ifdef _WIN32
 		WideCharToMultiByte(CP_UTF8, 0, p_input, -1, p_output, p_numberOfCharactersInResult, 0, false);
 #endif
 	}
-	uint32 getNumberOfCharactersInNarrowedString(wchar_t const* p_input)
+	uint32 getNumberOfCharactersInUtfConvertedString(wchar_t const* p_input)
 	{
 #ifdef _WIN32
 		return WideCharToMultiByte(CP_UTF8, 0, p_input, -1, 0, 0, 0, false);
@@ -2542,7 +2543,10 @@ namespace AvoGUI
 			case WM_CHAR:
 			{
 				bool isRepeated = p_data_b & (1 << 30);
-				char character = (char)p_data_a;
+
+				// Length is 5 because 4 is the max number of bytes in a utf-8 encoded character, and the null terminator is included
+				char character[5];
+				convertUtf16ToUtf8((wchar_t const*)/*&p_data_a*/u"\U00024B62", character, 5);
 
 				KeyboardEvent keyboardEvent;
 				keyboardEvent.character = character;
@@ -2550,7 +2554,6 @@ namespace AvoGUI
 				m_gui->excludeAnimationThread();
 				m_gui->handleCharacterInput(keyboardEvent);
 				m_gui->includeAnimationThread();
-
 				return 0;
 			}
 			case WM_MENUCHAR:
@@ -2792,6 +2795,7 @@ namespace AvoGUI
 	{
 	private:
 		IDWriteTextLayout1* m_handle;
+		std::wstring m_wideString;
 		std::string m_string;
 		bool m_isTopTrimmed;
 
@@ -2804,8 +2808,8 @@ namespace AvoGUI
 		}
 
 	public:
-		DirectWriteText(IDWriteTextLayout1* p_handle, std::string const& p_string, Rectangle<float> const& p_bounds) :
-			m_handle(p_handle), m_string(p_string), m_isTopTrimmed(false)
+		DirectWriteText(IDWriteTextLayout1* p_handle, std::wstring const& p_wideString, std::string const& p_string, Rectangle<float> const& p_bounds) :
+			m_handle(p_handle), m_wideString(p_wideString), m_string(p_string), m_isTopTrimmed(false)
 		{
 			m_bounds = p_bounds;
 			if (!m_bounds.right && !m_bounds.bottom)
@@ -2922,7 +2926,7 @@ namespace AvoGUI
 		{
 			Point<float> result;
 			DWRITE_HIT_TEST_METRICS metrics = { 0 };
-			m_handle->HitTestTextPosition(p_characterIndex, false, &result.x, &result.y, &metrics);
+			m_handle->HitTestTextPosition(getUtf16UnitIndexFromCharacterIndex(m_wideString, p_characterIndex), false, &result.x, &result.y, &metrics);
 			if (p_isRelativeToOrigin)
 			{
 				result.x += getLeft();
@@ -2935,14 +2939,14 @@ namespace AvoGUI
 			float x;
 			float y;
 			DWRITE_HIT_TEST_METRICS metrics = { 0 };
-			m_handle->HitTestTextPosition(p_characterIndex, false, &x, &y, &metrics);
+			m_handle->HitTestTextPosition(getUtf16UnitIndexFromCharacterIndex(m_wideString, p_characterIndex), false, &x, &y, &metrics);
 			return Point<float>(metrics.width, metrics.height);
 		}
 		Rectangle<float> getCharacterBounds(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) override
 		{
 			Rectangle<float> result;
 			DWRITE_HIT_TEST_METRICS metrics = { 0 };
-			m_handle->HitTestTextPosition(p_characterIndex, false, &result.left, &result.top, &metrics);
+			m_handle->HitTestTextPosition(getUtf16UnitIndexFromCharacterIndex(m_wideString, p_characterIndex), false, &result.left, &result.top, &metrics);
 			if (p_isRelativeToOrigin)
 			{
 				result.left += getLeft();
@@ -2962,7 +2966,7 @@ namespace AvoGUI
 			int isInside;
 			DWRITE_HIT_TEST_METRICS metrics = { 0 };
 			m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * getLeft(), p_pointY - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
-			return metrics.textPosition + isTrailingHit * isInside;
+			return getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition + isTrailingHit * isInside);
 		}
 		void getNearestCharacterIndexAndPosition(Point<float> const& p_point, uint32* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) override
 		{
@@ -2974,7 +2978,7 @@ namespace AvoGUI
 			int isInside;
 			DWRITE_HIT_TEST_METRICS metrics = { 0 };
 			m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * getLeft(), p_pointY - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
-			*p_outCharacterIndex = metrics.textPosition + isTrailingHit * isInside;
+			*p_outCharacterIndex = getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition + isTrailingHit * isInside);
 			p_outCharacterPosition->set(metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * getLeft(), metrics.top + p_isRelativeToOrigin * getTop());
 		}
 		void getNearestCharacterIndexAndBounds(Point<float> const& p_point, uint32* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) override
@@ -2987,7 +2991,7 @@ namespace AvoGUI
 			int isInside;
 			DWRITE_HIT_TEST_METRICS metrics = { 0 };
 			m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * getLeft(), p_pointY - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
-			*p_outCharacterIndex = metrics.textPosition + isTrailingHit * isInside;
+			*p_outCharacterIndex = getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition + isTrailingHit * isInside);
 			p_outCharacterBounds->left = metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * getLeft();
 			p_outCharacterBounds->top = metrics.top + p_isRelativeToOrigin * getTop();
 			p_outCharacterBounds->right = p_outCharacterBounds->left + metrics.width;
@@ -3418,7 +3422,7 @@ namespace AvoGUI
 		void setFontFamily(char const* p_name, int32 p_startPosition, int32 p_length) override
 		{
 			wchar_t wideName[100];
-			widenString(p_name, wideName, 100);
+			convertUtf8ToUtf16(p_name, wideName, 100);
 
 			m_handle->SetFontFamilyName(wideName, createTextRange(p_startPosition, p_length));
 		}
@@ -6071,7 +6075,7 @@ namespace AvoGUI
 		Image* createImage(char const* p_filePath) override
 		{
 			wchar_t wideFilePath[200];
-			widenString(p_filePath, wideFilePath, 200);
+			convertUtf8ToUtf16(p_filePath, wideFilePath, 200);
 
 			IWICBitmapDecoder* decoder = 0;
 			s_imagingFactory->CreateDecoderFromFilename(wideFilePath, 0, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &decoder);
@@ -6238,7 +6242,7 @@ namespace AvoGUI
 		void setDefaultTextProperties(TextProperties const& p_textProperties) override
 		{
 			wchar_t fontFamily[100];
-			widenString(p_textProperties.fontFamilyName, fontFamily, 100);
+			convertUtf8ToUtf16(p_textProperties.fontFamilyName, fontFamily, 100);
 
 			DWRITE_FONT_STYLE fontStyle = DWRITE_FONT_STYLE_NORMAL;
 			if (p_textProperties.fontStyle == FontStyle::Italic)
@@ -6309,9 +6313,10 @@ namespace AvoGUI
 			textLayout->SetFontSize(p_fontSize, textRange);
 			textLayout->SetCharacterSpacing(m_textProperties.characterSpacing*0.5f, m_textProperties.characterSpacing*0.5f, 0.f, textRange);
 
+			std::wstring wideStringObject = wideString;
 			delete[] wideString;
 
-			return new DirectWriteText(textLayout, p_string, p_bounds);
+			return new DirectWriteText(textLayout, wideStringObject, p_string, p_bounds);
 		}
 		void drawText(Text* p_text) override
 		{
@@ -7436,7 +7441,7 @@ namespace AvoGUI
 		CoCreateInstance(CLSID_FileOpenDialog, 0, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&dialog));
 
 		wchar_t wideTitle[200];
-		widenString(m_title, wideTitle, 200);
+		convertUtf8ToUtf16(m_title, wideTitle, 200);
 		dialog->SetTitle(wideTitle);
 
 		COMDLG_FILTERSPEC* filters = new COMDLG_FILTERSPEC[m_fileExtensions.size()];
@@ -7445,10 +7450,10 @@ namespace AvoGUI
 		for (uint32 a = 0; a < m_fileExtensions.size(); a++)
 		{
 			filters[a].pszName = filterStringBuffer + a * 100;
-			widenString(m_fileExtensions[a].name, (wchar_t*)filters[a].pszName, 50);
+			convertUtf8ToUtf16(m_fileExtensions[a].name, (wchar_t*)filters[a].pszName, 50);
 
 			filters[a].pszSpec = filterStringBuffer + a * 100 + 50;
-			widenString(m_fileExtensions[a].extensions, (wchar_t*)filters[a].pszSpec, 50);
+			convertUtf8ToUtf16(m_fileExtensions[a].extensions, (wchar_t*)filters[a].pszSpec, 50);
 
 		}
 		dialog->SetFileTypes(m_fileExtensions.size(), filters);
@@ -7512,7 +7517,7 @@ namespace AvoGUI
 		CoCreateInstance(CLSID_FileOpenDialog, 0, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&dialog));
 
 		wchar_t wideTitle[200];
-		widenString(m_title, wideTitle, 200);
+		convertUtf8ToUtf16(m_title, wideTitle, 200);
 		dialog->SetTitle(wideTitle);
 
 		COMDLG_FILTERSPEC* filters = new COMDLG_FILTERSPEC[m_fileExtensions.size()];
@@ -7521,10 +7526,10 @@ namespace AvoGUI
 		for (uint32 a = 0; a < m_fileExtensions.size(); a++)
 		{
 			filters[a].pszName = filterStringBuffer + a * 100LL;
-			widenString(m_fileExtensions[a].name, (wchar_t*)filters[a].pszName, 50);
+			convertUtf8ToUtf16(m_fileExtensions[a].name, (wchar_t*)filters[a].pszName, 50);
 
 			filters[a].pszSpec = filterStringBuffer + a * 100LL + 50;
-			widenString(m_fileExtensions[a].extensions, (wchar_t*)filters[a].pszSpec, 50);
+			convertUtf8ToUtf16(m_fileExtensions[a].extensions, (wchar_t*)filters[a].pszSpec, 50);
 		}
 		dialog->SetFileTypes(m_fileExtensions.size(), filters);
 
@@ -7555,8 +7560,8 @@ namespace AvoGUI
 
 					LPWSTR name;
 					item->GetDisplayName(SIGDN::SIGDN_FILESYSPATH, &name);
-					p_openedFilePaths[a].resize(getNumberOfCharactersInNarrowedString(name) - 1);
-					narrowString(name, (char*)p_openedFilePaths[a].data(), p_openedFilePaths[a].size() + 1);
+					p_openedFilePaths[a].resize(getNumberOfCharactersInUtfConvertedString(name) - 1);
+					convertUtf16ToUtf8(name, (char*)p_openedFilePaths[a].data(), p_openedFilePaths[a].size() + 1);
 
 					item->Release();
 				}
@@ -7570,8 +7575,8 @@ namespace AvoGUI
 				LPWSTR name;
 				item->GetDisplayName(SIGDN::SIGDN_FILESYSPATH, &name);
 				p_openedFilePaths.resize(1);
-				p_openedFilePaths[0].resize(getNumberOfCharactersInNarrowedString(name) - 1);
-				narrowString(name, (char*)p_openedFilePaths[0].data(), p_openedFilePaths[0].size() + 1);
+				p_openedFilePaths[0].resize(getNumberOfCharactersInUtfConvertedString(name) - 1);
+				convertUtf16ToUtf8(name, (char*)p_openedFilePaths[0].data(), p_openedFilePaths[0].size() + 1);
 
 				item->Release();
 			}
