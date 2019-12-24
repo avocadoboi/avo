@@ -4,7 +4,6 @@
 
 //------------------------------
 
-#include <codecvt>
 #include <stack>
 #include <random>
 #include <time.h>
@@ -2546,7 +2545,7 @@ namespace AvoGUI
 
 				// Length is 5 because 4 is the max number of bytes in a utf-8 encoded character, and the null terminator is included
 				char character[5];
-				convertUtf16ToUtf8((wchar_t const*)/*&p_data_a*/u"\U00024B62", character, 5);
+				convertUtf16ToUtf8((wchar_t const*)&p_data_a/*u"\U00024B62"*/, character, 5);
 
 				KeyboardEvent keyboardEvent;
 				keyboardEvent.character = character;
@@ -6535,6 +6534,10 @@ namespace AvoGUI
 		{
 			m_drawingContext->forget();
 			m_drawingContext = 0;
+		}
+		for (auto pair : m_viewsById)
+		{
+			pair.second->m_id = 0;
 		}
 	}
 

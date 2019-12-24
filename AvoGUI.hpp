@@ -5,16 +5,16 @@
 	components ready to use as well as the Roboto font, making it easy to
 	create good looking and feeling programs quickly.
 
-	    (me)
-         v
-         --
+		(me)
+		 v
+		 --
    \   --  --   /
-    \ /      \ /
-     |   /\   |
-     \   \/   /
-      \      /
-       ------
-        | |
+	\ /      \ /
+	 |   /\   |
+	 \   \/   /
+	  \      /
+	   ------
+		| |
 	
 	Info about documentation: a class that has virtual methods starts the documentation of methods with either 
 	"LIBRARY IMPLEMENTED" or "USER IMPLEMENTED". If a method is "USER IMPLEMENTED", it means that the method 
@@ -10246,7 +10246,7 @@ namespace AvoGUI
 		}
 		void handleCharacterInput(KeyboardEvent const& p_event) override
 		{
-			if (p_event.character > u8"\u0020")
+			if (p_event.character > u8"\u001f" && (p_event.character < u8"\u007f" || p_event.character > u8"\u009f"))
 			{
 				std::string string(m_text ? m_text->getString() : "");
 				if (m_isSelectionVisible)
@@ -10279,9 +10279,11 @@ namespace AvoGUI
 		void handleKeyboardKeyDown(KeyboardEvent const& p_event) override
 		{
 			Window* window = getGui()->getWindow();
+
+			std::string string = m_text ? m_text->getString() : "";
+
 			if (m_isSelectionVisible && (p_event.key == KeyboardKey::Backspace || p_event.key == KeyboardKey::Delete) && m_caretCharacterIndex != m_selectionEndCharacterIndex)
 			{
-				std::string string = m_text->getString();
 				if (m_caretCharacterIndex <= m_selectionEndCharacterIndex)
 				{
 					string.erase(m_caretByteIndex, m_selectionEndByteIndex - m_caretByteIndex);
@@ -10319,20 +10321,32 @@ namespace AvoGUI
 				{
 					if (window->getIsKeyDown(KeyboardKey::Control))
 					{
-						std::string string = m_text->getString();
-						for (int32 a = m_caretCharacterIndex - 1; a >= 0; a--)
+						int32 characterIndex = m_caretCharacterIndex;
+						for (int32 byteIndex = m_caretByteIndex - 1; byteIndex >= 0; byteIndex--)
 						{
-							if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
+							if (getNumberOfBytesInUtf8Character(string[byteIndex]))
 							{
-								string.erase(a, (int32)m_caretCharacterIndex - a);
-								setString(string, a);
+								characterIndex--;
+							}
+							if (!byteIndex || (string[byteIndex - 1U] == ' ' && string[byteIndex] != ' '))
+							{
+								string.erase(byteIndex, (int32)m_caretByteIndex - byteIndex);
+								setString(string, characterIndex);
 								break;
 							}
 						}
 					}
 					else
 					{
-						setString(std::string(m_text->getString()).erase(m_caretByteIndex - 1, 1), m_caretByteIndex - 1);
+						for (int32 byteIndex = m_caretByteIndex - 1; byteIndex >= 0; byteIndex--)
+						{
+							int8 numberOfBytesInCharacter = getNumberOfBytesInUtf8Character(string[byteIndex]);
+							if (numberOfBytesInCharacter)
+							{
+								setString(string.erase(byteIndex, numberOfBytesInCharacter), m_caretCharacterIndex - 1);
+								break;
+							}
+						}
 					}
 				}
 				m_caretFrameCount = 1;
@@ -10346,16 +10360,15 @@ namespace AvoGUI
 				{
 					return;
 				}
-				if (!m_isSelectionVisible && m_caretCharacterIndex < m_text->getString().size())
+				if (!m_isSelectionVisible && m_caretByteIndex < string.size())
 				{
 					if (window->getIsKeyDown(KeyboardKey::Control))
 					{
-						std::string string = m_text->getString();
-						for (int32 a = m_caretCharacterIndex; a < string.size(); a++)
+						for (int32 byteIndex = m_caretByteIndex; byteIndex < string.size(); byteIndex++)
 						{
-							if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
+							if (byteIndex == string.size() - 1 || (string[byteIndex + 1U] == ' ' && string[byteIndex] != ' '))
 							{
-								string.erase(m_caretCharacterIndex, a - (int32)m_caretCharacterIndex + 1);
+								string.erase(m_caretByteIndex, byteIndex - (int32)m_caretByteIndex + 1);
 								setString(string);
 								break;
 							}
@@ -10363,7 +10376,7 @@ namespace AvoGUI
 					}
 					else
 					{
-						setString(std::string(m_text->getString()).erase(m_caretCharacterIndex, 1));
+						setString(string.erase(m_caretByteIndex, getNumberOfBytesInUtf8Character(string[m_caretByteIndex])));
 					}
 				}
 				m_caretFrameCount = 1;
@@ -10768,10 +10781,11 @@ namespace AvoGUI
 			m_text->setTop(2.f);
 			m_text->setBottom(getHeight(), false);
 
-			if (p_newCaretCharacterIndex > (int32)m_text->getString().size())
+			uint32 newCaretByteIndex = getUtf8UnitIndexFromCharacterIndex(newString, p_newCaretCharacterIndex);
+			if (newCaretByteIndex > newString.size())
 			{
-				m_caretCharacterIndex = (uint32)m_text->getString().size();
-				m_caretByteIndex = getUtf8UnitIndexFromCharacterIndex(m_text->getString(), m_caretCharacterIndex);
+				m_caretByteIndex = newString.size();
+				m_caretCharacterIndex = getCharacterIndexFromUtf8UnitIndex(newString, m_caretByteIndex);
 			}
 			else if (p_newCaretCharacterIndex != m_caretCharacterIndex)
 			{
@@ -10783,7 +10797,7 @@ namespace AvoGUI
 				else
 				{
 					m_caretCharacterIndex = p_newCaretCharacterIndex;
-					m_caretByteIndex = getUtf8UnitIndexFromCharacterIndex(m_text->getString(), m_caretCharacterIndex);
+					m_caretByteIndex = newCaretByteIndex;
 				}
 			}
 			m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
@@ -10791,9 +10805,10 @@ namespace AvoGUI
 
 			if (m_isSelectionVisible)
 			{
-				if (m_selectionEndCharacterIndex > (uint32)m_text->getString().size())
+				if (m_selectionEndByteIndex > newString.size())
 				{
-					m_selectionEndCharacterIndex = min(m_selectionEndCharacterIndex, (uint32)m_text->getString().size());
+					m_selectionEndByteIndex = newString.size();
+					m_selectionEndCharacterIndex = getCharacterIndexFromUtf8UnitIndex(newString, newString.size());
 					if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
 					{
 						m_isSelectionVisible = false;
