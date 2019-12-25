@@ -229,37 +229,47 @@ namespace AvoGUI
 
 	/*
 		Converts a UTF-8 encoded char* string to a UTF-16 encoded wchar_t* string.
-		p_input should be null-terminated.
+		if p_inputSize is -1, it is assumed that p_input is null-terminated.
 		p_output should be allocated with p_numberOfCharactersInOutput number of wchar_t characters.
 		The output includes the null terminator.
 	*/
-	void convertUtf8ToUtf16(char const* p_input, wchar_t* p_output, uint32 p_numberOfCharactersInOutput);
+	void convertUtf8ToUtf16(char const* p_input, wchar_t* p_output, uint32 p_numberOfUnitsInOutput, int32 p_numberOfUnitsInInput = -1);
+	/*
+		Converts a UTF-8 encoded std::string to a UTF-16 encoded std::wstring.
+	*/
+	std::wstring convertUtf8ToUtf16(std::string const& p_input);
 	/*
 		Returns the number of UTF-16 encoded wchar_t* characters that would be used to represent the same characters in a UTF-8 encoded char* string.
-		p_input should be null-terminated. The output includes the null terminator.
+		if p_inputSize is -1, it is assumed that p_input is null-terminated.
+		The output includes the null terminator.
 	*/
-	uint32 getNumberOfCharactersInUtfConvertedString(char const* p_input);
+	uint32 getNumberOfUnitsInUtfConvertedString(char const* p_input, int32 p_numberOfUnitsInInput = -1);
 	/*
 		Converts a UTF-16 encoded wchar_t const* string to a UTF-8 encoded char* string.
-		p_string should be null-terminated.
+		if p_inputSize is -1, it is assumed that p_input is null-terminated.
 		p_result should be allocated with p_numberOfCharactersInResult number of char characters.
 		The output includes the null terminator.
 	*/
-	void convertUtf16ToUtf8(wchar_t const* p_input, char* p_output, uint32 p_numberOfCharactersInResult);
+	void convertUtf16ToUtf8(wchar_t const* p_input, char* p_output, uint32 p_numberOfUnitsInOutput, int32 p_numberOfUnitsInInput = -1);
+	/*
+		Converts a UTF-16 std::wstring to a UTF-8 encoded std::string.
+	*/
+	std::string convertUtf16ToUtf8(std::wstring const& p_input);
 	/*
 		Returns the number of UTF-8 encoded char* characters that would be used to represent the same characters in a UTF-16 encoded wchar_t* string.
-		p_input should be null-terminated. The output includes the null-terminator.
+		if p_inputSize is -1, it is assumed that p_input is null-terminated.
+		The output includes the null-terminator.
 	*/
-	uint32 getNumberOfCharactersInUtfConvertedString(wchar_t const* p_input);
+	uint32 getNumberOfUnitsInUtfConvertedString(wchar_t const* p_input, int32 p_numberOfUnitsInInput = -1);
 
 	//------------------------------
 
 	/*
 		If p_startByte is the first byte in a utf-8 encoded character, the function returns the number of bytes that the character is made up of, which can be 1-4.
 		If p_startByte is not the first byte in the character, the function returns 0.
-		If p_startByte is an invalid utf-8 byte, -1 is returned.
+		If p_startByte is an invalid UTF-8 byte, -1 is returned.
 	*/
-	inline int8 getNumberOfBytesInUtf8Character(int8 p_startByte)
+	inline int8 getNumberOfUnitsInUtf8Character(int8 p_startByte)
 	{
 		// http://www.unicode.org/versions/Unicode12.1.0/ch03.pdf , page 126
 		if (!(p_startByte & 0x80)) // 0xxxxxxx
@@ -275,10 +285,17 @@ namespace AvoGUI
 		return -1;
 	}
 	/*
-		If p_startUnit is the first unit in a utf-16 encoded character, the function returns the number of units that the character is made up of, which can only be 1 or 2.
+		Returns whether p_byte is the start of a UTF-8 encoded character
+	*/
+	inline bool getIsUnitStartOfUtf8Character(int8 p_byte)
+	{
+		return (p_byte & 0xc0) != 0x80;
+	}
+	/*
+		If p_startUnit is the first unit in a UTF-16 encoded character, the function returns the number of units that the character is made up of, which can only be 1 or 2.
 		If p_startUnit is not the first unit in the character, the function returns 0.
 	*/
-	inline int8 getNumberOfCodeUnitsInUtf16Character(int16 p_startUnit)
+	inline int8 getNumberOfUnitsInUtf16Character(int16 p_startUnit)
 	{
 		// http://www.unicode.org/versions/Unicode12.1.0/ch03.pdf , page 125
 		if ((p_startUnit & 0xfc00) == 0xd800) // 110110wwwwxxxxxx
@@ -287,9 +304,15 @@ namespace AvoGUI
 			return 0;
 		return 1; // xxxxxxxxxxxxxxxx
 	}
-
 	/*
-		Returns the index of the byte at a certain character index in a utf-8 encoded string (where a character can be 1-4 bytes).
+		Returns whether p_unit is the start of a UTF-8 encoded character
+	*/
+	inline bool getIsUnitStartOfUtf16Character(int8 p_unit)
+	{
+		return (p_unit & 0xfc00) != 0xdc00;
+	}
+	/*
+		Returns the index of the byte at a certain character index in a UTF-8 encoded string (where a character can be 1-4 bytes).
 		If p_characterIndex is outside of the string, the size of the string is returned.
 	*/
 	inline int32 getUtf8UnitIndexFromCharacterIndex(std::string const& p_string, uint32 p_characterIndex)
@@ -319,7 +342,7 @@ namespace AvoGUI
 		return p_string.size();
 	}
 	/*
-		Returns the index of the character that the byte at p_unitIndex in the utf-8 encoded p_string belongs to (where a character can be 1-4 bytes).
+		Returns the index of the character that the byte at p_unitIndex in the UTF-8 encoded p_string belongs to (where a character can be 1-4 bytes).
 		If p_unitIndex is outside of the string, the number of characters in the string is returned.
 	*/
 	inline int32 getCharacterIndexFromUtf8UnitIndex(std::string const& p_string, uint32 p_unitIndex)
@@ -327,10 +350,6 @@ namespace AvoGUI
 		if (!p_unitIndex)
 		{
 			return 0;
-		}
-		if (p_unitIndex >= p_string.size())
-		{
-			return p_string.size();
 		}
 
 		int32 numberOfCharactersCounted = 0;
@@ -353,7 +372,7 @@ namespace AvoGUI
 		return numberOfCharactersCounted;
 	}
 	/*
-		Returns the index of the unit at a certain character index in a utf-8 encoded string (where a character can be 1-2 units).
+		Returns the index of the unit at a certain character index in a UTF-8 encoded string (where a character can be 1-2 units).
 		If p_characterIndex is outside of the string, the size of the string in code units is returned.
 	*/
 	inline int32 getUtf16UnitIndexFromCharacterIndex(std::wstring const& p_string, uint32 p_characterIndex)
@@ -391,10 +410,6 @@ namespace AvoGUI
 		if (!p_unitIndex)
 		{
 			return 0;
-		}
-		if (p_unitIndex >= p_string.size())
-		{
-			return p_string.size();
 		}
 
 		int32 numberOfCharactersCounted = 0;
@@ -6702,36 +6717,35 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Gives a wide string for the OS to store globally. Other programs, or this one, can then access it.
+			Gives a UTF-16 encoded string for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this string.
 		*/
-		virtual void setClipboardWideString(std::wstring const& p_string) = 0;
+		virtual void setClipboardString(std::wstring const& p_string) = 0;
 		/*
-			Gives a wide string for the OS to store globally. Other programs, or this one, can then access it.
+			Gives a UTF-16 encoded string for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this string.
-			p_length is the number of characters in the string. If it is -1 then it assumes the string is null-terminated.
+			p_length is the number of code units in the string. If it is -1 then it assumes the string is null-terminated.
 		*/
-		virtual void setClipboardWideString(wchar_t const* p_string, int32 p_length = -1) = 0;
-
+		virtual void setClipboardString(wchar_t const* p_string, int32 p_size = -1) = 0;
 		/*
-			Gives a string for the OS to store globally. Other programs, or this one, can then access it.
+			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this string.
 		*/
 		virtual void setClipboardString(std::string const& p_string) = 0;
 		/*
-			Gives a string for the OS to store globally. Other programs, or this one, can then access it.
+			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this string.
-			p_length is the number of characters in the string. If it is -1 then it assumes the string is null-terminated.
+			p_length is the number of bytes (code units) in the string. If it is -1 then it assumes the string is null-terminated.
 		*/
-		virtual void setClipboardString(char const* p_string, int32 p_length = -1) = 0;
+		virtual void setClipboardString(char const* p_string, int32 p_size = -1) = 0;
 
 		/*
-			Returns the 16-bit string which is currently stored on the OS clipboard, if there is any. 
+			Returns the UTF-16 string which is currently stored on the OS clipboard, if there is any. 
 			Otherwhise the returned string is empty.
 		*/
-		virtual std::wstring getClipboardWideString() const = 0;
+		virtual std::wstring getClipboardUtf16String() const = 0;
 		/*
-			Returns the 8-bit string which is currently stored on the OS clipboard, if there is any. 
+			Returns the UTF-8 string which is currently stored on the OS clipboard, if there is any. 
 			Otherwhise the returned string is empty.
 		*/
 		virtual std::string getClipboardString() const = 0;
@@ -10119,17 +10133,16 @@ namespace AvoGUI
 				m_caretByteIndex = 0;
 
 				uint32 characterIndex = 0;
-				for (uint32 a = 0; a <= string.size();)
+				for (uint32 byteIndex = 0; byteIndex <= string.size(); byteIndex++)
 				{
-					int32 numberOfBytesInCharacter = a == string.size() ? 1 : getNumberOfBytesInUtf8Character(string[a]);
-					if (numberOfBytesInCharacter) // new character
+					if (byteIndex == string.size() || getIsUnitStartOfUtf8Character(string[byteIndex]))
 					{
-						if (a == string.size() || string[a] == ' ')
+						if (byteIndex == string.size() || string[byteIndex] == ' ')
 						{
 							if (characterIndex >= clickCharacterIndex)
 							{
 								m_selectionEndCharacterIndex = characterIndex;
-								m_selectionEndByteIndex = a;
+								m_selectionEndByteIndex = byteIndex;
 								m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex);
 								m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
 								updateCaretTracking();
@@ -10138,15 +10151,10 @@ namespace AvoGUI
 							else
 							{
 								m_caretCharacterIndex = characterIndex + 1;
-								m_caretByteIndex = a + 1;
+								m_caretByteIndex = byteIndex + 1;
 							}
 						}
 						characterIndex++;
-						a += numberOfBytesInCharacter;
-					}
-					else
-					{
-						a++;
 					}
 				}
 				if (m_caretCharacterIndex != m_selectionEndCharacterIndex)
@@ -10321,18 +10329,18 @@ namespace AvoGUI
 				{
 					if (window->getIsKeyDown(KeyboardKey::Control))
 					{
-						int32 characterIndex = m_caretCharacterIndex;
+						int32 characterIndex = m_caretCharacterIndex - 1;
 						for (int32 byteIndex = m_caretByteIndex - 1; byteIndex >= 0; byteIndex--)
 						{
-							if (getNumberOfBytesInUtf8Character(string[byteIndex]))
+							if (getIsUnitStartOfUtf8Character(string[byteIndex]))
 							{
+								if (!byteIndex || (string[byteIndex - 1U] == ' ' && string[byteIndex] != ' '))
+								{
+									string.erase(byteIndex, (int32)m_caretByteIndex - byteIndex);
+									setString(string, characterIndex);
+									break;
+								}
 								characterIndex--;
-							}
-							if (!byteIndex || (string[byteIndex - 1U] == ' ' && string[byteIndex] != ' '))
-							{
-								string.erase(byteIndex, (int32)m_caretByteIndex - byteIndex);
-								setString(string, characterIndex);
-								break;
 							}
 						}
 					}
@@ -10340,7 +10348,7 @@ namespace AvoGUI
 					{
 						for (int32 byteIndex = m_caretByteIndex - 1; byteIndex >= 0; byteIndex--)
 						{
-							int8 numberOfBytesInCharacter = getNumberOfBytesInUtf8Character(string[byteIndex]);
+							int8 numberOfBytesInCharacter = getNumberOfUnitsInUtf8Character(string[byteIndex]);
 							if (numberOfBytesInCharacter)
 							{
 								setString(string.erase(byteIndex, numberOfBytesInCharacter), m_caretCharacterIndex - 1);
@@ -10376,7 +10384,7 @@ namespace AvoGUI
 					}
 					else
 					{
-						setString(string.erase(m_caretByteIndex, getNumberOfBytesInUtf8Character(string[m_caretByteIndex])));
+						setString(string.erase(m_caretByteIndex, getNumberOfUnitsInUtf8Character(string[m_caretByteIndex])));
 					}
 				}
 				m_caretFrameCount = 1;
@@ -10392,18 +10400,74 @@ namespace AvoGUI
 				}
 				if (window->getIsKeyDown(KeyboardKey::Control))
 				{
-					std::string string = m_text->getString();
 					if (window->getIsKeyDown(KeyboardKey::Shift))
 					{
 						if (!m_isSelectionVisible)
 						{
 							m_selectionEndCharacterIndex = m_caretCharacterIndex;
+							m_selectionEndByteIndex = m_caretByteIndex;
 						}
-						for (int32 a = m_selectionEndCharacterIndex - 1; a >= 0; a--)
+						int32 characterIndex = m_selectionEndCharacterIndex - 1;
+						for (int32 byteIndex = m_selectionEndByteIndex - 1; byteIndex >= 0; byteIndex--)
 						{
-							if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
+							if (getIsUnitStartOfUtf8Character(string[byteIndex]))
 							{
-								m_selectionEndCharacterIndex = a;
+								if (!byteIndex || (string[byteIndex - 1U] == ' ' && string[byteIndex] != ' '))
+								{
+									m_selectionEndByteIndex = byteIndex;
+									m_selectionEndCharacterIndex = characterIndex;
+									if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
+									{
+										m_isSelectionVisible = false;
+									}
+									else
+									{
+										m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
+										updateSelectionEndTracking();
+										m_isSelectionVisible = true;
+									}
+									break;
+								}
+								characterIndex--;
+							}
+						}
+					}
+					else
+					{
+						int32 characterIndex = m_caretCharacterIndex - 1;
+						for (int32 byteIndex = m_caretByteIndex - 1; byteIndex >= 0; byteIndex--)
+						{
+							if (getIsUnitStartOfUtf8Character(string[byteIndex]))
+							{
+								if (!byteIndex || (string[byteIndex - 1U] == ' ' && string[byteIndex] != ' '))
+								{
+									m_caretByteIndex = byteIndex;
+									m_caretCharacterIndex = characterIndex;
+									m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+									updateCaretTracking();
+									m_isSelectionVisible = false;
+									break;
+								}
+								characterIndex--;
+							}
+						}
+					}
+				}
+				else if (window->getIsKeyDown(KeyboardKey::Shift))
+				{
+					if (!m_isSelectionVisible)
+					{
+						m_selectionEndCharacterIndex = m_caretCharacterIndex;
+						m_selectionEndByteIndex = m_caretByteIndex;
+					}
+					if (m_selectionEndCharacterIndex > 0)
+					{
+						for (int32 byteIndex = m_selectionEndByteIndex - 1; byteIndex >= 0; byteIndex--)
+						{
+							if (getIsUnitStartOfUtf8Character(string[byteIndex]))
+							{
+								m_selectionEndCharacterIndex--;
+								m_selectionEndByteIndex = byteIndex;
 								if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
 								{
 									m_isSelectionVisible = false;
@@ -10418,41 +10482,6 @@ namespace AvoGUI
 							}
 						}
 					}
-					else
-					{
-						for (int32 a = m_caretCharacterIndex - 1; a >= 0; a--)
-						{
-							if (!a || (string[a - 1U] == ' ' && string[a] != ' '))
-							{
-								m_caretCharacterIndex = a;
-								m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
-								updateCaretTracking();
-								m_isSelectionVisible = false;
-								break;
-							}
-						}
-					}
-				}
-				else if (window->getIsKeyDown(KeyboardKey::Shift))
-				{
-					if (!m_isSelectionVisible)
-					{
-						m_selectionEndCharacterIndex = m_caretCharacterIndex;
-					}
-					if (m_selectionEndCharacterIndex > 0)
-					{
-						m_selectionEndCharacterIndex--;
-						if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
-						{
-							m_isSelectionVisible = false;
-						}
-						else
-						{
-							m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
-							updateSelectionEndTracking();
-							m_isSelectionVisible = true;
-						}
-					}
 				}
 				else
 				{
@@ -10461,6 +10490,7 @@ namespace AvoGUI
 						if (m_caretCharacterIndex > m_selectionEndCharacterIndex)
 						{
 							m_caretCharacterIndex = m_selectionEndCharacterIndex;
+							m_caretByteIndex = m_selectionEndByteIndex;
 							m_caretPosition = m_selectionEndPosition;
 						}
 						updateCaretTracking();
@@ -10470,9 +10500,17 @@ namespace AvoGUI
 					{
 						if (m_caretCharacterIndex > 0)
 						{
-							m_caretCharacterIndex--;
-							m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
-							updateCaretTracking();
+							for (int32 byteIndex = m_caretByteIndex - 1; byteIndex >= 0; byteIndex--)
+							{
+								if (getIsUnitStartOfUtf8Character(string[byteIndex]))
+								{
+									m_caretCharacterIndex--;
+									m_caretByteIndex = byteIndex;
+									m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+									updateCaretTracking();
+									break;
+								}
+							}
 						}
 					}
 				}
@@ -10488,43 +10526,55 @@ namespace AvoGUI
 				}
 				if (window->getIsKeyDown(KeyboardKey::Control))
 				{
-					std::string string = m_text->getString();
 					if (window->getIsKeyDown(KeyboardKey::Shift))
 					{
 						if (!m_isSelectionVisible)
 						{
 							m_selectionEndCharacterIndex = m_caretCharacterIndex;
+							m_selectionEndByteIndex = m_caretByteIndex;
 						}
-						for (uint32 a = m_selectionEndCharacterIndex; a < string.size(); a++)
+						uint32 characterIndex = m_selectionEndCharacterIndex;
+						for (uint32 byteIndex = m_selectionEndByteIndex + 1; byteIndex <= string.size(); byteIndex++)
 						{
-							if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
+							if (byteIndex == string.size() || getIsUnitStartOfUtf8Character(string[byteIndex]))
 							{
-								m_selectionEndCharacterIndex = a + 1;
-								if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
+								characterIndex++;
+								if (byteIndex == string.size() || string[byteIndex] == ' ' && string[byteIndex - 1] != ' ')
 								{
-									m_isSelectionVisible = false;
+									m_selectionEndByteIndex = byteIndex;
+									m_selectionEndCharacterIndex = characterIndex;
+									if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
+									{
+										m_isSelectionVisible = false;
+									}
+									else
+									{
+										m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
+										updateSelectionEndTracking();
+										m_isSelectionVisible = true;
+									}
+									break;
 								}
-								else
-								{
-									m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
-									updateSelectionEndTracking();
-									m_isSelectionVisible = true;
-								}
-								break;
 							}
 						}
 					}
 					else
 					{
-						for (uint32 a = m_caretCharacterIndex; a < string.size(); a++)
+						uint32 characterIndex = m_caretCharacterIndex;
+						for (uint32 byteIndex = m_caretByteIndex + 1; byteIndex <= string.size(); byteIndex++)
 						{
-							if (a == string.size() - 1 || (string[a + 1U] == ' ' && string[a] != ' '))
+							if (byteIndex == string.size() || getIsUnitStartOfUtf8Character(string[byteIndex]))
 							{
-								m_caretCharacterIndex = a + 1;
-								m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
-								updateCaretTracking();
-								m_isSelectionVisible = false;
-								break;
+								characterIndex++;
+								if (byteIndex == string.size() || string[byteIndex] == ' ' && string[byteIndex - 1] != ' ')
+								{
+									m_caretByteIndex = byteIndex;
+									m_caretCharacterIndex = characterIndex;
+									m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+									updateCaretTracking();
+									m_isSelectionVisible = false;
+									break;
+								}
 							}
 						}
 					}
@@ -10535,8 +10585,9 @@ namespace AvoGUI
 					{
 						m_selectionEndCharacterIndex = m_caretCharacterIndex;
 					}
-					if (m_selectionEndCharacterIndex < m_text->getString().size())
+					if (m_selectionEndByteIndex < string.size())
 					{
+						m_selectionEndByteIndex += getNumberOfUnitsInUtf8Character(string[m_selectionEndByteIndex]);
 						m_selectionEndCharacterIndex++;
 						if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
 						{
@@ -10557,6 +10608,7 @@ namespace AvoGUI
 						if (m_caretCharacterIndex < m_selectionEndCharacterIndex)
 						{
 							m_caretCharacterIndex = m_selectionEndCharacterIndex;
+							m_caretByteIndex = m_selectionEndByteIndex;
 							m_caretPosition = m_selectionEndPosition;
 							updateCaretTracking();
 						}
@@ -10564,8 +10616,9 @@ namespace AvoGUI
 					}
 					else
 					{
-						if (m_caretCharacterIndex < m_text->getString().size())
+						if (m_caretByteIndex < string.size())
 						{
+							m_caretByteIndex += getNumberOfUnitsInUtf8Character(string[m_caretByteIndex]);
 							m_caretCharacterIndex++;
 							m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
 							updateCaretTracking();
@@ -10586,11 +10639,11 @@ namespace AvoGUI
 				{
 					if (m_caretCharacterIndex < m_selectionEndCharacterIndex)
 					{
-						window->setClipboardString(m_text->getString().substr(m_caretCharacterIndex, m_selectionEndCharacterIndex - m_caretCharacterIndex));
+						window->setClipboardString(string.substr(m_caretByteIndex, m_selectionEndByteIndex - m_caretByteIndex));
 					}
 					else
 					{
-						window->setClipboardString(m_text->getString().substr(m_selectionEndCharacterIndex, m_caretCharacterIndex - m_selectionEndCharacterIndex));
+						window->setClipboardString(string.substr(m_selectionEndByteIndex, m_caretByteIndex - m_selectionEndByteIndex));
 					}
 				}
 				break;
@@ -10603,16 +10656,15 @@ namespace AvoGUI
 				}
 				if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
 				{
-					std::string string(m_text->getString());
 					if (m_caretCharacterIndex < m_selectionEndCharacterIndex)
 					{
-						window->setClipboardString(string.substr(m_caretCharacterIndex, m_selectionEndCharacterIndex - m_caretCharacterIndex));
-						string.erase(m_caretCharacterIndex, m_selectionEndCharacterIndex - m_caretCharacterIndex);
+						window->setClipboardString(string.substr(m_caretByteIndex, m_selectionEndByteIndex - m_caretByteIndex));
+						string.erase(m_caretByteIndex, m_selectionEndByteIndex - m_caretByteIndex);
 						setString(string);
 					}
 					else {
-						window->setClipboardString(string.substr(m_selectionEndCharacterIndex, m_caretCharacterIndex - m_selectionEndCharacterIndex));
-						string.erase(m_selectionEndCharacterIndex, m_caretCharacterIndex - m_selectionEndCharacterIndex);
+						window->setClipboardString(string.substr(m_selectionEndByteIndex, m_caretByteIndex - m_selectionEndByteIndex));
+						string.erase(m_selectionEndByteIndex, m_caretByteIndex - m_selectionEndByteIndex);
 						setString(string, m_selectionEndCharacterIndex);
 					}
 
@@ -10627,24 +10679,26 @@ namespace AvoGUI
 			{
 				if (window->getIsKeyDown(KeyboardKey::Control))
 				{
-					std::string string(m_text ? m_text->getString() : "");
-					uint32 caretIndex = m_caretCharacterIndex;
+					uint32 caretCharacterIndex = m_caretCharacterIndex;
+					uint32 caretByteIndex = m_caretByteIndex;
 					if (m_isSelectionVisible)
 					{
-						if (caretIndex < m_selectionEndCharacterIndex)
+						if (caretCharacterIndex < m_selectionEndCharacterIndex)
 						{
-							string.erase(caretIndex, m_selectionEndCharacterIndex - caretIndex);
+							string.erase(m_caretByteIndex, m_selectionEndByteIndex - m_caretByteIndex);
 						}
 						else
 						{
-							string.erase(m_selectionEndCharacterIndex, caretIndex - m_selectionEndCharacterIndex);
-							caretIndex = m_selectionEndCharacterIndex;
+							string.erase(m_selectionEndByteIndex, m_caretByteIndex - m_selectionEndByteIndex);
+							caretCharacterIndex = m_selectionEndCharacterIndex;
+							caretByteIndex = m_selectionEndByteIndex;
 						}
 						m_isSelectionVisible = false;
 					}
 					std::string clipboardString = window->getClipboardString();
-					string.insert(caretIndex, clipboardString);
-					setString(string, caretIndex + clipboardString.size());
+					string.insert(caretByteIndex, clipboardString);
+					uint32 chars = caretCharacterIndex + getCharacterIndexFromUtf8UnitIndex(clipboardString, clipboardString.size());
+					setString(string, caretCharacterIndex + getCharacterIndexFromUtf8UnitIndex(clipboardString, clipboardString.size()));
 					
 					m_caretFrameCount = 1;
 					m_isCaretVisible = true;
@@ -10671,23 +10725,29 @@ namespace AvoGUI
 
 		//------------------------------
 
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		void setSelection(uint32 p_startIndex, uint32 p_endIndex)
 		{
 			if (m_text)
 			{
-				p_startIndex = min((uint32)m_text->getString().size(), p_startIndex);
-				p_endIndex = min((uint32)m_text->getString().size(), max(p_startIndex, p_endIndex));
+				uint32 numberOfCharactersInString = getCharacterIndexFromUtf8UnitIndex(m_text->getString(), m_text->getString().size());
+				p_startIndex = min(numberOfCharactersInString, p_startIndex);
+				p_endIndex = min(numberOfCharactersInString, max(p_startIndex, p_endIndex));
 				if (p_startIndex != p_endIndex)
 				{
 					if (p_startIndex != m_caretCharacterIndex)
 					{
 						m_caretCharacterIndex = p_startIndex;
+						m_caretByteIndex = getUtf8UnitIndexFromCharacterIndex(m_text->getString(), m_caretCharacterIndex);
 						m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
 					}
 
 					if (p_endIndex != m_selectionEndCharacterIndex)
 					{
 						m_selectionEndCharacterIndex = p_endIndex;
+						m_selectionEndByteIndex = getUtf8UnitIndexFromCharacterIndex(m_text->getString(), m_selectionEndCharacterIndex);
 						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
 					}
 					m_isSelectionVisible = true;
@@ -10695,6 +10755,9 @@ namespace AvoGUI
 				}
 			}
 		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		void selectAll()
 		{
 			if (m_text)
@@ -10705,12 +10768,14 @@ namespace AvoGUI
 					if (m_caretCharacterIndex != 0)
 					{
 						m_caretCharacterIndex = 0;
+						m_caretByteIndex = 0;
 						m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
 					}
 
 					if (m_selectionEndCharacterIndex != stringLength)
 					{
-						m_selectionEndCharacterIndex = stringLength;
+						m_selectionEndCharacterIndex = getCharacterIndexFromUtf8UnitIndex(m_text->getString(), stringLength);
+						m_selectionEndByteIndex = stringLength;
 						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
 					}
 					m_isSelectionVisible = true;
