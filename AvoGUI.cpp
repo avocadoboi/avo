@@ -53,7 +53,13 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void convertUtf8ToUtf16(char const* p_input, wchar_t* p_output, uint32 p_numberOfUnitsInOutput, int32 p_numberOfUnitsInInput)
+	void convertUtf8ToUtf16(char const* p_input, wchar_t* p_output, uint32 p_numberOfUnitsInOutput)
+	{
+#ifdef _WIN32
+		MultiByteToWideChar(CP_UTF8, 0, p_input, -1, p_output, p_numberOfUnitsInOutput);
+#endif
+	}
+	void convertUtf8ToUtf16(char const* p_input, uint32 p_numberOfUnitsInInput, wchar_t* p_output, uint32 p_numberOfUnitsInOutput)
 	{
 #ifdef _WIN32
 		MultiByteToWideChar(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, p_output, p_numberOfUnitsInOutput);
@@ -68,13 +74,26 @@ namespace AvoGUI
 		return result;
 #endif
 	}
+	uint32 getNumberOfUnitsInUtfConvertedString(char const* p_input)
+	{
+#ifdef _WIN32
+		return MultiByteToWideChar(CP_UTF8, 0, p_input, -1, 0, 0);
+#endif
+	}
 	uint32 getNumberOfUnitsInUtfConvertedString(char const* p_input, int32 p_numberOfUnitsInInput)
 	{
 #ifdef _WIN32
 		return MultiByteToWideChar(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, 0, 0);
 #endif
 	}
-	void convertUtf16ToUtf8(wchar_t const* p_input, char* p_output, uint32 p_numberOfCharactersInResult, int32 p_numberOfUnitsInInput)
+
+	void convertUtf16ToUtf8(wchar_t const* p_input, char* p_output, uint32 p_numberOfCharactersInOutput)
+	{
+#ifdef _WIN32
+		WideCharToMultiByte(CP_UTF8, 0, p_input, -1, p_output, p_numberOfCharactersInOutput, 0, false);
+#endif
+	}
+	void convertUtf16ToUtf8(wchar_t const* p_input, uint32 p_numberOfUnitsInInput, char* p_output, uint32 p_numberOfCharactersInResult)
 	{
 #ifdef _WIN32
 		WideCharToMultiByte(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, p_output, p_numberOfCharactersInResult, 0, false);
@@ -89,7 +108,13 @@ namespace AvoGUI
 		return result;
 #endif
 	}
-	uint32 getNumberOfUnitsInUtfConvertedString(wchar_t const* p_input, int32 p_numberOfUnitsInInput)
+	uint32 getNumberOfUnitsInUtfConvertedString(wchar_t const* p_input)
+	{
+#ifdef _WIN32
+		return WideCharToMultiByte(CP_UTF8, 0, p_input, -1, 0, 0, 0, false);
+#endif
+	}
+	uint32 getNumberOfUnitsInUtfConvertedString(wchar_t const* p_input, uint32 p_numberOfUnitsInInput)
 	{
 #ifdef _WIN32
 		return WideCharToMultiByte(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, 0, 0, 0, false);
@@ -1948,17 +1973,19 @@ namespace AvoGUI
 		void setClipboardString(wchar_t const* p_string, int32 p_length) override
 		{
 			size_t size = p_length >= 0 ? p_length : wcslen(p_string);
-			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, size + 1LL);
-			if (!clipboardData)
+			HGLOBAL clipboardMemory = GlobalAlloc(GMEM_MOVEABLE, (size + 1) * sizeof(wchar_t));
+			if (!clipboardMemory)
 			{
 				return;
 			}
-			memcpy(GlobalLock(clipboardData), (char*)p_string, size + 1LL);
-			GlobalUnlock(clipboardData);
+			wchar_t* data = (wchar_t*)GlobalLock(clipboardMemory);
+			memcpy(data, (char*)p_string, size * sizeof(wchar_t));
+			data[size] = 0;
+			GlobalUnlock(clipboardMemory);
 
 			OpenClipboard(m_windowHandle);
 			EmptyClipboard();
-			SetClipboardData(CF_UNICODETEXT, clipboardData);
+			SetClipboardData(CF_UNICODETEXT, clipboardMemory);
 			CloseClipboard();
 		}
 
@@ -1969,21 +1996,24 @@ namespace AvoGUI
 		void setClipboardString(char const* p_string, int32 p_length) override
 		{
 			uint32 size = p_length >= 0 ? p_length : strlen(p_string);
+
 			uint32 wideSize = getNumberOfUnitsInUtfConvertedString(p_string, size);
 			wchar_t* wideString = new wchar_t[wideSize];
-			convertUtf8ToUtf16(p_string, wideString, wideSize, size);
+			convertUtf8ToUtf16(p_string, size, wideString, wideSize);
 
-			char* clipboardData = (char*)GlobalAlloc(GMEM_MOVEABLE, wideSize*sizeof(wchar_t) + 1LL);
-			if (!clipboardData)
+			HGLOBAL clipboardMemory = GlobalAlloc(GMEM_MOVEABLE, (wideSize + 1) * sizeof(wchar_t));
+			if (!clipboardMemory)
 			{
 				return;
 			}
-			memcpy(GlobalLock(clipboardData), (char*)wideString, wideSize*sizeof(wchar_t) + 1LL);
-			GlobalUnlock(clipboardData);
+			wchar_t* data = (wchar_t*)GlobalLock(clipboardMemory);
+			memcpy(data, (char*)p_string, wideSize * sizeof(wchar_t));
+			data[wideSize] = 0;
+			GlobalUnlock(clipboardMemory);
 
 			OpenClipboard(m_windowHandle);
 			EmptyClipboard();
-			SetClipboardData(CF_UNICODETEXT, clipboardData);
+			SetClipboardData(CF_UNICODETEXT, clipboardMemory);
 			CloseClipboard();
 
 			delete[] wideString;
@@ -2018,7 +2048,7 @@ namespace AvoGUI
 				wchar_t* wideString = (wchar_t*)GlobalLock(handle);
 				uint32 wideStringSize = wcslen(wideString);
 				string.resize(getNumberOfUnitsInUtfConvertedString(wideString, wideStringSize));
-				convertUtf16ToUtf8(wideString, string.data(), string.size(), wideStringSize);
+				convertUtf16ToUtf8(wideString, wideStringSize, string.data(), string.size());
 				GlobalUnlock(handle);
 			}
 

@@ -228,39 +228,66 @@ namespace AvoGUI
 	//------------------------------
 
 	/*
-		Converts a UTF-8 encoded char* string to a UTF-16 encoded wchar_t* string.
-		if p_inputSize is -1, it is assumed that p_input is null-terminated.
-		p_output should be allocated with p_numberOfCharactersInOutput number of wchar_t characters.
+		Converts a UTF-8 encoded char string to a UTF-16 encoded wchar_t string.
+		It is assumed that p_input is null-terminated.
+		p_output should be allocated with p_numberOfUnitsInOutput number of wchar_t units.
 		The output includes the null terminator.
 	*/
-	void convertUtf8ToUtf16(char const* p_input, wchar_t* p_output, uint32 p_numberOfUnitsInOutput, int32 p_numberOfUnitsInInput = -1);
+	void convertUtf8ToUtf16(char const* p_input, wchar_t* p_output, uint32 p_numberOfUnitsInOutput);
+	/*
+		Converts a UTF-8 encoded char string to a UTF-16 encoded wchar_t string.
+		p_numberOfUnitsInInput is the size in bytes of p_input.
+		p_output should be allocated with p_numberOfUnitsInOutput number of wchar_t units.
+		The output includes the null terminator if the input includes the null terminator.
+	*/
+	void convertUtf8ToUtf16(char const* p_input, uint32 p_numberOfUnitsInInput, wchar_t* p_output, uint32 p_numberOfUnitsInOutput);
 	/*
 		Converts a UTF-8 encoded std::string to a UTF-16 encoded std::wstring.
 	*/
 	std::wstring convertUtf8ToUtf16(std::string const& p_input);
 	/*
-		Returns the number of UTF-16 encoded wchar_t* characters that would be used to represent the same characters in a UTF-8 encoded char* string.
-		if p_inputSize is -1, it is assumed that p_input is null-terminated.
-		The output includes the null terminator.
+		Returns the number of UTF-16 encoded wchar_t units that would be used to represent the same characters in a UTF-8 encoded char string.
+		if p_numberOfUnitsInInput is the size of p_input in bytes.
+		The output includes the null terminator if the input includes a null terminator.
 	*/
-	uint32 getNumberOfUnitsInUtfConvertedString(char const* p_input, int32 p_numberOfUnitsInInput = -1);
+	uint32 getNumberOfUnitsInUtfConvertedString(char const* p_input, int32 p_numberOfUnitsInInput);
 	/*
-		Converts a UTF-16 encoded wchar_t const* string to a UTF-8 encoded char* string.
-		if p_inputSize is -1, it is assumed that p_input is null-terminated.
-		p_result should be allocated with p_numberOfCharactersInResult number of char characters.
+		Returns the number of UTF-16 encoded wchar_t units that would be used to represent the same characters in a UTF-8 encoded char string.
+		It is assumed that p_input is null-terminated.
 		The output includes the null terminator.
 	*/
-	void convertUtf16ToUtf8(wchar_t const* p_input, char* p_output, uint32 p_numberOfUnitsInOutput, int32 p_numberOfUnitsInInput = -1);
+	uint32 getNumberOfUnitsInUtfConvertedString(char const* p_input);
+	
+	/*
+		Converts a UTF-16 encoded wchar_t string to a UTF-8 encoded char string.
+		It is assumed that p_input is null-terminated.
+		p_output should be allocated with p_numberOfUnitsInOutput number of wchar_t units.
+		The output includes the null terminator.
+	*/
+	void convertUtf16ToUtf8(wchar_t const* p_input, char* p_output, uint32 p_numberOfUnitsInOutput);
+	/*
+		Converts a UTF-16 encoded wchar_t string to a UTF-8 encoded char string.
+		p_numberOfUnitsInInput is the size of p_input, in wchar_t units.
+		p_output should be allocated with p_numberOfUnitsInOutput number of wchar_t units.
+		The output includes the null terminator.
+	*/
+	void convertUtf16ToUtf8(wchar_t const* p_input, uint32 p_numberOfUnitsInInput, char* p_output, uint32 p_numberOfUnitsInOutput);
 	/*
 		Converts a UTF-16 std::wstring to a UTF-8 encoded std::string.
 	*/
 	std::string convertUtf16ToUtf8(std::wstring const& p_input);
 	/*
-		Returns the number of UTF-8 encoded char* characters that would be used to represent the same characters in a UTF-16 encoded wchar_t* string.
-		if p_inputSize is -1, it is assumed that p_input is null-terminated.
-		The output includes the null-terminator.
+		Returns the number of UTF-8 encoded char units that would be used to represent the same characters in a UTF-16 encoded wchar_t string.
+		It is assumed that p_input is null terminated.
+		The output includes the null terminator.
 	*/
-	uint32 getNumberOfUnitsInUtfConvertedString(wchar_t const* p_input, int32 p_numberOfUnitsInInput = -1);
+	uint32 getNumberOfUnitsInUtfConvertedString(wchar_t const* p_input);
+	/*
+		Returns the number of UTF-8 encoded char units that would be used to represent the same characters in a UTF-16 encoded wchar_t string.
+		p_numberOfUnitsInInput is the size of p_input in wchar_t units.
+		The output includes the null terminator if the input includes a null terminator.
+	*/
+	uint32 getNumberOfUnitsInUtfConvertedString(wchar_t const* p_input, uint32 p_numberOfUnitsInInput);
 
 	//------------------------------
 
@@ -10686,6 +10713,8 @@ namespace AvoGUI
 						if (caretCharacterIndex < m_selectionEndCharacterIndex)
 						{
 							string.erase(m_caretByteIndex, m_selectionEndByteIndex - m_caretByteIndex);
+							m_selectionEndCharacterIndex = m_caretCharacterIndex;
+							m_selectionEndByteIndex = m_caretByteIndex;
 						}
 						else
 						{
@@ -10697,7 +10726,6 @@ namespace AvoGUI
 					}
 					std::string clipboardString = window->getClipboardString();
 					string.insert(caretByteIndex, clipboardString);
-					uint32 chars = caretCharacterIndex + getCharacterIndexFromUtf8UnitIndex(clipboardString, clipboardString.size());
 					setString(string, caretCharacterIndex + getCharacterIndexFromUtf8UnitIndex(clipboardString, clipboardString.size()));
 					
 					m_caretFrameCount = 1;
