@@ -369,7 +369,14 @@ namespace AvoGUI
 	{
 		if (m_id)
 		{
-			m_gui->m_viewsById.erase(m_id);
+			if (m_gui == this)
+			{
+				((Gui*)this)->getParent()->m_viewsById.erase(m_id);
+			}
+			else
+			{
+				m_gui->m_viewsById.erase(m_id);
+			}
 		}
 		m_theme->forget();
 		if (m_shadowImage)
@@ -844,6 +851,9 @@ namespace AvoGUI
 #pragma region Platform-specific window implementations
 #ifdef _WIN32
 
+	constexpr int WM_USER_CHANGE_SIZE = WM_USER;
+	constexpr int WM_USER_DISABLE = WM_USER + 1;
+
 	class WindowsWindow : public Window
 	{
 	private:
@@ -1312,12 +1322,12 @@ namespace AvoGUI
 		void enableUserInteraction() override
 		{
 			EnableWindow(m_windowHandle, true);
-			SetActiveWindow(m_windowHandle);
-			SetForegroundWindow(m_windowHandle);
+			//SetActiveWindow(m_windowHandle);
+			//SetForegroundWindow(m_windowHandle);
 		}
 		void disableUserInteraction() override
 		{
-			EnableWindow(m_windowHandle, false);
+			PostMessage(m_windowHandle, WM_USER_DISABLE, 0, 0);
 		}
 
 		//------------------------------
@@ -1449,8 +1459,7 @@ namespace AvoGUI
 
 		void setPosition(Point<int32> const& p_position) override
 		{
-			SetWindowPos(m_windowHandle, 0, p_position.x, p_position.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
-			m_position = p_position;
+			setPosition(p_position.x, p_position.y);
 		}
 		void setPosition(int32 p_x, int32 p_y) override
 		{
@@ -1472,15 +1481,17 @@ namespace AvoGUI
 
 		void setSize(Point<float> const& p_size) override
 		{
-			RECT windowRect = { 0, 0, (int)std::ceil(p_size.x * m_dipToPixelFactor), (int)std::ceil(p_size.y * m_dipToPixelFactor) };
-			AdjustWindowRect(&windowRect, m_styles, 0);
-			SetWindowPos(m_windowHandle, 0, 0, 0, windowRect.right - windowRect.left, windowRect.bottom - windowRect.top, SWP_NOMOVE | SWP_NOZORDER);
+			setSize(p_size.x, p_size.y);
 		}
 		void setSize(float p_width, float p_height) override
 		{
-			RECT windowRect = { 0, 0, (int)std::ceil(p_width * m_dipToPixelFactor), (int)std::ceil(p_height * m_dipToPixelFactor) };
-			AdjustWindowRect(&windowRect, m_styles, 0);
-			SetWindowPos(m_windowHandle, 0, 0, 0, windowRect.right - windowRect.left, windowRect.bottom - windowRect.top, SWP_NOMOVE | SWP_NOZORDER);
+			if (m_windowHandle)
+			{
+				RECT windowRect = { 0, 0, (int)std::ceil(p_width * m_dipToPixelFactor), (int)std::ceil(p_height * m_dipToPixelFactor) };
+				AdjustWindowRect(&windowRect, m_styles, 0);
+				
+				PostMessage(m_windowHandle, WM_USER_CHANGE_SIZE, (uint64(windowRect.right - windowRect.left) << 32) | uint64(windowRect.bottom - windowRect.top), 0);
+			}
 		}
 
 		Point<float> const& getSize() const override
@@ -2113,6 +2124,26 @@ namespace AvoGUI
 					return 0;
 				}
 				break;
+			}
+			case WM_USER_CHANGE_SIZE:
+			{
+				SetWindowPos(m_windowHandle, 0, 0, 0, uint32(p_data_a >> 32), uint32(p_data_a & 0xffffffff), SWP_NOMOVE | SWP_NOZORDER);
+
+				return 0;
+			}
+			case WM_USER_DISABLE:
+			{
+				HWND child = GetWindow(m_windowHandle, GW_HWNDFIRST);
+
+				if (child)
+				{
+					SetForegroundWindow(child);
+					//SetActiveWindow(child);
+					//SetFocus(child);
+				}
+
+				EnableWindow(m_windowHandle, false);
+				return 0;
 			}
 			case WM_ERASEBKGND:
 			{
@@ -6382,7 +6413,7 @@ namespace AvoGUI
 				textLayout->GetOverhangMetrics(&overhangMetrics);
 			}
 			m_currentBrush->SetOpacity(m_brushOpacity);
-			m_context->DrawTextLayout(D2D1::Point2F(p_text->getTopLeft().x, p_text->getTopLeft().y + overhangMetrics.top), textLayout, m_currentBrush);
+			m_context->DrawTextLayout(D2D1::Point2F(p_text->getTopLeft().x, p_text->getTopLeft().y + overhangMetrics.top), textLayout, m_currentBrush, D2D1_DRAW_TEXT_OPTIONS::D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
 		}
 		void drawText(char const* p_string, Rectangle<float> const& p_rectangle) override
 		{
