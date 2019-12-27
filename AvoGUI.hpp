@@ -1,14 +1,14 @@
 /*
 	GUI framework by Björn Sundin. 
 
-			 --
-	   \   --  --   /
-		\ /      \ /
-		 |   /\   |
-		 \   \/   /
-		  \      /
-		   ------
-			| |
+             --
+       \   --  --   /
+        \ /      \ /
+         |   /\   |
+         \   \/   /
+          \      /
+           ------
+            | |
 	
 	Info about documentation: a class that has virtual methods starts the documentation of methods with either 
 	"LIBRARY IMPLEMENTED" or "USER IMPLEMENTED". If a method is "USER IMPLEMENTED", it means that the method 
