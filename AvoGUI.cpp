@@ -852,7 +852,7 @@ namespace AvoGUI
 #ifdef _WIN32
 
 	constexpr int WM_USER_CHANGE_SIZE = WM_USER;
-	constexpr int WM_USER_DISABLE = WM_USER + 1;
+	constexpr int WM_USER_SET_IS_ENABLED = WM_USER + 1;
 
 	class WindowsWindow : public Window
 	{
@@ -1321,13 +1321,15 @@ namespace AvoGUI
 
 		void enableUserInteraction() override
 		{
-			EnableWindow(m_windowHandle, true);
-			//SetActiveWindow(m_windowHandle);
-			//SetForegroundWindow(m_windowHandle);
+			PostMessage(m_windowHandle, WM_USER_SET_IS_ENABLED, 1, 0);
 		}
 		void disableUserInteraction() override
 		{
-			PostMessage(m_windowHandle, WM_USER_DISABLE, 0, 0);
+			PostMessage(m_windowHandle, WM_USER_SET_IS_ENABLED, 0, 0);
+		}
+		bool getIsUserInteractionEnabled() override
+		{
+			return IsWindowEnabled(m_windowHandle);
 		}
 
 		//------------------------------
@@ -2131,18 +2133,26 @@ namespace AvoGUI
 
 				return 0;
 			}
-			case WM_USER_DISABLE:
+			case WM_USER_SET_IS_ENABLED:
 			{
-				HWND child = GetWindow(m_windowHandle, GW_HWNDFIRST);
-
-				if (child)
+				if (p_data_a)
 				{
-					SetForegroundWindow(child);
-					//SetActiveWindow(child);
-					//SetFocus(child);
+					EnableWindow(m_windowHandle, true);
+					SetForegroundWindow(m_windowHandle);
+				}
+				else
+				{
+					HWND child = GetWindow(m_windowHandle, GW_HWNDFIRST);
+					if (child)
+					{
+						SetForegroundWindow(child);
+						//SetActiveWindow(child);
+						//SetFocus(child);
+					}
+
+					EnableWindow(m_windowHandle, false);
 				}
 
-				EnableWindow(m_windowHandle, false);
 				return 0;
 			}
 			case WM_ERASEBKGND:

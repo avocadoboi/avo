@@ -1,20 +1,14 @@
 /*
-	GUI library by Bj�rn Sundin aka Avocado Boy. It is designed to be logical,
-	structured and beautiful from the perspective of the user of the library -
-	while still being efficient. The library comes with some Material Design
-	components ready to use as well as the Roboto font, making it easy to
-	create good looking and feeling programs quickly.
+	GUI framework by Björn Sundin. 
 
-		(me)
-		 v
-		 --
-   \   --  --   /
-	\ /      \ /
-	 |   /\   |
-	 \   \/   /
-	  \      /
-	   ------
-		| |
+			 --
+	   \   --  --   /
+		\ /      \ /
+		 |   /\   |
+		 \   \/   /
+		  \      /
+		   ------
+			| |
 	
 	Info about documentation: a class that has virtual methods starts the documentation of methods with either 
 	"LIBRARY IMPLEMENTED" or "USER IMPLEMENTED". If a method is "USER IMPLEMENTED", it means that the method 
@@ -518,7 +512,7 @@ namespace AvoGUI
 
 		Point()
 		{
-			x = y = (PointType)0;
+			x = y = 0;
 		}
 		Point(PointType p_x, PointType p_y)
 		{
@@ -536,14 +530,14 @@ namespace AvoGUI
 		template<typename T>
 		Point(Point<T> const& p_point)
 		{
-			x = (PointType)p_point.x;
-			y = (PointType)p_point.y;
+			x = p_point.x;
+			y = p_point.y;
 		}
 		template<typename T>
 		Point(Point<T>&& p_point)
 		{
-			x = (PointType)p_point.x;
-			y = (PointType)p_point.y;
+			x = p_point.x;
+			y = p_point.y;
 		}
 
 		//------------------------------
@@ -634,31 +628,30 @@ namespace AvoGUI
 		template<typename T>
 		Point<PointType> operator+(Point<T> const& p_point) const
 		{
-			return Point<PointType>(x + (PointType)p_point.x, y + (PointType)p_point.y);
+			return Point<PointType>(x + p_point.x, y + p_point.y);
 		}
 		template<typename T>
 		Point<PointType> operator+(Point<T>&& p_point) const
 		{
-			return Point<PointType>(x + (PointType)p_point.x, y + (PointType)p_point.y);
+			return Point<PointType>(x + p_point.x, y + p_point.y);
 		}
 		/*
 			Returns a version of this point that is offset by an equal amount on the x- and y-axis.
 		*/
-		template<typename OffsetType>
-		Point<PointType> operator+(OffsetType p_offset) const
+		Point<PointType> operator+(PointType p_offset) const
 		{
-			return Point<PointType>(x + (PointType)p_offset, y + (PointType)p_offset);
+			return Point<PointType>(x + p_offset, y + p_offset);
 		}
 		Point<PointType> createAddedCopy(PointType p_x, PointType p_y) const
 		{
 			return Point<PointType>(x + p_x, y + p_y);
 		}
 
-		template<typename OffsetType>
-		Point<PointType>& operator+=(Point<OffsetType> const& p_offset)
+		template<typename T>
+		Point<PointType>& operator+=(Point<T> const& p_offset)
 		{
-			x += (PointType)p_offset.x;
-			y += (PointType)p_offset.y;
+			x += p_offset.x;
+			y += p_offset.y;
 			return *this;
 		}
 		Point<PointType>& operator+=(PointType p_offset)
@@ -679,12 +672,12 @@ namespace AvoGUI
 		template<typename T>
 		Point<PointType> operator-(Point<T> const& p_point) const
 		{
-			return Point<PointType>(x - (PointType)p_point.x, y - (PointType)p_point.y);
+			return Point<PointType>(x - p_point.x, y - p_point.y);
 		}
 		template<typename T>
 		Point<PointType> operator-(Point<T>&& p_point) const
 		{
-			return Point<PointType>(x - (PointType)p_point.x, y - (PointType)p_point.y);
+			return Point<PointType>(x - p_point.x, y - p_point.y);
 		}
 		/*
 			Returns a version of this point that is offset negatively by the same amount on the x- and y-axis.
@@ -698,11 +691,11 @@ namespace AvoGUI
 			return Point<PointType>(x - p_x, y - p_y);
 		}
 
-		template<typename OffsetType>
-		Point<PointType>& operator-=(Point<OffsetType> const& p_offset)
+		template<typename T>
+		Point<PointType>& operator-=(Point<T> const& p_offset)
 		{
-			x -= (PointType)p_offset.x;
-			y -= (PointType)p_offset.y;
+			x -= p_offset.x;
+			y -= p_offset.y;
 			return *this;
 		}
 		Point<PointType>& operator-=(PointType p_offset)
@@ -717,19 +710,20 @@ namespace AvoGUI
 		template<typename T>
 		Point<PointType> operator*(Point<T> const& p_point) const
 		{
-			return Point<PointType>(x*(PointType)p_point.x, y*(PointType)p_point.y);
+			return Point<PointType>(x*p_point.x, y*p_point.y);
 		}
 		template<typename T>
 		Point<PointType> operator*(Point<T>&& p_point) const
 		{
-			return Point<PointType>(x*(PointType)p_point.x, y*(PointType)p_point.y);
+			return Point<PointType>(x*p_point.x, y*p_point.y);
 		}
 		template<typename T>
 		Point<PointType> operator*(T p_factor) const
 		{
 			return Point<PointType>(x*p_factor, y*p_factor);
 		}
-		Point<PointType> createMultipliedCopy(PointType p_x, PointType p_y) const
+		template<typename T0, typename T1>
+		Point<PointType> createMultipliedCopy(T0 p_x, T1 p_y) const
 		{
 			return Point<PointType>(x * p_x, y * p_y);
 		}
@@ -737,11 +731,12 @@ namespace AvoGUI
 		template<typename T>
 		Point<PointType>& operator*=(Point<T> const& p_point)
 		{
-			x *= (PointType)p_point.x;
-			y *= (PointType)p_point.y;
+			x *= p_point.x;
+			y *= p_point.y;
 			return *this;
 		}
-		Point<PointType>& operator*=(double p_factor)
+		template<typename T>
+		Point<PointType>& operator*=(T p_factor)
 		{
 			x *= p_factor;
 			y *= p_factor;
@@ -753,18 +748,20 @@ namespace AvoGUI
 		template<typename T>
 		Point<PointType> operator/(Point<T> const& p_point) const
 		{
-			return Point<PointType>(x / (PointType)p_point.x, y / (PointType)p_point.y);
+			return Point<PointType>(x / p_point.x, y / p_point.y);
 		}
 		template<typename T>
 		Point<PointType> operator/(Point<T>&& p_point) const
 		{
-			return Point<PointType>(x / (PointType)p_point.x, y / (PointType)p_point.y);
+			return Point<PointType>(x / p_point.x, y / p_point.y);
 		}
-		Point<PointType> operator/(double p_divisor) const
+		template<typename T>
+		Point<PointType> operator/(T p_divisor) const
 		{
 			return Point<PointType>(x / p_divisor, y / p_divisor);
 		}
-		Point<PointType> createDividedCopy(PointType p_x, PointType p_y) const
+		template<typename T0, typename T1>
+		Point<PointType> createDividedCopy(T0 p_x, T1 p_y) const
 		{
 			return Point<PointType>(x / p_x, y / p_y);
 		}
@@ -772,11 +769,12 @@ namespace AvoGUI
 		template<typename T>
 		Point<PointType>& operator/=(Point<T> const& p_point)
 		{
-			x /= (PointType)p_point.x;
-			y /= (PointType)p_point.y;
+			x /= p_point.x;
+			y /= p_point.y;
 			return *this;
 		}
-		Point<PointType>& operator/=(double p_divisor)
+		template<typename T>
+		Point<PointType>& operator/=(T p_divisor)
 		{
 			x /= p_divisor;
 			y /= p_divisor;
@@ -790,7 +788,8 @@ namespace AvoGUI
 		{
 			return x * p_point.x + y * p_point.y;
 		}
-		double getDotProduct(double p_x, double p_y) const
+		template<typename T0, typename T1>
+		double getDotProduct(T0 p_x, T1 p_y) const
 		{
 			return x * p_x + y * p_y;
 		}
@@ -800,7 +799,8 @@ namespace AvoGUI
 		{
 			return x * p_point.x - y * p_point.x;
 		}
-		double getCrossProduct(double p_x, double p_y) const
+		template<typename T0, typename T1>
+		double getCrossProduct(T0 p_x, T1 p_y) const
 		{
 			return x * p_y - y * p_x;
 		}
@@ -843,7 +843,8 @@ namespace AvoGUI
 			Calculates the distance between this point and another point with pythagorean theorem.
 			This is faster than getDistance() and getDistanceFast() since no square root is needed, so use this one when you can!
 		*/
-		double getDistanceSquared(PointType p_x, PointType p_y)
+		template<typename T0, typename T1>
+		double getDistanceSquared(T0 p_x, T1 p_y)
 		{
 			return (x - p_x)*(x - p_x) + (y - p_y)*(y - p_y);
 		}
@@ -858,7 +859,8 @@ namespace AvoGUI
 		/*
 			Uses an accurate but slower algorithm to calculate the distance between this point and another point with pythagorean theorem.
 		*/
-		double getDistance(PointType p_x, PointType p_y)
+		template<typename T0, typename T1>
+		double getDistance(T0 p_x, T1 p_y)
 		{
 			return sqrt((x - p_x)*(x - p_x) + (y - p_y)*(y - p_y));
 		}
@@ -873,7 +875,8 @@ namespace AvoGUI
 		/*
 			Uses a fast but less accurate algorithm to calculate the distance between this point and another point with pythagorean theorem.
 		*/
-		double getDistanceFast(PointType p_x, PointType p_y)
+		template<typename T0, typename T1>
+		double getDistanceFast(T0 p_x, T1 p_y)
 		{
 			return sqrtFast((x - p_x)*(x - p_x) + (y - p_y)*(y - p_y));
 		}
@@ -884,21 +887,24 @@ namespace AvoGUI
 			Calculates the length of a 2d vector with pythagorean theorem.
 			This is faster than getLength() and getLengthFast() since no square root is needed, so use this one when you can!
 		*/
-		static double getLengthSquared(float p_x, float p_y)
+		template<typename T0, typename T1>
+		static double getLengthSquared(T0 p_x, T1 p_y)
 		{
 			return p_x * p_x + p_y * p_y;
 		}
 		/*
 			Uses an accurate but slower algorithm to calculate the length of a 2d vector with pythagorean teorem.
 		*/
-		static double getLength(float p_x, float p_y)
+		template<typename T0, typename T1>
+		static double getLength(T0 p_x, T1 p_y)
 		{
 			return sqrt(p_x * p_x + p_y * p_y);
 		}
 		/*
 			Uses a fast but less accurate algorithm to calculate the length of a 2d vector with pythagorean teorem.
 		*/
-		static double getLengthFast(float p_x, float p_y)
+		template<typename T0, typename T1>
+		static double getLengthFast(T0 p_x, T1 p_y)
 		{
 			return fastSqrt(p_x * p_x + p_y * p_y);
 		}
@@ -907,8 +913,8 @@ namespace AvoGUI
 			Calculates the distance between two points with pythagorean theorem.
 			This is faster than getDistance() and getDistanceFast() since no square root is needed, so use this one when you can!
 		*/
-		template<typename T>
-		static T getDistanceSquared(Point<T> const& p_point_0, Point<T> const& p_point_1)
+		template<typename T0, typename T1>
+		static double getDistanceSquared(Point<T0> const& p_point_0, Point<T1> const& p_point_1)
 		{
 			return (p_point_1.x - p_point_0.x)*(p_point_1.x - p_point_0.x) + (p_point_1.y - p_point_0.y)*(p_point_1.y - p_point_0.y);
 		}
@@ -916,8 +922,8 @@ namespace AvoGUI
 			Calculates the distance between two points with pythagorean theorem.
 			This is faster than getDistance() and getDistanceFast() since no square root is needed, so use this one when you can!
 		*/
-		template<typename T>
-		static T getDistanceSquared(T p_x0, T p_y0, T p_x1, T p_y1)
+		template<typename T0, typename T1, typename T2, typename T3>
+		static double getDistanceSquared(T0 p_x0, T1 p_y0, T2 p_x1, T3 p_y1)
 		{
 			return double((p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0));
 		}
@@ -932,8 +938,8 @@ namespace AvoGUI
 		/*
 			Uses an accurate but slower algorithm to calculate the distance between two points with pytagorean theorem.
 		*/
-		template<typename T>
-		static double getDistance(T p_x0, T p_y0, T p_x1, T p_y1)
+		template<typename T0, typename T1, typename T2, typename T3>
+		static double getDistance(T0 p_x0, T1 p_y0, T2 p_x1, T3 p_y1)
 		{
 			return sqrt((p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0));
 		}
@@ -948,8 +954,8 @@ namespace AvoGUI
 		/*
 			Uses a fast but less accurate algorithm to calculate the distance between two points with pytagorean theorem.
 		*/
-		template<typename T>
-		static float getDistanceFast(T p_x0, T p_y0, T p_x1, T p_y1)
+		template<typename T0, typename T1, typename T2, typename T3>
+		static float getDistanceFast(T0 p_x0, T1 p_y0, T2 p_x1, T3 p_y1)
 		{
 			return fastSqrt((p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0));
 		}
@@ -971,7 +977,8 @@ namespace AvoGUI
 		/*
 			Rotates the point anticlockwise relative to (p_originX, p_originY) by p_angle radians so that it keeps its distance from that origin point.
 		*/
-		Point<PointType>& rotate(double p_angle, PointType p_originX, PointType p_originY)
+		template<typename T0, typename T1>
+		Point<PointType>& rotate(double p_angle, T0 p_originX, T1 p_originY)
 		{
 			PointType xBefore = x;
 			double cos = std::cos(p_angle);
@@ -983,7 +990,8 @@ namespace AvoGUI
 		/*
 			Rotates the point anticlockwise relative to p_origin by p_angle radians so that it keeps its distance from p_origin.
 		*/
-		Point<PointType>& rotate(double p_angle, Point<PointType> const& p_origin)
+		template<typename T>
+		Point<PointType>& rotate(double p_angle, Point<T> const& p_origin)
 		{
 			rotate(p_angle, p_origin.x, p_origin.y);
 			return *this;
@@ -1002,7 +1010,8 @@ namespace AvoGUI
 		/*
 			Rotates the vector so that its angle relative to (p_originX, p_originY) is p_angle radians.
 		*/
-		Point<PointType>& setAngle(double p_angle, PointType p_originX, PointType p_originY)
+		template<typename T0, typename T1>
+		Point<PointType>& setAngle(double p_angle, T0 p_originX, T1 p_originY)
 		{
 			double length = getDistance(p_originX, p_originY);
 			x = std::cos(p_angle) * length + p_originX;
@@ -1012,7 +1021,8 @@ namespace AvoGUI
 		/*
 			Rotates the vector so that its angle relative to p_origin is p_angle radians.
 		*/
-		Point<PointType>& setAngle(double p_angle, Point<PointType> const& p_origin)
+		template<typename T>
+		Point<PointType>& setAngle(double p_angle, Point<T> const& p_origin)
 		{
 			setAngle(p_angle, p_origin.x, p_origin.y);
 			return *this;
@@ -1038,7 +1048,8 @@ namespace AvoGUI
 			Returns the angle between the ray to the point and the x-axis, relative to (p_originX, p_originY).
 			Angle is in radians and in the range [0, 2pi].
 		*/
-		double getAngle(PointType p_originX, PointType p_originY) const
+		template<typename T0, typename T1>
+		double getAngle(T0 p_originX, T1 p_originY) const
 		{
 			if (x == p_originX && y == p_originY)
 			{
@@ -1055,7 +1066,8 @@ namespace AvoGUI
 			Returns the angle between the ray to the point and the x-axis, relative to p_origin.
 			Angle is in radians and in the range [0, 2pi].
 		*/
-		double getAngle(Point<PointType> const& p_origin) const
+		template<typename T>
+		double getAngle(Point<T> const& p_origin) const
 		{
 			if (x == p_origin.x && y == p_origin.y)
 			{
@@ -1096,12 +1108,12 @@ namespace AvoGUI
 	};
 
 	template<typename T1, typename T2>
-	Point<T2> operator*(T1 p_factor, Point<T2> const& p_point)
+	Point<double> operator*(T1 p_factor, Point<T2> const& p_point)
 	{
 		return Point<T2>(p_point.x * p_factor, p_point.y * p_factor);
 	}
 	template<typename T1, typename T2>
-	Point<T2> operator/(T1 p_dividend, Point<T2> const& p_point)
+	Point<double> operator/(T1 p_dividend, Point<T2> const& p_point)
 	{
 		return Point<T2>(p_dividend / p_point.x, p_dividend/p_point.y);
 	}
@@ -1132,24 +1144,24 @@ namespace AvoGUI
 
 		Rectangle()
 		{
-			left = top = right = bottom = (RectangleType)0;
+			left = top = right = bottom = 0;
 		}
 		Rectangle(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
 		{
 			set(p_left, p_top, p_right, p_bottom);
 		}
-		template<typename PositionType, typename SizeType>
-		Rectangle(Point<PositionType> const& p_position, Point<SizeType> const& p_size)
+		template<typename T0, typename T1>
+		Rectangle(Point<T0> const& p_position, Point<T1> const& p_size)
 		{
 			set(p_position, p_size);
 		}
-		template<typename ParameterRectangleType>
-		Rectangle(Rectangle<ParameterRectangleType> const& p_rectangle)
+		template<typename T>
+		Rectangle(Rectangle<T> const& p_rectangle)
 		{
 			*this = p_rectangle;
 		}
-		template<typename ParameterRectangleType>
-		Rectangle(Rectangle<ParameterRectangleType>&& p_rectangle)
+		template<typename T>
+		Rectangle(Rectangle<T>&& p_rectangle)
 		{
 			*this = p_rectangle;
 		}
@@ -1163,33 +1175,33 @@ namespace AvoGUI
 			right = p_right;
 			bottom = p_bottom;
 		}
-		template<typename PositionType, typename SizeType>
-		void set(Point<PositionType> const& p_position, Point<SizeType> const& p_size)
+		template<typename T0, typename T1>
+		void set(Point<T0> const& p_position, Point<T1> const& p_size)
 		{
-			left = (RectangleType)p_position.x;
-			top = (RectangleType)p_position.y;
-			right = left + (RectangleType)p_size.x;
-			bottom = top + (RectangleType)p_size.y;
+			left = p_position.x;
+			top = p_position.y;
+			right = left + p_size.x;
+			bottom = top + p_size.y;
 		}
 
 		//------------------------------
 
-		template<typename ParameterRectangleType>
-		Rectangle<RectangleType>& operator=(Rectangle<ParameterRectangleType> const& p_rectangle)
+		template<typename T>
+		Rectangle<RectangleType>& operator=(Rectangle<T> const& p_rectangle)
 		{
-			left = (RectangleType)p_rectangle.left;
-			top = (RectangleType)p_rectangle.top;
-			right = (RectangleType)p_rectangle.right;
-			bottom = (RectangleType)p_rectangle.bottom;
+			left = p_rectangle.left;
+			top = p_rectangle.top;
+			right = p_rectangle.right;
+			bottom = p_rectangle.bottom;
 			return *this;
 		}
-		template<typename ParameterRectangleType>
-		Rectangle<RectangleType>& operator=(Rectangle<ParameterRectangleType>&& p_rectangle)
+		template<typename T>
+		Rectangle<RectangleType>& operator=(Rectangle<T>&& p_rectangle)
 		{
-			left = (RectangleType)p_rectangle.left;
-			top = (RectangleType)p_rectangle.top;
-			right = (RectangleType)p_rectangle.right;
-			bottom = (RectangleType)p_rectangle.bottom;
+			left = p_rectangle.left;
+			top = p_rectangle.top;
+			right = p_rectangle.right;
+			bottom = p_rectangle.bottom;
 			return *this;
 		}
 
@@ -1198,64 +1210,64 @@ namespace AvoGUI
 		/*
 			Offsets the position of the rectangle.
 		*/
-		template<typename OffsetType>
-		Rectangle<RectangleType>& operator+=(Point<OffsetType> const& p_offset)
+		template<typename T>
+		Rectangle<RectangleType>& operator+=(Point<T> const& p_offset)
 		{
-			left += (RectangleType)p_offset.x;
-			top += (RectangleType)p_offset.y;
-			right += (RectangleType)p_offset.x;
-			bottom += (RectangleType)p_offset.y;
+			left += p_offset.x;
+			top += p_offset.y;
+			right += p_offset.x;
+			bottom += p_offset.y;
 			return *this;
 		}
 		/*
 			Offsets the position of the rectangle negatively.
 		*/
-		template<typename OffsetType>
-		Rectangle<RectangleType>& operator-=(Point<OffsetType> const& p_offset)
+		template<typename T>
+		Rectangle<RectangleType>& operator-=(Point<T> const& p_offset)
 		{
-			left -= (RectangleType)p_offset.x;
-			top -= (RectangleType)p_offset.y;
-			right -= (RectangleType)p_offset.x;
-			bottom -= (RectangleType)p_offset.y;
+			left -= p_offset.x;
+			top -= p_offset.y;
+			right -= p_offset.x;
+			bottom -= p_offset.y;
 			return *this;
 		}
 
 		//------------------------------
 
-		template<typename OffsetType>
-		Rectangle<RectangleType> operator+(Point<OffsetType> const& p_offset)
+		template<typename T>
+		Rectangle<RectangleType> operator+(Point<T> const& p_offset)
 		{
-			return Rectangle<RectangleType>(left + (RectangleType)p_offset.x, top + (RectangleType)p_offset.y, right + (RectangleType)p_offset.x, bottom + (RectangleType)p_offset.y);
+			return Rectangle<RectangleType>(left + p_offset.x, top + p_offset.y, right + p_offset.x, bottom + p_offset.y);
 		}
-		template<typename OffsetType>
-		Rectangle<RectangleType> operator-(Point<OffsetType> const& p_offset)
+		template<typename T>
+		Rectangle<RectangleType> operator-(Point<T> const& p_offset)
 		{
-			return Rectangle<RectangleType>(left - (RectangleType)p_offset.x, top - (RectangleType)p_offset.y, right - (RectangleType)p_offset.x, bottom - (RectangleType)p_offset.y);
+			return Rectangle<RectangleType>(left - p_offset.x, top - p_offset.y, right - p_offset.x, bottom - p_offset.y);
 		}
 
 		//------------------------------
 
-		template<typename ParameterRectangleType>
-		bool operator==(Rectangle<ParameterRectangleType> const& p_rectangle) const
+		template<typename T>
+		bool operator==(Rectangle<T> const& p_rectangle) const
 		{
 			return left == p_rectangle.left && right == p_rectangle.right
 				&& top == p_rectangle.top && bottom == p_rectangle.bottom;
 		}
-		template<typename ParameterRectangleType>
-		bool operator==(Rectangle<ParameterRectangleType>&& p_rectangle) const
+		template<typename T>
+		bool operator==(Rectangle<T>&& p_rectangle) const
 		{
 			return left == p_rectangle.left && right == p_rectangle.right
 				&& top == p_rectangle.top && bottom == p_rectangle.bottom;
 		}
 
-		template<typename ParameterRectangleType>
-		bool operator!=(Rectangle<ParameterRectangleType> const& p_rectangle) const
+		template<typename T>
+		bool operator!=(Rectangle<T> const& p_rectangle) const
 		{
 			return left != p_rectangle.left || right != p_rectangle.right
 				|| top != p_rectangle.top || bottom != p_rectangle.bottom;
 		}
-		template<typename ParameterRectangleType>
-		bool operator!=(Rectangle<ParameterRectangleType>&& p_rectangle) const
+		template<typename T>
+		bool operator!=(Rectangle<T>&& p_rectangle) const
 		{
 			return left != p_rectangle.left || right != p_rectangle.right
 				|| top != p_rectangle.top || bottom != p_rectangle.bottom;
@@ -1282,8 +1294,8 @@ namespace AvoGUI
 			Creates a copy of this rectangle, with a new top-left corner.
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
-		template<typename PositionType>
-		Rectangle<RectangleType> createCopyWithTopLeft(Point<PositionType> const& p_position, bool p_willKeepSize = true) const
+		template<typename T>
+		Rectangle<RectangleType> createCopyWithTopLeft(Point<T> const& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_position.x, p_position.y, p_willKeepSize*(p_position.x - left) + right, p_willKeepSize*(p_position.y - top) + bottom);
 		}
@@ -1308,8 +1320,8 @@ namespace AvoGUI
 			Sets the top left coordinates of the rectangle. 
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
-		template<typename PositionType>
-		Rectangle<RectangleType>& setTopLeft(Point<PositionType> const& p_position, bool p_willKeepSize = true)
+		template<typename T>
+		Rectangle<RectangleType>& setTopLeft(Point<T> const& p_position, bool p_willKeepSize = true)
 		{
 			return setTopLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -1350,8 +1362,8 @@ namespace AvoGUI
 			Creates a copy of this rectangle, with a new top-right corner.
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
-		template<typename PositionType>
-		Rectangle<RectangleType> createCopyWithTopRight(Point<PositionType> const& p_position, bool p_willKeepSize = true) const
+		template<typename T>
+		Rectangle<RectangleType> createCopyWithTopRight(Point<T> const& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_position.x - right) + left, p_position.y, p_position.x, p_willKeepSize*(p_position.y - top) + bottom);
 		}
@@ -1375,8 +1387,8 @@ namespace AvoGUI
 			Sets the top right coordinates of the rectangle. 
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
-		template<typename PositionType>
-		Rectangle<RectangleType>& setTopRight(Point<PositionType> const& p_position, bool p_willKeepSize = true)
+		template<typename T>
+		Rectangle<RectangleType>& setTopRight(Point<T> const& p_position, bool p_willKeepSize = true)
 		{
 			return setTopRight(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -1417,8 +1429,8 @@ namespace AvoGUI
 			Creates a copy of this rectangle, with a new bottom-left corner.
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
-		template<typename PositionType>
-		Rectangle<RectangleType> createCopyWithBottomLeft(Point<PositionType> const& p_position, bool p_willKeepSize = true) const
+		template<typename T>
+		Rectangle<RectangleType> createCopyWithBottomLeft(Point<T> const& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_position.x, p_willKeepSize*(p_position.y - bottom) + top, (p_position.x - left) + right, p_position.y);
 		}
@@ -1442,8 +1454,8 @@ namespace AvoGUI
 			Sets the bottom left coordinates of the rectangle. 
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
-		template<typename PositionType>
-		Rectangle<RectangleType>& setBottomLeft(Point<PositionType> const& p_position, bool p_willKeepSize = true)
+		template<typename T>
+		Rectangle<RectangleType>& setBottomLeft(Point<T> const& p_position, bool p_willKeepSize = true)
 		{
 			return setBottomLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -1484,8 +1496,8 @@ namespace AvoGUI
 			Creates a copy of this rectangle, with a new bottom-right corner.
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
-		template<typename PositionType>
-		Rectangle<RectangleType> createCopyWithBottomRight(Point<PositionType> const& p_position, bool p_willKeepSize = true) const
+		template<typename T>
+		Rectangle<RectangleType> createCopyWithBottomRight(Point<T> const& p_position, bool p_willKeepSize = true) const
 		{
 			return Rectangle<RectangleType>(p_willKeepSize*(p_position.x - right) + left, p_willKeepSize*(p_position.y - bottom) + top, p_position.x, p_position.y);
 		}
@@ -1509,8 +1521,8 @@ namespace AvoGUI
 			Sets the bottom right coordinates of the rectangle. 
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
-		template<typename PositionType>
-		Rectangle<RectangleType>& setBottomRight(Point<PositionType> const& p_position, bool p_willKeepSize = true)
+		template<typename T>
+		Rectangle<RectangleType>& setBottomRight(Point<T> const& p_position, bool p_willKeepSize = true)
 		{
 			return setBottomRight(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -1623,26 +1635,28 @@ namespace AvoGUI
 		/*
 			Creates a copy of this rectangle, with a new center position for both the x-axis and the y-axis.
 		*/
-		Rectangle<RectangleType> createCopyWithCenter(RectangleType p_centerXY) const
+		template<typename T>
+		Rectangle<RectangleType> createCopyWithCenter(T p_centerXY) const
 		{
-			RectangleType offsetX = (RectangleType)p_centerXY - (left + right) / 2;
-			RectangleType offsetY = (RectangleType)p_centerXY - (top + bottom) / 2;
+			RectangleType offsetX = p_centerXY - (left + right) / 2;
+			RectangleType offsetY = p_centerXY - (top + bottom) / 2;
 			return Rectangle<RectangleType>(offsetX + left, offsetY + top, offsetX + right, offsetY + bottom);
 		}
 		/*
 			Creates a copy of this rectangle, with a new center position.
 		*/
-		template<typename PositionType>
-		Rectangle<RectangleType> createCopyWithCenter(Point<PositionType> const& p_position) const
+		template<typename T>
+		Rectangle<RectangleType> createCopyWithCenter(Point<T> const& p_position) const
 		{
-			RectangleType offsetX = (RectangleType)p_position.x - (left + right)/2;
-			RectangleType offsetY = (RectangleType)p_position.y - (top + bottom)/2;
+			RectangleType offsetX = p_position.x - (left + right)/2;
+			RectangleType offsetY = p_position.y - (top + bottom)/2;
 			return Rectangle<RectangleType>(offsetX + left, offsetY + top, offsetX + right, offsetY + bottom);
 		}
 		/*
 			Creates a copy of this rectangle, with a new center position.
 		*/
-		Rectangle<RectangleType> createCopyWithCenter(RectangleType p_centerX, RectangleType p_centerY) const
+		template<typename T0, typename T1>
+		Rectangle<RectangleType> createCopyWithCenter(T0 p_centerX, T1 p_centerY) const
 		{
 			RectangleType offsetX = p_centerX - (left + right)/2;
 			RectangleType offsetY = p_centerY - (top + bottom)/2;
@@ -1651,22 +1665,24 @@ namespace AvoGUI
 		/*
 			Sets the same center coordinates of the rectangle for the x-axis and the y-axis. 
 		*/
-		Rectangle<RectangleType>& setCenter(RectangleType p_centerXY)
+		template<typename T>
+		Rectangle<RectangleType>& setCenter(T p_centerXY)
 		{
 			return setCenter(p_centerXY, p_centerXY);
 		}
 		/*
 			Sets the center coordinates of the rectangle by moving it. 
 		*/
-		template<typename PositionType>
-		Rectangle<RectangleType>& setCenter(Point<PositionType> const& p_position)
+		template<typename T>
+		Rectangle<RectangleType>& setCenter(Point<T> const& p_position)
 		{
 			return setCenter(p_position.x, p_position.y);
 		}
 		/*
 			Sets the center coordinates of the rectangle by moving it. 
 		*/
-		Rectangle<RectangleType>& setCenter(RectangleType p_x, RectangleType p_y)
+		template<typename T0, typename T1>
+		Rectangle<RectangleType>& setCenter(T0 p_x, T1 p_y)
 		{
 			RectangleType halfWidth = (right - left) / 2;
 			RectangleType halfHeight = (bottom - top) / 2;
@@ -1679,7 +1695,8 @@ namespace AvoGUI
 		/*
 			Sets the horizontal center coordinate of the rectangle by moving it.
 		*/
-		Rectangle<RectangleType>& setCenterX(RectangleType p_x)
+		template<typename T>
+		Rectangle<RectangleType>& setCenterX(T p_x)
 		{
 			RectangleType halfWidth = (right - left) / 2;
 			left = p_x - halfWidth;
@@ -1689,7 +1706,8 @@ namespace AvoGUI
 		/*
 			Sets the vertical center coordinate of the rectangle by moving it.
 		*/
-		Rectangle<RectangleType>& setCenterY(RectangleType p_y)
+		template<typename T>
+		Rectangle<RectangleType>& setCenterY(T p_y)
 		{
 			RectangleType halfHeight = (bottom - top) / 2;
 			top = p_y - halfHeight;
@@ -1723,8 +1741,8 @@ namespace AvoGUI
 		/*
 			Moves the left and top coordinates of the rectangle without affecting the other two.
 		*/
-		template<typename OffsetType>
-		Rectangle<RectangleType>& moveTopLeft(Point<OffsetType> const& p_offset)
+		template<typename T>
+		Rectangle<RectangleType>& moveTopLeft(Point<T> const& p_offset)
 		{
 			left += p_offset.x;
 			top += p_offset.y;
@@ -1743,8 +1761,8 @@ namespace AvoGUI
 		/*
 			Moves the right and top coordinates of the rectangle without affecting the other two.
 		*/
-		template<typename OffsetType>
-		Rectangle<RectangleType>& moveTopRight(Point<OffsetType> const& p_offset)
+		template<typename T>
+		Rectangle<RectangleType>& moveTopRight(Point<T> const& p_offset)
 		{
 			right += p_offset.x;
 			top += p_offset.y;
@@ -1763,8 +1781,8 @@ namespace AvoGUI
 		/*
 			Moves the left and bottom coordinates of the rectangle without affecting the other two.
 		*/
-		template<typename OffsetType>
-		Rectangle<RectangleType>& moveBottomLeft(Point<OffsetType> const& p_offset)
+		template<typename T>
+		Rectangle<RectangleType>& moveBottomLeft(Point<T> const& p_offset)
 		{
 			left += p_offset.x;
 			bottom += p_offset.y;
@@ -1783,8 +1801,8 @@ namespace AvoGUI
 		/*
 			Moves the right and bottom coordinates of the rectangle without affecting the other two.
 		*/
-		template<typename OffsetType>
-		Rectangle<RectangleType>& moveBottomRight(Point<OffsetType> const& p_offset)
+		template<typename T>
+		Rectangle<RectangleType>& moveBottomRight(Point<T> const& p_offset)
 		{
 			right += p_offset.x;
 			bottom += p_offset.y;
@@ -1805,8 +1823,8 @@ namespace AvoGUI
 		/*
 			Creates a copy of this rectangle, offseted by an amount.
 		*/
-		template<typename OffsetType>
-		Rectangle<RectangleType> createMovedCopy(Point<OffsetType> const& p_offset) const
+		template<typename T>
+		Rectangle<RectangleType> createMovedCopy(Point<T> const& p_offset) const
 		{
 			return Rectangle<RectangleType>(left + p_offset.x, top + p_offset.y, right + p_offset.x, bottom + p_offset.y);
 		}
@@ -1820,8 +1838,8 @@ namespace AvoGUI
 		/*
 			Does the same as the += operator, offsets the whole rectangle.
 		*/
-		template<typename OffsetType>
-		Rectangle<RectangleType>& move(Point<OffsetType> const& p_offset)
+		template<typename T>
+		Rectangle<RectangleType>& move(Point<T> const& p_offset)
 		{
 			left += p_offset.x;
 			right += p_offset.x;
@@ -1864,8 +1882,8 @@ namespace AvoGUI
 		/*
 			Sets the width and height of the rectangle, changing only the right and bottom coordinates.
 		*/
-		template<typename SizeType>
-		Rectangle<RectangleType>& setSize(Point<SizeType> const& p_size)
+		template<typename T>
+		Rectangle<RectangleType>& setSize(Point<T> const& p_size)
 		{
 			return setSize(p_size.x, p_size.y);
 		}
@@ -1923,8 +1941,8 @@ namespace AvoGUI
 		/*
 			Returns a new copy of this rectangle, that is clipped to fit into the parameter rectangle.
 		*/
-		template<typename ParameterRectangleType>
-		Rectangle<RectangleType> createBoundedCopy(Rectangle<ParameterRectangleType> const& p_bounds) const
+		template<typename T>
+		Rectangle<RectangleType> createBoundedCopy(Rectangle<T> const& p_bounds) const
 		{
 			Rectangle<RectangleType> bounded;
 			bounded.left = constrain(left, p_bounds.left, p_bounds.right);
@@ -1951,8 +1969,8 @@ namespace AvoGUI
 		/*
 			Clips this rectangle to fit into the parameter rectangle.
 		*/
-		template<typename ParameterRectangleType>
-		Rectangle<RectangleType>& bound(Rectangle<ParameterRectangleType> const& p_bounds)
+		template<typename T>
+		Rectangle<RectangleType>& bound(Rectangle<T> const& p_bounds)
 		{
 			left = constrain(left, p_bounds.left, p_bounds.right);
 			top = constrain(top, p_bounds.top, p_bounds.bottom);
@@ -1979,8 +1997,8 @@ namespace AvoGUI
 		/*
 			Returns a copy of this rectangle that is extended so that it contains the parameter rectangle.
 		*/
-		template<typename ParameterRectangleType>
-		Rectangle<RectangleType> createContainedCopy(Rectangle<ParameterRectangleType> const& p_rectangle) const
+		template<typename T>
+		Rectangle<RectangleType> createContainedCopy(Rectangle<T> const& p_rectangle) const
 		{
 			Rectangle<RectangleType> contained;
 			contained.left = min(left, p_rectangle.left);
@@ -2007,8 +2025,8 @@ namespace AvoGUI
 		/*
 			Extends the rectangle so that it contains the parameter rectangle.
 		*/
-		template<typename ParameterRectangleType>
-		Rectangle<RectangleType>& contain(Rectangle<ParameterRectangleType> const& p_rectangle)
+		template<typename T>
+		Rectangle<RectangleType>& contain(Rectangle<T> const& p_rectangle)
 		{
 			if (p_rectangle.left < left) 
 				left = p_rectangle.left;
@@ -2044,8 +2062,8 @@ namespace AvoGUI
 		/*
 			Returns whether a point lies within this rectangle.
 		*/
-		template<typename PointType>
-		bool getIsContaining(Point<PointType> const& p_point) const
+		template<typename T>
+		bool getIsContaining(Point<T> const& p_point) const
 		{
 			return p_point.x >= left && p_point.x < right
 				&& p_point.y >= top && p_point.y < bottom;
@@ -2053,7 +2071,8 @@ namespace AvoGUI
 		/*
 			Returns whether a point lies within this rectangle.
 		*/
-		bool getIsContaining(RectangleType p_x, RectangleType p_y) const
+		template<typename T0, typename T1>
+		bool getIsContaining(T0 p_x, T1 p_y) const
 		{
 			return p_x >= left && p_x < right
 				&& p_y >= top && p_y < bottom;
@@ -2062,8 +2081,8 @@ namespace AvoGUI
 		/*
 			Returns whether another rectangle is fully inside this rectangle.
 		*/
-		template<typename ParameterRectangleType>
-		bool getIsContaining(ParameterRectangleType p_left, ParameterRectangleType p_top, ParameterRectangleType p_right, ParameterRectangleType p_bottom) const
+		template<typename T0, typename T1, typename T2, typename T3>
+		bool getIsContaining(T0 p_left, T1 p_top, T2 p_right, T3 p_bottom) const
 		{
 			return p_left >= left && p_right <= right
 				&& p_top >= top && p_bottom <= bottom;
@@ -2071,8 +2090,8 @@ namespace AvoGUI
 		/*
 			Returns whether another rectangle is fully inside this rectangle.
 		*/
-		template<typename ParameterRectangleType>
-		bool getIsContaining(Rectangle<ParameterRectangleType> const& p_rectangle) const
+		template<typename T>
+		bool getIsContaining(Rectangle<T> const& p_rectangle) const
 		{
 			return p_rectangle.left >= left && p_rectangle.right <= right
 				&& p_rectangle.top >= top && p_rectangle.bottom <= bottom;
@@ -2085,8 +2104,8 @@ namespace AvoGUI
 		/*
 			Returns whether this rectangle intersects/overlaps/touches another rectangle.
 		*/
-		template<typename ParameterRectangleType>
-		bool getIsIntersecting(ParameterRectangleType p_left, ParameterRectangleType p_top, ParameterRectangleType p_right, ParameterRectangleType p_bottom) const
+		template<typename T0, typename T1, typename T2, typename T3>
+		bool getIsIntersecting(T0 p_left, T1 p_top, T2 p_right, T3 p_bottom) const
 		{
 			return p_right >= left && p_bottom >= top
 				&& p_left <= right && p_top <= bottom;
@@ -2094,8 +2113,8 @@ namespace AvoGUI
 		/*
 			Returns whether this rectangle intersects/overlaps/touches another rectangle.
 		*/
-		template<typename ParameterRectangleType>
-		bool getIsIntersecting(Rectangle<ParameterRectangleType> const& p_rectangle) const
+		template<typename T>
+		bool getIsIntersecting(Rectangle<T> const& p_rectangle) const
 		{
 			return p_rectangle.right >= left && p_rectangle.bottom >= top
 				&& p_rectangle.left <= right && p_rectangle.top <= bottom;
@@ -6495,6 +6514,10 @@ namespace AvoGUI
 			Makes the window not recieve any mouse and keyboard events, until enableUserInteraction is called.
 		*/
 		virtual void disableUserInteraction() = 0;
+		/*
+			Returns whether the window recieves mouse and keyboard events.
+		*/
+		virtual bool getIsUserInteractionEnabled() = 0;
 
 		//------------------------------
 
