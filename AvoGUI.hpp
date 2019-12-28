@@ -9644,17 +9644,17 @@ namespace AvoGUI
 					m_icon->setCenter(sizeFactor * 38.f * 0.5f, getHeight() * 0.5f);
 
 					m_text->setLeft(38.f * sizeFactor);
-					setSize(round(m_text->getWidth()) + sizeFactor * (16.f + 38.f), round(m_text->getHeight()) + 20.f * sizeFactor);
+					setSize(round(m_text->getWidth()) + sizeFactor * (16.f + 38.f), 36.f * sizeFactor);
 				}
 				else
 				{
 					if (m_text->getWidth() >= 32.f * sizeFactor)
 					{
-						setSize(round(m_text->getWidth()) + 32.f * sizeFactor, round(m_text->getHeight()) + 20.f * sizeFactor);
+						setSize(round(m_text->getWidth()) + 32.f * sizeFactor, 36.f * sizeFactor);
 					}
 					else
 					{
-						setSize(64.f * sizeFactor, round(m_text->getHeight()) + 20.f * sizeFactor);
+						setSize(64.f * sizeFactor, 36.f * sizeFactor);
 					}
 					m_text->setCenter(getCenter() - getTopLeft());
 				}

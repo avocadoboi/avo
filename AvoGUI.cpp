@@ -2610,6 +2610,7 @@ namespace AvoGUI
 
 				return 0;
 			}
+			case WM_SYSKEYDOWN:
 			case WM_KEYDOWN:
 			{
 				bool isRepeated = p_data_b & (1 << 30);
@@ -2624,6 +2625,7 @@ namespace AvoGUI
 
 				return 0;
 			}
+			case WM_SYSKEYUP:
 			case WM_KEYUP:
 			{
 				KeyboardKey key = convertWindowsDataToKeyboardKey(p_data_a);
@@ -7445,7 +7447,7 @@ namespace AvoGUI
 				View* currentContainer = this;
 				uint32 startPosition = 0;
 
-				m_drawingContext->setOrigin(0, 0);
+				m_drawingContext->resetTransformations();
 				m_drawingContext->pushClipRectangle(targetRectangle);
 				m_drawingContext->clear(m_theme->colors["background"]);
 
@@ -7463,7 +7465,8 @@ namespace AvoGUI
 							if (view->getAbsoluteBounds().getIsIntersecting(targetRectangle) && 
 								view->getIsIntersecting(0.f, 0.f, currentContainer->getWidth(), currentContainer->getHeight()))
 							{
-								m_drawingContext->moveOrigin(view->getTopLeft());
+								m_drawingContext->resetTransformations();
+								m_drawingContext->setOrigin(view->getAbsoluteTopLeft());
 
 								view->drawShadow(m_drawingContext);
 
@@ -7488,18 +7491,18 @@ namespace AvoGUI
 								}
 								else
 								{
+									m_drawingContext->resetTransformations();
+									m_drawingContext->setOrigin(view->getAbsoluteTopLeft());
 									view->drawOverlay(m_drawingContext, targetRectangle);
 
 									m_drawingContext->popClipShape();
-
-									m_drawingContext->moveOrigin(-view->getTopLeft());
 								}
 							}
 							else if (view->getAbsoluteShadowBounds().getIsIntersecting(targetRectangle))
 							{
-								m_drawingContext->moveOrigin(view->getTopLeft());
+								m_drawingContext->resetTransformations();
+								m_drawingContext->setOrigin(view->getAbsoluteTopLeft());
 								view->drawShadow(m_drawingContext);
-								m_drawingContext->moveOrigin(-view->getTopLeft());
 							}
 						}
 					}
@@ -7510,17 +7513,18 @@ namespace AvoGUI
 							break;
 						}
 
+						m_drawingContext->resetTransformations();
+						m_drawingContext->setOrigin(currentContainer->getAbsoluteTopLeft());
 						currentContainer->drawOverlay(m_drawingContext, targetRectangle);
 
 						m_drawingContext->popClipShape();
-
-						m_drawingContext->moveOrigin(-currentContainer->getTopLeft());
 
 						startPosition = currentContainer->getIndex() + 1U;
 						currentContainer = currentContainer->getParent();
 					}
 				}
 
+				m_drawingContext->resetTransformations();
 				drawOverlay(m_drawingContext, targetRectangle);
 				m_drawingContext->popClipShape();
 			}
