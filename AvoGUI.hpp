@@ -10038,6 +10038,11 @@ namespace AvoGUI
 		{ 
 			return handleEditableTextChange(p_editableText); 
 		}
+		/*
+			USER IMPLEMENTED
+			Gets called when the user has pressed the enter/return key while p_editableText has keyboard focus.
+		*/
+		virtual void handleEditableTextEnter(EditableText* p_editableText) { }
 	};
 
 	/*
@@ -10769,15 +10774,21 @@ namespace AvoGUI
 				}
 				break;
 			}
+			case KeyboardKey::Enter:
+			{
+				for (EditableTextListener* listener : m_listeners)
+				{
+					listener->handleEditableTextEnter(this);
+				}
+				break;
 			}
-
-			invalidate();
+			}
 		}
 
 		//------------------------------
 
 		/*
-			LIBRARY IMPLEMENTED
+			p_startIndex is the index of the first character to be selected and p_endIndex is the index of the character after the last selected character.
 		*/
 		void setSelection(uint32 p_startIndex, uint32 p_endIndex)
 		{
@@ -10807,7 +10818,7 @@ namespace AvoGUI
 			}
 		}
 		/*
-			LIBRARY IMPLEMENTED
+			Selects all of the text.
 		*/
 		void selectAll()
 		{
@@ -10841,6 +10852,7 @@ namespace AvoGUI
 			Changes the content of the editable text.
 			p_newCaretCharacterIndex determines the caret index that will be set if no event listeners cancel the change.
 			This is needed because the old caret index will be kept in case any event listener returns false.
+			Note that it is a character index and not a byte index, the string is utf-8 encoded.
 		*/
 		void setString(char const* p_string, int32 p_newCaretCharacterIndex = -1)
 		{
@@ -10886,6 +10898,7 @@ namespace AvoGUI
 				}
 				m_textDrawingOffsetX = 0.f;
 				m_isSelectionVisible = false;
+				invalidate();
 				return;
 			}
 
@@ -10935,6 +10948,7 @@ namespace AvoGUI
 					}
 				}
 			}
+			invalidate();
 		}
 		/*
 			Sets the content of the editable text.
