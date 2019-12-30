@@ -70,7 +70,7 @@ namespace AvoGUI
 #ifdef _WIN32
 		std::wstring result;
 		result.resize(MultiByteToWideChar(CP_UTF8, 0, p_input.c_str(), p_input.size(), 0, 0));
-		MultiByteToWideChar(CP_UTF8, 0, p_input.c_str(), p_input.size(), result.data(), result.size());
+		MultiByteToWideChar(CP_UTF8, 0, p_input.c_str(), p_input.size(), (wchar_t*)result.data(), result.size());
 		return result;
 #endif
 	}
@@ -104,7 +104,7 @@ namespace AvoGUI
 #ifdef _WIN32
 		std::string result;
 		result.resize(WideCharToMultiByte(CP_UTF8, 0, p_input.c_str(), p_input.size(), 0, 0, 0, false));
-		WideCharToMultiByte(CP_UTF8, 0, p_input.c_str(), p_input.size(), result.data(), result.size(), 0, false);
+		WideCharToMultiByte(CP_UTF8, 0, p_input.c_str(), p_input.size(), (char*)result.data(), result.size(), 0, false);
 		return result;
 #endif
 	}
@@ -1224,11 +1224,13 @@ namespace AvoGUI
 			}
 
 			//------------------------------
+			
+			std::wstring wideTitle = convertUtf8ToUtf16(p_title);
 
 			// m_windowHandle is initialized by the WM_CREATE event, before CreateWindow returns.
-			CreateWindow(
+			CreateWindowW(
 				WINDOW_CLASS_NAME,
-				p_title,
+				wideTitle.c_str(),
 				m_styles,
 				parentRect.left + windowRect.left + p_x * (parentRect.right - parentRect.left - windowRect.right + windowRect.left),
 				parentRect.top + windowRect.top + p_y * (parentRect.bottom - parentRect.top - windowRect.bottom + windowRect.top),
@@ -1262,7 +1264,7 @@ namespace AvoGUI
 
 	public:
 		static std::atomic<uint32> s_numberOfWindows;
-		static char const* const WINDOW_CLASS_NAME;
+		static wchar_t const* const WINDOW_CLASS_NAME;
 
 		//------------------------------
 
@@ -1336,14 +1338,15 @@ namespace AvoGUI
 
 		void setTitle(char const* p_title) override
 		{
-			SetWindowText(m_windowHandle, p_title);
+			std::wstring wideTitle = convertUtf8ToUtf16(p_title);
+			SetWindowTextW(m_windowHandle, wideTitle.c_str());
 		}
 		std::string getTitle() const override
 		{
-			std::string string;
-			string.resize(100);
-			GetWindowText(m_windowHandle, (char*)string.data(), string.size());
-			return std::move(string);
+			std::wstring wideTitle;
+			wideTitle.resize(150);
+			GetWindowTextW(m_windowHandle, (wchar_t*)wideTitle.data(), wideTitle.size());
+			return convertUtf16ToUtf8(wideTitle);
 		}
 
 		//------------------------------
@@ -1914,7 +1917,7 @@ namespace AvoGUI
 		{
 			if (p_cursor == m_cursorType) return;
 
-			char const* name = 0;
+			wchar_t const* name = 0;
 			switch (p_cursor)
 			{
 			case Cursor::Arrow:
@@ -2061,7 +2064,7 @@ namespace AvoGUI
 				wchar_t* wideString = (wchar_t*)GlobalLock(handle);
 				uint32 wideStringSize = wcslen(wideString);
 				string.resize(getNumberOfUnitsInUtfConvertedString(wideString, wideStringSize));
-				convertUtf16ToUtf8(wideString, wideStringSize, string.data(), string.size());
+				convertUtf16ToUtf8(wideString, wideStringSize, (char*)string.data(), string.size());
 				GlobalUnlock(handle);
 			}
 
@@ -2721,7 +2724,7 @@ namespace AvoGUI
 		}
 	};
 	std::atomic<uint32> WindowsWindow::s_numberOfWindows;
-	char const* const WindowsWindow::WINDOW_CLASS_NAME = "AvoGUI window class";
+	wchar_t const* const WindowsWindow::WINDOW_CLASS_NAME = L"AvoGUI window class";
 
 #endif
 #pragma endregion
@@ -6436,7 +6439,7 @@ namespace AvoGUI
 			MultiByteToWideChar(CP_UTF8, 0, p_string, -1, wideString, numberOfCharacters);
 
 			m_currentBrush->SetOpacity(m_brushOpacity);
-			m_context->DrawTextA(
+			m_context->DrawTextW(
 				wideString, numberOfCharacters, m_textFormat,
 				D2D1::RectF(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom),
 				m_currentBrush, D2D1_DRAW_TEXT_OPTIONS::D2D1_DRAW_TEXT_OPTIONS_NONE
