@@ -1089,7 +1089,7 @@ namespace AvoGUI
 		*/
 		Point<PointType>& normalize()
 		{
-			float length = sqrt(x*x + y * y);
+			float length = sqrt(x*x + y*y);
 			x /= length;
 			y /= length;
 			return *this;
@@ -1100,22 +1100,81 @@ namespace AvoGUI
 		*/
 		Point<PointType>& normalizeFast()
 		{
-			float inverseLength = fastInverseSqrt(x*x + y * y);
+			float inverseLength = fastInverseSqrt(x*x + y*y);
 			x *= inverseLength;
 			y *= inverseLength;
 			return *this;
 		}
+
+		//------------------------------
+
+		/*
+			Returns whether p_point is inside the rectangle formed from the origin to this point.
+		*/
+		template<typename T>
+		bool getIsContaining(Point<T> const& p_point)
+		{
+			return p_point.x >= 0 && p_point.y >= 0 && p_point.x < x && p_point.y < y;
+		}
+		/*
+			Returns whether the point (p_x, p_y) is inside the rectangle formed from the origin to this point.
+		*/
+		template<typename T0, typename T1>
+		bool getIsContaining(T0 p_x, T1 p_y)
+		{
+			return p_x >= 0 && p_y >= 0 && p_x < x && p_y < y;
+		}
+		/*
+			Returns whether the point (p_coordinate, p_coordinate) is inside the rectangle formed from the origin to this point.
+		*/
+		template<typename T>
+		bool getIsContaining(T p_coordinate)
+		{
+			return p_coordinate >= 0 && p_coordinate < x && p_coordinate < y;
+		}
+
+		template<typename T>
+		bool operator<(Point<T> const& p_point)
+		{
+			return x < p_point.x && y < p_point.y;
+		}
+		template<typename T>
+		bool operator<(T p_coordinate)
+		{
+			return x < p_coordinate && y < p_coordinate;
+		}
+		template<typename T>
+		bool operator>(Point<T> const& p_point)
+		{
+			return x > p_point.x && y > p_point.y;
+		}
+		template<typename T>
+		bool operator>(T p_coordinate)
+		{
+			return x > p_coordinate && y > p_coordinate;
+		}
 	};
 
-	template<typename T1, typename T2>
-	Point<double> operator*(T1 p_factor, Point<T2> const& p_point)
+	template<typename T0, typename T1>
+	Point<double> operator*(T0 p_factor, Point<T1> const& p_point)
 	{
-		return Point<T2>(p_point.x * p_factor, p_point.y * p_factor);
+		return Point<T1>(p_point.x * p_factor, p_point.y * p_factor);
 	}
-	template<typename T1, typename T2>
-	Point<double> operator/(T1 p_dividend, Point<T2> const& p_point)
+	template<typename T0, typename T1>
+	Point<double> operator/(T0 p_dividend, Point<T1> const& p_point)
 	{
-		return Point<T2>(p_dividend / p_point.x, p_dividend/p_point.y);
+		return Point<T1>(p_dividend / p_point.x, p_dividend/p_point.y);
+	}
+
+	template<typename T0, typename T1>
+	bool operator<(T0 p_coordinate, Point<T1> const& p_point)
+	{
+		return p_coordinate < p_point.x && p_coordinate < p_point.y;
+	}
+	template<typename T0, typename T1>
+	bool operator>(T0 p_coordinate, Point<T1> const& p_point)
+	{
+		return p_coordinate > p_point.x && p_coordinate > p_point.y;
 	}
 
 	/*
