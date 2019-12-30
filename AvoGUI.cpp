@@ -851,6 +851,214 @@ namespace AvoGUI
 #pragma region Platform-specific window implementations
 #ifdef _WIN32
 
+	class OemFormatEnumerator : public IEnumFORMATETC
+	{
+	private:
+		uint32 m_referenceCount;
+
+	public:
+		OemFormatEnumerator()
+		{
+
+		}
+		~OemFormatEnumerator()
+		{
+
+		}
+
+		//------------------------------
+
+		ULONG __stdcall AddRef() override
+		{
+			return InterlockedIncrement(&m_referenceCount);
+		}
+		ULONG __stdcall Release() override
+		{
+			uint32 referenceCount = InterlockedDecrement(&m_referenceCount);
+			if (!referenceCount)
+			{
+				delete this;
+				return 0;
+			}
+			return referenceCount;
+		}
+		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override
+		{
+			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontFileStream))
+			{
+				*p_object = this;
+				AddRef();
+				return S_OK;
+			}
+			*p_object = 0;
+			return E_NOINTERFACE;
+		}
+
+		//------------------------------
+
+		HRESULT __stdcall Next(ULONG celt, FORMATETC* rgelt, ULONG* pceltFetched) override
+		{
+
+		}
+
+		HRESULT STDMETHODCALLTYPE Skip(ULONG celt) override
+		{
+
+		}
+
+		HRESULT STDMETHODCALLTYPE Reset() override
+		{
+
+		}
+
+		HRESULT STDMETHODCALLTYPE Clone(IEnumFORMATETC** ppenum) override
+		{
+
+		}
+	};
+	
+	/*
+		Communicates data in drag and drop operations.
+	*/
+	class OemDataObject : public IDataObject
+	{
+	private:
+		uint32 m_referenceCount;
+		uint32 m_numberOfFormats;
+
+		FORMATETC* m_formats;
+		STGMEDIUM* m_mediums;
+
+	public:
+		OemDataObject(FORMATETC* p_formats, STGMEDIUM* p_mediums, uint32 p_numberOfFormats) :
+			m_referenceCount(1), m_numberOfFormats(p_numberOfFormats)
+		{
+			m_formats = new FORMATETC[p_numberOfFormats];
+			m_mediums = new STGMEDIUM[p_numberOfFormats];
+
+			for (uint32 a = 0; a < p_numberOfFormats; a++)
+			{
+				m_formats[a] = p_formats[a];
+				m_mediums[a] = p_mediums[a];
+			}
+		}
+		~OemDataObject()
+		{
+			delete[] m_formats;
+			delete[] m_mediums;
+		}
+
+		//------------------------------
+
+		ULONG __stdcall AddRef() override
+		{
+			return InterlockedIncrement(&m_referenceCount);
+		}
+		ULONG __stdcall Release() override
+		{
+			uint32 referenceCount = InterlockedDecrement(&m_referenceCount);
+			if (!referenceCount)
+			{
+				delete this;
+				return 0;
+			}
+			return referenceCount;
+		}
+		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override
+		{
+			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontFileStream))
+			{
+				*p_object = this;
+				AddRef();
+				return S_OK;
+			}
+			*p_object = 0;
+			return E_NOINTERFACE;
+		}
+
+		//------------------------------
+
+		HRESULT __stdcall SetData(FORMATETC* p_format, STGMEDIUM* p_medium, BOOL fRelease) override
+		{
+
+		}
+		HRESULT __stdcall GetData(FORMATETC* p_format, STGMEDIUM* p_medium) override
+		{
+			for (uint32 a = 0; a < m_numberOfFormats; a++)
+			{
+				if (m_formats[a].cfFormat == p_format->cfFormat &&
+					m_formats[a].dwAspect == p_format->dwAspect &&
+					m_formats[a].tymed & p_format->tymed)
+				{
+					p_medium->pUnkForRelease = 0;
+					if ((p_medium->tymed = m_formats[a].tymed) == TYMED_HGLOBAL)
+					{
+						// Copy memory from m_mediums[a].hGlobal to p_medium->hGlobal
+						SIZE_T size = GlobalSize(m_mediums[a].hGlobal);
+						p_medium->hGlobal = GlobalAlloc(GMEM_FIXED, size); // Returns pointer
+						memcpy(p_medium->hGlobal, GlobalLock(m_mediums[a].hGlobal), size);
+						GlobalUnlock(m_mediums[a].hGlobal);
+					}
+					else if (p_medium->tymed == TYMED_ISTREAM)
+					{
+						m_mediums[a].pstm->Clone(&p_medium->pstm);
+					}
+
+					return S_OK;
+				}
+			}
+			return DV_E_FORMATETC;
+		}
+		HRESULT __stdcall QueryGetData(FORMATETC* p_format) override
+		{
+			for (uint32 a = 0; a < m_numberOfFormats; a++)
+			{
+				if (m_formats[a].cfFormat == p_format->cfFormat &&
+					m_formats[a].dwAspect == p_format->dwAspect &&
+					m_formats[a].tymed & p_format->tymed)
+				{
+					return S_OK;
+				}
+			}
+			return DV_E_FORMATETC;
+		}
+		HRESULT __stdcall GetDataHere(FORMATETC* pformatetc, STGMEDIUM* pmedium) override
+		{
+
+		}
+
+		HRESULT __stdcall GetCanonicalFormatEtc(FORMATETC* pformatectIn, FORMATETC* pformatetcOut) override
+		{
+
+		}
+		HRESULT __stdcall EnumFormatEtc(DWORD p_direction, IEnumFORMATETC** p_formatEnumerator) override
+		{
+			if (p_direction == DATADIR_GET)
+			{
+
+				return S_OK;
+			}
+			
+			// it's DATADIR_SET
+			return E_NOTIMPL;
+		}
+
+		HRESULT __stdcall DAdvise(FORMATETC* pformatetc, DWORD advf, IAdviseSink* pAdvSink, DWORD* pdwConnection) override
+		{
+
+		}
+		HRESULT __stdcall DUnadvise(DWORD dwConnection) override
+		{
+
+		}
+		HRESULT __stdcall EnumDAdvise(IEnumSTATDATA** ppenumAdvise) override
+		{
+
+		}
+	};
+
+	//------------------------------
+
 	constexpr int WM_APP_CHANGE_SIZE = WM_APP;
 	constexpr int WM_APP_SET_IS_ENABLED = WM_APP + 1;
 
