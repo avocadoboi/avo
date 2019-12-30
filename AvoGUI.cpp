@@ -7451,6 +7451,7 @@ namespace AvoGUI
 				uint32 startPosition = 0;
 
 				m_drawingContext->resetTransformations();
+				m_drawingContext->setOpacity(1.f);
 				m_drawingContext->pushClipRectangle(targetRectangle);
 				m_drawingContext->clear(m_theme->colors["background"]);
 
@@ -7470,6 +7471,7 @@ namespace AvoGUI
 							{
 								m_drawingContext->resetTransformations();
 								m_drawingContext->setOrigin(view->getAbsoluteTopLeft());
+								m_drawingContext->setOpacity(1.f);
 
 								view->drawShadow(m_drawingContext);
 
@@ -7505,6 +7507,7 @@ namespace AvoGUI
 							{
 								m_drawingContext->resetTransformations();
 								m_drawingContext->setOrigin(view->getAbsoluteTopLeft());
+								m_drawingContext->setOpacity(1.f);
 								view->drawShadow(m_drawingContext);
 							}
 						}
@@ -7518,6 +7521,7 @@ namespace AvoGUI
 
 						m_drawingContext->resetTransformations();
 						m_drawingContext->setOrigin(currentContainer->getAbsoluteTopLeft());
+						m_drawingContext->setOpacity(1.f);
 						currentContainer->drawOverlay(m_drawingContext, targetRectangle);
 
 						m_drawingContext->popClipShape();
@@ -7528,6 +7532,7 @@ namespace AvoGUI
 				}
 
 				m_drawingContext->resetTransformations();
+				m_drawingContext->setOpacity(1.f);
 				drawOverlay(m_drawingContext, targetRectangle);
 				m_drawingContext->popClipShape();
 			}
