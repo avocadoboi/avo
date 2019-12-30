@@ -851,8 +851,8 @@ namespace AvoGUI
 #pragma region Platform-specific window implementations
 #ifdef _WIN32
 
-	constexpr int WM_USER_CHANGE_SIZE = WM_USER;
-	constexpr int WM_USER_SET_IS_ENABLED = WM_USER + 1;
+	constexpr int WM_APP_CHANGE_SIZE = WM_APP;
+	constexpr int WM_APP_SET_IS_ENABLED = WM_APP + 1;
 
 	class WindowsWindow : public Window
 	{
@@ -1323,11 +1323,11 @@ namespace AvoGUI
 
 		void enableUserInteraction() override
 		{
-			PostMessage(m_windowHandle, WM_USER_SET_IS_ENABLED, 1, 0);
+			PostMessage(m_windowHandle, WM_APP_SET_IS_ENABLED, 1, 0);
 		}
 		void disableUserInteraction() override
 		{
-			PostMessage(m_windowHandle, WM_USER_SET_IS_ENABLED, 0, 0);
+			PostMessage(m_windowHandle, WM_APP_SET_IS_ENABLED, 0, 0);
 		}
 		bool getIsUserInteractionEnabled() override
 		{
@@ -1495,7 +1495,7 @@ namespace AvoGUI
 				RECT windowRect = { 0, 0, (int)std::ceil(p_width * m_dipToPixelFactor), (int)std::ceil(p_height * m_dipToPixelFactor) };
 				AdjustWindowRect(&windowRect, m_styles, 0);
 				
-				PostMessage(m_windowHandle, WM_USER_CHANGE_SIZE, (uint64(windowRect.right - windowRect.left) << 32) | uint64(windowRect.bottom - windowRect.top), 0);
+				PostMessage(m_windowHandle, WM_APP_CHANGE_SIZE, uint32(windowRect.right - windowRect.left), uint32(windowRect.bottom - windowRect.top));
 			}
 		}
 
@@ -2130,13 +2130,13 @@ namespace AvoGUI
 				}
 				break;
 			}
-			case WM_USER_CHANGE_SIZE:
+			case WM_APP_CHANGE_SIZE:
 			{
-				SetWindowPos(m_windowHandle, 0, 0, 0, uint32(p_data_a >> 32), uint32(p_data_a & 0xffffffff), SWP_NOMOVE | SWP_NOZORDER);
+				SetWindowPos(m_windowHandle, 0, 0, 0, (uint32)p_data_a, (uint32)p_data_b, SWP_NOMOVE | SWP_NOZORDER);
 
 				return 0;
 			}
-			case WM_USER_SET_IS_ENABLED:
+			case WM_APP_SET_IS_ENABLED:
 			{
 				if (p_data_a)
 				{
