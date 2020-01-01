@@ -8,7 +8,7 @@ class DragAndDrop :
 public:
 	DragAndDrop()
 	{
-		create(u8"böböbñãåö \U0001F914", 600, 500);
+		create(u8"Drag and drop", 600, 500);
 		waitForFinish();
 	}
 
@@ -19,8 +19,6 @@ public:
 
 	void draw(AvoGUI::DrawingContext* p_context) override
 	{
-		p_context->setColor(AvoGUI::Color(1.f, 0.8f, 0.f));
-		p_context->fillCircle(getCenter(), 50.f);
 	}
 };
 

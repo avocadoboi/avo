@@ -63,6 +63,7 @@ typedef uint64_t uint64;
 
 namespace AvoGUI
 {
+#pragma region Helper methods and constants
 	double const E =		2.71828182845904523;
 	double const HALF_PI =	1.57079632679489661;
 	double const PI =		3.14159265358979323;
@@ -500,8 +501,11 @@ namespace AvoGUI
 		return stream.str();
 	}
 
+#pragma endregion
+
 	//------------------------------
 
+#pragma region Point
 	/*
 		A 2D point/vector where x is the horizontal component and y is the vertical component if you were to think of it graphically.
 	*/
@@ -1185,10 +1189,11 @@ namespace AvoGUI
 	{
 		return p_start * (1.0 - p_progress) + p_end * p_progress;
 	}
+#pragma endregion
 
 	//------------------------------
 
-#pragma region Rectangles
+#pragma region Rectangle
 
 	class ProtectedRectangle;
 
@@ -3719,6 +3724,301 @@ namespace AvoGUI
 
 	//------------------------------
 
+#pragma region Mouse, keyboard, clipboard, drag and drop
+
+	enum class Cursor
+	{
+		Arrow,
+		Blocked,
+		Hand,
+		Ibeam,
+		Wait,
+		ResizeAll,
+		ResizeWE,
+		ResizeNS,
+		ResizeNESW,
+		ResizeNWSE
+	};
+
+	//------------------------------
+
+	enum class ModifierKeyFlags
+	{
+		None = 0UL,
+		Control = 0x1UL,
+		Alt = 0x2UL,
+		Shift = 0x4UL,
+		LeftMouse = 0x8UL,
+		MiddleMouse = 0x10UL,
+		RightMouse = 0x20UL,
+		X0Mouse = 0x40UL,
+		X1Mouse = 0x80UL
+	};
+	constexpr bool operator&(ModifierKeyFlags p_left, ModifierKeyFlags p_right)
+	{
+		return (uint32)p_left & (uint32)p_right;
+	}
+	constexpr ModifierKeyFlags operator|(ModifierKeyFlags p_left, ModifierKeyFlags p_right)
+	{
+		return ModifierKeyFlags((uint32)p_left | (uint32)p_right);
+	}
+	constexpr ModifierKeyFlags& operator|=(ModifierKeyFlags& p_left, ModifierKeyFlags p_right)
+	{
+		p_left = p_left | p_right;
+		return p_left;
+	}
+
+	enum class MouseButton
+	{
+		None = 0,
+		Left,
+		Middle,
+		Right,
+		X0,
+		X1
+	};
+
+	class MouseEvent
+	{
+	public:
+		/*
+			X coordinate of the mouse pointer.
+		*/
+		float x;
+		/*
+			Y coordinate of the mouse pointer.
+		*/
+		float y;
+		/*
+			The movement of the mouse pointer in the x-axis.
+			If it is positive it has moved to the right and if it is negative it has moved to the left.
+		*/
+		float movementX;
+		/*
+			The movement of the mouse pointer in the y-axis.
+			If it is positive it has moved down and if it is negative it has moved up.
+		*/
+		float movementY;
+		/*
+			How much the mouse wheel has been moved.
+			If it is positive, the wheel has been moved away from the user, if it negative it has moved towards the user.
+			It represents the number of ticks the wheel has been moved, but can be a fraction if the mouse has smooth scrolling.
+		*/
+		float scrollDelta;
+		/*
+			The mouse button that has been pressed, released or double clicked (depending on the mouse event).
+		*/
+		MouseButton mouseButton;
+		/*
+			The modifier keys and mouse buttons that were down when the event ocurred.
+		*/
+		ModifierKeyFlags modifierKeys;
+
+		MouseEvent() :
+			x(0.f), y(0.f), movementX(0.f), movementY(0.f), scrollDelta(0.f),
+			mouseButton(MouseButton::None), modifierKeys(ModifierKeyFlags::None)
+		{ }
+	};
+
+	/*
+		This can be inherited by any class.
+		Remember to register it to the GUI by calling the addGlobalMouseListener() method on it.
+		A GlobalMouseListener will recieve mouse events as long as the window is focused.
+	*/
+	class GlobalMouseListener
+	{
+	public:
+		/*
+			USER IMPLEMENTED
+			Gets called when a mouse button has been pressed down while the mouse cursor is inside the window.
+			p_event is an object that contains information about the mouse event.
+		*/
+		virtual void handleGlobalMouseDown(MouseEvent const& p_event) { }
+		/*
+			USER IMPLEMENTED
+			Gets called when a mouse button has been released after having been pressed down when the mouse pointer was inside the window.
+			The mouse cursor may have left the window during the time the button is pressed, but it will still recieve the event.
+			p_event is an object that contains information about the mouse event.
+		*/
+		virtual void handleGlobalMouseUp(MouseEvent const& p_event) { }
+		/*
+			USER IMPLEMENTED
+			Gets called when a mouse button has been double clicked while the mouse pointer is inside the window.
+			p_event is an object that contains information about the mouse event.
+		*/
+		virtual void handleGlobalMouseDoubleClick(MouseEvent const& p_event) { }
+
+		/*
+			USER IMPLEMENTED
+			Gets called when the mouse has been moved while the mouse cursor is inside the window.
+			p_event is an object that contains information about the mouse event.
+		*/
+		virtual void handleGlobalMouseMove(MouseEvent const& p_event) { }
+		/*
+			USER IMPLEMENTED
+			Gets called when the mouse wheel has been scrolled while the mouse pointer is inside the window.
+			p_event is an object that contains information about the mouse event.
+		*/
+		virtual void handleGlobalMouseScroll(MouseEvent const& p_event) { }
+		/*
+			USER IMPLEMENTED
+			Gets called when the cursor has been moved from the GUI.
+		*/
+		virtual void handleGlobalMouseLeave(MouseEvent const& p_event) { }
+	};
+
+	//------------------------------
+
+	enum class KeyboardKey
+	{
+		None = 0,
+		Backspace,
+		Clear,
+		Tab,
+		Return, // Enter and return have the same value.
+		Enter = Return, // Enter and return have the same value.
+		Shift, ShiftLeft, ShiftRight,
+		Control, ControlLeft, ControlRight,
+		MenuLeft, MenuRight,
+		Alt,
+		CapsLock,
+		Escape,
+		Spacebar,
+		PageUp, PageDown, Home, End,
+		PrintScreen,
+		Insert,
+		Delete,
+		Pause, Play,
+		Help,
+		Separator,
+		Left, Right, Up, Down,
+		NumLock,
+		Numpad0, Numpad1, Numpad2, Numpad3, Numpad4, Numpad5, Numpad6, Numpad7, Numpad8, Numpad9,
+		Add, Subtract, Multiply, Divide, Decimal,
+		Number0, Number1, Number2, Number3, Number4, Number5, Number6, Number7, Number8, Number9,
+		A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+		F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24,
+		PreviousTrack, NextTrack, PlayPauseTrack, StopTrack,
+		Comma, Period, Minus, Plus,
+
+		// These keys vary by country/region.
+		Regional1, Regional2, Regional3, Regional4, Regional5, Regional6, Regional7, Regional8
+	};
+
+	class KeyboardEvent
+	{
+	public:
+		/*
+			The character that was pressed. This is only valid for character press events.
+			Since the multibyte UTF-8 encoding is used, this is a string that could be up to 4 8-bit chars.
+		*/
+		std::string character;
+		/*
+			The keyboard key that was pressed or released. This is not valid for character press events.
+		*/
+		KeyboardKey key;
+		/*
+			If this is true, this character/key press event is generated after the initial attack because the key is being held down.
+		*/
+		bool isRepeated;
+
+		KeyboardEvent() :
+			key(KeyboardKey::None), isRepeated(false)
+		{ }
+	};
+
+	class KeyboardListener
+	{
+	public:
+		/*
+			This method is called when a character key has been pressed.
+			Only p_event.character and p_event.isRepeated are valid for this event type.
+		*/
+		virtual void handleCharacterInput(KeyboardEvent const& p_event) { }
+		/*
+			This method is called when a keyboard key has been pressed.
+			Only p_event.key and p_event.isRepeated are valid for this event type.
+		*/
+		virtual void handleKeyboardKeyDown(KeyboardEvent const& p_event) { }
+		/*
+			This method is called when a keyboard key has been released.
+			Only p_event.key is valid for this event type.
+		*/
+		virtual void handleKeyboardKeyUp(KeyboardEvent const& p_event) { }
+		/*
+			Gets called when another keyboard event listener becomes the target of keyboard events.
+		*/
+		virtual void handleKeyboardFocusLose() { }
+		/*
+			Gets called when this keyboard event listener becomes the target of keyboard events.
+		*/
+		virtual void handleKeyboardFocusGain() { }
+	};
+
+	//------------------------------
+
+	enum class ClipboardDataType
+	{
+		UnicodeString, // Both utf-8 and utf-16.
+		File,
+		Image,
+		Unknown
+	};
+
+	enum class DragDropOperation
+	{
+		Copy,
+		Move,
+		Link,
+		None
+	};
+
+	class DragDropData
+	{
+	public:
+		const char* memory;
+		uint32 size;
+	};
+
+	class DragDropEvent
+	{
+	public:
+		/*
+			The modifier keys that were pressed when the event fired.
+		*/
+		ModifierKeyFlags modifierKeys;
+
+		/*
+			A list of platform-specific type values where every index represents a different format with the type value at that index.
+		*/
+		std::vector<uint32> formats;
+		/*
+			Provides a more advanced, platform-specific interface for accessing dragged data.
+			When data is dragged from an application, many data formats may be given which tell different things about the data or represent it in different ways.
+			There may be more than 1 data format with the value formats[p_formatIndex].
+		*/
+		virtual DragDropData getDataForFormat(uint32 p_formatIndex) = 0;
+		/*
+			p_format is one of the values in the "formats" vector.
+		*/
+		virtual std::string getFormatName(uint32 p_format) = 0;
+
+		virtual std::string getString() = 0;
+		virtual std::wstring getUtf16String() = 0;
+
+		virtual std::string getFilename() = 0;
+		virtual std::wstring getUtf16FileName() = 0;
+
+		virtual Image* getImage() = 0;
+
+		virtual ClipboardDataType getDataType() = 0;
+	};
+
+#pragma endregion
+
+	//------------------------------
+
+#pragma region View
 	class View;
 
 	class ViewListener
@@ -5973,6 +6273,24 @@ namespace AvoGUI
 		}
 
 		//------------------------------
+
+		virtual DragDropOperation handleDragDropEnter(DragDropEvent const& p_event);
+		/*
+			LIBRARY IMPLEMENTED
+
+		*/
+		virtual DragDropOperation handleDragDropMove(DragDropEvent const& p_event);
+		/*
+			LIBRARY IMPLEMENTED
+
+		*/
+		virtual DragDropOperation handleDragDropLeave(DragDropEvent const& p_event);
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		virtual void handleDragDropFinish(DragDropEvent const& p_event);
+
+		//------------------------------
 		
 		/*
 			LIBRARY IMPLEMENTED
@@ -6142,6 +6460,8 @@ namespace AvoGUI
 		}
 	};
 
+#pragma endregion
+
 	//------------------------------
 
 #pragma region Window
@@ -6225,237 +6545,6 @@ namespace AvoGUI
 
 	//------------------------------
 
-	enum class Cursor
-	{
-		Arrow,
-		Blocked,
-		Hand,
-		Ibeam,
-		Wait,
-		ResizeAll,
-		ResizeWE,
-		ResizeNS,
-		ResizeNESW,
-		ResizeNWSE
-	};
-
-	//------------------------------
-
-	enum class ModifierKeyFlags
-	{
-		None = 0UL,
-		Control = 0x1UL,
-		Alt = 0x2UL,
-		Shift = 0x4UL,
-		LeftMouse = 0x8UL,
-		MiddleMouse = 0x10UL,
-		RightMouse = 0x20UL,
-		X0Mouse = 0x40UL,
-		X1Mouse = 0x80UL
-	};
-	constexpr bool operator&(ModifierKeyFlags p_left, ModifierKeyFlags p_right)
-	{
-		return (uint32)p_left & (uint32)p_right;
-	}
-	constexpr ModifierKeyFlags operator|(ModifierKeyFlags p_left, ModifierKeyFlags p_right)
-	{
-		return ModifierKeyFlags((uint32)p_left | (uint32)p_right);
-	}
-	constexpr ModifierKeyFlags& operator|=(ModifierKeyFlags& p_left, ModifierKeyFlags p_right)
-	{
-		p_left = p_left | p_right;
-		return p_left;
-	}
-
-	enum class MouseButton
-	{
-		None = 0,
-		Left,
-		Middle,
-		Right,
-		X0,
-		X1
-	};
-
-	class MouseEvent
-	{
-	public:
-		/*
-			X coordinate of the mouse pointer.
-		*/
-		float x;
-		/*
-			Y coordinate of the mouse pointer.
-		*/
-		float y;
-		/*
-			The movement of the mouse pointer in the x-axis.
-			If it is positive it has moved to the right and if it is negative it has moved to the left.
-		*/
-		float movementX;
-		/*
-			The movement of the mouse pointer in the y-axis.
-			If it is positive it has moved down and if it is negative it has moved up.
-		*/
-		float movementY;
-		/*
-			How much the mouse wheel has been moved. 
-			If it is positive, the wheel has been moved away from the user, if it negative it has moved towards the user. 
-			It represents the number of ticks the wheel has been moved, but can be a fraction if the mouse has smooth scrolling.
-		*/
-		float scrollDelta;
-		/*
-			The mouse button that has been pressed, released or double clicked (depending on the mouse event).
-		*/
-		MouseButton mouseButton;
-		/*
-			The modifier keys and mouse buttons that were down when the event ocurred.
-		*/
-		ModifierKeyFlags modifierKeys;
-
-		MouseEvent() :
-			x(0.f), y(0.f), movementX(0.f), movementY(0.f), scrollDelta(0.f), 
-			mouseButton(MouseButton::None), modifierKeys(ModifierKeyFlags::None)
-		{ }
-	};
-
-	/*
-		This can be inherited by any class. 
-		Remember to register it to the GUI by calling the addGlobalMouseListener() method on it.
-		A GlobalMouseListener will recieve mouse events as long as the window is focused.
-	*/
-	class GlobalMouseListener
-	{
-	public:
-		/*
-			USER IMPLEMENTED
-			Gets called when a mouse button has been pressed down while the mouse cursor is inside the window.
-			p_event is an object that contains information about the mouse event.
-		*/
-		virtual void handleGlobalMouseDown(MouseEvent const& p_event) { }
-		/*
-			USER IMPLEMENTED
-			Gets called when a mouse button has been released after having been pressed down when the mouse pointer was inside the window.
-			The mouse cursor may have left the window during the time the button is pressed, but it will still recieve the event.
-			p_event is an object that contains information about the mouse event.
-		*/
-		virtual void handleGlobalMouseUp(MouseEvent const& p_event) { }
-		/*
-			USER IMPLEMENTED
-			Gets called when a mouse button has been double clicked while the mouse pointer is inside the window.
-			p_event is an object that contains information about the mouse event.
-		*/
-		virtual void handleGlobalMouseDoubleClick(MouseEvent const& p_event) { }
-
-		/*
-			USER IMPLEMENTED
-			Gets called when the mouse has been moved while the mouse cursor is inside the window.
-			p_event is an object that contains information about the mouse event.
-		*/
-		virtual void handleGlobalMouseMove(MouseEvent const& p_event) { }
-		/*
-			USER IMPLEMENTED
-			Gets called when the mouse wheel has been scrolled while the mouse pointer is inside the window.
-			p_event is an object that contains information about the mouse event.
-		*/
-		virtual void handleGlobalMouseScroll(MouseEvent const& p_event) { }
-		/*
-			USER IMPLEMENTED
-			Gets called when the cursor has been moved from the GUI.
-		*/
-		virtual void handleGlobalMouseLeave(MouseEvent const& p_event) { }
-	};
-
-	//------------------------------
-
-	enum class KeyboardKey
-	{
-		None = 0,
-		Backspace,
-		Clear,
-		Tab,
-		Return,
-		Enter = Return,
-		Shift, ShiftLeft, ShiftRight,
-		Control, ControlLeft, ControlRight,
-		MenuLeft, MenuRight,
-		Alt,
-		CapsLock,
-		Escape,
-		Spacebar,
-		PageUp, PageDown, Home, End,
-		PrintScreen,
-		Insert,
-		Delete,
-		Pause, Play,
-		Help,
-		Separator,
-		Left, Right, Up, Down,
-		NumLock,
-		Numpad0, Numpad1, Numpad2, Numpad3, Numpad4, Numpad5, Numpad6, Numpad7, Numpad8, Numpad9,
-		Add, Subtract, Multiply, Divide, Decimal,
-		Number0, Number1, Number2, Number3, Number4, Number5, Number6, Number7, Number8, Number9,
-		A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
-		F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24,
-		PreviousTrack, NextTrack, PlayPauseTrack, StopTrack,
-		Comma, Period, Minus, Plus,
-
-		// These keys vary by country/region.
-		Regional1, Regional2, Regional3, Regional4, Regional5, Regional6, Regional7, Regional8
-	};
-
-	class KeyboardEvent
-	{
-	public:
-		/*
-			The character that was pressed. This is only valid for character press events.
-			Since the multibyte UTF-8 encoding is used, this is a string that could be up to 4 8-bit chars.
-		*/
-		std::string character;
-		/*
-			The keyboard key that was pressed or released. This is not valid for character press events.
-		*/
-		KeyboardKey key;
-		/*
-			If this is true, this character/key press event is generated after the initial attack because the key is being held down.
-		*/
-		bool isRepeated;
-
-		KeyboardEvent() :
-			key(KeyboardKey::None), isRepeated(false)
-		{ }
-	};
-
-	class KeyboardListener
-	{
-	public:
-		/*
-			This method is called when a character key has been pressed. 
-			Only p_event.character and p_event.isRepeated are valid for this event type.
-		*/
-		virtual void handleCharacterInput(KeyboardEvent const& p_event) { }
-		/*
-			This method is called when a keyboard key has been pressed.
-			Only p_event.key and p_event.isRepeated are valid for this event type.
-		*/
-		virtual void handleKeyboardKeyDown(KeyboardEvent const& p_event) { }
-		/*
-			This method is called when a keyboard key has been released.
-			Only p_event.key is valid for this event type.
-		*/
-		virtual void handleKeyboardKeyUp(KeyboardEvent const& p_event) { }
-		/*
-			Gets called when another keyboard event listener becomes the target of keyboard events.
-		*/
-		virtual void handleKeyboardFocusLose() { }
-		/*
-			Gets called when this keyboard event listener becomes the target of keyboard events.
-		*/
-		virtual void handleKeyboardFocusGain() { }
-	};
-
-	//------------------------------
-
 	enum class WindowStyleFlags
 	{
 		None = 0x0UL, // Borderless window.
@@ -6505,12 +6594,6 @@ namespace AvoGUI
 		Minimized,
 		Maximized,
 		Restored
-	};
-
-	enum class ClipboardDataType
-	{
-		String, // Could be both 8-bit or 16-bit string.
-		Unknown
 	};
 
 	class Gui;
@@ -8809,6 +8892,29 @@ namespace AvoGUI
 			Sends the event down to all window listeners.
 		*/
 		void handleWindowUnfocus(WindowEvent const& p_event) override;
+
+		//------------------------------
+
+		/*
+			LIBRARY IMPLEMENTED
+
+		*/
+		virtual DragDropOperation handleGlobalDragDropEnter(DragDropEvent const& p_event);
+		/*
+			LIBRARY IMPLEMENTED
+			
+		*/
+		virtual DragDropOperation handleGlobalDragDropMove(DragDropEvent const& p_event);
+		/*
+			LIBRARY IMPLEMENTED
+
+		*/
+		virtual DragDropOperation handleGlobalDragDropLeave(DragDropEvent const& p_event);
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		virtual void handleGlobalDragDropFinish(DragDropEvent const& p_event);
+
 
 		//------------------------------
 

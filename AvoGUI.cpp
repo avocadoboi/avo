@@ -958,7 +958,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		HRESULT __stdcall Clone(IEnumFORMATETC** p_formatEnumerator) override
 		{
-			OemFormatEnumerator* newFormatEnumerator = new OemFormatEnumerator(m_formats, m_numberOfFormats);
+			OleFormatEnumerator* newFormatEnumerator = new OleFormatEnumerator(m_formats, m_numberOfFormats);
 			newFormatEnumerator->m_currentFormatIndex = m_currentFormatIndex;
 			*p_formatEnumerator = newFormatEnumerator;
 			return S_OK;
@@ -1096,7 +1096,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		{
 			if (p_direction == DATADIR_GET)
 			{
-				*p_formatEnumerator = new OemFormatEnumerator(m_formats, m_numberOfFormats);
+				*p_formatEnumerator = new OleFormatEnumerator(m_formats, m_numberOfFormats);
 				return S_OK;
 			}
 			
@@ -1165,6 +1165,56 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 	//------------------------------
 
+	class WindowsDragDropEvent :
+		public DragDropEvent
+	{
+	private:
+		friend class OleDropTarget;
+
+		IDataObject* m_dataObject = 0;
+
+	public:
+
+		DragDropData getDataForFormat(uint32 p_formatIndex)
+		{
+
+		}
+		std::string getFormatName(uint32 p_format)
+		{
+
+		}
+
+		std::string getString()
+		{
+
+		}
+		std::wstring getUtf16String()
+		{
+
+		}
+
+		std::string getFilename()
+		{
+
+		}
+		std::wstring getUtf16FileName()
+		{
+
+		}
+
+		Image* getImage()
+		{
+
+		}
+
+		ClipboardDataType getDataType()
+		{
+
+		}
+	};
+
+	//------------------------------
+
 	class OleDropTarget : 
 		public IDropTarget
 	{
@@ -1173,11 +1223,13 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		Gui* m_gui;
 
+		WindowsDragDropEvent m_dragDropEvent;
+
 	public:
 		OleDropTarget(Gui* p_gui) :
-			m_gui(p_gui), m_referenceCount(1)
+			m_referenceCount(1), m_gui(p_gui)
 		{
-
+			m_dragDropEvent.formats.reserve(15);
 		}
 		~OleDropTarget()
 		{
@@ -1191,19 +1243,124 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		HRESULT __stdcall DragEnter(IDataObject* p_dataObject, DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
 		{
+			if (m_dragDropEvent.m_dataObject)
+			{
+				m_dragDropEvent.m_dataObject->Release();
+				m_dragDropEvent.m_dataObject = 0;
+			}
+			m_dragDropEvent.m_dataObject = p_dataObject;
+			m_dragDropEvent.m_dataObject->AddRef();
 
+			IEnumFORMATETC* enumerator = 0;
+			p_dataObject->EnumFormatEtc(DATADIR_GET, &enumerator);
+
+			m_dragDropEvent.formats.clear();
+
+			FORMATETC format;
+			while (enumerator->Next(1, &format, 0) == S_OK)
+			{
+				m_dragDropEvent.formats.push_back(format.cfFormat);
+			}
+
+			enumerator->Release();
+
+			switch (m_gui->handleDragDropEnter(m_dragDropEvent))
+			{
+			case DragDropOperation::Copy:
+				*p_effect = DROPEFFECT_COPY;
+				break;
+			case DragDropOperation::Move:
+				*p_effect = DROPEFFECT_MOVE;
+				break;
+			case DragDropOperation::Link:
+				*p_effect = DROPEFFECT_LINK;
+				break;
+			default:
+				*p_effect = DROPEFFECT_NONE;
+			}
+
+			return S_OK;
 		}
 		HRESULT __stdcall DragOver(DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
 		{
+			//if (p_keyState & MK_CONTROL)
+			//{
+			//	*p_effect = DROPEFFECT_COPY;
+			//}
+			//else
+			//{
+			//	*p_effect = DROPEFFECT_MOVE;
+			//}
+			*p_effect = DROPEFFECT_COPY;
 
+			return S_OK;
 		}
 		HRESULT __stdcall DragLeave()
 		{
-
+			if (m_dragDropEvent.m_dataObject)
+			{
+				m_dragDropEvent.m_dataObject->Release();
+				m_dragDropEvent.m_dataObject = 0;
+			}
+			return S_OK;
 		}
 		HRESULT __stdcall Drop(IDataObject* p_dataObject, DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
 		{
+			//IEnumFORMATETC* enumerator = 0;
+			//p_dataObject->EnumFormatEtc(DATADIR_GET, &enumerator);
 
+			//FORMATETC* formats = new FORMATETC[10];
+			//ULONG numberOfFormats = 0;
+			//enumerator->Next(10, formats, &numberOfFormats);
+			//wchar_t name[30];
+			//for (uint32 a = 0; a < numberOfFormats; a++)
+			//{
+			//	GetClipboardFormatNameW(formats[a].cfFormat, name, 50);
+			//	std::string nameString = convertUtf16ToUtf8(name);
+			//	nameString += ',';
+			//	while (nameString.size() < 30)
+			//	{
+			//		nameString += ' ';
+			//	}
+			//	std::cout << "Name: " << nameString << "Type: ";
+			//	switch (formats[a].tymed)
+			//	{
+			//	case TYMED_FILE:
+			//	{
+			//		std::cout << "file\n";
+			//		break;
+			//	}
+			//	case TYMED_HGLOBAL:
+			//	{
+			//		std::cout << "HGLOBAL\n";
+			//		STGMEDIUM medium;
+			//		HRESULT result = p_dataObject->GetData(formats + a, &medium);
+			//		if (result == S_OK && GlobalSize(medium.hGlobal) < 150)
+			//		{
+			//			char const* data = (char const*)GlobalLock(medium.hGlobal);
+			//			std::cout << "Data: " << data << '\n';
+			//			GlobalUnlock(medium.hGlobal);
+			//		}
+			//		break;
+			//	}
+			//	case TYMED_ISTREAM:
+			//	{
+			//		std::cout << "IStream\n";
+			//		break;
+			//	}
+			//	}
+			//}
+			//delete[] formats;
+
+			//enumerator->Release();
+
+			if (m_dataObject)
+			{
+				m_dataObject->Release();
+				m_dataObject = 0;
+			}
+
+			return S_OK;
 		}
 	};
 
@@ -2443,7 +2600,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			if (format == CF_TEXT || format == CF_OEMTEXT || format == CF_UNICODETEXT)
 			{
-				return ClipboardDataType::String;
+				return ClipboardDataType::UnicodeString;
 			}
 			return ClipboardDataType::Unknown;
 		}
