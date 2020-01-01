@@ -6825,6 +6825,10 @@ namespace AvoGUI
 
 		//------------------------------
 
+		//virtual void startImageDragAndDrop(Image* p_image) = 0;
+		//virtual void startStringDragAndDrop(std::string const& p_string) = 0;
+		//virtual void startFileDragAndDrop(std::string const& p_fileName) = 0;
+
 		/*
 			Gives a UTF-16 encoded string for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this string.

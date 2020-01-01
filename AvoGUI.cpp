@@ -12,9 +12,16 @@
 //------------------------------
 
 #ifdef _WIN32
+#ifndef UNICODE
+#define UNICODE
+#endif
 #include <Windows.h>
+#undef DrawTextW
+
 #include <windowsx.h>
 #include <ShObjIdl.h>
+#include <dwmapi.h>
+
 #include <d2d1effects.h>
 #include <d2d1_2.h>
 #include <d2d1_2helper.h>
@@ -24,14 +31,13 @@
 #include <dwrite_1.h>
 #include <wincodec.h>
 #include <comdef.h>
-#include <dwmapi.h>
 
+#pragma comment(lib, "Dwmapi")
 #pragma comment(lib, "d2d1")
 #pragma comment(lib, "d3d11")
 #pragma comment(lib, "dxguid")
 #pragma comment(lib, "dwrite")
 #pragma comment(lib, "windowscodecs")
-#pragma comment(lib, "Dwmapi")
 #endif
 
 //------------------------------
@@ -851,76 +857,118 @@ namespace AvoGUI
 #pragma region Platform-specific window implementations
 #ifdef _WIN32
 
-	class OemFormatEnumerator : public IEnumFORMATETC
+#define IUnknownDefinition(p_interfaceName)									\
+ULONG __stdcall AddRef() override											\
+{																			\
+	return InterlockedIncrement(&m_referenceCount);							\
+}																			\
+ULONG __stdcall Release() override											\
+{																			\
+	uint32 referenceCount = InterlockedDecrement(&m_referenceCount);		\
+	if (!referenceCount)													\
+	{																		\
+		delete this;														\
+		return 0;															\
+	}																		\
+	return referenceCount;													\
+}																			\
+HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
+{																			\
+	if (p_id == IID_IUnknown || p_id == __uuidof(p_interfaceName))			\
+	{																		\
+		*p_object = this;													\
+		AddRef();															\
+		return S_OK;														\
+	}																		\
+	*p_object = 0;															\
+	return E_NOINTERFACE;													\
+}
+
+	class OleFormatEnumerator : public IEnumFORMATETC
 	{
 	private:
 		uint32 m_referenceCount;
 
+		FORMATETC* m_formats;
+		uint32 m_numberOfFormats;
+		uint32 m_currentFormatIndex;
+
 	public:
-		OemFormatEnumerator()
+		OleFormatEnumerator(FORMATETC* p_formats, uint32 p_numberOfFormats) :
+			m_referenceCount(1), m_numberOfFormats(p_numberOfFormats)
 		{
-
+			m_formats = new FORMATETC[p_numberOfFormats];
+			for (uint32 a = 0; a < p_numberOfFormats; a++)
+			{
+				m_formats[a] = p_formats[a];
+				if (m_formats[a].ptd)
+				{
+					m_formats[a].ptd = (DVTARGETDEVICE*)CoTaskMemAlloc(sizeof(DVTARGETDEVICE));
+					*m_formats[a].ptd = *p_formats[a].ptd;
+				}
+			}
 		}
-		~OemFormatEnumerator()
+		~OleFormatEnumerator()
 		{
-
+			for (uint32 a = 0; a < m_numberOfFormats; a++)
+			{
+				if (m_formats[a].ptd)
+				{
+					CoTaskMemFree(m_formats[a].ptd);
+				}
+			}
+			delete[] m_formats;
 		}
 
 		//------------------------------
 
-		ULONG __stdcall AddRef() override
-		{
-			return InterlockedIncrement(&m_referenceCount);
-		}
-		ULONG __stdcall Release() override
-		{
-			uint32 referenceCount = InterlockedDecrement(&m_referenceCount);
-			if (!referenceCount)
-			{
-				delete this;
-				return 0;
-			}
-			return referenceCount;
-		}
-		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override
-		{
-			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontFileStream))
-			{
-				*p_object = this;
-				AddRef();
-				return S_OK;
-			}
-			*p_object = 0;
-			return E_NOINTERFACE;
-		}
+		IUnknownDefinition(IEnumFORMATETC)
 
 		//------------------------------
 
-		HRESULT __stdcall Next(ULONG celt, FORMATETC* rgelt, ULONG* pceltFetched) override
+		HRESULT __stdcall Next(ULONG p_numberOfFormatsToGet, FORMATETC* p_formats, ULONG* p_numberOfFormatsGotten) override
 		{
+			while (m_currentFormatIndex < m_numberOfFormats && *p_numberOfFormatsGotten <= p_numberOfFormatsToGet)
+			{
+				*p_formats = m_formats[m_currentFormatIndex];
+				if (p_formats->ptd)
+				{
+					p_formats->ptd = (DVTARGETDEVICE*)CoTaskMemAlloc(sizeof(DVTARGETDEVICE));
+					*p_formats->ptd = *m_formats[m_currentFormatIndex].ptd;
+				}
 
+				m_currentFormatIndex++;
+				(*p_numberOfFormatsGotten)++;
+				p_formats++;
+			}
+			return p_numberOfFormatsToGet != *p_numberOfFormatsGotten;
 		}
 
-		HRESULT STDMETHODCALLTYPE Skip(ULONG celt) override
+		HRESULT __stdcall Skip(ULONG p_offset) override
 		{
-
+			m_currentFormatIndex += p_offset;
+			return m_currentFormatIndex < m_numberOfFormats ? S_OK : S_FALSE;
 		}
 
-		HRESULT STDMETHODCALLTYPE Reset() override
+		HRESULT __stdcall Reset() override
 		{
-
+			m_currentFormatIndex = 0;
+			return S_OK;
 		}
 
-		HRESULT STDMETHODCALLTYPE Clone(IEnumFORMATETC** ppenum) override
+		HRESULT __stdcall Clone(IEnumFORMATETC** p_formatEnumerator) override
 		{
-
+			OemFormatEnumerator* newFormatEnumerator = new OemFormatEnumerator(m_formats, m_numberOfFormats);
+			newFormatEnumerator->m_currentFormatIndex = m_currentFormatIndex;
+			*p_formatEnumerator = newFormatEnumerator;
+			return S_OK;
 		}
 	};
 	
 	/*
 		Communicates data in drag and drop operations.
 	*/
-	class OemDataObject : public IDataObject
+	class OleDataObject : public IDataObject
 	{
 	private:
 		uint32 m_referenceCount;
@@ -930,7 +978,7 @@ namespace AvoGUI
 		STGMEDIUM* m_mediums;
 
 	public:
-		OemDataObject(FORMATETC* p_formats, STGMEDIUM* p_mediums, uint32 p_numberOfFormats) :
+		OleDataObject(FORMATETC* p_formats, STGMEDIUM* p_mediums, uint32 p_numberOfFormats) :
 			m_referenceCount(1), m_numberOfFormats(p_numberOfFormats)
 		{
 			m_formats = new FORMATETC[p_numberOfFormats];
@@ -942,45 +990,39 @@ namespace AvoGUI
 				m_mediums[a] = p_mediums[a];
 			}
 		}
-		~OemDataObject()
+		~OleDataObject()
 		{
 			delete[] m_formats;
+		
+			for (uint32 a = 0; a < m_numberOfFormats; a++)
+			{
+				ReleaseStgMedium(m_mediums + a);
+			}
 			delete[] m_mediums;
 		}
 
 		//------------------------------
 
-		ULONG __stdcall AddRef() override
-		{
-			return InterlockedIncrement(&m_referenceCount);
-		}
-		ULONG __stdcall Release() override
-		{
-			uint32 referenceCount = InterlockedDecrement(&m_referenceCount);
-			if (!referenceCount)
-			{
-				delete this;
-				return 0;
-			}
-			return referenceCount;
-		}
-		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override
-		{
-			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontFileStream))
-			{
-				*p_object = this;
-				AddRef();
-				return S_OK;
-			}
-			*p_object = 0;
-			return E_NOINTERFACE;
-		}
+		IUnknownDefinition(IDataObject)
 
 		//------------------------------
 
 		HRESULT __stdcall SetData(FORMATETC* p_format, STGMEDIUM* p_medium, BOOL fRelease) override
 		{
-
+			return E_NOTIMPL;
+		}
+		HRESULT __stdcall QueryGetData(FORMATETC* p_format) override
+		{
+			for (uint32 a = 0; a < m_numberOfFormats; a++)
+			{
+				if (m_formats[a].cfFormat == p_format->cfFormat &&
+					m_formats[a].dwAspect == p_format->dwAspect &&
+					m_formats[a].tymed & p_format->tymed)
+				{
+					return S_OK;
+				}
+			}
+			return DV_E_FORMATETC;
 		}
 		HRESULT __stdcall GetData(FORMATETC* p_format, STGMEDIUM* p_medium) override
 		{
@@ -1001,7 +1043,12 @@ namespace AvoGUI
 					}
 					else if (p_medium->tymed == TYMED_ISTREAM)
 					{
-						m_mediums[a].pstm->Clone(&p_medium->pstm);
+						// Does not actually copy the data, only allocates a separate object with same internal state
+						m_mediums[a].pstm->Clone(&p_medium->pstm); 
+
+						ULARGE_INTEGER size;
+						size.QuadPart = ULONGLONG_MAX;
+						m_mediums[a].pstm->CopyTo(p_medium->pstm, size, 0, 0);
 					}
 
 					return S_OK;
@@ -1009,7 +1056,8 @@ namespace AvoGUI
 			}
 			return DV_E_FORMATETC;
 		}
-		HRESULT __stdcall QueryGetData(FORMATETC* p_format) override
+		// Non-allocating version of GetData
+		HRESULT __stdcall GetDataHere(FORMATETC* p_format, STGMEDIUM* p_medium) override
 		{
 			for (uint32 a = 0; a < m_numberOfFormats; a++)
 			{
@@ -1017,25 +1065,38 @@ namespace AvoGUI
 					m_formats[a].dwAspect == p_format->dwAspect &&
 					m_formats[a].tymed & p_format->tymed)
 				{
+					p_medium->pUnkForRelease = 0;
+					if ((p_medium->tymed = m_formats[a].tymed) == TYMED_HGLOBAL)
+					{
+						// Copy memory from m_mediums[a].hGlobal to p_medium->hGlobal
+						SIZE_T size = GlobalSize(m_mediums[a].hGlobal);
+						memcpy(GlobalLock(p_medium->hGlobal), GlobalLock(m_mediums[a].hGlobal), size);
+						GlobalUnlock(m_mediums[a].hGlobal);
+						GlobalUnlock(p_medium->hGlobal);
+					}
+					else if (p_medium->tymed == TYMED_ISTREAM)
+					{
+						ULARGE_INTEGER size;
+						size.QuadPart = ULONGLONG_MAX;
+						m_mediums[a].pstm->CopyTo(p_medium->pstm, size, 0, 0);
+					}
+
 					return S_OK;
 				}
 			}
 			return DV_E_FORMATETC;
 		}
-		HRESULT __stdcall GetDataHere(FORMATETC* pformatetc, STGMEDIUM* pmedium) override
+
+		HRESULT __stdcall GetCanonicalFormatEtc(FORMATETC* p_formatIn, FORMATETC* p_formatOut) override
 		{
-
-		}
-
-		HRESULT __stdcall GetCanonicalFormatEtc(FORMATETC* pformatectIn, FORMATETC* pformatetcOut) override
-		{
-
+			p_formatOut->ptd = 0;
+			return E_NOTIMPL;
 		}
 		HRESULT __stdcall EnumFormatEtc(DWORD p_direction, IEnumFORMATETC** p_formatEnumerator) override
 		{
 			if (p_direction == DATADIR_GET)
 			{
-
+				*p_formatEnumerator = new OemFormatEnumerator(m_formats, m_numberOfFormats);
 				return S_OK;
 			}
 			
@@ -1043,15 +1104,104 @@ namespace AvoGUI
 			return E_NOTIMPL;
 		}
 
-		HRESULT __stdcall DAdvise(FORMATETC* pformatetc, DWORD advf, IAdviseSink* pAdvSink, DWORD* pdwConnection) override
+		HRESULT __stdcall DAdvise(FORMATETC*, DWORD, IAdviseSink*, DWORD*) override
+		{
+			return OLE_E_ADVISENOTSUPPORTED;
+		}
+		HRESULT __stdcall DUnadvise(DWORD) override
+		{
+			return OLE_E_ADVISENOTSUPPORTED;
+		}
+		HRESULT __stdcall EnumDAdvise(IEnumSTATDATA**) override
+		{
+			return OLE_E_ADVISENOTSUPPORTED;
+		}
+	};
+
+	//------------------------------
+
+	class OleDropSource :
+		public IDropSource
+	{
+	private:
+		uint32 m_referenceCount;
+
+	public:
+		OleDropSource() :
+			m_referenceCount(1)
 		{
 
 		}
-		HRESULT __stdcall DUnadvise(DWORD dwConnection) override
+		~OleDropSource()
 		{
 
 		}
-		HRESULT __stdcall EnumDAdvise(IEnumSTATDATA** ppenumAdvise) override
+
+		//------------------------------
+
+		IUnknownDefinition(IDropSource)
+
+		//------------------------------
+
+		HRESULT __stdcall QueryContinueDrag(BOOL p_wasEscapePressed, DWORD p_keyState)
+		{
+			if (p_wasEscapePressed)
+			{
+				return DRAGDROP_S_CANCEL;
+			}
+			if (!(p_keyState & MK_LBUTTON))
+			{
+				return DRAGDROP_S_DROP;
+			}
+
+			return S_OK;
+		}
+
+		HRESULT __stdcall GiveFeedback(DWORD p_effect)
+		{
+			return DRAGDROP_S_USEDEFAULTCURSORS;
+		}
+	};
+
+	//------------------------------
+
+	class OleDropTarget : 
+		public IDropTarget
+	{
+	private:
+		uint32 m_referenceCount;
+
+		Gui* m_gui;
+
+	public:
+		OleDropTarget(Gui* p_gui) :
+			m_gui(p_gui), m_referenceCount(1)
+		{
+
+		}
+		~OleDropTarget()
+		{
+		}
+
+		//------------------------------
+
+		IUnknownDefinition(IDropTarget)
+
+		//------------------------------
+
+		HRESULT __stdcall DragEnter(IDataObject* p_dataObject, DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
+		{
+
+		}
+		HRESULT __stdcall DragOver(DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
+		{
+
+		}
+		HRESULT __stdcall DragLeave()
+		{
+
+		}
+		HRESULT __stdcall Drop(IDataObject* p_dataObject, DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
 		{
 
 		}
@@ -1066,6 +1216,9 @@ namespace AvoGUI
 	{
 	private:
 		Gui* m_gui;
+
+		OleDropSource* m_oleDropSource;
+		OleDropTarget* m_oleDropTarget;
 
 		HWND m_windowHandle = 0;
 		WindowStyleFlags m_crossPlatformStyles;
@@ -1389,15 +1542,17 @@ namespace AvoGUI
 			}
 			else if (!s_numberOfWindows)
 			{
-				WNDCLASS windowClass = { };
+				WNDCLASSW windowClass = { };
 				windowClass.lpszClassName = WINDOW_CLASS_NAME;
 				windowClass.hInstance = GetModuleHandle(0);
 				windowClass.lpfnWndProc = handleGlobalEvents;
 				windowClass.hbrBackground = (HBRUSH)0;
 				windowClass.hCursor = 0;
 				windowClass.style = CS_DBLCLKS;
+				windowClass.hIcon = 0;
+				windowClass.cbClsExtra = 0;
 
-				RegisterClass(&windowClass);
+				RegisterClassW(&windowClass);
 			}
 
 			//------------------------------
@@ -2129,34 +2284,34 @@ namespace AvoGUI
 			switch (p_cursor)
 			{
 			case Cursor::Arrow:
-				name = IDC_ARROW;
+				name = (wchar_t const*)IDC_ARROW;
 				break;
 			case Cursor::Blocked:
-				name = IDC_NO;
+				name = (wchar_t const*)IDC_NO;
 				break;
 			case Cursor::Hand:
-				name = IDC_HAND;
+				name = (wchar_t const*)IDC_HAND;
 				break;
 			case Cursor::Ibeam:
-				name = IDC_IBEAM;
+				name = (wchar_t const*)IDC_IBEAM;
 				break;
 			case Cursor::ResizeAll:
-				name = IDC_SIZEALL;
+				name = (wchar_t const*)IDC_SIZEALL;
 				break;
 			case Cursor::ResizeNESW:
-				name = IDC_SIZENESW;
+				name = (wchar_t const*)IDC_SIZENESW;
 				break;
 			case Cursor::ResizeNS:
-				name = IDC_SIZENS;
+				name = (wchar_t const*)IDC_SIZENS;
 				break;
 			case Cursor::ResizeNWSE:
-				name = IDC_SIZENWSE;
+				name = (wchar_t const*)IDC_SIZENWSE;
 				break;
 			case Cursor::ResizeWE:
-				name = IDC_SIZEWE;
+				name = (wchar_t const*)IDC_SIZEWE;
 				break;
 			case Cursor::Wait:
-				name = IDC_WAIT;
+				name = (wchar_t const*)IDC_WAIT;
 				break;
 			}
 			m_cursorType = p_cursor;
@@ -2164,7 +2319,7 @@ namespace AvoGUI
 			{
 				DestroyCursor(m_cursorHandle);
 			}
-			m_cursorHandle = LoadCursor(0, name);
+			m_cursorHandle = LoadCursorW(0, name);
 			if (!m_isMouseOutsideClientArea)
 			{
 				SetCursor(m_cursorHandle);
@@ -2302,6 +2457,13 @@ namespace AvoGUI
 			{
 			case WM_CREATE:
 			{
+				OleInitialize(0);
+
+				m_oleDropTarget = new OleDropTarget(m_gui);
+				RegisterDragDrop(m_windowHandle, m_oleDropTarget);
+
+				//------------------------------
+
 				m_isOpen = true;
 				WindowEvent event;
 				event.window = this;
@@ -2310,9 +2472,13 @@ namespace AvoGUI
 				m_gui->handleWindowCreate(event);
 				m_gui->includeAnimationThread();
 
-				// LCS_WINDOWS_COLOR_SPACE is the default colorspace, but we want the background erase 
-				// color to be consistent with the colors of Direct2D and other potential graphics APIs 
-				// so it is changed to the sRGB color space.
+				//------------------------------
+
+				/*
+					LCS_WINDOWS_COLOR_SPACE is the default colorspace, but we want the background erase 
+					color to be consistent with the colors of Direct2D and other potential graphics APIs 
+					so it is changed to the sRGB color space.
+				*/
 				LOGCOLORSPACEA colorSpaceSettings;
 				colorSpaceSettings.lcsSignature = LCS_SIGNATURE;
 				colorSpaceSettings.lcsVersion = 0x400;
@@ -2873,8 +3039,12 @@ namespace AvoGUI
 			{
 				if (m_gui->getWillClose())
 				{
-					m_isOpen = false;
 					DeleteColorSpace(GetColorSpace(GetDC(m_windowHandle)));
+					
+					RevokeDragDrop(m_windowHandle);
+					OleUninitialize();
+
+					m_isOpen = false;
 					DestroyWindow(m_windowHandle);
 				}
 				else
@@ -2894,7 +3064,7 @@ namespace AvoGUI
 				s_numberOfWindows--;
 				if (!s_numberOfWindows)
 				{
-					UnregisterClass(WINDOW_CLASS_NAME, GetModuleHandle(0));
+					UnregisterClassW(WINDOW_CLASS_NAME, GetModuleHandle(0));
 				}
 				PostQuitMessage(0);
 
@@ -3867,33 +4037,8 @@ namespace AvoGUI
 		}
 
 		//------------------------------
-		// The IUnknown methods...
 
-		ULONG __stdcall AddRef() override
-		{
-			return InterlockedIncrement(&m_referenceCount);
-		}
-		ULONG __stdcall Release() override
-		{
-			uint32 referenceCount = InterlockedDecrement(&m_referenceCount);
-			if (!referenceCount)
-			{
-				delete this;
-				return 0;
-			}
-			return referenceCount;
-		}
-		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override
-		{
-			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontFileStream))
-			{
-				*p_object = this;
-				AddRef();
-				return S_OK;
-			}
-			*p_object = 0;
-			return E_NOINTERFACE;
-		}
+		IUnknownDefinition(IDWriteFontFileStream)
 
 		//------------------------------
 
@@ -3936,33 +4081,8 @@ namespace AvoGUI
 		}
 
 		//------------------------------
-		// The IUnknown methods...
 
-		ULONG __stdcall AddRef() override
-		{
-			return InterlockedIncrement(&m_referenceCount);
-		}
-		ULONG __stdcall Release() override
-		{
-			uint32 referenceCount = InterlockedDecrement(&m_referenceCount);
-			if (!referenceCount)
-			{
-				delete this;
-				return 0;
-			}
-			return referenceCount;
-		}
-		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object)
-		{
-			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontFileLoader))
-			{
-				*p_object = this;
-				AddRef();
-				return S_OK;
-			}
-			*p_object = 0;
-			return E_NOINTERFACE;
-		}
+		IUnknownDefinition(IDWriteFontFileLoader)
 
 		//------------------------------
 
@@ -4000,33 +4120,8 @@ namespace AvoGUI
 		}
 
 		//------------------------------
-		// The IUnknown methods...
 
-		ULONG __stdcall AddRef() override
-		{
-			return InterlockedIncrement(&m_referenceCount);
-		}
-		ULONG __stdcall Release() override
-		{
-			uint32 referenceCount = InterlockedDecrement(&m_referenceCount);
-			if (!referenceCount)
-			{
-				delete this;
-				return 0;
-			}
-			return referenceCount;
-		}
-		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override
-		{
-			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontFileEnumerator))
-			{
-				*p_object = this;
-				AddRef();
-				return S_OK;
-			}
-			*p_object = 0;
-			return E_NOINTERFACE;
-		}
+		IUnknownDefinition(IDWriteFontFileEnumerator)
 
 		//------------------------------
 
@@ -4069,33 +4164,8 @@ namespace AvoGUI
 		}
 
 		//------------------------------
-		// The IUnknown methods...
 
-		ULONG __stdcall AddRef() override
-		{
-			return InterlockedIncrement(&m_referenceCount);
-		}
-		ULONG __stdcall Release() override
-		{
-			uint32 referenceCount = InterlockedDecrement(&m_referenceCount);
-			if (!referenceCount)
-			{
-				delete this;
-				return 0;
-			}
-			return referenceCount;
-		}
-		HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override
-		{
-			if (p_id == IID_IUnknown || p_id == __uuidof(IDWriteFontCollectionLoader))
-			{
-				*p_object = this;
-				AddRef();
-				return S_OK;
-			}
-			*p_object = 0;
-			return E_NOINTERFACE;
-		}
+		IUnknownDefinition(IDWriteFontCollectionLoader)
 
 		//------------------------------
 
