@@ -16,8 +16,8 @@ void SoundOpener::playSound()
 	{
 		if (getIsSoundFileMp3())
 		{
-			mciSendString(("open \"" + m_soundFilePath + "\" type mpegvideo alias mp3").c_str(), 0, 0, 0);
-			mciSendString("play mp3 from 0 repeat", 0, 0, 0);
+			mciSendStringA(("open \"" + m_soundFilePath + "\" type mpegvideo alias mp3").c_str(), 0, 0, 0);
+			mciSendStringA("play mp3 from 0 repeat", 0, 0, 0);
 		}
 		else
 		{
@@ -32,8 +32,8 @@ void SoundOpener::stopSound()
 	{
 		if (getIsSoundFileMp3())
 		{
-			mciSendString("stop mp3", 0, 0, 0);
-			mciSendString("close mp3", 0, 0, 0);
+			mciSendStringA("stop mp3", 0, 0, 0);
+			mciSendStringA("close mp3", 0, 0, 0);
 		}
 		else
 		{

@@ -3976,17 +3976,42 @@ namespace AvoGUI
 	class DragDropData
 	{
 	public:
-		const char* memory;
+		const char* buffer;
 		uint32 size;
 	};
+
+	class Image;
 
 	class DragDropEvent
 	{
 	public:
+		DragDropEvent() :
+			modifierKeys(ModifierKeyFlags::None),
+			x(0.f), y(0.f), movementX(0.f), movementY(0.f)
+		{
+		}
+
 		/*
 			The modifier keys that were pressed when the event fired.
 		*/
 		ModifierKeyFlags modifierKeys;
+
+		/*
+			The horizontal position of the cursor in DIP view coordinates.
+		*/
+		float x;
+		/*
+			The vertical position of the cursor in DIP view coordinates.
+		*/
+		float y;
+		/*
+			The horizontal movement of the cursor in DIP view coordinates.
+		*/
+		float movementX;
+		/*
+			The vertical movement of the cursor in DIP view coordinates.
+		*/
+		float movementY;
 
 		/*
 			A list of platform-specific type values where every index represents a different format with the type value at that index.
@@ -4066,6 +4091,9 @@ namespace AvoGUI
 		bool m_isInAnimationUpdateQueue;
 		bool m_isVisible;
 		bool m_isOverlay;
+
+		bool m_areDragDropEventsEnabled;
+
 		bool m_areMouseEventsEnabled;
 		Cursor m_cursor;
 
@@ -6274,21 +6302,71 @@ namespace AvoGUI
 
 		//------------------------------
 
-		virtual DragDropOperation handleDragDropEnter(DragDropEvent const& p_event);
 		/*
 			LIBRARY IMPLEMENTED
+			Drag drop events are disabled by default.
+		*/
+		void enableDragDropEvents()
+		{
+			m_areDragDropEventsEnabled = true;
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Drag drop events are disabled by default.
+		*/
+		void disableDragDropEvents()
+		{
+			m_areDragDropEventsEnabled = false;
+		}
 
-		*/
-		virtual DragDropOperation handleDragDropMove(DragDropEvent const& p_event);
 		/*
-			LIBRARY IMPLEMENTED
-
+			LIBRARY IMPLEMENTED (only default behaviour)
+			Gets called when the cursor enters the bounds of the view during a drag and drop operation.
+			The return value is used to tell the OS what type of operation is supported for the dragged data.
+			p_event contains information about the event, including the data and data type of what is to be dropped.
 		*/
-		virtual DragDropOperation handleDragDropLeave(DragDropEvent const& p_event);
+		virtual DragDropOperation handleDragDropEnter(DragDropEvent const& p_event) 
+		{ 
+			return DragDropOperation::None;
+		}
 		/*
-			LIBRARY IMPLEMENTED
+			LIBRARY IMPLEMENTED (only default behaviour)
+			Gets called when the cursor enters the parts of the view that are not occupied by children, during a drag and drop operation.
+			The return value is used to tell the OS what type of operation is supported for the dragged data.
+			p_event contains information about the event, including the data and data type of what is to be dropped.
 		*/
-		virtual void handleDragDropFinish(DragDropEvent const& p_event);
+		virtual DragDropOperation handleDragDropBackgroundEnter(DragDropEvent const& p_event) 
+		{ 
+			return DragDropOperation::None;
+		}
+		/*
+			LIBRARY IMPLEMENTED (only default behaviour)
+			Gets called when the cursor moves over the view during a drag and drop operation.
+			The return value is used to tell the OS what type of operation is supported for the dragged data.
+			p_event contains information about the event, including the data and data type of what is to be dropped.
+		*/
+		virtual DragDropOperation handleDragDropMove(DragDropEvent const& p_event) 
+		{ 
+			return DragDropOperation::None;
+		}
+		/*
+			USER IMPLEMENTED
+			Gets called when the cursor leaves the bounds of the view during a drag and drop operation.
+			p_event contains information about the event, including the data and data type of what is to be dropped.
+		*/
+		virtual void handleDragDropLeave(DragDropEvent const& p_event) { }
+		/*
+			USER IMPLEMENTED
+			Gets called when the cursor leaves the parts of the view that are not occupied by children, during a drag and drop operation.
+			p_event contains information about the event, including the data and data type of what is to be dropped.
+		*/
+		virtual void handleDragDropBackgroundLeave(DragDropEvent const& p_event) { }
+		/*
+			USER IMPLEMENTED
+			Gets called when the user drops data above the view, finishing a drag and drop operation.
+			p_event contains information about the event, including the data and data type of what was dropped.
+		*/
+		virtual void handleDragDropFinish(DragDropEvent const& p_event) { }
 
 		//------------------------------
 		
@@ -6296,16 +6374,22 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Mouse events are disabled by default.
 		*/
-		virtual void enableMouseEvents();
+		void enableMouseEvents()
+		{
+			m_areMouseEventsEnabled = true;
+		}
 		/*
 			LIBRARY IMPLEMENTED
 			Mouse events are disabled by default.
 		*/
-		virtual void disableMouseEvents();
+		void disableMouseEvents()
+		{
+			m_areMouseEventsEnabled = false;
+		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		virtual bool getAreMouseEventsEnabled()
+		bool getAreMouseEventsEnabled()
 		{
 			return m_areMouseEventsEnabled;
 		}
@@ -6905,6 +6989,14 @@ namespace AvoGUI
 			Returns the current mouse cursor.
 		*/
 		virtual Cursor getCursor() const = 0;
+
+		//------------------------------
+
+		/*
+			Returns the factor that is used to convert DIP units to pixel units in the window.
+			This can change during the lifetime of the window, if the user drags it to a monitor with a different DPI for example.
+		*/
+		virtual float getDipToPixelFactor() const = 0;
 
 		//------------------------------
 
@@ -8899,22 +8991,33 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 
 		*/
-		virtual DragDropOperation handleGlobalDragDropEnter(DragDropEvent const& p_event);
+		virtual DragDropOperation handleGlobalDragDropEnter(DragDropEvent const& p_event)
+		{
+			return DragDropOperation::None;
+		}
 		/*
 			LIBRARY IMPLEMENTED
 			
 		*/
-		virtual DragDropOperation handleGlobalDragDropMove(DragDropEvent const& p_event);
+		virtual DragDropOperation handleGlobalDragDropMove(DragDropEvent const& p_event)
+		{
+			return DragDropOperation::None;
+		}
 		/*
 			LIBRARY IMPLEMENTED
 
 		*/
-		virtual DragDropOperation handleGlobalDragDropLeave(DragDropEvent const& p_event);
+		virtual void handleGlobalDragDropLeave(DragDropEvent const& p_event)
+		{
+
+		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		virtual void handleGlobalDragDropFinish(DragDropEvent const& p_event);
+		virtual void handleGlobalDragDropFinish(DragDropEvent const& p_event)
+		{
 
+		}
 
 		//------------------------------
 
@@ -8922,17 +9025,111 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.
 		*/
-		virtual void handleGlobalMouseDown(MouseEvent const& p_event) override;
+		virtual void handleGlobalMouseDown(MouseEvent const& p_event) override
+		{
+			std::vector<View*> targets;
+			getTopMouseListenersAt(p_event.x, p_event.y, targets);
+
+			MouseEvent event = p_event;
+			if (targets.size())
+			{
+				for (View* view : targets)
+				{
+					Point<float> position = view->getAbsoluteBounds().getTopLeft();
+					event.x = p_event.x - position.x;
+					event.y = p_event.y - position.y;
+
+					view->handleMouseDown(event);
+					m_pressedMouseEventListeners.push_back(view);
+				}
+			}
+
+			m_mouseDownPosition.set(p_event.x, p_event.y);
+
+			if (m_globalMouseEventListeners.size())
+			{
+				for (GlobalMouseListener* listener : m_globalMouseEventListeners)
+				{
+					listener->handleGlobalMouseDown(p_event);
+				}
+			}
+		}
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.
 		*/
-		virtual void handleGlobalMouseUp(MouseEvent const& p_event) override;
+		virtual void handleGlobalMouseUp(MouseEvent const& p_event) override
+		{
+			MouseEvent event = p_event;
+			if (m_pressedMouseEventListeners.size())
+			{
+				for (auto view : m_pressedMouseEventListeners)
+				{
+					Point<float> position = view->getAbsoluteBounds().getTopLeft();
+					event.x = p_event.x - position.x;
+					event.y = p_event.y - position.y;
+
+					view->handleMouseUp(event);
+				}
+				for (View* view : m_pressedMouseEventListeners)
+				{
+					view->forget();
+				}
+				m_pressedMouseEventListeners.clear();
+
+				if (p_event.x != m_mouseDownPosition.x || p_event.y != m_mouseDownPosition.y)
+				{
+					event.mouseButton = MouseButton::None;
+					event.x = p_event.x;
+					event.y = p_event.y;
+					event.movementX = event.x - m_mouseDownPosition.x;
+					event.movementY = event.y - m_mouseDownPosition.y;
+					handleGlobalMouseMove(event); // This is so that any views that the mouse has entered while pressed get their events.
+				}
+			}
+
+			if (m_globalMouseEventListeners.size())
+			{
+				for (auto listener : m_globalMouseEventListeners)
+				{
+					listener->handleGlobalMouseUp(p_event);
+				}
+			}
+		}
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.
 		*/
-		virtual void handleGlobalMouseDoubleClick(MouseEvent const& p_event) override;
+		virtual void handleGlobalMouseDoubleClick(MouseEvent const& p_event) override
+		{
+			std::vector<View*> targets;
+			getTopMouseListenersAt(p_event.x, p_event.y, targets);
+
+			MouseEvent event = p_event;
+			if (targets.size())
+			{
+				for (View* view : targets)
+				{
+					Point<float> position = view->getAbsoluteBounds().getTopLeft();
+					event.x = p_event.x - position.x;
+					event.y = p_event.y - position.y;
+
+					view->handleMouseDoubleClick(event);
+				}
+				for (View* view : targets)
+				{
+					view->forget();
+				}
+			}
+
+			if (m_globalMouseEventListeners.size())
+			{
+				for (auto listener : m_globalMouseEventListeners)
+				{
+					listener->handleGlobalMouseDoubleClick(p_event);
+				}
+			}
+		}
 
 		/*
 			LIBRARY IMPLEMENTED

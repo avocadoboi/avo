@@ -351,6 +351,7 @@ namespace AvoGUI
 	View::View(View* p_parent, Rectangle<float> const& p_bounds) :
 		ProtectedRectangle(p_bounds), 
 		m_isInAnimationUpdateQueue(false), m_isVisible(true), m_isOverlay(false),
+		m_areDragDropEventsEnabled(false),
 		m_areMouseEventsEnabled(false), m_cursor(Cursor::Arrow),
 		m_opacity(1.f),
 		m_shadowBounds(p_bounds), m_hasShadow(true), m_elevation(0.f),
@@ -804,15 +805,6 @@ namespace AvoGUI
 
 	//------------------------------
 
-	void View::enableMouseEvents()
-	{
-		m_areMouseEventsEnabled = true;
-	}
-	void View::disableMouseEvents()
-	{
-		m_areMouseEventsEnabled = false;
-	}
-
 	void View::handleMouseBackgroundEnter(MouseEvent const& p_event)
 	{
 		getGui()->getWindow()->setCursor(m_cursor);
@@ -883,6 +875,34 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 	*p_object = 0;															\
 	return E_NOINTERFACE;													\
 }
+
+	//------------------------------
+
+	ModifierKeyFlags convertWindowsKeyStateToModifierKeyFlags(unsigned short p_keyState)
+	{
+		ModifierKeyFlags modifierFlags = ModifierKeyFlags::None;
+
+		if (p_keyState & MK_CONTROL)
+			modifierFlags |= ModifierKeyFlags::Control;
+		if (p_keyState & MK_SHIFT)
+			modifierFlags |= ModifierKeyFlags::Shift;
+		if (p_keyState & MK_LBUTTON)
+			modifierFlags |= ModifierKeyFlags::LeftMouse;
+		if (p_keyState & MK_MBUTTON)
+			modifierFlags |= ModifierKeyFlags::MiddleMouse;
+		if (p_keyState & MK_RBUTTON)
+			modifierFlags |= ModifierKeyFlags::RightMouse;
+		if (p_keyState & MK_XBUTTON1)
+			modifierFlags |= ModifierKeyFlags::X0Mouse;
+		if (p_keyState & MK_XBUTTON2)
+			modifierFlags |= ModifierKeyFlags::X1Mouse;
+		if (GetKeyState(VK_MENU) < 0)
+			modifierFlags |= ModifierKeyFlags::Alt;
+
+		return modifierFlags;
+	}
+
+	//------------------------------
 
 	class OleFormatEnumerator : public IEnumFORMATETC
 	{
@@ -1169,53 +1189,144 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		public DragDropEvent
 	{
 	private:
-		friend class OleDropTarget;
-
 		IDataObject* m_dataObject = 0;
+		FORMATETC* m_oleFormats = 0;
+		uint32 m_numberOfFormats;
+		ClipboardDataType m_clipboardDataType;
+
+		std::vector<HGLOBAL> m_globalDataToRelease;
+		std::vector<char const*> m_streamBuffersToRelease;
+
+		void releaseDataObject()
+		{
+			if (m_dataObject)
+			{
+				m_dataObject->Release();
+				delete[] m_oleFormats;
+			}
+			for (HGLOBAL globalDataHandle : m_globalDataToRelease)
+			{
+				GlobalUnlock(globalDataHandle);
+				GlobalFree(globalDataHandle);
+			}
+			for (char const* buffer : m_streamBuffersToRelease)
+			{
+				delete[] buffer;
+			}
+			m_globalDataToRelease.clear();
+		}
 
 	public:
+		~WindowsDragDropEvent()
+		{
+			releaseDataObject();
+		}
+
+		void setOleDataObject(IDataObject* p_dataObject)
+		{
+			releaseDataObject();
+			m_dataObject = p_dataObject;
+			if (m_dataObject)
+			{
+				m_dataObject->AddRef();
+
+				IEnumFORMATETC* enumerator = 0;
+				m_dataObject->EnumFormatEtc(DATADIR_GET, &enumerator);
+				
+				m_oleFormats = new FORMATETC[50];
+				enumerator->Next(50, m_oleFormats, (ULONG*)&m_numberOfFormats);
+				for (uint32 a = 0; a < m_numberOfFormats; a++)
+				{
+					formats.push_back(m_oleFormats[a].cfFormat);
+				}
+
+				enumerator->Release();
+			}
+		}
+		IDataObject* getOleDataObject()
+		{
+			return m_dataObject;
+		}
 
 		DragDropData getDataForFormat(uint32 p_formatIndex)
 		{
-
+			switch (m_oleFormats[p_formatIndex].tymed)
+			{
+			case TYMED_FILE:
+			{
+				break;
+			}
+			case TYMED_HGLOBAL:
+			{
+				STGMEDIUM medium;
+				HRESULT result = m_dataObject->GetData(m_oleFormats + p_formatIndex, &medium);
+				if (result == S_OK)
+				{
+					DragDropData data { (char const*)GlobalLock(medium.hGlobal), GlobalSize(medium.hGlobal) };
+					m_globalDataToRelease.push_back(medium.hGlobal);
+					return data;
+				}
+				break;
+			}
+			case TYMED_ISTREAM:
+			{
+				STGMEDIUM medium;
+				HRESULT result = m_dataObject->GetData(m_oleFormats + p_formatIndex, &medium);
+				if (result == S_OK)
+				{
+					STATSTG stats;
+					medium.pstm->Stat(&stats, STATFLAG_NONAME);
+					char const* buffer = new char[stats.cbSize.QuadPart];
+					ULONG numberOfBytesRead = 0;
+					medium.pstm->Read((void*)buffer, stats.cbSize.QuadPart, &numberOfBytesRead);
+					DragDropData data { buffer, numberOfBytesRead };
+					m_streamBuffersToRelease.push_back(buffer);
+					return data;
+				}
+				break;
+			}
+			}
+			return { 0, 0 };
 		}
 		std::string getFormatName(uint32 p_format)
 		{
-
+			wchar_t name[50];
+			GetClipboardFormatNameW(p_format, name, 50);
+			return convertUtf16ToUtf8(name);
 		}
 
 		std::string getString()
 		{
-
+			return "";
 		}
 		std::wstring getUtf16String()
 		{
-
+			return L"";
 		}
 
 		std::string getFilename()
 		{
-
+			return "";
 		}
 		std::wstring getUtf16FileName()
 		{
-
+			return L"";
 		}
 
 		Image* getImage()
 		{
-
+			return 0;
 		}
 
 		ClipboardDataType getDataType()
 		{
-
+			return ClipboardDataType::Unknown;
 		}
 	};
 
 	//------------------------------
 
-	class OleDropTarget : 
+	class OleDropTarget :
 		public IDropTarget
 	{
 	private:
@@ -1243,13 +1354,9 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		HRESULT __stdcall DragEnter(IDataObject* p_dataObject, DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
 		{
-			if (m_dragDropEvent.m_dataObject)
-			{
-				m_dragDropEvent.m_dataObject->Release();
-				m_dragDropEvent.m_dataObject = 0;
-			}
-			m_dragDropEvent.m_dataObject = p_dataObject;
-			m_dragDropEvent.m_dataObject->AddRef();
+			m_dragDropEvent.setOleDataObject(p_dataObject);
+
+			//------------------------------
 
 			IEnumFORMATETC* enumerator = 0;
 			p_dataObject->EnumFormatEtc(DATADIR_GET, &enumerator);
@@ -1264,7 +1371,22 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			enumerator->Release();
 
-			switch (m_gui->handleDragDropEnter(m_dragDropEvent))
+			//------------------------------
+
+			POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
+			ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
+
+			float newX = clientMousePosition.x * m_gui->getWindow()->getDipToPixelFactor();
+			float newY = clientMousePosition.y * m_gui->getWindow()->getDipToPixelFactor();
+
+			m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
+			m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
+			m_dragDropEvent.x = newX;
+			m_dragDropEvent.y = newY;
+
+			m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
+
+			switch (m_gui->handleGlobalDragDropEnter(m_dragDropEvent))
 			{
 			case DragDropOperation::Copy:
 				*p_effect = DROPEFFECT_COPY;
@@ -1283,82 +1405,73 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		}
 		HRESULT __stdcall DragOver(DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
 		{
-			//if (p_keyState & MK_CONTROL)
-			//{
-			//	*p_effect = DROPEFFECT_COPY;
-			//}
-			//else
-			//{
-			//	*p_effect = DROPEFFECT_MOVE;
-			//}
-			*p_effect = DROPEFFECT_COPY;
+			POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
+			ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
+
+			float newX = clientMousePosition.x / m_gui->getWindow()->getDipToPixelFactor();
+			float newY = clientMousePosition.y / m_gui->getWindow()->getDipToPixelFactor();
+
+			m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
+			m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
+			m_dragDropEvent.x = newX;
+			m_dragDropEvent.y = newY;
+
+			m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
+
+			switch (m_gui->handleGlobalDragDropMove(m_dragDropEvent))
+			{
+			case DragDropOperation::Copy:
+				*p_effect = DROPEFFECT_COPY;
+				break;
+			case DragDropOperation::Move:
+				*p_effect = DROPEFFECT_MOVE;
+				break;
+			case DragDropOperation::Link:
+				*p_effect = DROPEFFECT_LINK;
+				break;
+			default:
+				*p_effect = DROPEFFECT_NONE;
+			}
 
 			return S_OK;
 		}
 		HRESULT __stdcall DragLeave()
 		{
-			if (m_dragDropEvent.m_dataObject)
-			{
-				m_dragDropEvent.m_dataObject->Release();
-				m_dragDropEvent.m_dataObject = 0;
-			}
+			POINT clientMousePosition;
+			GetCursorPos(&clientMousePosition);
+			ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
+
+			float newX = clientMousePosition.x / m_gui->getWindow()->getDipToPixelFactor();
+			float newY = clientMousePosition.y / m_gui->getWindow()->getDipToPixelFactor();
+
+			m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
+			m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
+			m_dragDropEvent.x = newX;
+			m_dragDropEvent.y = newY;
+
+			m_gui->handleGlobalDragDropLeave(m_dragDropEvent);
+
+			m_dragDropEvent.setOleDataObject(0);
 			return S_OK;
 		}
 		HRESULT __stdcall Drop(IDataObject* p_dataObject, DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
 		{
-			//IEnumFORMATETC* enumerator = 0;
-			//p_dataObject->EnumFormatEtc(DATADIR_GET, &enumerator);
+			POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
+			ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
 
-			//FORMATETC* formats = new FORMATETC[10];
-			//ULONG numberOfFormats = 0;
-			//enumerator->Next(10, formats, &numberOfFormats);
-			//wchar_t name[30];
-			//for (uint32 a = 0; a < numberOfFormats; a++)
-			//{
-			//	GetClipboardFormatNameW(formats[a].cfFormat, name, 50);
-			//	std::string nameString = convertUtf16ToUtf8(name);
-			//	nameString += ',';
-			//	while (nameString.size() < 30)
-			//	{
-			//		nameString += ' ';
-			//	}
-			//	std::cout << "Name: " << nameString << "Type: ";
-			//	switch (formats[a].tymed)
-			//	{
-			//	case TYMED_FILE:
-			//	{
-			//		std::cout << "file\n";
-			//		break;
-			//	}
-			//	case TYMED_HGLOBAL:
-			//	{
-			//		std::cout << "HGLOBAL\n";
-			//		STGMEDIUM medium;
-			//		HRESULT result = p_dataObject->GetData(formats + a, &medium);
-			//		if (result == S_OK && GlobalSize(medium.hGlobal) < 150)
-			//		{
-			//			char const* data = (char const*)GlobalLock(medium.hGlobal);
-			//			std::cout << "Data: " << data << '\n';
-			//			GlobalUnlock(medium.hGlobal);
-			//		}
-			//		break;
-			//	}
-			//	case TYMED_ISTREAM:
-			//	{
-			//		std::cout << "IStream\n";
-			//		break;
-			//	}
-			//	}
-			//}
-			//delete[] formats;
+			float newX = clientMousePosition.x / m_gui->getWindow()->getDipToPixelFactor();
+			float newY = clientMousePosition.y / m_gui->getWindow()->getDipToPixelFactor();
 
-			//enumerator->Release();
+			m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
+			m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
+			m_dragDropEvent.x = newX;
+			m_dragDropEvent.y = newY;
 
-			if (m_dataObject)
-			{
-				m_dataObject->Release();
-				m_dataObject = 0;
-			}
+			m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
+
+			m_gui->handleGlobalDragDropFinish(m_dragDropEvent);
+
+			m_dragDropEvent.setOleDataObject(0);
 
 			return S_OK;
 		}
@@ -1427,29 +1540,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				styles |= WS_THICKFRAME;
 
 			return styles;
-		}
-		ModifierKeyFlags convertWindowsKeyStateToModifierKeyFlags(unsigned short p_keyState)
-		{
-			ModifierKeyFlags modifierFlags = ModifierKeyFlags::None;
-
-			if (p_keyState & MK_CONTROL)
-				modifierFlags |= ModifierKeyFlags::Control;
-			if (p_keyState & MK_SHIFT)
-				modifierFlags |= ModifierKeyFlags::Shift;
-			if (p_keyState & MK_LBUTTON)
-				modifierFlags |= ModifierKeyFlags::LeftMouse;
-			if (p_keyState & MK_MBUTTON)
-				modifierFlags |= ModifierKeyFlags::MiddleMouse;
-			if (p_keyState & MK_RBUTTON)
-				modifierFlags |= ModifierKeyFlags::RightMouse;
-			if (p_keyState & MK_XBUTTON1)
-				modifierFlags |= ModifierKeyFlags::X0Mouse;
-			if (p_keyState & MK_XBUTTON2)
-				modifierFlags |= ModifierKeyFlags::X1Mouse;
-			if (GetKeyState(VK_MENU) < 0)
-				modifierFlags |= ModifierKeyFlags::Alt;
-
-			return modifierFlags;
 		}
 		KeyboardKey convertWindowsDataToKeyboardKey(uint64 p_data)
 		{
@@ -1713,6 +1803,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			}
 
 			//------------------------------
+
+			SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
 			m_dipToPixelFactor = GetDpiForSystem() / 96.f;
 
@@ -2489,6 +2581,13 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		//------------------------------
 
+		float getDipToPixelFactor()
+		{
+			return m_dipToPixelFactor;
+		}
+
+		//------------------------------
+
 		void setClipboardString(std::wstring const& p_string) override
 		{
 			HGLOBAL clipboardMemory = GlobalAlloc(GMEM_MOVEABLE, (p_string.size() + 1)*sizeof(wchar_t));
@@ -2630,6 +2729,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				m_gui->includeAnimationThread();
 
 				//------------------------------
+
+				EnableNonClientDpiScaling(m_windowHandle);
 
 				/*
 					LCS_WINDOWS_COLOR_SPACE is the default colorspace, but we want the background erase 
@@ -2881,6 +2982,13 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 					return 0;
 				}
 				break;
+			}
+			case WM_DPICHANGED:
+			{
+				m_dipToPixelFactor = HIWORD(p_data_a) / (float)USER_DEFAULT_SCREEN_DPI;
+				RECT* newRectangle = (RECT*)p_data_b;
+				SetWindowPos(m_windowHandle, 0, newRectangle->left, newRectangle->top, newRectangle->right - newRectangle->left, newRectangle->bottom - newRectangle->top, SWP_NOZORDER | SWP_NOACTIVATE);
+				return 0;
 			}
 			case WM_SIZE:
 			{
@@ -7245,104 +7353,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 	}
 
 	//------------------------------
-
-	void Gui::handleGlobalMouseDown(MouseEvent const& p_event)
-	{
-		std::vector<View*> targets;
-		getTopMouseListenersAt(p_event.x, p_event.y, targets);
-
-		MouseEvent event = p_event;
-		if (targets.size())
-		{
-			for (View* view : targets)
-			{
-				Point<float> position = view->getAbsoluteBounds().getTopLeft();
-				event.x = p_event.x - position.x;
-				event.y = p_event.y - position.y;
-
-				view->handleMouseDown(event);
-				m_pressedMouseEventListeners.push_back(view);
-			}
-		}
-
-		m_mouseDownPosition.set(p_event.x, p_event.y);
-
-		if (m_globalMouseEventListeners.size())
-		{
-			for (GlobalMouseListener* listener : m_globalMouseEventListeners)
-			{
-				listener->handleGlobalMouseDown(p_event);
-			}
-		}
-	}
-	void Gui::handleGlobalMouseUp(MouseEvent const& p_event)
-	{
-		MouseEvent event = p_event;
-		if (m_pressedMouseEventListeners.size())
-		{
-			for (auto view : m_pressedMouseEventListeners)
-			{
-				Point<float> position = view->getAbsoluteBounds().getTopLeft();
-				event.x = p_event.x - position.x;
-				event.y = p_event.y - position.y;
-
-				view->handleMouseUp(event);
-			}
-			for (View* view : m_pressedMouseEventListeners)
-			{
-				view->forget();
-			}
-			m_pressedMouseEventListeners.clear();
-
-			if (p_event.x != m_mouseDownPosition.x || p_event.y != m_mouseDownPosition.y)
-			{
-				event.mouseButton = MouseButton::None;
-				event.x = p_event.x;
-				event.y = p_event.y;
-				event.movementX = event.x - m_mouseDownPosition.x;
-				event.movementY = event.y - m_mouseDownPosition.y;
-				handleGlobalMouseMove(event); // This is so that any views that the mouse has entered while pressed get their events.
-			}
-		}
-
-		if (m_globalMouseEventListeners.size())
-		{
-			for (auto listener : m_globalMouseEventListeners)
-			{
-				listener->handleGlobalMouseUp(p_event);
-			}
-		}
-	}
-	void Gui::handleGlobalMouseDoubleClick(MouseEvent const& p_event)
-	{
-		std::vector<View*> targets;
-		getTopMouseListenersAt(p_event.x, p_event.y, targets);
-
-		MouseEvent event = p_event;
-		if (targets.size())
-		{
-			for (View* view : targets)
-			{
-				Point<float> position = view->getAbsoluteBounds().getTopLeft();
-				event.x = p_event.x - position.x;
-				event.y = p_event.y - position.y;
-
-				view->handleMouseDoubleClick(event);
-			}
-			for (View* view : targets)
-			{
-				view->forget();
-			}
-		}
-
-		if (m_globalMouseEventListeners.size())
-		{
-			for (auto listener : m_globalMouseEventListeners)
-			{
-				listener->handleGlobalMouseDoubleClick(p_event);
-			}
-		}
-	}
 
 	void Gui::handleGlobalMouseMove(MouseEvent const& p_event)
 	{
