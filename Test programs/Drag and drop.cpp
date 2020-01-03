@@ -14,7 +14,18 @@ public:
 
 	void createContent() override
 	{
+		enableDragDropEvents();
+
 		setThemeColor("background", AvoGUI::Color(0.1f));
+	}
+
+	AvoGUI::DragDropOperation handleDragDropMove(AvoGUI::DragDropEvent const& p_event) override
+	{
+		return AvoGUI::DragDropOperation::Copy;
+	}
+	void handleDragDropFinish(AvoGUI::DragDropEvent const& p_event) override
+	{
+		p_event.getFilenames();
 	}
 
 	void draw(AvoGUI::DrawingContext* p_context) override

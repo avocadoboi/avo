@@ -20,6 +20,7 @@
 
 #include <windowsx.h>
 #include <ShObjIdl.h>
+#include <ShlObj_core.h>
 #include <dwmapi.h>
 
 #include <d2d1effects.h>
@@ -1192,6 +1193,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		IDataObject* m_dataObject = 0;
 		FORMATETC* m_oleFormats = 0;
 		uint32 m_numberOfFormats;
+		uint32 m_primaryFormatIndex;
 		ClipboardDataType m_clipboardDataType;
 
 		std::vector<HGLOBAL> m_globalDataToRelease;
@@ -1237,6 +1239,11 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				enumerator->Next(50, m_oleFormats, (ULONG*)&m_numberOfFormats);
 				for (uint32 a = 0; a < m_numberOfFormats; a++)
 				{
+					if (m_oleFormats[a].cfFormat == CF_HDROP)
+					{
+						m_clipboardDataType = ClipboardDataType::File;
+						m_primaryFormatIndex = a;
+					}
 					formats.push_back(m_oleFormats[a].cfFormat);
 				}
 
@@ -1248,7 +1255,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			return m_dataObject;
 		}
 
-		DragDropData getDataForFormat(uint32 p_formatIndex)
+		DragDropData getDataForFormat(uint32 p_formatIndex) const override
 		{
 			switch (m_oleFormats[p_formatIndex].tymed)
 			{
@@ -1263,7 +1270,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				if (result == S_OK)
 				{
 					DragDropData data { (char const*)GlobalLock(medium.hGlobal), GlobalSize(medium.hGlobal) };
-					m_globalDataToRelease.push_back(medium.hGlobal);
+					((WindowsDragDropEvent*)this)->m_globalDataToRelease.push_back(medium.hGlobal);
 					return data;
 				}
 				break;
@@ -1276,51 +1283,71 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				{
 					STATSTG stats;
 					medium.pstm->Stat(&stats, STATFLAG_NONAME);
+
 					char const* buffer = new char[stats.cbSize.QuadPart];
 					ULONG numberOfBytesRead = 0;
 					medium.pstm->Read((void*)buffer, stats.cbSize.QuadPart, &numberOfBytesRead);
-					DragDropData data { buffer, numberOfBytesRead };
-					m_streamBuffersToRelease.push_back(buffer);
-					return data;
+					((WindowsDragDropEvent*)this)->m_streamBuffersToRelease.push_back(buffer);
+
+					return { buffer, numberOfBytesRead };
 				}
 				break;
 			}
 			}
 			return { 0, 0 };
 		}
-		std::string getFormatName(uint32 p_format)
+		std::string getFormatName(uint32 p_format) const override
 		{
 			wchar_t name[50];
 			GetClipboardFormatNameW(p_format, name, 50);
 			return convertUtf16ToUtf8(name);
 		}
 
-		std::string getString()
+		std::string getString() const override
 		{
 			return "";
 		}
-		std::wstring getUtf16String()
+		std::wstring getUtf16String() const override
 		{
 			return L"";
 		}
 
-		std::string getFilename()
+		std::vector<std::string> getFilenames() const override
 		{
-			return "";
+			if (m_clipboardDataType == ClipboardDataType::File)
+			{
+
+				std::vector<std::string> filenames;
+
+				STGMEDIUM medium;
+				HRESULT result = m_dataObject->GetData(m_oleFormats + m_primaryFormatIndex, &medium);
+				if (result == S_OK)
+				{
+					DROPFILES* filenameStructure = (DROPFILES*)GlobalLock(medium.hGlobal);
+
+					wchar_t const* buffer = (wchar_t const*)((char*)filenameStructure + filenameStructure->pFiles);
+					GlobalUnlock(medium.hGlobal);
+				}
+				return filenames;
+			}
+
+			return { };
 		}
-		std::wstring getUtf16FileName()
+		std::vector<std::wstring> getUtf16Filenames() const override
 		{
-			return L"";
+			std::vector<std::wstring> filenames;
+
+			return filenames;
 		}
 
-		Image* getImage()
+		Image* getImage() const override
 		{
 			return 0;
 		}
 
-		ClipboardDataType getDataType()
+		ClipboardDataType getDataType() const override
 		{
-			return ClipboardDataType::Unknown;
+			return m_clipboardDataType;
 		}
 	};
 
@@ -1386,7 +1413,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
-			switch (m_gui->handleGlobalDragDropEnter(m_dragDropEvent))
+			switch (m_gui->handleGlobalDragDropMove(m_dragDropEvent))
 			{
 			case DragDropOperation::Copy:
 				*p_effect = DROPEFFECT_COPY;
@@ -2581,7 +2608,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		//------------------------------
 
-		float getDipToPixelFactor()
+		float getDipToPixelFactor() const override
 		{
 			return m_dipToPixelFactor;
 		}
@@ -3262,7 +3289,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				keyboardEvent.key = key;
 				keyboardEvent.isRepeated = isRepeated;
 				m_gui->excludeAnimationThread();
-				m_gui->handleKeyboardKeyDown(keyboardEvent);
+				m_gui->handleGlobalKeyboardKeyDown(keyboardEvent);
 				m_gui->includeAnimationThread();
 
 				return 0;
@@ -3275,7 +3302,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				KeyboardEvent keyboardEvent;
 				keyboardEvent.key = key;
 				m_gui->excludeAnimationThread();
-				m_gui->handleKeyboardKeyUp(keyboardEvent);
+				m_gui->handleGlobalKeyboardKeyUp(keyboardEvent);
 				m_gui->includeAnimationThread();
 
 				return 0;
@@ -3286,13 +3313,13 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 				// Length is 5 because 4 is the max number of bytes in a utf-8 encoded character, and the null terminator is included
 				char character[5];
-				convertUtf16ToUtf8((wchar_t const*)&p_data_a/*u"\U00024B62"*/, character, 5);
+				convertUtf16ToUtf8((wchar_t const*)&p_data_a, character, 5);
 
 				KeyboardEvent keyboardEvent;
 				keyboardEvent.character = character;
 				keyboardEvent.isRepeated = isRepeated;
 				m_gui->excludeAnimationThread();
-				m_gui->handleCharacterInput(keyboardEvent);
+				m_gui->handleGlobalCharacterInput(keyboardEvent);
 				m_gui->includeAnimationThread();
 				return 0;
 			}
@@ -7354,22 +7381,348 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 	//------------------------------
 
-	void Gui::handleGlobalMouseMove(MouseEvent const& p_event)
+	DragDropOperation Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
+	{
+		DragDropOperation finalOperation(DragDropOperation::None);
+		uint32 finalOperationLayerIndex = 0; // The layer index of the view that updated finalOperation the last time.
+
+		View* container = this;
+		int32 startIndex = m_children.size() - 1;
+
+		std::stack<bool> wasHoveringStack;
+		wasHoveringStack.push(((View*)this)->m_isMouseHovering);
+
+		if (getIsContaining(p_event.x, p_event.y))
+		{
+			if (m_areDragDropEventsEnabled)
+			{
+				if (((View*)this)->m_isMouseHovering)
+				{
+					finalOperation = handleDragDropMove(p_event);
+				}
+				else
+				{
+					handleDragDropEnter(p_event);
+
+					if (startIndex < 0)
+					{
+						handleDragDropBackgroundEnter(p_event);
+					}
+				}
+			}
+			((View*)this)->m_isMouseHovering = true;
+		}
+		else if (((View*)this)->m_isMouseHovering)
+		{
+			if (m_areDragDropEventsEnabled)
+			{
+				handleDragDropLeave(p_event);
+
+				if (startIndex < 0)
+				{
+					handleDragDropBackgroundLeave(p_event);
+				}
+			}
+			((View*)this)->m_isMouseHovering = false;
+		}
+
+		if (startIndex >= 0)
+		{
+			float absoluteX = p_event.x;
+			float absoluteY = p_event.y;
+
+			bool hasInvisibleParent = false;
+			bool hasOverlayParent = false;
+			bool hasFoundEnterViews = false;
+			bool hasFoundLeaveViews = false;
+			while (true)
+			{
+			loopStart:
+				for (int32 a = startIndex; a >= 0; a--)
+				{
+					View* child = container->m_children[a];
+
+					if (container->m_isMouseHovering && child->getIsContainingAbsolute(absoluteX, absoluteY) && child->getIsVisible() && !hasInvisibleParent && !hasFoundEnterViews)
+					{
+						if (child->m_areDragDropEventsEnabled)
+						{
+							p_event.x = absoluteX - child->getAbsoluteLeft();
+							p_event.y = absoluteY - child->getAbsoluteTop();
+						}
+
+						bool isContainer = child->m_children.size();
+
+						if (child->m_isMouseHovering)
+						{
+							if (child->m_areDragDropEventsEnabled)
+							{
+								DragDropOperation operation = child->handleDragDropMove(p_event);
+								if (child->m_layerIndex >= finalOperationLayerIndex)
+								{
+									finalOperation = operation;
+									finalOperationLayerIndex = child->m_layerIndex;
+								}
+							}
+						}
+						else
+						{
+							if (child->m_areDragDropEventsEnabled)
+							{
+								child->handleDragDropEnter(p_event);
+								if (!isContainer)
+								{
+									child->handleDragDropBackgroundEnter(p_event);
+								}
+							}
+						}
+
+						if (isContainer)
+						{
+							wasHoveringStack.push(child->m_isMouseHovering);
+							child->m_isMouseHovering = true;
+							if (child->getIsOverlay())
+							{
+								hasOverlayParent = true;
+							}
+							container = child;
+							startIndex = child->getNumberOfChildren() - 1;
+							goto loopStart;
+						}
+						else
+						{
+							if (!hasOverlayParent && !child->getIsOverlay())
+							{
+								hasFoundEnterViews = true;
+								if (child->m_isMouseHovering)
+								{
+									hasFoundLeaveViews = true;
+									break;
+								}
+								else if (hasFoundLeaveViews)
+								{
+									child->m_isMouseHovering = true;
+									break;
+								}
+							}
+							child->m_isMouseHovering = true;
+						}
+					}
+					else if (child->m_isMouseHovering && !hasFoundLeaveViews)
+					{
+						bool isContainer = child->getNumberOfChildren();
+
+						if (child->m_areDragDropEventsEnabled)
+						{
+							p_event.x = absoluteX - child->getAbsoluteLeft();
+							p_event.y = absoluteY - child->getAbsoluteTop();
+							child->handleDragDropLeave(p_event);
+							if (!isContainer)
+							{
+								child->handleDragDropBackgroundLeave(p_event);
+							}
+						}
+
+						if (isContainer)
+						{
+							wasHoveringStack.push(child->m_isMouseHovering);
+							child->m_isMouseHovering = false;
+
+							if (child->m_isOverlay)
+							{
+								hasOverlayParent = true;
+							}
+							if (!child->m_isVisible)
+							{
+								hasInvisibleParent = true;
+							}
+							container = child;
+							startIndex = child->getNumberOfChildren() - 1;
+							goto loopStart;
+						}
+						else
+						{
+							child->m_isMouseHovering = false;
+							if (!hasOverlayParent && !child->m_isOverlay)
+							{
+								hasFoundLeaveViews = true;
+								if (hasFoundEnterViews)
+								{
+									break;
+								}
+							}
+						}
+					}
+				}
+
+				if (wasHoveringStack.top() && container->m_isMouseHovering && hasFoundLeaveViews && !hasFoundEnterViews ||
+					!wasHoveringStack.top() && container->m_isMouseHovering && !hasFoundEnterViews)
+				{
+					hasFoundEnterViews = true;
+					if (container->m_areDragDropEventsEnabled)
+					{
+						p_event.x = absoluteX - container->getAbsoluteLeft();
+						p_event.y = absoluteY - container->getAbsoluteTop();
+						container->handleDragDropBackgroundEnter(p_event);
+					}
+				}
+				else if (wasHoveringStack.top() && container->m_isMouseHovering && hasFoundEnterViews && !hasFoundLeaveViews ||
+					wasHoveringStack.top() && !container->m_isMouseHovering && !hasFoundLeaveViews)
+				{
+					hasFoundLeaveViews = true;
+					if (container->m_areDragDropEventsEnabled)
+					{
+						p_event.x = absoluteX - container->getAbsoluteLeft();
+						p_event.y = absoluteY - container->getAbsoluteTop();
+						container->handleDragDropBackgroundLeave(p_event);
+					}
+				}
+				else if (wasHoveringStack.top() && container->m_isMouseHovering)
+				{
+					hasFoundEnterViews = true;
+					hasFoundLeaveViews = true;
+				}
+
+				if (container == this)
+				{
+					break;
+				}
+
+				if (container->getIsOverlay())
+				{
+					wasHoveringStack.pop();
+					hasOverlayParent = false;
+					startIndex = container->getIndex() - 1;
+					container = container->getParent();
+				}
+				else
+				{
+					while (container != this && wasHoveringStack.top() != container->m_isMouseHovering)
+					{
+						wasHoveringStack.pop();
+						startIndex = (int32)container->getIndex() - 1;
+						container = container->getParent();
+						if (container->getIsOverlay())
+						{
+							hasOverlayParent = false;
+						}
+						if (!container->getIsVisible())
+						{
+							hasInvisibleParent = false;
+						}
+					}
+
+					if (hasFoundLeaveViews && hasFoundEnterViews)
+					{
+						break;
+					}
+				}
+			}
+		}
+		return finalOperation;
+	}
+	void Gui::handleGlobalDragDropLeave(DragDropEvent& p_event)
+	{
+		if (m_isMouseHovering)
+		{
+			if (m_areDragDropEventsEnabled)
+			{
+				handleDragDropLeave(p_event);
+				handleDragDropBackgroundLeave(p_event);
+			}
+			m_isMouseHovering = false;
+		}
+
+		float absoluteX = p_event.x;
+		float absoluteY = p_event.y;
+
+		View* container = this;
+		int32 startIndex = m_children.size() - 1;
+		int32 numberOfOverlayParents = 0;
+		while (true)
+		{
+		loopStart:
+			for (int32 a = startIndex; a >= 0; a--)
+			{
+				View* child = container->m_children[a];
+
+				if (child->m_isMouseHovering)
+				{
+					if (child->m_areDragDropEventsEnabled)
+					{
+						p_event.x = absoluteX - child->getAbsoluteLeft();
+						p_event.y = absoluteY - child->getAbsoluteTop();
+						child->handleDragDropLeave(p_event);
+						child->handleDragDropBackgroundLeave(p_event);
+					}
+					child->m_isMouseHovering = false;
+
+					if (child->m_children.size())
+					{
+						startIndex = child->m_children.size() - 1;
+						container = child;
+						if (container->m_isOverlay)
+						{
+							numberOfOverlayParents++;
+						}
+						goto loopStart;
+					}
+					else if (!child->m_isOverlay)
+					{
+						break;
+					}
+				}
+			}
+			if (container == this)
+			{
+				break;
+			}
+			else if (container->m_isOverlay)
+			{
+				startIndex = container->m_index - 1;
+				container = container->m_parent;
+				numberOfOverlayParents--;
+			}
+			else if (numberOfOverlayParents)
+			{
+				while (!container->m_isOverlay && container != this)
+				{
+					container = container->m_parent;
+				}
+				if (container == this)
+				{
+					break;
+				}
+				startIndex = container->m_index - 1;
+				container = container->m_parent;
+				numberOfOverlayParents--;
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+
+	//------------------------------
+
+	void Gui::handleGlobalMouseMove(MouseEvent& p_event)
 	{
 		// This is false if it's called from a view just to send mouse leave and mouse enter events,
 		// if a view has been moved from the mouse for example.
 		bool wasMouseReallyMoved = p_event.movementX || p_event.movementY;
 
+		float absoluteX = p_event.x;
+		float absoluteY = p_event.y;
+
 		if (m_pressedMouseEventListeners.size())
 		{
 			if (wasMouseReallyMoved)
 			{
-				MouseEvent mouseEvent = p_event;
 				for (auto pressedView : m_pressedMouseEventListeners)
 				{
-					mouseEvent.x = p_event.x - pressedView->getAbsoluteLeft();
-					mouseEvent.y = p_event.y - pressedView->getAbsoluteTop();
-					pressedView->handleMouseMove(mouseEvent);
+					p_event.x = absoluteX - pressedView->getAbsoluteLeft();
+					p_event.y = absoluteY - pressedView->getAbsoluteTop();
+					pressedView->handleMouseMove(p_event);
 				}
 			}
 		}
@@ -7377,8 +7730,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		{
 			View* container = this;
 			int32 startIndex = m_children.size() - 1;
-
-			MouseEvent mouseEvent = p_event;
 
 			std::stack<bool> wasHoveringStack;
 			wasHoveringStack.push(((View*)this)->m_isMouseHovering);
@@ -7433,31 +7784,31 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 					{
 						View* child = container->m_children[a];
 
-						if (container->m_isMouseHovering && child->getIsContainingAbsolute(p_event.x, p_event.y) && child->getIsVisible() && !hasInvisibleParent && !hasFoundEnterViews)
+						if (container->m_isMouseHovering && child->getIsContainingAbsolute(absoluteX, absoluteY) && child->m_isVisible && !hasInvisibleParent && !hasFoundEnterViews)
 						{
-							if (child->getAreMouseEventsEnabled())
+							if (child->m_areMouseEventsEnabled)
 							{
-								mouseEvent.x = p_event.x - child->getAbsoluteLeft();
-								mouseEvent.y = p_event.y - child->getAbsoluteTop();
+								p_event.x = absoluteX - child->getAbsoluteLeft();
+								p_event.y = absoluteY - child->getAbsoluteTop();
 							}
 
 							bool isContainer = child->m_children.size();
 
 							if (child->m_isMouseHovering)
 							{
-								if (child->getAreMouseEventsEnabled() && wasMouseReallyMoved)
+								if (child->m_areMouseEventsEnabled && wasMouseReallyMoved)
 								{
-									child->handleMouseMove(mouseEvent);
+									child->handleMouseMove(p_event);
 								}
 							}
 							else
 							{
-								if (child->getAreMouseEventsEnabled())
+								if (child->m_areMouseEventsEnabled)
 								{
-									child->handleMouseEnter(mouseEvent);
+									child->handleMouseEnter(p_event);
 									if (!isContainer)
 									{
-										child->handleMouseBackgroundEnter(mouseEvent);
+										child->handleMouseBackgroundEnter(p_event);
 									}
 								}
 							}
@@ -7466,7 +7817,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 							{
 								wasHoveringStack.push(child->m_isMouseHovering);
 								child->m_isMouseHovering = true;
-								if (child->getIsOverlay())
+								if (child->m_isOverlay)
 								{
 									hasOverlayParent = true;
 								}
@@ -7476,7 +7827,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 							}
 							else
 							{
-								if (!hasOverlayParent && !child->getIsOverlay())
+								if (!hasOverlayParent && !child->m_isOverlay)
 								{
 									hasFoundEnterViews = true;
 									if (child->m_isMouseHovering)
@@ -7497,14 +7848,14 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 						{
 							bool isContainer = child->getNumberOfChildren();
 
-							if (child->getAreMouseEventsEnabled())
+							if (child->m_areMouseEventsEnabled)
 							{
-								mouseEvent.x = p_event.x - child->getAbsoluteLeft();
-								mouseEvent.y = p_event.y - child->getAbsoluteTop();
-								child->handleMouseLeave(mouseEvent);
+								p_event.x = absoluteX - child->getAbsoluteLeft();
+								p_event.y = absoluteY - child->getAbsoluteTop();
+								child->handleMouseLeave(p_event);
 								if (!isContainer)
 								{
-									child->handleMouseBackgroundLeave(mouseEvent);
+									child->handleMouseBackgroundLeave(p_event);
 								}
 							}
 
@@ -7513,11 +7864,11 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 								wasHoveringStack.push(child->m_isMouseHovering);
 								child->m_isMouseHovering = false;
 
-								if (child->getIsOverlay())
+								if (child->m_isOverlay)
 								{
 									hasOverlayParent = true;
 								}
-								if (!child->getIsVisible())
+								if (!child->m_isVisible)
 								{
 									hasInvisibleParent = true;
 								}
@@ -7528,7 +7879,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 							else
 							{
 								child->m_isMouseHovering = false;
-								if (!hasOverlayParent && !child->getIsOverlay())
+								if (!hasOverlayParent && !child->m_isOverlay)
 								{
 									hasFoundLeaveViews = true;
 									if (hasFoundEnterViews)
@@ -7544,22 +7895,22 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 						!wasHoveringStack.top() && container->m_isMouseHovering && !hasFoundEnterViews)
 					{
 						hasFoundEnterViews = true;
-						if (container->getAreMouseEventsEnabled())
+						if (container->m_areMouseEventsEnabled)
 						{
-							mouseEvent.x = p_event.x - container->getAbsoluteLeft();
-							mouseEvent.y = p_event.y - container->getAbsoluteTop();
-							container->handleMouseBackgroundEnter(mouseEvent);
+							p_event.x = absoluteX - container->getAbsoluteLeft();
+							p_event.y = absoluteY - container->getAbsoluteTop();
+							container->handleMouseBackgroundEnter(p_event);
 						}
 					}
 					else if (wasHoveringStack.top() && container->m_isMouseHovering && hasFoundEnterViews && !hasFoundLeaveViews ||
 						wasHoveringStack.top() && !container->m_isMouseHovering && !hasFoundLeaveViews)
 					{
 						hasFoundLeaveViews = true;
-						if (container->getAreMouseEventsEnabled())
+						if (container->m_areMouseEventsEnabled)
 						{
-							mouseEvent.x = p_event.x - container->getAbsoluteLeft();
-							mouseEvent.y = p_event.y - container->getAbsoluteTop();
-							container->handleMouseBackgroundLeave(mouseEvent);
+							p_event.x = absoluteX - container->getAbsoluteLeft();
+							p_event.y = absoluteY - container->getAbsoluteTop();
+							container->handleMouseBackgroundLeave(p_event);
 						}
 					}
 					else if (wasHoveringStack.top() && container->m_isMouseHovering)
@@ -7573,7 +7924,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 						break;
 					}
 
-					if (container->getIsOverlay())
+					if (container->m_isOverlay)
 					{
 						wasHoveringStack.pop();
 						hasOverlayParent = false;
@@ -7587,11 +7938,11 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 							wasHoveringStack.pop();
 							startIndex = (int32)container->getIndex() - 1;
 							container = container->getParent();
-							if (container->getIsOverlay())
+							if (container->m_isOverlay)
 							{
 								hasOverlayParent = false;
 							}
-							if (!container->getIsVisible())
+							if (!container->m_isVisible)
 							{
 								hasInvisibleParent = false;
 							}
@@ -7608,25 +7959,33 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		if (m_globalMouseEventListeners.size() && wasMouseReallyMoved)
 		{
+			p_event.x = absoluteX;
+			p_event.y = absoluteY;
 			for (auto listener : m_globalMouseEventListeners)
 			{
 				listener->handleGlobalMouseMove(p_event);
 			}
 		}
 	}
-	void Gui::handleGlobalMouseLeave(MouseEvent const& p_event)
+	void Gui::handleGlobalMouseLeave(MouseEvent& p_event)
 	{
-		if (((View*)this)->m_isMouseHovering)
+		if (m_pressedMouseEventListeners.size())
 		{
-			if (getAreMouseEventsEnabled())
+			return;
+		}
+
+		if (m_isMouseHovering)
+		{
+			if (m_areMouseEventsEnabled)
 			{
 				handleMouseLeave(p_event);
 				handleMouseBackgroundLeave(p_event);
 			}
-			((View*)this)->m_isMouseHovering = false;
+			m_isMouseHovering = false;
 		}
 
-		MouseEvent event = p_event;
+		float absoluteX = p_event.x;
+		float absoluteY = p_event.y;
 
 		View* container = this;
 		int32 startIndex = m_children.size() - 1;
@@ -7640,10 +7999,13 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 				if (child->m_isMouseHovering)
 				{
-					event.x = p_event.x - child->getAbsoluteLeft();
-					event.y = p_event.y - child->getAbsoluteTop();
-					child->handleMouseLeave(event);
-					child->handleMouseBackgroundLeave(event);
+					if (child->m_areMouseEventsEnabled)
+					{
+						p_event.x = absoluteX - child->getAbsoluteLeft();
+						p_event.y = absoluteY - child->getAbsoluteTop();
+						child->handleMouseLeave(p_event);
+						child->handleMouseBackgroundLeave(p_event);
+					}
 					child->m_isMouseHovering = false;
 
 					if (child->m_children.size())
@@ -7691,114 +8053,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				break;
 			}
 		}
-	}
-	void Gui::handleGlobalMouseScroll(MouseEvent const& p_event)
-	{
-		std::vector<View*> targets;
-		getTopMouseListenersAt(p_event.x, p_event.y, targets);
-
-		MouseEvent event = p_event;
-		if (targets.size())
-		{
-			for (View* view : targets)
-			{
-				Point<float> position = view->getAbsoluteBounds().getTopLeft();
-				event.x = p_event.x - position.x;
-				event.y = p_event.y - position.y;
-
-				view->handleMouseScroll(event);
-			}
-			for (View* view : targets)
-			{
-				view->forget();
-			}
-		}
-
-		handleGlobalMouseMove(p_event);
-
-		if (m_globalMouseEventListeners.size())
-		{
-			for (auto listener : m_globalMouseEventListeners)
-			{
-				listener->handleGlobalMouseScroll(p_event);
-			}
-		}
-	}
-
-	//------------------------------
-
-	void Gui::handleCharacterInput(KeyboardEvent const& p_event)
-	{
-		if (m_keyboardFocus)
-		{
-			m_keyboardFocus->handleCharacterInput(p_event);
-		}
-		for (auto listener : m_globalKeyboardEventListeners)
-		{
-			listener->handleCharacterInput(p_event);
-		}
-	}
-	void Gui::handleKeyboardKeyDown(KeyboardEvent const& p_event)
-	{
-		if (m_keyboardFocus)
-		{
-			m_keyboardFocus->handleKeyboardKeyDown(p_event);
-		}
-		for (auto listener : m_globalKeyboardEventListeners)
-		{
-			listener->handleKeyboardKeyDown(p_event);
-		}
-	}
-	void Gui::handleKeyboardKeyUp(KeyboardEvent const& p_event)
-	{
-		if (m_keyboardFocus)
-		{
-			m_keyboardFocus->handleKeyboardKeyUp(p_event);
-		}
-		for (auto listener : m_globalKeyboardEventListeners)
-		{
-			listener->handleKeyboardKeyUp(p_event);
-		}
-	}
-
-	//------------------------------
-
-	void Gui::queueAnimationUpdateForView(View* p_view)
-	{
-		m_animationUpdateQueue.push_back(p_view);
-		p_view->remember();
-	}
-
-	void Gui::updateQueuedAnimations()
-	{
-		if (m_hasNewWindowSize)
-		{
-			excludeAnimationThread();
-			Point<float> newSize = m_newWindowSize;
-			m_hasNewWindowSize = false;
-
-			Point<float> sizeBefore = getBottomLeft();
-			m_drawingContext->setSize(newSize.x, newSize.y);
-			m_bounds.set(0, 0, newSize.x, newSize.y);
-			m_lastWindowSize = newSize;
-
-			sendBoundsChangeEvents(Rectangle<float>(0.f, 0.f, sizeBefore.x, sizeBefore.y));
-
-			m_invalidRectangles.clear();
-			invalidate();
-			includeAnimationThread();
-		}
-
-		excludeAnimationThread();
-		uint32 numberOfEventsToProcess = m_animationUpdateQueue.size();
-		for (uint32 a = 0; a < numberOfEventsToProcess; a++)
-		{
-			m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval();
-			m_animationUpdateQueue.front()->updateAnimations();
-			m_animationUpdateQueue.front()->forget();
-			m_animationUpdateQueue.pop_front();
-		}
-		includeAnimationThread();
 	}
 
 	//------------------------------

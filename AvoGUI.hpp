@@ -4022,21 +4022,21 @@ namespace AvoGUI
 			When data is dragged from an application, many data formats may be given which tell different things about the data or represent it in different ways.
 			There may be more than 1 data format with the value formats[p_formatIndex].
 		*/
-		virtual DragDropData getDataForFormat(uint32 p_formatIndex) = 0;
+		virtual DragDropData getDataForFormat(uint32 p_formatIndex) const = 0;
 		/*
 			p_format is one of the values in the "formats" vector.
 		*/
-		virtual std::string getFormatName(uint32 p_format) = 0;
+		virtual std::string getFormatName(uint32 p_format) const = 0;
 
-		virtual std::string getString() = 0;
-		virtual std::wstring getUtf16String() = 0;
+		virtual std::string getString() const = 0;
+		virtual std::wstring getUtf16String() const = 0;
 
-		virtual std::string getFilename() = 0;
-		virtual std::wstring getUtf16FileName() = 0;
+		virtual std::vector<std::string> getFilenames() const = 0;
+		virtual std::vector<std::wstring> getUtf16Filenames() const = 0;
 
-		virtual Image* getImage() = 0;
+		virtual Image* getImage() const = 0;
 
-		virtual ClipboardDataType getDataType() = 0;
+		virtual ClipboardDataType getDataType() const = 0;
 	};
 
 #pragma endregion
@@ -6318,6 +6318,14 @@ namespace AvoGUI
 		{
 			m_areDragDropEventsEnabled = false;
 		}
+		/*
+			LIBRARY IMPLEMENTED
+			Drag drop events are disabled by default.
+		*/
+		bool getAreDragDropEventsEnabled() const
+		{
+			return m_areDragDropEventsEnabled;
+		}
 
 		/*
 			LIBRARY IMPLEMENTED (only default behaviour)
@@ -6325,20 +6333,13 @@ namespace AvoGUI
 			The return value is used to tell the OS what type of operation is supported for the dragged data.
 			p_event contains information about the event, including the data and data type of what is to be dropped.
 		*/
-		virtual DragDropOperation handleDragDropEnter(DragDropEvent const& p_event) 
-		{ 
-			return DragDropOperation::None;
-		}
+		virtual void handleDragDropEnter(DragDropEvent const& p_event) { }
 		/*
 			LIBRARY IMPLEMENTED (only default behaviour)
 			Gets called when the cursor enters the parts of the view that are not occupied by children, during a drag and drop operation.
-			The return value is used to tell the OS what type of operation is supported for the dragged data.
 			p_event contains information about the event, including the data and data type of what is to be dropped.
 		*/
-		virtual DragDropOperation handleDragDropBackgroundEnter(DragDropEvent const& p_event) 
-		{ 
-			return DragDropOperation::None;
-		}
+		virtual void handleDragDropBackgroundEnter(DragDropEvent const& p_event) { }
 		/*
 			LIBRARY IMPLEMENTED (only default behaviour)
 			Gets called when the cursor moves over the view during a drag and drop operation.
@@ -8744,7 +8745,7 @@ namespace AvoGUI
 		It is connected to a window which it holds and recieves events from.
 		When the window has been closed and destroyed, forget() is called on the GUI.
 	*/
-	class Gui : public View, public WindowListener, public GlobalMouseListener
+	class Gui : public View, public WindowListener
 	{
 	private:
 		Gui* m_parent = 0;
@@ -8989,34 +8990,82 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-
+			Sends the event down to targeted drag drop enabled views.
 		*/
-		virtual DragDropOperation handleGlobalDragDropEnter(DragDropEvent const& p_event)
-		{
-			return DragDropOperation::None;
-		}
+		virtual DragDropOperation handleGlobalDragDropMove(DragDropEvent& p_event);
 		/*
 			LIBRARY IMPLEMENTED
-			
+			Sends the event down to targeted drag drop enabled views.
 		*/
-		virtual DragDropOperation handleGlobalDragDropMove(DragDropEvent const& p_event)
-		{
-			return DragDropOperation::None;
-		}
+		virtual void handleGlobalDragDropLeave(DragDropEvent& p_event);
 		/*
 			LIBRARY IMPLEMENTED
-
+			Sends the event down to targeted drag drop enabled views.
 		*/
-		virtual void handleGlobalDragDropLeave(DragDropEvent const& p_event)
+		virtual void handleGlobalDragDropFinish(DragDropEvent& p_event)
 		{
+			if (m_areDragDropEventsEnabled)
+			{
+				handleDragDropFinish(p_event);
+			}
 
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		virtual void handleGlobalDragDropFinish(DragDropEvent const& p_event)
-		{
+			float absoluteX = p_event.x;
+			float absoluteY = p_event.y;
 
+			View* container = this;
+			int32 startIndex = getNumberOfChildren() - 1;
+
+			bool hasFoundTopView = false;
+
+			while (true)
+			{
+			loopStart:
+				for (int32 a = startIndex; a >= 0; a--)
+				{
+					View* child = container->getChild(a);
+					if (child->getIsVisible() && child->getIsContainingAbsolute(absoluteX, absoluteY))
+					{
+						bool hasChildren = child->getNumberOfChildren();
+
+						if (hasChildren)
+						{
+							if (child->m_areDragDropEventsEnabled)
+							{
+								p_event.x = absoluteX - child->getAbsoluteLeft();
+								p_event.y = absoluteY - child->getAbsoluteTop();
+								child->handleDragDropFinish(p_event);
+							}
+							container = child;
+							startIndex = container->getNumberOfChildren() - 1;
+							goto loopStart;
+						}
+						else
+						{
+							if (child->m_areDragDropEventsEnabled)
+							{
+								p_event.x = absoluteX - child->getAbsoluteLeft();
+								p_event.y = absoluteY - child->getAbsoluteTop();
+								child->handleDragDropFinish(p_event);
+							}
+
+							if (!child->getIsOverlay())
+							{
+								// This is only used to determine if the outer loop should be exited afterwards.
+								hasFoundTopView = true;
+								break;
+							}
+						}
+					}
+				}
+
+				if (!container->getIsOverlay() || hasFoundTopView || container == this)
+				{
+					break;
+				}
+
+				startIndex = container->getIndex() - 1;
+				container = container->getParent();
+			}
 		}
 
 		//------------------------------
@@ -9025,29 +9074,32 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.
 		*/
-		virtual void handleGlobalMouseDown(MouseEvent const& p_event) override
+		virtual void handleGlobalMouseDown(MouseEvent& p_event)
 		{
 			std::vector<View*> targets;
 			getTopMouseListenersAt(p_event.x, p_event.y, targets);
 
-			MouseEvent event = p_event;
+			float absoluteX = p_event.x;
+			float absoluteY = p_event.y;
+
 			if (targets.size())
 			{
 				for (View* view : targets)
 				{
-					Point<float> position = view->getAbsoluteBounds().getTopLeft();
-					event.x = p_event.x - position.x;
-					event.y = p_event.y - position.y;
+					p_event.x = absoluteX - view->getAbsoluteLeft();
+					p_event.y = absoluteY - view->getAbsoluteTop();
 
-					view->handleMouseDown(event);
+					view->handleMouseDown(p_event);
 					m_pressedMouseEventListeners.push_back(view);
 				}
 			}
 
-			m_mouseDownPosition.set(p_event.x, p_event.y);
+			m_mouseDownPosition.set(absoluteX, absoluteY);
 
 			if (m_globalMouseEventListeners.size())
 			{
+				p_event.x = absoluteX;
+				p_event.y = absoluteY;
 				for (GlobalMouseListener* listener : m_globalMouseEventListeners)
 				{
 					listener->handleGlobalMouseDown(p_event);
@@ -9058,18 +9110,17 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.
 		*/
-		virtual void handleGlobalMouseUp(MouseEvent const& p_event) override
+		virtual void handleGlobalMouseUp(MouseEvent& p_event)
 		{
-			MouseEvent event = p_event;
+			float absoluteX = p_event.x;
+			float absoluteY = p_event.y;
 			if (m_pressedMouseEventListeners.size())
 			{
-				for (auto view : m_pressedMouseEventListeners)
+				for (View* view : m_pressedMouseEventListeners)
 				{
-					Point<float> position = view->getAbsoluteBounds().getTopLeft();
-					event.x = p_event.x - position.x;
-					event.y = p_event.y - position.y;
-
-					view->handleMouseUp(event);
+					p_event.x = absoluteX - view->getAbsoluteLeft();
+					p_event.y = absoluteY - view->getAbsoluteTop();
+					view->handleMouseUp(p_event);
 				}
 				for (View* view : m_pressedMouseEventListeners)
 				{
@@ -9077,19 +9128,20 @@ namespace AvoGUI
 				}
 				m_pressedMouseEventListeners.clear();
 
-				if (p_event.x != m_mouseDownPosition.x || p_event.y != m_mouseDownPosition.y)
+				if (absoluteX != m_mouseDownPosition.x || absoluteY != m_mouseDownPosition.y)
 				{
-					event.mouseButton = MouseButton::None;
-					event.x = p_event.x;
-					event.y = p_event.y;
-					event.movementX = event.x - m_mouseDownPosition.x;
-					event.movementY = event.y - m_mouseDownPosition.y;
-					handleGlobalMouseMove(event); // This is so that any views that the mouse has entered while pressed get their events.
+					p_event.x = absoluteX;
+					p_event.y = absoluteY;
+					p_event.movementX = absoluteX - m_mouseDownPosition.x;
+					p_event.movementY = absoluteY - m_mouseDownPosition.y;
+					handleGlobalMouseMove(p_event); // This is so that any views that the mouse has entered while pressed get their events.
 				}
 			}
 
 			if (m_globalMouseEventListeners.size())
 			{
+				p_event.x = absoluteX;
+				p_event.y = absoluteY;
 				for (auto listener : m_globalMouseEventListeners)
 				{
 					listener->handleGlobalMouseUp(p_event);
@@ -9100,21 +9152,22 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.
 		*/
-		virtual void handleGlobalMouseDoubleClick(MouseEvent const& p_event) override
+		virtual void handleGlobalMouseDoubleClick(MouseEvent& p_event)
 		{
 			std::vector<View*> targets;
 			getTopMouseListenersAt(p_event.x, p_event.y, targets);
 
-			MouseEvent event = p_event;
+			float absoluteX = p_event.x;
+			float absoluteY = p_event.y;
+
 			if (targets.size())
 			{
 				for (View* view : targets)
 				{
-					Point<float> position = view->getAbsoluteBounds().getTopLeft();
-					event.x = p_event.x - position.x;
-					event.y = p_event.y - position.y;
+					p_event.x = absoluteX - view->getAbsoluteLeft();
+					p_event.y = absoluteY - view->getAbsoluteTop();
 
-					view->handleMouseDoubleClick(event);
+					view->handleMouseDoubleClick(p_event);
 				}
 				for (View* view : targets)
 				{
@@ -9124,6 +9177,8 @@ namespace AvoGUI
 
 			if (m_globalMouseEventListeners.size())
 			{
+				p_event.x = absoluteX;
+				p_event.y = absoluteY;
 				for (auto listener : m_globalMouseEventListeners)
 				{
 					listener->handleGlobalMouseDoubleClick(p_event);
@@ -9135,17 +9190,51 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.
 		*/
-		virtual void handleGlobalMouseMove(MouseEvent const& p_event) override;
+		virtual void handleGlobalMouseMove(MouseEvent& p_event);
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.
 		*/
-		virtual void handleGlobalMouseLeave(MouseEvent const& p_event) override;
+		virtual void handleGlobalMouseLeave(MouseEvent& p_event);
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to global and targeted mouse event listeners.
 		*/
-		virtual void handleGlobalMouseScroll(MouseEvent const& p_event) override;
+		virtual void handleGlobalMouseScroll(MouseEvent& p_event)
+		{
+			std::vector<View*> targets;
+			getTopMouseListenersAt(p_event.x, p_event.y, targets);
+
+			float absoluteX = p_event.x;
+			float absoluteY = p_event.y;
+
+			if (targets.size())
+			{
+				for (View* view : targets)
+				{
+					p_event.x = absoluteX - view->getAbsoluteLeft();
+					p_event.y = absoluteY - view->getAbsoluteTop();
+
+					view->handleMouseScroll(p_event);
+				}
+				for (View* view : targets)
+				{
+					view->forget();
+				}
+			}
+
+			p_event.x = absoluteX;
+			p_event.y = absoluteY;
+			handleGlobalMouseMove(p_event);
+
+			if (m_globalMouseEventListeners.size())
+			{
+				for (auto listener : m_globalMouseEventListeners)
+				{
+					listener->handleGlobalMouseScroll(p_event);
+				}
+			}
+		}
 
 		//------------------------------
 
@@ -9245,19 +9334,49 @@ namespace AvoGUI
 			Handles a character pressed event that has been sent directly from the window to the GUI. 
 			If there are no global keyboard listeners, the event is only sent to the keyboard focus.
 		*/
-		virtual void handleCharacterInput(KeyboardEvent const& p_event);
+		virtual void handleGlobalCharacterInput(KeyboardEvent const& p_event)
+		{
+			if (m_keyboardFocus)
+			{
+				m_keyboardFocus->handleCharacterInput(p_event);
+			}
+			for (auto listener : m_globalKeyboardEventListeners)
+			{
+				listener->handleCharacterInput(p_event);
+			}
+		}
 		/*
 			LIBRARY IMPLEMENTED
 			Handles a key pressed event that has been sent directly from the window to the GUI. 
 			If there are no global keyboard listeners, the event is only sent to the keyboard focus.
 		*/
-		virtual void handleKeyboardKeyDown(KeyboardEvent const& p_event);
+		virtual void handleGlobalKeyboardKeyDown(KeyboardEvent const& p_event)
+		{
+			if (m_keyboardFocus)
+			{
+				m_keyboardFocus->handleKeyboardKeyDown(p_event);
+			}
+			for (auto listener : m_globalKeyboardEventListeners)
+			{
+				listener->handleKeyboardKeyDown(p_event);
+			}
+		}
 		/*
 			LIBRARY IMPLEMENTED
 			Handles a key release event that has been sent directly from the window to the GUI. 
 			If there are no global keyboard listeners, the event is only sent to the keyboard focus.
 		*/
-		virtual void handleKeyboardKeyUp(KeyboardEvent const& p_event);
+		virtual void handleGlobalKeyboardKeyUp(KeyboardEvent const& p_event)
+		{
+			if (m_keyboardFocus)
+			{
+				m_keyboardFocus->handleKeyboardKeyUp(p_event);
+			}
+			for (auto listener : m_globalKeyboardEventListeners)
+			{
+				listener->handleKeyboardKeyUp(p_event);
+			}
+		}
 
 		//------------------------------
 
@@ -9357,14 +9476,48 @@ namespace AvoGUI
 			Do not use this method, because it is possible to add a view twice to the queue. Instead use queueAnimationUpdate() on the view.
 			Using that method esures that animations are only updated max once per interval for every view.
 		*/
-		void queueAnimationUpdateForView(View* p_view);
+		void queueAnimationUpdateForView(View* p_view)
+		{
+			m_animationUpdateQueue.push_back(p_view);
+			p_view->remember();
+		}
 		/*
 			LIBRARY IMPLEMENTED
 			Should only need to be used internally. 
 			Updates the animations of views which have been requested to get an animation update.
 			Also resizes the GUI if the window has changed size.
 		*/
-		void updateQueuedAnimations();
+		void updateQueuedAnimations()
+		{
+			if (m_hasNewWindowSize)
+			{
+				excludeAnimationThread();
+				Point<float> newSize = m_newWindowSize;
+				m_hasNewWindowSize = false;
+
+				Point<float> sizeBefore = getBottomLeft();
+				m_drawingContext->setSize(newSize.x, newSize.y);
+				m_bounds.set(0, 0, newSize.x, newSize.y);
+				m_lastWindowSize = newSize;
+
+				sendBoundsChangeEvents(Rectangle<float>(0.f, 0.f, sizeBefore.x, sizeBefore.y));
+
+				m_invalidRectangles.clear();
+				invalidate();
+				includeAnimationThread();
+			}
+
+			excludeAnimationThread();
+			uint32 numberOfEventsToProcess = m_animationUpdateQueue.size();
+			for (uint32 a = 0; a < numberOfEventsToProcess; a++)
+			{
+				m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval();
+				m_animationUpdateQueue.front()->updateAnimations();
+				m_animationUpdateQueue.front()->forget();
+				m_animationUpdateQueue.pop_front();
+			}
+			includeAnimationThread();
+		}
 
 		/*
 			LIBRARY IMPLEMENTED
