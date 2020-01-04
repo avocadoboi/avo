@@ -4028,15 +4028,57 @@ namespace AvoGUI
 		*/
 		virtual std::string getFormatName(uint32 p_format) const = 0;
 
+		/*
+			Returns the text of what is to be dropped, in UTF-8 encoding.
+		*/
 		virtual std::string getString() const = 0;
+		/*
+			Returns the text of what is to be dropped, in UTF-16 encoding.
+		*/
 		virtual std::wstring getUtf16String() const = 0;
+		/*
+			Returns whether the item to be dropped has any text.
+		*/
+		virtual bool getHasString() const = 0;
 
+		/*
+			Return the filenames of what is to be dropped, in UTF-8 encoding.
+			Keep in mind that this includes any dragged directories too.
+		*/
 		virtual std::vector<std::string> getFilenames() const = 0;
+		/*
+			Returns the filenames of what is to be dropped, in UTF-16 encoding.
+			Keep in mind that this includes any dragged directories too.
+		*/
 		virtual std::vector<std::wstring> getUtf16Filenames() const = 0;
 
-		virtual Image* getImage() const = 0;
+		/*
+			Returns the file contents of every file that is being dragged.
+		*/
+		virtual std::vector<std::string> getFileContents() const = 0;
+		/*
+			Returns the file contents of an item that is being dragged, by its index.
+		*/
+		virtual std::string getFileContents(uint32 p_index) const = 0;
 
-		virtual ClipboardDataType getDataType() const = 0;
+		/*
+			Returns the number of dragged items that have file contents and a file name.
+		*/
+		virtual uint32 getNumberOfFiles() const = 0;
+		/*
+			Returns whether any of the dragged items are files.
+		*/
+		//virtual bool getHasFiles() const = 0;
+
+		/*
+			If an image is being dragged, this creates and returns an Image object representing the image that was dragged.
+			If no image is being dragged, it returns 0.
+		*/
+		virtual Image* getImage() const = 0;
+		/*
+			Returns whether an image is being dragged.
+		*/
+		//virtual bool getHasImage() const = 0;
 	};
 
 #pragma endregion
@@ -8705,6 +8747,11 @@ namespace AvoGUI
 			p_bounds is the maximum bounds of the text. If it's (0, 0, 0, 0) then the bounds will be calculated to fit the text.
 		*/
 		virtual Text* createText(char const* p_string, float p_fontSize, Rectangle<float> const& p_bounds = Rectangle<float>()) = 0;
+		/*
+			Creates a new Text object which represents a pre-calculated text layout, using the current text properties.
+			p_bounds is the maximum bounds of the text. If it's (0, 0, 0, 0) then the bounds will be calculated to fit the text.
+		*/
+		virtual Text* createText(std::string const& p_string, float p_fontSize, Rectangle<float> const& p_bounds = Rectangle<float>()) = 0;
 		/*
 			Draws pre-calculated text created with the createText method.
 		*/

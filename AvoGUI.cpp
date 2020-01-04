@@ -1192,15 +1192,27 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 	private:
 		IDataObject* m_dataObject = 0;
 		FORMATETC* m_oleFormats = 0;
-		uint32 m_numberOfFormats;
-		uint32 m_primaryFormatIndex;
-		ClipboardDataType m_clipboardDataType;
+		uint32 m_numberOfFormats = 0;
+		uint32 m_numberOfFiles = 0;
+
+		FORMATETC* m_fileDescriptorFormat = 0;
+		FORMATETC* m_filenamesFormat = 0;
+		FORMATETC* m_textFormat = 0;
 
 		std::vector<HGLOBAL> m_globalDataToRelease;
 		std::vector<char const*> m_streamBuffersToRelease;
 
+		uint32 m_clipboardFormat_fileContents;
+		uint32 m_clipboardFormat_fileGroupDescriptor;
+
+		Gui* m_gui;
+
 		void releaseDataObject()
 		{
+			m_fileDescriptorFormat = 0;
+			m_filenamesFormat = 0;
+			m_textFormat = 0;
+			m_numberOfFiles = 0;
 			if (m_dataObject)
 			{
 				m_dataObject->Release();
@@ -1216,9 +1228,16 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				delete[] buffer;
 			}
 			m_globalDataToRelease.clear();
+			formats.clear();
 		}
 
 	public:
+		WindowsDragDropEvent(Gui* p_gui) :
+			m_gui(p_gui)
+		{
+			m_clipboardFormat_fileContents = RegisterClipboardFormatW(L"FileContents");
+			m_clipboardFormat_fileGroupDescriptor = RegisterClipboardFormatW(L"FileGroupDescriptorW");
+		}
 		~WindowsDragDropEvent()
 		{
 			releaseDataObject();
@@ -1234,15 +1253,27 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 				IEnumFORMATETC* enumerator = 0;
 				m_dataObject->EnumFormatEtc(DATADIR_GET, &enumerator);
-				
+
 				m_oleFormats = new FORMATETC[50];
 				enumerator->Next(50, m_oleFormats, (ULONG*)&m_numberOfFormats);
 				for (uint32 a = 0; a < m_numberOfFormats; a++)
 				{
-					if (m_oleFormats[a].cfFormat == CF_HDROP)
+					uint32 format = m_oleFormats[a].cfFormat;
+					if (format == CF_HDROP)
 					{
-						m_clipboardDataType = ClipboardDataType::File;
-						m_primaryFormatIndex = a;
+						m_filenamesFormat = m_oleFormats + a;
+					}
+					else if (format == m_clipboardFormat_fileGroupDescriptor)
+					{
+						m_fileDescriptorFormat = m_oleFormats + a;
+					}
+					else if (format == m_clipboardFormat_fileContents)
+					{
+						m_numberOfFiles++;
+					}
+					else if (format == CF_UNICODETEXT)
+					{
+						m_textFormat = m_oleFormats + a;
 					}
 					formats.push_back(m_oleFormats[a].cfFormat);
 				}
@@ -1287,6 +1318,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 					char const* buffer = new char[stats.cbSize.QuadPart];
 					ULONG numberOfBytesRead = 0;
 					medium.pstm->Read((void*)buffer, stats.cbSize.QuadPart, &numberOfBytesRead);
+					medium.pstm->Release();
 					((WindowsDragDropEvent*)this)->m_streamBuffersToRelease.push_back(buffer);
 
 					return { buffer, numberOfBytesRead };
@@ -1298,56 +1330,314 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		}
 		std::string getFormatName(uint32 p_format) const override
 		{
-			wchar_t name[50];
-			GetClipboardFormatNameW(p_format, name, 50);
+			wchar_t name[51];
+			int length = GetClipboardFormatNameW(p_format, name, 50);
+			if (!length)
+			{
+				switch (p_format)
+				{
+				case CF_BITMAP:
+					return "CF_BITMAP";
+				case CF_DIB:
+					return "CF_DIB";
+				case CF_DIF:
+					return "CF_DIF";
+				case CF_DSPBITMAP:
+					return "CF_DSPBITMAP";
+				case CF_DSPENHMETAFILE:
+					return "CF_DSPENHMETAFILE";
+				case CF_DSPMETAFILEPICT:
+					return "CF_DSPMETAFILEPICT";
+				case CF_DSPTEXT:
+					return "CF_DSPTEXT";
+				case CF_ENHMETAFILE:
+					return "CF_ENHMETAFILE";
+				case CF_GDIOBJFIRST:
+					return "CF_GDIOBJFIRST";
+				case CF_GDIOBJLAST:
+					return "CF_GDIOBJLAST";
+				case CF_HDROP:
+					return "CF_HDROP";
+				case CF_LOCALE:
+					return "CF_LOCALE";
+				case CF_METAFILEPICT:
+					return "CF_METAFILEPICT";
+				case CF_OEMTEXT:
+					return "CF_OEMTEXT";
+				case CF_OWNERDISPLAY:
+					return "CF_OWNERDISPLAY";
+				case CF_PALETTE:
+					return "CF_PALETTE";
+				case CF_PENDATA:
+					return "CF_PENDATA";
+				case CF_PRIVATEFIRST:
+					return "CF_PRIVATEFIRST";
+				case CF_PRIVATELAST:
+					return "CF_PRIVATELAST";
+				case CF_RIFF:
+					return "CF_RIFF";
+				case CF_SYLK:
+					return "CF_SYLK";
+				case CF_TEXT:
+					return "CF_TEXT";
+				case CF_TIFF:
+					return "CF_TIFF";
+				case CF_UNICODETEXT:
+					return "CF_UNICODETEXT";
+				case CF_WAVE:
+					return "CF_WAVE";
+				}
+				return "Unknown";
+			}
+			name[50] = 0;
 			return convertUtf16ToUtf8(name);
 		}
 
 		std::string getString() const override
 		{
+			if (m_textFormat)
+			{
+				STGMEDIUM medium;
+				HRESULT result = m_dataObject->GetData(m_textFormat, &medium);
+				if (result == S_OK)
+				{
+					std::string string = convertUtf16ToUtf8((wchar_t*)GlobalLock(medium.hGlobal));
+					GlobalUnlock(medium.hGlobal);
+					GlobalFree(medium.hGlobal);
+					return string;
+				}
+			}
 			return "";
 		}
 		std::wstring getUtf16String() const override
 		{
+			if (m_textFormat)
+			{
+				STGMEDIUM medium;
+				HRESULT result = m_dataObject->GetData(m_textFormat, &medium);
+				if (result == S_OK)
+				{
+					std::wstring string = (wchar_t*)GlobalLock(medium.hGlobal);
+					GlobalUnlock(medium.hGlobal);
+					GlobalFree(medium.hGlobal);
+					return string;
+				}
+			}
 			return L"";
+		}
+		bool getHasString() const
+		{
+			return m_textFormat;
 		}
 
 		std::vector<std::string> getFilenames() const override
 		{
-			if (m_clipboardDataType == ClipboardDataType::File)
+			if (m_filenamesFormat)
 			{
-
 				std::vector<std::string> filenames;
 
 				STGMEDIUM medium;
-				HRESULT result = m_dataObject->GetData(m_oleFormats + m_primaryFormatIndex, &medium);
-				if (result == S_OK)
+				HRESULT result = m_dataObject->GetData(m_filenamesFormat, &medium);
+				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
 				{
 					DROPFILES* filenameStructure = (DROPFILES*)GlobalLock(medium.hGlobal);
 
-					wchar_t const* buffer = (wchar_t const*)((char*)filenameStructure + filenameStructure->pFiles);
+					wchar_t const* currentBufferPosition = (wchar_t const*)((char*)filenameStructure + filenameStructure->pFiles) + 1;
+					filenames.push_back(convertUtf16ToUtf8(currentBufferPosition - 1));
+					while (true)
+					{
+						if (!*currentBufferPosition)
+						{
+							if (!*(currentBufferPosition + 1))
+							{
+								break;
+							}
+							else
+							{
+								filenames.push_back(convertUtf16ToUtf8(currentBufferPosition + 1));
+							}
+						}
+						currentBufferPosition++;
+					}
+
 					GlobalUnlock(medium.hGlobal);
+					GlobalFree(medium.hGlobal);
 				}
 				return filenames;
 			}
+			else if (m_fileDescriptorFormat)
+			{
+				std::vector<std::string> filenames;
 
+				STGMEDIUM medium;
+				HRESULT result = m_dataObject->GetData(m_fileDescriptorFormat, &medium);
+				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
+				{
+					FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)GlobalLock(medium.hGlobal);
+					filenames.reserve(groupDescriptor->cItems);
+					for (uint32 a = 0; a < filenames.size(); a++)
+					{
+						filenames[a] = convertUtf16ToUtf8(groupDescriptor->fgd[a].cFileName);
+					}
+					GlobalUnlock(medium.hGlobal);
+					GlobalFree(medium.hGlobal);
+				}
+				return filenames;
+			}
 			return { };
 		}
 		std::vector<std::wstring> getUtf16Filenames() const override
 		{
-			std::vector<std::wstring> filenames;
+			if (m_filenamesFormat)
+			{
+				std::vector<std::wstring> filenames;
 
-			return filenames;
+				STGMEDIUM medium;
+				HRESULT result = m_dataObject->GetData(m_filenamesFormat, &medium);
+				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
+				{
+					DROPFILES* filenameStructure = (DROPFILES*)GlobalLock(medium.hGlobal);
+
+					wchar_t const* currentBufferPosition = (wchar_t const*)((char*)filenameStructure + filenameStructure->pFiles) + 1;
+					filenames.push_back(currentBufferPosition - 1);
+					while (true)
+					{
+						if (!*currentBufferPosition)
+						{
+							if (!*(currentBufferPosition + 1))
+							{
+								break;
+							}
+							else
+							{
+								filenames.push_back(currentBufferPosition + 1);
+							}
+						}
+						currentBufferPosition++;
+					}
+
+					GlobalUnlock(medium.hGlobal);
+					GlobalFree(medium.hGlobal);
+				}
+				return filenames;
+			}
+			else if (m_fileDescriptorFormat)
+			{
+				std::vector<std::wstring> filenames;
+
+				STGMEDIUM medium;
+				HRESULT result = m_dataObject->GetData(m_fileDescriptorFormat, &medium);
+				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
+				{
+					FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)GlobalLock(medium.hGlobal);
+					filenames.reserve(groupDescriptor->cItems);
+					for (uint32 a = 0; a < filenames.size(); a++)
+					{
+						filenames[a] = groupDescriptor->fgd[a].cFileName;
+					}
+					GlobalUnlock(medium.hGlobal);
+					GlobalFree(medium.hGlobal);
+				}
+				return filenames;
+			}
+			return { };
+		}
+
+		std::vector<std::string> getFileContents() const
+		{
+			std::vector<std::string> output;
+
+			for (uint32 a = 0; a < m_numberOfFormats; a++)
+			{
+				if (m_oleFormats[a].cfFormat == m_clipboardFormat_fileContents)
+				{
+					STGMEDIUM medium;
+					HRESULT errorCode = m_dataObject->GetData(m_oleFormats + a, &medium);
+					if (errorCode == S_OK)
+					{
+						if (medium.tymed == TYMED_HGLOBAL)
+						{
+							output.push_back(std::string());
+							output.back().assign((char*)GlobalLock(medium.hGlobal), GlobalSize(medium.hGlobal));
+							GlobalUnlock(medium.hGlobal);
+							GlobalFree(medium.hGlobal);
+						}
+						else if (medium.tymed == TYMED_ISTREAM)
+						{
+							STATSTG stats;
+							medium.pstm->Stat(&stats, STATFLAG_NONAME);
+
+							output.push_back(std::string());
+							output.back().resize(stats.cbSize.QuadPart);
+
+							ULONG bufferSize = 0;
+							medium.pstm->Read((char*)output.back().data(), output.size(), &bufferSize);
+							if (bufferSize != output.back().size())
+							{
+								output.back().resize(bufferSize);
+							}
+
+							medium.pstm->Release();
+						}
+					}
+				}
+			}
+
+			return output;
+		}
+		std::string getFileContents(uint32 p_index) const 
+		{
+			uint32 currentIndex = 0;
+			for (uint32 a = 0; a < m_numberOfFormats; a++)
+			{
+				if (m_oleFormats[a].cfFormat == m_clipboardFormat_fileContents)
+				{
+					if (currentIndex++ == p_index)
+					{
+						std::string output;
+						STGMEDIUM medium;
+						HRESULT errorCode = m_dataObject->GetData(m_oleFormats + a, &medium);
+						if (errorCode == S_OK)
+						{
+							if (medium.tymed == TYMED_HGLOBAL)
+							{
+								output.assign((char*)GlobalLock(medium.hGlobal), GlobalSize(medium.hGlobal));
+								GlobalUnlock(medium.hGlobal);
+								GlobalFree(medium.hGlobal);
+							}
+							else if (medium.tymed == TYMED_ISTREAM)
+							{
+								STATSTG stats;
+								medium.pstm->Stat(&stats, STATFLAG_NONAME);
+
+								output.resize(stats.cbSize.QuadPart);
+
+								ULONG bufferSize = 0;
+								medium.pstm->Read((char*)output.data(), output.size(), &bufferSize);
+								if (bufferSize != output.size())
+								{
+									output.resize(bufferSize);
+								}
+
+								medium.pstm->Release();
+							}
+						}
+						return output;
+					}
+				}
+			}
+
+			return "";
+		}
+		uint32 getNumberOfFiles() const 
+		{
+			return m_numberOfFiles;
 		}
 
 		Image* getImage() const override
 		{
-			return 0;
-		}
-
-		ClipboardDataType getDataType() const override
-		{
-			return m_clipboardDataType;
+			std::string file = getFileContents(0);
+			return m_gui->getDrawingContext()->createImage(file.data(), file.size());
 		}
 	};
 
@@ -1365,7 +1655,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 	public:
 		OleDropTarget(Gui* p_gui) :
-			m_referenceCount(1), m_gui(p_gui)
+			m_referenceCount(1), m_gui(p_gui), m_dragDropEvent(p_gui)
 		{
 			m_dragDropEvent.formats.reserve(15);
 		}
@@ -1385,31 +1675,13 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			//------------------------------
 
-			IEnumFORMATETC* enumerator = 0;
-			p_dataObject->EnumFormatEtc(DATADIR_GET, &enumerator);
-
-			m_dragDropEvent.formats.clear();
-
-			FORMATETC format;
-			while (enumerator->Next(1, &format, 0) == S_OK)
-			{
-				m_dragDropEvent.formats.push_back(format.cfFormat);
-			}
-
-			enumerator->Release();
-
-			//------------------------------
-
 			POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
 			ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
 
-			float newX = clientMousePosition.x * m_gui->getWindow()->getDipToPixelFactor();
-			float newY = clientMousePosition.y * m_gui->getWindow()->getDipToPixelFactor();
-
-			m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
-			m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
-			m_dragDropEvent.x = newX;
-			m_dragDropEvent.y = newY;
+			m_dragDropEvent.movementX = clientMousePosition.x - m_dragDropEvent.x;
+			m_dragDropEvent.movementY = clientMousePosition.y - m_dragDropEvent.y;
+			m_dragDropEvent.x = clientMousePosition.x;
+			m_dragDropEvent.y = clientMousePosition.y;
 
 			m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
@@ -1435,13 +1707,10 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
 			ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
 
-			float newX = clientMousePosition.x / m_gui->getWindow()->getDipToPixelFactor();
-			float newY = clientMousePosition.y / m_gui->getWindow()->getDipToPixelFactor();
-
-			m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
-			m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
-			m_dragDropEvent.x = newX;
-			m_dragDropEvent.y = newY;
+			m_dragDropEvent.movementX = clientMousePosition.x - m_dragDropEvent.x;
+			m_dragDropEvent.movementY = clientMousePosition.y - m_dragDropEvent.y;
+			m_dragDropEvent.x = clientMousePosition.x;
+			m_dragDropEvent.y = clientMousePosition.y;
 
 			m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
@@ -1468,13 +1737,10 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			GetCursorPos(&clientMousePosition);
 			ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
 
-			float newX = clientMousePosition.x / m_gui->getWindow()->getDipToPixelFactor();
-			float newY = clientMousePosition.y / m_gui->getWindow()->getDipToPixelFactor();
-
-			m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
-			m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
-			m_dragDropEvent.x = newX;
-			m_dragDropEvent.y = newY;
+			m_dragDropEvent.movementX = clientMousePosition.x - m_dragDropEvent.x;
+			m_dragDropEvent.movementY = clientMousePosition.y - m_dragDropEvent.y;
+			m_dragDropEvent.x = clientMousePosition.x;
+			m_dragDropEvent.y = clientMousePosition.y;
 
 			m_gui->handleGlobalDragDropLeave(m_dragDropEvent);
 
@@ -1486,8 +1752,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
 			ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
 
-			float newX = clientMousePosition.x / m_gui->getWindow()->getDipToPixelFactor();
-			float newY = clientMousePosition.y / m_gui->getWindow()->getDipToPixelFactor();
+			float newX = clientMousePosition.x;
+			float newY = clientMousePosition.y;
 
 			m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
 			m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
@@ -2708,7 +2974,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			if (handle)
 			{
 				wchar_t* wideString = (wchar_t*)GlobalLock(handle);
-				uint32 wideStringSize = wcslen(wideString);
+				uint32 wideStringSize = GlobalSize(handle) >> 1;
 				string.resize(getNumberOfUnitsInUtfConvertedString(wideString, wideStringSize));
 				convertUtf16ToUtf8(wideString, wideStringSize, (char*)string.data(), string.size());
 				GlobalUnlock(handle);
@@ -2721,10 +2987,18 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		ClipboardDataType getClipboardDataType() const override
 		{
 			OpenClipboard(m_windowHandle);
-			uint32 format = EnumClipboardFormats(0);
+			uint32 format = 0;
+			while (format = EnumClipboardFormats(format))
+			{
+				if (format == CF_UNICODETEXT)
+				{
+					CloseClipboard();
+					return ClipboardDataType::UnicodeString;
+				}
+			}
 			CloseClipboard();
 
-			if (format == CF_TEXT || format == CF_OEMTEXT || format == CF_UNICODETEXT)
+			if (format == CF_UNICODETEXT)
 			{
 				return ClipboardDataType::UnicodeString;
 			}
@@ -6726,22 +7000,33 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			IWICBitmapDecoder* decoder = 0;
 			s_imagingFactory->CreateDecoderFromStream(stream, 0, WICDecodeMetadataCacheOnDemand, &decoder);
 
-			IWICBitmapFrameDecode* frame = 0;
-			decoder->GetFrame(0, &frame);
+			Direct2DImage* result = 0;
+			if (decoder)
+			{
+				IWICBitmapFrameDecode* frame = 0;
+				decoder->GetFrame(0, &frame);
 
-			IWICFormatConverter* formatConverter = 0;
-			s_imagingFactory->CreateFormatConverter(&formatConverter);
-			formatConverter->Initialize(frame, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, 0, 0.f, WICBitmapPaletteTypeMedianCut);
+				if (frame)
+				{
+					IWICFormatConverter* formatConverter = 0;
+					s_imagingFactory->CreateFormatConverter(&formatConverter);
+					formatConverter->Initialize(frame, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, 0, 0.f, WICBitmapPaletteTypeMedianCut);
 
-			ID2D1Bitmap* bitmap;
-			m_context->CreateBitmapFromWicBitmap(formatConverter, 0, &bitmap);
+					ID2D1Bitmap* bitmap;
+					m_context->CreateBitmapFromWicBitmap(formatConverter, 0, &bitmap);
+					if (bitmap)
+					{
+						result = new Direct2DImage(bitmap);
+					}
 
-			formatConverter->Release();
-			frame->Release();
-			decoder->Release();
+					formatConverter->Release();
+					frame->Release();
+				}
+				decoder->Release();
+			}
 			stream->Release();
 
-			return new Direct2DImage(bitmap);
+			return result;
 		}
 		Image* createImage(char const* p_filePath) override
 		{
@@ -6758,18 +7043,27 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			IWICBitmapFrameDecode* frame = 0;
 			decoder->GetFrame(0, &frame);
 
-			IWICFormatConverter* formatConverter = 0;
-			s_imagingFactory->CreateFormatConverter(&formatConverter);
-			formatConverter->Initialize(frame, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, 0, 0.f, WICBitmapPaletteTypeMedianCut);
+			Direct2DImage* result = 0;
+			if (frame)
+			{
+				IWICFormatConverter* formatConverter = 0;
+				s_imagingFactory->CreateFormatConverter(&formatConverter);
+				formatConverter->Initialize(frame, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, 0, 0.f, WICBitmapPaletteTypeMedianCut);
 
-			ID2D1Bitmap* bitmap;
-			m_context->CreateBitmapFromWicBitmap(formatConverter, 0, &bitmap);
+				ID2D1Bitmap* bitmap;
+				m_context->CreateBitmapFromWicBitmap(formatConverter, 0, &bitmap);
+				if (bitmap)
+				{
+					result = new Direct2DImage(bitmap);
+				}
 
-			formatConverter->Release();
-			frame->Release();
+				formatConverter->Release();
+				frame->Release();
+			}
+
 			decoder->Release();
 
-			return new Direct2DImage(bitmap);
+			return result;
 		}
 		Image* createImage(void* p_handle) override
 		{
@@ -6802,6 +7096,11 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		void drawImage(Image* p_image, float p_multiplicativeOpacity) override
 		{
+			if (!p_image)
+			{
+				return;
+			}
+
 			Rectangle<float> const& cropRectangle = p_image->getCropRectangle();
 			Rectangle<float> innerBounds = p_image->getInnerBounds();
 
@@ -6989,8 +7288,31 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			return new DirectWriteText(textLayout, wideStringObject, p_string, p_bounds);
 		}
+		Text* createText(std::string const& p_string, float p_fontSize, Rectangle<float> const& p_bounds = Rectangle<float>()) override
+		{
+			int32 numberOfCharacters = MultiByteToWideChar(CP_UTF8, 0, p_string.c_str(), p_string.size(), 0, 0);
+			wchar_t* wideString = new wchar_t[numberOfCharacters];
+			MultiByteToWideChar(CP_UTF8, 0, p_string.c_str(), p_string.size(), wideString, numberOfCharacters);
+
+			IDWriteTextLayout1* textLayout;
+			s_directWriteFactory->CreateTextLayout(wideString, numberOfCharacters, m_textFormat, p_bounds.getWidth(), p_bounds.getHeight(), (IDWriteTextLayout**)&textLayout);
+			DWRITE_TEXT_RANGE textRange;
+			textRange.startPosition = 0;
+			textRange.length = numberOfCharacters;
+			textLayout->SetFontSize(p_fontSize, textRange);
+			textLayout->SetCharacterSpacing(m_textProperties.characterSpacing * 0.5f, m_textProperties.characterSpacing * 0.5f, 0.f, textRange);
+
+			std::wstring wideStringObject = wideString;
+			delete[] wideString;
+
+			return new DirectWriteText(textLayout, wideStringObject, p_string, p_bounds);
+		}
 		void drawText(Text* p_text) override
 		{
+			if (!p_text)
+			{
+				return;
+			}
 			IDWriteTextLayout1* textLayout = (IDWriteTextLayout1*)p_text->getHandle();
 			DWRITE_OVERHANG_METRICS overhangMetrics = { 0 };
 			if (p_text->getIsTopTrimmed())
