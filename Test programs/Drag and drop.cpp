@@ -21,6 +21,7 @@ private:
 		{
 			text->setWidth(550.f);
 			text->setWordWrapping(AvoGUI::WordWrapping::WholeWord);
+			text->fitHeightToText();
 		}
 		text->setCenter(p_x, p_y);
 		text->move(AvoGUI::Point<float>().setPolar(AvoGUI::random() * AvoGUI::TAU, 40.f * AvoGUI::random()));
@@ -51,6 +52,7 @@ public:
 	void createContent() override
 	{
 		enableDragDropEvents();
+		enableMouseEvents();
 
 		setThemeColor("background", AvoGUI::Color(0.1f, 0.f, 0.1f));
 		setThemeColor("on background", AvoGUI::Color(1.f));
@@ -61,6 +63,25 @@ public:
 	void handleSizeChange() override
 	{
 		m_text_dropItems->setCenter(getCenter());
+	}
+
+	//------------------------------
+
+	void handleMouseMove(AvoGUI::MouseEvent const& p_event) override
+	{
+		if (getWindow()->getIsMouseButtonDown(AvoGUI::MouseButton::Left))
+		{
+			for (uint32 a = 0; a < m_droppedTexts.size(); a++)
+			{
+				if (m_droppedTexts[a]->getIsContaining(p_event.x, p_event.y))
+				{
+					AvoGUI::DragDropOperation operation = getWindow()->dragAndDropString(m_droppedTexts[a]->getString());
+					m_droppedTexts.erase(m_droppedTexts.begin() + a);
+
+					break;
+				}
+			}
+		}
 	}
 
 	//------------------------------

@@ -242,16 +242,21 @@ namespace AvoGUI
 	std::wstring convertUtf8ToUtf16(std::string const& p_input);
 	/*
 		Returns the number of UTF-16 encoded wchar_t units that would be used to represent the same characters in a UTF-8 encoded char string.
+		It is assumed that p_input is null-terminated.
+		The output includes the null terminator.
+	*/
+	uint32 getNumberOfUnitsInUtfConvertedString(char const* p_input);
+	/*
+		Returns the number of UTF-16 encoded wchar_t units that would be used to represent the same characters in a UTF-8 encoded char string.
 		if p_numberOfUnitsInInput is the size of p_input in bytes.
 		The output includes the null terminator if the input includes a null terminator.
 	*/
 	uint32 getNumberOfUnitsInUtfConvertedString(char const* p_input, int32 p_numberOfUnitsInInput);
 	/*
 		Returns the number of UTF-16 encoded wchar_t units that would be used to represent the same characters in a UTF-8 encoded char string.
-		It is assumed that p_input is null-terminated.
 		The output includes the null terminator.
 	*/
-	uint32 getNumberOfUnitsInUtfConvertedString(char const* p_input);
+	uint32 getNumberOfUnitsInUtfConvertedString(std::string const& p_input);
 	
 	/*
 		Converts a UTF-16 encoded wchar_t string to a UTF-8 encoded char string.
@@ -283,6 +288,11 @@ namespace AvoGUI
 		The output includes the null terminator if the input includes a null terminator.
 	*/
 	uint32 getNumberOfUnitsInUtfConvertedString(wchar_t const* p_input, uint32 p_numberOfUnitsInInput);
+	/*
+		Returns the number of UTF-8 encoded char units that would be used to represent the same characters in a UTF-16 encoded wchar_t string.
+		The output includes the null terminator.
+	*/
+	uint32 getNumberOfUnitsInUtfConvertedString(std::wstring const& p_input);
 
 	//------------------------------
 
@@ -7052,8 +7062,10 @@ namespace AvoGUI
 		//------------------------------
 
 		//virtual void startImageDragAndDrop(Image* p_image) = 0;
-		//virtual void startStringDragAndDrop(std::string const& p_string) = 0;
+		virtual DragDropOperation dragAndDropString(std::string const& p_string) = 0;
 		//virtual void startFileDragAndDrop(std::string const& p_fileName) = 0;
+
+		//------------------------------
 
 		/*
 			Gives a UTF-16 encoded string for the OS to store globally. Other programs, or this one, can then access it.

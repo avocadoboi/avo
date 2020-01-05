@@ -93,6 +93,12 @@ namespace AvoGUI
 		return MultiByteToWideChar(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, 0, 0);
 #endif
 	}
+	uint32 getNumberOfUnitsInUtfConvertedString(std::string const& p_string)
+	{
+#ifdef _WIN32
+		return MultiByteToWideChar(CP_UTF8, 0, p_string.data(), p_string.size() + 1, 0, 0);
+#endif
+	}
 
 	void convertUtf16ToUtf8(wchar_t const* p_input, char* p_output, uint32 p_numberOfCharactersInOutput)
 	{
@@ -125,6 +131,12 @@ namespace AvoGUI
 	{
 #ifdef _WIN32
 		return WideCharToMultiByte(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, 0, 0, 0, false);
+#endif
+	}
+	uint32 getNumberOfUnitsInUtfConvertedString(std::wstring const& p_string)
+	{
+#ifdef _WIN32
+		return WideCharToMultiByte(CP_UTF8, 0, p_string.data(), p_string.size() + 1, 0, 0, 0, false);
 #endif
 	}
 
@@ -949,7 +961,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		HRESULT __stdcall Next(ULONG p_numberOfFormatsToGet, FORMATETC* p_formats, ULONG* p_numberOfFormatsGotten) override
 		{
-			while (m_currentFormatIndex < m_numberOfFormats && *p_numberOfFormatsGotten <= p_numberOfFormatsToGet)
+			uint32 numberOfFormatsGotten = 0;
+			while (m_currentFormatIndex < m_numberOfFormats && numberOfFormatsGotten <= p_numberOfFormatsToGet)
 			{
 				*p_formats = m_formats[m_currentFormatIndex];
 				if (p_formats->ptd)
@@ -959,10 +972,14 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				}
 
 				m_currentFormatIndex++;
-				(*p_numberOfFormatsGotten)++;
+				numberOfFormatsGotten++;
 				p_formats++;
 			}
-			return p_numberOfFormatsToGet != *p_numberOfFormatsGotten;
+			if (p_numberOfFormatsGotten)
+			{
+				*p_numberOfFormatsGotten = numberOfFormatsGotten;
+			}
+			return p_numberOfFormatsToGet != numberOfFormatsGotten;
 		}
 
 		HRESULT __stdcall Skip(ULONG p_offset) override
@@ -2949,6 +2966,41 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		//------------------------------
 
+		DragDropOperation dragAndDropString(std::string const& p_string) override
+		{
+			FORMATETC format;
+			format.cfFormat = CF_UNICODETEXT;
+			format.tymed = TYMED_HGLOBAL;
+			format.dwAspect = DVASPECT_CONTENT;
+			format.lindex = -1;
+			format.ptd = 0;
+
+			STGMEDIUM medium;
+			medium.tymed = TYMED_HGLOBAL;
+			medium.pUnkForRelease = 0;
+			
+			uint32 wideStringLength = getNumberOfUnitsInUtfConvertedString(p_string);
+			medium.hGlobal = GlobalAlloc(GMEM_FIXED, wideStringLength*sizeof(wchar_t));
+			convertUtf8ToUtf16(p_string.data(), p_string.size() + 1, (wchar_t*)medium.hGlobal, wideStringLength);
+
+			OleDataObject* dataObject = new OleDataObject(&format, &medium, 1);
+
+			DWORD dropOperation = DROPEFFECT_NONE;
+			DoDragDrop(dataObject, m_oleDropSource, DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			switch (dropOperation)
+			{
+			case DROPEFFECT_COPY:
+				return DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return DragDropOperation::Link;
+			}
+			return DragDropOperation::None;
+		}
+
+		//------------------------------
+
 		void setClipboardString(std::wstring const& p_string) override
 		{
 			HGLOBAL clipboardMemory = GlobalAlloc(GMEM_MOVEABLE, (p_string.size() + 1)*sizeof(wchar_t));
@@ -3084,6 +3136,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			{
 				OleInitialize(0);
 
+				m_oleDropSource = new OleDropSource();
 				m_oleDropTarget = new OleDropTarget(m_gui);
 				RegisterDragDrop(m_windowHandle, m_oleDropTarget);
 
@@ -3246,10 +3299,10 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				}
 
 				MouseEvent mouseEvent;
-				mouseEvent.x = x;
-				mouseEvent.y = y;
-				mouseEvent.movementX = x - m_mousePosition.x;
-				mouseEvent.movementY = y - m_mousePosition.y;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
+				mouseEvent.movementX = (x - m_mousePosition.x) / m_dipToPixelFactor;
+				mouseEvent.movementY = (y - m_mousePosition.y) / m_dipToPixelFactor;
 
 				m_mousePosition.x = x;
 				m_mousePosition.y = y;
@@ -3298,10 +3351,10 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 					m_isMouseOutsideClientArea = true;
 
 					MouseEvent mouseEvent;
-					mouseEvent.x = mousePosition.x;
-					mouseEvent.y = mousePosition.y;
-					mouseEvent.movementX = mousePosition.x - m_mousePosition.x;
-					mouseEvent.movementY = mousePosition.y - m_mousePosition.y;
+					mouseEvent.x = mousePosition.x / m_dipToPixelFactor;
+					mouseEvent.y = mousePosition.y / m_dipToPixelFactor;
+					mouseEvent.movementX = (mousePosition.x - m_mousePosition.x) / m_dipToPixelFactor;
+					mouseEvent.movementY = (mousePosition.y - m_mousePosition.y) / m_dipToPixelFactor;
 
 					m_mousePosition.x = mousePosition.x;
 					m_mousePosition.y = mousePosition.y;
@@ -3443,8 +3496,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				ModifierKeyFlags modifierKeyFlags = convertWindowsKeyStateToModifierKeyFlags(GET_KEYSTATE_WPARAM(p_data_a));
 
 				MouseEvent mouseEvent;
-				mouseEvent.x = mousePosition.x;
-				mouseEvent.y = mousePosition.y;
+				mouseEvent.x = mousePosition.x / m_dipToPixelFactor;
+				mouseEvent.y = mousePosition.y / m_dipToPixelFactor;
 				mouseEvent.scrollDelta = delta;
 				mouseEvent.modifierKeys = modifierKeyFlags;
 
@@ -3462,8 +3515,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				MouseEvent mouseEvent;
-				mouseEvent.x = x;
-				mouseEvent.y = y;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = MouseButton::Left;
 				mouseEvent.modifierKeys = modifierFlags;
 
@@ -3483,8 +3536,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				MouseEvent mouseEvent;
-				mouseEvent.x = x;
-				mouseEvent.y = y;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = MouseButton::Left;
 				mouseEvent.modifierKeys = modifierFlags;
 
@@ -3504,8 +3557,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				MouseEvent mouseEvent;
-				mouseEvent.x = x;
-				mouseEvent.y = y;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = MouseButton::Left;
 				mouseEvent.modifierKeys = modifierFlags;
 				m_gui->excludeAnimationThread();
@@ -3522,8 +3575,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				MouseEvent mouseEvent;
-				mouseEvent.x = x;
-				mouseEvent.y = y;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = MouseButton::Right;
 				mouseEvent.modifierKeys = modifierFlags;
 				m_gui->excludeAnimationThread();
@@ -3540,8 +3593,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				MouseEvent mouseEvent;
-				mouseEvent.x = x;
-				mouseEvent.y = y;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = MouseButton::Right;
 				mouseEvent.modifierKeys = modifierFlags;
 				m_gui->excludeAnimationThread();
@@ -3558,8 +3611,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				MouseEvent mouseEvent;
-				mouseEvent.x = x;
-				mouseEvent.y = y;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = MouseButton::Right;
 				mouseEvent.modifierKeys = modifierFlags;
 				m_gui->excludeAnimationThread();
@@ -3576,8 +3629,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				MouseEvent mouseEvent;
-				mouseEvent.x = x;
-				mouseEvent.y = y;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = MouseButton::Middle;
 				mouseEvent.modifierKeys = modifierFlags;
 				m_gui->excludeAnimationThread();
@@ -3594,8 +3647,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				MouseEvent mouseEvent;
-				mouseEvent.x = x;
-				mouseEvent.y = y;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = MouseButton::Middle;
 				mouseEvent.modifierKeys = modifierFlags;
 				m_gui->excludeAnimationThread();
@@ -3612,8 +3665,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				MouseEvent mouseEvent;
-				mouseEvent.x = x;
-				mouseEvent.y = y;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = MouseButton::Middle;
 				mouseEvent.modifierKeys = modifierFlags;
 				m_gui->excludeAnimationThread();
