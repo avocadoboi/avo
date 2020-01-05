@@ -1196,7 +1196,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		uint32 m_numberOfFiles = 0;
 
 		FORMATETC* m_fileDescriptorFormat = 0;
-		FORMATETC* m_filenamesFormat = 0;
+		FORMATETC* m_itemNamesFormat = 0;
 		FORMATETC* m_textFormat = 0;
 
 		std::vector<HGLOBAL> m_globalDataToRelease;
@@ -1210,7 +1210,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		void releaseDataObject()
 		{
 			m_fileDescriptorFormat = 0;
-			m_filenamesFormat = 0;
+			m_itemNamesFormat = 0;
 			m_textFormat = 0;
 			m_numberOfFiles = 0;
 			if (m_dataObject)
@@ -1261,7 +1261,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 					uint32 format = m_oleFormats[a].cfFormat;
 					if (format == CF_HDROP)
 					{
-						m_filenamesFormat = m_oleFormats + a;
+						m_itemNamesFormat = m_oleFormats + a;
 					}
 					else if (format == m_clipboardFormat_fileGroupDescriptor)
 					{
@@ -1430,20 +1430,20 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			return m_textFormat;
 		}
 
-		std::vector<std::string> getFilenames() const override
+		std::vector<std::string> getItemNames() const override
 		{
-			if (m_filenamesFormat)
+			if (m_itemNamesFormat)
 			{
-				std::vector<std::string> filenames;
+				std::vector<std::string> itemNames;
 
 				STGMEDIUM medium;
-				HRESULT result = m_dataObject->GetData(m_filenamesFormat, &medium);
+				HRESULT result = m_dataObject->GetData(m_itemNamesFormat, &medium);
 				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
 				{
 					DROPFILES* filenameStructure = (DROPFILES*)GlobalLock(medium.hGlobal);
 
 					wchar_t const* currentBufferPosition = (wchar_t const*)((char*)filenameStructure + filenameStructure->pFiles) + 1;
-					filenames.push_back(convertUtf16ToUtf8(currentBufferPosition - 1));
+					itemNames.push_back(convertUtf16ToUtf8(currentBufferPosition - 1));
 					while (true)
 					{
 						if (!*currentBufferPosition)
@@ -1452,10 +1452,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 							{
 								break;
 							}
-							else
-							{
-								filenames.push_back(convertUtf16ToUtf8(currentBufferPosition + 1));
-							}
+							itemNames.push_back(convertUtf16ToUtf8(currentBufferPosition + 1));
 						}
 						currentBufferPosition++;
 					}
@@ -1463,43 +1460,24 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 					GlobalUnlock(medium.hGlobal);
 					GlobalFree(medium.hGlobal);
 				}
-				return filenames;
+				return itemNames;
 			}
-			else if (m_fileDescriptorFormat)
-			{
-				std::vector<std::string> filenames;
-
-				STGMEDIUM medium;
-				HRESULT result = m_dataObject->GetData(m_fileDescriptorFormat, &medium);
-				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
-				{
-					FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)GlobalLock(medium.hGlobal);
-					filenames.reserve(groupDescriptor->cItems);
-					for (uint32 a = 0; a < filenames.size(); a++)
-					{
-						filenames[a] = convertUtf16ToUtf8(groupDescriptor->fgd[a].cFileName);
-					}
-					GlobalUnlock(medium.hGlobal);
-					GlobalFree(medium.hGlobal);
-				}
-				return filenames;
-			}
-			return { };
+			return getFileNames();
 		}
-		std::vector<std::wstring> getUtf16Filenames() const override
+		std::vector<std::wstring> getUtf16ItemNames() const override
 		{
-			if (m_filenamesFormat)
+			if (m_itemNamesFormat)
 			{
-				std::vector<std::wstring> filenames;
+				std::vector<std::wstring> itemNames;
 
 				STGMEDIUM medium;
-				HRESULT result = m_dataObject->GetData(m_filenamesFormat, &medium);
+				HRESULT result = m_dataObject->GetData(m_itemNamesFormat, &medium);
 				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
 				{
 					DROPFILES* filenameStructure = (DROPFILES*)GlobalLock(medium.hGlobal);
 
 					wchar_t const* currentBufferPosition = (wchar_t const*)((char*)filenameStructure + filenameStructure->pFiles) + 1;
-					filenames.push_back(currentBufferPosition - 1);
+					itemNames.push_back(currentBufferPosition - 1);
 					while (true)
 					{
 						if (!*currentBufferPosition)
@@ -1508,9 +1486,39 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 							{
 								break;
 							}
-							else
+							itemNames.push_back(currentBufferPosition + 1);
+						}
+						currentBufferPosition++;
+					}
+
+					GlobalUnlock(medium.hGlobal);
+					GlobalFree(medium.hGlobal);
+				}
+				return itemNames;
+			}
+			return getUtf16FileNames();
+		}
+		uint32 getNumberOfItemNames() const override
+		{
+			if (m_itemNamesFormat)
+			{
+				uint32 numberOfItemNames = 0;
+
+				STGMEDIUM medium;
+				HRESULT result = m_dataObject->GetData(m_itemNamesFormat, &medium);
+				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
+				{
+					DROPFILES* filenameStructure = (DROPFILES*)GlobalLock(medium.hGlobal);
+
+					wchar_t const* currentBufferPosition = (wchar_t const*)((char*)filenameStructure + filenameStructure->pFiles) + 1;
+					while (true)
+					{
+						if (!*currentBufferPosition)
+						{
+							numberOfItemNames++;
+							if (!*(currentBufferPosition + 1))
 							{
-								filenames.push_back(currentBufferPosition + 1);
+								break;
 							}
 						}
 						currentBufferPosition++;
@@ -1519,89 +1527,75 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 					GlobalUnlock(medium.hGlobal);
 					GlobalFree(medium.hGlobal);
 				}
-				return filenames;
+				return numberOfItemNames;
 			}
-			else if (m_fileDescriptorFormat)
+			return getNumberOfFiles();
+		}
+
+		std::vector<std::string> getFileNames() const
+		{
+			if (m_fileDescriptorFormat)
 			{
-				std::vector<std::wstring> filenames;
+				std::vector<std::string> fileNames;
 
 				STGMEDIUM medium;
 				HRESULT result = m_dataObject->GetData(m_fileDescriptorFormat, &medium);
 				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
 				{
 					FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)GlobalLock(medium.hGlobal);
-					filenames.reserve(groupDescriptor->cItems);
-					for (uint32 a = 0; a < filenames.size(); a++)
+					fileNames.reserve(groupDescriptor->cItems);
+					for (uint32 a = 0; a < fileNames.size(); a++)
 					{
-						filenames[a] = groupDescriptor->fgd[a].cFileName;
+						fileNames[a] = convertUtf16ToUtf8(groupDescriptor->fgd[a].cFileName);
 					}
 					GlobalUnlock(medium.hGlobal);
 					GlobalFree(medium.hGlobal);
 				}
-				return filenames;
+				return fileNames;
 			}
 			return { };
 		}
+		std::vector<std::wstring> getUtf16FileNames() const
+		{
+			if (m_fileDescriptorFormat)
+			{
+				std::vector<std::wstring> fileNames;
 
+				STGMEDIUM medium;
+				HRESULT result = m_dataObject->GetData(m_fileDescriptorFormat, &medium);
+				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
+				{
+					FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)GlobalLock(medium.hGlobal);
+					fileNames.reserve(groupDescriptor->cItems);
+					for (uint32 a = 0; a < fileNames.size(); a++)
+					{
+						fileNames[a] = groupDescriptor->fgd[a].cFileName;
+					}
+					GlobalUnlock(medium.hGlobal);
+					GlobalFree(medium.hGlobal);
+				}
+				return fileNames;
+			}
+			return { };
+		}
 		std::vector<std::string> getFileContents() const
 		{
-			std::vector<std::string> output;
-
-			for (uint32 a = 0; a < m_numberOfFormats; a++)
+			if (m_fileDescriptorFormat)
 			{
-				if (m_oleFormats[a].cfFormat == m_clipboardFormat_fileContents)
+				std::vector<std::string> output;
+
+				for (uint32 a = 0; a < m_numberOfFormats; a++)
 				{
-					STGMEDIUM medium;
-					HRESULT errorCode = m_dataObject->GetData(m_oleFormats + a, &medium);
-					if (errorCode == S_OK)
+					if (m_oleFormats[a].cfFormat == m_clipboardFormat_fileContents)
 					{
-						if (medium.tymed == TYMED_HGLOBAL)
-						{
-							output.push_back(std::string());
-							output.back().assign((char*)GlobalLock(medium.hGlobal), GlobalSize(medium.hGlobal));
-							GlobalUnlock(medium.hGlobal);
-							GlobalFree(medium.hGlobal);
-						}
-						else if (medium.tymed == TYMED_ISTREAM)
-						{
-							STATSTG stats;
-							medium.pstm->Stat(&stats, STATFLAG_NONAME);
-
-							output.push_back(std::string());
-							output.back().resize(stats.cbSize.QuadPart);
-
-							ULONG bufferSize = 0;
-							medium.pstm->Read((char*)output.back().data(), output.size(), &bufferSize);
-							if (bufferSize != output.back().size())
-							{
-								output.back().resize(bufferSize);
-							}
-
-							medium.pstm->Release();
-						}
-					}
-				}
-			}
-
-			return output;
-		}
-		std::string getFileContents(uint32 p_index) const 
-		{
-			uint32 currentIndex = 0;
-			for (uint32 a = 0; a < m_numberOfFormats; a++)
-			{
-				if (m_oleFormats[a].cfFormat == m_clipboardFormat_fileContents)
-				{
-					if (currentIndex++ == p_index)
-					{
-						std::string output;
 						STGMEDIUM medium;
 						HRESULT errorCode = m_dataObject->GetData(m_oleFormats + a, &medium);
 						if (errorCode == S_OK)
 						{
 							if (medium.tymed == TYMED_HGLOBAL)
 							{
-								output.assign((char*)GlobalLock(medium.hGlobal), GlobalSize(medium.hGlobal));
+								output.push_back(std::string());
+								output.back().assign((char*)GlobalLock(medium.hGlobal), GlobalSize(medium.hGlobal));
 								GlobalUnlock(medium.hGlobal);
 								GlobalFree(medium.hGlobal);
 							}
@@ -1610,19 +1604,66 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 								STATSTG stats;
 								medium.pstm->Stat(&stats, STATFLAG_NONAME);
 
-								output.resize(stats.cbSize.QuadPart);
+								output.push_back(std::string());
+								output.back().resize(stats.cbSize.QuadPart);
 
 								ULONG bufferSize = 0;
-								medium.pstm->Read((char*)output.data(), output.size(), &bufferSize);
-								if (bufferSize != output.size())
+								medium.pstm->Read((char*)output.back().data(), output.size(), &bufferSize);
+								if (bufferSize != output.back().size())
 								{
-									output.resize(bufferSize);
+									output.back().resize(bufferSize);
 								}
 
 								medium.pstm->Release();
 							}
 						}
-						return output;
+					}
+				}
+				return output;
+			}
+			return { };
+		}
+		std::string getFileContents(uint32 p_index) const 
+		{
+			if (m_fileDescriptorFormat)
+			{
+				uint32 currentIndex = 0;
+				for (uint32 a = 0; a < m_numberOfFormats; a++)
+				{
+					if (m_oleFormats[a].cfFormat == m_clipboardFormat_fileContents)
+					{
+						if (currentIndex++ == p_index)
+						{
+							std::string output;
+							STGMEDIUM medium;
+							HRESULT errorCode = m_dataObject->GetData(m_oleFormats + a, &medium);
+							if (errorCode == S_OK)
+							{
+								if (medium.tymed == TYMED_HGLOBAL)
+								{
+									output.assign((char*)GlobalLock(medium.hGlobal), GlobalSize(medium.hGlobal));
+									GlobalUnlock(medium.hGlobal);
+									GlobalFree(medium.hGlobal);
+								}
+								else if (medium.tymed == TYMED_ISTREAM)
+								{
+									STATSTG stats;
+									medium.pstm->Stat(&stats, STATFLAG_NONAME);
+
+									output.resize(stats.cbSize.QuadPart);
+
+									ULONG bufferSize = 0;
+									medium.pstm->Read((char*)output.data(), output.size(), &bufferSize);
+									if (bufferSize != output.size())
+									{
+										output.resize(bufferSize);
+									}
+
+									medium.pstm->Release();
+								}
+							}
+							return output;
+						}
 					}
 				}
 			}
@@ -1636,8 +1677,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		Image* getImage() const override
 		{
-			std::string file = getFileContents(0);
-			return m_gui->getDrawingContext()->createImage(file.data(), file.size());
+			if (m_numberOfFiles)
+			{
+				std::string file = getFileContents(0);
+				return m_gui->getDrawingContext()->createImage(file.data(), file.size());
+			}
+			return 0;
 		}
 	};
 
@@ -1653,11 +1698,15 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		WindowsDragDropEvent m_dragDropEvent;
 
+		IDropTargetHelper* m_dropImageViewer;
+
 	public:
 		OleDropTarget(Gui* p_gui) :
 			m_referenceCount(1), m_gui(p_gui), m_dragDropEvent(p_gui)
 		{
 			m_dragDropEvent.formats.reserve(15);
+
+			CoCreateInstance(CLSID_DragDropHelper, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_dropImageViewer));
 		}
 		~OleDropTarget()
 		{
@@ -1671,17 +1720,22 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		HRESULT __stdcall DragEnter(IDataObject* p_dataObject, DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
 		{
+			POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
+			m_dropImageViewer->DragEnter((HWND)m_gui->getWindow()->getNativeHandle(), p_dataObject, &clientMousePosition, *p_effect);
+
 			m_dragDropEvent.setOleDataObject(p_dataObject);
 
 			//------------------------------
 
-			POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
 			ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
 
-			m_dragDropEvent.movementX = clientMousePosition.x - m_dragDropEvent.x;
-			m_dragDropEvent.movementY = clientMousePosition.y - m_dragDropEvent.y;
-			m_dragDropEvent.x = clientMousePosition.x;
-			m_dragDropEvent.y = clientMousePosition.y;
+			float newX = clientMousePosition.x / m_gui->getWindow()->getDipToPixelFactor();
+			float newY = clientMousePosition.y / m_gui->getWindow()->getDipToPixelFactor();
+
+			m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
+			m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
+			m_dragDropEvent.x = newX;
+			m_dragDropEvent.y = newY;
 
 			m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
@@ -1705,12 +1759,17 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		HRESULT __stdcall DragOver(DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
 		{
 			POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
+			m_dropImageViewer->DragOver(&clientMousePosition, *p_effect);
+
 			ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
 
-			m_dragDropEvent.movementX = clientMousePosition.x - m_dragDropEvent.x;
-			m_dragDropEvent.movementY = clientMousePosition.y - m_dragDropEvent.y;
-			m_dragDropEvent.x = clientMousePosition.x;
-			m_dragDropEvent.y = clientMousePosition.y;
+			float newX = clientMousePosition.x / m_gui->getWindow()->getDipToPixelFactor();
+			float newY = clientMousePosition.y / m_gui->getWindow()->getDipToPixelFactor();
+
+			m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
+			m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
+			m_dragDropEvent.x = newX;
+			m_dragDropEvent.y = newY;
 
 			m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
@@ -1733,14 +1792,19 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		}
 		HRESULT __stdcall DragLeave()
 		{
+			m_dropImageViewer->DragLeave();
+
 			POINT clientMousePosition;
 			GetCursorPos(&clientMousePosition);
 			ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
 
-			m_dragDropEvent.movementX = clientMousePosition.x - m_dragDropEvent.x;
-			m_dragDropEvent.movementY = clientMousePosition.y - m_dragDropEvent.y;
-			m_dragDropEvent.x = clientMousePosition.x;
-			m_dragDropEvent.y = clientMousePosition.y;
+			float newX = clientMousePosition.x / m_gui->getWindow()->getDipToPixelFactor();
+			float newY = clientMousePosition.y / m_gui->getWindow()->getDipToPixelFactor();
+
+			m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
+			m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
+			m_dragDropEvent.x = newX;
+			m_dragDropEvent.y = newY;
 
 			m_gui->handleGlobalDragDropLeave(m_dragDropEvent);
 
@@ -1752,8 +1816,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
 			ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
 
-			float newX = clientMousePosition.x;
-			float newY = clientMousePosition.y;
+			float newX = clientMousePosition.x / m_gui->getWindow()->getDipToPixelFactor();
+			float newY = clientMousePosition.y / m_gui->getWindow()->getDipToPixelFactor();
 
 			m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
 			m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
@@ -1763,6 +1827,10 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
 			m_gui->handleGlobalDragDropFinish(m_dragDropEvent);
+
+			clientMousePosition.x = p_mousePosition.x;
+			clientMousePosition.y = p_mousePosition.y;
+			m_dropImageViewer->Drop(p_dataObject, &clientMousePosition, *p_effect);
 
 			m_dragDropEvent.setOleDataObject(0);
 
@@ -2099,7 +2167,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
-			m_dipToPixelFactor = GetDpiForSystem() / 96.f;
+			m_dipToPixelFactor = GetDpiForSystem() / (float)USER_DEFAULT_SCREEN_DPI;
 
 			// Calculate nonclient window rectangle from client size.
 			RECT windowRect = { 0, 0, (int)std::ceil(p_width * m_dipToPixelFactor), (int)std::ceil(p_height * m_dipToPixelFactor) };
@@ -3286,6 +3354,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			}
 			case WM_DPICHANGED:
 			{
+				m_gui->getDrawingContext()->setDpi(float(HIWORD(p_data_a)));
 				m_dipToPixelFactor = HIWORD(p_data_a) / (float)USER_DEFAULT_SCREEN_DPI;
 				RECT* newRectangle = (RECT*)p_data_b;
 				SetWindowPos(m_windowHandle, 0, newRectangle->left, newRectangle->top, newRectangle->right - newRectangle->left, newRectangle->bottom - newRectangle->top, SWP_NOZORDER | SWP_NOACTIVATE);
@@ -3308,8 +3377,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 					uint32 height = p_data_b >> 16 & 0xffff;
 					m_size.x = width;
 					m_size.y = height;
-					windowEvent.width = width;
-					windowEvent.height = height;
+					windowEvent.width = width / m_dipToPixelFactor;
+					windowEvent.height = height / m_dipToPixelFactor;
 
 					m_gui->excludeAnimationThread();
 					if (p_data_a == SIZE_MAXIMIZED)
@@ -5240,8 +5309,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				D2D1_MATRIX_3X2_F transform;
 				m_context->GetTransform(&transform);
 
-				float dpiX = 96.f;
-				float dpiY = 96.f;
+				float dpiX = USER_DEFAULT_SCREEN_DPI;
+				float dpiY = USER_DEFAULT_SCREEN_DPI;
 				m_context->GetDpi(&dpiX, &dpiY);
 
 				ID2D1GeometryRealization* geometryRealization = 0;
@@ -5257,8 +5326,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				D2D1_MATRIX_3X2_F transform;
 				m_context->GetTransform(&transform);
 
-				float dpiX = 96.f;
-				float dpiY = 96.f;
+				float dpiX = USER_DEFAULT_SCREEN_DPI;
+				float dpiY = USER_DEFAULT_SCREEN_DPI;
 				m_context->GetDpi(&dpiX, &dpiY);
 
 				ID2D1GeometryRealization* geometryRealization = 0;
@@ -5329,13 +5398,15 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			ID2D1Device1* direct2DDevice = 0;
 			s_direct2DFactory->CreateDevice(dxgiDevice, &direct2DDevice);
 			direct2DDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_ENABLE_MULTITHREADED_OPTIMIZATIONS, &m_context);
-			
+
+			float dpi = GetDpiForSystem();
+
 			//------------------------------
 			// Create swap chain, which holds the back buffer and is connected to the window.
 
 			DXGI_SWAP_CHAIN_DESC1 swapChainDescription = { };
-			swapChainDescription.Width = 0;
-			swapChainDescription.Height = 0;
+			swapChainDescription.Width = m_window->getWidth()*dpi/USER_DEFAULT_SCREEN_DPI;
+			swapChainDescription.Height = m_window->getHeight()*dpi/USER_DEFAULT_SCREEN_DPI;
 			swapChainDescription.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 			swapChainDescription.Stereo = false;
 			swapChainDescription.SampleDesc.Count = 1;
@@ -5364,12 +5435,15 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				dxgiBackBuffer,
 				D2D1::BitmapProperties1(
 					D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE::D2D1_ALPHA_MODE_IGNORE)
+					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE::D2D1_ALPHA_MODE_IGNORE),
+					dpi, dpi
 				),
 				&m_targetWindowBitmap
 			);
 
 			m_context->SetTarget(m_targetWindowBitmap);
+
+			m_context->SetDpi(dpi, dpi);
 
 			DXGI_RGBA color;
 			color.r = 0.5f;
@@ -5483,16 +5557,18 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				//RECT* updatedRects = new RECT[p_updatedRectangles.size()];
 				RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
 
+				float dpiFactor = getDpi() / USER_DEFAULT_SCREEN_DPI;
+
 				// If you're getting an exception below, you have three options; 
 				// 1. don't invalidate so damn many rectangles
 				// 2. increase the size of the static array above
 				// 3. make the array above dynamic (see the commented line above there), also don't forget to free it.
 				for (uint32 a = 0; a < p_updatedRectangles.size(); a++)
 				{
-					updatedRects[a].left = p_updatedRectangles[a].left;
-					updatedRects[a].top = p_updatedRectangles[a].top;
-					updatedRects[a].right = p_updatedRectangles[a].right;
-					updatedRects[a].bottom = p_updatedRectangles[a].bottom;
+					updatedRects[a].left = p_updatedRectangles[a].left*dpiFactor;
+					updatedRects[a].top = p_updatedRectangles[a].top*dpiFactor;
+					updatedRects[a].right = p_updatedRectangles[a].right*dpiFactor;
+					updatedRects[a].bottom = p_updatedRectangles[a].bottom*dpiFactor;
 				}
 
 				presentParameters.pDirtyRects = updatedRects;
@@ -5592,19 +5668,16 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		//------------------------------
 
-		float convertPixelsToDeviceIndependentPixels(float p_pixels) override
+		float getDpi() override
 		{
 			float DPIX = 0.f;
 			float DPIY = 0.f;
 			m_context->GetDpi(&DPIX, &DPIY);
-			return p_pixels * 96.f / DPIX;
+			return DPIX;
 		}
-		float convertDeviceIndependentPixelsToPixels(float p_deviceIndependentPixels) override
+		void setDpi(float p_dpi)
 		{
-			float DPIX = 0.f;
-			float DPIY = 0.f;
-			m_context->GetDpi(&DPIX, &DPIY);
-			return p_deviceIndependentPixels * DPIX / 96.f;
+			m_context->SetDpi(p_dpi, p_dpi);
 		}
 
 		//------------------------------
@@ -5788,17 +5861,21 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			// Release the old window bitmap
 			m_targetWindowBitmap->Release();
 
+			float dpi = getDpi();
+
 			// Resize buffers, creating new ones
-			m_swapChain->ResizeBuffers(0, p_width, p_height, DXGI_FORMAT_UNKNOWN, 0);
+			m_swapChain->ResizeBuffers(0, p_width*dpi / USER_DEFAULT_SCREEN_DPI, p_height*dpi / USER_DEFAULT_SCREEN_DPI, DXGI_FORMAT_UNKNOWN, 0);
 
 			// Get the new back buffer and create new bitmap connected to it
 			IDXGISurface* dxgiBackBuffer = 0;
 			m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
+
 			m_context->CreateBitmapFromDxgiSurface(
 				dxgiBackBuffer,
 				D2D1::BitmapProperties1(
 					D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE::D2D1_ALPHA_MODE_IGNORE)
+					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE::D2D1_ALPHA_MODE_IGNORE),
+					dpi, dpi
 				),
 				&m_targetWindowBitmap
 			);
@@ -6796,7 +6873,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			m_context->GetDpi(&dpiX, &dpiY);
 
 			ID2D1Bitmap1* outputBitmap;
-			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / 96.f, p_height + 6.f * p_blur * dpiY / 96.f);
+			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / USER_DEFAULT_SCREEN_DPI, p_height + 6.f * p_blur * dpiY / USER_DEFAULT_SCREEN_DPI);
 
 			m_context->CreateBitmap(
 				outputSize,
@@ -6810,7 +6887,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			m_context->SetTarget(outputBitmap);
 			m_context->BeginDraw();
 			clear();
-			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / 96.f, p_blur * 3.f * dpiY / 96.f));
+			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / USER_DEFAULT_SCREEN_DPI, p_blur * 3.f * dpiY / USER_DEFAULT_SCREEN_DPI));
 			m_context->EndDraw();
 			m_context->SetTarget(targetBefore);
 
@@ -6873,7 +6950,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			m_context->GetDpi(&dpiX, &dpiY);
 
 			ID2D1Bitmap1* outputBitmap;
-			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / 96.f, p_height + 6.f * p_blur * dpiY / 96.f);
+			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / USER_DEFAULT_SCREEN_DPI, p_height + 6.f * p_blur * dpiY / USER_DEFAULT_SCREEN_DPI);
 
 			m_context->CreateBitmap(
 				outputSize,
@@ -6887,7 +6964,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			m_context->SetTarget(outputBitmap);
 			m_context->BeginDraw();
 			clear();
-			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / 96.f, p_blur * 3.f * dpiY / 96.f));
+			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / USER_DEFAULT_SCREEN_DPI, p_blur * 3.f * dpiY / USER_DEFAULT_SCREEN_DPI));
 			m_context->EndDraw();
 			m_context->SetTarget(targetBefore);
 
@@ -6951,7 +7028,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			m_context->GetDpi(&dpiX, &dpiY);
 
 			ID2D1Bitmap1* outputBitmap;
-			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / 96.f, p_height + 6.f * p_blur * dpiY / 96.f);
+			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / USER_DEFAULT_SCREEN_DPI, p_height + 6.f * p_blur * dpiY / USER_DEFAULT_SCREEN_DPI);
 
 			m_context->CreateBitmap(
 				outputSize,
@@ -6965,7 +7042,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			m_context->SetTarget(outputBitmap);
 			m_context->BeginDraw();
 			clear();
-			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / 96.f, p_blur * 3.f * dpiY / 96.f));
+			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / USER_DEFAULT_SCREEN_DPI, p_blur * 3.f * dpiY / USER_DEFAULT_SCREEN_DPI));
 			m_context->EndDraw();
 			m_context->SetTarget(targetBefore);
 

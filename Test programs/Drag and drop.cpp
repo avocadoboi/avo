@@ -16,9 +16,14 @@ private:
 	void addDroppedText(std::string const& p_string, float p_x, float p_y)
 	{
 		AvoGUI::Text* text = getDrawingContext()->createText(p_string, 25.f);
-		text->setCenter(p_x, p_y);
-		text->move(AvoGUI::Point<float>().setPolar(AvoGUI::random() * AvoGUI::TAU, 80.f * AvoGUI::random()));
 		text->setFontWeight(AvoGUI::FontWeight::Light);
+		if (text->getWidth() > 550.f)
+		{
+			text->setWidth(550.f);
+			text->setWordWrapping(AvoGUI::WordWrapping::WholeWord);
+		}
+		text->setCenter(p_x, p_y);
+		text->move(AvoGUI::Point<float>().setPolar(AvoGUI::random() * AvoGUI::TAU, 40.f * AvoGUI::random()));
 		m_droppedTexts.push_back(text);
 	}
 
@@ -67,42 +72,44 @@ public:
 
 	void handleDragDropFinish(AvoGUI::DragDropEvent const& p_event) override
 	{
-		if (p_event.getNumberOfFiles())
+		/*
+			Add names of dropped directories and files, if any items were dropped.
+		*/
+		std::vector<std::string> itemNames = p_event.getItemNames();
+		for (uint32 a = 0; a < itemNames.size(); a++)
 		{
-			std::vector<std::string> filenames = p_event.getFilenames();
-			for (uint32 a = 0; a < filenames.size(); a++)
-			{
-				addDroppedText(filenames[a], p_event.x, p_event.y);
-			}
-
-			/*
-				Add image if the first file is one - I don't think it's possible to drag more than one image.
-			*/
-			AvoGUI::Image* image = p_event.getImage();
-			if (image)
-			{
-				image->setBoundsSizing(AvoGUI::ImageBoundsSizing::Contain);
-				image->setSize(400.f);
-				image->setCenter(p_event.x, p_event.y);
-				m_droppedImages.push_back(image);
-			}
-			else if (!filenames.size() && p_event.getHasString())
-			{
-				addDroppedText(p_event.getString(), p_event.x, p_event.y);
-			}
+			addDroppedText(itemNames[a], p_event.x, p_event.y);
 		}
-		else if (p_event.getHasString())
+
+		/*
+			Add image if the first file is one - I don't think it's possible to drag more than one image.
+		*/
+		AvoGUI::Image* image = 0;
+		if (image = p_event.getImage())
+		{
+			image->setBoundsSizing(AvoGUI::ImageBoundsSizing::Contain);
+			image->setSize(350.f);
+			image->setCenter(p_event.x, p_event.y);
+			m_droppedImages.push_back(image);
+		}
+		
+		/*
+			Add dropped text, if any text was dropped.
+		*/
+		if (!image && p_event.getHasString())
 		{
 			addDroppedText(p_event.getString(), p_event.x, p_event.y);
 		}
+
 		handleSizeChange();
 		invalidate();
 	}
 
-	void draw(AvoGUI::DrawingContext* p_context) override
+	void draw(AvoGUI::DrawingContext* p_context, AvoGUI::Rectangle<float> const& p_target) override
 	{
 		p_context->setColor(AvoGUI::Color(getThemeColor("on background"), 0.4f));
 		p_context->drawText(m_text_dropItems);
+
 		p_context->setColor(getThemeColor("on background"));
 		for (AvoGUI::Text* text : m_droppedTexts)
 		{

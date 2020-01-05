@@ -4042,16 +4042,29 @@ namespace AvoGUI
 		virtual bool getHasString() const = 0;
 
 		/*
-			Return the filenames of what is to be dropped, in UTF-8 encoding.
-			Keep in mind that this includes any dragged directories too.
+			Return the names of what is to be dropped, in UTF-8 encoding.
+			Keep in mind that this includes both dragged files and directories.
 		*/
-		virtual std::vector<std::string> getFilenames() const = 0;
+		virtual std::vector<std::string> getItemNames() const = 0;
 		/*
-			Returns the filenames of what is to be dropped, in UTF-16 encoding.
-			Keep in mind that this includes any dragged directories too.
+			Returns the names of what is to be dropped, in UTF-16 encoding.
+			Keep in mind that this includes both dragged files and directories.
 		*/
-		virtual std::vector<std::wstring> getUtf16Filenames() const = 0;
+		virtual std::vector<std::wstring> getUtf16ItemNames() const = 0;
+		/*
+			Returns the number of items that have a name.
+			Keep in mind that this includes both dragged files and directories.
+		*/
+		virtual uint32 getNumberOfItemNames() const = 0;
 
+		/*
+			Returns the file names of the respective file contents, in UTF-8 encoding.
+		*/
+		virtual std::vector<std::string> getFileNames() const = 0;
+		/*
+			Returns the file names of the respective file contents, in UTF-16 encoding.
+		*/
+		virtual std::vector<std::wstring> getUtf16FileNames() const = 0;
 		/*
 			Returns the file contents of every file that is being dragged.
 		*/
@@ -4060,15 +4073,10 @@ namespace AvoGUI
 			Returns the file contents of an item that is being dragged, by its index.
 		*/
 		virtual std::string getFileContents(uint32 p_index) const = 0;
-
 		/*
-			Returns the number of dragged items that have file contents and a file name.
+			Returns the number of dragged items that have file contents.
 		*/
 		virtual uint32 getNumberOfFiles() const = 0;
-		/*
-			Returns whether any of the dragged items are files.
-		*/
-		//virtual bool getHasFiles() const = 0;
 
 		/*
 			If an image is being dragged, this creates and returns an Image object representing the image that was dragged.
@@ -7919,13 +7927,16 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Converts a number of physical pixels to the corresponding number of device independent pixels (DIP). Everything you draw is by default in DIPs.
+			Returns the DPI that the DrawingContext is scaling all DIP units to.
+			All coordinates that the DrawingContext works with are in DIPs.
 		*/
-		virtual float convertPixelsToDeviceIndependentPixels(float p_pixels) = 0;
+		virtual float getDpi() = 0;
 		/*
-			Converts a number of device independent pixels to the corresponding number of physical pixels (DIP). Everything you draw is by default in DIPs.
+			Sets the DPI that the DrawingContext is scaling all DIP units to.
+			It is not recommended to call this manually, since any DPI changes are updated with this method automatically from the corresponding window.
+			All coordinates that the DrawingContext works with are in DIPs.
 		*/
-		virtual float convertDeviceIndependentPixelsToPixels(float p_deviceIndependentPixels) = 0;
+		virtual void setDpi(float p_dpi) = 0;
 
 		//------------------------------
 
