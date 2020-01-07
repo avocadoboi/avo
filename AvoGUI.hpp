@@ -1983,7 +1983,7 @@ namespace AvoGUI
 		*/
 		Rectangle<RectangleType>& setWidth(RectangleType p_width)
 		{
-			right = left + p_width;
+			right = left + max(RectangleType(0), p_width);
 			return *this;
 		}
 		/*
@@ -1999,7 +1999,7 @@ namespace AvoGUI
 		*/
 		Rectangle<RectangleType>& setHeight(RectangleType p_height)
 		{
-			bottom = top + p_height;
+			bottom = top + max(RectangleType(0), p_height);
 			return *this;
 		}
 		/*
@@ -2158,8 +2158,8 @@ namespace AvoGUI
 		template<typename T0, typename T1, typename T2, typename T3>
 		bool getIsContaining(T0 p_left, T1 p_top, T2 p_right, T3 p_bottom) const
 		{
-			return p_left >= left && p_right <= right
-				&& p_top >= top && p_bottom <= bottom;
+			return p_left >= left && p_right < right
+				&& p_top >= top && p_bottom < bottom;
 		}
 		/*
 			Returns whether another rectangle is fully inside this rectangle.
@@ -2167,8 +2167,8 @@ namespace AvoGUI
 		template<typename T>
 		bool getIsContaining(Rectangle<T> const& p_rectangle) const
 		{
-			return p_rectangle.left >= left && p_rectangle.right <= right
-				&& p_rectangle.top >= top && p_rectangle.bottom <= bottom;
+			return p_rectangle.left >= left && p_rectangle.right < right
+				&& p_rectangle.top >= top && p_rectangle.bottom < bottom;
 		}
 		/*
 			Returns whether a protected rectangle is fully inside this rectangle.
@@ -7061,9 +7061,18 @@ namespace AvoGUI
 
 		//------------------------------
 
-		//virtual void startImageDragAndDrop(Image* p_image) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
 		virtual DragDropOperation dragAndDropString(std::string const& p_string) = 0;
-		//virtual void startFileDragAndDrop(std::string const& p_fileName) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag image data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropImage(Image* p_image) = 0;
 
 		//------------------------------
 
@@ -7128,6 +7137,17 @@ namespace AvoGUI
 	{
 		Pixelated, // Uses nearest neighbor interpolation
 		Smooth // Uses linear interpolation
+	};
+
+	/*
+		The formats that an image can be encoded to and decoded from.
+	*/
+	enum class ImageFormat
+	{
+		Png,
+		Jpeg,
+		Bmp,
+		Ico
 	};
 
 	/*
@@ -8690,6 +8710,22 @@ namespace AvoGUI
 			Draws an image, placed according to the image's bounds and positioning/scaling options.
 		*/
 		virtual void drawImage(Image* p_image, float p_multiplicativeOpacity = 1.f) = 0;
+
+		//------------------------------
+
+		/*
+			Creates a buffer that contains the file data of an image, encoded in the format p_format.
+		*/
+		virtual std::string createImageFileData(Image* p_image, ImageFormat p_format = ImageFormat::Png) = 0;
+		/*
+			Creates a stream that contains the file data of an image, encoded in the format p_format.
+			On Windows, the return pointer type is IStream.
+		*/
+		virtual void* createImageFileDataNativeStream(Image* p_image, ImageFormat p_format = ImageFormat::Png) = 0;
+		/*
+			Saves an image to a file, encoded in the format p_format.
+		*/
+		virtual void saveImageToFile(Image* p_image, std::string const& p_filePath, ImageFormat p_format = ImageFormat::Png) = 0;
 
 		//------------------------------
 

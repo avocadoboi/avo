@@ -75,9 +75,19 @@ public:
 			{
 				if (m_droppedTexts[a]->getIsContaining(p_event.x, p_event.y))
 				{
-					AvoGUI::DragDropOperation operation = getWindow()->dragAndDropString(m_droppedTexts[a]->getString());
+					getWindow()->dragAndDropString(m_droppedTexts[a]->getString());
+					invalidateRectangle(m_droppedTexts[a]->getBounds());
 					m_droppedTexts.erase(m_droppedTexts.begin() + a);
-
+					break;
+				}
+			}
+			for (uint32 a = 0; a < m_droppedImages.size(); a++)
+			{
+				if (m_droppedImages[a]->getInnerBounds().getIsContaining(p_event.x, p_event.y))
+				{
+					getWindow()->dragAndDropImage(m_droppedImages[a]);
+					invalidateRectangle(m_droppedImages[a]->getBounds());
+					m_droppedImages.erase(m_droppedImages.begin() + a);
 					break;
 				}
 			}

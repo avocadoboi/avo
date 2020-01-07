@@ -21,6 +21,7 @@
 #include <windowsx.h>
 #include <ShObjIdl.h>
 #include <ShlObj_core.h>
+#include <Shlwapi.h>
 #include <dwmapi.h>
 
 #include <d2d1effects.h>
@@ -33,6 +34,7 @@
 #include <wincodec.h>
 #include <comdef.h>
 
+#pragma comment(lib, "Shlwapi")
 #pragma comment(lib, "Dwmapi")
 #pragma comment(lib, "d2d1")
 #pragma comment(lib, "d3d11")
@@ -1087,6 +1089,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 						ULARGE_INTEGER size;
 						size.QuadPart = ULONGLONG_MAX;
 						m_mediums[a].pstm->CopyTo(p_medium->pstm, size, 0, 0);
+
+						p_medium->pstm->Seek({ 0 }, STREAM_SEEK_SET, 0);
 					}
 
 					return S_OK;
@@ -1670,7 +1674,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 									output.resize(stats.cbSize.QuadPart);
 
 									ULONG bufferSize = 0;
-									medium.pstm->Read((char*)output.data(), output.size(), &bufferSize);
+									HRESULT result = medium.pstm->Read((char*)output.data(), output.size(), &bufferSize);
 									if (bufferSize != output.size())
 									{
 										output.resize(bufferSize);
@@ -1867,6 +1871,9 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		OleDropSource* m_oleDropSource;
 		OleDropTarget* m_oleDropTarget;
+
+		uint32 m_clipboardFormat_fileContents;
+		uint32 m_clipboardFormat_fileGroupDescriptor;
 
 		HWND m_windowHandle = 0;
 		WindowStyleFlags m_crossPlatformStyles;
@@ -2214,7 +2221,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			}
 
 			//------------------------------
-			
+
 			std::wstring wideTitle = convertUtf8ToUtf16(p_title);
 
 			// m_windowHandle is initialized by the WM_CREATE event, before CreateWindow returns.
@@ -2998,6 +3005,59 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			}
 			return DragDropOperation::None;
 		}
+		DragDropOperation dragAndDropImage(Image* p_image) override
+		{
+			FORMATETC formats[2];
+			STGMEDIUM mediums[2];
+
+			ID2D1Bitmap1* bitmap = (ID2D1Bitmap1*)p_image->getHandle();
+
+			formats[0].cfFormat = m_clipboardFormat_fileContents;
+			formats[0].tymed = TYMED_ISTREAM;
+			formats[0].dwAspect = DVASPECT_CONTENT;
+			formats[0].lindex = -1;
+			formats[0].ptd = 0;
+
+			mediums[0].tymed = TYMED_ISTREAM;
+			mediums[0].pUnkForRelease = 0;
+			mediums[0].pstm = (IStream*)m_gui->getDrawingContext()->createImageFileDataNativeStream(p_image);
+
+			//------------------------------
+
+			formats[1].cfFormat = m_clipboardFormat_fileGroupDescriptor;
+			formats[1].tymed = TYMED_HGLOBAL;
+			formats[1].dwAspect = DVASPECT_CONTENT;
+			formats[1].lindex = -1;
+			formats[1].ptd = 0;
+
+			mediums[1].tymed = TYMED_HGLOBAL;
+			mediums[1].pUnkForRelease = 0;
+
+			FILEGROUPDESCRIPTORW groupDescriptor;
+			groupDescriptor.cItems = 1;
+			groupDescriptor.fgd[0].dwFlags = FD_UNICODE;
+			wcscpy_s(groupDescriptor.fgd[0].cFileName, L"Image.png");
+
+			mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(groupDescriptor));
+			memcpy(mediums[1].hGlobal, &groupDescriptor, sizeof(groupDescriptor));
+
+			//------------------------------
+			
+			OleDataObject* dataObject = new OleDataObject(formats, mediums, 2);
+
+			DWORD dropOperation = DROPEFFECT_NONE;
+			DoDragDrop(dataObject, m_oleDropSource, DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			switch (dropOperation)
+			{
+			case DROPEFFECT_COPY:
+				return DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return DragDropOperation::Link;
+			}
+			return DragDropOperation::None;
+		}
 
 		//------------------------------
 
@@ -3139,6 +3199,9 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				m_oleDropSource = new OleDropSource();
 				m_oleDropTarget = new OleDropTarget(m_gui);
 				RegisterDragDrop(m_windowHandle, m_oleDropTarget);
+
+				m_clipboardFormat_fileContents = RegisterClipboardFormatW(L"FileContents");
+				m_clipboardFormat_fileGroupDescriptor = RegisterClipboardFormatW(L"FileGroupDescriptorW");
 
 				//------------------------------
 
@@ -7242,6 +7305,171 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				p_image->getScalingMethod() == ImageScalingMethod::Pixelated ? D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR : D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
 				D2D1::RectF(cropRectangle.left, cropRectangle.top, cropRectangle.right, cropRectangle.bottom)
 			);
+		}
+
+		//------------------------------
+
+		std::string createImageFileData(Image* p_image, ImageFormat p_format) override
+		{
+			ID2D1Bitmap* direct2dBitmap = (ID2D1Bitmap*)p_image->getHandle();
+
+			IStream* outputStream = SHCreateMemStream(0, 0);
+
+			GUID formatGuid;
+			switch (p_format)
+			{
+			case ImageFormat::Jpeg:
+				formatGuid = GUID_ContainerFormatJpeg;
+				break;
+			case ImageFormat::Png:
+				formatGuid = GUID_ContainerFormatPng;
+				break;
+			case ImageFormat::Bmp:
+				formatGuid = GUID_ContainerFormatBmp;
+				break;
+			case ImageFormat::Ico:
+				formatGuid = GUID_ContainerFormatIco;
+				break;
+			}
+
+			IWICBitmapEncoder* bitmapEncoder = 0;
+			s_imagingFactory->CreateEncoder(GUID_ContainerFormatPng, 0, &bitmapEncoder);
+			bitmapEncoder->Initialize(outputStream, WICBitmapEncoderCacheInMemory);
+
+			IWICBitmapFrameEncode* frameEncoder = 0;
+			bitmapEncoder->CreateNewFrame(&frameEncoder, 0);
+			frameEncoder->Initialize(0);
+
+			ID2D1Device* device = 0;
+			m_context->GetDevice(&device);
+
+			IWICImageEncoder* imageEncoder;
+			s_imagingFactory->CreateImageEncoder(device, &imageEncoder);
+
+			imageEncoder->WriteFrame(direct2dBitmap, frameEncoder, 0);
+
+			frameEncoder->Commit();
+			bitmapEncoder->Commit();
+
+			imageEncoder->Release();
+			device->Release();
+			frameEncoder->Release();
+			bitmapEncoder->Release();
+
+			//------------------------------
+
+			STATSTG stats;
+			outputStream->Stat(&stats, STATFLAG_NONAME);
+
+			std::string buffer;
+			buffer.resize(stats.cbSize.QuadPart);
+
+			ULONG numberOfBytesWritten = 0;
+			outputStream->Write(buffer.data(), buffer.size(), &numberOfBytesWritten);
+
+			if (numberOfBytesWritten != buffer.size())
+			{
+				buffer.resize(numberOfBytesWritten);
+			}
+
+			return std::move(buffer);
+		}
+		void* createImageFileDataNativeStream(Image* p_image, ImageFormat p_format) override
+		{
+			ID2D1Bitmap* direct2dBitmap = (ID2D1Bitmap*)p_image->getHandle();
+
+			IStream* outputStream = SHCreateMemStream(0, 0);
+
+			GUID formatGuid;
+			switch (p_format)
+			{
+			case ImageFormat::Jpeg:
+				formatGuid = GUID_ContainerFormatJpeg;
+				break;
+			case ImageFormat::Png:
+				formatGuid = GUID_ContainerFormatPng;
+				break;
+			case ImageFormat::Bmp:
+				formatGuid = GUID_ContainerFormatBmp;
+				break;
+			case ImageFormat::Ico:
+				formatGuid = GUID_ContainerFormatIco;
+				break;
+			}
+
+			IWICBitmapEncoder* bitmapEncoder = 0;
+			s_imagingFactory->CreateEncoder(GUID_ContainerFormatPng, 0, &bitmapEncoder);
+			bitmapEncoder->Initialize(outputStream, WICBitmapEncoderNoCache);
+
+			IWICBitmapFrameEncode* frameEncoder = 0;
+			bitmapEncoder->CreateNewFrame(&frameEncoder, 0);
+			frameEncoder->Initialize(0);
+
+			ID2D1Device* device = 0;
+			m_context->GetDevice(&device);
+
+			IWICImageEncoder* imageEncoder;
+			s_imagingFactory->CreateImageEncoder(device, &imageEncoder);
+
+			imageEncoder->WriteFrame(direct2dBitmap, frameEncoder, 0);
+
+			frameEncoder->Commit();
+			bitmapEncoder->Commit();
+
+			imageEncoder->Release();
+			device->Release();
+			frameEncoder->Release();
+			bitmapEncoder->Release();
+
+			return outputStream;
+		}
+		void saveImageToFile(Image* p_image, std::string const& p_filePath, ImageFormat p_format = ImageFormat::Png) override
+		{
+			ID2D1Bitmap* direct2dBitmap = (ID2D1Bitmap*)p_image->getHandle();
+
+			IStream* outputStream = 0;
+			SHCreateStreamOnFileW(convertUtf8ToUtf16(p_filePath).c_str(), STGM_CREATE | STGM_WRITE, &outputStream);
+
+			GUID formatGuid;
+			switch (p_format)
+			{
+			case ImageFormat::Jpeg:
+				formatGuid = GUID_ContainerFormatJpeg;
+				break;
+			case ImageFormat::Png:
+				formatGuid = GUID_ContainerFormatPng;
+				break;
+			case ImageFormat::Bmp:
+				formatGuid = GUID_ContainerFormatBmp;
+				break;
+			case ImageFormat::Ico:
+				formatGuid = GUID_ContainerFormatIco;
+				break;
+			}
+
+			IWICBitmapEncoder* bitmapEncoder = 0;
+			s_imagingFactory->CreateEncoder(GUID_ContainerFormatPng, 0, &bitmapEncoder);
+			bitmapEncoder->Initialize(outputStream, WICBitmapEncoderCacheInMemory);
+
+			IWICBitmapFrameEncode* frameEncoder = 0;
+			bitmapEncoder->CreateNewFrame(&frameEncoder, 0);
+			frameEncoder->Initialize(0);
+
+			ID2D1Device* device = 0;
+			m_context->GetDevice(&device);
+
+			IWICImageEncoder* imageEncoder;
+			s_imagingFactory->CreateImageEncoder(device, &imageEncoder);
+
+			imageEncoder->WriteFrame(direct2dBitmap, frameEncoder, 0);
+
+			frameEncoder->Commit();
+			bitmapEncoder->Commit();
+
+			imageEncoder->Release();
+			device->Release();
+			frameEncoder->Release();
+			bitmapEncoder->Release();
 		}
 
 		//------------------------------
