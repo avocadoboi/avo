@@ -7074,6 +7074,14 @@ namespace AvoGUI
 		*/
 		virtual DragDropOperation dragAndDropImage(Image* p_image) = 0;
 
+		virtual DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) = 0;
+		virtual DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name) = 0;
+		virtual DragDropOperation dragAndDropFile(std::string const& p_path) = 0;
+
+		virtual DragDropOperation dragAndDropFiles(std::vector<std::string const> const& p_paths) = 0;
+		virtual DragDropOperation dragAndDropFiles(std::string* p_paths, uint32 p_numberOfPaths) = 0;
+		virtual DragDropOperation dragAndDropFiles(char const* const* p_paths, uint32 p_numberOfPaths) = 0;
+
 		//------------------------------
 
 		/*

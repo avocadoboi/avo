@@ -1,5 +1,7 @@
 #include "../AvoGUI.hpp"
 
+#include <filesystem>
+
 //------------------------------
 
 class DragAndDrop :
@@ -75,7 +77,15 @@ public:
 			{
 				if (m_droppedTexts[a]->getIsContaining(p_event.x, p_event.y))
 				{
-					getWindow()->dragAndDropString(m_droppedTexts[a]->getString());
+					if (std::filesystem::exists(std::filesystem::u8path(m_droppedTexts[a]->getString())))
+					{
+						getWindow()->dragAndDropFile(m_droppedTexts[a]->getString());
+
+					}
+					else
+					{
+						getWindow()->dragAndDropString(m_droppedTexts[a]->getString());
+					}
 					invalidateRectangle(m_droppedTexts[a]->getBounds());
 					m_droppedTexts.erase(m_droppedTexts.begin() + a);
 					break;

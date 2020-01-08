@@ -8,6 +8,7 @@
 #include <random>
 #include <time.h>
 #include <chrono>
+#include <filesystem>
 
 //------------------------------
 
@@ -1083,14 +1084,11 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 					}
 					else if (p_medium->tymed == TYMED_ISTREAM)
 					{
-						// Does not actually copy the data, only allocates a separate object with same internal state
-						m_mediums[a].pstm->Clone(&p_medium->pstm); 
+						p_medium->pstm = SHCreateMemStream(0, 0);
 
 						ULARGE_INTEGER size;
 						size.QuadPart = ULONGLONG_MAX;
 						m_mediums[a].pstm->CopyTo(p_medium->pstm, size, 0, 0);
-
-						p_medium->pstm->Seek({ 0 }, STREAM_SEEK_SET, 0);
 					}
 
 					return S_OK;
@@ -3005,6 +3003,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			}
 			return DragDropOperation::None;
 		}
+
 		DragDropOperation dragAndDropImage(Image* p_image) override
 		{
 			FORMATETC formats[2];
@@ -3032,14 +3031,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			mediums[1].tymed = TYMED_HGLOBAL;
 			mediums[1].pUnkForRelease = 0;
+			mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
 
-			FILEGROUPDESCRIPTORW groupDescriptor;
-			groupDescriptor.cItems = 1;
-			groupDescriptor.fgd[0].dwFlags = FD_UNICODE;
-			wcscpy_s(groupDescriptor.fgd[0].cFileName, L"Image.png");
-
-			mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(groupDescriptor));
-			memcpy(mediums[1].hGlobal, &groupDescriptor, sizeof(groupDescriptor));
+			FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[1].hGlobal;
+			groupDescriptor->cItems = 1;
+			groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
+			wcscpy_s(groupDescriptor->fgd[0].cFileName, L"Image.png");
 
 			//------------------------------
 			
@@ -3056,6 +3053,176 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			case DROPEFFECT_LINK:
 				return DragDropOperation::Link;
 			}
+			return DragDropOperation::None;
+		}
+		DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) override
+		{
+			FORMATETC formats[3];
+			STGMEDIUM mediums[3];
+
+			formats[0].cfFormat = CF_UNICODETEXT;
+			formats[0].tymed = TYMED_HGLOBAL;
+			formats[0].dwAspect = DVASPECT_CONTENT;
+			formats[0].lindex = -1;
+			formats[0].ptd = 0;
+
+			mediums[0].tymed = TYMED_HGLOBAL;
+			mediums[0].pUnkForRelease = 0;
+
+			uint32 wideStringLength = getNumberOfUnitsInUtfConvertedString(p_name);
+			mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, wideStringLength * sizeof(wchar_t));
+			convertUtf8ToUtf16(p_name.data(), p_name.size() + 1, (wchar_t*)mediums[0].hGlobal, wideStringLength);
+
+			//------------------------------
+
+			formats[1].cfFormat = m_clipboardFormat_fileContents;
+			formats[1].tymed = TYMED_ISTREAM;
+			formats[1].dwAspect = DVASPECT_CONTENT;
+			formats[1].lindex = -1;
+			formats[1].ptd = 0;
+
+			mediums[1].pUnkForRelease = 0;
+			mediums[1].tymed = TYMED_ISTREAM;
+			mediums[1].pstm = SHCreateMemStream((BYTE const*)p_data, p_dataSize);
+
+			//------------------------------
+
+			formats[2].cfFormat = m_clipboardFormat_fileGroupDescriptor;
+			formats[2].tymed = TYMED_HGLOBAL;
+			formats[2].dwAspect = DVASPECT_CONTENT;
+			formats[2].lindex = -1;
+			formats[2].ptd = 0;
+
+			mediums[2].tymed = TYMED_HGLOBAL;
+			mediums[2].pUnkForRelease = 0;
+			mediums[2].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
+
+			FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[2].hGlobal;
+			groupDescriptor->cItems = 1;
+			groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
+			wcsncpy_s(groupDescriptor->fgd[0].cFileName, (wchar_t*)mediums[0].hGlobal, wideStringLength);
+
+			//------------------------------
+
+			OleDataObject* dataObject = new OleDataObject(formats, mediums, 3);
+
+			DWORD dropOperation = DROPEFFECT_NONE;
+			DoDragDrop(dataObject, m_oleDropSource, DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			switch (dropOperation)
+			{
+			case DROPEFFECT_COPY:
+				return DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return DragDropOperation::Link;
+			}
+			return DragDropOperation::None;
+		}
+		DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name)
+		{
+			return dragAndDropFile(p_data.data(), p_data.size(), p_name);
+		}
+		DragDropOperation dragAndDropFile(std::string const& p_path)
+		{
+			FORMATETC formats[3];
+			STGMEDIUM mediums[3];
+
+			formats[0].cfFormat = CF_UNICODETEXT;
+			formats[0].tymed = TYMED_HGLOBAL;
+			formats[0].dwAspect = DVASPECT_CONTENT;
+			formats[0].lindex = -1;
+			formats[0].ptd = 0;
+
+			mediums[0].tymed = TYMED_HGLOBAL;
+			mediums[0].pUnkForRelease = 0;
+
+			uint32 wideStringLength = getNumberOfUnitsInUtfConvertedString(p_path);
+			mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, wideStringLength * sizeof(wchar_t));
+			convertUtf8ToUtf16(p_path.data(), p_path.size() + 1, (wchar_t*)mediums[0].hGlobal, wideStringLength);
+
+			//------------------------------
+
+			OleDataObject* dataObject = 0;
+			if (std::filesystem::is_regular_file(std::filesystem::u8path(p_path)))
+			{
+				formats[1].cfFormat = m_clipboardFormat_fileContents;
+				formats[1].tymed = TYMED_ISTREAM;
+				formats[1].dwAspect = DVASPECT_CONTENT;
+				formats[1].lindex = -1;
+				formats[1].ptd = 0;
+
+				mediums[1].tymed = TYMED_ISTREAM;
+				mediums[1].pUnkForRelease = 0;
+				SHCreateStreamOnFileW((wchar_t*)mediums[0].hGlobal, STGM_READ | STGM_SHARE_DENY_WRITE/* | STGM_CONVERT*/, &mediums[1].pstm);
+
+				//------------------------------
+
+				formats[2].cfFormat = m_clipboardFormat_fileGroupDescriptor;
+				formats[2].tymed = TYMED_HGLOBAL;
+				formats[2].dwAspect = DVASPECT_CONTENT;
+				formats[2].lindex = -1;
+				formats[2].ptd = 0;
+
+				mediums[2].tymed = TYMED_HGLOBAL;
+				mediums[2].pUnkForRelease = 0;
+				mediums[2].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
+
+				FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[2].hGlobal;
+				groupDescriptor->cItems = 1;
+				groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
+				wcsncpy_s(groupDescriptor->fgd[0].cFileName, (wchar_t*)mediums[0].hGlobal, wideStringLength);
+
+				dataObject = new OleDataObject(formats, mediums, 3);
+			}
+			else
+			{
+				formats[1].cfFormat = CF_HDROP;
+				formats[1].tymed = TYMED_HGLOBAL;
+				formats[1].dwAspect = DVASPECT_CONTENT;
+				formats[1].lindex = -1;
+				formats[1].ptd = 0;
+
+				mediums[1].tymed = TYMED_HGLOBAL;
+				mediums[1].pUnkForRelease = 0;
+				mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + (wideStringLength + 1)*sizeof(wchar_t));
+
+				DROPFILES* filenameStructure = (DROPFILES*)mediums[1].hGlobal;
+				filenameStructure->fNC = true;
+				filenameStructure->fWide = true;
+				filenameStructure->pt.x = 0;
+				filenameStructure->pt.y = 0;
+				filenameStructure->pFiles = sizeof(DROPFILES);
+
+				memcpy((char*)mediums[1].hGlobal + sizeof(DROPFILES), mediums[0].hGlobal, wideStringLength * sizeof(wchar_t));
+
+				dataObject = new OleDataObject(formats, mediums, 2);
+			}
+
+			DWORD dropOperation = DROPEFFECT_NONE;
+			DoDragDrop(dataObject, m_oleDropSource, DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			switch (dropOperation)
+			{
+			case DROPEFFECT_COPY:
+				return DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return DragDropOperation::Link;
+			}
+			return DragDropOperation::None;
+		}
+
+		DragDropOperation dragAndDropFiles(std::vector<std::string const> const& p_paths)
+		{
+			return DragDropOperation::None;
+		}
+		DragDropOperation dragAndDropFiles(std::string* p_paths, uint32 p_numberOfPaths)
+		{
+			return DragDropOperation::None;
+		}
+		DragDropOperation dragAndDropFiles(char const* const* p_paths, uint32 p_numberOfPaths)
+		{
 			return DragDropOperation::None;
 		}
 
