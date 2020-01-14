@@ -84,6 +84,15 @@ namespace AvoGUI
 		return result;
 #endif
 	}
+	std::wstring convertUtf8ToUtf16(char const* p_input)
+	{
+#ifdef _WIN32
+		std::wstring result;
+		result.resize(MultiByteToWideChar(CP_UTF8, 0, p_input, -1, 0, 0) - 1);
+		MultiByteToWideChar(CP_UTF8, 0, p_input, -1, (wchar_t*)result.data(), result.size());
+		return result;
+#endif
+	}
 	uint32 getNumberOfUnitsInUtfConvertedString(char const* p_input)
 	{
 #ifdef _WIN32
@@ -121,6 +130,15 @@ namespace AvoGUI
 		std::string result;
 		result.resize(WideCharToMultiByte(CP_UTF8, 0, p_input.c_str(), p_input.size(), 0, 0, 0, false));
 		WideCharToMultiByte(CP_UTF8, 0, p_input.c_str(), p_input.size(), (char*)result.data(), result.size(), 0, false);
+		return result;
+#endif
+	}
+	std::string convertUtf16ToUtf8(wchar_t const* p_input)
+	{
+#ifdef _WIN32
+		std::string result;
+		result.resize(WideCharToMultiByte(CP_UTF8, 0, p_input, -1, 0, 0, 0, false) - 1);
+		WideCharToMultiByte(CP_UTF8, 0, p_input, -1, (char*)result.data(), result.size(), 0, false);
 		return result;
 #endif
 	}
@@ -968,11 +986,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			while (m_currentFormatIndex < m_numberOfFormats && numberOfFormatsGotten <= p_numberOfFormatsToGet)
 			{
 				*p_formats = m_formats[m_currentFormatIndex];
-				if (p_formats->ptd)
-				{
-					p_formats->ptd = (DVTARGETDEVICE*)CoTaskMemAlloc(sizeof(DVTARGETDEVICE));
-					*p_formats->ptd = *m_formats[m_currentFormatIndex].ptd;
-				}
 
 				m_currentFormatIndex++;
 				numberOfFormatsGotten++;
@@ -1058,7 +1071,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			{
 				if (m_formats[a].cfFormat == p_format->cfFormat &&
 					m_formats[a].dwAspect == p_format->dwAspect &&
-					m_formats[a].tymed & p_format->tymed)
+					m_formats[a].tymed & p_format->tymed && 
+					m_formats[a].lindex == p_format->lindex)
 				{
 					return S_OK;
 				}
@@ -1071,7 +1085,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			{
 				if (m_formats[a].cfFormat == p_format->cfFormat &&
 					m_formats[a].dwAspect == p_format->dwAspect &&
-					m_formats[a].tymed & p_format->tymed)
+					m_formats[a].tymed & p_format->tymed &&
+					m_formats[a].lindex == p_format->lindex)
 				{
 					p_medium->pUnkForRelease = 0;
 					if ((p_medium->tymed = m_formats[a].tymed) == TYMED_HGLOBAL)
@@ -1086,9 +1101,14 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 					{
 						p_medium->pstm = SHCreateMemStream(0, 0);
 
-						ULARGE_INTEGER size;
-						size.QuadPart = ULONGLONG_MAX;
-						m_mediums[a].pstm->CopyTo(p_medium->pstm, size, 0, 0);
+						STATSTG stats;
+						m_mediums[a].pstm->Stat(&stats, STATFLAG_NONAME);
+						p_medium->pstm->SetSize(stats.cbSize);
+
+						m_mediums[a].pstm->Seek({ 0 }, SEEK_SET, 0);
+						m_mediums[a].pstm->CopyTo(p_medium->pstm, stats.cbSize, 0, 0);
+
+						p_medium->pstm->Seek({ 0 }, SEEK_SET, 0);
 					}
 
 					return S_OK;
@@ -1103,7 +1123,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			{
 				if (m_formats[a].cfFormat == p_format->cfFormat &&
 					m_formats[a].dwAspect == p_format->dwAspect &&
-					m_formats[a].tymed & p_format->tymed)
+					m_formats[a].tymed & p_format->tymed &&
+					m_formats[a].lindex == p_format->lindex)
 				{
 					p_medium->pUnkForRelease = 0;
 					if ((p_medium->tymed = m_formats[a].tymed) == TYMED_HGLOBAL)
@@ -1165,14 +1186,11 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 	{
 	private:
 		uint32 m_referenceCount;
+		Gui* m_gui;
 
 	public:
-		OleDropSource() :
-			m_referenceCount(1)
-		{
-
-		}
-		~OleDropSource()
+		OleDropSource(Gui* p_gui) :
+			m_referenceCount(1), m_gui(p_gui)
 		{
 
 		}
@@ -1199,6 +1217,19 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		HRESULT __stdcall GiveFeedback(DWORD p_effect)
 		{
+			DragDropOperation operation = DragDropOperation::None;
+			switch (p_effect)
+			{
+			case DROPEFFECT_COPY:
+				operation = DragDropOperation::Copy;
+				break;
+			case DROPEFFECT_MOVE:
+				operation = DragDropOperation::Move;
+				break;
+			case DROPEFFECT_LINK:
+				operation = DragDropOperation::Link;
+			}
+			m_gui->handleGlobalDragDropOperationChange(operation);
 			return DRAGDROP_S_USEDEFAULTCURSORS;
 		}
 	};
@@ -1218,7 +1249,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		FORMATETC* m_itemNamesFormat = 0;
 		FORMATETC* m_textFormat = 0;
 
-		std::vector<HGLOBAL> m_globalDataToRelease;
+		std::vector<STGMEDIUM> m_globalDataToRelease;
 		std::vector<char const*> m_streamBuffersToRelease;
 
 		uint32 m_clipboardFormat_fileContents;
@@ -1237,10 +1268,10 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				m_dataObject->Release();
 				delete[] m_oleFormats;
 			}
-			for (HGLOBAL globalDataHandle : m_globalDataToRelease)
+			for (STGMEDIUM& medium : m_globalDataToRelease)
 			{
-				GlobalUnlock(globalDataHandle);
-				GlobalFree(globalDataHandle);
+				GlobalUnlock(medium.hGlobal);
+				ReleaseStgMedium(&medium);
 			}
 			for (char const* buffer : m_streamBuffersToRelease)
 			{
@@ -1254,8 +1285,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		WindowsDragDropEvent(Gui* p_gui) :
 			m_gui(p_gui)
 		{
-			m_clipboardFormat_fileContents = RegisterClipboardFormatW(L"FileContents");
-			m_clipboardFormat_fileGroupDescriptor = RegisterClipboardFormatW(L"FileGroupDescriptorW");
+			m_clipboardFormat_fileContents = RegisterClipboardFormatW(CFSTR_FILECONTENTS);
+			m_clipboardFormat_fileGroupDescriptor = RegisterClipboardFormatW(CFSTR_FILEDESCRIPTORW);
 		}
 		~WindowsDragDropEvent()
 		{
@@ -1273,12 +1304,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				IEnumFORMATETC* enumerator = 0;
 				m_dataObject->EnumFormatEtc(DATADIR_GET, &enumerator);
 
-				m_oleFormats = new FORMATETC[50];
-				enumerator->Next(50, m_oleFormats, (ULONG*)&m_numberOfFormats);
+				m_oleFormats = new FORMATETC[80];
+				enumerator->Next(80, m_oleFormats, (ULONG*)&m_numberOfFormats);
 				for (uint32 a = 0; a < m_numberOfFormats; a++)
 				{
 					uint32 format = m_oleFormats[a].cfFormat;
-					if (format == CF_HDROP)
+					if (format == CF_HDROP && m_oleFormats[a].dwAspect == DVASPECT_CONTENT)
 					{
 						m_itemNamesFormat = m_oleFormats + a;
 					}
@@ -1309,10 +1340,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		{
 			switch (m_oleFormats[p_formatIndex].tymed)
 			{
-			case TYMED_FILE:
-			{
-				break;
-			}
 			case TYMED_HGLOBAL:
 			{
 				STGMEDIUM medium;
@@ -1320,7 +1347,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				if (result == S_OK)
 				{
 					DragDropData data { (char const*)GlobalLock(medium.hGlobal), GlobalSize(medium.hGlobal) };
-					((WindowsDragDropEvent*)this)->m_globalDataToRelease.push_back(medium.hGlobal);
+					((WindowsDragDropEvent*)this)->m_globalDataToRelease.push_back(medium);
 					return data;
 				}
 				break;
@@ -1336,8 +1363,9 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 					char const* buffer = new char[stats.cbSize.QuadPart];
 					ULONG numberOfBytesRead = 0;
+					medium.pstm->Seek({ 0 }, SEEK_SET, 0);
 					medium.pstm->Read((void*)buffer, stats.cbSize.QuadPart, &numberOfBytesRead);
-					medium.pstm->Release();
+					ReleaseStgMedium(&medium);
 					((WindowsDragDropEvent*)this)->m_streamBuffersToRelease.push_back(buffer);
 
 					return { buffer, numberOfBytesRead };
@@ -1422,7 +1450,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				{
 					std::string string = convertUtf16ToUtf8((wchar_t*)GlobalLock(medium.hGlobal));
 					GlobalUnlock(medium.hGlobal);
-					GlobalFree(medium.hGlobal);
+					ReleaseStgMedium(&medium);
 					return string;
 				}
 			}
@@ -1438,7 +1466,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				{
 					std::wstring string = (wchar_t*)GlobalLock(medium.hGlobal);
 					GlobalUnlock(medium.hGlobal);
-					GlobalFree(medium.hGlobal);
+					ReleaseStgMedium(&medium);
 					return string;
 				}
 			}
@@ -1457,27 +1485,30 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 				STGMEDIUM medium;
 				HRESULT result = m_dataObject->GetData(m_itemNamesFormat, &medium);
-				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
+				if (result == S_OK)
 				{
-					DROPFILES* filenameStructure = (DROPFILES*)GlobalLock(medium.hGlobal);
-
-					wchar_t const* currentBufferPosition = (wchar_t const*)((char*)filenameStructure + filenameStructure->pFiles) + 1;
-					itemNames.push_back(convertUtf16ToUtf8(currentBufferPosition - 1));
-					while (true)
+					if (medium.tymed == TYMED_HGLOBAL)
 					{
-						if (!*currentBufferPosition)
-						{
-							if (!*(currentBufferPosition + 1))
-							{
-								break;
-							}
-							itemNames.push_back(convertUtf16ToUtf8(currentBufferPosition + 1));
-						}
-						currentBufferPosition++;
-					}
+						DROPFILES* filenameStructure = (DROPFILES*)GlobalLock(medium.hGlobal);
 
-					GlobalUnlock(medium.hGlobal);
-					GlobalFree(medium.hGlobal);
+						wchar_t const* currentBufferPosition = (wchar_t const*)((char*)filenameStructure + filenameStructure->pFiles) + 1;
+						itemNames.push_back(convertUtf16ToUtf8(currentBufferPosition - 1));
+						while (true)
+						{
+							if (!*currentBufferPosition)
+							{
+								if (!*(currentBufferPosition + 1))
+								{
+									break;
+								}
+								itemNames.push_back(convertUtf16ToUtf8(currentBufferPosition + 1));
+							}
+							currentBufferPosition++;
+						}
+
+						GlobalUnlock(medium.hGlobal);
+					}
+					ReleaseStgMedium(&medium);
 				}
 				return itemNames;
 			}
@@ -1491,27 +1522,30 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 				STGMEDIUM medium;
 				HRESULT result = m_dataObject->GetData(m_itemNamesFormat, &medium);
-				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
+				if (result == S_OK)
 				{
-					DROPFILES* filenameStructure = (DROPFILES*)GlobalLock(medium.hGlobal);
-
-					wchar_t const* currentBufferPosition = (wchar_t const*)((char*)filenameStructure + filenameStructure->pFiles) + 1;
-					itemNames.push_back(currentBufferPosition - 1);
-					while (true)
+					if (medium.tymed == TYMED_HGLOBAL)
 					{
-						if (!*currentBufferPosition)
-						{
-							if (!*(currentBufferPosition + 1))
-							{
-								break;
-							}
-							itemNames.push_back(currentBufferPosition + 1);
-						}
-						currentBufferPosition++;
-					}
+						DROPFILES* filenameStructure = (DROPFILES*)GlobalLock(medium.hGlobal);
 
-					GlobalUnlock(medium.hGlobal);
-					GlobalFree(medium.hGlobal);
+						wchar_t const* currentBufferPosition = (wchar_t const*)((char*)filenameStructure + filenameStructure->pFiles) + 1;
+						itemNames.push_back(currentBufferPosition - 1);
+						while (true)
+						{
+							if (!*currentBufferPosition)
+							{
+								if (!*(currentBufferPosition + 1))
+								{
+									break;
+								}
+								itemNames.push_back(currentBufferPosition + 1);
+							}
+							currentBufferPosition++;
+						}
+
+						GlobalUnlock(medium.hGlobal);
+					}
+					ReleaseStgMedium(&medium);
 				}
 				return itemNames;
 			}
@@ -1525,26 +1559,29 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 				STGMEDIUM medium;
 				HRESULT result = m_dataObject->GetData(m_itemNamesFormat, &medium);
-				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
+				if (result == S_OK)
 				{
-					DROPFILES* filenameStructure = (DROPFILES*)GlobalLock(medium.hGlobal);
-
-					wchar_t const* currentBufferPosition = (wchar_t const*)((char*)filenameStructure + filenameStructure->pFiles) + 1;
-					while (true)
+					if (medium.tymed == TYMED_HGLOBAL)
 					{
-						if (!*currentBufferPosition)
-						{
-							numberOfItemNames++;
-							if (!*(currentBufferPosition + 1))
-							{
-								break;
-							}
-						}
-						currentBufferPosition++;
-					}
+						DROPFILES* filenameStructure = (DROPFILES*)GlobalLock(medium.hGlobal);
 
-					GlobalUnlock(medium.hGlobal);
-					GlobalFree(medium.hGlobal);
+						wchar_t const* currentBufferPosition = (wchar_t const*)((char*)filenameStructure + filenameStructure->pFiles) + 1;
+						while (true)
+						{
+							if (!*currentBufferPosition)
+							{
+								numberOfItemNames++;
+								if (!*(currentBufferPosition + 1))
+								{
+									break;
+								}
+							}
+							currentBufferPosition++;
+						}
+
+						GlobalUnlock(medium.hGlobal);
+					}
+					ReleaseStgMedium(&medium);
 				}
 				return numberOfItemNames;
 			}
@@ -1559,16 +1596,19 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 				STGMEDIUM medium;
 				HRESULT result = m_dataObject->GetData(m_fileDescriptorFormat, &medium);
-				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
+				if (result == S_OK)
 				{
-					FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)GlobalLock(medium.hGlobal);
-					fileNames.reserve(groupDescriptor->cItems);
-					for (uint32 a = 0; a < fileNames.size(); a++)
+					if (medium.tymed == TYMED_HGLOBAL)
 					{
-						fileNames[a] = convertUtf16ToUtf8(groupDescriptor->fgd[a].cFileName);
+						FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)GlobalLock(medium.hGlobal);
+						fileNames.reserve(groupDescriptor->cItems);
+						for (uint32 a = 0; a < fileNames.size(); a++)
+						{
+							fileNames[a] = convertUtf16ToUtf8(groupDescriptor->fgd[a].cFileName);
+						}
+						GlobalUnlock(medium.hGlobal);
 					}
-					GlobalUnlock(medium.hGlobal);
-					GlobalFree(medium.hGlobal);
+					ReleaseStgMedium(&medium);
 				}
 				return fileNames;
 			}
@@ -1582,16 +1622,19 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 				STGMEDIUM medium;
 				HRESULT result = m_dataObject->GetData(m_fileDescriptorFormat, &medium);
-				if (result == S_OK && medium.tymed == TYMED_HGLOBAL)
+				if (result == S_OK)
 				{
-					FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)GlobalLock(medium.hGlobal);
-					fileNames.reserve(groupDescriptor->cItems);
-					for (uint32 a = 0; a < fileNames.size(); a++)
+					if (medium.tymed == TYMED_HGLOBAL)
 					{
-						fileNames[a] = groupDescriptor->fgd[a].cFileName;
+						FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)GlobalLock(medium.hGlobal);
+						fileNames.reserve(groupDescriptor->cItems);
+						for (uint32 a = 0; a < fileNames.size(); a++)
+						{
+							fileNames[a] = groupDescriptor->fgd[a].cFileName;
+						}
+						GlobalUnlock(medium.hGlobal);
 					}
-					GlobalUnlock(medium.hGlobal);
-					GlobalFree(medium.hGlobal);
+					ReleaseStgMedium(&medium);
 				}
 				return fileNames;
 			}
@@ -1616,7 +1659,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 								output.push_back(std::string());
 								output.back().assign((char*)GlobalLock(medium.hGlobal), GlobalSize(medium.hGlobal));
 								GlobalUnlock(medium.hGlobal);
-								GlobalFree(medium.hGlobal);
 							}
 							else if (medium.tymed == TYMED_ISTREAM)
 							{
@@ -1627,14 +1669,14 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 								output.back().resize(stats.cbSize.QuadPart);
 
 								ULONG bufferSize = 0;
+								medium.pstm->Seek({ 0 }, SEEK_SET, 0);
 								medium.pstm->Read((char*)output.back().data(), output.size(), &bufferSize);
 								if (bufferSize != output.back().size())
 								{
 									output.back().resize(bufferSize);
 								}
-
-								medium.pstm->Release();
 							}
+							ReleaseStgMedium(&medium);
 						}
 					}
 				}
@@ -1662,7 +1704,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 								{
 									output.assign((char*)GlobalLock(medium.hGlobal), GlobalSize(medium.hGlobal));
 									GlobalUnlock(medium.hGlobal);
-									GlobalFree(medium.hGlobal);
 								}
 								else if (medium.tymed == TYMED_ISTREAM)
 								{
@@ -1672,14 +1713,14 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 									output.resize(stats.cbSize.QuadPart);
 
 									ULONG bufferSize = 0;
+									medium.pstm->Seek({ 0 }, SEEK_SET, 0);
 									HRESULT result = medium.pstm->Read((char*)output.data(), output.size(), &bufferSize);
 									if (bufferSize != output.size())
 									{
 										output.resize(bufferSize);
 									}
-
-									medium.pstm->Release();
 								}
+								ReleaseStgMedium(&medium);
 							}
 							return output;
 						}
@@ -1758,7 +1799,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
-			switch (m_gui->handleGlobalDragDropMove(m_dragDropEvent))
+			m_gui->excludeAnimationThread();
+			switch (m_gui->handleGlobalDragDropEnter(m_dragDropEvent))
 			{
 			case DragDropOperation::Copy:
 				*p_effect = DROPEFFECT_COPY;
@@ -1772,6 +1814,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			default:
 				*p_effect = DROPEFFECT_NONE;
 			}
+			m_gui->includeAnimationThread();
 
 			return S_OK;
 		}
@@ -1792,20 +1835,26 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
-			switch (m_gui->handleGlobalDragDropMove(m_dragDropEvent))
+			m_gui->excludeAnimationThread();
+			DragDropOperation newOperation = DragDropOperation::None;
+			if (m_gui->handleGlobalDragDropMove(m_dragDropEvent, newOperation))
 			{
-			case DragDropOperation::Copy:
-				*p_effect = DROPEFFECT_COPY;
-				break;
-			case DragDropOperation::Move:
-				*p_effect = DROPEFFECT_MOVE;
-				break;
-			case DragDropOperation::Link:
-				*p_effect = DROPEFFECT_LINK;
-				break;
-			default:
-				*p_effect = DROPEFFECT_NONE;
+				switch (newOperation)
+				{
+				case DragDropOperation::Copy:
+					*p_effect = DROPEFFECT_COPY;
+					break;
+				case DragDropOperation::Move:
+					*p_effect = DROPEFFECT_MOVE;
+					break;
+				case DragDropOperation::Link:
+					*p_effect = DROPEFFECT_LINK;
+					break;
+				default:
+					*p_effect = DROPEFFECT_NONE;
+				}
 			}
+			m_gui->includeAnimationThread();
 
 			return S_OK;
 		}
@@ -1825,7 +1874,9 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			m_dragDropEvent.x = newX;
 			m_dragDropEvent.y = newY;
 
+			m_gui->excludeAnimationThread();
 			m_gui->handleGlobalDragDropLeave(m_dragDropEvent);
+			m_gui->includeAnimationThread();
 
 			m_dragDropEvent.setOleDataObject(0);
 			return S_OK;
@@ -1845,7 +1896,9 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
+			m_gui->excludeAnimationThread();
 			m_gui->handleGlobalDragDropFinish(m_dragDropEvent);
+			m_gui->includeAnimationThread();
 
 			clientMousePosition.x = p_mousePosition.x;
 			clientMousePosition.y = p_mousePosition.y;
@@ -2392,18 +2445,30 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				info.cbSize = sizeof(MONITORINFO);
 				GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
 				SetWindowLongPtr(m_windowHandle, GWL_STYLE, WS_VISIBLE | WS_MAXIMIZE);
-				SetWindowPos(m_windowHandle, 0, info.rcMonitor.left, info.rcMonitor.top, info.rcMonitor.right - info.rcMonitor.left, info.rcMonitor.bottom - info.rcMonitor.top, SWP_NOZORDER | SWP_NOOWNERZORDER);
+				SetWindowPos(
+					m_windowHandle, 0, 
+					info.rcMonitor.left, info.rcMonitor.top, 
+					info.rcMonitor.right - info.rcMonitor.left, 
+					info.rcMonitor.bottom - info.rcMonitor.top, 
+					SWP_NOZORDER | SWP_NOOWNERZORDER
+				);
 			}
 			else
 			{
-				SetWindowLongPtr(m_windowHandle, GWL_STYLE, (m_wasWindowMaximizedBeforeFullscreen * WS_MAXIMIZE) | (m_styles & ~(WS_MAXIMIZE | WS_MINIMIZE)));
+				SetWindowLongPtr(m_windowHandle, GWL_STYLE, m_wasWindowMaximizedBeforeFullscreen * WS_MAXIMIZE | m_styles & ~(WS_MAXIMIZE | WS_MINIMIZE));
 				if (m_wasWindowMaximizedBeforeFullscreen)
 				{
 					SetWindowPos(m_windowHandle, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
 				}
 				else
 				{
-					SetWindowPos(m_windowHandle, 0, m_windowRectBeforeFullscreen.left, m_windowRectBeforeFullscreen.top, m_windowRectBeforeFullscreen.right - m_windowRectBeforeFullscreen.left, m_windowRectBeforeFullscreen.bottom - m_windowRectBeforeFullscreen.top, SWP_NOZORDER | SWP_NOOWNERZORDER);
+					SetWindowPos(
+						m_windowHandle, 0, 
+						m_windowRectBeforeFullscreen.left, m_windowRectBeforeFullscreen.top, 
+						m_windowRectBeforeFullscreen.right - m_windowRectBeforeFullscreen.left, 
+						m_windowRectBeforeFullscreen.bottom - m_windowRectBeforeFullscreen.top, 
+						SWP_NOZORDER | SWP_NOOWNERZORDER
+					);
 				}
 			}
 			m_isFullscreen = p_isFullscreen;
@@ -2990,8 +3055,13 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			OleDataObject* dataObject = new OleDataObject(&format, &medium, 1);
 
+			m_gui->includeAnimationThread();
 			DWORD dropOperation = DROPEFFECT_NONE;
-			DoDragDrop(dataObject, m_oleDropSource, DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			DoDragDrop(dataObject, m_oleDropSource, DROPEFFECT_MOVE | DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			m_gui->excludeAnimationThread();
+
+			dataObject->Release();
+
 			switch (dropOperation)
 			{
 			case DROPEFFECT_COPY:
@@ -3042,8 +3112,13 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			
 			OleDataObject* dataObject = new OleDataObject(formats, mediums, 2);
 
+			m_gui->includeAnimationThread();
 			DWORD dropOperation = DROPEFFECT_NONE;
-			DoDragDrop(dataObject, m_oleDropSource, DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			DoDragDrop(dataObject, m_oleDropSource, DROPEFFECT_MOVE | DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			m_gui->excludeAnimationThread();
+
+			dataObject->Release();
+
 			switch (dropOperation)
 			{
 			case DROPEFFECT_COPY:
@@ -3106,8 +3181,13 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			OleDataObject* dataObject = new OleDataObject(formats, mediums, 3);
 
+			m_gui->includeAnimationThread();
 			DWORD dropOperation = DROPEFFECT_NONE;
-			DoDragDrop(dataObject, m_oleDropSource, DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			DoDragDrop(dataObject, m_oleDropSource, DROPEFFECT_MOVE | DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			m_gui->excludeAnimationThread();
+
+			dataObject->Release();
+
 			switch (dropOperation)
 			{
 			case DROPEFFECT_COPY:
@@ -3125,8 +3205,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		}
 		DragDropOperation dragAndDropFile(std::string const& p_path)
 		{
-			FORMATETC formats[3];
-			STGMEDIUM mediums[3];
+			std::filesystem::path path(std::filesystem::u8path(p_path));
+			std::wstring widePathString = path.wstring();
+			uint32 widePathStringSize = (widePathString.size() + 1) * sizeof(wchar_t);
+
+			FORMATETC formats[4];
+			STGMEDIUM mediums[4];
 
 			formats[0].cfFormat = CF_UNICODETEXT;
 			formats[0].tymed = TYMED_HGLOBAL;
@@ -3136,71 +3220,78 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			mediums[0].tymed = TYMED_HGLOBAL;
 			mediums[0].pUnkForRelease = 0;
+			mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, widePathStringSize);
+			memcpy(mediums[0].hGlobal, widePathString.data(), widePathStringSize);
 
-			uint32 wideStringLength = getNumberOfUnitsInUtfConvertedString(p_path);
-			mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, wideStringLength * sizeof(wchar_t));
-			convertUtf8ToUtf16(p_path.data(), p_path.size() + 1, (wchar_t*)mediums[0].hGlobal, wideStringLength);
+			//------------------------------
+
+			formats[1].cfFormat = CF_HDROP;
+			formats[1].tymed = TYMED_HGLOBAL;
+			formats[1].dwAspect = DVASPECT_CONTENT;
+			formats[1].lindex = -1;
+			formats[1].ptd = 0;
+
+			mediums[1].tymed = TYMED_HGLOBAL;
+			mediums[1].pUnkForRelease = 0;
+			mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + widePathStringSize + sizeof(wchar_t));
+
+			DROPFILES* filenameStructure = (DROPFILES*)mediums[1].hGlobal;
+			filenameStructure->fNC = true;
+			filenameStructure->fWide = true;
+			filenameStructure->pt.x = 0;
+			filenameStructure->pt.y = 0;
+			filenameStructure->pFiles = sizeof(DROPFILES);
+
+			memcpy((char*)mediums[1].hGlobal + sizeof(DROPFILES), widePathString.data(), widePathStringSize);
+			*(wchar_t*)((char*)mediums[1].hGlobal + sizeof(DROPFILES) + widePathStringSize) = 0;
 
 			//------------------------------
 
 			OleDataObject* dataObject = 0;
-			if (std::filesystem::is_regular_file(std::filesystem::u8path(p_path)))
+			if (std::filesystem::is_regular_file(path))
 			{
-				formats[1].cfFormat = m_clipboardFormat_fileContents;
-				formats[1].tymed = TYMED_ISTREAM;
-				formats[1].dwAspect = DVASPECT_CONTENT;
-				formats[1].lindex = -1;
-				formats[1].ptd = 0;
-
-				mediums[1].tymed = TYMED_ISTREAM;
-				mediums[1].pUnkForRelease = 0;
-				SHCreateStreamOnFileW((wchar_t*)mediums[0].hGlobal, STGM_READ | STGM_SHARE_DENY_WRITE/* | STGM_CONVERT*/, &mediums[1].pstm);
-
-				//------------------------------
-
-				formats[2].cfFormat = m_clipboardFormat_fileGroupDescriptor;
-				formats[2].tymed = TYMED_HGLOBAL;
+				formats[2].cfFormat = m_clipboardFormat_fileContents;
+				formats[2].tymed = TYMED_ISTREAM;
 				formats[2].dwAspect = DVASPECT_CONTENT;
 				formats[2].lindex = -1;
 				formats[2].ptd = 0;
 
-				mediums[2].tymed = TYMED_HGLOBAL;
+				mediums[2].tymed = TYMED_ISTREAM;
 				mediums[2].pUnkForRelease = 0;
-				mediums[2].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
+				SHCreateStreamOnFileEx(widePathString.data(), STGM_READ | STGM_SHARE_DENY_WRITE, 0, false, 0, &mediums[2].pstm);
+				
+				//------------------------------
 
-				FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[2].hGlobal;
+				formats[3].cfFormat = m_clipboardFormat_fileGroupDescriptor;
+				formats[3].tymed = TYMED_HGLOBAL;
+				formats[3].dwAspect = DVASPECT_CONTENT;
+				formats[3].lindex = -1;
+				formats[3].ptd = 0;
+
+				mediums[3].tymed = TYMED_HGLOBAL;
+				mediums[3].pUnkForRelease = 0;
+				mediums[3].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
+
+				FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[3].hGlobal;
 				groupDescriptor->cItems = 1;
 				groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
-				wcsncpy_s(groupDescriptor->fgd[0].cFileName, (wchar_t*)mediums[0].hGlobal, wideStringLength);
 
-				dataObject = new OleDataObject(formats, mediums, 3);
+				std::wstring filename = path.filename().wstring();
+				memcpy(groupDescriptor->fgd[0].cFileName, filename.data(), (filename.size() + 1)*sizeof(wchar_t));
+
+				dataObject = new OleDataObject(formats, mediums, 4);
 			}
 			else
 			{
-				formats[1].cfFormat = CF_HDROP;
-				formats[1].tymed = TYMED_HGLOBAL;
-				formats[1].dwAspect = DVASPECT_CONTENT;
-				formats[1].lindex = -1;
-				formats[1].ptd = 0;
-
-				mediums[1].tymed = TYMED_HGLOBAL;
-				mediums[1].pUnkForRelease = 0;
-				mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + (wideStringLength + 1)*sizeof(wchar_t));
-
-				DROPFILES* filenameStructure = (DROPFILES*)mediums[1].hGlobal;
-				filenameStructure->fNC = true;
-				filenameStructure->fWide = true;
-				filenameStructure->pt.x = 0;
-				filenameStructure->pt.y = 0;
-				filenameStructure->pFiles = sizeof(DROPFILES);
-
-				memcpy((char*)mediums[1].hGlobal + sizeof(DROPFILES), mediums[0].hGlobal, wideStringLength * sizeof(wchar_t));
-
 				dataObject = new OleDataObject(formats, mediums, 2);
 			}
 
+			m_gui->includeAnimationThread();
 			DWORD dropOperation = DROPEFFECT_NONE;
-			DoDragDrop(dataObject, m_oleDropSource, DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			DoDragDrop(dataObject, m_oleDropSource, DROPEFFECT_MOVE | DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			dataObject->Release();
+			m_gui->excludeAnimationThread();
+
 			switch (dropOperation)
 			{
 			case DROPEFFECT_COPY:
@@ -3213,16 +3304,140 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			return DragDropOperation::None;
 		}
 
-		DragDropOperation dragAndDropFiles(std::vector<std::string const> const& p_paths)
+		DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_pathStrings)
 		{
+			return dragAndDropFiles((std::string*)p_pathStrings.data(), p_pathStrings.size());
+		}
+		DragDropOperation dragAndDropFiles(std::string* p_pathStrings, uint32 p_numberOfPaths)
+		{
+			FORMATETC format;
+			STGMEDIUM medium;
+
+			//------------------------------
+			// Create an HDROP format, which is just the paths of all items.
+
+			format.cfFormat = CF_HDROP;
+			format.tymed = TYMED_HGLOBAL;
+			format.dwAspect = DVASPECT_CONTENT;
+			format.lindex = -1;
+			format.ptd = 0;
+
+			std::vector<std::wstring> widePathStrings(p_numberOfPaths);
+
+			uint32 pathsStringSize = 0;
+			for (uint32 a = 0; a < p_numberOfPaths; a++)
+			{
+				widePathStrings[a] = convertUtf8ToUtf16(p_pathStrings[a]);
+				pathsStringSize += widePathStrings[a].size() + 1;
+			}
+			pathsStringSize++;
+
+			medium.tymed = TYMED_HGLOBAL;
+			medium.pUnkForRelease = 0;
+			medium.hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + pathsStringSize * sizeof(wchar_t));
+
+			DROPFILES* filenameStructure = (DROPFILES*)medium.hGlobal;
+			filenameStructure->fNC = true;
+			filenameStructure->fWide = true;
+			filenameStructure->pt.x = 0;
+			filenameStructure->pt.y = 0;
+			filenameStructure->pFiles = sizeof(DROPFILES);
+
+			wchar_t* pathsString = (wchar_t*)((char*)medium.hGlobal + sizeof(DROPFILES));
+			wchar_t* pathsStringPosition = pathsString;
+			for (uint32 a = 0; a < p_numberOfPaths; a++)
+			{
+				memcpy(pathsStringPosition, widePathStrings[a].data(), (widePathStrings[a].size() + 1)* sizeof(wchar_t));
+				pathsStringPosition += widePathStrings[a].size() + 1;
+			}
+			pathsString[pathsStringSize - 1] = 0;
+
+			//------------------------------
+
+			OleDataObject* dataObject = new OleDataObject(&format, &medium, 1);
+
+			m_gui->includeAnimationThread();
+			DWORD dropOperation = DROPEFFECT_NONE;
+			DoDragDrop(dataObject, m_oleDropSource, DROPEFFECT_MOVE | DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			m_gui->excludeAnimationThread();
+
+			dataObject->Release();
+
+			switch (dropOperation)
+			{
+			case DROPEFFECT_COPY:
+				return DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return DragDropOperation::Link;
+			}
 			return DragDropOperation::None;
 		}
-		DragDropOperation dragAndDropFiles(std::string* p_paths, uint32 p_numberOfPaths)
+		DragDropOperation dragAndDropFiles(char const* const* p_pathStrings, uint32 p_numberOfPaths)
 		{
-			return DragDropOperation::None;
-		}
-		DragDropOperation dragAndDropFiles(char const* const* p_paths, uint32 p_numberOfPaths)
-		{
+			FORMATETC format;
+			STGMEDIUM medium;
+
+			//------------------------------
+			// Create an HDROP format, which is just the paths of all items.
+
+			format.cfFormat = CF_HDROP;
+			format.tymed = TYMED_HGLOBAL;
+			format.dwAspect = DVASPECT_CONTENT;
+			format.lindex = -1;
+			format.ptd = 0;
+
+			std::vector<std::wstring> widePathStrings(p_numberOfPaths);
+
+			uint32 pathsStringSize = 0;
+			for (uint32 a = 0; a < p_numberOfPaths; a++)
+			{
+				widePathStrings[a] = convertUtf8ToUtf16(p_pathStrings[a]);
+				pathsStringSize += widePathStrings[a].size() + 1;
+			}
+			pathsStringSize++;
+
+			medium.tymed = TYMED_HGLOBAL;
+			medium.pUnkForRelease = 0;
+			medium.hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + pathsStringSize * sizeof(wchar_t));
+
+			DROPFILES* filenameStructure = (DROPFILES*)medium.hGlobal;
+			filenameStructure->fNC = true;
+			filenameStructure->fWide = true;
+			filenameStructure->pt.x = 0;
+			filenameStructure->pt.y = 0;
+			filenameStructure->pFiles = sizeof(DROPFILES);
+
+			wchar_t* pathsString = (wchar_t*)((char*)medium.hGlobal + sizeof(DROPFILES));
+			wchar_t* pathsStringPosition = pathsString;
+			for (uint32 a = 0; a < p_numberOfPaths; a++)
+			{
+				memcpy(pathsStringPosition, widePathStrings[a].data(), (widePathStrings[a].size() + 1) * sizeof(wchar_t));
+				pathsStringPosition += widePathStrings[a].size() + 1;
+			}
+			pathsString[pathsStringSize - 1] = 0;
+
+			//------------------------------
+
+			OleDataObject* dataObject = new OleDataObject(&format, &medium, 1);
+
+			m_gui->includeAnimationThread();
+			DWORD dropOperation = DROPEFFECT_NONE;
+			DoDragDrop(dataObject, m_oleDropSource, DROPEFFECT_MOVE | DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			m_gui->excludeAnimationThread();
+
+			dataObject->Release();
+
+			switch (dropOperation)
+			{
+			case DROPEFFECT_COPY:
+				return DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return DragDropOperation::Link;
+			}
 			return DragDropOperation::None;
 		}
 
@@ -3363,22 +3578,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			{
 				OleInitialize(0);
 
-				m_oleDropSource = new OleDropSource();
+				m_oleDropSource = new OleDropSource(m_gui);
 				m_oleDropTarget = new OleDropTarget(m_gui);
 				RegisterDragDrop(m_windowHandle, m_oleDropTarget);
 
-				m_clipboardFormat_fileContents = RegisterClipboardFormatW(L"FileContents");
-				m_clipboardFormat_fileGroupDescriptor = RegisterClipboardFormatW(L"FileGroupDescriptorW");
-
-				//------------------------------
-
-				m_isOpen = true;
-				WindowEvent event;
-				event.window = this;
-
-				m_gui->excludeAnimationThread();
-				m_gui->handleWindowCreate(event);
-				m_gui->includeAnimationThread();
+				m_clipboardFormat_fileContents = RegisterClipboardFormatW(CFSTR_FILECONTENTS);
+				m_clipboardFormat_fileGroupDescriptor = RegisterClipboardFormatW(CFSTR_FILEDESCRIPTORW);
 
 				//------------------------------
 
@@ -3389,15 +3594,25 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 					color to be consistent with the colors of Direct2D and other potential graphics APIs 
 					so it is changed to the sRGB color space.
 				*/
-				LOGCOLORSPACEA colorSpaceSettings;
+				LOGCOLORSPACEW colorSpaceSettings;
 				colorSpaceSettings.lcsSignature = LCS_SIGNATURE;
 				colorSpaceSettings.lcsVersion = 0x400;
 				colorSpaceSettings.lcsSize = sizeof(colorSpaceSettings);
 				colorSpaceSettings.lcsCSType = LCS_sRGB;
 				colorSpaceSettings.lcsIntent = LCS_GM_ABS_COLORIMETRIC;
 
-				HCOLORSPACE colorSpace = CreateColorSpaceA(&colorSpaceSettings);
+				HCOLORSPACE colorSpace = CreateColorSpaceW(&colorSpaceSettings);
 				SetColorSpace(GetDC(m_windowHandle), colorSpace);
+
+				//------------------------------
+
+				m_isOpen = true;
+				WindowEvent event;
+				event.window = this;
+
+				m_gui->excludeAnimationThread();
+				m_gui->handleWindowCreate(event);
+				m_gui->includeAnimationThread();
 
 				return 0;
 			}
@@ -4136,7 +4351,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		float getInnerWidth() const override
 		{
-			if (m_boundsSizing != ImageBoundsSizing::Stretch && m_boundsSizing == ImageBoundsSizing::Contain != m_bounds.getWidth() / m_bounds.getHeight() < m_image->GetSize().width / m_image->GetSize().height)
+			if (m_boundsSizing != ImageBoundsSizing::Stretch && 
+				m_boundsSizing == ImageBoundsSizing::Contain != m_bounds.getWidth() / m_bounds.getHeight() < m_image->GetSize().width / m_image->GetSize().height)
 			{
 				return m_bounds.getHeight() * m_image->GetSize().width / m_image->GetSize().height;
 			}
@@ -4144,7 +4360,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		}
 		float getInnerHeight() const override
 		{
-			if (m_boundsSizing != ImageBoundsSizing::Stretch && m_boundsSizing == ImageBoundsSizing::Contain != m_bounds.getWidth() / m_bounds.getHeight() > m_image->GetSize().width / m_image->GetSize().height)
+			if (m_boundsSizing != ImageBoundsSizing::Stretch && 
+				m_boundsSizing == ImageBoundsSizing::Contain != m_bounds.getWidth() / m_bounds.getHeight() > m_image->GetSize().width / m_image->GetSize().height)
 			{
 				return m_bounds.getWidth() * m_image->GetSize().height / m_image->GetSize().width;
 			}
@@ -4945,12 +5162,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 	class FontFileStream : public IDWriteFontFileStream
 	{
 	private:
-		ULONG m_referenceCount = 0;
+		ULONG m_referenceCount;
 		FontData m_fontData;
 
 	public:
 		FontFileStream(FontData* p_fontData) : 
-			m_fontData(*p_fontData)
+			m_referenceCount(1), m_fontData(*p_fontData)
 		{ 
 		}
 
@@ -4991,10 +5208,11 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 	class FontFileLoader : public IDWriteFontFileLoader
 	{
 	private:
-		uint32 m_referenceCount = 0;
+		uint32 m_referenceCount;
 
 	public:
-		FontFileLoader()
+		FontFileLoader() :
+			m_referenceCount(1)
 		{ 
 		}
 
@@ -5006,20 +5224,19 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		HRESULT __stdcall CreateStreamFromKey(void const* p_data, UINT32 p_dataSize, IDWriteFontFileStream** p_stream)
 		{
-			if (p_dataSize != sizeof(FontData**) || !p_data)
+			if (p_dataSize != sizeof(FontData) || !p_data)
 			{
 				*p_stream = 0;
 				return E_INVALIDARG;
 			}
-			*p_stream = new FontFileStream(*(FontData**)p_data);
-			(*p_stream)->AddRef();
+			*p_stream = new FontFileStream((FontData*)p_data);
 			return S_OK;
 		}
 	};
 	class FontFileEnumerator : public IDWriteFontFileEnumerator
 	{
 	private:
-		uint32 m_referenceCount = 0;
+		uint32 m_referenceCount;
 
 		//------------------------------
 
@@ -5032,7 +5249,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 	public:
 		FontFileEnumerator(IDWriteFactory* p_factory, FontFileLoader* p_fontFileLoader, std::vector<FontData*>* p_data) :
-			m_factory(p_factory), m_fontFileLoader(p_fontFileLoader), m_fontData(p_data),
+			m_referenceCount(1), m_factory(p_factory), m_fontFileLoader(p_fontFileLoader), m_fontData(p_data),
 			m_currentFontFileIndex(-1)
 		{
 		}
@@ -5064,7 +5281,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			else
 			{
 				*p_hasCurrentFile = 1;
-				m_factory->CreateCustomFontFileReference((void const*)(m_fontData->data() + m_currentFontFileIndex), sizeof(FontData**), m_fontFileLoader, &m_currentFontFile);
+				m_factory->CreateCustomFontFileReference((void const*)*(m_fontData->data() + m_currentFontFileIndex), sizeof(FontData), m_fontFileLoader, &m_currentFontFile);
 			}
 			return S_OK;
 		}
@@ -5072,12 +5289,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 	class FontCollectionLoader : public IDWriteFontCollectionLoader
 	{
 	private:
-		uint32 m_referenceCount = 0;
+		uint32 m_referenceCount;
 		FontFileLoader* m_fontFileLoader;
 
 	public:
 		FontCollectionLoader(FontFileLoader* p_fontFileLoader) :
-			m_fontFileLoader(p_fontFileLoader)
+			m_referenceCount(1), m_fontFileLoader(p_fontFileLoader)
 		{
 		}
 
@@ -5090,7 +5307,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		HRESULT __stdcall CreateEnumeratorFromKey(IDWriteFactory* p_factory, void const* p_data, UINT32 p_dataSize, IDWriteFontFileEnumerator** p_fontFileEnumerator)
 		{
 			*p_fontFileEnumerator = new FontFileEnumerator(p_factory, m_fontFileLoader, *((std::vector<FontData*>**)p_data));
-			(*p_fontFileEnumerator)->AddRef();
 			return S_OK;
 		}
 	};
@@ -5430,11 +5646,9 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				);
 
 				s_fontFileLoader = new FontFileLoader();
-				s_fontFileLoader->AddRef();
 				s_directWriteFactory->RegisterFontFileLoader(s_fontFileLoader);
 
 				s_fontCollectionLoader = new FontCollectionLoader(s_fontFileLoader);
-				s_fontCollectionLoader->AddRef();
 				s_directWriteFactory->RegisterFontCollectionLoader(s_fontCollectionLoader);
 			}
 		}
@@ -5517,7 +5731,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			{
 				if (p_corners.topLeftType == RectangleCornerType::Round)
 				{
-					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_left + p_corners.topLeftSizeX, p_top), D2D1::SizeF(p_corners.topLeftSizeX, p_corners.topLeftSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
+					sink->AddArc(
+						D2D1::ArcSegment(
+							D2D1::Point2F(p_left + p_corners.topLeftSizeX, p_top), D2D1::SizeF(p_corners.topLeftSizeX, p_corners.topLeftSizeY), 
+							0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL
+						)
+					);
 				}
 				else
 				{
@@ -5529,7 +5748,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			{
 				if (p_corners.topRightType == RectangleCornerType::Round)
 				{
-					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_right, p_top + p_corners.topRightSizeY), D2D1::SizeF(p_corners.topRightSizeX, p_corners.topRightSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
+					sink->AddArc(
+						D2D1::ArcSegment(
+							D2D1::Point2F(p_right, p_top + p_corners.topRightSizeY), D2D1::SizeF(p_corners.topRightSizeX, p_corners.topRightSizeY), 
+							0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL
+						)
+					);
 				}
 				else
 				{
@@ -5541,7 +5765,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			{
 				if (p_corners.bottomRightType == RectangleCornerType::Round)
 				{
-					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_right - p_corners.bottomRightSizeX, p_bottom), D2D1::SizeF(p_corners.bottomRightSizeX, p_corners.bottomRightSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
+					sink->AddArc(
+						D2D1::ArcSegment(
+							D2D1::Point2F(p_right - p_corners.bottomRightSizeX, p_bottom), D2D1::SizeF(p_corners.bottomRightSizeX, p_corners.bottomRightSizeY), 
+							0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL
+						)
+					);
 				}
 				else
 				{
@@ -5553,7 +5782,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			{
 				if (p_corners.bottomLeftType == RectangleCornerType::Round)
 				{
-					sink->AddArc(D2D1::ArcSegment(D2D1::Point2F(p_left, p_bottom - p_corners.bottomLeftSizeY), D2D1::SizeF(p_corners.bottomLeftSizeX, p_corners.bottomLeftSizeY), 0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL));
+					sink->AddArc(
+						D2D1::ArcSegment(
+							D2D1::Point2F(p_left, p_bottom - p_corners.bottomLeftSizeY), D2D1::SizeF(p_corners.bottomLeftSizeX, p_corners.bottomLeftSizeY), 
+							0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL
+						)
+					);
 				}
 				else
 				{
@@ -5582,7 +5816,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				m_fontCollection->Release();
 			}
 			std::vector<FontData*>* fontDataPointer = &m_fontData;
-			s_directWriteFactory->CreateCustomFontCollection(s_fontCollectionLoader, &fontDataPointer, sizeof(std::vector<FontData*>**), &m_fontCollection);
+			s_directWriteFactory->CreateCustomFontCollection(s_fontCollectionLoader, &fontDataPointer, sizeof(std::vector<FontData*>*), &m_fontCollection);
 		}
 
 		void realizeStrokedGeometry(Direct2DGeometry* p_geometry, float p_strokeWidth)
@@ -7532,6 +7766,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			buffer.resize(stats.cbSize.QuadPart);
 
 			ULONG numberOfBytesWritten = 0;
+			outputStream->Seek({ 0 }, SEEK_SET, 0);
 			outputStream->Write(buffer.data(), buffer.size(), &numberOfBytesWritten);
 
 			if (numberOfBytesWritten != buffer.size())
@@ -7539,7 +7774,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				buffer.resize(numberOfBytesWritten);
 			}
 
-			return std::move(buffer);
+			return buffer;
 		}
 		void* createImageFileDataNativeStream(Image* p_image, ImageFormat p_format) override
 		{
@@ -7637,6 +7872,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			device->Release();
 			frameEncoder->Release();
 			bitmapEncoder->Release();
+
+			outputStream->Release();
 		}
 
 		//------------------------------
@@ -7796,22 +8033,18 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		Text* createText(char const* p_string, float p_fontSize, Rectangle<float> const& p_bounds = Rectangle<float>()) override
 		{
-			int32 numberOfCharacters = MultiByteToWideChar(CP_UTF8, 0, p_string, -1, 0, 0);
-			wchar_t* wideString = new wchar_t[numberOfCharacters];
-			MultiByteToWideChar(CP_UTF8, 0, p_string, -1, wideString, numberOfCharacters);
+			std::wstring wideString = convertUtf8ToUtf16(p_string);
 
 			IDWriteTextLayout1* textLayout;
-			s_directWriteFactory->CreateTextLayout(wideString, numberOfCharacters, m_textFormat, p_bounds.getWidth(), p_bounds.getHeight(), (IDWriteTextLayout**)&textLayout);
+			s_directWriteFactory->CreateTextLayout(wideString.data(), wideString.size(), m_textFormat, p_bounds.getWidth(), p_bounds.getHeight(), (IDWriteTextLayout**)&textLayout);
+
 			DWRITE_TEXT_RANGE textRange;
 			textRange.startPosition = 0;
-			textRange.length = numberOfCharacters;
+			textRange.length = wideString.size();
 			textLayout->SetFontSize(p_fontSize, textRange);
 			textLayout->SetCharacterSpacing(m_textProperties.characterSpacing*0.5f, m_textProperties.characterSpacing*0.5f, 0.f, textRange);
 
-			std::wstring wideStringObject = wideString;
-			delete[] wideString;
-
-			return new DirectWriteText(textLayout, wideStringObject, p_string, p_bounds);
+			return new DirectWriteText(textLayout, wideString, p_string, p_bounds);
 		}
 		Text* createText(std::string const& p_string, float p_fontSize, Rectangle<float> const& p_bounds = Rectangle<float>()) override
 		{
@@ -7845,7 +8078,10 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				textLayout->GetOverhangMetrics(&overhangMetrics);
 			}
 			m_currentBrush->SetOpacity(m_brushOpacity);
-			m_context->DrawTextLayout(D2D1::Point2F(p_text->getTopLeft().x, p_text->getTopLeft().y + overhangMetrics.top), textLayout, m_currentBrush, D2D1_DRAW_TEXT_OPTIONS::D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT);
+			m_context->DrawTextLayout(
+				D2D1::Point2F(p_text->getTopLeft().x, p_text->getTopLeft().y + overhangMetrics.top), 
+				textLayout, m_currentBrush, D2D1_DRAW_TEXT_OPTIONS::D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT
+			);
 		}
 		void drawText(char const* p_string, Rectangle<float> const& p_rectangle) override
 		{
@@ -8228,9 +8464,10 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 	//------------------------------
 
-	DragDropOperation Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
+	bool Gui::handleGlobalDragDropMove(DragDropEvent& p_event, DragDropOperation& p_resultingOperation)
 	{
-		DragDropOperation finalOperation(DragDropOperation::None);
+		bool willChangeOperation = false;
+
 		uint32 finalOperationLayerIndex = 0; // The layer index of the view that updated finalOperation the last time.
 
 		View* container = this;
@@ -8245,16 +8482,24 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			{
 				if (((View*)this)->m_isMouseHovering)
 				{
-					finalOperation = handleDragDropMove(p_event);
+					handleDragDropMove(p_event);
 				}
 				else
 				{
-					handleDragDropEnter(p_event);
+					p_resultingOperation = handleDragDropEnter(p_event);
 
 					if (startIndex < 0)
 					{
-						handleDragDropBackgroundEnter(p_event);
+						if (p_resultingOperation == DragDropOperation::None)
+						{
+							p_resultingOperation = handleDragDropBackgroundEnter(p_event);
+						}
+						else
+						{
+							handleDragDropBackgroundEnter(p_event);
+						}
 					}
+					willChangeOperation = true;
 				}
 			}
 			((View*)this)->m_isMouseHovering = true;
@@ -8303,22 +8548,37 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 						{
 							if (child->m_areDragDropEventsEnabled)
 							{
-								DragDropOperation operation = child->handleDragDropMove(p_event);
-								if (child->m_layerIndex >= finalOperationLayerIndex)
-								{
-									finalOperation = operation;
-									finalOperationLayerIndex = child->m_layerIndex;
-								}
+								child->handleDragDropMove(p_event);
 							}
 						}
 						else
 						{
 							if (child->m_areDragDropEventsEnabled)
 							{
-								child->handleDragDropEnter(p_event);
-								if (!isContainer)
+								if (child->m_layerIndex > finalOperationLayerIndex)
 								{
-									child->handleDragDropBackgroundEnter(p_event);
+									p_resultingOperation = child->handleDragDropEnter(p_event);
+									if (!isContainer)
+									{
+										if (p_resultingOperation == DragDropOperation::None)
+										{
+											p_resultingOperation = child->handleDragDropBackgroundEnter(p_event);
+										}
+										else
+										{
+											child->handleDragDropBackgroundEnter(p_event);
+										}
+									}
+									finalOperationLayerIndex = child->m_layerIndex;
+									willChangeOperation = true;
+								}
+								else
+								{
+									child->handleDragDropEnter(p_event);
+									if (!isContainer)
+									{
+										child->handleDragDropBackgroundEnter(p_event);
+									}
 								}
 							}
 						}
@@ -8409,7 +8669,15 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 					{
 						p_event.x = absoluteX - container->getAbsoluteLeft();
 						p_event.y = absoluteY - container->getAbsoluteTop();
-						container->handleDragDropBackgroundEnter(p_event);
+						if (container->m_layerIndex > finalOperationLayerIndex)
+						{
+							p_resultingOperation = container->handleDragDropBackgroundEnter(p_event);
+							willChangeOperation = true;
+						}
+						else
+						{
+							container->handleDragDropBackgroundEnter(p_event);
+						}
 					}
 				}
 				else if (wasHoveringStack.top() && container->m_isMouseHovering && hasFoundEnterViews && !hasFoundLeaveViews ||
@@ -8465,7 +8733,16 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				}
 			}
 		}
-		return finalOperation;
+		for (GlobalDragDropListener* listener : m_globalDragDropListeners)
+		{
+			DragDropOperation operation = listener->handleGlobalDragDropMove(p_event);
+			if (operation != DragDropOperation::None)
+			{
+				p_resultingOperation = operation;
+				willChangeOperation = true;
+			}
+		}
+		return willChangeOperation;
 	}
 	void Gui::handleGlobalDragDropLeave(DragDropEvent& p_event)
 	{
@@ -8547,6 +8824,11 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			{
 				break;
 			}
+		}
+
+		for (GlobalDragDropListener* listener : m_globalDragDropListeners)
+		{
+			listener->handleGlobalDragDropLeave(p_event);
 		}
 	}
 
@@ -8977,7 +9259,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		if (m_invalidRectangles.size())
 		{
 			m_invalidRectanglesMutex.lock();
-			std::vector<Rectangle<float>> invalidRectangles = std::move(m_invalidRectangles);
+			std::vector<Rectangle<float>> invalidRectangles(std::move(m_invalidRectangles));
 			m_invalidRectanglesMutex.unlock();
 			//std::cout << "Invalid rectangles:\n";
 			//for (auto rect : invalidRectangles)

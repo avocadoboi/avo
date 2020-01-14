@@ -9,10 +9,11 @@ All you need to do is add "AvoGUI.hpp", "AvoGUI.cpp" and "Font data.hpp" to your
 ### Creating your GUI class
 It is a good idea to create a class that inherits AvoGUI::Gui. The GUI is made up of a view tree structure, where every view has a parent, some have one or more children and some have one or more siblings. The GUI is the only view that doesn't have a parent, and it is the topmost view in the tree (depending on how you think about a tree, hmmm).
 
-This is how your GUI can be implemented. Every method that can be overridden by your GUI (assuming it only inherits AvoGUI::Gui) is shown here.
+This is how your GUI can be implemented. Most methods that can be overridden by your GUI (assuming it only inherits AvoGUI::Gui) are shown here.
 ```cpp
 class MyApplication : public AvoGUI::Gui
 {
+public:
   MyApplication()
   {
     // Here, you can call create(). This creates the window and drawing context that the GUI relies on.
@@ -100,10 +101,11 @@ Don't forget that you might want to create a Gui object too! Views and GUIs have
 ### Creating a view
 A view is a rectangle that can draw itself and react to different events. Views are used to create components and build up the GUI. They are also used as containers for other views, by setting them as the parent of the views that should be contained within it, using setParent() or the View constructor. Child views can only ever be drawn within their parent.
 
-This is how a custom View class can be implemented. Every method that can be overridden by your view (assuming it only inherits AvoGUI::View) is shown here. 
+This is how a custom View class can be implemented. Most methods that can be overridden by your view (assuming it only inherits AvoGUI::View) are shown here. 
 ```cpp
 class MyView : public AvoGUI::View
 {
+public:
   MyView(AvoGUI::View* p_parent, AvoGUI::Rectangle<float> const& p_bounds) : 
     // If you don't specify the bounds, it will be initialized with a size of (0, 0) and position of (0, 0).
     // You can then change the size and/or position afterwards if you want to.
@@ -140,6 +142,7 @@ class MyView : public AvoGUI::View
   {
     // Override this if you want to react to mouse button press events. You first need to call 
     // enableMouseEvents(), in the constructor or something. Otherwise, no mouse events will be recieved.
+    // The mouse coordinates in the event are relative to the parent of this view.
   }
   
   // Other mouse events that you can override by default in your view are: handleMouseUp, handleDoubleClick, 

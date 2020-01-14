@@ -241,6 +241,10 @@ namespace AvoGUI
 	*/
 	std::wstring convertUtf8ToUtf16(std::string const& p_input);
 	/*
+		Converts a UTF-8 encoded null-terminated string to a UTF-16 encoded std::wstring.
+	*/
+	std::wstring convertUtf8ToUtf16(char const* p_input);
+	/*
 		Returns the number of UTF-16 encoded wchar_t units that would be used to represent the same characters in a UTF-8 encoded char string.
 		It is assumed that p_input is null-terminated.
 		The output includes the null terminator.
@@ -276,6 +280,10 @@ namespace AvoGUI
 		Converts a UTF-16 std::wstring to a UTF-8 encoded std::string.
 	*/
 	std::string convertUtf16ToUtf8(std::wstring const& p_input);
+	/*
+		Converts a UTF-16 encoded null-terminated string to a UTF-8 encoded std::string.
+	*/
+	std::string convertUtf16ToUtf8(wchar_t const* p_input);
 	/*
 		Returns the number of UTF-8 encoded char units that would be used to represent the same characters in a UTF-16 encoded wchar_t string.
 		It is assumed that p_input is null terminated.
@@ -4099,6 +4107,40 @@ namespace AvoGUI
 		//virtual bool getHasImage() const = 0;
 	};
 
+	//------------------------------
+
+	class GlobalDragDropListener
+	{
+	public:
+		/*
+			Gets sent from the GUI that this listener is registered to whenever a dragged item enters the GUI.
+		*/
+		virtual DragDropOperation handleGlobalDragDropEnter(DragDropEvent const& p_event) 
+		{ 
+			return DragDropOperation::None;
+		}
+		/*
+			Gets sent from the GUI that this listener is registered to whenever a dragged item enters the GUI.
+			The return value tells the sender what the new drag drop operation will be, and has higher priority than the return value of view listeners except if the returned operation type here is DragDropOperation::None.
+		*/
+		virtual DragDropOperation handleGlobalDragDropMove(DragDropEvent const& p_event) 
+		{ 
+			return DragDropOperation::None;
+		}
+		/*
+			Gets sent from the GUI that this listener is registered to whenever a dragged item enters the GUI.
+		*/
+		virtual void handleGlobalDragDropLeave(DragDropEvent const& p_event) { }
+		/*
+			Gets sent from the GUI that this listener is registered to whenever a dragged item is dropped over the GUI.
+		*/
+		virtual void handleGlobalDragDropFinish(DragDropEvent const& p_event) { }
+		/*
+			Gets sent from the GUI that this listener is registered to whenever the operation type of a drag and drop from the GUI has changed, possibly by other applications.
+			The type of a drag and drop operation can change when the cursor enters and/or moves over different drop targets or when the state of the alt and/or shift keys change.
+		*/
+		virtual void handleGlobalDragDropOperationChange(DragDropOperation p_newOperation) { }
+	};
 #pragma endregion
 
 	//------------------------------
@@ -6390,26 +6432,30 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED (only default behaviour)
 			Gets called when the cursor enters the bounds of the view during a drag and drop operation.
-			The return value is used to tell the OS what type of operation is supported for the dragged data.
 			p_event contains information about the event, including the data and data type of what is to be dropped.
+			The return value is used to tell the OS what type of operation is supported for the dragged data.
+			If handleDragDropEnter and handleDragDropBackgroundEnter are called at the same time, the returned operation that is not DragDropOperation::None is the used one.
 		*/
-		virtual void handleDragDropEnter(DragDropEvent const& p_event) { }
+		virtual DragDropOperation handleDragDropEnter(DragDropEvent const& p_event) 
+		{
+			return DragDropOperation::None;
+		}
 		/*
 			LIBRARY IMPLEMENTED (only default behaviour)
 			Gets called when the cursor enters the parts of the view that are not occupied by children, during a drag and drop operation.
 			p_event contains information about the event, including the data and data type of what is to be dropped.
-		*/
-		virtual void handleDragDropBackgroundEnter(DragDropEvent const& p_event) { }
-		/*
-			LIBRARY IMPLEMENTED (only default behaviour)
-			Gets called when the cursor moves over the view during a drag and drop operation.
 			The return value is used to tell the OS what type of operation is supported for the dragged data.
-			p_event contains information about the event, including the data and data type of what is to be dropped.
+			If handleDragDropEnter and handleDragDropBackgroundEnter are called at the same time, the returned operation that is not DragDropOperation::None is the used one.
 		*/
-		virtual DragDropOperation handleDragDropMove(DragDropEvent const& p_event) 
+		virtual DragDropOperation handleDragDropBackgroundEnter(DragDropEvent const& p_event) 
 		{ 
 			return DragDropOperation::None;
 		}
+		/*
+			LIBRARY IMPLEMENTED (only default behaviour)
+			Gets called when the cursor moves over the view during a drag and drop operation.
+		*/
+		virtual void handleDragDropMove(DragDropEvent const& p_event) { }
 		/*
 			USER IMPLEMENTED
 			Gets called when the cursor leaves the bounds of the view during a drag and drop operation.
@@ -7074,12 +7120,42 @@ namespace AvoGUI
 		*/
 		virtual DragDropOperation dragAndDropImage(Image* p_image) = 0;
 
+		/*
+			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
 		virtual DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
 		virtual DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag file data or a directory from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
 		virtual DragDropOperation dragAndDropFile(std::string const& p_path) = 0;
 
-		virtual DragDropOperation dragAndDropFiles(std::vector<std::string const> const& p_paths) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_paths) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
 		virtual DragDropOperation dragAndDropFiles(std::string* p_paths, uint32 p_numberOfPaths) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
 		virtual DragDropOperation dragAndDropFiles(char const* const* p_paths, uint32 p_numberOfPaths) = 0;
 
 		//------------------------------
@@ -8907,6 +8983,10 @@ namespace AvoGUI
 
 		//------------------------------
 
+		std::vector<GlobalDragDropListener*> m_globalDragDropListeners;
+
+		//------------------------------
+
 		std::unordered_map<uint64, View*> m_viewsById;
 		friend class View;
 
@@ -9104,17 +9184,36 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Sends the event down to targeted drag drop enabled views.
+			Sends events down to targeted drag and drop enabled views and global drag and drop listeners.
 		*/
-		virtual DragDropOperation handleGlobalDragDropMove(DragDropEvent& p_event);
+		virtual DragDropOperation handleGlobalDragDropEnter(DragDropEvent& p_event)
+		{
+			DragDropOperation resultingOperation = DragDropOperation::None;
+			handleGlobalDragDropMove(p_event, resultingOperation);
+
+			for (uint32 a = 0; a < m_globalDragDropListeners.size(); a++)
+			{
+				DragDropOperation operation = m_globalDragDropListeners[a]->handleGlobalDragDropEnter(p_event);
+				if (operation != DragDropOperation::None && resultingOperation == DragDropOperation::None)
+				{
+					resultingOperation = operation;
+				}
+			}
+			return resultingOperation;
+		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sends the event down to targeted drag drop enabled views.
+			Sends the event down to targeted drag and drop enabled views and global drag and drop listeners.
+		*/
+		virtual bool handleGlobalDragDropMove(DragDropEvent& p_event, DragDropOperation& p_resultingOperation);
+		/*
+			LIBRARY IMPLEMENTED
+			Sends the event down to targeted drag and drop enabled views and global drag and drop listeners.
 		*/
 		virtual void handleGlobalDragDropLeave(DragDropEvent& p_event);
 		/*
 			LIBRARY IMPLEMENTED
-			Sends the event down to targeted drag drop enabled views.
+			Sends the event down to targeted drag and drop enabled views and global drag and drop listeners.
 		*/
 		virtual void handleGlobalDragDropFinish(DragDropEvent& p_event)
 		{
@@ -9179,6 +9278,21 @@ namespace AvoGUI
 
 				startIndex = container->getIndex() - 1;
 				container = container->getParent();
+			}
+			for (GlobalDragDropListener* listener : m_globalDragDropListeners)
+			{
+				listener->handleGlobalDragDropFinish(p_event);
+			}
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Sends the event down to global drag and drop listeners.
+		*/
+		virtual void handleGlobalDragDropOperationChange(DragDropOperation p_newOperation)
+		{
+			for (GlobalDragDropListener* listener : m_globalDragDropListeners)
+			{
+				listener->handleGlobalDragDropOperationChange(p_newOperation);
 			}
 		}
 
@@ -9541,6 +9655,22 @@ namespace AvoGUI
 		void removeGlobalMouseListener(GlobalMouseListener* p_listener)
 		{
 			removeVectorElementWithoutKeepingOrder(m_globalMouseEventListeners, p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Enables a global drag and drop event listener to recieve events from this GUI.
+		*/
+		void addGlobalDragDropListener(GlobalDragDropListener* p_listener)
+		{
+			m_globalDragDropListeners.push_back(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Disables a global drag and drop event listener to recieve events from this GUI.
+		*/
+		void removeGlobalDragDropListener(GlobalDragDropListener* p_listener)
+		{
+			removeVectorElementWithoutKeepingOrder(m_globalDragDropListeners, p_listener);
 		}
 
 		//------------------------------

@@ -23,10 +23,10 @@ private:
 		{
 			text->setWidth(550.f);
 			text->setWordWrapping(AvoGUI::WordWrapping::WholeWord);
-			text->fitHeightToText();
 		}
+		text->fitHeightToText();
 		text->setCenter(p_x, p_y);
-		text->move(AvoGUI::Point<float>().setPolar(AvoGUI::random() * AvoGUI::TAU, 40.f * AvoGUI::random()));
+		text->move(AvoGUI::Point<float>().setPolar(AvoGUI::random() * AvoGUI::TAU, 20.f * AvoGUI::random()));
 		m_droppedTexts.push_back(text);
 	}
 
@@ -73,32 +73,36 @@ public:
 	{
 		if (getWindow()->getIsMouseButtonDown(AvoGUI::MouseButton::Left))
 		{
-			for (uint32 a = 0; a < m_droppedTexts.size(); a++)
-			{
-				if (m_droppedTexts[a]->getIsContaining(p_event.x, p_event.y))
-				{
-					if (std::filesystem::exists(std::filesystem::u8path(m_droppedTexts[a]->getString())))
-					{
-						getWindow()->dragAndDropFile(m_droppedTexts[a]->getString());
-
-					}
-					else
-					{
-						getWindow()->dragAndDropString(m_droppedTexts[a]->getString());
-					}
-					invalidateRectangle(m_droppedTexts[a]->getBounds());
-					m_droppedTexts.erase(m_droppedTexts.begin() + a);
-					break;
-				}
-			}
 			for (uint32 a = 0; a < m_droppedImages.size(); a++)
 			{
 				if (m_droppedImages[a]->getInnerBounds().getIsContaining(p_event.x, p_event.y))
 				{
-					getWindow()->dragAndDropImage(m_droppedImages[a]);
-					invalidateRectangle(m_droppedImages[a]->getBounds());
+					AvoGUI::Image* image = m_droppedImages[a];
 					m_droppedImages.erase(m_droppedImages.begin() + a);
-					break;
+					invalidateRectangle(image->getBounds());
+					getWindow()->dragAndDropImage(image);
+					image->forget();
+					return;
+				}
+			}
+			for (uint32 a = 0; a < m_droppedTexts.size(); a++)
+			{
+				if (m_droppedTexts[a]->getIsContaining(p_event.x, p_event.y))
+				{
+					std::string string = m_droppedTexts[a]->getString();
+
+					invalidateRectangle(m_droppedTexts[a]->getBounds());
+					m_droppedTexts[a]->forget();
+					m_droppedTexts.erase(m_droppedTexts.begin() + a);
+					if (std::filesystem::exists(std::filesystem::u8path(string)))
+					{
+						getWindow()->dragAndDropFile(string);
+					}
+					else
+					{
+						getWindow()->dragAndDropString(string);
+					}
+					return;
 				}
 			}
 		}
@@ -106,7 +110,7 @@ public:
 
 	//------------------------------
 
-	AvoGUI::DragDropOperation handleDragDropMove(AvoGUI::DragDropEvent const& p_event) override
+	AvoGUI::DragDropOperation handleDragDropEnter(AvoGUI::DragDropEvent const& p_event) override
 	{
 		return AvoGUI::DragDropOperation::Copy;
 	}
@@ -137,7 +141,7 @@ public:
 		/*
 			Add dropped text, if any text was dropped.
 		*/
-		if (!image && p_event.getHasString())
+		if (!image && !itemNames.size() && p_event.getHasString())
 		{
 			addDroppedText(p_event.getString(), p_event.x, p_event.y);
 		}
