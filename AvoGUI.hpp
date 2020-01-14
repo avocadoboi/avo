@@ -10994,7 +10994,7 @@ namespace AvoGUI
 					setString(string, m_selectionEndCharacterIndex);
 					updateCaretTracking();
 				}
-				if (m_textAlign == TextAlign::Center)
+				if (m_textAlign == TextAlign::Center && m_text)
 				{
 					m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex);
 					updateCaretTracking();
