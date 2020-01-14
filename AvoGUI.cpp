@@ -3587,16 +3587,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 				//------------------------------
 
-				m_isOpen = true;
-				WindowEvent event;
-				event.window = this;
-
-				m_gui->excludeAnimationThread();
-				m_gui->handleWindowCreate(event);
-				m_gui->includeAnimationThread();
-
-				//------------------------------
-
 				EnableNonClientDpiScaling(m_windowHandle);
 
 				/*
@@ -3604,15 +3594,25 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 					color to be consistent with the colors of Direct2D and other potential graphics APIs 
 					so it is changed to the sRGB color space.
 				*/
-				LOGCOLORSPACEA colorSpaceSettings;
+				LOGCOLORSPACEW colorSpaceSettings;
 				colorSpaceSettings.lcsSignature = LCS_SIGNATURE;
 				colorSpaceSettings.lcsVersion = 0x400;
 				colorSpaceSettings.lcsSize = sizeof(colorSpaceSettings);
 				colorSpaceSettings.lcsCSType = LCS_sRGB;
 				colorSpaceSettings.lcsIntent = LCS_GM_ABS_COLORIMETRIC;
 
-				HCOLORSPACE colorSpace = CreateColorSpaceA(&colorSpaceSettings);
+				HCOLORSPACE colorSpace = CreateColorSpaceW(&colorSpaceSettings);
 				SetColorSpace(GetDC(m_windowHandle), colorSpace);
+
+				//------------------------------
+
+				m_isOpen = true;
+				WindowEvent event;
+				event.window = this;
+
+				m_gui->excludeAnimationThread();
+				m_gui->handleWindowCreate(event);
+				m_gui->includeAnimationThread();
 
 				return 0;
 			}
@@ -5162,12 +5162,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 	class FontFileStream : public IDWriteFontFileStream
 	{
 	private:
-		ULONG m_referenceCount = 0;
+		ULONG m_referenceCount;
 		FontData m_fontData;
 
 	public:
 		FontFileStream(FontData* p_fontData) : 
-			m_fontData(*p_fontData)
+			m_referenceCount(1), m_fontData(*p_fontData)
 		{ 
 		}
 
@@ -5208,10 +5208,11 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 	class FontFileLoader : public IDWriteFontFileLoader
 	{
 	private:
-		uint32 m_referenceCount = 0;
+		uint32 m_referenceCount;
 
 	public:
-		FontFileLoader()
+		FontFileLoader() :
+			m_referenceCount(1)
 		{ 
 		}
 
@@ -5223,20 +5224,19 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		HRESULT __stdcall CreateStreamFromKey(void const* p_data, UINT32 p_dataSize, IDWriteFontFileStream** p_stream)
 		{
-			if (p_dataSize != sizeof(FontData**) || !p_data)
+			if (p_dataSize != sizeof(FontData) || !p_data)
 			{
 				*p_stream = 0;
 				return E_INVALIDARG;
 			}
-			*p_stream = new FontFileStream(*(FontData**)p_data);
-			(*p_stream)->AddRef();
+			*p_stream = new FontFileStream((FontData*)p_data);
 			return S_OK;
 		}
 	};
 	class FontFileEnumerator : public IDWriteFontFileEnumerator
 	{
 	private:
-		uint32 m_referenceCount = 0;
+		uint32 m_referenceCount;
 
 		//------------------------------
 
@@ -5249,7 +5249,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 	public:
 		FontFileEnumerator(IDWriteFactory* p_factory, FontFileLoader* p_fontFileLoader, std::vector<FontData*>* p_data) :
-			m_factory(p_factory), m_fontFileLoader(p_fontFileLoader), m_fontData(p_data),
+			m_referenceCount(1), m_factory(p_factory), m_fontFileLoader(p_fontFileLoader), m_fontData(p_data),
 			m_currentFontFileIndex(-1)
 		{
 		}
@@ -5281,7 +5281,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			else
 			{
 				*p_hasCurrentFile = 1;
-				m_factory->CreateCustomFontFileReference((void const*)(m_fontData->data() + m_currentFontFileIndex), sizeof(FontData**), m_fontFileLoader, &m_currentFontFile);
+				m_factory->CreateCustomFontFileReference((void const*)*(m_fontData->data() + m_currentFontFileIndex), sizeof(FontData), m_fontFileLoader, &m_currentFontFile);
 			}
 			return S_OK;
 		}
@@ -5289,12 +5289,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 	class FontCollectionLoader : public IDWriteFontCollectionLoader
 	{
 	private:
-		uint32 m_referenceCount = 0;
+		uint32 m_referenceCount;
 		FontFileLoader* m_fontFileLoader;
 
 	public:
 		FontCollectionLoader(FontFileLoader* p_fontFileLoader) :
-			m_fontFileLoader(p_fontFileLoader)
+			m_referenceCount(1), m_fontFileLoader(p_fontFileLoader)
 		{
 		}
 
@@ -5307,7 +5307,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		HRESULT __stdcall CreateEnumeratorFromKey(IDWriteFactory* p_factory, void const* p_data, UINT32 p_dataSize, IDWriteFontFileEnumerator** p_fontFileEnumerator)
 		{
 			*p_fontFileEnumerator = new FontFileEnumerator(p_factory, m_fontFileLoader, *((std::vector<FontData*>**)p_data));
-			(*p_fontFileEnumerator)->AddRef();
 			return S_OK;
 		}
 	};
@@ -5647,11 +5646,9 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				);
 
 				s_fontFileLoader = new FontFileLoader();
-				s_fontFileLoader->AddRef();
 				s_directWriteFactory->RegisterFontFileLoader(s_fontFileLoader);
 
 				s_fontCollectionLoader = new FontCollectionLoader(s_fontFileLoader);
-				s_fontCollectionLoader->AddRef();
 				s_directWriteFactory->RegisterFontCollectionLoader(s_fontCollectionLoader);
 			}
 		}
@@ -5819,7 +5816,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				m_fontCollection->Release();
 			}
 			std::vector<FontData*>* fontDataPointer = &m_fontData;
-			s_directWriteFactory->CreateCustomFontCollection(s_fontCollectionLoader, &fontDataPointer, sizeof(std::vector<FontData*>**), &m_fontCollection);
+			s_directWriteFactory->CreateCustomFontCollection(s_fontCollectionLoader, &fontDataPointer, sizeof(std::vector<FontData*>*), &m_fontCollection);
 		}
 
 		void realizeStrokedGeometry(Direct2DGeometry* p_geometry, float p_strokeWidth)
@@ -8036,22 +8033,18 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		Text* createText(char const* p_string, float p_fontSize, Rectangle<float> const& p_bounds = Rectangle<float>()) override
 		{
-			int32 numberOfCharacters = MultiByteToWideChar(CP_UTF8, 0, p_string, -1, 0, 0);
-			wchar_t* wideString = new wchar_t[numberOfCharacters];
-			MultiByteToWideChar(CP_UTF8, 0, p_string, -1, wideString, numberOfCharacters);
+			std::wstring wideString = convertUtf8ToUtf16(p_string);
 
 			IDWriteTextLayout1* textLayout;
-			s_directWriteFactory->CreateTextLayout(wideString, numberOfCharacters, m_textFormat, p_bounds.getWidth(), p_bounds.getHeight(), (IDWriteTextLayout**)&textLayout);
+			s_directWriteFactory->CreateTextLayout(wideString.data(), wideString.size(), m_textFormat, p_bounds.getWidth(), p_bounds.getHeight(), (IDWriteTextLayout**)&textLayout);
+
 			DWRITE_TEXT_RANGE textRange;
 			textRange.startPosition = 0;
-			textRange.length = numberOfCharacters;
+			textRange.length = wideString.size();
 			textLayout->SetFontSize(p_fontSize, textRange);
 			textLayout->SetCharacterSpacing(m_textProperties.characterSpacing*0.5f, m_textProperties.characterSpacing*0.5f, 0.f, textRange);
 
-			std::wstring wideStringObject = wideString;
-			delete[] wideString;
-
-			return new DirectWriteText(textLayout, wideStringObject, p_string, p_bounds);
+			return new DirectWriteText(textLayout, wideString, p_string, p_bounds);
 		}
 		Text* createText(std::string const& p_string, float p_fontSize, Rectangle<float> const& p_bounds = Rectangle<float>()) override
 		{
