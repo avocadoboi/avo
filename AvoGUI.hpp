@@ -6667,12 +6667,14 @@ namespace AvoGUI
 		Window* window = 0;
 		/*
 			The new width of the window if it has changed size (includes sizeChange/maximize/restore events).
+			Expressed in dips.
 		*/
-		uint32 width = 0U;
+		float width = 0.f;
 		/*
 			The new height of the window if it has changed size (includes sizeChange/maximize/restore events).
+			Expressed in dips.
 		*/
-		uint32 height = 0U;
+		float height = 0.f;
 	};
 
 	class WindowListener
@@ -8193,16 +8195,18 @@ namespace AvoGUI
 
 		/*
 			Resizes the drawing buffers for the window. The GUI calls this for you when it is being resized.
+			The size is expressed in dips.
 		*/
-		virtual void setSize(Point<uint32> const& p_size) = 0;
+		virtual void setSize(Point<float> const& p_size) = 0;
 		/*
 			Resizes the drawing buffers for the window. The GUI calls this for you when it is being resized.
+			The size is expressed in dips.
 		*/
-		virtual void setSize(uint32 p_width, uint32 p_height) = 0;
+		virtual void setSize(float p_width, float p_height) = 0;
 		/*
-			Returns the size of the drawing buffers for the window.
+			Returns the size of the drawing buffers for the window, in dips.
 		*/
-		virtual Point<uint32> getSize() = 0;
+		virtual Point<float> getSize() = 0;
 
 		//------------------------------
 
@@ -8711,7 +8715,7 @@ namespace AvoGUI
 			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image* createRectangleShadowImage(Point<uint32> const& p_size, float p_blur, Color const& p_color) = 0;
+		virtual Image* createRectangleShadowImage(Point<float> const& p_size, float p_blur, Color const& p_color) = 0;
 		/*
 			Generates an image of a shadow that is cast by a rectangle.
 		
@@ -8720,7 +8724,7 @@ namespace AvoGUI
 			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image* createRectangleShadowImage(uint32 p_width, uint32 p_height, float p_blur, Color const& p_color) = 0;
+		virtual Image* createRectangleShadowImage(float p_width, float p_height, float p_blur, Color const& p_color) = 0;
 
 		/*
 			Generates an image of a shadow that is cast by a rectangle with custom corners.
@@ -8729,7 +8733,7 @@ namespace AvoGUI
 			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image* createRectangleShadowImage(Point<uint32> const& p_size, RectangleCorners const& p_corners, float p_blur, Color const& p_color) = 0;
+		virtual Image* createRectangleShadowImage(Point<float> const& p_size, RectangleCorners const& p_corners, float p_blur, Color const& p_color) = 0;
 		/*
 			Generates an image of a shadow that is cast by a rectangle with custom corners.
 
@@ -8738,7 +8742,7 @@ namespace AvoGUI
 			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image* createRectangleShadowImage(uint32 p_width, uint32 p_height, RectangleCorners const& p_corners, float p_blur, Color const& p_color) = 0;
+		virtual Image* createRectangleShadowImage(float p_width, float p_height, RectangleCorners const& p_corners, float p_blur, Color const& p_color) = 0;
 
 		//------------------------------
 
@@ -8750,7 +8754,7 @@ namespace AvoGUI
 			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image* createRoundedRectangleShadowImage(Point<uint32> const& p_size, float p_radius, float p_blur, Color const& p_color) = 0;
+		virtual Image* createRoundedRectangleShadowImage(Point<float> const& p_size, float p_radius, float p_blur, Color const& p_color) = 0;
 		/*
 			Generates an image of a shadow that is cast by a rounded rectangle.
 		
@@ -8760,7 +8764,7 @@ namespace AvoGUI
 			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image* createRoundedRectangleShadowImage(uint32 p_width, uint32 p_height, float p_radius, float p_blur, Color const& p_color) = 0;
+		virtual Image* createRoundedRectangleShadowImage(float p_width, float p_height, float p_radius, float p_blur, Color const& p_color) = 0;
 
 		//------------------------------
 
@@ -8947,8 +8951,8 @@ namespace AvoGUI
 
 		//------------------------------
 
-		Point<uint32> m_lastWindowSize;
-		Point<uint32> m_newWindowSize;
+		Point<float> m_lastWindowSize;
+		Point<float> m_newWindowSize;
 		bool m_hasNewWindowSize;
 		std::deque<View*> m_animationUpdateQueue;
 
@@ -8994,7 +8998,7 @@ namespace AvoGUI
 
 		void sendBoundsChangeEvents(AvoGUI::Rectangle<float> const& p_previousBounds) override
 		{
-			if ((uint32)getWidth() != m_lastWindowSize.x || (uint32)getHeight() != m_lastWindowSize.y)
+			if ((uint32)getWidth() != (uint32)m_lastWindowSize.x || (uint32)getHeight() != (uint32)m_lastWindowSize.y)
 			{
 				m_window->setSize(getSize());
 			}
@@ -9724,43 +9728,6 @@ namespace AvoGUI
 		{
 			m_animationUpdateQueue.push_back(p_view);
 			p_view->remember();
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Should only need to be used internally. 
-			Updates the animations of views which have been requested to get an animation update.
-			Also resizes the GUI if the window has changed size.
-		*/
-		void updateQueuedAnimations()
-		{
-			if (m_hasNewWindowSize)
-			{
-				excludeAnimationThread();
-				Point<float> newSize = m_newWindowSize;
-				m_hasNewWindowSize = false;
-
-				Point<float> sizeBefore = getBottomLeft();
-				m_drawingContext->setSize(newSize.x, newSize.y);
-				m_bounds.set(0, 0, newSize.x, newSize.y);
-				m_lastWindowSize = newSize;
-
-				sendBoundsChangeEvents(Rectangle<float>(0.f, 0.f, sizeBefore.x, sizeBefore.y));
-
-				m_invalidRectangles.clear();
-				invalidate();
-				includeAnimationThread();
-			}
-
-			excludeAnimationThread();
-			uint32 numberOfEventsToProcess = m_animationUpdateQueue.size();
-			for (uint32 a = 0; a < numberOfEventsToProcess; a++)
-			{
-				m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval();
-				m_animationUpdateQueue.front()->updateAnimations();
-				m_animationUpdateQueue.front()->forget();
-				m_animationUpdateQueue.pop_front();
-			}
-			includeAnimationThread();
 		}
 
 		/*

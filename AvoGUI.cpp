@@ -18,6 +18,8 @@
 #endif
 #include <Windows.h>
 #undef DrawTextW
+#undef min
+#undef max
 
 #include <windowsx.h>
 #include <ShObjIdl.h>
@@ -850,7 +852,14 @@ namespace AvoGUI
 	{
 		if (m_gui)
 		{
-			Rectangle<float> shadowBounds(getAbsoluteShadowBounds().roundCoordinatesOutwards());
+			Rectangle<float> shadowBounds(getAbsoluteShadowBounds());
+
+			float dipToPixelFactor = m_gui->m_window->getDipToPixelFactor();
+			shadowBounds.left = floor(shadowBounds.left * dipToPixelFactor) / dipToPixelFactor;
+			shadowBounds.top = floor(shadowBounds.top * dipToPixelFactor) / dipToPixelFactor;
+			shadowBounds.right = ceil(shadowBounds.right * dipToPixelFactor) / dipToPixelFactor;
+			shadowBounds.bottom = ceil(shadowBounds.bottom * dipToPixelFactor) / dipToPixelFactor;
+
 			if (shadowBounds == m_lastInvalidatedShadowBounds || (!m_lastInvalidatedShadowBounds.getWidth() && !m_lastInvalidatedShadowBounds.getHeight()))
 			{
 				m_gui->invalidateRectangle(shadowBounds);
@@ -883,31 +892,31 @@ namespace AvoGUI
 #pragma region Platform-specific window implementations
 #ifdef _WIN32
 
-#define IUnknownDefinition(p_interfaceName)									\
-ULONG __stdcall AddRef() override											\
-{																			\
-	return InterlockedIncrement(&m_referenceCount);							\
-}																			\
-ULONG __stdcall Release() override											\
-{																			\
-	uint32 referenceCount = InterlockedDecrement(&m_referenceCount);		\
-	if (!referenceCount)													\
-	{																		\
-		delete this;														\
-		return 0;															\
-	}																		\
-	return referenceCount;													\
-}																			\
-HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
-{																			\
-	if (p_id == IID_IUnknown || p_id == __uuidof(p_interfaceName))			\
-	{																		\
-		*p_object = this;													\
-		AddRef();															\
-		return S_OK;														\
-	}																		\
-	*p_object = 0;															\
-	return E_NOINTERFACE;													\
+#define IUnknownDefinition(p_interfaceName)\
+ULONG __stdcall AddRef() override\
+{\
+	return InterlockedIncrement(&m_referenceCount);\
+}\
+ULONG __stdcall Release() override\
+{\
+	uint32 referenceCount = InterlockedDecrement(&m_referenceCount);\
+	if (!referenceCount)\
+	{\
+		delete this;\
+		return 0;\
+	}\
+	return referenceCount;\
+}\
+HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
+{\
+	if (p_id == IID_IUnknown || p_id == __uuidof(p_interfaceName))\
+	{\
+		*p_object = this;\
+		AddRef();\
+		return S_OK;\
+	}\
+	*p_object = 0;\
+	return E_NOINTERFACE;\
 }
 
 	//------------------------------
@@ -2322,7 +2331,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		{
 			setCursor(Cursor::Arrow);
 		}
-		WindowsWindow(Gui* p_gui, char const* p_title, uint32 p_width, uint32 p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) :
+		WindowsWindow(Gui* p_gui, char const* p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) :
 			m_gui(p_gui), m_crossPlatformStyles(p_styleFlags), 
 			m_mousePosition(-1, -1)
 		{
@@ -3818,7 +3827,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 					POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
 					ScreenToClient(m_windowHandle, &mousePosition);
 
-					WindowBorderArea area = m_gui->getWindowBorderAreaAtPosition(mousePosition.x, mousePosition.y);
+					WindowBorderArea area = m_gui->getWindowBorderAreaAtPosition(mousePosition.x/m_dipToPixelFactor, mousePosition.y/m_dipToPixelFactor);
 					if (IsMaximized(m_windowHandle) && area != WindowBorderArea::Dragging && area != WindowBorderArea::None)
 					{
 						return HTCLIENT;
@@ -6076,16 +6085,18 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 				float dpiFactor = getDpi() / USER_DEFAULT_SCREEN_DPI;
 
+				D2D1_SIZE_U size = m_context->GetPixelSize();
+
 				// If you're getting an exception below, you have three options; 
 				// 1. don't invalidate so damn many rectangles
 				// 2. increase the size of the static array above
 				// 3. make the array above dynamic (see the commented line above there), also don't forget to free it.
 				for (uint32 a = 0; a < p_updatedRectangles.size(); a++)
 				{
-					updatedRects[a].left = p_updatedRectangles[a].left*dpiFactor;
-					updatedRects[a].top = p_updatedRectangles[a].top*dpiFactor;
-					updatedRects[a].right = p_updatedRectangles[a].right*dpiFactor;
-					updatedRects[a].bottom = p_updatedRectangles[a].bottom*dpiFactor;
+					updatedRects[a].left = max(0.f, floor(p_updatedRectangles[a].left*dpiFactor));
+					updatedRects[a].top = max(0.f, floor(p_updatedRectangles[a].top*dpiFactor));
+					updatedRects[a].right = min(size.width, (uint32)ceil(p_updatedRectangles[a].right*dpiFactor));
+					updatedRects[a].bottom = min(size.height, (uint32)ceil(p_updatedRectangles[a].bottom*dpiFactor));
 				}
 
 				presentParameters.pDirtyRects = updatedRects;
@@ -6351,11 +6362,11 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		//------------------------------
 
-		void setSize(Point<uint32> const& p_size) override
+		void setSize(Point<float> const& p_size) override
 		{
 			setSize(p_size.x, p_size.y);
 		}
-		void setSize(uint32 p_width, uint32 p_height) override
+		void setSize(float p_width, float p_height) override
 		{
 			D2D1_SIZE_F oldSize = m_context->GetSize();
 			//if (oldSize.width >= p_width && oldSize.width < p_width + 200 &&
@@ -6379,6 +6390,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			m_targetWindowBitmap->Release();
 
 			float dpi = getDpi();
+
+			Point<float> newSize(p_width * dpi / USER_DEFAULT_SCREEN_DPI, p_height* dpi / USER_DEFAULT_SCREEN_DPI);
 
 			// Resize buffers, creating new ones
 			m_swapChain->ResizeBuffers(0, p_width*dpi / USER_DEFAULT_SCREEN_DPI, p_height*dpi / USER_DEFAULT_SCREEN_DPI, DXGI_FORMAT_UNKNOWN, 0);
@@ -6404,14 +6417,9 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				m_context->SetTarget(m_targetWindowBitmap);
 			}
 		}
-		Point<uint32> getSize() override
+		Point<float> getSize() override
 		{
-			IDXGISurface* dxgiBackBuffer;
-			m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
-			DXGI_SURFACE_DESC description;
-			dxgiBackBuffer->GetDesc(&description);
-			dxgiBackBuffer->Release();
-			return Point<uint32>(description.Width, description.Height);
+			return Point<float>(m_context->GetSize().width, m_context->GetSize().height);
 		}
 
 		//------------------------------
@@ -7210,11 +7218,11 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		//------------------------------
 
-		Image* createRectangleShadowImage(Point<uint32> const& p_size, float p_blur, Color const& p_color) override
+		Image* createRectangleShadowImage(Point<float> const& p_size, float p_blur, Color const& p_color) override
 		{
 			return createRectangleShadowImage(p_size.x, p_size.y, p_blur, p_color);
 		}
-		Image* createRectangleShadowImage(uint32 p_width, uint32 p_height, float p_blur, Color const& p_color) override
+		Image* createRectangleShadowImage(float p_width, float p_height, float p_blur, Color const& p_color) override
 		{
 			// I am proud of this algorithm I came up with when I was
 			// trying to make a GUI library using SDL, so why not use it here
@@ -7349,10 +7357,15 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			p_blur *= 2.f / 3.f;
 
+			float dpiX = 0;
+			float dpiY = 0;
+			m_context->GetDpi(&dpiX, &dpiY);
+			float dipToPixelFactor = dpiX / USER_DEFAULT_SCREEN_DPI;
+
 			ID2D1Image* targetBefore = 0;
 			m_context->GetTarget(&targetBefore);
+			m_context->SetDpi(USER_DEFAULT_SCREEN_DPI, USER_DEFAULT_SCREEN_DPI);
 
-			// Create input bitmap
 			ID2D1Bitmap1* inputBitmap;
 			m_context->CreateBitmap(
 				D2D1::SizeU(p_width, p_height),
@@ -7368,6 +7381,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			m_context->BeginDraw();
 			clear(Color(0.f));
 			m_context->EndDraw();
+			m_context->SetDpi(dpiX, dpiY);
 
 			//------------------------------
 			// Apply effect
@@ -7380,17 +7394,13 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_COLOR,
 				D2D1::Vector4F(p_color.red, p_color.green, p_color.blue, p_color.alpha)
 			);
-			shadowEffect->SetValue(D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, p_blur);
+			shadowEffect->SetValue(D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, p_blur / dipToPixelFactor);
 
 			//------------------------------
 			// Convert to bitmap
 
-			float dpiX = 0;
-			float dpiY = 0;
-			m_context->GetDpi(&dpiX, &dpiY);
-
 			ID2D1Bitmap1* outputBitmap;
-			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / USER_DEFAULT_SCREEN_DPI, p_height + 6.f * p_blur * dpiY / USER_DEFAULT_SCREEN_DPI);
+			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur, p_height + 6.f * p_blur);
 
 			m_context->CreateBitmap(
 				outputSize,
@@ -7404,7 +7414,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			m_context->SetTarget(outputBitmap);
 			m_context->BeginDraw();
 			clear();
-			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / USER_DEFAULT_SCREEN_DPI, p_blur * 3.f * dpiY / USER_DEFAULT_SCREEN_DPI));
+			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f / dipToPixelFactor, p_blur * 3.f / dipToPixelFactor));
 			m_context->EndDraw();
 			m_context->SetTarget(targetBefore);
 
@@ -7414,24 +7424,29 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 			return new Direct2DImage(outputBitmap);
 		}
-		Image* createRectangleShadowImage(Point<uint32> const& p_size, RectangleCorners const& p_corners, float p_blur, Color const& p_color) override
+		Image* createRectangleShadowImage(Point<float> const& p_size, RectangleCorners const& p_corners, float p_blur, Color const& p_color) override
 		{
 			return createRectangleShadowImage(p_size.x, p_size.y, p_corners, p_blur, p_color);
 		}
-		Image* createRectangleShadowImage(uint32 p_width, uint32 p_height, RectangleCorners const& p_corners, float p_blur, Color const& p_color) override
+		Image* createRectangleShadowImage(float p_width, float p_height, RectangleCorners const& p_corners, float p_blur, Color const& p_color) override
 		{
 			if (!p_width || !p_height || !p_color.alpha) return 0;
 
 			p_blur *= 2.f / 3.f;
 
+			float dpiX = 0;
+			float dpiY = 0;
+			m_context->GetDpi(&dpiX, &dpiY);
+			float dipToPixelFactor = dpiX / USER_DEFAULT_SCREEN_DPI;
+
 			ID2D1Image* targetBefore = 0;
 			m_context->GetTarget(&targetBefore);
-
-			// Create input bitmap
+			m_context->SetDpi(USER_DEFAULT_SCREEN_DPI, USER_DEFAULT_SCREEN_DPI);
+			
 			ID2D1Bitmap1* inputBitmap;
 			m_context->CreateBitmap(
 				D2D1::SizeU(p_width, p_height),
-				0, p_width * 4,
+				0, 0,
 				D2D1::BitmapProperties1(
 					D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_TARGET,
 					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
@@ -7445,6 +7460,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			setColor(Color(0.f));
 			fillRectangle(p_width, p_height, p_corners);
 			m_context->EndDraw();
+			m_context->SetDpi(dpiX, dpiY);
 
 			//------------------------------
 			// Appy effect
@@ -7457,17 +7473,13 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_COLOR,
 				D2D1::Vector4F(p_color.red, p_color.green, p_color.blue, p_color.alpha)
 			);
-			shadowEffect->SetValue(D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, p_blur);
+			shadowEffect->SetValue(D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, p_blur / dipToPixelFactor);
 
 			//------------------------------
 			// Convert to bitmap
 
-			float dpiX = 0;
-			float dpiY = 0;
-			m_context->GetDpi(&dpiX, &dpiY);
-
 			ID2D1Bitmap1* outputBitmap;
-			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / USER_DEFAULT_SCREEN_DPI, p_height + 6.f * p_blur * dpiY / USER_DEFAULT_SCREEN_DPI);
+			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f*p_blur, p_height + 6.f * p_blur);
 
 			m_context->CreateBitmap(
 				outputSize,
@@ -7481,7 +7493,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			m_context->SetTarget(outputBitmap);
 			m_context->BeginDraw();
 			clear();
-			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / USER_DEFAULT_SCREEN_DPI, p_blur * 3.f * dpiY / USER_DEFAULT_SCREEN_DPI));
+			m_context->DrawImage(shadowEffect, D2D1::Point2F(3.f * p_blur / dipToPixelFactor, 3.f * p_blur / dipToPixelFactor));
 			m_context->EndDraw();
 			m_context->SetTarget(targetBefore);
 
@@ -7492,24 +7504,29 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			return new Direct2DImage(outputBitmap);
 		}
 
-		Image* createRoundedRectangleShadowImage(Point<uint32> const& p_size, float p_radius, float p_blur, Color const& p_color)
+		Image* createRoundedRectangleShadowImage(Point<float> const& p_size, float p_radius, float p_blur, Color const& p_color)
 		{
 			return createRoundedRectangleShadowImage(p_size.x, p_size.y, p_radius, p_blur, p_color);
 		}
-		Image* createRoundedRectangleShadowImage(uint32 p_width, uint32 p_height, float p_radius, float p_blur, Color const& p_color)
+		Image* createRoundedRectangleShadowImage(float p_width, float p_height, float p_radius, float p_blur, Color const& p_color)
 		{
 			if (!p_width || !p_height || !p_color.alpha) return 0;
 
 			p_blur *= 2.f / 3.f;
 
+			float dpiX = 0;
+			float dpiY = 0;
+			m_context->GetDpi(&dpiX, &dpiY);
+			float dipToPixelFactor = dpiX / USER_DEFAULT_SCREEN_DPI;
+
 			ID2D1Image* targetBefore = 0;
 			m_context->GetTarget(&targetBefore);
+			m_context->SetDpi(USER_DEFAULT_SCREEN_DPI, USER_DEFAULT_SCREEN_DPI);
 
-			// Create input bitmap
 			ID2D1Bitmap1* inputBitmap;
 			m_context->CreateBitmap(
 				D2D1::SizeU(p_width, p_height),
-				0, p_width * 4,
+				0, 0,
 				D2D1::BitmapProperties1(
 					D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_TARGET,
 					D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
@@ -7523,6 +7540,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			setColor(Color(0.f));
 			fillRoundedRectangle(0, 0, p_width, p_height, p_radius);
 			m_context->EndDraw();
+			m_context->SetDpi(dpiX, dpiY);
 
 			//------------------------------
 			// Appy effect
@@ -7535,17 +7553,13 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_COLOR,
 				D2D1::Vector4F(p_color.red, p_color.green, p_color.blue, p_color.alpha)
 			);
-			shadowEffect->SetValue(D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, p_blur);
+			shadowEffect->SetValue(D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, p_blur / dipToPixelFactor);
 
 			//------------------------------
 			// Convert to bitmap
 
-			float dpiX = 0;
-			float dpiY = 0;
-			m_context->GetDpi(&dpiX, &dpiY);
-
 			ID2D1Bitmap1* outputBitmap;
-			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur * dpiX / USER_DEFAULT_SCREEN_DPI, p_height + 6.f * p_blur * dpiY / USER_DEFAULT_SCREEN_DPI);
+			D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur, p_height + 6.f * p_blur);
 
 			m_context->CreateBitmap(
 				outputSize,
@@ -7559,7 +7573,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			m_context->SetTarget(outputBitmap);
 			m_context->BeginDraw();
 			clear();
-			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f * dpiX / USER_DEFAULT_SCREEN_DPI, p_blur * 3.f * dpiY / USER_DEFAULT_SCREEN_DPI));
+			m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f / dipToPixelFactor, p_blur * 3.f / dipToPixelFactor));
 			m_context->EndDraw();
 			m_context->SetTarget(targetBefore);
 
@@ -8216,7 +8230,33 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 
 		while (!m_willClose)
 		{
-			updateQueuedAnimations();
+			if (m_hasNewWindowSize)
+			{
+				excludeAnimationThread();
+				m_hasNewWindowSize = false;
+
+				Point<float> sizeBefore = getBottomRight();
+				m_drawingContext->setSize(m_newWindowSize.x, m_newWindowSize.y);
+				m_bounds.set(0, 0, m_newWindowSize.x, m_newWindowSize.y);
+				m_lastWindowSize = m_newWindowSize;
+
+				sendBoundsChangeEvents(Rectangle<float>(0.f, 0.f, sizeBefore.x, sizeBefore.y));
+
+				m_invalidRectangles.clear();
+				invalidate();
+				includeAnimationThread();
+			}
+
+			excludeAnimationThread();
+			uint32 numberOfEventsToProcess = m_animationUpdateQueue.size();
+			for (uint32 a = 0; a < numberOfEventsToProcess; a++)
+			{
+				m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval();
+				m_animationUpdateQueue.front()->updateAnimations();
+				m_animationUpdateQueue.front()->forget();
+				m_animationUpdateQueue.pop_front();
+			}
+			includeAnimationThread();
 
 			if (m_invalidRectangles.size())
 			{
@@ -8244,7 +8284,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 				}
 			}
 			auto timeAfter = std::chrono::steady_clock::now();
-			syncInterval = max(1000000, syncInterval + 0.5 * (16666667 - (timeAfter - timeBefore).count()));
+			syncInterval = max(1000000, int32(syncInterval + 0.5 * (16666667 - (timeAfter - timeBefore).count())));
 			timeBefore = timeAfter;
 		}
 
@@ -8441,11 +8481,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 		{
 			listener->handleWindowSizeChange(p_event);
 		}
-
-		//if (!m_hasAnimationLoopStarted)
-		//{
-		//	m_hasAnimationLoopStarted = true;
-		//}
 	}
 	void Gui::handleWindowFocus(WindowEvent const& p_event)
 	{
@@ -9195,6 +9230,17 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 			return;
 		}
 
+		//------------------------------
+		// Here, we're rounding the coordinates to whole device pixels so that anti aliased clipping doesn't leave traces at the edges.
+
+		float dipToPixelFactor = m_window->getDipToPixelFactor();
+		p_rectangle.left = floor(p_rectangle.left * dipToPixelFactor) / dipToPixelFactor;
+		p_rectangle.top = floor(p_rectangle.top * dipToPixelFactor) / dipToPixelFactor;
+		p_rectangle.right = ceil(p_rectangle.right * dipToPixelFactor) / dipToPixelFactor;
+		p_rectangle.bottom = ceil(p_rectangle.bottom * dipToPixelFactor) / dipToPixelFactor;
+
+		//------------------------------
+
 		int32 rectangleIndex = -1;
 		Rectangle<float>* rectangle = 0;
 
@@ -9326,6 +9372,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override	\
 								{
 									m_drawingContext->resetTransformations();
 									m_drawingContext->setOrigin(view->getAbsoluteTopLeft());
+									m_drawingContext->setOpacity(1.f);
 									view->drawOverlay(m_drawingContext, targetRectangle);
 
 									m_drawingContext->popClipShape();
