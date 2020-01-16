@@ -4221,6 +4221,7 @@ namespace AvoGUI
 		//------------------------------
 
 		bool m_isMouseHovering;
+		bool m_isDraggingOver;
 
 		friend class Gui;
 
