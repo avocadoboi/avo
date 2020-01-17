@@ -1197,16 +1197,31 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		uint32 m_referenceCount;
 		Gui* m_gui;
 
+		IDragSourceHelper* m_dragWindowHelper;
+
 	public:
 		OleDropSource(Gui* p_gui) :
 			m_referenceCount(1), m_gui(p_gui)
 		{
-
+			CoCreateInstance(CLSID_DragDropHelper, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_sourceHelper));
+		}
+		~OleDropSource()
+		{
+			m_dragWindowHelper->Release();
 		}
 
 		//------------------------------
 
 		IUnknownDefinition(IDropSource)
+
+		//------------------------------
+
+		void setDragWindow(HWND p_window, Point<float> const& p_cursorPosition, IDataObject* p_dataObject)
+		{
+			POINT position = { p_cursorPosition.x, p_cursorPosition.y };
+
+			m_dragWindowHelper->InitializeFromWindow(p_window, &position, p_dataObject);
+		}
 
 		//------------------------------
 
@@ -1791,7 +1806,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		{
 			POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
 			m_dropImageViewer->DragEnter((HWND)m_gui->getWindow()->getNativeHandle(), p_dataObject, &clientMousePosition, *p_effect);
-
 			m_dragDropEvent.setOleDataObject(p_dataObject);
 
 			//------------------------------
@@ -2250,7 +2264,10 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 				event.mouseButton = MouseButton::X1;
 			}
 
-			m_gui->handleGlobalMouseUp(event);
+			if (event.mouseButton != MouseButton::None)
+			{
+				m_gui->handleGlobalMouseUp(event);
+			}
 
 			DWORD dropOperation = DROPEFFECT_NONE;
 			DoDragDrop(p_dataObject, m_oleDropSource, DROPEFFECT_MOVE | DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
