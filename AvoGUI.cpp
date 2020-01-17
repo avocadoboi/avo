@@ -1035,17 +1035,16 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 	{
 	private:
 		uint32 m_referenceCount;
-		uint32 m_numberOfFormats;
 
-		FORMATETC* m_formats;
-		STGMEDIUM* m_mediums;
+		std::vector<FORMATETC> m_formats;
+		std::vector<STGMEDIUM> m_mediums;
 
 	public:
 		OleDataObject(FORMATETC* p_formats, STGMEDIUM* p_mediums, uint32 p_numberOfFormats) :
-			m_referenceCount(1), m_numberOfFormats(p_numberOfFormats)
+			m_referenceCount(1)
 		{
-			m_formats = new FORMATETC[p_numberOfFormats];
-			m_mediums = new STGMEDIUM[p_numberOfFormats];
+			m_formats.resize(p_numberOfFormats);
+			m_mediums.resize(p_numberOfFormats);
 
 			for (uint32 a = 0; a < p_numberOfFormats; a++)
 			{
@@ -1055,13 +1054,10 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		}
 		~OleDataObject()
 		{
-			delete[] m_formats;
-		
-			for (uint32 a = 0; a < m_numberOfFormats; a++)
+			for (STGMEDIUM& medium : m_mediums)
 			{
-				ReleaseStgMedium(m_mediums + a);
+				ReleaseStgMedium(&medium);
 			}
-			delete[] m_mediums;
 		}
 
 		//------------------------------
@@ -1070,13 +1066,22 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 		//------------------------------
 
-		HRESULT __stdcall SetData(FORMATETC* p_format, STGMEDIUM* p_medium, BOOL fRelease) override
+		HRESULT __stdcall SetData(FORMATETC* p_format, STGMEDIUM* p_medium, BOOL p_willRelease) override
 		{
-			return E_NOTIMPL;
+			if (p_willRelease)
+			{
+				m_formats.push_back(*p_format);
+				m_mediums.push_back(*p_medium);
+				return S_OK;
+			}
+			else
+			{
+				return E_NOTIMPL;
+			}
 		}
 		HRESULT __stdcall QueryGetData(FORMATETC* p_format) override
 		{
-			for (uint32 a = 0; a < m_numberOfFormats; a++)
+			for (uint32 a = 0; a < m_formats.size(); a++)
 			{
 				if (m_formats[a].cfFormat == p_format->cfFormat &&
 					m_formats[a].dwAspect == p_format->dwAspect &&
@@ -1090,7 +1095,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		}
 		HRESULT __stdcall GetData(FORMATETC* p_format, STGMEDIUM* p_medium) override
 		{
-			for (uint32 a = 0; a < m_numberOfFormats; a++)
+			for (uint32 a = 0; a < m_formats.size(); a++)
 			{
 				if (m_formats[a].cfFormat == p_format->cfFormat &&
 					m_formats[a].dwAspect == p_format->dwAspect &&
@@ -1128,7 +1133,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		// Non-allocating version of GetData
 		HRESULT __stdcall GetDataHere(FORMATETC* p_format, STGMEDIUM* p_medium) override
 		{
-			for (uint32 a = 0; a < m_numberOfFormats; a++)
+			for (uint32 a = 0; a < m_formats.size(); a++)
 			{
 				if (m_formats[a].cfFormat == p_format->cfFormat &&
 					m_formats[a].dwAspect == p_format->dwAspect &&
@@ -1166,7 +1171,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		{
 			if (p_direction == DATADIR_GET)
 			{
-				*p_formatEnumerator = new OleFormatEnumerator(m_formats, m_numberOfFormats);
+				*p_formatEnumerator = new OleFormatEnumerator(m_formats.data(), m_formats.size());
 				return S_OK;
 			}
 			
@@ -1203,7 +1208,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		OleDropSource(Gui* p_gui) :
 			m_referenceCount(1), m_gui(p_gui)
 		{
-			CoCreateInstance(CLSID_DragDropHelper, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_sourceHelper));
+			CoCreateInstance(CLSID_DragDropHelper, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_dragWindowHelper));
 		}
 		~OleDropSource()
 		{
@@ -1216,11 +1221,17 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 		//------------------------------
 
-		void setDragWindow(HWND p_window, Point<float> const& p_cursorPosition, IDataObject* p_dataObject)
+		void setDragImage(Image* p_image, Point<float> const& p_cursorPosition, IDataObject* p_dataObject)
 		{
-			POINT position = { p_cursorPosition.x, p_cursorPosition.y };
+			D2D_SIZE_U size = ((ID2D1Bitmap1*)p_image->getHandle())->GetPixelSize();
+			float dipToPixelFactor = m_gui->getWindow()->getDipToPixelFactor();
 
-			m_dragWindowHelper->InitializeFromWindow(p_window, &position, p_dataObject);
+			SHDRAGIMAGE dragImage;
+			dragImage.crColorKey = RGB(0, 0, 0);
+			dragImage.hbmpDragImage = (HBITMAP)m_gui->getDrawingContext()->createNativeImageFromImage(p_image);
+			dragImage.ptOffset = { long(p_cursorPosition.x*dipToPixelFactor), long(p_cursorPosition.y * dipToPixelFactor) };
+			dragImage.sizeDragImage = { (long)size.width, (long)size.height };
+			HRESULT result = m_dragWindowHelper->InitializeFromBitmap(&dragImage, p_dataObject);
 		}
 
 		//------------------------------
@@ -2235,7 +2246,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			}
 		}
 
-		uint32 doDragDrop(OleDataObject* p_dataObject)
+		uint32 doDragDrop(OleDataObject* p_dataObject, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
 		{
 			Point<uint32> mousePositionBefore(m_mousePosition);
 
@@ -2263,10 +2274,14 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			{
 				event.mouseButton = MouseButton::X1;
 			}
-
 			if (event.mouseButton != MouseButton::None)
 			{
 				m_gui->handleGlobalMouseUp(event);
+			}
+
+			if (p_dragImage)
+			{
+				m_oleDropSource->setDragImage(p_dragImage, p_dragImageCursorPosition, p_dataObject);
 			}
 
 			DWORD dropOperation = DROPEFFECT_NONE;
@@ -3107,7 +3122,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 		//------------------------------
 
-		DragDropOperation dragAndDropString(std::string const& p_string) override
+		DragDropOperation dragAndDropString(std::string const& p_string, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition) override
 		{
 			FORMATETC format;
 			format.cfFormat = CF_UNICODETEXT;
@@ -3128,7 +3143,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 			OleDataObject* dataObject = new OleDataObject(&format, &medium, 1);
 
-			uint32 dropOperation = doDragDrop(dataObject);
+			uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
 
 			dataObject->Release();
 
@@ -3144,7 +3159,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			return DragDropOperation::None;
 		}
 
-		DragDropOperation dragAndDropImage(Image* p_image) override
+		DragDropOperation dragAndDropImage(Image* p_image, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition) override
 		{
 			FORMATETC formats[2];
 			STGMEDIUM mediums[2];
@@ -3182,7 +3197,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			
 			OleDataObject* dataObject = new OleDataObject(formats, mediums, 2);
 
-			uint32 dropOperation = doDragDrop(dataObject);
+			uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
 
 			dataObject->Release();
 
@@ -3197,7 +3212,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			}
 			return DragDropOperation::None;
 		}
-		DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) override
+		DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::string const& p_name, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition) override
 		{
 			FORMATETC formats[3];
 			STGMEDIUM mediums[3];
@@ -3248,7 +3263,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 			OleDataObject* dataObject = new OleDataObject(formats, mediums, 3);
 
-			uint32 dropOperation = doDragDrop(dataObject);
+			uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
 
 			dataObject->Release();
 
@@ -3263,11 +3278,11 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			}
 			return DragDropOperation::None;
 		}
-		DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name)
+		DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
 		{
-			return dragAndDropFile(p_data.data(), p_data.size(), p_name);
+			return dragAndDropFile(p_data.data(), p_data.size(), p_name, p_dragImage, p_dragImageCursorPosition);
 		}
-		DragDropOperation dragAndDropFile(std::string const& p_path)
+		DragDropOperation dragAndDropFile(std::string const& p_path, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
 		{
 			std::filesystem::path path(std::filesystem::u8path(p_path));
 			std::wstring widePathString = path.wstring();
@@ -3350,7 +3365,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 				dataObject = new OleDataObject(formats, mediums, 2);
 			}
 
-			uint32 dropOperation = doDragDrop(dataObject);
+			uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
 
 			dataObject->Release();
 
@@ -3366,11 +3381,11 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			return DragDropOperation::None;
 		}
 
-		DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_pathStrings)
+		DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_pathStrings, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
 		{
-			return dragAndDropFiles((std::string*)p_pathStrings.data(), p_pathStrings.size());
+			return dragAndDropFiles((std::string*)p_pathStrings.data(), p_pathStrings.size(), p_dragImage, p_dragImageCursorPosition);
 		}
-		DragDropOperation dragAndDropFiles(std::string* p_pathStrings, uint32 p_numberOfPaths)
+		DragDropOperation dragAndDropFiles(std::string* p_pathStrings, uint32 p_numberOfPaths, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
 		{
 			FORMATETC format;
 			STGMEDIUM medium;
@@ -3418,7 +3433,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 			OleDataObject* dataObject = new OleDataObject(&format, &medium, 1);
 
-			uint32 dropOperation = doDragDrop(dataObject);
+			uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
 
 			dataObject->Release();
 
@@ -3433,7 +3448,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			}
 			return DragDropOperation::None;
 		}
-		DragDropOperation dragAndDropFiles(char const* const* p_pathStrings, uint32 p_numberOfPaths)
+		DragDropOperation dragAndDropFiles(char const* const* p_pathStrings, uint32 p_numberOfPaths, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
 		{
 			FORMATETC format;
 			STGMEDIUM medium;
@@ -3481,7 +3496,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 			OleDataObject* dataObject = new OleDataObject(&format, &medium, 1);
 
-			uint32 dropOperation = doDragDrop(dataObject);
+			uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
 
 			dataObject->Release();
 
@@ -4299,7 +4314,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 	class Direct2DImage : public Image
 	{
 	private:
-		ID2D1Bitmap* m_image;
+		ID2D1Bitmap1* m_image;
 
 		ImageScalingMethod m_scalingMethod;
 		ImageBoundsSizing m_boundsSizing;
@@ -4309,7 +4324,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		float m_opacity;
 
 	public:
-		Direct2DImage(ID2D1Bitmap* p_image) :
+		Direct2DImage(ID2D1Bitmap1* p_image) :
 			m_image(p_image), 
 			m_scalingMethod(ImageScalingMethod::Smooth), m_boundsSizing(ImageBoundsSizing::Stretch), m_boundsPositioning(0.5f, 0.5f), 
 			m_cropRectangle(0.f, 0.f, p_image->GetSize().width, p_image->GetSize().height), m_opacity(1.f)
@@ -7386,7 +7401,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 			//------------------------------
 
-			ID2D1Bitmap* outputBitmap;
+			ID2D1Bitmap1* outputBitmap;
 			m_context->CreateBitmap(
 				D2D1::SizeU(p_width, p_height),
 				pixels, 4*p_width,
@@ -7667,7 +7682,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 					s_imagingFactory->CreateFormatConverter(&formatConverter);
 					formatConverter->Initialize(frame, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, 0, 0.f, WICBitmapPaletteTypeMedianCut);
 
-					ID2D1Bitmap* bitmap;
+					ID2D1Bitmap1* bitmap;
 					m_context->CreateBitmapFromWicBitmap(formatConverter, 0, &bitmap);
 					if (bitmap)
 					{
@@ -7705,7 +7720,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 				s_imagingFactory->CreateFormatConverter(&formatConverter);
 				formatConverter->Initialize(frame, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, 0, 0.f, WICBitmapPaletteTypeMedianCut);
 
-				ID2D1Bitmap* bitmap;
+				ID2D1Bitmap1* bitmap;
 				m_context->CreateBitmapFromWicBitmap(formatConverter, 0, &bitmap);
 				if (bitmap)
 				{
@@ -7738,7 +7753,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			s_imagingFactory->CreateFormatConverter(&formatConverter);
 			formatConverter->Initialize(wicBitmap, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, 0, 0.f, WICBitmapPaletteTypeMedianCut);
 
-			ID2D1Bitmap* bitmap;
+			ID2D1Bitmap1* bitmap;
 			m_context->CreateBitmapFromWicBitmap(formatConverter, &bitmap);
 
 			formatConverter->Release();
@@ -7761,7 +7776,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 			m_currentBrush->SetOpacity(m_brushOpacity);
 			m_context->DrawBitmap(
-				(ID2D1Bitmap*)p_image->getHandle(),
+				(ID2D1Bitmap1*)p_image->getHandle(),
 				D2D1::RectF(innerBounds.left, innerBounds.top, innerBounds.right, innerBounds.bottom),
 				p_image->getOpacity()* m_currentBrush->GetOpacity() * p_multiplicativeOpacity,
 				p_image->getScalingMethod() == ImageScalingMethod::Pixelated ? D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR : D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
@@ -7773,7 +7788,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 		std::string createImageFileData(Image* p_image, ImageFormat p_format) override
 		{
-			ID2D1Bitmap* direct2dBitmap = (ID2D1Bitmap*)p_image->getHandle();
+			ID2D1Bitmap1* direct2dBitmap = (ID2D1Bitmap1*)p_image->getHandle();
 
 			IStream* outputStream = SHCreateMemStream(0, 0);
 
@@ -7795,8 +7810,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			}
 
 			IWICBitmapEncoder* bitmapEncoder = 0;
-			s_imagingFactory->CreateEncoder(GUID_ContainerFormatPng, 0, &bitmapEncoder);
-			bitmapEncoder->Initialize(outputStream, WICBitmapEncoderCacheInMemory);
+			s_imagingFactory->CreateEncoder(formatGuid, 0, &bitmapEncoder);
+			bitmapEncoder->Initialize(outputStream, WICBitmapEncoderNoCache);
 
 			IWICBitmapFrameEncode* frameEncoder = 0;
 			bitmapEncoder->CreateNewFrame(&frameEncoder, 0);
@@ -7839,7 +7854,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		}
 		void* createImageFileDataNativeStream(Image* p_image, ImageFormat p_format) override
 		{
-			ID2D1Bitmap* direct2dBitmap = (ID2D1Bitmap*)p_image->getHandle();
+			ID2D1Bitmap1* direct2dBitmap = (ID2D1Bitmap1*)p_image->getHandle();
 
 			IStream* outputStream = SHCreateMemStream(0, 0);
 
@@ -7861,7 +7876,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			}
 
 			IWICBitmapEncoder* bitmapEncoder = 0;
-			s_imagingFactory->CreateEncoder(GUID_ContainerFormatPng, 0, &bitmapEncoder);
+			s_imagingFactory->CreateEncoder(formatGuid, 0, &bitmapEncoder);
 			bitmapEncoder->Initialize(outputStream, WICBitmapEncoderNoCache);
 
 			IWICBitmapFrameEncode* frameEncoder = 0;
@@ -7888,7 +7903,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		}
 		void saveImageToFile(Image* p_image, std::string const& p_filePath, ImageFormat p_format = ImageFormat::Png) override
 		{
-			ID2D1Bitmap* direct2dBitmap = (ID2D1Bitmap*)p_image->getHandle();
+			ID2D1Bitmap1* direct2dBitmap = (ID2D1Bitmap1*)p_image->getHandle();
 
 			IStream* outputStream = 0;
 			SHCreateStreamOnFileW(convertUtf8ToUtf16(p_filePath).c_str(), STGM_CREATE | STGM_WRITE, &outputStream);
@@ -7911,8 +7926,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			}
 
 			IWICBitmapEncoder* bitmapEncoder = 0;
-			s_imagingFactory->CreateEncoder(GUID_ContainerFormatPng, 0, &bitmapEncoder);
-			bitmapEncoder->Initialize(outputStream, WICBitmapEncoderCacheInMemory);
+			s_imagingFactory->CreateEncoder(formatGuid, 0, &bitmapEncoder);
+			bitmapEncoder->Initialize(outputStream, WICBitmapEncoderNoCache);
 
 			IWICBitmapFrameEncode* frameEncoder = 0;
 			bitmapEncoder->CreateNewFrame(&frameEncoder, 0);
@@ -7935,6 +7950,49 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			bitmapEncoder->Release();
 
 			outputStream->Release();
+		}
+
+		//------------------------------
+
+		void* createNativeImageFromImage(Image* p_image) override
+		{
+			ID2D1Bitmap1* sourceBitmap = (ID2D1Bitmap1*)p_image->getHandle();
+			D2D1_SIZE_U size = sourceBitmap->GetPixelSize();
+
+			ID2D1Bitmap1* cpuBitmap = 0;
+			if (sourceBitmap->GetOptions() & D2D1_BITMAP_OPTIONS_CPU_READ)
+			{
+				cpuBitmap = sourceBitmap;
+				cpuBitmap->AddRef();
+			}
+			else
+			{
+				m_context->CreateBitmap(size, 0, 0, D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_CPU_READ | D2D1_BITMAP_OPTIONS_CANNOT_DRAW, sourceBitmap->GetPixelFormat()), &cpuBitmap);
+			}
+
+			D2D1_POINT_2U destinationPoint{ 0, 0 };
+			D2D1_RECT_U sourceRectangle{ 0, 0, size.width, size.height };
+			cpuBitmap->CopyFromBitmap(&destinationPoint, sourceBitmap, &sourceRectangle);
+
+			// Pixel data
+			D2D1_MAPPED_RECT mappedRectangle;
+			cpuBitmap->Map(D2D1_MAP_OPTIONS_READ, &mappedRectangle);
+			
+			BITMAPINFOHEADER bitmapInfoHeader = { 0 };
+			bitmapInfoHeader.biSize = sizeof(BITMAPINFOHEADER);
+			bitmapInfoHeader.biWidth = size.width;
+			bitmapInfoHeader.biHeight = size.height;
+			bitmapInfoHeader.biBitCount = 32;
+			bitmapInfoHeader.biCompression = BI_RGB;
+			bitmapInfoHeader.biPlanes = 1;
+			HBITMAP result = CreateDIBitmap(GetDC((HWND)m_window->getNativeHandle()), &bitmapInfoHeader, CBM_INIT, mappedRectangle.bits, (BITMAPINFO*)&bitmapInfoHeader, DIB_RGB_COLORS);
+
+			cpuBitmap->Unmap();
+			cpuBitmap->Release();
+
+			saveImageToFile(p_image, "yes.png", ImageFormat::Png);
+
+			return result;
 		}
 
 		//------------------------------
