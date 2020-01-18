@@ -7980,8 +7980,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			
 			BITMAPINFOHEADER bitmapInfoHeader = { 0 };
 			bitmapInfoHeader.biSize = sizeof(BITMAPINFOHEADER);
-			bitmapInfoHeader.biWidth = size.width;
-			bitmapInfoHeader.biHeight = size.height;
+			bitmapInfoHeader.biWidth = ceil(size.width/16.f)*16;
+			bitmapInfoHeader.biHeight = -(long)size.height;
 			bitmapInfoHeader.biBitCount = 32;
 			bitmapInfoHeader.biCompression = BI_RGB;
 			bitmapInfoHeader.biPlanes = 1;
@@ -7989,8 +7989,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 			cpuBitmap->Unmap();
 			cpuBitmap->Release();
-
-			saveImageToFile(p_image, "yes.png", ImageFormat::Png);
 
 			return result;
 		}
