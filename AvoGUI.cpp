@@ -2246,7 +2246,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			}
 		}
 
-		OleDataObject* createStringOleDataObject(char const* p_string, uint32 p_length)
+		OleDataObject* createStringOleDataObject(char const* p_string, uint32 p_length) const
 		{
 			FORMATETC format;
 			format.cfFormat = CF_UNICODETEXT;
@@ -2265,7 +2265,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 			return new OleDataObject(&format, &medium, 1);
 		}
-		OleDataObject* createStringOleDataObject(wchar_t const* p_string, uint32 p_length)
+		OleDataObject* createStringOleDataObject(wchar_t const* p_string, uint32 p_length) const
 		{
 			FORMATETC format;
 			format.cfFormat = CF_UNICODETEXT;
@@ -2284,7 +2284,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 			return new OleDataObject(&format, &medium, 1);
 		}
-		OleDataObject* createImageOleDataObject(Image* p_image)
+		OleDataObject* createImageOleDataObject(Image* p_image) const
 		{
 			FORMATETC formats[2];
 			STGMEDIUM mediums[2];
@@ -2320,7 +2320,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 			return new OleDataObject(formats, mediums, 2);
 		}
-		OleDataObject* createFileOleDataObject(char const* p_data, uint32 p_dataSize, std::string const& p_name)
+		OleDataObject* createFileOleDataObject(char const* p_data, uint32 p_dataSize, std::string const& p_name) const
 		{
 			FORMATETC formats[3];
 			STGMEDIUM mediums[3];
@@ -2369,7 +2369,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 			return new OleDataObject(formats, mediums, 3);
 		}
-		OleDataObject* createFileOleDataObject(std::string const& p_path)
+		OleDataObject* createFileOleDataObject(std::string const& p_path) const
 		{
 			std::filesystem::path path(std::filesystem::u8path(p_path));
 			std::wstring widePathString = path.wstring();
@@ -2449,7 +2449,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			}
 			return new OleDataObject(formats, mediums, 2);
 		}
-		OleDataObject* createFilesOleDataObject(std::string* p_pathStrings, uint32 p_numberOfPaths)
+		OleDataObject* createFilesOleDataObject(std::string* p_pathStrings, uint32 p_numberOfPaths) const
 		{
 			FORMATETC format;
 			STGMEDIUM medium;
@@ -2497,7 +2497,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 			return new OleDataObject(&format, &medium, 1);
 		}
-		OleDataObject* createFilesOleDataObject(char const* const* p_pathStrings, uint32 p_numberOfPaths)
+		OleDataObject* createFilesOleDataObject(char const* const* p_pathStrings, uint32 p_numberOfPaths) const
 		{
 			FORMATETC format;
 			STGMEDIUM medium;
@@ -3571,73 +3571,73 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 		//------------------------------
 
-		void setClipboardString(std::wstring const& p_string)
+		void setClipboardString(std::wstring const& p_string) const override
 		{
 			setClipboardString(p_string.data(), p_string.size());
 		}
-		void setClipboardString(wchar_t const* p_string, uint32 p_length)
+		void setClipboardString(wchar_t const* p_string) const override
 		{
 			setClipboardString(p_string, wcslen(p_string));
 		}
-		void setClipboardString(wchar_t const* p_string, uint32 p_length)
+		void setClipboardString(wchar_t const* p_string, uint32 p_length) const override
 		{
 			OleDataObject* dataObject = createStringOleDataObject(p_string, p_length);
 			OleSetClipboard(dataObject);
 		}
 
-		void setClipboardString(std::string const& p_string)
+		void setClipboardString(std::string const& p_string) const override
 		{
 			setClipboardString(p_string.data(), p_string.size());
 		}
-		void setClipboardString(char const* p_string)
+		void setClipboardString(char const* p_string) const override
 		{
 			setClipboardString(p_string, strlen(p_string));
 		}
-		void setClipboardString(char const* p_string, uint32 p_length)
+		void setClipboardString(char const* p_string, uint32 p_length) const override
 		{
 			OleDataObject* dataObject = createStringOleDataObject(p_string, p_length);
 			OleSetClipboard(dataObject);
 		}
 
-		void setClipboardImage(Image* p_image) override
+		void setClipboardImage(Image* p_image) const override
 		{
 			OleDataObject* dataObject = createImageOleDataObject(p_image);
 			OleSetClipboard(dataObject);
 		}
 
-		void setClipboardFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) override
+		void setClipboardFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) const override
 		{
 			OleDataObject* dataObject = createFileOleDataObject(p_data, p_dataSize, p_name);
 			OleSetClipboard(dataObject);
 		}
-		void setClipboardFile(std::string const& p_data, std::string const& p_name) override
+		void setClipboardFile(std::string const& p_data, std::string const& p_name) const override
 		{
 			OleDataObject* dataObject = createFileOleDataObject(p_data.data(), p_data.size(), p_name);
 			OleSetClipboard(dataObject);
 		}
-		void setClipboardFile(std::string const& p_path) override
+		void setClipboardFile(std::string const& p_path) const override
 		{
 			OleDataObject* dataObject = createFileOleDataObject(p_path);
 			OleSetClipboard(dataObject);
 		}
 
-		void setClipboardFiles(std::vector<std::string> const& p_paths) override
+		void setClipboardFiles(std::vector<std::string> const& p_paths) const override
 		{
 			OleDataObject* dataObject = createFilesOleDataObject((std::string*)p_paths.data(), p_paths.size());
 			OleSetClipboard(dataObject);
 		}
-		void setClipboardFiles(std::string* p_paths, uint32 p_numberOfPaths) override
+		void setClipboardFiles(std::string* p_paths, uint32 p_numberOfPaths) const override
 		{
 			OleDataObject* dataObject = createFilesOleDataObject(p_paths, p_numberOfPaths);
 			OleSetClipboard(dataObject);
 		}
-		void setClipboardFiles(char const* const* p_paths, uint32 p_numberOfPaths) override
+		void setClipboardFiles(char const* const* p_paths, uint32 p_numberOfPaths) const override
 		{
 			OleDataObject* dataObject = createFilesOleDataObject(p_paths, p_numberOfPaths);
 			OleSetClipboard(dataObject);
 		}
 
-		ClipboardData* getClipboardData()
+		ClipboardData* getClipboardData() const
 		{
 			IDataObject* dataObject = 0;
 			OleGetClipboard(&dataObject);

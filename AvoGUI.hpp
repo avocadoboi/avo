@@ -7226,15 +7226,15 @@ namespace AvoGUI
 		*/
 		virtual void setClipboardString(char const* p_string, uint32 p_length) const = 0;
 
-		virtual void setClipboardImage(Image* p_image) = 0;
+		virtual void setClipboardImage(Image* p_image) const = 0;
 
-		virtual void setClipboardFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) = 0;
-		virtual void setClipboardFile(std::string const& p_data, std::string const& p_name) = 0;
-		virtual void setClipboardFile(std::string const& p_path) = 0;
+		virtual void setClipboardFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) const = 0;
+		virtual void setClipboardFile(std::string const& p_data, std::string const& p_name) const = 0;
+		virtual void setClipboardFile(std::string const& p_path) const = 0;
 
-		virtual void setClipboardFiles(std::vector<std::string> const& p_paths) = 0;
-		virtual void setClipboardFiles(std::string* p_paths, uint32 p_numberOfPaths) = 0;
-		virtual void setClipboardFiles(char const* const* p_paths, uint32 p_numberOfPaths) = 0;
+		virtual void setClipboardFiles(std::vector<std::string> const& p_paths) const = 0;
+		virtual void setClipboardFiles(std::string* p_paths, uint32 p_numberOfPaths) const = 0;
+		virtual void setClipboardFiles(char const* const* p_paths, uint32 p_numberOfPaths) const = 0;
 
 		/*
 			Returns the data that is currently stored on the clipboard.
