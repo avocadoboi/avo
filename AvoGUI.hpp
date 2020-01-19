@@ -64,10 +64,10 @@ typedef uint64_t uint64;
 namespace AvoGUI
 {
 #pragma region Helper methods and constants
-	double const E =		2.71828182845904523;
-	double const HALF_PI =	1.57079632679489661;
-	double const PI =		3.14159265358979323;
-	double const TAU =		6.28318530717958647;
+	double const E =       2.71828182845904523;
+	double const HALF_PI = 1.57079632679489661;
+	double const PI =      3.14159265358979323;
+	double const TAU =     6.28318530717958647;
 
 	/*
 		Returns a number multiplied by itself (x to the 2nd power, meaning x^2, meaning x*x). 
@@ -3975,14 +3975,6 @@ namespace AvoGUI
 
 	//------------------------------
 
-	enum class ClipboardDataType
-	{
-		UnicodeString, // Both utf-8 and utf-16.
-		File,
-		Image,
-		Unknown
-	};
-
 	enum class DragDropOperation
 	{
 		Copy,
@@ -3991,7 +3983,7 @@ namespace AvoGUI
 		None
 	};
 
-	class DragDropData
+	class DragDropFormatData
 	{
 	public:
 		const char* buffer;
@@ -4000,39 +3992,12 @@ namespace AvoGUI
 
 	class Image;
 
-	class DragDropEvent
+	class ClipboardData :
+		public ReferenceCounted
 	{
 	public:
-		DragDropEvent() :
-			modifierKeys(ModifierKeyFlags::None),
-			x(0.f), y(0.f), movementX(0.f), movementY(0.f)
-		{
-		}
-
 		/*
-			The modifier keys that were pressed when the event fired.
-		*/
-		ModifierKeyFlags modifierKeys;
-
-		/*
-			The horizontal position of the cursor in DIP view coordinates.
-		*/
-		float x;
-		/*
-			The vertical position of the cursor in DIP view coordinates.
-		*/
-		float y;
-		/*
-			The horizontal movement of the cursor in DIP view coordinates.
-		*/
-		float movementX;
-		/*
-			The vertical movement of the cursor in DIP view coordinates.
-		*/
-		float movementY;
-
-		/*
-			A list of platform-specific type values where every index represents a different format with the type value at that index.
+			A list of platform-specific format values where every index represents a different format with the type value at that index.
 		*/
 		std::vector<uint32> formats;
 		/*
@@ -4040,7 +4005,7 @@ namespace AvoGUI
 			When data is dragged from an application, many data formats may be given which tell different things about the data or represent it in different ways.
 			There may be more than 1 data format with the value formats[p_formatIndex].
 		*/
-		virtual DragDropData getDataForFormat(uint32 p_formatIndex) const = 0;
+		virtual DragDropFormatData getDataForFormat(uint32 p_formatIndex) const = 0;
 		/*
 			p_format is one of the values in the "formats" vector.
 		*/
@@ -4101,10 +4066,37 @@ namespace AvoGUI
 			If no image is being dragged, it returns 0.
 		*/
 		virtual Image* getImage() const = 0;
+	};
+
+	class DragDropEvent
+	{
+	public:
 		/*
-			Returns whether an image is being dragged.
+			The modifier keys that were pressed when the event fired.
 		*/
-		//virtual bool getHasImage() const = 0;
+		ModifierKeyFlags modifierKeys{ ModifierKeyFlags::None };
+
+		/*
+			The horizontal position of the cursor in DIP view coordinates.
+		*/
+		float x{ 0.f };
+		/*
+			The vertical position of the cursor in DIP view coordinates.
+		*/
+		float y{ 0.f };
+		/*
+			The horizontal movement of the cursor in DIP view coordinates.
+		*/
+		float movementX{ 0.f };
+		/*
+			The vertical movement of the cursor in DIP view coordinates.
+		*/
+		float movementY{ 0.f };
+
+		/*
+			Contains the data that is being dragged.
+		*/
+		ClipboardData* data{ 0 };
 	};
 
 	//------------------------------
@@ -7116,6 +7108,41 @@ namespace AvoGUI
 			The return value indicates what operation was made after the drop.
 		*/
 		virtual DragDropOperation dragAndDropString(std::string const& p_string, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+			p_string is assumed to be null terminated.
+		*/
+		virtual DragDropOperation dragAndDropString(char const* p_string, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+			p_length is the number of code units in the string.
+		*/
+		virtual DragDropOperation dragAndDropString(char const* p_string, uint32 p_length, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+
+		/*
+			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropString(std::wstring const& p_string, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+			p_string is assumed to be null terminated.
+		*/
+		virtual DragDropOperation dragAndDropString(wchar_t const* p_string, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+			p_length is the number of code units in the string.
+		*/
+		virtual DragDropOperation dragAndDropString(wchar_t const* p_string, uint32 p_length, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 
 		/*
 			Runs a blocking loop that allows the user to drag image data from this application to another one, or to itself.
@@ -7167,41 +7194,54 @@ namespace AvoGUI
 			Gives a UTF-16 encoded string for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this string.
 		*/
-		virtual void setClipboardString(std::wstring const& p_string) = 0;
+		virtual void setClipboardString(std::wstring const& p_string) const = 0;
+		/*
+			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this string.
+			p_string is assumed to be null terminated.
+		*/
+		virtual void setClipboardString(wchar_t const* p_string) const = 0;
 		/*
 			Gives a UTF-16 encoded string for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this string.
-			p_length is the number of code units in the string. If it is -1 then it assumes the string is null-terminated.
+			p_length is the number of code units in the string.
 		*/
-		virtual void setClipboardString(wchar_t const* p_string, int32 p_size = -1) = 0;
-		/*
-			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
-			The data currently stored on the clipboard is freed and replaced by this string.
-		*/
-		virtual void setClipboardString(std::string const& p_string) = 0;
-		/*
-			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
-			The data currently stored on the clipboard is freed and replaced by this string.
-			p_length is the number of bytes (code units) in the string. If it is -1 then it assumes the string is null-terminated.
-		*/
-		virtual void setClipboardString(char const* p_string, int32 p_size = -1) = 0;
+		virtual void setClipboardString(wchar_t const* p_string, uint32 p_length) const = 0;
 
 		/*
-			Returns the UTF-16 string which is currently stored on the OS clipboard, if there is any. 
-			Otherwhise the returned string is empty.
+			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this string.
 		*/
-		virtual std::wstring getClipboardUtf16String() const = 0;
+		virtual void setClipboardString(std::string const& p_string) const = 0;
 		/*
-			Returns the UTF-8 string which is currently stored on the OS clipboard, if there is any. 
-			Otherwhise the returned string is empty.
+			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this string.
+			p_string is assumed to be null terminated.
 		*/
-		virtual std::string getClipboardString() const = 0;
-		
+		virtual void setClipboardString(char const* p_string) const = 0;
 		/*
-			Returns the main type of the current data that is on the OS clipboard.
+			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this string.
+			p_length is the number of bytes (code units) in the string.
 		*/
-		virtual ClipboardDataType getClipboardDataType() const = 0;
+		virtual void setClipboardString(char const* p_string, uint32 p_length) const = 0;
+
+		virtual void setClipboardImage(Image* p_image) = 0;
+
+		virtual void setClipboardFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) = 0;
+		virtual void setClipboardFile(std::string const& p_data, std::string const& p_name) = 0;
+		virtual void setClipboardFile(std::string const& p_path) = 0;
+
+		virtual void setClipboardFiles(std::vector<std::string> const& p_paths) = 0;
+		virtual void setClipboardFiles(std::string* p_paths, uint32 p_numberOfPaths) = 0;
+		virtual void setClipboardFiles(char const* const* p_paths, uint32 p_numberOfPaths) = 0;
+
+		/*
+			Returns the data that is currently stored on the clipboard.
+		*/
+		virtual ClipboardData* getClipboardData() const = 0;
 	};
+
 #pragma endregion
 
 	//------------------------------
@@ -11491,7 +11531,9 @@ namespace AvoGUI
 						}
 						m_isSelectionVisible = false;
 					}
-					std::string clipboardString = window->getClipboardString();
+					ClipboardData* clipboardData = window->getClipboardData();
+					std::string clipboardString = clipboardData->getString();
+					clipboardData->forget();
 					string.insert(caretByteIndex, clipboardString);
 					setString(string, caretCharacterIndex + getCharacterIndexFromUtf8UnitIndex(clipboardString, clipboardString.size()));
 					
