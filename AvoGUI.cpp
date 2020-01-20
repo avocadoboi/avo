@@ -1070,8 +1070,24 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		{
 			if (p_willRelease)
 			{
-				m_formats.push_back(*p_format);
-				m_mediums.push_back(*p_medium);
+				bool hasFormat = false;
+				for (uint32 a = 0; a < m_formats.size(); a++)
+				{
+					if (m_formats[a].cfFormat == p_format->cfFormat &&
+						m_formats[a].dwAspect == p_format->dwAspect &&
+						m_formats[a].tymed & p_format->tymed &&
+						m_formats[a].lindex == p_format->lindex)
+					{
+						hasFormat = true;
+						ReleaseStgMedium(&m_mediums[a]);
+						m_mediums[a] = *p_medium;
+					}
+				}
+				if (!hasFormat)
+				{
+					m_formats.push_back(*p_format);
+					m_mediums.push_back(*p_medium);
+				}
 				return S_OK;
 			}
 			else
@@ -1202,17 +1218,17 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		uint32 m_referenceCount;
 		Gui* m_gui;
 
-		IDragSourceHelper* m_dragWindowHelper;
+		IDragSourceHelper* m_dragImageHelper;
 
 	public:
 		OleDropSource(Gui* p_gui) :
 			m_referenceCount(1), m_gui(p_gui)
 		{
-			CoCreateInstance(CLSID_DragDropHelper, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_dragWindowHelper));
+			CoCreateInstance(CLSID_DragDropHelper, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_dragImageHelper));
 		}
 		~OleDropSource()
 		{
-			m_dragWindowHelper->Release();
+			m_dragImageHelper->Release();
 		}
 
 		//------------------------------
@@ -1231,7 +1247,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			dragImage.hbmpDragImage = (HBITMAP)m_gui->getDrawingContext()->createNativeImageFromImage(p_image);
 			dragImage.ptOffset = { long(p_cursorPosition.x*dipToPixelFactor), long(p_cursorPosition.y * dipToPixelFactor) };
 			dragImage.sizeDragImage = { (long)size.width, (long)size.height };
-			HRESULT result = m_dragWindowHelper->InitializeFromBitmap(&dragImage, p_dataObject);
+			HRESULT result = m_dragImageHelper->InitializeFromBitmap(&dragImage, p_dataObject);
 		}
 
 		//------------------------------
@@ -1294,14 +1310,17 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 		void releaseDataObject()
 		{
-			m_fileDescriptorFormat = 0;
-			m_itemNamesFormat = 0;
-			m_textFormat = 0;
-			m_numberOfFiles = 0;
 			if (m_dataObject)
 			{
 				m_dataObject->Release();
+				m_dataObject = 0;
 				delete[] m_oleFormats;
+				m_oleFormats = 0;
+				m_numberOfFormats = 0;
+				m_numberOfFiles = 0;
+				m_fileDescriptorFormat = 0;
+				m_itemNamesFormat = 0;
+				m_textFormat = 0;
 			}
 			for (STGMEDIUM& medium : m_globalDataToRelease)
 			{
@@ -1313,6 +1332,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 				delete[] buffer;
 			}
 			m_globalDataToRelease.clear();
+			m_streamBuffersToRelease.clear();
 			formats.clear();
 		}
 
@@ -1795,6 +1815,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		DragDropEvent m_dragDropEvent;
 
 		IDropTargetHelper* m_dropImageViewer;
+		uint32 m_currentEffect;
 
 	public:
 		OleDropTarget(Gui* p_gui) :
@@ -1836,7 +1857,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
 			m_gui->excludeAnimationThread();
-			switch (m_gui->handleGlobalDragDropEnter(m_dragDropEvent))
+			m_gui->handleGlobalDragDropEnter(m_dragDropEvent);
+			switch (m_gui->getGlobalDragDropOperation(m_dragDropEvent))
 			{
 			case DragDropOperation::Copy:
 				*p_effect = DROPEFFECT_COPY;
@@ -1851,6 +1873,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 				*p_effect = DROPEFFECT_NONE;
 			}
 			m_gui->includeAnimationThread();
+			m_currentEffect = *p_effect;
 
 			return S_OK;
 		}
@@ -1871,25 +1894,23 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
 			m_gui->excludeAnimationThread();
-			DragDropOperation newOperation = DragDropOperation::None;
-			if (m_gui->handleGlobalDragDropMove(m_dragDropEvent, newOperation))
+			m_gui->handleGlobalDragDropMove(m_dragDropEvent);
+			switch (m_gui->getGlobalDragDropOperation(m_dragDropEvent))
 			{
-				switch (newOperation)
-				{
-				case DragDropOperation::Copy:
-					*p_effect = DROPEFFECT_COPY;
-					break;
-				case DragDropOperation::Move:
-					*p_effect = DROPEFFECT_MOVE;
-					break;
-				case DragDropOperation::Link:
-					*p_effect = DROPEFFECT_LINK;
-					break;
-				default:
-					*p_effect = DROPEFFECT_NONE;
-				}
+			case DragDropOperation::Copy:
+				*p_effect = DROPEFFECT_COPY;
+				break;
+			case DragDropOperation::Move:
+				*p_effect = DROPEFFECT_MOVE;
+				break;
+			case DragDropOperation::Link:
+				*p_effect = DROPEFFECT_LINK;
+				break;
+			default:
+				*p_effect = DROPEFFECT_NONE;
 			}
 			m_gui->includeAnimationThread();
+			m_currentEffect = *p_effect;
 
 			return S_OK;
 		}
@@ -2550,7 +2571,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		{
 			Point<uint32> mousePositionBefore(m_mousePosition);
 
-			m_gui->includeAnimationThread();
 			MouseEvent event;
 			event.x = m_mousePosition.x / m_dipToPixelFactor;
 			event.y = m_mousePosition.y / m_dipToPixelFactor;
@@ -2584,8 +2604,10 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 				m_oleDropSource->setDragImage(p_dragImage, p_dragImageCursorPosition, p_dataObject);
 			}
 
+			m_gui->includeAnimationThread();
 			DWORD dropOperation = DROPEFFECT_NONE;
 			DoDragDrop(p_dataObject, m_oleDropSource, DROPEFFECT_MOVE | DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+			m_gui->excludeAnimationThread();
 
 			event.x = m_mousePosition.x / m_dipToPixelFactor;
 			event.y = m_mousePosition.y / m_dipToPixelFactor;
@@ -2593,7 +2615,6 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			event.movementY = (m_mousePosition.y - mousePositionBefore.y) / m_dipToPixelFactor;
 			event.mouseButton = MouseButton::None;
 			m_gui->handleGlobalMouseMove(event);
-			m_gui->excludeAnimationThread();
 
 			return dropOperation;
 		}
@@ -8286,25 +8307,19 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 				{
 					bool hasChildren = child->getNumberOfChildren();
 
+					if (child->getAreMouseEventsEnabled())
+					{
+						child->remember();
+						p_result.push_back(child);
+					}
 					if (hasChildren)
 					{
-						if (child->getAreMouseEventsEnabled())
-						{
-							child->remember();
-							p_result.push_back(child);
-						}
 						container = child;
 						startIndex = container->getNumberOfChildren() - 1;
 						goto loopStart; // I have determined this is the least messy way to do it pls don't kill me
 					}
 					else
 					{
-						if (child->getAreMouseEventsEnabled())
-						{
-							child->remember();
-							p_result.push_back(child);
-						}
-
 						// We only continue of it's an overlay view, meaning mouse events can pass through it.
 						if (!child->getIsOverlay())
 						{
@@ -8610,12 +8625,8 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 	//------------------------------
 
-	bool Gui::handleGlobalDragDropMove(DragDropEvent& p_event, DragDropOperation& p_resultingOperation)
+	void Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 	{
-		bool willChangeOperation = false;
-
-		uint32 finalOperationLayerIndex = 0; // The layer index of the view that updated finalOperation the last time.
-
 		View* container = this;
 		int32 startIndex = m_children.size() - 1;
 
@@ -8632,20 +8643,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 				}
 				else
 				{
-					p_resultingOperation = handleDragDropEnter(p_event);
+					handleDragDropEnter(p_event);
 
 					if (startIndex < 0)
 					{
-						if (p_resultingOperation == DragDropOperation::None)
-						{
-							p_resultingOperation = handleDragDropBackgroundEnter(p_event);
-						}
-						else
-						{
-							handleDragDropBackgroundEnter(p_event);
-						}
+						handleDragDropBackgroundEnter(p_event);
 					}
-					willChangeOperation = true;
 				}
 			}
 			((View*)this)->m_isDraggingOver = true;
@@ -8664,11 +8667,10 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			((View*)this)->m_isDraggingOver = false;
 		}
 
+		float absoluteX = p_event.x;
+		float absoluteY = p_event.y;
 		if (startIndex >= 0)
 		{
-			float absoluteX = p_event.x;
-			float absoluteY = p_event.y;
-
 			bool hasInvisibleParent = false;
 			bool hasOverlayParent = false;
 			bool hasFoundEnterViews = false;
@@ -8701,30 +8703,10 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 						{
 							if (child->m_areDragDropEventsEnabled)
 							{
-								if (child->m_layerIndex > finalOperationLayerIndex)
+								child->handleDragDropEnter(p_event);
+								if (!isContainer)
 								{
-									p_resultingOperation = child->handleDragDropEnter(p_event);
-									if (!isContainer)
-									{
-										if (p_resultingOperation == DragDropOperation::None)
-										{
-											p_resultingOperation = child->handleDragDropBackgroundEnter(p_event);
-										}
-										else
-										{
-											child->handleDragDropBackgroundEnter(p_event);
-										}
-									}
-									finalOperationLayerIndex = child->m_layerIndex;
-									willChangeOperation = true;
-								}
-								else
-								{
-									child->handleDragDropEnter(p_event);
-									if (!isContainer)
-									{
-										child->handleDragDropBackgroundEnter(p_event);
-									}
+									child->handleDragDropBackgroundEnter(p_event);
 								}
 							}
 						}
@@ -8815,15 +8797,7 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 					{
 						p_event.x = absoluteX - container->getAbsoluteLeft();
 						p_event.y = absoluteY - container->getAbsoluteTop();
-						if (container->m_layerIndex > finalOperationLayerIndex)
-						{
-							p_resultingOperation = container->handleDragDropBackgroundEnter(p_event);
-							willChangeOperation = true;
-						}
-						else
-						{
-							container->handleDragDropBackgroundEnter(p_event);
-						}
+						container->handleDragDropBackgroundEnter(p_event);
 					}
 				}
 				else if (wasHoveringStack.top() && container->m_isDraggingOver && hasFoundEnterViews && !hasFoundLeaveViews ||
@@ -8879,16 +8853,12 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 				}
 			}
 		}
+		p_event.x = absoluteX;
+		p_event.y = absoluteY;
 		for (GlobalDragDropListener* listener : m_globalDragDropListeners)
 		{
-			DragDropOperation operation = listener->handleGlobalDragDropMove(p_event);
-			if (operation != DragDropOperation::None)
-			{
-				p_resultingOperation = operation;
-				willChangeOperation = true;
-			}
+			listener->handleGlobalDragDropMove(p_event);
 		}
-		return willChangeOperation;
 	}
 	void Gui::handleGlobalDragDropLeave(DragDropEvent& p_event)
 	{

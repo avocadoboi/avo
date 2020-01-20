@@ -4107,18 +4107,11 @@ namespace AvoGUI
 		/*
 			Gets sent from the GUI that this listener is registered to whenever a dragged item enters the GUI.
 		*/
-		virtual DragDropOperation handleGlobalDragDropEnter(DragDropEvent const& p_event) 
-		{ 
-			return DragDropOperation::None;
-		}
+		virtual void handleGlobalDragDropEnter(DragDropEvent const& p_event) { }
 		/*
 			Gets sent from the GUI that this listener is registered to whenever a dragged item enters the GUI.
-			The return value tells the sender what the new drag drop operation will be, and has higher priority than the return value of view listeners except if the returned operation type here is DragDropOperation::None.
 		*/
-		virtual DragDropOperation handleGlobalDragDropMove(DragDropEvent const& p_event) 
-		{ 
-			return DragDropOperation::None;
-		}
+		virtual void handleGlobalDragDropMove(DragDropEvent const& p_event) { }
 		/*
 			Gets sent from the GUI that this listener is registered to whenever a dragged item enters the GUI.
 		*/
@@ -6423,29 +6416,28 @@ namespace AvoGUI
 		}
 
 		/*
-			LIBRARY IMPLEMENTED (only default behaviour)
-			Gets called when the cursor enters the bounds of the view during a drag and drop operation.
-			p_event contains information about the event, including the data and data type of what is to be dropped.
-			The return value is used to tell the OS what type of operation is supported for the dragged data.
-			If handleDragDropEnter and handleDragDropBackgroundEnter are called at the same time, the returned operation that is not DragDropOperation::None is the used one.
+			LIBRARY IMPLEMENTED (only default behavior)
+			This is used to tell the OS what type of operation the application supports for the dragged data when dropped at the mouse location specified by p_event.x and p_event.y.
+			The coordinates are relative to the top-left corner of this view.
 		*/
-		virtual DragDropOperation handleDragDropEnter(DragDropEvent const& p_event) 
+		virtual DragDropOperation getDragDropOperation(DragDropEvent const& p_event)
 		{
 			return DragDropOperation::None;
 		}
 		/*
-			LIBRARY IMPLEMENTED (only default behaviour)
+			USER IMPLEMENTED
+			Gets called when the cursor enters the bounds of the view during a drag and drop operation.
+			p_event contains information about the event, including the data and data type of what is to be dropped.
+		*/
+		virtual void handleDragDropEnter(DragDropEvent const& p_event) { }
+		/*
+			USER IMPLEMENTED
 			Gets called when the cursor enters the parts of the view that are not occupied by children, during a drag and drop operation.
 			p_event contains information about the event, including the data and data type of what is to be dropped.
-			The return value is used to tell the OS what type of operation is supported for the dragged data.
-			If handleDragDropEnter and handleDragDropBackgroundEnter are called at the same time, the returned operation that is not DragDropOperation::None is the used one.
 		*/
-		virtual DragDropOperation handleDragDropBackgroundEnter(DragDropEvent const& p_event) 
-		{ 
-			return DragDropOperation::None;
-		}
+		virtual void handleDragDropBackgroundEnter(DragDropEvent const& p_event) { }
 		/*
-			LIBRARY IMPLEMENTED (only default behaviour)
+			USER IMPLEMENTED
 			Gets called when the cursor moves over the view during a drag and drop operation.
 		*/
 		virtual void handleDragDropMove(DragDropEvent const& p_event) { }
@@ -9237,28 +9229,56 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
+			This is used to tell the OS what type of operation is supported for the dragged data.
+			Queries the targeted views.
+		*/
+		virtual DragDropOperation getGlobalDragDropOperation(DragDropEvent& p_event)
+		{
+			std::vector<View*> targets;
+			getTopMouseListenersAt(p_event.x, p_event.y, targets);
+
+			float absoluteX = p_event.x, absoluteY = p_event.y;
+
+			DragDropOperation result(DragDropOperation::None);
+			for (View* target : targets)
+			{
+				p_event.x = absoluteX - target->getAbsoluteLeft();
+				p_event.y = absoluteY - target->getAbsoluteTop();
+				DragDropOperation operation = target->getDragDropOperation(p_event);
+				if (operation != DragDropOperation::None)
+				{
+					result = operation;
+					break;
+				}
+			}
+			for (View* target : targets)
+			{
+				target->forget();
+			}
+			p_event.x = absoluteX;
+			p_event.y = absoluteY;
+
+			return result;
+		}
+
+		/*
+			LIBRARY IMPLEMENTED
 			Sends events down to targeted drag and drop enabled views and global drag and drop listeners.
 		*/
-		virtual DragDropOperation handleGlobalDragDropEnter(DragDropEvent& p_event)
+		virtual void handleGlobalDragDropEnter(DragDropEvent& p_event)
 		{
-			DragDropOperation resultingOperation = DragDropOperation::None;
-			handleGlobalDragDropMove(p_event, resultingOperation);
+			handleGlobalDragDropMove(p_event);
 
 			for (uint32 a = 0; a < m_globalDragDropListeners.size(); a++)
 			{
-				DragDropOperation operation = m_globalDragDropListeners[a]->handleGlobalDragDropEnter(p_event);
-				if (operation != DragDropOperation::None && resultingOperation == DragDropOperation::None)
-				{
-					resultingOperation = operation;
-				}
+				m_globalDragDropListeners[a]->handleGlobalDragDropEnter(p_event);
 			}
-			return resultingOperation;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to targeted drag and drop enabled views and global drag and drop listeners.
 		*/
-		virtual bool handleGlobalDragDropMove(DragDropEvent& p_event, DragDropOperation& p_resultingOperation);
+		virtual void handleGlobalDragDropMove(DragDropEvent& p_event);
 		/*
 			LIBRARY IMPLEMENTED
 			Sends the event down to targeted drag and drop enabled views and global drag and drop listeners.
