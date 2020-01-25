@@ -110,7 +110,7 @@ public:
 
 	//------------------------------
 
-	AvoGUI::DragDropOperation handleDragDropEnter(AvoGUI::DragDropEvent const& p_event) override
+	AvoGUI::DragDropOperation getDragDropOperation(AvoGUI::DragDropEvent const& p_event) override
 	{
 		return AvoGUI::DragDropOperation::Copy;
 	}
@@ -120,7 +120,7 @@ public:
 		/*
 			Add names of dropped directories and files, if any items were dropped.
 		*/
-		std::vector<std::string> itemNames = p_event.getItemNames();
+		std::vector<std::string> itemNames = p_event.data->getItemNames();
 		for (uint32 a = 0; a < itemNames.size(); a++)
 		{
 			addDroppedText(itemNames[a], p_event.x, p_event.y);
@@ -130,7 +130,7 @@ public:
 			Add image if the first file is one - I don't think it's possible to drag more than one image.
 		*/
 		AvoGUI::Image* image = 0;
-		if (image = p_event.getImage())
+		if (image = p_event.data->getImage())
 		{
 			image->setBoundsSizing(AvoGUI::ImageBoundsSizing::Contain);
 			image->setSize(350.f);
@@ -141,9 +141,9 @@ public:
 		/*
 			Add dropped text, if any text was dropped.
 		*/
-		if (!image && !itemNames.size() && p_event.getHasString())
+		if (!image && !itemNames.size() && p_event.data->getHasString())
 		{
-			addDroppedText(p_event.getString(), p_event.x, p_event.y);
+			addDroppedText(p_event.data->getString(), p_event.x, p_event.y);
 		}
 
 		handleSizeChange();

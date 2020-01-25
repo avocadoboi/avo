@@ -7153,13 +7153,31 @@ namespace AvoGUI
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
+		virtual DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
 		virtual DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropFile(std::string const& p_data, std::wstring const& p_name, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data or a directory from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
 		virtual DragDropOperation dragAndDropFile(std::string const& p_path, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag file data or a directory from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropFile(std::wstring const& p_path, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 
 		/*
 			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
@@ -7172,13 +7190,31 @@ namespace AvoGUI
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
+		virtual DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_paths, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
 		virtual DragDropOperation dragAndDropFiles(std::string* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
+		virtual DragDropOperation dragAndDropFiles(std::wstring* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
 		virtual DragDropOperation dragAndDropFiles(char const* const* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 
 		//------------------------------
 
@@ -7221,15 +7257,22 @@ namespace AvoGUI
 		virtual void setClipboardImage(Image* p_image) const = 0;
 
 		virtual void setClipboardFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) const = 0;
+		virtual void setClipboardFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name) const = 0;
 		virtual void setClipboardFile(std::string const& p_data, std::string const& p_name) const = 0;
+		virtual void setClipboardFile(std::string const& p_data, std::wstring const& p_name) const = 0;
 		virtual void setClipboardFile(std::string const& p_path) const = 0;
+		virtual void setClipboardFile(std::wstring const& p_path) const = 0;
 
 		virtual void setClipboardFiles(std::vector<std::string> const& p_paths) const = 0;
+		virtual void setClipboardFiles(std::vector<std::wstring> const& p_paths) const = 0;
 		virtual void setClipboardFiles(std::string* p_paths, uint32 p_numberOfPaths) const = 0;
+		virtual void setClipboardFiles(std::wstring* p_paths, uint32 p_numberOfPaths) const = 0;
 		virtual void setClipboardFiles(char const* const* p_paths, uint32 p_numberOfPaths) const = 0;
+		virtual void setClipboardFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths) const = 0;
 
 		/*
 			Returns the data that is currently stored on the clipboard.
+			It must be forgotten by the caller.
 		*/
 		virtual ClipboardData* getClipboardData() const = 0;
 	};

@@ -2390,6 +2390,55 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 
 			return new OleDataObject(formats, mediums, 3);
 		}
+		OleDataObject* createFileOleDataObject(char const* p_data, uint32 p_dataSize, std::wstring const& p_name) const
+		{
+			FORMATETC formats[3];
+			STGMEDIUM mediums[3];
+
+			formats[0].cfFormat = CF_UNICODETEXT;
+			formats[0].tymed = TYMED_HGLOBAL;
+			formats[0].dwAspect = DVASPECT_CONTENT;
+			formats[0].lindex = -1;
+			formats[0].ptd = 0;
+
+			mediums[0].tymed = TYMED_HGLOBAL;
+			mediums[0].pUnkForRelease = 0;
+
+			uint32 wideStringLength = getNumberOfUnitsInUtfConvertedString(p_name);
+			mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, wideStringLength * sizeof(wchar_t));
+			memcpy(mediums[0].hGlobal, p_name.data(), sizeof(wchar_t)*(p_name.size() + 1));
+
+			//------------------------------
+
+			formats[1].cfFormat = m_clipboardFormat_fileContents;
+			formats[1].tymed = TYMED_ISTREAM;
+			formats[1].dwAspect = DVASPECT_CONTENT;
+			formats[1].lindex = -1;
+			formats[1].ptd = 0;
+
+			mediums[1].pUnkForRelease = 0;
+			mediums[1].tymed = TYMED_ISTREAM;
+			mediums[1].pstm = SHCreateMemStream((BYTE const*)p_data, p_dataSize);
+
+			//------------------------------
+
+			formats[2].cfFormat = m_clipboardFormat_fileGroupDescriptor;
+			formats[2].tymed = TYMED_HGLOBAL;
+			formats[2].dwAspect = DVASPECT_CONTENT;
+			formats[2].lindex = -1;
+			formats[2].ptd = 0;
+
+			mediums[2].tymed = TYMED_HGLOBAL;
+			mediums[2].pUnkForRelease = 0;
+			mediums[2].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
+
+			FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[2].hGlobal;
+			groupDescriptor->cItems = 1;
+			groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
+			wcsncpy_s(groupDescriptor->fgd[0].cFileName, (wchar_t*)mediums[0].hGlobal, wideStringLength);
+
+			return new OleDataObject(formats, mediums, 3);
+		}
 		OleDataObject* createFileOleDataObject(std::string const& p_path) const
 		{
 			std::filesystem::path path(std::filesystem::u8path(p_path));
@@ -2446,6 +2495,85 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 				mediums[2].tymed = TYMED_ISTREAM;
 				mediums[2].pUnkForRelease = 0;
 				SHCreateStreamOnFileEx(widePathString.data(), STGM_READ | STGM_SHARE_DENY_WRITE, 0, false, 0, &mediums[2].pstm);
+
+				//------------------------------
+
+				formats[3].cfFormat = m_clipboardFormat_fileGroupDescriptor;
+				formats[3].tymed = TYMED_HGLOBAL;
+				formats[3].dwAspect = DVASPECT_CONTENT;
+				formats[3].lindex = -1;
+				formats[3].ptd = 0;
+
+				mediums[3].tymed = TYMED_HGLOBAL;
+				mediums[3].pUnkForRelease = 0;
+				mediums[3].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
+
+				FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[3].hGlobal;
+				groupDescriptor->cItems = 1;
+				groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
+
+				std::wstring filename = path.filename().wstring();
+				memcpy(groupDescriptor->fgd[0].cFileName, filename.data(), (filename.size() + 1) * sizeof(wchar_t));
+
+				return new OleDataObject(formats, mediums, 4);
+			}
+			return new OleDataObject(formats, mediums, 2);
+		}
+		OleDataObject* createFileOleDataObject(std::wstring const& p_path) const
+		{
+			std::filesystem::path path(p_path);
+			uint32 widePathStringSize = (p_path.size() + 1) * sizeof(wchar_t);
+
+			FORMATETC formats[4];
+			STGMEDIUM mediums[4];
+
+			formats[0].cfFormat = CF_UNICODETEXT;
+			formats[0].tymed = TYMED_HGLOBAL;
+			formats[0].dwAspect = DVASPECT_CONTENT;
+			formats[0].lindex = -1;
+			formats[0].ptd = 0;
+
+			mediums[0].tymed = TYMED_HGLOBAL;
+			mediums[0].pUnkForRelease = 0;
+			mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, widePathStringSize);
+			memcpy(mediums[0].hGlobal, p_path.data(), widePathStringSize);
+
+			//------------------------------
+
+			formats[1].cfFormat = CF_HDROP;
+			formats[1].tymed = TYMED_HGLOBAL;
+			formats[1].dwAspect = DVASPECT_CONTENT;
+			formats[1].lindex = -1;
+			formats[1].ptd = 0;
+
+			mediums[1].tymed = TYMED_HGLOBAL;
+			mediums[1].pUnkForRelease = 0;
+			mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + widePathStringSize + sizeof(wchar_t));
+
+			DROPFILES* filenameStructure = (DROPFILES*)mediums[1].hGlobal;
+			filenameStructure->fNC = true;
+			filenameStructure->fWide = true;
+			filenameStructure->pt.x = 0;
+			filenameStructure->pt.y = 0;
+			filenameStructure->pFiles = sizeof(DROPFILES);
+
+			memcpy((char*)mediums[1].hGlobal + sizeof(DROPFILES), p_path.data(), widePathStringSize);
+			*(wchar_t*)((char*)mediums[1].hGlobal + sizeof(DROPFILES) + widePathStringSize) = 0;
+
+			//------------------------------
+
+			OleDataObject* dataObject = 0;
+			if (std::filesystem::is_regular_file(path))
+			{
+				formats[2].cfFormat = m_clipboardFormat_fileContents;
+				formats[2].tymed = TYMED_ISTREAM;
+				formats[2].dwAspect = DVASPECT_CONTENT;
+				formats[2].lindex = -1;
+				formats[2].ptd = 0;
+
+				mediums[2].tymed = TYMED_ISTREAM;
+				mediums[2].pUnkForRelease = 0;
+				SHCreateStreamOnFileEx(p_path.data(), STGM_READ | STGM_SHARE_DENY_WRITE, 0, false, 0, &mediums[2].pstm);
 
 				//------------------------------
 
@@ -2538,6 +2666,99 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			for (uint32 a = 0; a < p_numberOfPaths; a++)
 			{
 				widePathStrings[a] = convertUtf8ToUtf16(p_pathStrings[a]);
+				pathsStringSize += widePathStrings[a].size() + 1;
+			}
+			pathsStringSize++;
+
+			medium.tymed = TYMED_HGLOBAL;
+			medium.pUnkForRelease = 0;
+			medium.hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + pathsStringSize * sizeof(wchar_t));
+
+			DROPFILES* filenameStructure = (DROPFILES*)medium.hGlobal;
+			filenameStructure->fNC = true;
+			filenameStructure->fWide = true;
+			filenameStructure->pt.x = 0;
+			filenameStructure->pt.y = 0;
+			filenameStructure->pFiles = sizeof(DROPFILES);
+
+			wchar_t* pathsString = (wchar_t*)((char*)medium.hGlobal + sizeof(DROPFILES));
+			wchar_t* pathsStringPosition = pathsString;
+			for (uint32 a = 0; a < p_numberOfPaths; a++)
+			{
+				memcpy(pathsStringPosition, widePathStrings[a].data(), (widePathStrings[a].size() + 1) * sizeof(wchar_t));
+				pathsStringPosition += widePathStrings[a].size() + 1;
+			}
+			pathsString[pathsStringSize - 1] = 0;
+
+			//------------------------------
+
+			return new OleDataObject(&format, &medium, 1);
+		}
+		OleDataObject* createFilesOleDataObject(std::wstring* p_pathStrings, uint32 p_numberOfPaths) const
+		{
+			FORMATETC format;
+			STGMEDIUM medium;
+
+			//------------------------------
+			// Create an HDROP format, which is just the paths of all items.
+
+			format.cfFormat = CF_HDROP;
+			format.tymed = TYMED_HGLOBAL;
+			format.dwAspect = DVASPECT_CONTENT;
+			format.lindex = -1;
+			format.ptd = 0;
+
+			uint32 pathsStringSize = 0;
+			for (uint32 a = 0; a < p_numberOfPaths; a++)
+			{
+				pathsStringSize += p_pathStrings[a].size() + 1;
+			}
+			pathsStringSize++;
+
+			medium.tymed = TYMED_HGLOBAL;
+			medium.pUnkForRelease = 0;
+			medium.hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + pathsStringSize * sizeof(wchar_t));
+
+			DROPFILES* filenameStructure = (DROPFILES*)medium.hGlobal;
+			filenameStructure->fNC = true;
+			filenameStructure->fWide = true;
+			filenameStructure->pt.x = 0;
+			filenameStructure->pt.y = 0;
+			filenameStructure->pFiles = sizeof(DROPFILES);
+
+			wchar_t* pathsString = (wchar_t*)((char*)medium.hGlobal + sizeof(DROPFILES));
+			wchar_t* pathsStringPosition = pathsString;
+			for (uint32 a = 0; a < p_numberOfPaths; a++)
+			{
+				memcpy(pathsStringPosition, p_pathStrings[a].data(), (p_pathStrings[a].size() + 1) * sizeof(wchar_t));
+				pathsStringPosition += p_pathStrings[a].size() + 1;
+			}
+			pathsString[pathsStringSize - 1] = 0;
+
+			//------------------------------
+
+			return new OleDataObject(&format, &medium, 1);
+		}
+		OleDataObject* createFilesOleDataObject(wchar_t const* const* p_pathStrings, uint32 p_numberOfPaths) const
+		{
+			FORMATETC format;
+			STGMEDIUM medium;
+
+			//------------------------------
+			// Create an HDROP format, which is just the paths of all items.
+
+			format.cfFormat = CF_HDROP;
+			format.tymed = TYMED_HGLOBAL;
+			format.dwAspect = DVASPECT_CONTENT;
+			format.lindex = -1;
+			format.ptd = 0;
+
+			std::vector<std::wstring> widePathStrings(p_numberOfPaths);
+
+			uint32 pathsStringSize = 0;
+			for (uint32 a = 0; a < p_numberOfPaths; a++)
+			{
+				widePathStrings[a] = p_pathStrings[a];
 				pathsStringSize += widePathStrings[a].size() + 1;
 			}
 			pathsStringSize++;
@@ -3529,11 +3750,49 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			}
 			return DragDropOperation::None;
 		}
+		DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition) override
+		{
+			OleDataObject* dataObject = createFileOleDataObject(p_data, p_dataSize, p_name);
+			uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
+			dataObject->Release();
+
+			switch (dropOperation)
+			{
+			case DROPEFFECT_COPY:
+				return DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return DragDropOperation::Link;
+			}
+			return DragDropOperation::None;
+		}
 		DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
 		{
 			return dragAndDropFile(p_data.data(), p_data.size(), p_name, p_dragImage, p_dragImageCursorPosition);
 		}
+		DragDropOperation dragAndDropFile(std::string const& p_data, std::wstring const& p_name, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
+		{
+			return dragAndDropFile(p_data.data(), p_data.size(), p_name, p_dragImage, p_dragImageCursorPosition);
+		}
 		DragDropOperation dragAndDropFile(std::string const& p_path, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
+		{
+			OleDataObject* dataObject = createFileOleDataObject(p_path);
+			uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
+			dataObject->Release();
+
+			switch (dropOperation)
+			{
+			case DROPEFFECT_COPY:
+				return DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return DragDropOperation::Link;
+			}
+			return DragDropOperation::None;
+		}
+		DragDropOperation dragAndDropFile(std::wstring const& p_path, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
 		{
 			OleDataObject* dataObject = createFileOleDataObject(p_path);
 			uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
@@ -3555,6 +3814,10 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 		{
 			return dragAndDropFiles((std::string*)p_pathStrings.data(), p_pathStrings.size(), p_dragImage, p_dragImageCursorPosition);
 		}
+		DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_pathStrings, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
+		{
+			return dragAndDropFiles((std::wstring*)p_pathStrings.data(), p_pathStrings.size(), p_dragImage, p_dragImageCursorPosition);
+		}
 		DragDropOperation dragAndDropFiles(std::string* p_pathStrings, uint32 p_numberOfPaths, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
 		{
 			OleDataObject* dataObject = createFilesOleDataObject(p_pathStrings, p_numberOfPaths);
@@ -3572,7 +3835,41 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			}
 			return DragDropOperation::None;
 		}
+		DragDropOperation dragAndDropFiles(std::wstring* p_pathStrings, uint32 p_numberOfPaths, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
+		{
+			OleDataObject* dataObject = createFilesOleDataObject(p_pathStrings, p_numberOfPaths);
+			uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
+			dataObject->Release();
+
+			switch (dropOperation)
+			{
+			case DROPEFFECT_COPY:
+				return DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return DragDropOperation::Link;
+			}
+			return DragDropOperation::None;
+		}
 		DragDropOperation dragAndDropFiles(char const* const* p_pathStrings, uint32 p_numberOfPaths, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
+		{
+			OleDataObject* dataObject = createFilesOleDataObject(p_pathStrings, p_numberOfPaths);
+			uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
+			dataObject->Release();
+
+			switch (dropOperation)
+			{
+			case DROPEFFECT_COPY:
+				return DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return DragDropOperation::Link;
+			}
+			return DragDropOperation::None;
+		}
+		DragDropOperation dragAndDropFiles(wchar_t const* const* p_pathStrings, uint32 p_numberOfPaths, Image* p_dragImage, Point<float> const& p_dragImageCursorPosition)
 		{
 			OleDataObject* dataObject = createFilesOleDataObject(p_pathStrings, p_numberOfPaths);
 			uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
@@ -3631,12 +3928,27 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			OleDataObject* dataObject = createFileOleDataObject(p_data, p_dataSize, p_name);
 			OleSetClipboard(dataObject);
 		}
+		void setClipboardFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name) const override
+		{
+			OleDataObject* dataObject = createFileOleDataObject(p_data, p_dataSize, p_name);
+			OleSetClipboard(dataObject);
+		}
 		void setClipboardFile(std::string const& p_data, std::string const& p_name) const override
 		{
 			OleDataObject* dataObject = createFileOleDataObject(p_data.data(), p_data.size(), p_name);
 			OleSetClipboard(dataObject);
 		}
+		void setClipboardFile(std::string const& p_data, std::wstring const& p_name) const override
+		{
+			OleDataObject* dataObject = createFileOleDataObject(p_data.data(), p_data.size(), p_name);
+			OleSetClipboard(dataObject);
+		}
 		void setClipboardFile(std::string const& p_path) const override
+		{
+			OleDataObject* dataObject = createFileOleDataObject(p_path);
+			OleSetClipboard(dataObject);
+		}
+		void setClipboardFile(std::wstring const& p_path) const override
 		{
 			OleDataObject* dataObject = createFileOleDataObject(p_path);
 			OleSetClipboard(dataObject);
@@ -3647,12 +3959,27 @@ HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
 			OleDataObject* dataObject = createFilesOleDataObject((std::string*)p_paths.data(), p_paths.size());
 			OleSetClipboard(dataObject);
 		}
+		void setClipboardFiles(std::vector<std::wstring> const& p_paths) const override
+		{
+			OleDataObject* dataObject = createFilesOleDataObject((std::wstring*)p_paths.data(), p_paths.size());
+			OleSetClipboard(dataObject);
+		}
 		void setClipboardFiles(std::string* p_paths, uint32 p_numberOfPaths) const override
 		{
 			OleDataObject* dataObject = createFilesOleDataObject(p_paths, p_numberOfPaths);
 			OleSetClipboard(dataObject);
 		}
+		void setClipboardFiles(std::wstring* p_paths, uint32 p_numberOfPaths) const override
+		{
+			OleDataObject* dataObject = createFilesOleDataObject(p_paths, p_numberOfPaths);
+			OleSetClipboard(dataObject);
+		}
 		void setClipboardFiles(char const* const* p_paths, uint32 p_numberOfPaths) const override
+		{
+			OleDataObject* dataObject = createFilesOleDataObject(p_paths, p_numberOfPaths);
+			OleSetClipboard(dataObject);
+		}
+		void setClipboardFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths) const override
 		{
 			OleDataObject* dataObject = createFilesOleDataObject(p_paths, p_numberOfPaths);
 			OleSetClipboard(dataObject);
