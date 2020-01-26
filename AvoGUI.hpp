@@ -29,11 +29,16 @@
 //------------------------------
 
 #include <cstdint>
+#include <cfloat>
+#include <math.h>
+
 #include <string>
 #include <sstream>
+
 #include <vector>
 #include <deque>
 #include <unordered_map>
+
 #include <thread>
 #include <mutex>
 #include <atomic>
