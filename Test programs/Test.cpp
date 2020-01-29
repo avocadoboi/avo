@@ -39,7 +39,10 @@ public:
 
 //------------------------------
 
-class MyGUI : public AvoGUI::Gui, public AvoGUI::ButtonListener
+class MyGUI : 
+	public AvoGUI::Gui, 
+	public AvoGUI::ButtonListener,
+	public AvoGUI::KeyboardListener
 {
 private:
 	AvoGUI::View* m_viewContainer;
@@ -64,13 +67,11 @@ public:
 
 	void handleButtonClick(AvoGUI::Button* p_button)
 	{
-		std::cout << "A button saying '" << p_button->getString() << "' was pressed!" << std::endl;
+		std::cout << "A button saying '" << p_button->getString() << "' was pressed!\n";
 	}
 
 	void handleKeyboardKeyDown(AvoGUI::KeyboardEvent const& p_event) override
 	{
-		GUI::handleKeyboardKeyDown(p_event);
-
 		if (p_event.key == AvoGUI::KeyboardKey::F4)
 		{
 			getWindow()->switchFullscreen();
@@ -104,6 +105,7 @@ public:
 		//------------------------------
 
 		enableMouseEvents();
+		addGlobalKeyboardListener(this);
 
 		m_tooltip = new AvoGUI::Tooltip(this);
 
