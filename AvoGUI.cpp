@@ -6,8 +6,9 @@
 
 #include <stack>
 #include <random>
-#include <time.h>
 #include <chrono>
+#include <time.h>
+#include <string.h>
 
 #if __has_include("filesystem")
 #include <filesystem>
@@ -55,6 +56,11 @@
 
 #ifdef __linux__
 #include <X11/Xlib.h>
+#include <X11/keysym.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#undef None
+
 #include <unistd.h>
 #endif
 
@@ -2046,6 +2052,8 @@ private:
 	{
 		switch (p_data)
 		{
+		case VK_APPS:
+			return AvoGUI::KeyboardKey::Menu;
 		case VK_BACK:
 			return AvoGUI::KeyboardKey::Backspace;
 		case VK_CLEAR:
@@ -2062,8 +2070,6 @@ private:
 			return AvoGUI::KeyboardKey::Alt;
 		case VK_PAUSE:
 			return AvoGUI::KeyboardKey::Pause;
-		case VK_PLAY:
-			return AvoGUI::KeyboardKey::Play;
 		case VK_CAPITAL:
 			return AvoGUI::KeyboardKey::CapsLock;
 		case VK_ESCAPE:
@@ -2114,6 +2120,14 @@ private:
 			return AvoGUI::KeyboardKey::Numpad8;
 		case VK_NUMPAD9:
 			return AvoGUI::KeyboardKey::Numpad9;
+		case VK_ADD:
+			return AvoGUI::KeyboardKey::Add;
+		case VK_SUBTRACT:
+			return AvoGUI::KeyboardKey::Subtract;
+		case VK_MULTIPLY:
+			return AvoGUI::KeyboardKey::Multiply;
+		case VK_DIVIDE:
+			return AvoGUI::KeyboardKey::Divide;
 		case VK_F1:
 			return AvoGUI::KeyboardKey::F1;
 		case VK_F2:
@@ -2164,26 +2178,6 @@ private:
 			return AvoGUI::KeyboardKey::F24;
 		case VK_NUMLOCK:
 			return AvoGUI::KeyboardKey::NumLock;
-		case VK_LSHIFT:
-			return AvoGUI::KeyboardKey::ShiftLeft;
-		case VK_RSHIFT:
-			return AvoGUI::KeyboardKey::ShiftRight;
-		case VK_LCONTROL:
-			return AvoGUI::KeyboardKey::ControlLeft;
-		case VK_RCONTROL:
-			return AvoGUI::KeyboardKey::ControlRight;
-		case VK_LMENU:
-			return AvoGUI::KeyboardKey::MenuLeft;
-		case VK_RMENU:
-			return AvoGUI::KeyboardKey::MenuRight;
-		case VK_MEDIA_PREV_TRACK:
-			return AvoGUI::KeyboardKey::PreviousTrack;
-		case VK_MEDIA_NEXT_TRACK:
-			return AvoGUI::KeyboardKey::NextTrack;
-		case VK_MEDIA_PLAY_PAUSE:
-			return AvoGUI::KeyboardKey::PlayPauseTrack;
-		case VK_MEDIA_STOP:
-			return AvoGUI::KeyboardKey::StopTrack;
 		case 0x30:
 			return AvoGUI::KeyboardKey::Number0;
 		case 0x31:
@@ -2256,6 +2250,14 @@ private:
 			return AvoGUI::KeyboardKey::Y;
 		case 0x5A:
 			return AvoGUI::KeyboardKey::Z;
+		case VK_OEM_COMMA:
+			return AvoGUI::KeyboardKey::Comma;
+		case VK_OEM_PERIOD:
+			return AvoGUI::KeyboardKey::Period;
+		case VK_OEM_PLUS:
+			return AvoGUI::KeyboardKey::Plus;
+		case VK_OEM_MINUS:
+			return AvoGUI::KeyboardKey::Minus;
 		case VK_OEM_1:
 			return AvoGUI::KeyboardKey::Regional1;
 		case VK_OEM_2:
@@ -2270,11 +2272,8 @@ private:
 			return AvoGUI::KeyboardKey::Regional6;
 		case VK_OEM_7:
 			return AvoGUI::KeyboardKey::Regional7;
-		case VK_OEM_8:
-			return AvoGUI::KeyboardKey::Regional8;
-		default:
-			return AvoGUI::KeyboardKey::None;
 		}
+		return AvoGUI::KeyboardKey::None;
 	}
 
 	OleDataObject* createStringOleDataObject(char const* p_string, uint32 p_length) const
@@ -3392,8 +3391,6 @@ public:
 			return GetAsyncKeyState(0x59) & (1 << 16);
 		case AvoGUI::KeyboardKey::Z:
 			return GetAsyncKeyState(0x5A) & (1 << 16);
-		case AvoGUI::KeyboardKey::Add:
-			return GetAsyncKeyState(VK_ADD) & (1 << 16);
 		case AvoGUI::KeyboardKey::Alt:
 			return GetAsyncKeyState(VK_MENU) & (1 << 16);
 		case AvoGUI::KeyboardKey::Backspace:
@@ -3414,8 +3411,6 @@ public:
 			return GetAsyncKeyState(VK_DECIMAL) & (1 << 16);
 		case AvoGUI::KeyboardKey::Delete:
 			return GetAsyncKeyState(VK_DELETE) & (1 << 16);
-		case AvoGUI::KeyboardKey::Divide:
-			return GetAsyncKeyState(VK_DIVIDE) & (1 << 16);
 		case AvoGUI::KeyboardKey::Down:
 			return GetAsyncKeyState(VK_DOWN) & (1 << 16);
 		case AvoGUI::KeyboardKey::End:
@@ -3480,16 +3475,8 @@ public:
 			return GetAsyncKeyState(VK_INSERT) & (1 << 16);
 		case AvoGUI::KeyboardKey::Left:
 			return GetAsyncKeyState(VK_LEFT) & (1 << 16);
-		case AvoGUI::KeyboardKey::MenuLeft:
-			return GetAsyncKeyState(VK_LMENU) & (1 << 16);
-		case AvoGUI::KeyboardKey::MenuRight:
-			return GetAsyncKeyState(VK_RMENU) & (1 << 16);
-		case AvoGUI::KeyboardKey::Minus:
-			return GetAsyncKeyState(VK_OEM_MINUS) & (1 << 16);
-		case AvoGUI::KeyboardKey::Multiply:
-			return GetAsyncKeyState(VK_MULTIPLY) & (1 << 16);
-		case AvoGUI::KeyboardKey::NextTrack:
-			return GetAsyncKeyState(VK_MEDIA_NEXT_TRACK) & (1 << 16);
+		case AvoGUI::KeyboardKey::Menu:
+			return GetAsyncKeyState(VK_APPS) & (1 << 16);
 		case AvoGUI::KeyboardKey::Number0:
 			return GetAsyncKeyState(0x30) & (1 << 16);
 		case AvoGUI::KeyboardKey::Number1:
@@ -3532,24 +3519,30 @@ public:
 			return GetAsyncKeyState(VK_NUMPAD8) & (1 << 16);
 		case AvoGUI::KeyboardKey::Numpad9:
 			return GetAsyncKeyState(VK_NUMPAD9) & (1 << 16);
+		case AvoGUI::KeyboardKey::Add:
+			return GetAsyncKeyState(VK_ADD) & (1 << 16);
+		case AvoGUI::KeyboardKey::Subtract:
+			return GetAsyncKeyState(VK_SUBTRACT) & (1 << 16);
+		case AvoGUI::KeyboardKey::Multiply:
+			return GetAsyncKeyState(VK_MULTIPLY) & (1 << 16);
+		case AvoGUI::KeyboardKey::Divide:
+			return GetAsyncKeyState(VK_DIVIDE) & (1 << 16);
 		case AvoGUI::KeyboardKey::PageDown:
 			return GetAsyncKeyState(VK_NEXT) & (1 << 16);
 		case AvoGUI::KeyboardKey::PageUp:
 			return GetAsyncKeyState(VK_PRIOR) & (1 << 16);
 		case AvoGUI::KeyboardKey::Pause:
 			return GetAsyncKeyState(VK_PAUSE) & (1 << 16);
-		case AvoGUI::KeyboardKey::Period:
-			return GetAsyncKeyState(VK_OEM_PERIOD) & (1 << 16);
-		case AvoGUI::KeyboardKey::Play:
-			return GetAsyncKeyState(VK_PLAY) & (1 << 16);
-		case AvoGUI::KeyboardKey::PlayPauseTrack:
-			return GetAsyncKeyState(VK_MEDIA_PLAY_PAUSE) & (1 << 16);
-		case AvoGUI::KeyboardKey::Plus:
-			return GetAsyncKeyState(VK_OEM_PLUS) & (1 << 16);
-		case AvoGUI::KeyboardKey::PreviousTrack:
-			return GetAsyncKeyState(VK_MEDIA_PREV_TRACK) & (1 << 16);
 		case AvoGUI::KeyboardKey::PrintScreen:
 			return GetAsyncKeyState(VK_SNAPSHOT) & (1 << 16);
+		case AvoGUI::KeyboardKey::Comma:
+			return GetAsyncKeyState(VK_OEM_COMMA) & (1 << 16);
+		case AvoGUI::KeyboardKey::Period:
+			return GetAsyncKeyState(VK_OEM_PERIOD) & (1 << 16);
+		case AvoGUI::KeyboardKey::Plus:
+			return GetAsyncKeyState(VK_OEM_PLUS) & (1 << 16);
+		case AvoGUI::KeyboardKey::Minus:
+			return GetAsyncKeyState(VK_OEM_MINUS) & (1 << 16);
 		case AvoGUI::KeyboardKey::Regional1:
 			return GetAsyncKeyState(VK_OEM_1) & (1 << 16);
 		case AvoGUI::KeyboardKey::Regional2:
@@ -3564,24 +3557,16 @@ public:
 			return GetAsyncKeyState(VK_OEM_6) & (1 << 16);
 		case AvoGUI::KeyboardKey::Regional7:
 			return GetAsyncKeyState(VK_OEM_7) & (1 << 16);
-		case AvoGUI::KeyboardKey::Regional8:
-			return GetAsyncKeyState(VK_OEM_8) & (1 << 16);
 		case AvoGUI::KeyboardKey::Right:
 			return GetAsyncKeyState(VK_RIGHT) & (1 << 16);
 		case AvoGUI::KeyboardKey::Separator:
 			return GetAsyncKeyState(VK_SEPARATOR) & (1 << 16);
 		case AvoGUI::KeyboardKey::Shift:
 			return GetAsyncKeyState(VK_SHIFT) & (1 << 16);
-		case AvoGUI::KeyboardKey::ShiftLeft:
-			return GetAsyncKeyState(VK_LSHIFT) & (1 << 16);
-		case AvoGUI::KeyboardKey::ShiftRight:
-			return GetAsyncKeyState(VK_RSHIFT) & (1 << 16);
 		case AvoGUI::KeyboardKey::Spacebar:
 			return GetAsyncKeyState(VK_SPACE) & (1 << 16);
 		case AvoGUI::KeyboardKey::StopTrack:
 			return GetAsyncKeyState(VK_MEDIA_STOP) & (1 << 16);
-		case AvoGUI::KeyboardKey::Subtract:
-			return GetAsyncKeyState(VK_SUBTRACT) & (1 << 16);
 		case AvoGUI::KeyboardKey::Tab:
 			return GetAsyncKeyState(VK_TAB) & (1 << 16);
 		case AvoGUI::KeyboardKey::Up:
@@ -4675,7 +4660,823 @@ public:
 };
 std::atomic<uint32> WindowsWindow::s_numberOfWindows;
 wchar_t const* const WindowsWindow::WINDOW_CLASS_NAME = L"AvoGUI window class";
+#endif
 
+#ifdef __linux__
+typedef Window XWindow;
+
+class LinuxWindow : public AvoGUI::Window
+{
+private:
+	AvoGUI::Gui* m_gui;
+
+	Display* m_server = 0;
+	XWindow m_windowHandle = 0;
+
+	bool m_isOpen = false;
+	AvoGUI::Point<int32> m_position;
+	AvoGUI::Point<uint32> m_size;
+	AvoGUI::Point<uint32> m_minSize;
+	AvoGUI::Point<uint32> m_maxSize;
+
+	AvoGUI::WindowStyleFlags m_crossPlatformStyles;
+
+	float m_dipToPixelFactor = 1.f;
+
+	//------------------------------
+
+	AvoGUI::KeyboardKey convertKeySymToKeyboardKey(KeySym p_keySym)
+	{
+		switch (p_keySym)
+		{
+		case XK_Menu:
+			return AvoGUI::KeyboardKey::Menu;
+		case XK_BackSpace:
+			return AvoGUI::KeyboardKey::Backspace;
+		case XK_Clear:
+			return AvoGUI::KeyboardKey::Clear;
+		case XK_Tab:
+			return AvoGUI::KeyboardKey::Tab;
+		case XK_Return:
+			return AvoGUI::KeyboardKey::Return;
+		case XK_Shift_L:
+		case XK_Shift_R:
+			return AvoGUI::KeyboardKey::Shift;
+		case XK_Control_L:
+		case XK_Control_R:
+			return AvoGUI::KeyboardKey::Control;
+		case XK_Alt_L:
+		case XK_Alt_R:
+			return AvoGUI::KeyboardKey::Alt;
+		case XK_Pause:
+			return AvoGUI::KeyboardKey::Pause;
+		case XK_Caps_Lock:
+			return AvoGUI::KeyboardKey::CapsLock;
+		case XK_Escape:
+			return AvoGUI::KeyboardKey::Escape;
+		case XK_space:
+			return AvoGUI::KeyboardKey::Spacebar;
+		case XK_Page_Up:
+			return AvoGUI::KeyboardKey::PageUp;
+		case XK_Page_Down:
+			return AvoGUI::KeyboardKey::PageDown;
+		case XK_End:
+			return AvoGUI::KeyboardKey::End;
+		case XK_Home:
+			return AvoGUI::KeyboardKey::Home;
+		case XK_Left:
+			return AvoGUI::KeyboardKey::Left;
+		case XK_Right:
+			return AvoGUI::KeyboardKey::Right;
+		case XK_Up:
+			return AvoGUI::KeyboardKey::Up;
+		case XK_Down:
+			return AvoGUI::KeyboardKey::Down;
+		case XK_Print:
+			return AvoGUI::KeyboardKey::PrintScreen;
+		case XK_Insert:
+			return AvoGUI::KeyboardKey::Insert;
+		case XK_Delete:
+			return AvoGUI::KeyboardKey::Delete;
+		case XK_Help:
+			return AvoGUI::KeyboardKey::Help;
+		case XK_KP_0:
+			return AvoGUI::KeyboardKey::Numpad0;
+		case XK_KP_1:
+			return AvoGUI::KeyboardKey::Numpad1;
+		case XK_KP_2:
+			return AvoGUI::KeyboardKey::Numpad2;
+		case XK_KP_3:
+			return AvoGUI::KeyboardKey::Numpad3;
+		case XK_KP_4:
+			return AvoGUI::KeyboardKey::Numpad4;
+		case XK_KP_5:
+			return AvoGUI::KeyboardKey::Numpad5;
+		case XK_KP_6:
+			return AvoGUI::KeyboardKey::Numpad6;
+		case XK_KP_7:
+			return AvoGUI::KeyboardKey::Numpad7;
+		case XK_KP_8:
+			return AvoGUI::KeyboardKey::Numpad8;
+		case XK_KP_9:
+			return AvoGUI::KeyboardKey::Numpad9;
+		case XK_KP_Add:
+			return AvoGUI::KeyboardKey::Add;
+		case XK_KP_Subtract:
+			return AvoGUI::KeyboardKey::Subtract;
+		case XK_KP_Multiply:
+			return AvoGUI::KeyboardKey::Multiply;
+		case XK_KP_Divide:
+			return AvoGUI::KeyboardKey::Divide;
+		case XK_F1:
+			return AvoGUI::KeyboardKey::F1;
+		case XK_F2:
+			return AvoGUI::KeyboardKey::F2;
+		case XK_F3:
+			return AvoGUI::KeyboardKey::F3;
+		case XK_F4:
+			return AvoGUI::KeyboardKey::F4;
+		case XK_F5:
+			return AvoGUI::KeyboardKey::F5;
+		case XK_F6:
+			return AvoGUI::KeyboardKey::F6;
+		case XK_F7:
+			return AvoGUI::KeyboardKey::F7;
+		case XK_F8:
+			return AvoGUI::KeyboardKey::F8;
+		case XK_F9:
+			return AvoGUI::KeyboardKey::F9;
+		case XK_F10:
+			return AvoGUI::KeyboardKey::F10;
+		case XK_F11:
+			return AvoGUI::KeyboardKey::F11;
+		case XK_F12:
+			return AvoGUI::KeyboardKey::F12;
+		case XK_F13:
+			return AvoGUI::KeyboardKey::F13;
+		case XK_F14:
+			return AvoGUI::KeyboardKey::F14;
+		case XK_F15:
+			return AvoGUI::KeyboardKey::F15;
+		case XK_F16:
+			return AvoGUI::KeyboardKey::F16;
+		case XK_F17:
+			return AvoGUI::KeyboardKey::F17;
+		case XK_F18:
+			return AvoGUI::KeyboardKey::F18;
+		case XK_F19:
+			return AvoGUI::KeyboardKey::F19;
+		case XK_F20:
+			return AvoGUI::KeyboardKey::F20;
+		case XK_F21:
+			return AvoGUI::KeyboardKey::F21;
+		case XK_F22:
+			return AvoGUI::KeyboardKey::F22;
+		case XK_F23:
+			return AvoGUI::KeyboardKey::F23;
+		case XK_F24:
+			return AvoGUI::KeyboardKey::F24;
+		case XK_Num_Lock:
+			return AvoGUI::KeyboardKey::NumLock;
+		case XK_0:
+			return AvoGUI::KeyboardKey::Number0;
+		case XK_1:
+			return AvoGUI::KeyboardKey::Number1;
+		case XK_2:
+			return AvoGUI::KeyboardKey::Number2;
+		case XK_3:
+			return AvoGUI::KeyboardKey::Number3;
+		case XK_4:
+			return AvoGUI::KeyboardKey::Number4;
+		case XK_5:
+			return AvoGUI::KeyboardKey::Number5;
+		case XK_6:
+			return AvoGUI::KeyboardKey::Number6;
+		case XK_7:
+			return AvoGUI::KeyboardKey::Number7;
+		case XK_8:
+			return AvoGUI::KeyboardKey::Number8;
+		case XK_9:
+			return AvoGUI::KeyboardKey::Number9;
+		case XK_A:
+			return AvoGUI::KeyboardKey::A;
+		case XK_B:
+			return AvoGUI::KeyboardKey::B;
+		case XK_C:
+			return AvoGUI::KeyboardKey::C;
+		case XK_D:
+			return AvoGUI::KeyboardKey::D;
+		case XK_E:
+			return AvoGUI::KeyboardKey::E;
+		case XK_F:
+			return AvoGUI::KeyboardKey::F;
+		case XK_G:
+			return AvoGUI::KeyboardKey::G;
+		case XK_H:
+			return AvoGUI::KeyboardKey::H;
+		case XK_I:
+			return AvoGUI::KeyboardKey::I;
+		case XK_J:
+			return AvoGUI::KeyboardKey::J;
+		case XK_K:
+			return AvoGUI::KeyboardKey::K;
+		case XK_L:
+			return AvoGUI::KeyboardKey::L;
+		case XK_M:
+			return AvoGUI::KeyboardKey::M;
+		case XK_N:
+			return AvoGUI::KeyboardKey::N;
+		case XK_O:
+			return AvoGUI::KeyboardKey::O;
+		case XK_P:
+			return AvoGUI::KeyboardKey::P;
+		case XK_Q:
+			return AvoGUI::KeyboardKey::Q;
+		case XK_R:
+			return AvoGUI::KeyboardKey::R;
+		case XK_S:
+			return AvoGUI::KeyboardKey::S;
+		case XK_T:
+			return AvoGUI::KeyboardKey::T;
+		case XK_U:
+			return AvoGUI::KeyboardKey::U;
+		case XK_V:
+			return AvoGUI::KeyboardKey::V;
+		case XK_W:
+			return AvoGUI::KeyboardKey::W;
+		case XK_X:
+			return AvoGUI::KeyboardKey::X;
+		case XK_Y:
+			return AvoGUI::KeyboardKey::Y;
+		case XK_Z:
+			return AvoGUI::KeyboardKey::Z;
+		case XK_semicolon:
+			return AvoGUI::KeyboardKey::Regional1;
+		case XK_slash:
+			return AvoGUI::KeyboardKey::Regional2;
+		case XK_grave:
+			return AvoGUI::KeyboardKey::Regional3;
+		case XK_bracketleft:
+			return AvoGUI::KeyboardKey::Regional4;
+		case XK_backslash:
+			return AvoGUI::KeyboardKey::Regional5;
+		case XK_bracketright:
+			return AvoGUI::KeyboardKey::Regional6;
+		case XK_apostrophe:
+			return AvoGUI::KeyboardKey::Regional7;
+		}
+		return AvoGUI::KeyboardKey::None;
+	}
+	
+	//------------------------------
+
+	std::thread m_messageThread;
+	void thread_runEventLoop(char const* p_title, float p_x, float p_y, float p_width, float p_height, AvoGUI::Window* p_parent)
+	{	
+		// Open keyboard input
+		XIM inputMethod = XOpenIM(m_server, 0, 0, 0);
+		XIC inputContext = XCreateIC(
+			inputMethod, 
+			XNInputStyle, XIMPreeditNothing | XIMStatusNothing, // Input style flags
+			XNClientWindow, m_windowHandle,
+			XNFocusWindow, m_windowHandle,
+			0 // Null terminator
+		);
+
+		//------------------------------
+		// Tell the x server which events we want
+		
+		XSelectInput(
+			m_server, m_windowHandle, 
+			EnterWindowMask | LeaveWindowMask |
+			StructureNotifyMask |
+			PointerMotionMask |
+			ButtonPressMask | ButtonReleaseMask | 
+			ButtonMotionMask |
+			KeyPressMask | KeyReleaseMask
+		);
+		
+		// We want the window manager to tell us when the window should be closed.
+		Atom windowCloseEvent = XInternAtom(m_server, "WM_DELETE_WINDOW", 0);
+		XSetWMProtocols(m_server, m_windowHandle, &windowCloseEvent, 1);
+
+		XFlush(m_server); // Execute command queue
+		
+		Time lastKeyPressTime = 0;
+		XEvent event;
+
+		while (m_isOpen)
+		{
+			XNextEvent(m_server, &event);
+
+			if (XFilterEvent(&event, m_windowHandle))
+			{
+				continue;
+			}
+
+			switch (event.type)
+			{
+			// case Expose:
+			// {
+			// 	if (!event.xexpose.count)
+			// 	{
+			// 		m_gui->invalidateRectangle(
+			// 			event.xexpose.x/m_dipToPixelFactor, event.xexpose.y/m_dipToPixelFactor, 
+			// 			event.xexpose.width/m_dipToPixelFactor, event.xexpose.height/m_dipToPixelFactor
+			// 		);
+			// 	}
+			// 	break;
+			// }
+			case ClientMessage:
+			{
+				if (event.xclient.data.l[0] == windowCloseEvent)
+				{
+					m_isOpen = false;
+				}
+				break;
+			}
+			case DestroyNotify:
+			{
+				std::cout << "Window was destroyed!\n";
+				break;
+			}
+			case GravityNotify:
+			{
+				break;
+			}
+			case ConfigureNotify:
+			{
+				if (m_size.x != event.xconfigure.width || m_size.y != event.xconfigure.height)
+				{
+					m_size.set(event.xconfigure.width, event.xconfigure.height);
+					std::cout << "New width: " << m_size.x << ", height: " << m_size.y << '\n';
+				}
+				if (m_position.x != event.xconfigure.x || m_position.y != event.xconfigure.y)
+				{
+					m_position.set(event.xconfigure.x, event.xconfigure.y);
+					std::cout << "New x: " << m_position.x << ", y:" << m_position.y << '\n';
+				}
+				break;
+			}
+			case ButtonPress:
+			{
+				break;
+			}
+			case ButtonRelease:
+			{
+
+				break;
+			}
+			case KeyPress:
+			{
+				// Length is 5 because 4 is the max number of bytes in a utf-8 encoded character
+				char character[5];
+				KeySym key;
+				Status characterLookupStatus;
+				int length = Xutf8LookupString(inputContext, &event.xkey, character, 4, &key, &characterLookupStatus);
+				
+				AvoGUI::KeyboardEvent keyboardEvent;
+				keyboardEvent.isRepeated = event.xkey.time < lastKeyPressTime + 2;
+				if (characterLookupStatus == XLookupBoth || characterLookupStatus == XLookupChars)
+				{
+					keyboardEvent.character = character;
+					m_gui->handleGlobalCharacterInput(keyboardEvent);
+				}
+				if (characterLookupStatus == XLookupBoth || characterLookupStatus == XLookupKeySym)
+				{
+					keyboardEvent.character = "";
+					keyboardEvent.key = convertKeySymToKeyboardKey(key);
+					m_gui->handleGlobalKeyboardKeyDown(keyboardEvent);
+				}
+
+				lastKeyPressTime = event.xkey.time;
+
+				break;
+			}
+			case KeyRelease:
+			{
+				break;
+			}
+			} 
+		}
+		XCloseDisplay(m_server);
+	}
+
+public:
+	LinuxWindow(AvoGUI::Gui* p_gui) :
+		m_gui(p_gui)
+	{
+
+	}
+	~LinuxWindow()
+	{
+		m_messageThread.join();
+	}
+
+	void create(char const* p_title, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
+	{
+		m_server = XOpenDisplay(0); // Open connection to server
+		
+		float displayWidth = XDisplayWidth(m_server, 0);
+		float displayHeight = XDisplayHeight(m_server, 0);
+		m_dipToPixelFactor = displayWidth / (float)XDisplayWidthMM(m_server, 0) * 25.4f / 96.f;
+
+		m_windowHandle = XCreateSimpleWindow(
+			m_server, p_parent ? (XWindow)p_parent->getNativeHandle() : DefaultRootWindow(m_server), 
+			0, 0, // Initial x and y are ignored by the window manager
+			p_width*m_dipToPixelFactor,
+			p_height*m_dipToPixelFactor,
+			0, 0, 0
+		);
+		setTitle(p_title);
+		XMapWindow(m_server, m_windowHandle); // Show the window
+		setPosition(p_x * (displayWidth - p_width*m_dipToPixelFactor), p_y * (displayHeight - p_height*m_dipToPixelFactor));
+
+		m_isOpen = true;
+
+		m_crossPlatformStyles = p_styleFlags;
+		m_messageThread = std::thread(&LinuxWindow::thread_runEventLoop, this, p_title, p_x, p_y, p_width, p_height, p_parent);
+	}
+	void create(char const* p_title, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
+	{
+		create(p_title, 0.5f, 0.5f, p_width, p_height, p_styleFlags, p_parent);
+	}
+
+	void close() override 
+	{
+		XDestroyWindow(m_server, m_windowHandle);
+	}
+	bool getIsOpen() const override
+	{
+		return m_isOpen;
+	}
+
+	//------------------------------
+
+	void enableUserInteraction() override 
+	{
+	}
+	void disableUserInteraction() override 
+	{
+	}
+	bool getIsUserInteractionEnabled() override 
+	{
+	}
+
+	//------------------------------
+
+	void setTitle(char const* p_title, uint32 p_size) override 
+	{
+		XTextProperty textProperty;
+		#ifdef X_HAVE_UTF8_STRING
+		textProperty.encoding = XInternAtom(m_server, "UTF8_STRING", 0);
+		#else
+		textProperty.encoding = XA_STRING;
+		#endif
+		textProperty.format = 8;
+		textProperty.nitems = p_size;
+		textProperty.value = (unsigned char*)p_title;
+		XSetWMName(m_server, m_windowHandle, &textProperty);
+		XSetWMIconName(m_server, m_windowHandle, &textProperty);
+		XFlush(m_server);
+	}
+	void setTitle(char const* p_title)
+	{
+		setTitle(p_title, strlen(p_title));
+	}
+	void setTitle(std::string const& p_title)
+	{
+		setTitle(p_title);
+	}
+	std::string getTitle() const override
+	{
+		XTextProperty textProperty;
+		XGetWMName(m_server, m_windowHandle, &textProperty);
+		return (char const*)textProperty.value;
+	}
+
+	//------------------------------
+
+	void setStyles(AvoGUI::WindowStyleFlags p_styles) override 
+	{
+	}
+	AvoGUI::WindowStyleFlags getStyles() const override
+	{
+	}
+
+	//------------------------------
+
+	void* getNativeHandle() const override
+	{
+		return (void*)m_windowHandle;
+	}
+
+	//------------------------------
+
+	void setIsFullscreen(bool p_isFullscreen) override 
+	{
+	}
+	void switchFullscreen() override 
+	{
+	}
+	bool getIsFullscreen() const override
+	{
+	}
+
+	//------------------------------
+
+	void hide() override 
+	{
+	}
+	void show() override 
+	{
+	}
+
+	void maximize() override 
+	{
+	}
+	void minimize() override 
+	{
+	}
+	void restore() override 
+	{
+	}
+
+	void setState(AvoGUI::WindowState p_state) override 
+	{
+	}
+	AvoGUI::WindowState getState() const override
+	{
+	}
+
+	//------------------------------
+
+	void setPosition(AvoGUI::Point<int32> const& p_position) override 
+	{
+		if (m_windowHandle)
+		{
+			XMoveWindow(m_server, m_windowHandle, p_position.x, p_position.y);
+			XFlush(m_server);
+		}
+	}
+	void setPosition(int32 p_x, int32 p_y) override 
+	{
+		if (m_windowHandle)
+		{
+			XMoveWindow(m_server, m_windowHandle, p_x, p_y);
+			XFlush(m_server);
+		}
+	}
+	AvoGUI::Point<int32> const& getPosition() const override
+	{
+		return m_position;
+	}
+	int32 getPositionX() const override
+	{
+		return m_position.x;
+	}
+	int32 getPositionY() const override
+	{
+		return m_position.y;
+	}
+
+	void setSize(AvoGUI::Point<float> const& p_size) override 
+	{
+		if (m_windowHandle)
+		{
+			XResizeWindow(m_server, m_windowHandle, p_size.x*m_dipToPixelFactor, p_size.y*m_dipToPixelFactor);
+			XFlush(m_server);
+		}
+	}
+	void setSize(float p_width, float p_height) override 
+	{
+		if (m_windowHandle)
+		{
+			XResizeWindow(m_server, m_windowHandle, p_width*m_dipToPixelFactor, p_height*m_dipToPixelFactor);
+			XFlush(m_server);
+		}
+	}
+	AvoGUI::Point<float> const& getSize() const override
+	{
+		return m_size / m_dipToPixelFactor;
+	}
+	float getWidth() const override
+	{
+		return m_size.x / m_dipToPixelFactor;
+	}
+	float getHeight() const override
+	{
+		return m_size.y / m_dipToPixelFactor;
+	}
+
+	void setMinSize(AvoGUI::Point<float> const& p_minSize) override 
+	{
+	}
+	void setMinSize(float p_minWidth, float p_minHeight) override 
+	{
+	}
+	AvoGUI::Point<float> getMinSize() const override
+	{
+	}
+	float getMinWidth() const override
+	{
+	}
+	float getMinHeight() const override
+	{
+	}
+
+	void setMaxSize(AvoGUI::Point<float> const& p_maxSize) override 
+	{
+	}
+	void setMaxSize(float p_maxWidth, float p_maxHeight) override 
+	{
+	}
+	AvoGUI::Point<float> getMaxSize() const override
+	{
+	}
+	float getMaxWidth() const override
+	{
+	}
+	float getMaxHeight() const override
+	{
+	}
+
+	//------------------------------
+
+	AvoGUI::Rectangle<uint32> getMonitorBounds() const override
+	{
+	}
+	AvoGUI::Point<uint32> getMonitorPosition() const override
+	{
+	}
+	AvoGUI::Point<uint32> getMonitorSize() const override
+	{
+	}
+	uint32 getMonitorWidth() const override
+	{
+	}
+	uint32 getMonitorHeight() const override
+	{
+	}
+
+	//------------------------------
+
+	AvoGUI::Rectangle<uint32> getWorkAreaBounds() const override
+	{
+	}
+	AvoGUI::Point<uint32> getWorkAreaPosition() const override
+	{
+	}
+	AvoGUI::Point<uint32> getWorkAreaSize() const override
+	{
+	}
+	uint32 getWorkAreaWidth() const override
+	{
+	}
+	uint32 getWorkAreaHeight() const override
+	{
+	}
+
+	//------------------------------
+
+	bool getIsKeyDown(AvoGUI::KeyboardKey p_key) const override
+	{
+	}
+	bool getIsMouseButtonDown(AvoGUI::MouseButton p_button) const override
+	{
+	}
+	AvoGUI::Point<float> getMousePosition() const override
+	{
+	}
+
+	//------------------------------
+
+	void setCursor(AvoGUI::Cursor p_cursor) override 
+	{
+		
+	}
+	AvoGUI::Cursor getCursor() const override
+	{
+	}
+
+	//------------------------------
+
+	float getDipToPixelFactor() const override
+	{
+		return m_dipToPixelFactor;
+	}
+
+	//------------------------------
+
+	AvoGUI::DragDropOperation dragAndDropString(std::string const& p_string, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropString(char const* p_string, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropString(char const* p_string, uint32 p_length, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+
+	AvoGUI::DragDropOperation dragAndDropString(std::wstring const& p_string, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropString(wchar_t const* p_string, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropString(wchar_t const* p_string, uint32 p_length, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+
+	AvoGUI::DragDropOperation dragAndDropImage(AvoGUI::Image* p_image, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::string const& p_name, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_data, std::wstring const& p_name, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_path, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFile(std::wstring const& p_path, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+
+	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_paths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_paths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFiles(std::string* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFiles(std::wstring* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFiles(char const* const* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	{
+	}
+
+	//------------------------------
+
+	void setClipboardString(std::wstring const& p_string) const override
+	{
+	}
+	void setClipboardString(wchar_t const* p_string) const override
+	{
+	}
+	void setClipboardString(wchar_t const* p_string, uint32 p_length) const override
+	{
+	}
+
+	void setClipboardString(std::string const& p_string) const override
+	{
+	}
+	void setClipboardString(char const* p_string) const override
+	{
+	}
+	void setClipboardString(char const* p_string, uint32 p_length) const override
+	{
+	}
+
+	void setClipboardImage(AvoGUI::Image* p_image) const override
+	{
+	}
+
+	void setClipboardFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) const override
+	{
+	}
+	void setClipboardFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name) const override
+	{
+	}
+	void setClipboardFile(std::string const& p_data, std::string const& p_name) const override
+	{
+	}
+	void setClipboardFile(std::string const& p_data, std::wstring const& p_name) const override
+	{
+	}
+	void setClipboardFile(std::string const& p_path) const override
+	{
+	}
+	void setClipboardFile(std::wstring const& p_path) const override
+	{
+	}
+
+	void setClipboardFiles(std::vector<std::string> const& p_paths) const override
+	{
+	}
+	void setClipboardFiles(std::vector<std::wstring> const& p_paths) const override
+	{
+	}
+	void setClipboardFiles(std::string* p_paths, uint32 p_numberOfPaths) const override
+	{
+	}
+	void setClipboardFiles(std::wstring* p_paths, uint32 p_numberOfPaths) const override
+	{
+	}
+	void setClipboardFiles(char const* const* p_paths, uint32 p_numberOfPaths) const override
+	{
+	}
+	void setClipboardFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths) const override
+	{
+	}
+
+	AvoGUI::ClipboardData* getClipboardData() const override
+	{
+	}
+};
 #endif
 #pragma endregion
 
@@ -8606,418 +9407,6 @@ IDWriteFactory1* Direct2DDrawingContext::s_directWriteFactory = 0;
 FontCollectionLoader* Direct2DDrawingContext::s_fontCollectionLoader = 0;
 FontFileLoader* Direct2DDrawingContext::s_fontFileLoader = 0;
 IWICImagingFactory2* Direct2DDrawingContext::s_imagingFactory = 0;
-#endif
-
-#ifdef __linux__
-
-typedef Window XWindow;
-
-class LinuxWindow : public AvoGUI::Window
-{
-private:
-	AvoGUI::Gui* m_gui;
-
-	Display* m_display;
-	XWindow m_windowHandle;
-
-	bool m_isOpen = false;
-	AvoGUI::Point<int32> m_position;
-	AvoGUI::Point<uint32> m_size;
-	AvoGUI::Point<uint32> m_minSize;
-	AvoGUI::Point<uint32> m_maxSize;
-
-	AvoGUI::WindowStyleFlags m_crossPlatformStyles;
-
-	float m_dipToPixelFactor = 1.f;
-
-	//------------------------------
-
-	bool m_hasCreatedWindow = false;
-	std::condition_variable m_hasCreatedWindowConditionVariable;
-	std::mutex m_hasCreatedWindowMutex;
-	std::thread m_messageThread;
-	void thread_createAndRun(char const* p_title, float p_x, float p_y, float p_width, float p_height, AvoGUI::Window* p_parent)
-	{
-		m_display = XOpenDisplay(0);
-		
-		float displayWidth = XDisplayWidth(m_display, 0);
-		float displayHeight = XDisplayHeight(m_display, 0);
-		
-		m_dipToPixelFactor = displayWidth / (float)XDisplayWidthMM(m_display, 0) * 25.4f / 96.f;
-
-		m_windowHandle = XCreateSimpleWindow(
-			m_display, p_parent ? (XWindow)p_parent->getNativeHandle() : RootWindow(m_display, 0), 
-			p_x * (displayWidth - p_width)*m_dipToPixelFactor,
-			p_y * (displayHeight - p_height)*m_dipToPixelFactor,
-			p_width*m_dipToPixelFactor,
-			p_height*m_dipToPixelFactor,
-			0, 0, 0
-		);
-		XMapWindow(m_display, m_windowHandle);
-		XFlush(m_display);
-		sleep(10);
-	}
-
-public:
-	LinuxWindow(AvoGUI::Gui* p_gui) :
-		m_gui(p_gui)
-	{
-
-	}
-
-	void create(char const* p_title, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
-	{
-		m_crossPlatformStyles = p_styleFlags;
-		
-		m_messageThread = std::thread(&LinuxWindow::thread_createAndRun, this, p_title, p_x, p_y, p_width, p_height, p_parent);
-		m_messageThread.join();
-	}
-	void create(char const* p_title, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
-	{
-		create(p_title, 0.5f, 0.5f, p_width, p_height, p_styleFlags, p_parent);
-	}
-
-	void close() override 
-	{
-	}
-	bool getIsOpen() const override
-	{
-	}
-
-	//------------------------------
-
-	void enableUserInteraction() override 
-	{
-	}
-	void disableUserInteraction() override 
-	{
-	}
-	bool getIsUserInteractionEnabled() override 
-	{
-	}
-
-	//------------------------------
-
-	void setTitle(char const* p_title) override 
-	{
-	}
-	std::string getTitle() const override
-	{
-	}
-
-	//------------------------------
-
-	void setStyles(AvoGUI::WindowStyleFlags p_styles) override 
-	{
-	}
-	AvoGUI::WindowStyleFlags getStyles() const override
-	{
-	}
-
-	//------------------------------
-
-	void* getNativeHandle() const override
-	{
-	}
-
-	//------------------------------
-
-	void setIsFullscreen(bool p_isFullscreen) override 
-	{
-	}
-	void switchFullscreen() override 
-	{
-	}
-	bool getIsFullscreen() const override
-	{
-	}
-
-	//------------------------------
-
-	void hide() override 
-	{
-	}
-	void show() override 
-	{
-	}
-
-	void maximize() override 
-	{
-	}
-	void minimize() override 
-	{
-	}
-	void restore() override 
-	{
-	}
-
-	void setState(AvoGUI::WindowState p_state) override 
-	{
-	}
-	AvoGUI::WindowState getState() const override
-	{
-	}
-
-	//------------------------------
-
-	void setPosition(AvoGUI::Point<int32> const& p_position) override 
-	{
-	}
-	void setPosition(int32 p_x, int32 p_y) override 
-	{
-	}
-	AvoGUI::Point<int32> const& getPosition() const override
-	{
-	}
-	int32 getPositionX() const override
-	{
-	}
-	int32 getPositionY() const override
-	{
-	}
-
-	void setSize(AvoGUI::Point<float> const& p_size) override 
-	{
-	}
-	void setSize(float p_width, float p_height) override 
-	{
-	}
-	AvoGUI::Point<float> const& getSize() const override
-	{
-	}
-	float getWidth() const override
-	{
-	}
-	float getHeight() const override
-	{
-	}
-
-	void setMinSize(AvoGUI::Point<float> const& p_minSize) override 
-	{
-	}
-	void setMinSize(float p_minWidth, float p_minHeight) override 
-	{
-	}
-	AvoGUI::Point<float> getMinSize() const override
-	{
-	}
-	float getMinWidth() const override
-	{
-	}
-	float getMinHeight() const override
-	{
-	}
-
-	void setMaxSize(AvoGUI::Point<float> const& p_maxSize) override 
-	{
-	}
-	void setMaxSize(float p_maxWidth, float p_maxHeight) override 
-	{
-	}
-	AvoGUI::Point<float> getMaxSize() const override
-	{
-	}
-	float getMaxWidth() const override
-	{
-	}
-	float getMaxHeight() const override
-	{
-	}
-
-	//------------------------------
-
-	AvoGUI::Rectangle<uint32> getMonitorBounds() const override
-	{
-	}
-	AvoGUI::Point<uint32> getMonitorPosition() const override
-	{
-	}
-	AvoGUI::Point<uint32> getMonitorSize() const override
-	{
-	}
-	uint32 getMonitorWidth() const override
-	{
-	}
-	uint32 getMonitorHeight() const override
-	{
-	}
-
-	//------------------------------
-
-	AvoGUI::Rectangle<uint32> getWorkAreaBounds() const override
-	{
-	}
-	AvoGUI::Point<uint32> getWorkAreaPosition() const override
-	{
-	}
-	AvoGUI::Point<uint32> getWorkAreaSize() const override
-	{
-	}
-	uint32 getWorkAreaWidth() const override
-	{
-	}
-	uint32 getWorkAreaHeight() const override
-	{
-	}
-
-	//------------------------------
-
-	bool getIsKeyDown(AvoGUI::KeyboardKey p_key) const override
-	{
-	}
-	bool getIsMouseButtonDown(AvoGUI::MouseButton p_button) const override
-	{
-	}
-	AvoGUI::Point<float> getMousePosition() const override
-	{
-	}
-
-	//------------------------------
-
-	void setCursor(AvoGUI::Cursor p_cursor) override 
-	{
-	}
-	AvoGUI::Cursor getCursor() const override
-	{
-	}
-
-	//------------------------------
-
-	float getDipToPixelFactor() const override
-	{
-	}
-
-	//------------------------------
-
-	AvoGUI::DragDropOperation dragAndDropString(std::string const& p_string, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropString(char const* p_string, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropString(char const* p_string, uint32 p_length, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-
-	AvoGUI::DragDropOperation dragAndDropString(std::wstring const& p_string, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropString(wchar_t const* p_string, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropString(wchar_t const* p_string, uint32 p_length, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-
-	AvoGUI::DragDropOperation dragAndDropImage(AvoGUI::Image* p_image, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::string const& p_name, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_data, std::wstring const& p_name, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_path, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::wstring const& p_path, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-
-	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_paths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_paths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFiles(std::string* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFiles(std::wstring* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFiles(char const* const* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-
-	//------------------------------
-
-	void setClipboardString(std::wstring const& p_string) const override
-	{
-	}
-	void setClipboardString(wchar_t const* p_string) const override
-	{
-	}
-	void setClipboardString(wchar_t const* p_string, uint32 p_length) const override
-	{
-	}
-
-	void setClipboardString(std::string const& p_string) const override
-	{
-	}
-	void setClipboardString(char const* p_string) const override
-	{
-	}
-	void setClipboardString(char const* p_string, uint32 p_length) const override
-	{
-	}
-
-	void setClipboardImage(AvoGUI::Image* p_image) const override
-	{
-	}
-
-	void setClipboardFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) const override
-	{
-	}
-	void setClipboardFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name) const override
-	{
-	}
-	void setClipboardFile(std::string const& p_data, std::string const& p_name) const override
-	{
-	}
-	void setClipboardFile(std::string const& p_data, std::wstring const& p_name) const override
-	{
-	}
-	void setClipboardFile(std::string const& p_path) const override
-	{
-	}
-	void setClipboardFile(std::wstring const& p_path) const override
-	{
-	}
-
-	void setClipboardFiles(std::vector<std::string> const& p_paths) const override
-	{
-	}
-	void setClipboardFiles(std::vector<std::wstring> const& p_paths) const override
-	{
-	}
-	void setClipboardFiles(std::string* p_paths, uint32 p_numberOfPaths) const override
-	{
-	}
-	void setClipboardFiles(std::wstring* p_paths, uint32 p_numberOfPaths) const override
-	{
-	}
-	void setClipboardFiles(char const* const* p_paths, uint32 p_numberOfPaths) const override
-	{
-	}
-	void setClipboardFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths) const override
-	{
-	}
-
-	AvoGUI::ClipboardData* getClipboardData() const override
-	{
-	}
-};
 #endif
 #pragma endregion
 

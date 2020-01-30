@@ -416,6 +416,10 @@ namespace AvoGUI
 		}
 		return numberOfCharactersCounted;
 	}
+	inline int32 getNumberOfCharactersInUtf8String(std::string const& p_string)
+	{
+		return getCharacterIndexFromUtf8UnitIndex(p_string, p_string.size());
+	}
 	/*
 		Returns the index of the unit at a certain character index in a UTF-8 encoded string (where a character can be 1-2 units).
 		If p_characterIndex is outside of the string, the size of the string in code units is returned.
@@ -475,6 +479,10 @@ namespace AvoGUI
 			return numberOfCharactersCounted - 1;
 		}
 		return numberOfCharactersCounted;
+	}
+	inline int32 getNumberOfCharactersInUtf16String(std::wstring const& p_string)
+	{
+		return getCharacterIndexFromUtf16UnitIndex(p_string, p_string.size());
 	}
 
 	//------------------------------
@@ -3900,9 +3908,9 @@ namespace AvoGUI
 		Tab,
 		Return, // Enter and return have the same value.
 		Enter = Return, // Enter and return have the same value.
-		Shift, ShiftLeft, ShiftRight,
-		Control, ControlLeft, ControlRight,
-		MenuLeft, MenuRight,
+		Shift, 
+		Control, 
+		Menu,
 		Alt,
 		CapsLock,
 		Escape,
@@ -3911,7 +3919,7 @@ namespace AvoGUI
 		PrintScreen,
 		Insert,
 		Delete,
-		Pause, Play,
+		Pause, 
 		Help,
 		Separator,
 		Left, Right, Up, Down,
@@ -3921,9 +3929,7 @@ namespace AvoGUI
 		Number0, Number1, Number2, Number3, Number4, Number5, Number6, Number7, Number8, Number9,
 		A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
 		F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24,
-		PreviousTrack, NextTrack, PlayPauseTrack, StopTrack,
-		Comma, Period, Minus, Plus,
-
+		Comma, Period, Plus, Minus,
 		// These keys vary by country/region.
 		Regional1, Regional2, Regional3, Regional4, Regional5, Regional6, Regional7, Regional8
 	};
@@ -6848,8 +6854,18 @@ namespace AvoGUI
 
 		/*
 			Sets the text shown in the titlebar.
+			p_size is the size in bytes of the string.
+		*/
+		virtual void setTitle(char const* p_title, uint32 p_size) = 0;
+		/*
+			Sets the text shown in the titlebar.
+			p_title is assumed to be null terminated.
 		*/
 		virtual void setTitle(char const* p_title) = 0;
+		/*
+			Sets the text shown in the titlebar.
+		*/
+		virtual void setTitle(std::string const& p_title) = 0;
 		/*
 			Returns the text shown in the titlebar.
 		*/
