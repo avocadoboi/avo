@@ -11635,6 +11635,7 @@ namespace AvoGUI
 				}
 				m_caretFrameCount = 1;
 				m_isCaretVisible = true;
+				invalidate();
 				break;
 			}
 			case KeyboardKey::Right:
@@ -11746,6 +11747,7 @@ namespace AvoGUI
 				}
 				m_caretFrameCount = 1;
 				m_isCaretVisible = true;
+				invalidate();
 				break;
 			}
 			case KeyboardKey::C:
