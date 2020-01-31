@@ -6955,7 +6955,7 @@ namespace AvoGUI
 		/*
 			Returns the position of the window relative to the top-left corner of the screen, in pixel units.
 		*/
-		virtual Point<int32> const& getPosition() const = 0;
+		virtual Point<int32> getPosition() const = 0;
 		/*
 			Returns the position of the left edge of the window relative to the top-left corner of the screen, in pixel units.
 		*/
@@ -6976,7 +6976,7 @@ namespace AvoGUI
 		/*
 			Returns the size of the client area of the window, in dip units.
 		*/
-		virtual Point<float> const& getSize() const = 0;
+		virtual Point<float> getSize() const = 0;
 		/*
 			Returns the width of the client area of the window, in dip units.
 		*/

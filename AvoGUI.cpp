@@ -4674,7 +4674,6 @@ private:
 	XWindow m_windowHandle = 0;
 
 	bool m_isOpen = false;
-	AvoGUI::Point<int32> m_position;
 	AvoGUI::Point<uint32> m_size;
 	AvoGUI::Point<uint32> m_minSize;
 	AvoGUI::Point<uint32> m_maxSize;
@@ -4991,11 +4990,6 @@ private:
 					m_size.set(event.xconfigure.width, event.xconfigure.height);
 					std::cout << "New width: " << m_size.x << ", height: " << m_size.y << '\n';
 				}
-				if (m_position.x != event.xconfigure.x || m_position.y != event.xconfigure.y)
-				{
-					m_position.set(event.xconfigure.x, event.xconfigure.y);
-					std::cout << "New x: " << m_position.x << ", y:" << m_position.y << '\n';
-				}
 				break;
 			}
 			case ButtonPress:
@@ -5207,17 +5201,28 @@ public:
 			XFlush(m_server);
 		}
 	}
-	AvoGUI::Point<int32> const& getPosition() const override
+	AvoGUI::Point<int32> getPosition() const override
 	{
-		return m_position;
+		AvoGUI::Point<int32> result;
+		XWindow child;
+		XTranslateCoordinates(m_server, m_windowHandle, DefaultRootWindow(m_server), 0, 0, &result.x, &result.y, &child);
+		return result;
 	}
 	int32 getPositionX() const override
 	{
-		return m_position.x;
+		int32 x;
+		int32 y;
+		XWindow child;
+		XTranslateCoordinates(m_server, m_windowHandle, DefaultRootWindow(m_server), 0, 0, &x, &y, &child);
+		return x;
 	}
 	int32 getPositionY() const override
 	{
-		return m_position.y;
+		int32 x;
+		int32 y;
+		XWindow child;
+		XTranslateCoordinates(m_server, m_windowHandle, DefaultRootWindow(m_server), 0, 0, &x, &y, &child);
+		return y;
 	}
 
 	void setSize(AvoGUI::Point<float> const& p_size) override 
@@ -5236,7 +5241,7 @@ public:
 			XFlush(m_server);
 		}
 	}
-	AvoGUI::Point<float> const& getSize() const override
+	AvoGUI::Point<float> getSize() const override
 	{
 		return m_size / m_dipToPixelFactor;
 	}
