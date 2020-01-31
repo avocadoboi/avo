@@ -250,6 +250,11 @@ namespace AvoGUI
 	*/
 	std::wstring convertUtf8ToUtf16(char const* p_input);
 	/*
+		Converts a UTF-8 encoded null-terminated string to a UTF-16 encoded std::wstring.
+		p_numberOfUnitsInInput is the size in bytes of p_input.
+	*/
+	std::wstring convertUtf8ToUtf16(char const* p_input, uint32 p_numberOfUnitsInInput);
+	/*
 		Returns the number of UTF-16 encoded wchar_t units that would be used to represent the same characters in a UTF-8 encoded char string.
 		It is assumed that p_input is null-terminated.
 		The output includes the null terminator.
@@ -289,6 +294,11 @@ namespace AvoGUI
 		Converts a UTF-16 encoded null-terminated string to a UTF-8 encoded std::string.
 	*/
 	std::string convertUtf16ToUtf8(wchar_t const* p_input);
+	/*
+		Converts a UTF-16 encoded null-terminated string to a UTF-8 encoded std::string.
+		p_numberOfUnitsInInput is the size of p_input in wchar_t units.
+	*/
+	std::string convertUtf16ToUtf8(wchar_t const* p_input, uint32 p_numberOfUnitsInInput);
 	/*
 		Returns the number of UTF-8 encoded char units that would be used to represent the same characters in a UTF-16 encoded wchar_t string.
 		It is assumed that p_input is null terminated.
@@ -6799,7 +6809,35 @@ namespace AvoGUI
 		/*
 			Creates the window. To close it, use close().
 		
-			p_title is the text that appears in the title bar of the window (if it has a border).
+			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
+			p_titleSize is the size in bytes of p_title.
+
+			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
+			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
+
+			p_positionFactorY is the vertical equivalent to p_positionFactorX.
+
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent window, which this window would appear above.
+		*/
+		virtual void create(char const* p_title, uint32 p_titleSize, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		/*
+			Creates the window in the center of the screen. To close it, use close().
+		
+			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
+			p_titleSize is the size in bytes of p_title.
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent window, which this window would appear above.
+		*/
+		virtual void create(char const* p_title, uint32 p_titleSize, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		/*
+			Creates the window. To close it, use close().
+
+			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
 
 			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
 			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
@@ -6814,14 +6852,40 @@ namespace AvoGUI
 		virtual void create(char const* p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
 		/*
 			Creates the window in the center of the screen. To close it, use close().
-		
-			p_title is the text that appears in the title bar of the window (if it has a border).
+
+			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
 			p_width is the width of the client area in DIPs (device independent pixels).
 			p_height is the height of the client area in DIPs (device independent pixels).
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
 		virtual void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		/*
+			Creates the window. To close it, use close().
+
+			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
+
+			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
+			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
+
+			p_positionFactorY is the vertical equivalent to p_positionFactorX.
+
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent window, which this window would appear above.
+		*/
+		virtual void create(std::string const& p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		/*
+			Creates the window in the center of the screen. To close it, use close().
+
+			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent window, which this window would appear above.
+		*/
+		virtual void create(std::string const& p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
 
 		/*
 			Closes the window, if the GUI associated with the window allows it.
@@ -9125,6 +9189,45 @@ namespace AvoGUI
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+
+			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+
+			p_title is the text that appears in the title bar of the window (if it has an OS border).
+			p_titleSize is the size of p_title in bytes.
+
+			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
+			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
+
+			p_positionFactorY is the vertical equivalent to p_positionFactorX.
+
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
+		*/
+		void create(char const* p_title, uint32 p_titleSize, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
+		/*
+			LIBRARY IMPLEMENTED
+			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
+			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
+			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+
+			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+
+			p_title is the text that appears in the title bar of the window (if it has an OS border).
+			p_titleSize is the size of p_title in bytes.
+
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
+		*/
+		void create(char const* p_title, uint32 p_titleSize, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
+		/*
+			LIBRARY IMPLEMENTED
+			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
+			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
+			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
 		
 			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
 
@@ -9156,6 +9259,42 @@ namespace AvoGUI
 			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
 		void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
+		/*
+			LIBRARY IMPLEMENTED
+			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
+			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
+			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+
+			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+
+			p_title is the text that appears in the title bar of the window (if it has an OS border).
+
+			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
+			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
+
+			p_positionFactorY is the vertical equivalent to p_positionFactorX.
+
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
+		*/
+		void create(std::string const& p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
+		/*
+			LIBRARY IMPLEMENTED
+			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
+			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
+			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+
+			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+
+			p_title is the text that appears in the title bar of the window (if it has an OS border).
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
+		*/
+		void create(std::string const& p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
 
 		/*
 			LIBRARY IMPLEMENTED
