@@ -34,6 +34,7 @@
 #include <cstdint> 
 #include <cfloat> // Range defines for float
 #include <math.h>
+#include <string.h>
 
 // Data structures
 #include <string>
@@ -566,16 +567,16 @@ namespace AvoGUI
 
 		union Data
 		{
-			std::string string;
-			uint32 uint32;
-			int32 int32;
-			uint64 uint64;
-			int64 int64;
-			float floatValue; // float is a c++ keyword
-			double doubleValue; // double is a c++ keyword
+			std::string stringData;
+			uint32 uint32Data;
+			int32 int32Data;
+			uint64 uint64Data;
+			int64 int64Data;
+			float floatData;
+			double doubleData;
 
 			Data() : 
-				int64(0) 
+				int64Data(0) 
 			{ }
 			~Data() { }
 		};
@@ -594,7 +595,7 @@ namespace AvoGUI
 		{
 			if (m_type == Type::String)
 			{
-				new (&m_data.string) std::string(p_formattable.m_data.string);
+				new (&m_data.stringData) std::string(p_formattable.m_data.stringData);
 			}
 			else
 			{
@@ -605,53 +606,53 @@ namespace AvoGUI
 		Formattable(std::string&& p_movableString) :
 			m_type(Type::String)
 		{
-			new (&m_data.string) std::string(p_movableString);
+			new (&m_data.stringData) std::string(p_movableString);
 		}
 		Formattable(std::string const& p_string) :
 			m_type(Type::String)
 		{ 
-			new (&m_data.string) std::string(p_string);
+			new (&m_data.stringData) std::string(p_string);
 		}
 		Formattable(char const* p_string) :
 			m_type(Type::String)
 		{
-			new (&m_data.string) std::string(p_string);
+			new (&m_data.stringData) std::string(p_string);
 		}
 		Formattable(uint32 p_value) :
 			m_type(Type::Uint32)
 		{
-			m_data.uint32 = p_value;
+			m_data.uint32Data = p_value;
 		}
 		Formattable(int32 p_value) :
 			m_type(Type::Int32)
 		{
-			m_data.uint32 = p_value;
+			m_data.uint32Data = p_value;
 		}
 		Formattable(uint64 p_value) :
 			m_type(Type::Uint64)
 		{
-			m_data.uint32 = p_value;
+			m_data.uint32Data = p_value;
 		}
 		Formattable(int64 p_value) :
 			m_type(Type::Int64)
 		{
-			m_data.uint32 = p_value;
+			m_data.uint32Data = p_value;
 		}
 		Formattable(double p_value) :
 			m_type(Type::Double)
 		{
-			m_data.doubleValue = p_value;
+			m_data.doubleData = p_value;
 		}
 		Formattable(float p_value) :
 			m_type(Type::Float)
 		{
-			m_data.floatValue = p_value;
+			m_data.floatData = p_value;
 		}
 		virtual ~Formattable()
 		{
 			if (m_type == Type::String)
 			{
-				m_data.string.~basic_string();
+				m_data.stringData.~basic_string();
 			}
 		}
 
@@ -682,19 +683,19 @@ namespace AvoGUI
 			switch (m_type)
 			{
 			case Type::String:
-				return m_data.string;
+				return m_data.stringData;
 			case Type::Uint32:
-				return convertNumberToString(m_data.uint32);
+				return convertNumberToString(m_data.uint32Data);
 			case Type::Int32:
-				return convertNumberToString(m_data.uint32);
+				return convertNumberToString(m_data.uint32Data);
 			case Type::Uint64:
-				return convertNumberToString(m_data.uint32);
+				return convertNumberToString(m_data.uint32Data);
 			case Type::Int64:
-				return convertNumberToString(m_data.uint32);
+				return convertNumberToString(m_data.uint32Data);
 			case Type::Double:
-				return convertNumberToString(m_data.doubleValue);
+				return convertNumberToString(m_data.doubleData);
 			case Type::Float:
-				return convertNumberToString(m_data.floatValue);
+				return convertNumberToString(m_data.floatData);
 			}
 		}
 	};
@@ -730,25 +731,25 @@ namespace AvoGUI
 					switch (objectToInsert.getDataType())
 					{
 					case Formattable::Type::String:
-						stream << objectToInsert.getData().string;
+						stream << objectToInsert.getData().stringData;
 						break;
 					case Formattable::Type::Uint32:
-						stream << objectToInsert.getData().uint32;
+						stream << objectToInsert.getData().uint32Data;
 						break;
 					case Formattable::Type::Int32:
-						stream << objectToInsert.getData().int32;
+						stream << objectToInsert.getData().int32Data;
 						break;
 					case Formattable::Type::Uint64:
-						stream << objectToInsert.getData().uint64;
+						stream << objectToInsert.getData().uint64Data;
 						break;
 					case Formattable::Type::Int64:
-						stream << objectToInsert.getData().int64;
+						stream << objectToInsert.getData().int64Data;
 						break;
 					case Formattable::Type::Double:
-						stream << objectToInsert.getData().doubleValue;
+						stream << objectToInsert.getData().doubleData;
 						break;
 					case Formattable::Type::Float:
-						stream << objectToInsert.getData().floatValue;
+						stream << objectToInsert.getData().floatData;
 						break;
 					default:
 						stream << objectToInsert.convertToString();

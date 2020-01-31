@@ -8,7 +8,6 @@
 #include <random>
 #include <chrono>
 #include <time.h>
-#include <string.h>
 
 #if __has_include("filesystem")
 #include <filesystem>
@@ -59,6 +58,7 @@
 #include <X11/keysym.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#include <GL/glx.h>
 #undef None
 
 #include <unistd.h>
@@ -4699,6 +4699,17 @@ wchar_t const* const WindowsWindow::WINDOW_CLASS_NAME = L"AvoGUI window class";
 #endif
 
 #ifdef __linux__
+/*
+	Some resources that I used:
+	https://www.x.org/docs/X11/xlib.pdf
+	https://specifications.freedesktop.org/wm-spec/wm-spec-1.4.html
+	https://www.x.org/releases/X11R7.6/doc/xorg-docs/specs/ICCCM/icccm.html
+	https://github.com/SFML/SFML/blob/master/src/SFML/Window/Unix/WindowImplX11.cpp
+
+	The spec websites are really ugly and it's hard to read on them for me, a tip is to use a 
+	"reader view" chrome extension or similar functionality in other browsers :) 
+*/
+
 typedef Window XWindow;
 
 class LinuxWindow : public AvoGUI::Window
@@ -4711,8 +4722,8 @@ private:
 
 	bool m_isOpen = false;
 	AvoGUI::Point<uint32> m_size;
-	AvoGUI::Point<uint32> m_minSize;
-	AvoGUI::Point<uint32> m_maxSize;
+	AvoGUI::Point<float> m_minSize;
+	AvoGUI::Point<float> m_maxSize;
 
 	AvoGUI::WindowStyleFlags m_crossPlatformStyles;
 
@@ -4720,7 +4731,226 @@ private:
 
 	//------------------------------
 
-	AvoGUI::KeyboardKey convertKeySymToKeyboardKey(KeySym p_keySym)
+	KeySym convertKeyboardKeyToKeySym(AvoGUI::KeyboardKey p_key) const
+	{
+		switch (p_key)
+		{
+		case AvoGUI::KeyboardKey::Menu:
+			return XK_Menu;
+		case AvoGUI::KeyboardKey::Backspace:
+			return XK_BackSpace;
+		case AvoGUI::KeyboardKey::Clear:
+			return XK_Clear;
+		case AvoGUI::KeyboardKey::Tab:
+			return XK_Tab;
+		case AvoGUI::KeyboardKey::Return:
+			return XK_Return;
+		case AvoGUI::KeyboardKey::Shift:
+			return XK_Shift_L;
+		case AvoGUI::KeyboardKey::Control:
+			return XK_Control_L;
+		case AvoGUI::KeyboardKey::Alt:
+			return XK_Alt_L;
+		case AvoGUI::KeyboardKey::Pause:
+			return XK_Pause;
+		case AvoGUI::KeyboardKey::CapsLock:
+			return XK_Caps_Lock;
+		case AvoGUI::KeyboardKey::Escape:
+			return XK_Escape;
+		case AvoGUI::KeyboardKey::Spacebar:
+			return XK_space;
+		case AvoGUI::KeyboardKey::PageUp:
+			return XK_Page_Up;
+		case AvoGUI::KeyboardKey::PageDown:
+			return XK_Page_Down;
+		case AvoGUI::KeyboardKey::End:
+			return XK_End;
+		case AvoGUI::KeyboardKey::Home:
+			return XK_Home;
+		case AvoGUI::KeyboardKey::Left:
+			return XK_Left;
+		case AvoGUI::KeyboardKey::Right:
+			return XK_Right;
+		case AvoGUI::KeyboardKey::Up:
+			return XK_Up;
+		case AvoGUI::KeyboardKey::Down:
+			return XK_Down;
+		case AvoGUI::KeyboardKey::PrintScreen:
+			return XK_Print;
+		case AvoGUI::KeyboardKey::Insert:
+			return XK_Insert;
+		case AvoGUI::KeyboardKey::Delete:
+			return XK_Delete;
+		case AvoGUI::KeyboardKey::Help:
+			return XK_Help;
+		case AvoGUI::KeyboardKey::Numpad0:
+			return XK_KP_0;
+		case AvoGUI::KeyboardKey::Numpad1:
+			return XK_KP_1;
+		case AvoGUI::KeyboardKey::Numpad2:
+			return XK_KP_2;
+		case AvoGUI::KeyboardKey::Numpad3:
+			return XK_KP_3;
+		case AvoGUI::KeyboardKey::Numpad4:
+			return XK_KP_4;
+		case AvoGUI::KeyboardKey::Numpad5:
+			return XK_KP_5;
+		case AvoGUI::KeyboardKey::Numpad6:
+			return XK_KP_6;
+		case AvoGUI::KeyboardKey::Numpad7:
+			return XK_KP_7;
+		case AvoGUI::KeyboardKey::Numpad8:
+			return XK_KP_8;
+		case AvoGUI::KeyboardKey::Numpad9:
+			return XK_KP_9;
+		case AvoGUI::KeyboardKey::Add:
+			return XK_KP_Add;
+		case AvoGUI::KeyboardKey::Subtract:
+			return XK_KP_Subtract;
+		case AvoGUI::KeyboardKey::Multiply:
+			return XK_KP_Multiply;
+		case AvoGUI::KeyboardKey::Divide:
+			return XK_KP_Divide;
+		case AvoGUI::KeyboardKey::F1:
+			return XK_F1;
+		case AvoGUI::KeyboardKey::F2:
+			return XK_F2;
+		case AvoGUI::KeyboardKey::F3:
+			return XK_F3;
+		case AvoGUI::KeyboardKey::F4:
+			return XK_F4;
+		case AvoGUI::KeyboardKey::F5:
+			return XK_F5;
+		case AvoGUI::KeyboardKey::F6:
+			return XK_F6;
+		case AvoGUI::KeyboardKey::F7:
+			return XK_F7;
+		case AvoGUI::KeyboardKey::F8:
+			return XK_F8;
+		case AvoGUI::KeyboardKey::F9:
+			return XK_F9;
+		case AvoGUI::KeyboardKey::F10:
+			return XK_F10;
+		case AvoGUI::KeyboardKey::F11:
+			return XK_F11;
+		case AvoGUI::KeyboardKey::F12:
+			return XK_F12;
+		case AvoGUI::KeyboardKey::F13:
+			return XK_F13;
+		case AvoGUI::KeyboardKey::F14:
+			return XK_F14;
+		case AvoGUI::KeyboardKey::F15:
+			return XK_F15;
+		case AvoGUI::KeyboardKey::F16:
+			return XK_F16;
+		case AvoGUI::KeyboardKey::F17:
+			return XK_F17;
+		case AvoGUI::KeyboardKey::F18:
+			return XK_F18;
+		case AvoGUI::KeyboardKey::F19:
+			return XK_F19;
+		case AvoGUI::KeyboardKey::F20:
+			return XK_F20;
+		case AvoGUI::KeyboardKey::F21:
+			return XK_F21;
+		case AvoGUI::KeyboardKey::F22:
+			return XK_F22;
+		case AvoGUI::KeyboardKey::F23:
+			return XK_F23;
+		case AvoGUI::KeyboardKey::F24:
+			return XK_F24;
+		case AvoGUI::KeyboardKey::NumLock:
+			return XK_Num_Lock;
+		case AvoGUI::KeyboardKey::Number0:
+			return XK_0;
+		case AvoGUI::KeyboardKey::Number1:
+			return XK_1;
+		case AvoGUI::KeyboardKey::Number2:
+			return XK_2;
+		case AvoGUI::KeyboardKey::Number3:
+			return XK_3;
+		case AvoGUI::KeyboardKey::Number4:
+			return XK_4;
+		case AvoGUI::KeyboardKey::Number5:
+			return XK_5;
+		case AvoGUI::KeyboardKey::Number6:
+			return XK_6;
+		case AvoGUI::KeyboardKey::Number7:
+			return XK_7;
+		case AvoGUI::KeyboardKey::Number8:
+			return XK_8;
+		case AvoGUI::KeyboardKey::Number9:
+			return XK_9;
+		case AvoGUI::KeyboardKey::A:
+			return XK_A;
+		case AvoGUI::KeyboardKey::B:
+			return XK_B;
+		case AvoGUI::KeyboardKey::C:
+			return XK_C;
+		case AvoGUI::KeyboardKey::D:
+			return XK_D;
+		case AvoGUI::KeyboardKey::E:
+			return XK_E;
+		case AvoGUI::KeyboardKey::F:
+			return XK_F;
+		case AvoGUI::KeyboardKey::G:
+			return XK_G;
+		case AvoGUI::KeyboardKey::H:
+			return XK_H;
+		case AvoGUI::KeyboardKey::I:
+			return XK_I;
+		case AvoGUI::KeyboardKey::J:
+			return XK_J;
+		case AvoGUI::KeyboardKey::K:
+			return XK_K;
+		case AvoGUI::KeyboardKey::L:
+			return XK_L;
+		case AvoGUI::KeyboardKey::M:
+			return XK_M;
+		case AvoGUI::KeyboardKey::N:
+			return XK_N;
+		case AvoGUI::KeyboardKey::O:
+			return XK_O;
+		case AvoGUI::KeyboardKey::P:
+			return XK_P;
+		case AvoGUI::KeyboardKey::Q:
+			return XK_Q;
+		case AvoGUI::KeyboardKey::R:
+			return XK_R;
+		case AvoGUI::KeyboardKey::S:
+			return XK_S;
+		case AvoGUI::KeyboardKey::T:
+			return XK_T;
+		case AvoGUI::KeyboardKey::U:
+			return XK_U;
+		case AvoGUI::KeyboardKey::V:
+			return XK_V;
+		case AvoGUI::KeyboardKey::W:
+			return XK_W;
+		case AvoGUI::KeyboardKey::X:
+			return XK_X;
+		case AvoGUI::KeyboardKey::Y:
+			return XK_Y;
+		case AvoGUI::KeyboardKey::Z:
+			return XK_Z;
+		case AvoGUI::KeyboardKey::Regional1:
+			return XK_semicolon;
+		case AvoGUI::KeyboardKey::Regional2:
+			return XK_slash;
+		case AvoGUI::KeyboardKey::Regional3:
+			return XK_grave;
+		case AvoGUI::KeyboardKey::Regional4:
+			return XK_bracketleft;
+		case AvoGUI::KeyboardKey::Regional5:
+			return XK_backslash;
+		case AvoGUI::KeyboardKey::Regional6:
+			return XK_bracketright;
+		case AvoGUI::KeyboardKey::Regional7:
+			return XK_apostrophe;
+		}
+		return 0;
+	}
+	AvoGUI::KeyboardKey convertKeySymToKeyboardKey(KeySym p_keySym) const
 	{
 		switch (p_keySym)
 		{
@@ -4946,7 +5176,7 @@ private:
 	//------------------------------
 
 	std::thread m_messageThread;
-	void thread_runEventLoop(char const* p_title, float p_x, float p_y, float p_width, float p_height, AvoGUI::Window* p_parent)
+	void thread_runEventLoop()
 	{	
 		// Open keyboard input
 		XIM inputMethod = XOpenIM(m_server, 0, 0, 0);
@@ -4978,6 +5208,7 @@ private:
 		XFlush(m_server); // Execute command queue
 		
 		Time lastKeyPressTime = 0;
+		KeyCode lastKeyPressKeyCode = 0;
 		XEvent event;
 
 		while (m_isOpen)
@@ -5004,6 +5235,8 @@ private:
 			// }
 			case ClientMessage:
 			{
+				// Sent from the window manager when the user has tried to close the window, 
+				// it is up to us to decide whether to actually close and exit the application.
 				if (event.xclient.data.l[0] == windowCloseEvent)
 				{
 					m_isOpen = false;
@@ -5024,7 +5257,7 @@ private:
 				if (m_size.x != event.xconfigure.width || m_size.y != event.xconfigure.height)
 				{
 					m_size.set(event.xconfigure.width, event.xconfigure.height);
-					std::cout << "New width: " << m_size.x << ", height: " << m_size.y << '\n';
+					m_gui->handleWindowSizeChange({ this, m_size.x / m_dipToPixelFactor, m_size.y / m_dipToPixelFactor });
 				}
 				break;
 			}
@@ -5046,7 +5279,7 @@ private:
 				int length = Xutf8LookupString(inputContext, &event.xkey, character, 4, &key, &characterLookupStatus);
 				
 				AvoGUI::KeyboardEvent keyboardEvent;
-				keyboardEvent.isRepeated = event.xkey.time < lastKeyPressTime + 2;
+				keyboardEvent.isRepeated = lastKeyPressKeyCode == event.xkey.keycode && event.xkey.time < lastKeyPressTime + 2;
 				if (characterLookupStatus == XLookupBoth || characterLookupStatus == XLookupChars)
 				{
 					keyboardEvent.character = character;
@@ -5065,6 +5298,24 @@ private:
 			}
 			case KeyRelease:
 			{
+				AvoGUI::KeyboardEvent keyboardEvent;
+				
+				// Try the four modifier groups until one matches
+				for (uint32 a = 0; a < 4; a++)
+				{
+					if (AvoGUI::KeyboardKey::None != (keyboardEvent.key = convertKeySymToKeyboardKey(XLookupKeysym(&event.xkey, a))))
+					{
+						break;
+					}
+				}
+
+				if (keyboardEvent.key != AvoGUI::KeyboardKey::None)
+				{
+					keyboardEvent.isRepeated = lastKeyPressKeyCode == event.xkey.keycode && event.xkey.time < lastKeyPressTime + 2;
+					m_gui->handleGlobalKeyboardKeyUp(keyboardEvent);
+					lastKeyPressTime = event.xkey.time;
+				}
+
 				break;
 			}
 			} 
@@ -5083,7 +5334,7 @@ public:
 		m_messageThread.join();
 	}
 
-	void create(char const* p_title, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
+	void create(char const* p_title, uint32 p_titleSize, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
 	{
 		m_server = XOpenDisplay(0); // Open connection to server
 		
@@ -5098,18 +5349,36 @@ public:
 			p_height*m_dipToPixelFactor,
 			0, 0, 0
 		);
-		setTitle(p_title);
+		setTitle(p_title, p_titleSize);
 		XMapWindow(m_server, m_windowHandle); // Show the window
 		setPosition(p_x * (displayWidth - p_width*m_dipToPixelFactor), p_y * (displayHeight - p_height*m_dipToPixelFactor));
 
 		m_isOpen = true;
 
+		m_gui->handleWindowCreate({ this, p_width, p_height });
+
 		m_crossPlatformStyles = p_styleFlags;
-		m_messageThread = std::thread(&LinuxWindow::thread_runEventLoop, this, p_title, p_x, p_y, p_width, p_height, p_parent);
+		m_messageThread = std::thread(&LinuxWindow::thread_runEventLoop, this);
+	}
+	void create(char const* p_title, uint32 p_titleSize, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
+	{
+		create(p_title, p_titleSize, 0.5f, 0.5f, p_width, p_height, p_styleFlags, p_parent);
+	}
+	void create(char const* p_title, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
+	{
+		create(p_title, strlen(p_title), p_x, p_y, p_width, p_height, p_styleFlags, p_parent);
 	}
 	void create(char const* p_title, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
 	{
-		create(p_title, 0.5f, 0.5f, p_width, p_height, p_styleFlags, p_parent);
+		create(p_title, strlen(p_title), 0.5f, 0.5f, p_width, p_height, p_styleFlags, p_parent);
+	}
+	void create(std::string const& p_title, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
+	{
+		create(p_title.data(), p_title.size(), p_x, p_y, p_width, p_height, p_styleFlags, p_parent);
+	}
+	void create(std::string const& p_title, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
+	{
+		create(p_title.data(), p_title.size(), 0.5f, 0.5f, p_width, p_height, p_styleFlags, p_parent);
 	}
 
 	void close() override 
@@ -5292,34 +5561,54 @@ public:
 
 	void setMinSize(AvoGUI::Point<float> const& p_minSize) override 
 	{
+		setMinSize(p_minSize.x, p_minSize.y);
 	}
 	void setMinSize(float p_minWidth, float p_minHeight) override 
 	{
+		XSizeHints sizeHints = { };
+		sizeHints.flags = PMinSize;
+		sizeHints.min_width = p_minWidth*m_dipToPixelFactor;
+		sizeHints.min_height = p_minHeight*m_dipToPixelFactor; 
+		XSetWMNormalHints(m_server, m_windowHandle, &sizeHints);
+		m_minSize.set(p_minWidth, p_minHeight);
 	}
 	AvoGUI::Point<float> getMinSize() const override
 	{
+		return m_minSize;
 	}
 	float getMinWidth() const override
 	{
+		return m_minSize.x;
 	}
 	float getMinHeight() const override
 	{
+		return m_minSize.y;
 	}
 
 	void setMaxSize(AvoGUI::Point<float> const& p_maxSize) override 
 	{
+		setMaxSize(p_maxSize.x, p_maxSize.y);
 	}
 	void setMaxSize(float p_maxWidth, float p_maxHeight) override 
 	{
+		XSizeHints sizeHints = { };
+		sizeHints.flags = PMaxSize;
+		sizeHints.max_width = p_maxWidth*m_dipToPixelFactor;
+		sizeHints.max_height = p_maxHeight*m_dipToPixelFactor;
+		XSetWMNormalHints(m_server, m_windowHandle, &sizeHints);
+		m_maxSize.set(p_maxWidth, p_maxHeight);
 	}
 	AvoGUI::Point<float> getMaxSize() const override
 	{
+		return m_maxSize;
 	}
 	float getMaxWidth() const override
 	{
+		return m_maxSize.x;
 	}
 	float getMaxHeight() const override
 	{
+		return m_maxSize.y;
 	}
 
 	//------------------------------
@@ -5362,6 +5651,29 @@ public:
 
 	bool getIsKeyDown(AvoGUI::KeyboardKey p_key) const override
 	{
+		KeySym keySym = convertKeyboardKeyToKeySym(p_key);
+		KeyCode keyCode = XKeysymToKeycode(m_server, keySym);
+		
+		char keymap[32];
+		XQueryKeymap(m_server, keymap);
+		if (keyCode)
+		{
+			bool result = keymap[keyCode / 8] & 1 << keyCode % 8; // Look up operator precedence ;)
+			if (!result && keySym == XK_Control_L)
+			{
+				return keymap[XKeysymToKeycode(m_server, XK_Control_R) / 8] & 1 << keyCode % 8;
+			}
+			if (!result && keySym == XK_Shift_L)
+			{
+				return keymap[XKeysymToKeycode(m_server, XK_Shift_R) / 8] & 1 << keyCode % 8;
+			}
+			if (!result && keySym == XK_Alt_L)
+			{
+				return keymap[XKeysymToKeycode(m_server, XK_Alt_R) / 8] & 1 << keyCode % 8;
+			}
+			return result;
+		}
+		return false;
 	}
 	bool getIsMouseButtonDown(AvoGUI::MouseButton p_button) const override
 	{
@@ -9449,6 +9761,640 @@ FontCollectionLoader* Direct2DDrawingContext::s_fontCollectionLoader = 0;
 FontFileLoader* Direct2DDrawingContext::s_fontFileLoader = 0;
 IWICImagingFactory2* Direct2DDrawingContext::s_imagingFactory = 0;
 #endif
+
+// oh BOI
+class OpenGlDrawingContext :
+	public AvoGUI::DrawingContext
+{
+private:
+	AvoGUI::Window* m_window;
+	
+public:
+	OpenGlDrawingContext(AvoGUI::Window* p_window) :
+		m_window(p_window)
+	{
+		
+	}
+
+	//------------------------------
+	
+	void beginDrawing() override
+	{
+
+	}
+	void finishDrawing(std::vector<AvoGUI::Rectangle<float>> const& p_updatedRectangles) override
+	{
+
+	}
+
+	//------------------------------
+
+	AvoGUI::DrawingState* createDrawingState() override
+	{
+	}
+	
+	void saveDrawingState(AvoGUI::DrawingState* p_drawingState) override
+	{
+	}
+	
+	void restoreDrawingState(AvoGUI::DrawingState* p_drawingState) override
+	{
+	}
+
+	//------------------------------
+
+	void setIsFullscreen(bool p_isFullscreen) override
+	{
+	}
+	void switchFullscreen() override
+	{
+	}
+	bool getIsFullscreen() override
+	{
+	}
+
+	//------------------------------
+
+	void enableVsync() override
+	{
+	}
+	void disableVsync() override
+	{
+	}
+	bool getIsVsyncEnabled() override
+	{
+	}
+
+	//------------------------------
+
+	void setBackgroundColor(AvoGUI::Color const& p_color) override
+	{
+	}
+	AvoGUI::Color getBackgroundColor() override
+	{
+	}
+
+	//------------------------------
+
+	float getDpi() override
+	{
+	}
+	void setDpi(float p_dpi) override
+	{
+	}
+
+	//------------------------------
+
+	void moveOrigin(AvoGUI::Point<float> const& p_offset) override
+	{
+	}
+	void moveOrigin(float p_offsetX, float p_offsetY) override
+	{
+	}
+	void setOrigin(AvoGUI::Point<float> const& p_origin) override
+	{
+	}
+	void setOrigin(float p_x, float p_y) override
+	{
+	}
+	AvoGUI::Point<float> getOrigin() override
+	{
+	}
+
+	//------------------------------
+
+	void scale(float p_scale) override
+	{
+	}
+	void scale(float p_scaleX, float p_scaleY) override
+	{
+	}
+	void scale(float p_scale, AvoGUI::Point<float> const& p_origin) override
+	{
+	}
+	void scale(float p_scaleX, float p_scaleY, AvoGUI::Point<float> const& p_origin) override
+	{
+	}
+	void scale(float p_scale, float p_originX, float p_originY) override
+	{
+	}
+	void scale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) override
+	{
+	}
+	void setScale(float p_scale) override
+	{
+	}
+	void setScale(float p_scaleX, float p_scaleY) override
+	{
+	}
+	void setScale(float p_scale, AvoGUI::Point<float> const& p_origin) override
+	{
+	}
+	void setScale(float p_scaleX, float p_scaleY, AvoGUI::Point<float> const& p_origin) override
+	{
+	}
+	void setScale(float p_scale, float p_originX, float p_originY) override
+	{
+	}
+	void setScale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) override
+	{
+	}
+	AvoGUI::Point<float> const& getScale() override
+	{
+	}
+	float getScaleX() override
+	{
+	}
+	float getScaleY() override
+	{
+	}
+
+	//------------------------------
+
+	void rotate(float p_radians) override
+	{
+	}
+	void rotate(float p_radians, AvoGUI::Point<float> const& p_origin) override
+	{
+	}
+	void rotate(float p_radians, float p_originX, float p_originY) override
+	{
+	}
+
+	//------------------------------
+
+	void resetTransformations() override
+	{
+	}
+
+	//------------------------------
+
+	void setSize(AvoGUI::Point<float> const& p_size) override
+	{
+	}
+	void setSize(float p_width, float p_height) override
+	{
+	}
+	AvoGUI::Point<float> getSize() override
+	{
+	}
+
+	//------------------------------
+
+	void clear(AvoGUI::Color const& p_color) override
+	{
+	}
+	void clear() override
+	{
+	}
+
+	//------------------------------
+
+	void fillRectangle(AvoGUI::Rectangle<float> const& p_rectangle) override
+	{
+	}
+	void fillRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size) override
+	{
+	}
+	void fillRectangle(float p_left, float p_top, float p_right, float p_bottom) override
+	{
+	}
+	void fillRectangle(AvoGUI::Point<float> const& p_size) override
+	{
+	}
+	void fillRectangle(float p_width, float p_height) override
+	{
+	}
+
+	void fillRectangle(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_rectangleCorners) override
+	{
+	}
+	void fillRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_rectangleCorners) override
+	{
+	}
+	void fillRectangle(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_rectangleCorners) override
+	{
+	}
+
+	void fillRectangle(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_rectangleCorners) override
+	{
+	}
+	void fillRectangle(float p_width, float p_height, AvoGUI::RectangleCorners const& p_rectangleCorners) override
+	{
+	}
+
+	void fillRoundedRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius) override
+	{
+	}
+	void fillRoundedRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_radius) override
+	{
+	}
+	void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
+	{
+	}
+	void fillRoundedRectangle(AvoGUI::Point<float> const& p_size, float p_radius) override
+	{
+	}
+	void fillRoundedRectangle(float p_width, float p_height, float p_radius) override
+	{
+	}
+
+	//------------------------------
+
+	void strokeRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_strokeWidth = 1.f) override
+	{
+	}
+	void strokeRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_strokeWidth = 1.f) override
+	{
+	}
+	void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth = 1.f) override
+	{
+	}
+	void strokeRectangle(AvoGUI::Point<float> const& p_size, float p_strokeWidth = 1.f) override
+	{
+	}
+	void strokeRectangle(float p_width, float p_height, float p_strokeWidth = 1.f) override
+	{
+	}
+
+	void strokeRectangle(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
+	{
+	}
+	void strokeRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
+	{
+	}
+	void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
+	{
+	}
+	void strokeRectangle(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
+	{
+	}
+	void strokeRectangle(float p_width, float p_height, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
+	{
+	}
+
+	void strokeRoundedRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius, float p_strokeWidth = 1.f) override
+	{
+	}
+	void strokeRoundedRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) override
+	{
+	}
+	void strokeRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_strokeWidth = 1.f) override
+	{
+	}
+
+	void strokeRoundedRectangle(AvoGUI::Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) override
+	{
+	}
+	void strokeRoundedRectangle(float p_width, float p_height, float p_radius, float p_strokeWidth = 1.f) override
+	{
+	}
+
+	//------------------------------
+
+	void fillCircle(AvoGUI::Point<float> const& p_position, float p_radius) override
+	{
+	}
+	void fillCircle(float p_x, float p_y, float p_radius) override
+	{
+	}
+
+	void strokeCircle(AvoGUI::Point<float> const& p_position, float p_radius, float p_strokeWidth = 1.f) override
+	{
+	}
+	void strokeCircle(float p_x, float p_y, float p_radius, float p_strokeWidth = 1.f) override
+	{
+	}
+
+	//------------------------------
+
+	void drawLine(AvoGUI::Point<float> const& p_point_0, AvoGUI::Point<float> const& p_point_1, float p_thickness = 1.f) override
+	{
+	}
+	void drawLine(float p_x0, float p_y0, float p_x1, float p_y1, float p_thickness = 1.f) override
+	{
+	}
+
+	//------------------------------
+
+	void strokeShape(std::vector<AvoGUI::Point<float>> const& p_vertices, float p_lineThickness, bool p_isClosed = false) override
+	{
+	}
+	void strokeShape(AvoGUI::Point<float> const* p_vertices, uint32 p_numberOfVertices, float p_lineThickness, bool p_isClosed = false) override
+	{
+	}
+	void fillShape(std::vector<AvoGUI::Point<float>> const& p_vertices) override
+	{
+	}
+	void fillShape(AvoGUI::Point<float> const* p_vertices, uint32 p_numberOfVertices) override
+	{
+	}
+
+	//------------------------------
+
+	void strokeGeometry(AvoGUI::Geometry* p_geometry, float p_strokeWidth = 1.f) override
+	{
+	}
+	void fillGeometry(AvoGUI::Geometry* p_geometry) override
+	{
+	}
+
+	//------------------------------
+
+	AvoGUI::Geometry* createRoundedRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
+	{
+	}
+	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_radius) override
+	{
+	}
+	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius) override
+	{
+	}
+	AvoGUI::Geometry* createRoundedRectangleGeometry(float p_width, float p_height, float p_radius) override
+	{
+	}
+	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Point<float> const& p_size, float p_radius) override
+	{
+	}
+
+	AvoGUI::Geometry* createCornerRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_corners) override
+	{
+	}
+	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners) override
+	{
+	}
+	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_corners) override
+	{
+	}
+	AvoGUI::Geometry* createCornerRectangleGeometry(float p_width, float p_height, AvoGUI::RectangleCorners const& p_corners) override
+	{
+	}
+	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners) override
+	{
+	}
+
+	//------------------------------
+
+	AvoGUI::Geometry* createPolygonGeometry(std::vector<AvoGUI::Point<float>> const& p_vertices) override
+	{
+	}
+	AvoGUI::Geometry* createPolygonGeometry(AvoGUI::Point<float> const* p_vertices, uint32 p_numberOfVertices) override
+	{
+	}
+
+	//------------------------------
+
+	void setLineCap(AvoGUI::LineCap p_lineCap) override
+	{
+	}
+	void setStartLineCap(AvoGUI::LineCap p_lineCap) override
+	{
+	}
+	void setEndLineCap(AvoGUI::LineCap p_lineCap) override
+	{
+	}
+	AvoGUI::LineCap getStartLineCap() override
+	{
+	}
+	AvoGUI::LineCap getEndLineCap() override
+	{
+	}
+
+	//------------------------------
+
+	void setLineDashStyle(AvoGUI::LineDashStyle p_dashStyle) override
+	{
+	}
+	AvoGUI::LineDashStyle getLineDashStyle() override
+	{
+	}
+
+	void setLineDashOffset(float p_dashOffset) override
+	{
+	}
+	float getLineDashOffset() override
+	{
+	}
+
+	void setLineDashCap(AvoGUI::LineCap p_dashCap) override
+	{
+	}
+	AvoGUI::LineCap getLineDashCap() override
+	{
+	}
+
+	//------------------------------
+
+	void setLineJoin(AvoGUI::LineJoin p_lineJoin) override
+	{
+	}
+	AvoGUI::LineJoin getLineJoin() override
+	{
+	}
+
+	void setLineJoinMiterLimit(float p_miterLimit) override
+	{
+	}
+	float getLineJoinMiterLimit() override
+	{
+	}
+
+	//------------------------------
+
+	void pushClipGeometry(AvoGUI::Geometry* p_geometry, float p_opacity = 1.f) override
+	{
+	}
+
+	//------------------------------
+
+	void pushClipShape(std::vector<AvoGUI::Point<float>> const& p_points, float p_opacity = 1.f) override
+	{
+	}
+	void pushClipShape(AvoGUI::Point<float> const* p_points, uint32 p_numberOfPoints, float p_opacity = 1.f) override
+	{
+	}
+
+	void popClipShape() override
+	{
+	}
+
+	//------------------------------
+
+	void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_opacity = 1.f) override
+	{
+	}
+	void pushClipRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_opacity = 1.f) override
+	{
+	}
+	void pushClipRectangle(AvoGUI::Point<float> const& p_size, float p_opacity = 1.f) override
+	{
+	}
+
+	void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_corners, float p_opacity = 1.f) override
+	{
+	}
+	void pushClipRectangle(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_corners, float p_opacity = 1.f) override
+	{
+	}
+	void pushClipRectangle(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners, float p_opacity = 1.f) override
+	{
+	}
+
+	//------------------------------
+
+	void pushRoundedClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_opacity = 1.f) override
+	{
+	}
+	void pushRoundedClipRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius, float p_opacity = 1.f) override
+	{
+	}
+	void pushRoundedClipRectangle(AvoGUI::Point<float> const& p_size, float p_radius, float p_opacity = 1.f) override
+	{
+	}
+
+	//------------------------------
+
+	AvoGUI::Image* createRectangleShadowImage(AvoGUI::Point<float> const& p_size, float p_blur, AvoGUI::Color const& p_color) override
+	{
+	}
+	AvoGUI::Image* createRectangleShadowImage(float p_width, float p_height, float p_blur, AvoGUI::Color const& p_color) override
+	{
+	}
+
+	AvoGUI::Image* createRectangleShadowImage(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners, float p_blur, AvoGUI::Color const& p_color) override
+	{
+	}
+	AvoGUI::Image* createRectangleShadowImage(float p_width, float p_height, AvoGUI::RectangleCorners const& p_corners, float p_blur, AvoGUI::Color const& p_color) override
+	{
+	}
+
+	//------------------------------
+
+	AvoGUI::Image* createRoundedRectangleShadowImage(AvoGUI::Point<float> const& p_size, float p_radius, float p_blur, AvoGUI::Color const& p_color) override
+	{
+	}
+	AvoGUI::Image* createRoundedRectangleShadowImage(float p_width, float p_height, float p_radius, float p_blur, AvoGUI::Color const& p_color) override
+	{
+	}
+
+	//------------------------------
+
+	AvoGUI::Image* createImage(void const* p_pixelData, uint32 p_width, uint32 p_height) override
+	{
+	}
+	AvoGUI::Image* createImage(void const* p_imageData, uint32 p_size) override
+	{
+	}
+	AvoGUI::Image* createImage(char const* p_filePath) override
+	{
+	}
+	AvoGUI::Image* createImage(void* p_handle) override
+	{
+	}
+	void drawImage(AvoGUI::Image* p_image, float p_multiplicativeOpacity = 1.f) override
+	{
+	}
+
+	//------------------------------
+
+	std::string createImageFileData(AvoGUI::Image* p_image, AvoGUI::ImageFormat p_format = AvoGUI::ImageFormat::Png) override
+	{
+	}
+	void* createImageFileDataNativeStream(AvoGUI::Image* p_image, AvoGUI::ImageFormat p_format = AvoGUI::ImageFormat::Png) override
+	{
+	}
+	void saveImageToFile(AvoGUI::Image* p_image, std::string const& p_filePath, AvoGUI::ImageFormat p_format = AvoGUI::ImageFormat::Png) override
+	{
+	}
+
+	//------------------------------
+
+	void* createNativeImageFromImage(AvoGUI::Image* p_image) override
+	{
+	}
+
+	//------------------------------
+
+	AvoGUI::LinearGradient* createLinearGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, float p_startX = 0.f, float p_startY = 0.f, float p_endX = 0.f, float p_endY = 0.f) override
+	{
+	}
+	AvoGUI::LinearGradient* createLinearGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, AvoGUI::Point<float> const& p_startPosition, AvoGUI::Point<float> const& p_endPosition) override
+	{
+	}
+
+	AvoGUI::RadialGradient* createRadialGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, float p_startX = 0.f, float p_startY = 0.f, float p_radiusX = 0.f, float p_radiusY = 0.f) override
+	{
+	}
+	AvoGUI::RadialGradient* createRadialGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radius) override
+	{
+	}
+	AvoGUI::RadialGradient* createRadialGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, AvoGUI::Point<float> const& p_startPosition, float p_radiusX, float p_radiusY) override
+	{
+	}
+	AvoGUI::RadialGradient* createRadialGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, AvoGUI::Point<float> const& p_startPosition, float p_radius) override
+	{
+	}
+	AvoGUI::RadialGradient* createRadialGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, AvoGUI::Point<float> const& p_startPosition, AvoGUI::Point<float> const& p_radius) override
+	{
+	}
+
+	void setGradient(AvoGUI::LinearGradient* p_gradient) override
+	{
+	}
+	void setGradient(AvoGUI::RadialGradient* p_gradient) override
+	{
+	}
+	void setColor(AvoGUI::Color const& p_color) override
+	{
+	}
+
+	void setOpacity(float p_opacity) override
+	{
+	}
+
+	//------------------------------
+
+	void addFont(void const* p_data, uint32 p_dataSize) override
+	{
+	}
+
+	//------------------------------
+
+	void setDefaultTextProperties(AvoGUI::TextProperties const& p_textProperties) override
+	{
+	}
+	AvoGUI::TextProperties getDefaultTextProperties() override
+	{
+	}
+
+	//------------------------------
+
+	AvoGUI::Text* createText(char const* p_string, float p_fontSize, AvoGUI::Rectangle<float> const& p_bounds = AvoGUI::Rectangle<float>()) override
+	{
+	}
+	AvoGUI::Text* createText(std::string const& p_string, float p_fontSize, AvoGUI::Rectangle<float> const& p_bounds = AvoGUI::Rectangle<float>()) override
+	{
+	}
+	void drawText(AvoGUI::Text* p_text) override
+	{
+	}
+
+	void drawText(char const* p_string, AvoGUI::Rectangle<float> const& p_rectangle) override
+	{
+	}
+	void drawText(char const* p_string, float p_left, float p_top, float p_right, float p_bottom) override
+	{
+	}
+	void drawText(char const* p_string, AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size) override
+	{
+	}
+	void drawText(char const* p_string, float p_x, float p_y) override
+	{
+	}
+	void drawText(char const* p_string, AvoGUI::Point<float> const& p_position) override
+	{
+	}
+};
 #pragma endregion
 
 //------------------------------
@@ -9734,6 +10680,8 @@ void AvoGUI::Gui::handleWindowCreate(WindowEvent const& p_event)
 	}
 #ifdef _WIN32
 	m_drawingContext = new Direct2DDrawingContext(m_window);
+#elif __linux__
+	m_drawingContext = new OpenGlDrawingContext(m_window);
 #endif
 	m_drawingContextState = m_drawingContext->createDrawingState();
 
