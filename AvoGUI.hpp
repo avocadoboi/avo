@@ -22,37 +22,37 @@
 	https://github.com/avocadoboi/AvoGUI
 
 	Started development in summer 2018.
+
+	MIT license, see LICENSE file.
 */
 
 #pragma once
 
 //------------------------------
 
-#include <cstdint>
-#include <cfloat>
+#include <stdint.h> // Fixed-size integer typedefs
+#include <cstdint> 
+#include <cfloat> // Range defines for float
 #include <math.h>
 
+// Data structures
 #include <string>
 #include <sstream>
-
 #include <vector>
 #include <deque>
 #include <unordered_map>
 
+// Threading
 #include <thread>
 #include <mutex>
 #include <atomic>
 #include <condition_variable>
 
-// For debugging.
+// Debugging
 #include <iostream>
 
-// Memory leak detection
-//#define _CRTDBG_MAP_ALLOC
-//#include <stdlib.h>
-//#include <crtdbg.h>
-
 //------------------------------
+// I don't like the t
 
 typedef int8_t int8;
 typedef int16_t int16;
@@ -250,6 +250,11 @@ namespace AvoGUI
 	*/
 	std::wstring convertUtf8ToUtf16(char const* p_input);
 	/*
+		Converts a UTF-8 encoded null-terminated string to a UTF-16 encoded std::wstring.
+		p_numberOfUnitsInInput is the size in bytes of p_input.
+	*/
+	std::wstring convertUtf8ToUtf16(char const* p_input, uint32 p_numberOfUnitsInInput);
+	/*
 		Returns the number of UTF-16 encoded wchar_t units that would be used to represent the same characters in a UTF-8 encoded char string.
 		It is assumed that p_input is null-terminated.
 		The output includes the null terminator.
@@ -289,6 +294,11 @@ namespace AvoGUI
 		Converts a UTF-16 encoded null-terminated string to a UTF-8 encoded std::string.
 	*/
 	std::string convertUtf16ToUtf8(wchar_t const* p_input);
+	/*
+		Converts a UTF-16 encoded null-terminated string to a UTF-8 encoded std::string.
+		p_numberOfUnitsInInput is the size of p_input in wchar_t units.
+	*/
+	std::string convertUtf16ToUtf8(wchar_t const* p_input, uint32 p_numberOfUnitsInInput);
 	/*
 		Returns the number of UTF-8 encoded char units that would be used to represent the same characters in a UTF-16 encoded wchar_t string.
 		It is assumed that p_input is null terminated.
@@ -532,6 +542,226 @@ namespace AvoGUI
 		return stream.str();
 	}
 
+	/*
+		Represents an object or value that can be converted to a string.
+		This is used to create formatted strings.
+		You can inherit it to create your own formattable type to be used in AvoGUI::createFormattedString.
+		If the Formattable class is constructed without parameters, the type is set to Type::Other which indicates
+		that it is a custom formattable type and AvoGUI::createFormattedString will use the convertToString method.
+	*/
+	class Formattable
+	{
+	public:
+		enum class Type
+		{
+			String,
+			Int32,
+			Uint32,
+			Int64,
+			Uint64,
+			Float,
+			Double,
+			Other
+		};
+
+		union Data
+		{
+			std::string string;
+			uint32 uint32;
+			int32 int32;
+			uint64 uint64;
+			int64 int64;
+			float floatValue; // float is a c++ keyword
+			double doubleValue; // double is a c++ keyword
+
+			Data() : 
+				int64(0) 
+			{ }
+			~Data() { }
+		};
+
+	private:
+		Type m_type;
+		Data m_data;
+
+	public:
+		Formattable() :
+			m_type(Type::Other)
+		{
+		}
+		Formattable(Formattable const& p_formattable) :
+			m_type(p_formattable.m_type)
+		{
+			if (m_type == Type::String)
+			{
+				new (&m_data.string) std::string(p_formattable.m_data.string);
+			}
+			else
+			{
+				// It's a number, just copy the bits over
+				memcpy(&m_data, &p_formattable.m_data, sizeof(Data));
+			}
+		}
+		Formattable(std::string&& p_movableString) :
+			m_type(Type::String)
+		{
+			new (&m_data.string) std::string(p_movableString);
+		}
+		Formattable(std::string const& p_string) :
+			m_type(Type::String)
+		{ 
+			new (&m_data.string) std::string(p_string);
+		}
+		Formattable(char const* p_string) :
+			m_type(Type::String)
+		{
+			new (&m_data.string) std::string(p_string);
+		}
+		Formattable(uint32 p_value) :
+			m_type(Type::Uint32)
+		{
+			m_data.uint32 = p_value;
+		}
+		Formattable(int32 p_value) :
+			m_type(Type::Int32)
+		{
+			m_data.uint32 = p_value;
+		}
+		Formattable(uint64 p_value) :
+			m_type(Type::Uint64)
+		{
+			m_data.uint32 = p_value;
+		}
+		Formattable(int64 p_value) :
+			m_type(Type::Int64)
+		{
+			m_data.uint32 = p_value;
+		}
+		Formattable(double p_value) :
+			m_type(Type::Double)
+		{
+			m_data.doubleValue = p_value;
+		}
+		Formattable(float p_value) :
+			m_type(Type::Float)
+		{
+			m_data.floatValue = p_value;
+		}
+		virtual ~Formattable()
+		{
+			if (m_type == Type::String)
+			{
+				m_data.string.~basic_string();
+			}
+		}
+
+		//------------------------------
+
+		/*
+			
+		*/
+		Type getDataType()
+		{
+			return m_type;
+		}
+		/*
+			Returns the formattable data if the type is not Type::Other.
+		*/
+		Data& getData()
+		{
+			return m_data;
+		}
+
+		//------------------------------
+
+		/*
+			Returns a string representation of the formattable object.
+		*/
+		virtual std::string convertToString()
+		{
+			switch (m_type)
+			{
+			case Type::String:
+				return m_data.string;
+			case Type::Uint32:
+				return convertNumberToString(m_data.uint32);
+			case Type::Int32:
+				return convertNumberToString(m_data.uint32);
+			case Type::Uint64:
+				return convertNumberToString(m_data.uint32);
+			case Type::Int64:
+				return convertNumberToString(m_data.uint32);
+			case Type::Double:
+				return convertNumberToString(m_data.doubleValue);
+			case Type::Float:
+				return convertNumberToString(m_data.floatValue);
+			}
+		}
+	};
+	/*
+		Formats a string by replacing placeholders in p_format with the output of formattable objects which can 
+		be values, strings or custom objects.
+		
+		The placeholders are in the form of {index} where index is the index of the argument to be inserted.
+		Writing {0} will insert the first item, {1} will insert the second item.
+		Only values of [0, 9] are allowed as the indicies, meaning max 10 objects can be inserted in one call.
+
+		Example:
+		std::string formattedString(AvoGUI::createFormattedString(
+			"I have {1} {2} and {3} {4} and {5} {6}. Pi: {0}", 
+			{ AvoGUI::PI, 2, "cats", 0, "dogs", 10, "fingers" }
+		));
+	*/
+	inline std::string createFormattedString(std::string p_format, std::vector<Formattable> p_insertedObjects)
+	{
+		std::ostringstream stream;
+		stream.precision(10);
+		
+		uint32 lastPlaceholderEndIndex = 0;
+		for (uint32 a = 0; a < p_format.size() - 2; a++)
+		{
+			// Utf-8 is backwards-compatible with ASCII so this should work fine.
+			if (p_format[a] == '{' && p_format[++a] >= '0' && p_format[a] <= '9')
+			{
+				Formattable& objectToInsert = p_insertedObjects[p_format[a] - '0'];
+				if (p_format[a + 1] == '}')
+				{
+					stream.write(p_format.data() + lastPlaceholderEndIndex, a - 1 - lastPlaceholderEndIndex);
+					switch (objectToInsert.getDataType())
+					{
+					case Formattable::Type::String:
+						stream << objectToInsert.getData().string;
+						break;
+					case Formattable::Type::Uint32:
+						stream << objectToInsert.getData().uint32;
+						break;
+					case Formattable::Type::Int32:
+						stream << objectToInsert.getData().int32;
+						break;
+					case Formattable::Type::Uint64:
+						stream << objectToInsert.getData().uint64;
+						break;
+					case Formattable::Type::Int64:
+						stream << objectToInsert.getData().int64;
+						break;
+					case Formattable::Type::Double:
+						stream << objectToInsert.getData().doubleValue;
+						break;
+					case Formattable::Type::Float:
+						stream << objectToInsert.getData().floatValue;
+						break;
+					default:
+						stream << objectToInsert.convertToString();
+					}
+
+					lastPlaceholderEndIndex = a += 2;
+				}
+			}
+		}
+		stream.write(p_format.data() + lastPlaceholderEndIndex, p_format.size() - 1 - lastPlaceholderEndIndex);
+
+		return stream.str();
+	}
 #pragma endregion
 
 	//------------------------------
@@ -6799,7 +7029,35 @@ namespace AvoGUI
 		/*
 			Creates the window. To close it, use close().
 		
-			p_title is the text that appears in the title bar of the window (if it has a border).
+			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
+			p_titleSize is the size in bytes of p_title.
+
+			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
+			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
+
+			p_positionFactorY is the vertical equivalent to p_positionFactorX.
+
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent window, which this window would appear above.
+		*/
+		virtual void create(char const* p_title, uint32 p_titleSize, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		/*
+			Creates the window in the center of the screen. To close it, use close().
+		
+			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
+			p_titleSize is the size in bytes of p_title.
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent window, which this window would appear above.
+		*/
+		virtual void create(char const* p_title, uint32 p_titleSize, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		/*
+			Creates the window. To close it, use close().
+
+			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
 
 			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
 			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
@@ -6814,14 +7072,40 @@ namespace AvoGUI
 		virtual void create(char const* p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
 		/*
 			Creates the window in the center of the screen. To close it, use close().
-		
-			p_title is the text that appears in the title bar of the window (if it has a border).
+
+			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
 			p_width is the width of the client area in DIPs (device independent pixels).
 			p_height is the height of the client area in DIPs (device independent pixels).
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
 		virtual void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		/*
+			Creates the window. To close it, use close().
+
+			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
+
+			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
+			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
+
+			p_positionFactorY is the vertical equivalent to p_positionFactorX.
+
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent window, which this window would appear above.
+		*/
+		virtual void create(std::string const& p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		/*
+			Creates the window in the center of the screen. To close it, use close().
+
+			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent window, which this window would appear above.
+		*/
+		virtual void create(std::string const& p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
 
 		/*
 			Closes the window, if the GUI associated with the window allows it.
@@ -9125,6 +9409,45 @@ namespace AvoGUI
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+
+			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+
+			p_title is the text that appears in the title bar of the window (if it has an OS border).
+			p_titleSize is the size of p_title in bytes.
+
+			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
+			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
+
+			p_positionFactorY is the vertical equivalent to p_positionFactorX.
+
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
+		*/
+		void create(char const* p_title, uint32 p_titleSize, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
+		/*
+			LIBRARY IMPLEMENTED
+			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
+			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
+			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+
+			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+
+			p_title is the text that appears in the title bar of the window (if it has an OS border).
+			p_titleSize is the size of p_title in bytes.
+
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
+		*/
+		void create(char const* p_title, uint32 p_titleSize, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
+		/*
+			LIBRARY IMPLEMENTED
+			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
+			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
+			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
 		
 			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
 
@@ -9156,6 +9479,42 @@ namespace AvoGUI
 			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
 		void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
+		/*
+			LIBRARY IMPLEMENTED
+			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
+			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
+			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+
+			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+
+			p_title is the text that appears in the title bar of the window (if it has an OS border).
+
+			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
+			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
+
+			p_positionFactorY is the vertical equivalent to p_positionFactorX.
+
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
+		*/
+		void create(std::string const& p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
+		/*
+			LIBRARY IMPLEMENTED
+			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
+			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
+			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+
+			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+
+			p_title is the text that appears in the title bar of the window (if it has an OS border).
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
+		*/
+		void create(std::string const& p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
 
 		/*
 			LIBRARY IMPLEMENTED
@@ -11434,6 +11793,7 @@ namespace AvoGUI
 				}
 				m_caretFrameCount = 1;
 				m_isCaretVisible = true;
+				invalidate();
 				break;
 			}
 			case KeyboardKey::Right:
@@ -11545,6 +11905,7 @@ namespace AvoGUI
 				}
 				m_caretFrameCount = 1;
 				m_isCaretVisible = true;
+				invalidate();
 				break;
 			}
 			case KeyboardKey::C:
