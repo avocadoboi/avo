@@ -3046,10 +3046,6 @@ namespace AvoGUI
 		{
 			operator=(p_color);
 		}
-		Color(Color&& p_color) noexcept
-		{
-			operator=(p_color);
-		}
 
 		Color& operator=(colorInt const& p_color)
 		{
@@ -3060,14 +3056,6 @@ namespace AvoGUI
 			return *this;
 		}
 		Color& operator=(Color const& p_color)
-		{
-			red = p_color.red;
-			green = p_color.green;
-			blue = p_color.blue;
-			alpha = p_color.alpha;
-			return *this;
-		}
-		Color& operator=(Color&& p_color) noexcept
 		{
 			red = p_color.red;
 			green = p_color.green;
@@ -3909,10 +3897,10 @@ namespace AvoGUI
 	class Theme : public ReferenceCounted
 	{
 	public:
-		std::unordered_map<char const*, Color> colors;
-		std::unordered_map<char const*, Easing> easings;
-		std::unordered_map<char const*, char const*> fontFamilies;
-		std::unordered_map<char const*, float> values;
+		std::unordered_map<std::string, Color> colors;
+		std::unordered_map<std::string, Easing> easings;
+		std::unordered_map<std::string, std::string> fontFamilies;
+		std::unordered_map<std::string, float> values;
 
 		/*
 			This initializes the default theme. 
@@ -4544,7 +4532,7 @@ namespace AvoGUI
 			USER IMPLEMENTED
 			This gets called whenever a theme font family name has changed, not including initialization.
 		*/
-		virtual void handleThemeFontFamilyChange(std::string const& p_name, char const* p_newFontFamilyName) { };
+		virtual void handleThemeFontFamilyChange(std::string const& p_name, std::string const& p_newFontFamilyName) { };
 		/*
 			USER IMPLEMENTED
 			This gets called whenever a theme value has changed, not including initialization.
@@ -5082,12 +5070,12 @@ namespace AvoGUI
 			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default colors and more details.
 			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
-		void setThemeColor(char const* p_name, Color const& p_color, bool p_willAffectChildren = true);
+		void setThemeColor(std::string const& p_name, Color const& p_color, bool p_willAffectChildren = true);
 		/*
 			LIBRARY IMPLEMENTED
 			See setThemeColor for names that have colors by default.
 		*/
-		Color const& getThemeColor(char const* p_name) const
+		Color const& getThemeColor(std::string const& p_name) const
 		{
 			return m_theme->colors[p_name];
 		}
@@ -5103,7 +5091,7 @@ namespace AvoGUI
 			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default easings and more details.
 			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
-		void setThemeEasing(char const* p_name, Easing const& p_easing, bool p_willAffectChildren = true)
+		void setThemeEasing(std::string const& p_name, Easing const& p_easing, bool p_willAffectChildren = true)
 		{
 			if (p_willAffectChildren)
 			{
@@ -5153,7 +5141,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			See setThemeEasing for names that have easings by default.
 		*/
-		Easing const& getThemeEasing(char const* p_name) const
+		Easing const& getThemeEasing(std::string const& p_name) const
 		{
 			return m_theme->easings[p_name];
 		}
@@ -5170,7 +5158,7 @@ namespace AvoGUI
 			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default font families and more details.
 			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
-		void setThemeFontFamily(char const* p_name, char const* p_fontFamilyName, bool p_willAffectChildren = true)
+		void setThemeFontFamily(std::string const& p_name, std::string const& p_fontFamilyName, bool p_willAffectChildren = true)
 		{
 			if (p_willAffectChildren)
 			{
@@ -5221,7 +5209,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			"main" has a font family by default, but you can also access your own font families here.
 		*/
-		char const* getThemeFontFamily(char const* p_name) const
+		std::string const& getThemeFontFamily(std::string const& p_name) const
 		{
 			return m_theme->fontFamilies[p_name];
 		}
@@ -5238,7 +5226,7 @@ namespace AvoGUI
 			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default values and more details.
 			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
-		void setThemeValue(char const* p_name, float p_value, bool p_willAffectChildren = true)
+		void setThemeValue(std::string const& p_name, float p_value, bool p_willAffectChildren = true)
 		{
 			if (p_willAffectChildren)
 			{
@@ -5288,7 +5276,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			See setThemeValue for names that have values by default.
 		*/
-		float getThemeValue(char const* p_name) const
+		float getThemeValue(std::string const& p_name) const
 		{
 			return m_theme->values[p_name];
 		}
@@ -7986,7 +7974,7 @@ namespace AvoGUI
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
 		*/
-		virtual void setFontFamily(char const* p_name, int32 p_startPosition = 0, int32 p_length = 0) = 0;
+		virtual void setFontFamily(std::string const& p_name, int32 p_startPosition = 0, int32 p_length = 0) = 0;
 
 		//------------------------------
 
@@ -8150,7 +8138,7 @@ namespace AvoGUI
 	class TextProperties
 	{
 	public:
-		char const* fontFamilyName = "Roboto";
+		std::string fontFamilyName = "Roboto";
 
 		FontWeight fontWeight = FontWeight::Medium;
 		FontStyle fontStyle = FontStyle::Normal;
@@ -10302,7 +10290,7 @@ namespace AvoGUI
 			p_string is the string to be displayed on the tooltip.
 			p_targetBounds is the area that the tooltip points to and is relative to the parent of this tooltip. The tooltip decides the exact positioning.
 		*/
-		virtual void show(char const* p_string, Rectangle<float> const& p_targetRectangle)
+		virtual void show(std::string const& p_string, Rectangle<float> const& p_targetRectangle)
 		{
 			if (!m_isShowing)
 			{
@@ -10406,14 +10394,14 @@ namespace AvoGUI
 			/*
 				This is the name that will be shown for the file extension filter.
 			*/
-			char const* name;
+			std::string name;
 			/*
 				This is the file extension(s) that the user can open when this filter is selected.
 				If you want more than 1 file extension for this file extension name, you can seperate the extensions with ";".
 				Wildcards are used to specify what part of the file name is filtered.
 				For example: "*.png;*.jpg"
 			*/
-			char const* extensions;
+			std::string extensions;
 		};
 
 	private:
@@ -10421,7 +10409,7 @@ namespace AvoGUI
 
 		bool m_canSelectMultipleFiles;
 		std::vector<FileExtensionFilter> m_fileExtensions;
-		char const* m_title;
+		std::string m_title;
 
 	public:
 		OpenFileDialog() :
@@ -10453,9 +10441,16 @@ namespace AvoGUI
 			m_title = p_title;
 		}
 		/*
+			Sets the title shown in the top border of the open file dialog.
+		*/
+		void setTitle(std::string const& p_title)
+		{
+			m_title = p_title;
+		}
+		/*
 			Returns the title shown in the thop border of the open file dialog.
 		*/
-		char const* getTitle()
+		std::string const& getTitle()
 		{
 			return m_title;
 		}
@@ -10766,7 +10761,7 @@ namespace AvoGUI
 		Text* m_text = 0;
 
 		Tooltip* m_tooltipView = 0;
-		char const* m_tooltipString;
+		std::string m_tooltipString;
 
 		Image* m_icon = 0;
 
@@ -11072,6 +11067,16 @@ namespace AvoGUI
 			m_tooltipView = p_tooltipView;
 			m_tooltipString = p_info;
 		}
+		/*
+			Sets a string to be shown as a tooltip when the mouse hovers over the button. 
+			Should give the user additional information about the button's purpose.
+			An empty string disables the tooltip.
+		*/
+		void setTooltip(Tooltip* p_tooltipView, std::string const& p_info)
+		{
+			m_tooltipView = p_tooltipView;
+			m_tooltipString = p_info;
+		}
 
 		//------------------------------
 
@@ -11353,7 +11358,7 @@ namespace AvoGUI
 		}
 
 	protected:
-		void handleThemeFontFamilyChange(std::string const& p_name, char const* p_newFontFamily) override
+		void handleThemeFontFamilyChange(std::string const& p_name, std::string const& p_newFontFamily) override
 		{
 			if (p_name == "main")
 			{
@@ -12340,7 +12345,7 @@ namespace AvoGUI
 		Type m_type;
 
 	protected:
-		void handleThemeFontFamilyChange(std::string const& p_name, char const* p_newFontFamilyName) override
+		void handleThemeFontFamilyChange(std::string const& p_name, std::string const& p_newFontFamilyName) override
 		{
 			if (p_name == "main")
 			{

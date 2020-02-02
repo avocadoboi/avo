@@ -59,9 +59,13 @@
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
 #include <GL/glx.h>
-#undef None
+#include <GL/glxext.h>
+#include <GL/gl.h>
+#include <GL/glext.h>
 
 #include <unistd.h>
+
+#undef None
 #endif
 
 //------------------------------
@@ -599,7 +603,7 @@ void AvoGUI::View::setId(uint64 p_id)
 
 //------------------------------
 
-void AvoGUI::View::setThemeColor(char const* p_name, Color const& p_color, bool p_willAffectChildren)
+void AvoGUI::View::setThemeColor(std::string const& p_name, Color const& p_color, bool p_willAffectChildren)
 {
 	if (p_willAffectChildren)
 	{
@@ -642,12 +646,11 @@ void AvoGUI::View::setThemeColor(char const* p_name, Color const& p_color, bool 
 	if (m_theme->colors[p_name] != p_color)
 	{
 		m_theme->colors[p_name] = p_color;
-		std::string name(p_name);
-		if (getGui() == this && name == "background")
+		if (getGui() == this && p_name == "background")
 		{
 			((AvoGUI::Gui*)this)->getDrawingContext()->setBackgroundColor(p_color);
 		}
-		handleThemeColorChange(name, p_color);
+		handleThemeColorChange(p_name, p_color);
 	}
 }
 
@@ -4642,10 +4645,8 @@ public:
 			}
 			else
 			{
-				AvoGUI::WindowEvent windowEvent;
-				windowEvent.window = this;
 				m_gui->excludeAnimationThread();
-				m_gui->handleWindowClose(windowEvent);
+				m_gui->handleWindowClose({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
 				m_gui->includeAnimationThread();
 			}
 
@@ -4704,11 +4705,12 @@ wchar_t const* const WindowsWindow::WINDOW_CLASS_NAME = L"AvoGUI window class";
 	https://www.x.org/docs/X11/xlib.pdf
 	https://specifications.freedesktop.org/wm-spec/wm-spec-1.4.html
 	https://www.x.org/releases/X11R7.6/doc/xorg-docs/specs/ICCCM/icccm.html
-	https://github.com/SFML/SFML/blob/master/src/SFML/Window/Unix/WindowImplX11.cpp
-
+	https://github.com/SFML/SFML/tree/master/src/SFML/Window/Unix
 	The spec websites are really ugly and it's hard to read on them for me, a tip is to use a 
 	"reader view" chrome extension or similar functionality in other browsers :) 
 */
+
+constexpr float NORMAL_DPI = 96.f;
 
 typedef Window XWindow;
 
@@ -4720,6 +4722,7 @@ private:
 	Display* m_server = 0;
 	XWindow m_windowHandle = 0;
 
+	Atom m_windowCloseEvent;
 	bool m_isOpen = false;
 	AvoGUI::Point<uint32> m_size;
 	AvoGUI::Point<float> m_minSize;
@@ -5187,28 +5190,17 @@ private:
 			XNFocusWindow, m_windowHandle,
 			0 // Null terminator
 		);
-
-		//------------------------------
-		// Tell the x server which events we want
-		
-		XSelectInput(
-			m_server, m_windowHandle, 
-			EnterWindowMask | LeaveWindowMask |
-			StructureNotifyMask |
-			PointerMotionMask |
-			ButtonPressMask | ButtonReleaseMask | 
-			ButtonMotionMask |
-			KeyPressMask | KeyReleaseMask
-		);
-		
-		// We want the window manager to tell us when the window should be closed.
-		Atom windowCloseEvent = XInternAtom(m_server, "WM_DELETE_WINDOW", 0);
-		XSetWMProtocols(m_server, m_windowHandle, &windowCloseEvent, 1);
-
-		XFlush(m_server); // Execute command queue
-		
 		Time lastKeyPressTime = 0;
 		KeyCode lastKeyPressKeyCode = 0;
+
+		//------------------------------
+
+		// We want the window manager to tell us when the window should be closed.
+		m_windowCloseEvent = XInternAtom(m_server, "WM_DELETE_WINDOW", 0);
+		XSetWMProtocols(m_server, m_windowHandle, &m_windowCloseEvent, 1);
+
+		XFlush(m_server);
+
 		XEvent event;
 
 		while (m_isOpen)
@@ -5237,15 +5229,19 @@ private:
 			{
 				// Sent from the window manager when the user has tried to close the window, 
 				// it is up to us to decide whether to actually close and exit the application.
-				if (event.xclient.data.l[0] == windowCloseEvent)
+				if (event.xclient.data.l[0] == m_windowCloseEvent)
 				{
-					m_isOpen = false;
+					if (m_gui->getWillClose())
+					{
+						m_isOpen = false;
+					}
+					else
+					{
+						m_gui->excludeAnimationThread();
+						m_gui->handleWindowClose({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
+						m_gui->includeAnimationThread();
+					}
 				}
-				break;
-			}
-			case DestroyNotify:
-			{
-				std::cout << "Window was destroyed!\n";
 				break;
 			}
 			case GravityNotify:
@@ -5257,7 +5253,9 @@ private:
 				if (m_size.x != event.xconfigure.width || m_size.y != event.xconfigure.height)
 				{
 					m_size.set(event.xconfigure.width, event.xconfigure.height);
+					m_gui->excludeAnimationThread();
 					m_gui->handleWindowSizeChange({ this, m_size.x / m_dipToPixelFactor, m_size.y / m_dipToPixelFactor });
+					m_gui->includeAnimationThread();
 				}
 				break;
 			}
@@ -5283,13 +5281,17 @@ private:
 				if (characterLookupStatus == XLookupBoth || characterLookupStatus == XLookupChars)
 				{
 					keyboardEvent.character = character;
+					m_gui->excludeAnimationThread();
 					m_gui->handleGlobalCharacterInput(keyboardEvent);
+					m_gui->includeAnimationThread();
 				}
 				if (characterLookupStatus == XLookupBoth || characterLookupStatus == XLookupKeySym)
 				{
 					keyboardEvent.character = "";
 					keyboardEvent.key = convertKeySymToKeyboardKey(key);
+					m_gui->excludeAnimationThread();
 					m_gui->handleGlobalKeyboardKeyDown(keyboardEvent);
+					m_gui->includeAnimationThread();
 				}
 
 				lastKeyPressTime = event.xkey.time;
@@ -5312,7 +5314,9 @@ private:
 				if (keyboardEvent.key != AvoGUI::KeyboardKey::None)
 				{
 					keyboardEvent.isRepeated = lastKeyPressKeyCode == event.xkey.keycode && event.xkey.time < lastKeyPressTime + 2;
+					m_gui->excludeAnimationThread();
 					m_gui->handleGlobalKeyboardKeyUp(keyboardEvent);
+					m_gui->includeAnimationThread();
 					lastKeyPressTime = event.xkey.time;
 				}
 
@@ -5320,10 +5324,18 @@ private:
 			}
 			} 
 		}
+		XDestroyWindow(m_server, m_windowHandle);
 		XCloseDisplay(m_server);
 	}
 
 public:
+	Display* getServer()
+	{
+		return m_server;
+	}
+
+	//------------------------------
+
 	LinuxWindow(AvoGUI::Gui* p_gui) :
 		m_gui(p_gui)
 	{
@@ -5331,31 +5343,93 @@ public:
 	}
 	~LinuxWindow()
 	{
-		m_messageThread.join();
+		if (m_messageThread.joinable())
+		{
+			m_messageThread.join();
+		}
 	}
+
+	//------------------------------
 
 	void create(char const* p_title, uint32 p_titleSize, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
 	{
+		XInitThreads();
+
 		m_server = XOpenDisplay(0); // Open connection to server
 		
 		float displayWidth = XDisplayWidth(m_server, 0);
 		float displayHeight = XDisplayHeight(m_server, 0);
-		m_dipToPixelFactor = displayWidth / (float)XDisplayWidthMM(m_server, 0) * 25.4f / 96.f;
+		m_dipToPixelFactor = displayWidth / (float)XDisplayWidthMM(m_server, 0) * 25.4f / NORMAL_DPI;
 
-		m_windowHandle = XCreateSimpleWindow(
-			m_server, p_parent ? (XWindow)p_parent->getNativeHandle() : DefaultRootWindow(m_server), 
+		//------------------------------
+		// Select the OpenGL visual to be used when creating the window.
+
+		int framebufferAttributes[] = 
+		{
+			GLX_X_RENDERABLE, 1,
+			GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+			GLX_RENDER_TYPE, GLX_RGBA_BIT,
+			GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
+			GLX_RED_SIZE, 8,
+			GLX_GREEN_SIZE, 8,
+			GLX_BLUE_SIZE, 8,
+			GLX_DEPTH_SIZE, 0, // 2D graphics, no z-buffering.
+			GLX_STENCIL_SIZE, 8,
+			GLX_DOUBLEBUFFER, 1,
+			0 // Null terminator
+		};
+
+		int numberOfMatchingConfigurations = 0;
+		GLXFBConfig* framebufferConfigurations = glXChooseFBConfig(m_server, DefaultScreen(m_server), framebufferAttributes, &numberOfMatchingConfigurations);
+
+		XVisualInfo* visualInfo = glXGetVisualFromFBConfig(m_server, *framebufferConfigurations);
+
+		XFree(framebufferConfigurations);
+
+		//------------------------------
+
+		XSetWindowAttributes windowAttributes = { };
+		windowAttributes.colormap = XCreateColormap(m_server, RootWindow(m_server, visualInfo->screen), visualInfo->visual, 0);
+		windowAttributes.event_mask = 
+			ExposureMask |
+			EnterWindowMask | LeaveWindowMask |
+			StructureNotifyMask |
+			PointerMotionMask |
+			ButtonPressMask | ButtonReleaseMask | 
+			ButtonMotionMask |
+			KeyPressMask | KeyReleaseMask;
+		
+		m_windowHandle = XCreateWindow(
+			m_server, p_parent ? (XWindow)p_parent->getNativeHandle() : RootWindow(m_server, visualInfo->screen), 
 			0, 0, // Initial x and y are ignored by the window manager
 			p_width*m_dipToPixelFactor,
 			p_height*m_dipToPixelFactor,
-			0, 0, 0
+			0, 
+			visualInfo->depth,
+			InputOutput,
+			visualInfo->visual,
+			CWEventMask | CWBorderPixel | CWColormap,
+			&windowAttributes
 		);
+
+		XFree(visualInfo);
+
 		setTitle(p_title, p_titleSize);
 		XMapWindow(m_server, m_windowHandle); // Show the window
 		setPosition(p_x * (displayWidth - p_width*m_dipToPixelFactor), p_y * (displayHeight - p_height*m_dipToPixelFactor));
 
+		XFlush(m_server);
+
+		m_size.set(p_width*m_dipToPixelFactor, p_height*m_dipToPixelFactor);
 		m_isOpen = true;
 
+		m_gui->excludeAnimationThread();
 		m_gui->handleWindowCreate({ this, p_width, p_height });
+		m_gui->includeAnimationThread();
+
+		m_gui->excludeAnimationThread();
+		m_gui->handleWindowSizeChange({ this, p_width, p_height });
+		m_gui->includeAnimationThread();
 
 		m_crossPlatformStyles = p_styleFlags;
 		m_messageThread = std::thread(&LinuxWindow::thread_runEventLoop, this);
@@ -5383,7 +5457,18 @@ public:
 
 	void close() override 
 	{
-		XDestroyWindow(m_server, m_windowHandle);
+		if (m_windowHandle)
+		{
+			XEvent event;
+			event.type = ClientMessage;
+			event.xclient.data.l[0] = m_windowCloseEvent;
+			event.xclient.display = m_server;
+			event.xclient.window = m_windowHandle;
+			event.xclient.format = 32;
+			event.xclient.send_event = true;
+			XSendEvent(m_server, m_windowHandle, false, 0, &event);
+			XFlush(m_server);
+		}
 	}
 	bool getIsOpen() const override
 	{
@@ -9761,36 +9846,133 @@ FontCollectionLoader* Direct2DDrawingContext::s_fontCollectionLoader = 0;
 FontFileLoader* Direct2DDrawingContext::s_fontFileLoader = 0;
 IWICImagingFactory2* Direct2DDrawingContext::s_imagingFactory = 0;
 #endif
+#ifdef __linux__
 
-// oh BOI
-class OpenGlDrawingContext :
-	public AvoGUI::DrawingContext
+bool areOpenGlFunctionsLoaded = false;
+
+PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB;
+
+class ClippingShape
 {
 private:
-	AvoGUI::Window* m_window;
+	AvoGUI::Rectangle<float> m_bounds;
+	
+public:
+	ClippingShape(AvoGUI::Rectangle<float> const& p_bounds) :
+		m_bounds(p_bounds)
+	{
+	}
+	ClippingShape(float p_left, float p_top, float p_right, float p_bottom) :
+		m_bounds(p_left, p_top, p_right, p_bottom)
+	{
+	}
+
+	AvoGUI::Rectangle<float> getBounds()
+	{
+		return m_bounds;
+	}
+};
+
+class OpenGlDrawingContext :
+	public AvoGUI::DrawingContext
+{	
+private:
+	LinuxWindow* m_window;
+	XWindow m_windowHandle;
+	GLXContext m_context;
+
+	float m_dipToPixelFactor;
+	AvoGUI::Point<float> m_size;
+
+	std::stack<ClippingShape> m_clippingShapeStack;
+
+	void loadOpenGlFunctions()
+	{
+		if (areOpenGlFunctionsLoaded)
+		{
+			return;
+		}
+		glXCreateContextAttribsARB = (PFNGLXCREATECONTEXTATTRIBSARBPROC)glXGetProcAddressARB((GLubyte const*)"glXCreateContextAttribsARB");
+		areOpenGlFunctionsLoaded = true;
+	}
 	
 public:
 	OpenGlDrawingContext(AvoGUI::Window* p_window) :
-		m_window(p_window)
+		m_window((LinuxWindow*)p_window), m_windowHandle((XWindow)p_window->getNativeHandle())
 	{
-		
-	}
+		loadOpenGlFunctions();
 
+		//------------------------------
+		// Create the OpenGL context.
+		// Need to find the framebuffer configuration that was used to create the window, because our context should match it.
+
+		LinuxWindow* linuxWindow = (LinuxWindow*)p_window;
+		Display* server = linuxWindow->getServer();
+
+		m_dipToPixelFactor = linuxWindow->getDipToPixelFactor();
+
+		XWindowAttributes windowAttributes; // Used to match the VisualID
+		XGetWindowAttributes(server, m_windowHandle, &windowAttributes);
+
+		int numberOfConfigurations = 0;
+		GLXFBConfig* framebufferConfigurations = glXChooseFBConfig(server, DefaultScreen(server), 0, &numberOfConfigurations);
+		GLXFBConfig framebufferConfiguration = *framebufferConfigurations;
+		for (uint32 a = 0; a < numberOfConfigurations; a++)
+		{
+			XVisualInfo* visualInfo = glXGetVisualFromFBConfig(server, framebufferConfigurations[a]);
+			if (!visualInfo)
+			{
+				continue;
+			}
+			if (visualInfo->visualid == windowAttributes.visual->visualid)
+			{
+				framebufferConfiguration = framebufferConfigurations[a];
+				XFree(visualInfo);
+				break;
+			}
+			XFree(visualInfo);
+		}
+
+		int contextAttributes[] = 
+		{
+			// Our minimum supported OpenGL version is 3.3
+			GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
+			GLX_CONTEXT_MINOR_VERSION_ARB, 3,
+			GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
+			GLX_CONTEXT_FLAGS_ARB, GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB
+			#ifdef _DEBUG
+			| GLX_CONTEXT_DEBUG_BIT_ARB
+			#endif
+			, 0 // Null terminator	
+		};
+		m_context = glXCreateContextAttribsARB(linuxWindow->getServer(), framebufferConfiguration, 0, true, contextAttributes);
+
+		XFree(framebufferConfigurations);
+		
+		//------------------------------
+
+		glXMakeCurrent(m_window->getServer(), m_windowHandle, m_context);
+		glViewport(0, 0, linuxWindow->getWidth()*m_dipToPixelFactor, linuxWindow->getHeight()*m_dipToPixelFactor);
+		m_size = linuxWindow->getSize();
+	}
+	
 	//------------------------------
 	
 	void beginDrawing() override
 	{
-
+		glXMakeCurrent(m_window->getServer(), m_windowHandle, m_context);
 	}
 	void finishDrawing(std::vector<AvoGUI::Rectangle<float>> const& p_updatedRectangles) override
 	{
-
+		// clear(AvoGUI::Color(0.5f, 0.5f, 0.5f));
+		glXSwapBuffers(m_window->getServer(), m_windowHandle);
 	}
 
 	//------------------------------
 
 	AvoGUI::DrawingState* createDrawingState() override
 	{
+		return 0;
 	}
 	
 	void saveDrawingState(AvoGUI::DrawingState* p_drawingState) override
@@ -9838,9 +10020,11 @@ public:
 
 	float getDpi() override
 	{
+		return m_dipToPixelFactor*NORMAL_DPI;
 	}
 	void setDpi(float p_dpi) override
 	{
+		m_dipToPixelFactor = p_dpi/NORMAL_DPI;
 	}
 
 	//------------------------------
@@ -9931,38 +10115,48 @@ public:
 
 	void setSize(AvoGUI::Point<float> const& p_size) override
 	{
+		setSize(p_size.x, p_size.y);
 	}
 	void setSize(float p_width, float p_height) override
 	{
+		glXMakeCurrent(m_window->getServer(), m_windowHandle, m_context);
+		glViewport(0, 0, p_width*m_dipToPixelFactor, p_height*m_dipToPixelFactor);
+		m_size.set(p_width, p_height);
 	}
 	AvoGUI::Point<float> getSize() override
 	{
+		return m_size;
 	}
 
 	//------------------------------
 
 	void clear(AvoGUI::Color const& p_color) override
 	{
+		glClearColor(p_color.red, p_color.green, p_color.blue, p_color.alpha);
+		glClear(GL_COLOR_BUFFER_BIT);
 	}
 	void clear() override
 	{
+		glClearColor(0.f, 0.f, 0.f, 0.f);
+		glClear(GL_COLOR_BUFFER_BIT);
 	}
 
 	//------------------------------
 
-	void fillRectangle(AvoGUI::Rectangle<float> const& p_rectangle) override
+	void fillRectangle(float p_left, float p_top, float p_right, float p_bottom) override
 	{
+
 	}
 	void fillRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size) override
 	{
 	}
-	void fillRectangle(float p_left, float p_top, float p_right, float p_bottom) override
-	{
-	}
-	void fillRectangle(AvoGUI::Point<float> const& p_size) override
+	void fillRectangle(AvoGUI::Rectangle<float> const& p_rectangle) override
 	{
 	}
 	void fillRectangle(float p_width, float p_height) override
+	{
+	}
+	void fillRectangle(AvoGUI::Point<float> const& p_size) override
 	{
 	}
 
@@ -10201,33 +10395,59 @@ public:
 
 	//------------------------------
 
-	void pushClipGeometry(AvoGUI::Geometry* p_geometry, float p_opacity = 1.f) override
+	void pushClipGeometry(AvoGUI::Geometry* p_geometry, float p_opacity) override
 	{
 	}
 
 	//------------------------------
 
-	void pushClipShape(std::vector<AvoGUI::Point<float>> const& p_points, float p_opacity = 1.f) override
+	void pushClipShape(std::vector<AvoGUI::Point<float>> const& p_points, float p_opacity) override
 	{
 	}
-	void pushClipShape(AvoGUI::Point<float> const* p_points, uint32 p_numberOfPoints, float p_opacity = 1.f) override
+	void pushClipShape(AvoGUI::Point<float> const* p_points, uint32 p_numberOfPoints, float p_opacity) override
 	{
 	}
 
 	void popClipShape() override
 	{
+		if (m_clippingShapeStack.size())
+		{
+			m_clippingShapeStack.pop();
+			if (m_clippingShapeStack.size())
+			{
+				AvoGUI::Rectangle<float> bounds = m_clippingShapeStack.top().getBounds();
+				glScissor(bounds.left, bounds.top, std::ceil(bounds.getWidth()), std::ceil(bounds.getHeight()));
+			}
+			else
+			{
+				glScissor(0, 0, m_size.x*m_dipToPixelFactor, m_size.y*m_dipToPixelFactor);
+			}
+		}
 	}
 
 	//------------------------------
 
-	void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_opacity = 1.f) override
+	void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_opacity) override
 	{
+		if (m_clippingShapeStack.size())
+		{
+			AvoGUI::Rectangle<float> clippingBounds = m_clippingShapeStack.top().getBounds().bound(p_left, p_top, p_right, p_bottom);
+			m_clippingShapeStack.push(ClippingShape(clippingBounds));
+			glScissor(clippingBounds.left, clippingBounds.bottom, std::ceil(clippingBounds.getWidth()), std::ceil(clippingBounds.getHeight()));
+		}
+		else
+		{
+			m_clippingShapeStack.push(ClippingShape(p_left, p_bottom, p_right, p_bottom));
+			glScissor(p_left, p_bottom, std::ceil(p_right - p_left), std::ceil(p_bottom - p_top));
+		}
 	}
-	void pushClipRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_opacity = 1.f) override
+	void pushClipRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_opacity) override
 	{
+		pushClipRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_opacity);
 	}
-	void pushClipRectangle(AvoGUI::Point<float> const& p_size, float p_opacity = 1.f) override
+	void pushClipRectangle(AvoGUI::Point<float> const& p_size, float p_opacity) override
 	{
+		pushClipRectangle(0, 0, p_size.x, p_size.y, p_opacity);
 	}
 
 	void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_corners, float p_opacity = 1.f) override
@@ -10395,6 +10615,7 @@ public:
 	{
 	}
 };
+#endif
 #pragma endregion
 
 //------------------------------
@@ -10475,7 +10696,7 @@ void AvoGUI::Gui::getTopMouseListenersAt(float p_x, float p_y, std::vector<AvoGU
 }
 
 void AvoGUI::Gui::thread_runAnimationLoop()
-{
+{	
 	int32 syncInterval = 16666667;
 	auto timeBefore = std::chrono::steady_clock::now();
 
@@ -10491,6 +10712,7 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 			AvoGUI::Point<float> sizeBefore = getBottomRight();
 			m_drawingContext->setSize(m_newWindowSize.x, m_newWindowSize.y);
 			m_bounds.set(0, 0, m_newWindowSize.x, m_newWindowSize.y);
+			m_shadowBounds = m_bounds;
 			m_lastWindowSize = m_newWindowSize;
 
 			sendBoundsChangeEvents(AvoGUI::Rectangle<float>(0.f, 0.f, sizeBefore.x, sizeBefore.y));
@@ -10599,8 +10821,10 @@ void AvoGUI::Gui::create(char const* p_title, uint32 p_titleSize, float p_x, flo
 		m_parent = p_parent;
 	}
 
+	m_lastWindowSize.set(p_width, p_height);
 	m_bounds = AvoGUI::Rectangle<float>(0, 0, p_width, p_height);
-	setAbsoluteBounds(m_bounds);
+	m_shadowBounds = m_bounds;
+	m_absolutePosition.set(0, 0);
 	m_window->create(p_title, p_titleSize, p_x, p_y, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
 
 	m_animationThread = std::thread(&AvoGUI::Gui::thread_runAnimationLoop, this);
@@ -10612,8 +10836,10 @@ void AvoGUI::Gui::create(char const* p_title, uint32 p_titleSize, float p_width,
 		m_parent = p_parent;
 	}
 
+	m_lastWindowSize.set(p_width, p_height);
 	m_bounds = AvoGUI::Rectangle<float>(0, 0, p_width, p_height);
-	setAbsoluteBounds(m_bounds);
+	m_shadowBounds = m_bounds;
+	m_absolutePosition.set(0, 0);
 	m_window->create(p_title, p_titleSize, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
 
 	m_animationThread = std::thread(&AvoGUI::Gui::thread_runAnimationLoop, this);
@@ -10685,7 +10911,6 @@ void AvoGUI::Gui::handleWindowCreate(WindowEvent const& p_event)
 #endif
 	m_drawingContextState = m_drawingContext->createDrawingState();
 
-	m_lastWindowSize = m_window->getSize();
 	createContent();
 
 	for (auto listener : m_windowEventListeners)
@@ -11556,6 +11781,7 @@ void AvoGUI::Gui::drawViews()
 			m_drawingContext->resetTransformations();
 			m_drawingContext->setOpacity(1.f);
 			m_drawingContext->pushClipRectangle(targetRectangle);
+
 			m_drawingContext->clear(m_theme->colors["background"]);
 
 			draw(m_drawingContext, targetRectangle);
