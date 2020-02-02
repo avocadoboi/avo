@@ -9955,6 +9955,10 @@ public:
 		glViewport(0, 0, linuxWindow->getWidth()*m_dipToPixelFactor, linuxWindow->getHeight()*m_dipToPixelFactor);
 		m_size = linuxWindow->getSize();
 	}
+	~OpenGlDrawingContext()
+	{
+		glXDestroyContext(m_window->getServer(), m_context);
+	}
 	
 	//------------------------------
 	
@@ -9964,7 +9968,6 @@ public:
 	}
 	void finishDrawing(std::vector<AvoGUI::Rectangle<float>> const& p_updatedRectangles) override
 	{
-		// clear(AvoGUI::Color(0.5f, 0.5f, 0.5f));
 		glXSwapBuffers(m_window->getServer(), m_windowHandle);
 	}
 
