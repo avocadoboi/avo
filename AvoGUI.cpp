@@ -63,6 +63,9 @@
 #include <GL/gl.h>
 #include <GL/glext.h>
 
+#include <freetype2/ft2build.h>
+#include FT_FREETYPE_H
+
 #include <unistd.h>
 
 #undef None
@@ -4721,8 +4724,13 @@ private:
 
 	Display* m_server = 0;
 	XWindow m_windowHandle = 0;
+	Colormap m_colormap = 0;
 
+	Atom m_windowManagerProtocolsMessageType;
 	Atom m_windowCloseEvent;
+
+	Atom m_backgroundColorMessageType;
+	
 	bool m_isOpen = false;
 	AvoGUI::Point<uint32> m_size;
 	AvoGUI::Point<float> m_minSize;
@@ -5195,11 +5203,19 @@ private:
 
 		//------------------------------
 
+		m_backgroundColorMessageType = XInternAtom(m_server, "AVOGUI_SET_BACKGROUND_COLOR", false);
+
+		//------------------------------
+
 		// We want the window manager to tell us when the window should be closed.
+		// WM_PROTOCOLS is the atom used to identify messages sent from the window manager in a ClientMessage.
+		m_windowManagerProtocolsMessageType = XInternAtom(m_server, "WM_PROTOCOLS", true);
+		// This is the atom sent as the data in a ClientMessage with type WM_PROTOCOLS, to indicate the close event.  
 		m_windowCloseEvent = XInternAtom(m_server, "WM_DELETE_WINDOW", 0);
+		// Tell the window manager that we want it to send the event through WM_PROTOCOLS.
 		XSetWMProtocols(m_server, m_windowHandle, &m_windowCloseEvent, 1);
 
-		XFlush(m_server);
+		XFlush(m_server); // Execute the command queue
 
 		XEvent event;
 
@@ -5227,20 +5243,33 @@ private:
 			// }
 			case ClientMessage:
 			{
-				// Sent from the window manager when the user has tried to close the window, 
-				// it is up to us to decide whether to actually close and exit the application.
-				if (event.xclient.data.l[0] == m_windowCloseEvent)
+				if (event.xclient.message_type == m_windowManagerProtocolsMessageType)
 				{
-					if (m_gui->getWillClose())
+					// Sent from the window manager when the user has tried to close the window, 
+					// it is up to us to decide whether to actually close and exit the application.
+					if (event.xclient.data.l[0] == m_windowCloseEvent)
 					{
-						m_isOpen = false;
+						if (m_gui->getWillClose())
+						{
+							m_isOpen = false;
+						}
+						else
+						{
+							m_gui->excludeAnimationThread();
+							m_gui->handleWindowClose({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
+							m_gui->includeAnimationThread();
+						}
 					}
-					else
-					{
-						m_gui->excludeAnimationThread();
-						m_gui->handleWindowClose({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
-						m_gui->includeAnimationThread();
-					}
+				}
+				else if (event.xclient.message_type == m_backgroundColorMessageType)
+				{
+					XColor xColor;
+					xColor.red = event.xclient.data.l[0];
+					xColor.green = event.xclient.data.l[1];
+					xColor.blue = event.xclient.data.l[2];
+					xColor.flags = DoRed | DoGreen | DoBlue;
+					XAllocColor(m_server, m_colormap, &xColor);
+					XSetWindowBackground(m_server, m_windowHandle, xColor.pixel);
 				}
 				break;
 			}
@@ -5333,6 +5362,14 @@ public:
 	{
 		return m_server;
 	}
+	Colormap getColormap()
+	{
+		return m_colormap;
+	}
+	Atom getBackgroundColorMessageType()
+	{
+		return m_backgroundColorMessageType;
+	}
 
 	//------------------------------
 
@@ -5388,8 +5425,9 @@ public:
 
 		//------------------------------
 
+		m_colormap = XCreateColormap(m_server, RootWindow(m_server, visualInfo->screen), visualInfo->visual, 0);
 		XSetWindowAttributes windowAttributes = { };
-		windowAttributes.colormap = XCreateColormap(m_server, RootWindow(m_server, visualInfo->screen), visualInfo->visual, 0);
+		windowAttributes.colormap = m_colormap;
 		windowAttributes.event_mask = 
 			ExposureMask |
 			EnterWindowMask | LeaveWindowMask |
@@ -5461,6 +5499,7 @@ public:
 		{
 			XEvent event;
 			event.type = ClientMessage;
+			event.xclient.message_type = m_windowManagerProtocolsMessageType;
 			event.xclient.data.l[0] = m_windowCloseEvent;
 			event.xclient.display = m_server;
 			event.xclient.window = m_windowHandle;
@@ -9851,6 +9890,46 @@ IWICImagingFactory2* Direct2DDrawingContext::s_imagingFactory = 0;
 bool areOpenGlFunctionsLoaded = false;
 
 PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB;
+PFNGLGENBUFFERSPROC glGenBuffers;
+PFNGLBINDBUFFERPROC glBindBuffer;
+PFNGLBUFFERDATAPROC glBufferData;
+PFNGLCREATESHADERPROC glCreateShader;
+PFNGLSHADERSOURCEPROC glShaderSource;
+PFNGLCOMPILESHADERPROC glCompileShader;
+PFNGLGETSHADERIVPROC glGetShaderiv;
+PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
+PFNGLCREATEPROGRAMPROC glCreateProgram;
+PFNGLATTACHSHADERPROC glAttachShader;
+PFNGLLINKPROGRAMPROC glLinkProgram;
+PFNGLDELETEPROGRAMPROC glDeleteProgram;
+PFNGLDELETESHADERPROC glDeleteShader;
+PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
+PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
+PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
+PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
+PFNGLUSEPROGRAMPROC glUseProgram;
+
+//------------------------------
+
+class OpenGlShader
+{
+private:
+	unsigned int m_program;
+	unsigned int m_vertexArrayObject;
+	unsigned int m_vertexBufferObject;
+
+public:
+	OpenGlShader()
+	{
+	}
+
+	void compile(char const* p_vertexShaderSource, char const* p_fragmentShaderSource)
+	{
+
+	}
+};
+
+//------------------------------
 
 class ClippingShape
 {
@@ -9880,6 +9959,12 @@ private:
 	LinuxWindow* m_window;
 	XWindow m_windowHandle;
 	GLXContext m_context;
+	AvoGUI::Color m_backgroundColor;
+	
+	AvoGUI::Color m_currentColor;
+	unsigned int m_testShaderProgram;
+	unsigned int m_testShaderVertexArrayObject;
+	unsigned int m_testShaderVertexBufferObject;
 
 	float m_dipToPixelFactor;
 	AvoGUI::Point<float> m_size;
@@ -9892,7 +9977,32 @@ private:
 		{
 			return;
 		}
-		glXCreateContextAttribsARB = (PFNGLXCREATECONTEXTATTRIBSARBPROC)glXGetProcAddressARB((GLubyte const*)"glXCreateContextAttribsARB");
+		
+		__GLXextFuncPtr function = 0;
+#define load(p_name) function = glXGetProcAddressARB((GLubyte const*)(#p_name)); memcpy(&p_name, &function, sizeof(p_name));
+
+		load(glXCreateContextAttribsARB);
+		load(glGenBuffers);
+		load(glBindBuffer);
+		load(glBufferData);
+		load(glCreateShader);
+		load(glShaderSource);
+		load(glCompileShader);
+		load(glGetShaderiv);
+		load(glGetShaderInfoLog);
+		load(glCreateProgram);
+		load(glAttachShader);
+		load(glLinkProgram);
+		load(glDeleteProgram);
+		load(glDeleteShader);
+		load(glVertexAttribPointer);
+		load(glEnableVertexAttribArray);
+		load(glGenVertexArrays);
+		load(glBindVertexArray);
+		load(glUseProgram);
+
+#undef load
+
 		areOpenGlFunctionsLoaded = true;
 	}
 	
@@ -9954,6 +10064,67 @@ public:
 		glXMakeCurrent(m_window->getServer(), m_windowHandle, m_context);
 		glViewport(0, 0, linuxWindow->getWidth()*m_dipToPixelFactor, linuxWindow->getHeight()*m_dipToPixelFactor);
 		m_size = linuxWindow->getSize();
+
+		//------------------------------
+		
+		char const* vertexShaderSource = 
+		R"(
+			#version 330 core
+			layout (location = 0) in vec2 vertex;
+
+			void main()
+			{
+				gl_Position = vec4(vertex.xy, 1., 1.);
+			}
+		)";
+		unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+		glShaderSource(vertexShader, 1, &vertexShaderSource, 0);
+		glCompileShader(vertexShader);
+
+		char const* fragmentShaderSource =
+		R"(
+			#version 330 core
+			out vec4 fragmentColor;
+
+			void main()
+			{
+				fragmentColor = vec4(0.f, 0.f, 0.f, 1.f);
+			}
+		)";
+		unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(fragmentShader, 1, &fragmentShaderSource, 0);
+		glCompileShader(fragmentShader);
+
+		m_testShaderProgram = glCreateProgram();
+		glAttachShader(m_testShaderProgram, vertexShader);
+		glAttachShader(m_testShaderProgram, fragmentShader);
+		glLinkProgram(m_testShaderProgram);
+
+		glDeleteShader(fragmentShader);
+		glDeleteShader(vertexShader);
+
+		float vertices[] = 
+		{
+			-0.3f, -0.3f,
+			0.3f, -0.3f,
+			0.3f, 0.3f,
+			
+			0.3f, 0.3f,
+			-0.3f, 0.3f,
+			-0.3f, -0.3f,
+		};
+
+		m_testShaderVertexArrayObject = 0;
+		glGenVertexArrays(1, &m_testShaderVertexArrayObject);
+		glBindVertexArray(m_testShaderVertexArrayObject);
+		
+		m_testShaderVertexBufferObject = 0;
+		glGenBuffers(1, &m_testShaderVertexBufferObject);
+		glBindBuffer(GL_ARRAY_BUFFER, m_testShaderVertexBufferObject);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2*sizeof(float), 0);
+		glEnableVertexAttribArray(0);
 	}
 	~OpenGlDrawingContext()
 	{
@@ -10014,9 +10185,32 @@ public:
 
 	void setBackgroundColor(AvoGUI::Color const& p_color) override
 	{
+		// If we try to set the background color here directly, some methods block until XNextEvent in the event thread returns...
+		// So send the color in a client event instead and let the event thread set the background color of the window. 
+		
+		Display* server = m_window->getServer();
+		XLockDisplay(server);
+
+		XEvent event;
+		event.type = ClientMessage;
+		event.xclient.message_type = m_window->getBackgroundColorMessageType();
+		event.xclient.format = 32; // Using data.l, 32 bits per data item
+		event.xclient.data.l[0] = p_color.red * 65535;
+		event.xclient.data.l[1] = p_color.green * 65535;
+		event.xclient.data.l[2] = p_color.blue * 65535;
+		event.xclient.display = server;
+		event.xclient.window = m_windowHandle;
+		event.xclient.send_event = true;
+		XSendEvent(server, m_windowHandle, false, 0, &event);
+		XFlush(server);
+		
+		XUnlockDisplay(server);
+
+		m_backgroundColor = p_color;
 	}
 	AvoGUI::Color getBackgroundColor() override
 	{
+		return m_backgroundColor;
 	}
 
 	//------------------------------
@@ -10148,7 +10342,9 @@ public:
 
 	void fillRectangle(float p_left, float p_top, float p_right, float p_bottom) override
 	{
-
+		glUseProgram(m_testShaderProgram);
+		glBindVertexArray(m_testShaderVertexArrayObject);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
 	}
 	void fillRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size) override
 	{
@@ -10569,6 +10765,7 @@ public:
 	}
 	void setColor(AvoGUI::Color const& p_color) override
 	{
+		m_currentColor = p_color;
 	}
 
 	void setOpacity(float p_opacity) override
