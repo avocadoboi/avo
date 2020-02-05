@@ -9914,19 +9914,99 @@ PFNGLUSEPROGRAMPROC glUseProgram;
 class OpenGlShader
 {
 private:
-	unsigned int m_program;
-	unsigned int m_vertexArrayObject;
-	unsigned int m_vertexBufferObject;
+	unsigned int m_programID = 0;
+	unsigned int m_vertexArrayObjectID = 0;
+	unsigned int m_vertexBufferID = 0;
+	uint32 m_vertexBufferSize = 0;
+	unsigned int m_indexBufferID = 0;
+	uint32 m_indexBufferSize = 0;
 
 public:
-	OpenGlShader()
+	OpenGlShader() = default;
+	~OpenGlShader()
 	{
+		if (m_programID)
+		{
+			glDeleteProgram(m_programID);
+		}
 	}
 
 	void compile(char const* p_vertexShaderSource, char const* p_fragmentShaderSource)
 	{
+		unsigned int vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
+		glShaderSource(vertexShaderID, 1, &p_vertexShaderSource, nullptr);
+		glCompileShader(vertexShaderID);
 
+		unsigned int fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(fragmentShaderID, 1, &p_fragmentShaderSource, nullptr);
+		glCompileShader(fragmentShaderID);
+
+		m_programID = glCreateProgram();
+		glAttachShader(m_programID, vertexShaderID);
+		glAttachShader(m_programID, fragmentShaderID);
+		glLinkProgram(m_programID);
+
+		glDeleteShader(fragmentShaderID);
+		glDeleteShader(vertexShaderID);
+
+		m_vertexArrayObjectID = 0;
+		glGenVertexArrays(1, &m_vertexArrayObjectID);
+
+		m_vertexBufferID = 0;
+		glGenBuffers(1, &m_vertexBufferID);
 	}
+
+	void setVertexData(float* p_data, uint32 p_vertexCount, uint32 p_stride, uint32 p_shaderInputIndex, GLenum p_usage = GL_STATIC_DRAW)
+	{
+        glBindVertexArray(m_vertexArrayObjectID);
+
+		glBindBuffer(GL_ARRAY_BUFFER, m_vertexBufferID);
+		glBufferData(GL_ARRAY_BUFFER, p_stride*p_vertexCount*sizeof(float), p_data, p_usage);
+
+		glVertexAttribPointer(p_shaderInputIndex, p_stride, GL_FLOAT, GL_FALSE, p_stride*sizeof(float), nullptr);
+		glEnableVertexAttribArray(p_shaderInputIndex);
+
+		glBindVertexArray(0);
+
+		m_vertexBufferSize = p_vertexCount;
+	}
+	void setVertexDataOrder(uint32* p_indices, uint32 p_indexCount, GLenum p_usage = GL_STATIC_DRAW)
+    {
+        glBindVertexArray(m_vertexArrayObjectID);
+
+	    glGenBuffers(1, &m_indexBufferID);
+	    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_indexBufferID);
+	    glBufferData(GL_ELEMENT_ARRAY_BUFFER, p_indexCount, p_indices, p_usage);
+
+	    glBindVertexArray(0);
+
+	    m_indexBufferSize = p_indexCount;
+    }
+
+    void setUniform(char const* p_name, float p_value)
+    {
+
+    }
+
+    /*
+        If p_numberOfIndicesToRender is -1, it renders all vertices or all referred to by a previous call to
+        setVertexDataOrder.
+    */
+    void draw(int32 p_numberOfIndicesToRender = -1, GLenum p_mode = GL_TRIANGLES)
+    {
+	    glUseProgram(m_programID);
+	    glBindVertexArray(m_vertexArrayObjectID);
+
+        if (m_indexBufferID)
+        {
+            glDrawElements(p_mode, p_numberOfIndicesToRender == -1 ? m_indexBufferSize : p_numberOfIndicesToRender, GL_UNSIGNED_INT, nullptr);
+        }
+        else
+        {
+            glDrawArrays(p_mode, 0, p_numberOfIndicesToRender == -1 ? m_vertexBufferSize : p_numberOfIndicesToRender);
+        }
+        glBindVertexArray(0);
+    }
 };
 
 //------------------------------
@@ -9937,7 +10017,7 @@ private:
 	AvoGUI::Rectangle<float> m_bounds;
 	
 public:
-	ClippingShape(AvoGUI::Rectangle<float> const& p_bounds) :
+	explicit ClippingShape(AvoGUI::Rectangle<float> const& p_bounds) :
 		m_bounds(p_bounds)
 	{
 	}
@@ -9962,16 +10042,14 @@ private:
 	AvoGUI::Color m_backgroundColor;
 	
 	AvoGUI::Color m_currentColor;
-	unsigned int m_testShaderProgram;
-	unsigned int m_testShaderVertexArrayObject;
-	unsigned int m_testShaderVertexBufferObject;
+	OpenGlShader m_testShader;
 
 	float m_dipToPixelFactor;
 	AvoGUI::Point<float> m_size;
 
 	std::stack<ClippingShape> m_clippingShapeStack;
 
-	void loadOpenGlFunctions()
+	static void loadOpenGlFunctions()
 	{
 		if (areOpenGlFunctionsLoaded)
 		{
@@ -10007,7 +10085,7 @@ private:
 	}
 	
 public:
-	OpenGlDrawingContext(AvoGUI::Window* p_window) :
+	explicit OpenGlDrawingContext(AvoGUI::Window* p_window) :
 		m_window((LinuxWindow*)p_window), m_windowHandle((XWindow)p_window->getNativeHandle())
 	{
 		loadOpenGlFunctions();
@@ -10025,7 +10103,7 @@ public:
 		XGetWindowAttributes(server, m_windowHandle, &windowAttributes);
 
 		int numberOfConfigurations = 0;
-		GLXFBConfig* framebufferConfigurations = glXChooseFBConfig(server, DefaultScreen(server), 0, &numberOfConfigurations);
+		GLXFBConfig* framebufferConfigurations = glXChooseFBConfig(server, DefaultScreen(server), nullptr, &numberOfConfigurations);
 		GLXFBConfig framebufferConfiguration = *framebufferConfigurations;
 		for (uint32 a = 0; a < numberOfConfigurations; a++)
 		{
@@ -10077,9 +10155,6 @@ public:
 				gl_Position = vec4(vertex.xy, 1., 1.);
 			}
 		)";
-		unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-		glShaderSource(vertexShader, 1, &vertexShaderSource, 0);
-		glCompileShader(vertexShader);
 
 		char const* fragmentShaderSource =
 		R"(
@@ -10091,17 +10166,7 @@ public:
 				fragmentColor = vec4(0.f, 0.f, 0.f, 1.f);
 			}
 		)";
-		unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-		glShaderSource(fragmentShader, 1, &fragmentShaderSource, 0);
-		glCompileShader(fragmentShader);
-
-		m_testShaderProgram = glCreateProgram();
-		glAttachShader(m_testShaderProgram, vertexShader);
-		glAttachShader(m_testShaderProgram, fragmentShader);
-		glLinkProgram(m_testShaderProgram);
-
-		glDeleteShader(fragmentShader);
-		glDeleteShader(vertexShader);
+		m_testShader.compile(vertexShaderSource, fragmentShaderSource);
 
 		float vertices[] = 
 		{
@@ -10111,20 +10176,9 @@ public:
 			
 			0.3f, 0.3f,
 			-0.3f, 0.3f,
-			-0.3f, -0.3f,
+			-0.3f, -0.3f
 		};
-
-		m_testShaderVertexArrayObject = 0;
-		glGenVertexArrays(1, &m_testShaderVertexArrayObject);
-		glBindVertexArray(m_testShaderVertexArrayObject);
-		
-		m_testShaderVertexBufferObject = 0;
-		glGenBuffers(1, &m_testShaderVertexBufferObject);
-		glBindBuffer(GL_ARRAY_BUFFER, m_testShaderVertexBufferObject);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2*sizeof(float), 0);
-		glEnableVertexAttribArray(0);
+		m_testShader.setVertexData(vertices, 6, 2, 0);
 	}
 	~OpenGlDrawingContext()
 	{
@@ -10342,9 +10396,7 @@ public:
 
 	void fillRectangle(float p_left, float p_top, float p_right, float p_bottom) override
 	{
-		glUseProgram(m_testShaderProgram);
-		glBindVertexArray(m_testShaderVertexArrayObject);
-		glDrawArrays(GL_TRIANGLES, 0, 6);
+        m_testShader.draw();
 	}
 	void fillRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size) override
 	{
