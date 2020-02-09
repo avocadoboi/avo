@@ -2967,13 +2967,13 @@ namespace AvoGUI
 			The channels are floats in the range [0, 1].
 		*/
 		Color(float p_red, float p_green, float p_blue, float p_alpha = 1.f) :
-			red(p_red), green(p_green), blue(p_blue), alpha(p_alpha)
+			red(constrain(p_red)), green(constrain(p_green)), blue(constrain(p_blue)), alpha(constrain(p_alpha))
 		{ }
 		/*
 			The channels are doubles in the range [0, 1].
 		*/
 		Color(double p_red, double p_green, double p_blue, double p_alpha = 1.f) :
-			red(p_red), green(p_green), blue(p_blue), alpha(p_alpha)
+			red(constrain(p_red)), green(constrain(p_green)), blue(constrain(p_blue)), alpha(constrain(p_alpha))
 		{ }
 		/*
 			The channels are in the range [0, 255]
@@ -2985,22 +2985,20 @@ namespace AvoGUI
 			The channels are in the range [0, 255]
 		*/
 		Color(uint32 p_red, uint32 p_green, uint32 p_blue, uint32 p_alpha = (uint32)255) :
-			red(float(p_red) / 255.f), green(float(p_green) / 255.f), blue(float(p_blue) / 255.f), alpha(float(p_alpha) / 255.f)
+			red(constrain(float(p_red) / 255.f)), green(constrain(float(p_green) / 255.f)), blue(constrain(float(p_blue) / 255.f)), alpha(constrain(float(p_alpha) / 255.f))
 		{ }
 		/*
 			The channels are in the range [0, 255]
 		*/
 		Color(int32 p_red, int32 p_green, int32 p_blue, int32 p_alpha = (int32)255) :
-			red(float(p_red) / 255.f), green(float(p_green) / 255.f), blue(float(p_blue) / 255.f), alpha(float(p_alpha) / 255.f)
+			red(constrain(float(p_red) / 255.f)), green(constrain(float(p_green) / 255.f)), blue(constrain(float(p_blue) / 255.f)), alpha(constrain(float(p_alpha) / 255.f))
 		{ }
 		/*
 			Initializes the color with a grayscale value. The values are floats in the range [0, 1].
 		*/
 		Color(float p_lightness, float p_alpha = 1.f)
 		{
-			red = constrain(p_lightness);
-			green = red;
-			blue = red;
+			red = green = blue = constrain(p_lightness);
 			alpha = constrain(p_alpha);
 		}
 		/*
@@ -3008,9 +3006,7 @@ namespace AvoGUI
 		*/
 		Color(double p_lightness, double p_alpha = 1.)
 		{
-			red = constrain(p_lightness);
-			green = red;
-			blue = red;
+			red = green = blue = constrain(p_lightness);
 			alpha = constrain(p_alpha);
 		}
 		/*
@@ -3018,10 +3014,24 @@ namespace AvoGUI
 		*/
 		Color(uint8 p_lightness, uint8 p_alpha = (uint8)255)
 		{
-			red = float(p_lightness) / 255.f;
-			green = red;
-			blue = red;
+			red = green = blue = float(p_lightness) / 255.f;
 			alpha = float(p_alpha) / 255.f;
+		}
+		/*
+			Initializes the color with a grayscale value. The values are in the range [0, 255].
+		*/
+		Color(uint32 p_lightness, uint32 p_alpha = 255)
+		{
+			red = green = blue = constrain(float(p_lightness) / 255.f);
+			alpha = constrain(float(p_alpha) / 255.f);
+		}
+		/*
+			Initializes the color with a grayscale value. The values are in the range [0, 255].
+		*/
+		Color(int32 p_lightness, int32 p_alpha = 255)
+		{
+			red = green = blue = constrain(float(p_lightness) / 255.f);
+			alpha = constrain(float(p_alpha) / 255.f);
 		}
 		/*
 			Creates a copy of another color but with a new alpha.
@@ -3038,7 +3048,7 @@ namespace AvoGUI
 		/*
 			Initializes with a 4-byte packed RGBA color.
 		*/
-		Color(colorInt const& p_color)
+		Color(colorInt p_color)
 		{
 			operator=(p_color);
 		}
@@ -3047,7 +3057,7 @@ namespace AvoGUI
 			operator=(p_color);
 		}
 
-		Color& operator=(colorInt const& p_color)
+		Color& operator=(colorInt p_color)
 		{
 			alpha = float(p_color >> 24) / 255.f;
 			red = float(p_color >> 16 & 0xff) / 255.f;
@@ -4405,16 +4415,16 @@ namespace AvoGUI
 	{
 	private:
 		std::vector<ViewListener*> m_viewEventListeners;
-		bool m_isInAnimationUpdateQueue;
-		bool m_isVisible;
-		bool m_isOverlay;
+		bool m_isInAnimationUpdateQueue{false};
+		bool m_isVisible{true};
+		bool m_isOverlay{false};
 
-		bool m_areDragDropEventsEnabled;
+		bool m_areDragDropEventsEnabled{false};
 
-		bool m_areMouseEventsEnabled;
-		Cursor m_cursor;
+		bool m_areMouseEventsEnabled{false};
+		Cursor m_cursor{Cursor::Arrow};
 
-		float m_opacity;
+		float m_opacity{1.f};
 		RectangleCorners m_corners;
 
 		//------------------------------
@@ -4422,21 +4432,21 @@ namespace AvoGUI
 		Point<float> m_absolutePosition;
 		Rectangle<float> m_lastInvalidatedShadowBounds;
 		Rectangle<float> m_shadowBounds;
-		Image* m_shadowImage = 0;
-		bool m_hasShadow;
+		Image* m_shadowImage = nullptr;
+		bool m_hasShadow{true};
 
-		float m_elevation;
-
-		//------------------------------
-
-		uint32 m_layerIndex;
-		uint32 m_index;
-		uint64 m_id;
+		float m_elevation{0.f};
 
 		//------------------------------
 
-		bool m_isMouseHovering;
-		bool m_isDraggingOver;
+		uint32 m_layerIndex{0};
+		uint32 m_index{0};
+		uint64 m_id{0};
+
+		//------------------------------
+
+		bool m_isMouseHovering{false};
+		bool m_isDraggingOver{false};
 
 		friend class Gui;
 
@@ -4452,7 +4462,7 @@ namespace AvoGUI
 		{
 			m_absolutePosition.move(p_offsetX, p_offsetY);
 
-			if (p_willUpdateChildren && m_children.size())
+			if (p_willUpdateChildren && !m_children.empty())
 			{
 				View* currentContainer = this;
 				View* child = 0;
@@ -4507,9 +4517,9 @@ namespace AvoGUI
 		void updateShadow();
 
 	protected:
-		Gui* m_gui = 0;
-		View* m_parent = 0;
-		Theme* m_theme = 0;
+		Gui* m_gui{nullptr};
+		View* m_parent{nullptr};
+		Theme* m_theme{nullptr};
 
 		std::vector<View*> m_children;
 
@@ -4548,14 +4558,14 @@ namespace AvoGUI
 		virtual void updateClipGeometry();
 
 	public:
-		View(View* p_parent, Rectangle<float> const& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
+		explicit View(View* p_parent, Rectangle<float> const& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
 		template<typename T>
 		View(View* p_parent, T p_id, Rectangle<float> const& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f)) :
 			View(p_parent, p_bounds)
 		{
 			setId(p_id);
 		}
-		virtual ~View();
+		~View() override;
 
 		//------------------------------
 
@@ -4785,7 +4795,7 @@ namespace AvoGUI
 		*/
 		Rectangle<float> calculateContentBounds() const
 		{
-			if (!m_children.size())
+			if (m_children.empty())
 			{
 				return Rectangle<float>();
 			}
@@ -4823,7 +4833,7 @@ namespace AvoGUI
 		*/
 		float calculateContentWidth() const
 		{
-			if (!m_children.size())
+			if (m_children.empty())
 			{
 				return 0.f;
 			}
@@ -4849,7 +4859,7 @@ namespace AvoGUI
 		*/
 		float calculateContentHeight() const
 		{
-			if (!m_children.size())
+			if (m_children.empty())
 			{
 				return 0.f;
 			}
@@ -4885,7 +4895,7 @@ namespace AvoGUI
 		*/
 		float calculateContentLeft() const
 		{
-			if (!m_children.size())
+			if (m_children.empty())
 			{
 				return 0.f;
 			}
@@ -4907,7 +4917,7 @@ namespace AvoGUI
 		*/
 		float calculateContentRight() const
 		{
-			if (!m_children.size())
+			if (m_children.empty())
 			{
 				return 0.f;
 			}
@@ -4929,7 +4939,7 @@ namespace AvoGUI
 		*/
 		float calculateContentTop() const
 		{
-			if (!m_children.size())
+			if (m_children.empty())
 			{
 				return 0.f;
 			}
@@ -4951,7 +4961,7 @@ namespace AvoGUI
 		*/
 		float calculateContentBottom() const
 		{
-			if (!m_children.size())
+			if (m_children.empty())
 			{
 				return 0.f;
 			}
@@ -5000,9 +5010,9 @@ namespace AvoGUI
 			Rectangle<float> contentBounds(calculateContentBounds());
 			float offsetX = p_leftPadding - contentBounds.left;
 			float offsetY = p_topPadding - contentBounds.top;
-			for (uint32 a = 0; a < m_children.size(); a++)
+			for (auto& child : m_children)
 			{
-				m_children[a]->move(offsetX, offsetY);
+				child->move(offsetX, offsetY);
 			}
 			setSize(contentBounds.getWidth() + p_leftPadding + p_rightPadding, contentBounds.getHeight() + p_topPadding + p_bottomPadding);
 		}
@@ -5016,9 +5026,9 @@ namespace AvoGUI
 		{
 			float left = calculateContentLeft();
 			float offset = p_leftPadding - left;
-			for (uint32 a = 0; a < m_children.size(); a++)
+			for (auto& child : m_children)
 			{
-				m_children[a]->move(offset, 0.f);
+				child->move(offset, 0.f);
 			}
 			setWidth(getWidth() + offset);
 		}
@@ -5040,9 +5050,9 @@ namespace AvoGUI
 		{
 			float top = calculateContentTop();
 			float offset = p_topPadding - top;
-			for (uint32 a = 0; a < m_children.size(); a++)
+			for (auto& child : m_children)
 			{
-				m_children[a]->move(offset, 0.f);
+				child->move(offset, 0.f);
 			}
 			setHeight(getHeight() + offset);
 		}
@@ -5402,7 +5412,7 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Moves the whoie view.
+			Moves the whole view.
 		*/
 		void move(Point<float> const& p_offset) override
 		{
@@ -6153,7 +6163,7 @@ namespace AvoGUI
 			Returns whether this view intersects/overlaps a rectangle that is relative to the top left corner of the parent.
 			If you have a custom clipping geometry, you could override this.
 		*/
-		virtual bool getIsIntersecting(float p_left, float p_top, float p_right, float p_bottom) const override
+		bool getIsIntersecting(float p_left, float p_top, float p_right, float p_bottom) const override
 		{
 			if (m_corners.topLeftSizeX && m_corners.topLeftSizeY || m_corners.topRightSizeX && m_corners.topRightSizeY ||
 				m_corners.bottomLeftSizeX && m_corners.bottomLeftSizeY || m_corners.bottomRightSizeX && m_corners.bottomRightSizeY)
@@ -6227,7 +6237,7 @@ namespace AvoGUI
 			Returns whether a rectangle can be contained within this view. The rectangle is relative to the parent of this view.
 			If you have a custom clipping geometry, you could override this.
 		*/
-		virtual bool getIsContaining(float p_left, float p_top, float p_right, float p_bottom) const override
+		bool getIsContaining(float p_left, float p_top, float p_right, float p_bottom) const override
 		{
 			if (m_corners.topLeftSizeX && m_corners.topLeftSizeY || m_corners.topRightSizeX && m_corners.topRightSizeY ||
 				m_corners.bottomLeftSizeX && m_corners.bottomLeftSizeY || m_corners.bottomRightSizeX && m_corners.bottomRightSizeY)
@@ -6312,18 +6322,13 @@ namespace AvoGUI
 		{
 			return getIsContaining(p_rectangle->getLeft(), p_rectangle->getTop(), p_rectangle->getRight(), p_rectangle->getBottom());
 		}
-		/*
-			LIBRARY IMPLEMENTED
-			Returns whether this view contains another view. Takes rounded corners of both views into account.
-		*/
-		//bool getIsContaining(View* p_view) const;
 
 		/*
 			LIBRARY IMPLEMENTED
 			Returns whether a point is within the bounds of this view. The point is relative to the parent of this view.
 			If you have a custom clipping geometry, you could override this.
 		*/
-		virtual bool getIsContaining(float p_x, float p_y) const override
+		bool getIsContaining(float p_x, float p_y) const override
 		{
 			if (m_corners.topLeftSizeX && m_corners.topLeftSizeY || m_corners.topRightSizeX && m_corners.topRightSizeY ||
 				m_corners.bottomLeftSizeX && m_corners.bottomLeftSizeY || m_corners.bottomRightSizeX && m_corners.bottomRightSizeY)
@@ -6879,17 +6884,17 @@ namespace AvoGUI
 		/*
 			The window that has recieved the event from the OS.
 		*/
-		Window* window = 0;
+		Window* window{nullptr};
 		/*
 			The new width of the window if it has changed size (includes sizeChange/maximize/restore events).
 			Expressed in dips.
 		*/
-		float width = 0.f;
+		float width{0.f};
 		/*
 			The new height of the window if it has changed size (includes sizeChange/maximize/restore events).
 			Expressed in dips.
 		*/
-		float height = 0.f;
+		float height{0.f};
 	};
 
 	class WindowListener
@@ -7008,7 +7013,7 @@ namespace AvoGUI
 
 	/*
 		An abstract window, which has an OS-specific implementation. 
-		The window is responsible for recieving events from the OS and sending them to the GUI. 
+		The window is responsible for receiving events from the OS and sending them to the GUI.
 		It's like a portal between your application and the operating system. 
 		It is only intended to be created by a GUI, and you can access and use it from there.
 	*/
@@ -7031,7 +7036,7 @@ namespace AvoGUI
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(char const* p_title, uint32 p_titleSize, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		virtual void create(char const* p_title, uint32 p_titleSize, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
 		/*
 			Creates the window in the center of the screen. To close it, use close().
 		
@@ -7042,7 +7047,7 @@ namespace AvoGUI
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(char const* p_title, uint32 p_titleSize, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		virtual void create(char const* p_title, uint32 p_titleSize, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
 		/*
 			Creates the window. To close it, use close().
 
@@ -7058,7 +7063,7 @@ namespace AvoGUI
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(char const* p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		virtual void create(char const* p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
 		/*
 			Creates the window in the center of the screen. To close it, use close().
 
@@ -7068,7 +7073,7 @@ namespace AvoGUI
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		virtual void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
 		/*
 			Creates the window. To close it, use close().
 
@@ -7084,7 +7089,7 @@ namespace AvoGUI
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(std::string const& p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		virtual void create(std::string const& p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
 		/*
 			Creates the window in the center of the screen. To close it, use close().
 
@@ -7094,7 +7099,7 @@ namespace AvoGUI
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(std::string const& p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = 0) = 0;
+		virtual void create(std::string const& p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
 
 		/*
 			Closes the window, if the GUI associated with the window allows it.
@@ -7110,16 +7115,16 @@ namespace AvoGUI
 
 		/*
 			Usually used for the parent of a popup window when the popup is closed.
-			Makes the window recieve mouse and keyboard events again.
+			Makes the window receive mouse and keyboard events again.
 		*/
 		virtual void enableUserInteraction() = 0;
 		/*
 			Usually used for the parent of a popup window when the popup is opened.
-			Makes the window not recieve any mouse and keyboard events, until enableUserInteraction is called.
+			Makes the window not receive any mouse and keyboard events, until enableUserInteraction is called.
 		*/
 		virtual void disableUserInteraction() = 0;
 		/*
-			Returns whether the window recieves mouse and keyboard events.
+			Returns whether the window receives mouse and keyboard events.
 		*/
 		virtual bool getIsUserInteractionEnabled() = 0;
 
@@ -7400,115 +7405,115 @@ namespace AvoGUI
 			The return value indicates what operation was made after the drop.
 			p_string is assumed to be null terminated.
 		*/
-		virtual DragDropOperation dragAndDropString(char const* p_string, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropString(char const* p_string, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 			p_length is the number of code units in the string.
 		*/
-		virtual DragDropOperation dragAndDropString(char const* p_string, uint32 p_length, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropString(char const* p_string, uint32 p_length, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 
 		/*
 			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropString(std::wstring const& p_string, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropString(std::wstring const& p_string, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 			p_string is assumed to be null terminated.
 		*/
-		virtual DragDropOperation dragAndDropString(wchar_t const* p_string, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropString(wchar_t const* p_string, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 			p_length is the number of code units in the string.
 		*/
-		virtual DragDropOperation dragAndDropString(wchar_t const* p_string, uint32 p_length, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropString(wchar_t const* p_string, uint32 p_length, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 
 		/*
 			Runs a blocking loop that allows the user to drag image data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropImage(Image* p_image, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropImage(Image* p_image, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::string const& p_name, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::string const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(std::string const& p_data, std::wstring const& p_name, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFile(std::string const& p_data, std::wstring const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data or a directory from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(std::string const& p_path, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFile(std::string const& p_path, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data or a directory from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(std::wstring const& p_path, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFile(std::wstring const& p_path, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 
 		/*
 			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_paths, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_paths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_paths, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_paths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFiles(std::string* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFiles(std::string* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFiles(std::wstring* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFiles(std::wstring* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFiles(char const* const* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFiles(char const* const* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
 
 		//------------------------------
 
@@ -7548,27 +7553,79 @@ namespace AvoGUI
 		*/
 		virtual void setClipboardString(char const* p_string, uint32 p_length) const = 0;
 
+		/*
+			Gives an image for the OS to store globally. Other programs, or this one, can then access it.
+		    The data currently stored on the clipboard is freed and replaced by this data.
+		*/
 		virtual void setClipboardImage(Image* p_image) const = 0;
 
+		/*
+			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
+		    The data currently stored on the clipboard is freed and replaced by this data.
+		*/
 		virtual void setClipboardFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) const = 0;
+		/*
+			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
+		    The data currently stored on the clipboard is freed and replaced by this data.
+		*/
 		virtual void setClipboardFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name) const = 0;
+		/*
+			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
+		    The data currently stored on the clipboard is freed and replaced by this data.
+		*/
 		virtual void setClipboardFile(std::string const& p_data, std::string const& p_name) const = 0;
+		/*
+			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
+		    The data currently stored on the clipboard is freed and replaced by this data.
+		*/
 		virtual void setClipboardFile(std::string const& p_data, std::wstring const& p_name) const = 0;
+		/*
+			Gives a UTF-8 file path for the OS to store globally. Other programs, or this one, can then access it.
+		    The data currently stored on the clipboard is freed and replaced by this data.
+		*/
 		virtual void setClipboardFile(std::string const& p_path) const = 0;
+		/*
+			Gives a UTF-16 file path for the OS to store globally. Other programs, or this one, can then access it.
+		    The data currently stored on the clipboard is freed and replaced by this data.
+		*/
 		virtual void setClipboardFile(std::wstring const& p_path) const = 0;
 
+		/*
+			Gives UTF-8 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
+		    The data currently stored on the clipboard is freed and replaced by this data.
+		*/
 		virtual void setClipboardFiles(std::vector<std::string> const& p_paths) const = 0;
+		/*
+			Gives UTF-16 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
+		    The data currently stored on the clipboard is freed and replaced by this data.
+		*/
 		virtual void setClipboardFiles(std::vector<std::wstring> const& p_paths) const = 0;
+		/*
+			Gives UTF-8 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
+		    The data currently stored on the clipboard is freed and replaced by this data.
+		*/
 		virtual void setClipboardFiles(std::string* p_paths, uint32 p_numberOfPaths) const = 0;
+		/*
+			Gives UTF-16 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
+		    The data currently stored on the clipboard is freed and replaced by this data.
+		*/
 		virtual void setClipboardFiles(std::wstring* p_paths, uint32 p_numberOfPaths) const = 0;
+		/*
+			Gives UTF-8 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
+		    The data currently stored on the clipboard is freed and replaced by this data.
+		*/
 		virtual void setClipboardFiles(char const* const* p_paths, uint32 p_numberOfPaths) const = 0;
+		/*
+			Gives UTF-16 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
+		    The data currently stored on the clipboard is freed and replaced by this data.
+		*/
 		virtual void setClipboardFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths) const = 0;
 
 		/*
 			Returns the data that is currently stored on the clipboard.
 			It must be forgotten by the caller.
 		*/
-		virtual ClipboardData* getClipboardData() const = 0;
+		[[nodiscard]] virtual ClipboardData* getClipboardData() const = 0;
 	};
 
 #pragma endregion
@@ -7806,7 +7863,7 @@ namespace AvoGUI
 	/*
 		Represents a text block which can be calculated once and drawn any number of times by a DrawingContext. 
 		Notice that this is not a view, but should be treated as a drawable object created by a DrawingContext.
-		It is your reponsibility to mange its lifetime, using remember() and forget().
+		It is your responsibility to mange its lifetime, using remember() and forget().
 	*/
 	class Text : public ProtectedRectangle, public ReferenceCounted
 	{
@@ -8138,17 +8195,17 @@ namespace AvoGUI
 	class TextProperties
 	{
 	public:
-		std::string fontFamilyName = "Roboto";
+		std::string fontFamilyName{"Roboto"};
 
-		FontWeight fontWeight = FontWeight::Medium;
-		FontStyle fontStyle = FontStyle::Normal;
-		FontStretch fontStretch = FontStretch::Medium;
-		TextAlign textAlign = TextAlign::Left;
-		ReadingDirection readingDirection = ReadingDirection::LeftToRight;
+		FontWeight fontWeight{FontWeight::Medium};
+		FontStyle fontStyle{FontStyle::Normal};
+		FontStretch fontStretch{FontStretch::Medium};
+		TextAlign textAlign{TextAlign::Left};
+		ReadingDirection readingDirection{ReadingDirection::LeftToRight};
 		
-		float characterSpacing = 0.f; // Only supported for text objects.
-		float lineHeight = 1.f;
-		float fontSize = 22.f;
+		float characterSpacing = {0.f}; // Only supported for text objects.
+		float lineHeight = {1.f};
+		float fontSize = {22.f};
 	};
 
 	class LinearGradient : 
@@ -9314,16 +9371,16 @@ namespace AvoGUI
 
 	/*
 		The highest, "root" view in the view hierarchy.
-		It is connected to a window which it holds and recieves events from.
+		It is connected to a window which it holds and receives events from.
 		When the window has been closed and destroyed, forget() is called on the GUI.
 	*/
 	class Gui : public View, public WindowListener
 	{
 	private:
-		Gui* m_parent = 0;
-		Window* m_window = 0;
-		DrawingContext* m_drawingContext = 0;
-		DrawingState* m_drawingContextState = 0;
+		Gui* m_parent{nullptr};
+		Window* m_window{nullptr};
+		DrawingContext* m_drawingContext{nullptr};
+		DrawingState* m_drawingContextState{nullptr};
 
 		std::vector<WindowListener*> m_windowEventListeners;
 
@@ -9331,15 +9388,15 @@ namespace AvoGUI
 
 		Point<float> m_lastWindowSize;
 		Point<float> m_newWindowSize;
-		bool m_hasNewWindowSize;
+		bool m_hasNewWindowSize{false};
 		std::deque<View*> m_animationUpdateQueue;
 
 		std::mutex m_invalidRectanglesMutex;
 		std::vector<Rectangle<float>> m_invalidRectangles;
 
 		std::recursive_mutex m_animationThreadMutex;
-		bool m_hasAnimationLoopStarted;
-		bool m_willClose;
+		bool m_hasAnimationLoopStarted{false};
+		bool m_willClose{false};
 
 		//------------------------------
 
@@ -9361,7 +9418,7 @@ namespace AvoGUI
 		//------------------------------
 
 		std::vector<KeyboardListener*> m_globalKeyboardEventListeners;
-		KeyboardListener* m_keyboardFocus = 0;
+		KeyboardListener* m_keyboardFocus{nullptr};
 
 		//------------------------------
 
@@ -9391,7 +9448,7 @@ namespace AvoGUI
 
 	public:
 		Gui();
-		~Gui();
+		~Gui() override;
 
 		/*
 			LIBRARY IMPLEMENTED
@@ -9513,7 +9570,7 @@ namespace AvoGUI
 		*/
 		void waitForFinish()
 		{
-			// The GUI is forgotten from the animation thread (to allow for cleanup when it's detached),
+			// The GUI is forgotten from the animation thread (to allow for cleanup if it were detached),
 			// but the join call needs to return before the GUI is destroyed, hence the remember() and forget() here.
 			remember();
 			m_animationThread.join();
@@ -9681,9 +9738,9 @@ namespace AvoGUI
 		{
 			handleGlobalDragDropMove(p_event);
 
-			for (uint32 a = 0; a < m_globalDragDropListeners.size(); a++)
+			for (GlobalDragDropListener* listener : m_globalDragDropListeners)
 			{
-				m_globalDragDropListeners[a]->handleGlobalDragDropEnter(p_event);
+				listener->handleGlobalDragDropEnter(p_event);
 			}
 		}
 		/*
@@ -9809,7 +9866,7 @@ namespace AvoGUI
 
 			m_mouseDownPosition.set(absoluteX, absoluteY);
 
-			if (m_globalMouseEventListeners.size())
+			if (!m_globalMouseEventListeners.empty())
 			{
 				p_event.x = absoluteX;
 				p_event.y = absoluteY;
@@ -9827,7 +9884,7 @@ namespace AvoGUI
 		{
 			float absoluteX = p_event.x;
 			float absoluteY = p_event.y;
-			if (m_pressedMouseEventListeners.size())
+			if (!m_pressedMouseEventListeners.empty())
 			{
 				for (View* view : m_pressedMouseEventListeners)
 				{
@@ -9851,7 +9908,7 @@ namespace AvoGUI
 				}
 			}
 
-			if (m_globalMouseEventListeners.size())
+			if (!m_globalMouseEventListeners.empty())
 			{
 				p_event.x = absoluteX;
 				p_event.y = absoluteY;
@@ -9873,7 +9930,7 @@ namespace AvoGUI
 			float absoluteX = p_event.x;
 			float absoluteY = p_event.y;
 
-			if (targets.size())
+			if (!targets.empty())
 			{
 				for (View* view : targets)
 				{
@@ -9888,7 +9945,7 @@ namespace AvoGUI
 				}
 			}
 
-			if (m_globalMouseEventListeners.size())
+			if (!m_globalMouseEventListeners.empty())
 			{
 				p_event.x = absoluteX;
 				p_event.y = absoluteY;
@@ -9921,7 +9978,7 @@ namespace AvoGUI
 			float absoluteX = p_event.x;
 			float absoluteY = p_event.y;
 
-			if (targets.size())
+			if (!targets.empty())
 			{
 				for (View* view : targets)
 				{
@@ -9940,7 +9997,7 @@ namespace AvoGUI
 			p_event.y = absoluteY;
 			handleGlobalMouseMove(p_event);
 
-			if (m_globalMouseEventListeners.size())
+			if (!m_globalMouseEventListeners.empty())
 			{
 				for (auto listener : m_globalMouseEventListeners)
 				{
@@ -10203,7 +10260,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Adds a view to the animation update queue. Views that are in the animation update queue will be updated after a certain interval.
 			Do not use this method, because it is possible to add a view twice to the queue. Instead use queueAnimationUpdate() on the view.
-			Using that method esures that animations are only updated max once per interval for every view.
+			Using that method ensures that animations are only updated max once per interval for every view.
 		*/
 		void queueAnimationUpdateForView(View* p_view)
 		{
@@ -10261,21 +10318,21 @@ namespace AvoGUI
 	class Tooltip : public View
 	{
 	private:
-		Text* m_text;
-		float m_opacityAnimationTime;
-		float m_opacity;
-		bool m_isShowing;
-		uint32 m_timeSinceShow;
+		Text* m_text{nullptr};
+		float m_opacityAnimationTime{0.f};
+		float m_opacity{0.f};
+		bool m_isShowing{false};
+		uint32 m_timeSinceShow{0U};
 
 	public:
-		Tooltip(View* p_parent) : View(p_parent), m_text(0), m_opacityAnimationTime(0.f), m_opacity(0.f), m_isShowing(false), m_timeSinceShow(0U)
+		Tooltip(View* p_parent) : View(p_parent)
 		{
 			setHasShadow(false);
 			setElevation(-1.f);
 			setCornerRadius(2.f);
 			setIsOverlay(true); // Don't want to block any events from reaching views below the tooltip, especially not when it has faded away.
 		}
-		~Tooltip()
+		~Tooltip() override
 		{
 			if (m_text)
 			{
