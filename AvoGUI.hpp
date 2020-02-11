@@ -849,13 +849,23 @@ namespace AvoGUI
 		}
 		/*
 			Sets the polar coordinates of the point.
-			p_angle is the angle in radians between the ray to the point and the x-axis, counter-clockwise.
+			p_angle is the angle in radians between the ray to the point and the x-axis, clockwise in our coordinate system.
 			p_length is the distance from the origin of the coordinates.
 		*/
-		Point<PointType>& setPolar(double p_angle, double p_length = 1.f)
+		Point<PointType>& setPolar(double p_angle, double p_length)
 		{
 			x = std::cos(p_angle) * p_length;
 			y = std::sin(p_angle) * p_length;
+			return *this;
+		}
+		/*
+			Sets the polar coordinates of the point, with length of 1.
+			p_angle is the angle in radians between the ray to the point and the x-axis, clockwise in our coordinate system.
+		*/
+		Point<PointType>& setPolar(double p_angle)
+		{
+			x = std::cos(p_angle);
+			y = std::sin(p_angle);
 			return *this;
 		}
 
@@ -1229,7 +1239,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Rotates the vector anticlockwise by p_angle radians so that it keeps its length.
+			Rotates the vector clockwise (our coordinate system) by p_angle radians so that it keeps its length.
 		*/
 		Point<PointType>& rotate(double p_angle)
 		{
@@ -1241,7 +1251,7 @@ namespace AvoGUI
 			return *this;
 		}
 		/*
-			Rotates the point anticlockwise relative to (p_originX, p_originY) by p_angle radians so that it keeps its distance from that origin point.
+			Rotates the point clockwise (our coordinate system) relative to (p_originX, p_originY) by p_angle radians so that it keeps its distance from that origin point.
 		*/
 		template<typename T0, typename T1>
 		Point<PointType>& rotate(double p_angle, T0 p_originX, T1 p_originY)
@@ -1254,7 +1264,7 @@ namespace AvoGUI
 			return *this;
 		}
 		/*
-			Rotates the point anticlockwise relative to p_origin by p_angle radians so that it keeps its distance from p_origin.
+			Rotates the point clockwise (our coordinate system) relative to p_origin by p_angle radians so that it keeps its distance from p_origin.
 		*/
 		template<typename T>
 		Point<PointType>& rotate(double p_angle, Point<T> const& p_origin)
@@ -8593,21 +8603,21 @@ namespace AvoGUI
 		/*
 			Rotates all future graphics drawing, with an angle in radians. Graphics will be rotated relative to the origin.
 			p_radians is the angle to rotate, in radians.
-			Positive angle is clockwise and negative is anticlockwise.
+			Positive angle is clockwise and negative is anticlockwise (in our coordinate system).
 		*/
 		virtual void rotate(float p_radians) = 0;
 		/*
 			Rotates all future graphics drawing, with an angle in radians. 
 			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
 			p_radians is the angle to rotate, in radians.
-			Positive angle is clockwise and negative is anticlockwise.
+			Positive angle is clockwise and negative is anticlockwise (in our coordinate system).
 		*/
 		virtual void rotate(float p_radians, Point<float> const& p_origin) = 0;
 		/*
 			Rotates all future graphics drawing, with an angle in radians. 
 			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
 			p_radians is the angle to rotate, in radians.
-			Positive angle is clockwise and negative is anticlockwise.
+			Positive angle is clockwise and negative is anticlockwise (in our coordinate system).
 		*/
 		virtual void rotate(float p_radians, float p_originX, float p_originY) = 0;
 

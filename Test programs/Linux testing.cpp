@@ -32,19 +32,21 @@ public:
 
 	void draw(AvoGUI::DrawingContext *p_context) override
 	{
-		//p_context->setColor(AvoGUI::Color().setHSB(m_hue,1.f,1.f));
 		p_context->setColor(AvoGUI::Color(1.f, 0.1f, 0.5f));
 		for (uint32 a = 0; a < 10; a++)
 		{
-			p_context->drawLine(10.f, 10.f + a*10.f, 100.f, 50.f + a*10.f, 0.5f + a*0.5f);
+			p_context->drawLine(10.f, 10.5f + a*10.f, 100.f, 50.5f + a*10.f, 0.5f + a*0.5f);
 		}
 
+		p_context->setColor(AvoGUI::Color(0.2f, 0.5f, 0.3f));
+		p_context->fillRectangle(getCenterX() - 80.f, 10.f, getCenterX() + 80.f, 120.f, AvoGUI::RectangleCorners(10.f, AvoGUI::RectangleCornerType::Round));
+		p_context->fillRectangle(getCenterX() - 80.f, getBottom() - 120.f, getCenterX() + 80.f, getBottom() - 10.f, AvoGUI::RectangleCorners(10.f, AvoGUI::RectangleCornerType::Cut));
+
 		p_context->setColor(AvoGUI::Color(0.1f, 1.f, 0.5f));
-		p_context->scale(0.5f);
-		p_context->rotate(m_time);
-		p_context->fillRectangle(AvoGUI::Rectangle(-50.f, -30.f, 50.f, 30.f) += getCenter());
-		p_context->rotate(-m_time);
-		p_context->scale(2.f);
+		p_context->rotate(-m_time, getCenter());
+		p_context->strokeRectangle(AvoGUI::Rectangle(-50.f, -30.f, 50.f, 30.f) += getCenter(), 2.f);
+		p_context->fillRectangle(AvoGUI::Rectangle(-40.f, -20.f, 40.f, 20.f) += getCenter());
+		p_context->rotate(m_time, getCenter());
 
 		p_context->setColor(AvoGUI::Color(0.8f, 0.8f, 0.1f));
 		p_context->strokeCircle(AvoGUI::Point<float>().setPolar(m_time, 100.f) += getCenter(), std::sin(m_time)*30.f + 30.f, 2.f);
