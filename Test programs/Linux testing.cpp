@@ -39,8 +39,11 @@ public:
 		}
 
 		p_context->setColor(AvoGUI::Color(0.2f, 0.5f, 0.3f));
-		p_context->fillRectangle(getCenterX() - 80.f, 10.f, getCenterX() + 80.f, 120.f, AvoGUI::RectangleCorners(10.f, AvoGUI::RectangleCornerType::Round));
-		p_context->fillRectangle(getCenterX() - 80.f, getBottom() - 120.f, getCenterX() + 80.f, getBottom() - 10.f, AvoGUI::RectangleCorners(10.f, AvoGUI::RectangleCornerType::Cut));
+		p_context->fillRectangle(getCenterX() - 80.f, 10.f, getCenterX() + 80.f, 100.f, AvoGUI::RectangleCorners(10.f, AvoGUI::RectangleCornerType::Round));
+		p_context->fillRectangle(getCenterX() - 80.f, getBottom() - 100.f, getCenterX() + 80.f, getBottom() - 10.f, AvoGUI::RectangleCorners(10.f, AvoGUI::RectangleCornerType::Cut));
+
+		p_context->strokeRectangle(10.f, getCenterY() - 80.f, 100.f, getCenterY() + 80.f, AvoGUI::RectangleCorners(30.f, AvoGUI::RectangleCornerType::Round));
+		p_context->strokeRectangle(getRight() - 100.f, getCenterY() - 80.f, getRight() - 10.f, getCenterY() + 80.f, AvoGUI::RectangleCorners(10.f, AvoGUI::RectangleCornerType::Cut));
 
 		p_context->setColor(AvoGUI::Color(0.1f, 1.f, 0.5f));
 		p_context->rotate(-m_time, getCenter());

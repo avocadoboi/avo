@@ -10023,7 +10023,7 @@ private:
 			return;
 		}
 		
-		__GLXextFuncPtr function = 0;
+		__GLXextFuncPtr function = nullptr;
 #define load(p_name) function = glXGetProcAddressARB((GLubyte const*)(#p_name)); memcpy(&p_name, &function, sizeof(p_name))
 
 		load(glXCreateContextAttribsARB);
@@ -10071,10 +10071,242 @@ private:
 	{
 		return p_radiusSquared <= 25.f*25.f ? (p_radiusSquared <= 5.f*5.f ? 4 : 2) : 1;
 	}
+	static void createStrokedCornerRectangleGeometry(std::vector<float>& p_buffer, float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_corners, float p_thickness)
+	{
+		p_thickness += 1.f;
+		p_left -= 0.5f*p_thickness;
+		p_top -= 0.5f*p_thickness;
+		p_right += 0.5f*p_thickness;
+		p_bottom += 0.5f*p_thickness;
+
+		// Create the four main edges
+		p_buffer.insert(
+			p_buffer.end(),
+			{
+				// Left line
+				p_left              , p_top + p_corners.topLeftSizeY      , 1.f, p_thickness, 0.5f, 2.f,
+				p_left + p_thickness, p_top + p_corners.topLeftSizeY      , 0.f, p_thickness, 0.5f, 2.f,
+				p_left + p_thickness, p_bottom - p_corners.bottomLeftSizeY, 0.f, p_thickness, 0.5f, 2.f,
+				p_left + p_thickness, p_bottom - p_corners.bottomLeftSizeY, 1.f, p_thickness, 0.5f, 2.f,
+				p_left              , p_bottom - p_corners.bottomLeftSizeY, 0.f, p_thickness, 0.5f, 2.f,
+				p_left              , p_top + p_corners.topLeftSizeY      , 0.f, p_thickness, 0.5f, 2.f,
+
+				// Right line
+				p_right - p_thickness, p_top + p_corners.topRightSizeY      , 1.f, p_thickness, 0.5f, 2.f,
+				p_right              , p_top + p_corners.topRightSizeY      , 0.f, p_thickness, 0.5f, 2.f,
+				p_right              , p_bottom - p_corners.bottomRightSizeY, 0.f, p_thickness, 0.5f, 2.f,
+				p_right              , p_bottom - p_corners.bottomRightSizeY, 1.f, p_thickness, 0.5f, 2.f,
+				p_right - p_thickness, p_bottom - p_corners.bottomRightSizeY, 0.f, p_thickness, 0.5f, 2.f,
+				p_right - p_thickness, p_top + p_corners.topRightSizeY      , 0.f, p_thickness, 0.5f, 2.f,
+
+				// Top line
+				p_left + p_corners.topLeftSizeX  , p_top              , 0.f, p_thickness, 0.5f, 2.f,
+				p_right - p_corners.topRightSizeX, p_top              , 0.f, p_thickness, 0.5f, 2.f,
+				p_right - p_corners.topRightSizeX, p_top + p_thickness, 1.f, p_thickness, 0.5f, 2.f,
+				p_right - p_corners.topRightSizeX, p_top + p_thickness, 1.f, p_thickness, 0.5f, 2.f,
+				p_left + p_corners.topLeftSizeX  , p_top + p_thickness, 1.f, p_thickness, 0.5f, 2.f,
+				p_left + p_corners.topLeftSizeX  , p_top              , 0.f, p_thickness, 0.5f, 2.f,
+
+				// Bottom line
+				p_left + p_corners.bottomLeftSizeX  , p_bottom              , 0.f, p_thickness, 0.5f, 2.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom              , 0.f, p_thickness, 0.5f, 2.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom - p_thickness, 1.f, p_thickness, 0.5f, 2.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom - p_thickness, 1.f, p_thickness, 0.5f, 2.f,
+				p_left + p_corners.bottomLeftSizeX  , p_bottom - p_thickness, 1.f, p_thickness, 0.5f, 2.f,
+				p_left + p_corners.bottomLeftSizeX  , p_bottom              , 0.f, p_thickness, 0.5f, 2.f
+			}
+		);
+
+		// Create the corners
+		if (p_corners.topLeftType == AvoGUI::RectangleCornerType::Cut)
+		{
+			float distance = p_corners.topLeftSizeX*p_corners.topLeftSizeY/(float)AvoGUI::Point<float>::getLengthFast(p_corners.topLeftSizeX, p_corners.topLeftSizeY);
+			p_buffer.insert(
+				p_buffer.end(),
+				{
+					p_left                         , p_top + p_corners.topLeftSizeY, 1.f                       , p_thickness, 0.5f, 2.f,
+					p_left + p_corners.topLeftSizeX, p_top                         , 1.f                       , p_thickness, 0.5f, 2.f,
+					p_left + p_corners.topLeftSizeX, p_top + p_corners.topLeftSizeY, 1.f - distance/p_thickness, p_thickness, 0.5f, 2.f
+				}
+			);
+		}
+		else
+		{
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.topLeftSizeX * p_corners.topLeftSizeY);
+			float lastX = p_corners.topLeftSizeX;
+			float lastY = 0.f;
+			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
+			{
+				float x = p_corners.topLeftSizeX*s_unitCirclePoints[a].x;
+				float y = p_corners.topLeftSizeY*s_unitCirclePoints[a].y;
+				// Length of vector (0.5*(x1 + x2), 0.5*(y1 + y2))
+				float distance = 0.5f*(float)AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_left + p_corners.topLeftSizeX        , p_top + p_corners.topLeftSizeY        , 1.f - distance/p_thickness, p_thickness, 0.5f, 2.f,
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, 1.f                       , p_thickness, 0.5f, 2.f,
+						p_left + p_corners.topLeftSizeX - x    , p_top + p_corners.topLeftSizeY - y    , 1.f                       , p_thickness, 0.5f, 2.f
+					}
+				);
+				lastX = x;
+				lastY = y;
+			}
+			if (CIRCLE_RESOLUTION % (4*stride))
+			{
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_left + p_corners.topLeftSizeX        , p_top + p_corners.topLeftSizeY        , 1.f - p_corners.topLeftSizeY/p_thickness, p_thickness, 0.5f, 2.f,
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, 1.f                                     , p_thickness, 0.5f, 2.f,
+						p_left + p_corners.topLeftSizeX        , p_top                                 , 1.f                                     , p_thickness, 0.5f, 2.f
+					}
+				);
+			}
+		}
+		if (p_corners.topRightType == AvoGUI::RectangleCornerType::Cut)
+		{
+			float distance = p_corners.topRightSizeX*p_corners.topRightSizeY/(float)AvoGUI::Point<float>::getLengthFast(p_corners.topRightSizeX, p_corners.topRightSizeY);
+			p_buffer.insert(
+				p_buffer.end(),
+				{
+					p_right                          , p_top + p_corners.topRightSizeY, 1.f                       , p_thickness, 0.5f, 2.f,
+					p_right - p_corners.topRightSizeX, p_top                          , 1.f                       , p_thickness, 0.5f, 2.f,
+					p_right - p_corners.topRightSizeX, p_top + p_corners.topRightSizeY, 1.f - distance/p_thickness, p_thickness, 0.5f, 2.f
+				}
+			);
+		}
+		else
+		{
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.topRightSizeX * p_corners.topRightSizeY);
+			float lastX = p_corners.topRightSizeX;
+			float lastY = 0.f;
+			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
+			{
+				float x = p_corners.topRightSizeX*s_unitCirclePoints[a].x;
+				float y = p_corners.topRightSizeY*s_unitCirclePoints[a].y;
+				float distance = 0.5f*(float)AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_right - p_corners.topRightSizeX        , p_top + p_corners.topRightSizeY        , 1.f - distance/p_thickness, p_thickness, 0.5f, 2.f,
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topRightSizeY - lastY, 1.f                       , p_thickness, 0.5f, 2.f,
+						p_right - p_corners.topRightSizeX + x    , p_top + p_corners.topRightSizeY - y    , 1.f                       , p_thickness, 0.5f, 2.f
+					}
+				);
+				lastX = x;
+				lastY = y;
+			}
+			if (CIRCLE_RESOLUTION % (4*stride))
+			{
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_right - p_corners.topRightSizeX        , p_top + p_corners.topRightSizeY        , 1.f - p_corners.topRightSizeY/p_thickness, p_thickness, 0.5f, 2.f,
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topRightSizeY - lastY, 1.f                                      , p_thickness, 0.5f, 2.f,
+						p_right - p_corners.topRightSizeX        , p_top                                  , 1.f                                      , p_thickness, 0.5f, 2.f
+					}
+				);
+			}
+		}
+
+		if (p_corners.bottomLeftType == AvoGUI::RectangleCornerType::Cut)
+		{
+			float distance = p_corners.bottomLeftSizeX*p_corners.bottomLeftSizeY/(float)AvoGUI::Point<float>::getLengthFast(p_corners.bottomLeftSizeX, p_corners.bottomLeftSizeY);
+			p_buffer.insert(
+				p_buffer.end(),
+				{
+					p_left                            , p_bottom - p_corners.bottomLeftSizeY, 1.f                       , p_thickness, 0.5f, 2.f,
+					p_left + p_corners.bottomLeftSizeX, p_bottom                            , 1.f                       , p_thickness, 0.5f, 2.f,
+					p_left + p_corners.bottomLeftSizeX, p_bottom - p_corners.bottomLeftSizeY, 1.f - distance/p_thickness, p_thickness, 0.5f, 2.f
+				}
+			);
+		}
+		else
+		{
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.bottomLeftSizeX * p_corners.bottomLeftSizeY);
+			float lastX = p_corners.bottomLeftSizeX;
+			float lastY = 0.f;
+			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
+			{
+				float x = p_corners.bottomLeftSizeX*s_unitCirclePoints[a].x;
+				float y = p_corners.bottomLeftSizeY*s_unitCirclePoints[a].y;
+				float distance = 0.5f*(float)AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_left + p_corners.bottomLeftSizeX        , p_bottom - p_corners.bottomLeftSizeY        , 1.f - distance/p_thickness, p_thickness, 0.5f, 2.f,
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, 1.f                       , p_thickness, 0.5f, 2.f,
+						p_left + p_corners.bottomLeftSizeX - x    , p_bottom - p_corners.bottomLeftSizeY + y    , 1.f                       , p_thickness, 0.5f, 2.f
+					}
+				);
+				lastX = x;
+				lastY = y;
+			}
+			if (CIRCLE_RESOLUTION % (4*stride))
+			{
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_left + p_corners.bottomLeftSizeX        , p_bottom - p_corners.bottomLeftSizeY        , 1.f - p_corners.bottomLeftSizeY/p_thickness, p_thickness, 0.5f, 2.f,
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, 1.f                                        , p_thickness, 0.5f, 2.f,
+						p_left + p_corners.bottomLeftSizeX        , p_bottom                                    , 1.f                                        , p_thickness, 0.5f, 2.f
+					}
+				);
+			}
+		}
+
+		if (p_corners.bottomRightType == AvoGUI::RectangleCornerType::Cut)
+		{
+			float distance = p_corners.bottomRightSizeX*p_corners.bottomRightSizeY/(float)AvoGUI::Point<float>::getLengthFast(p_corners.bottomRightSizeX, p_corners.bottomRightSizeY);
+			p_buffer.insert(
+				p_buffer.end(),
+				{
+					p_right                             , p_bottom - p_corners.bottomRightSizeY, 1.f                       , p_thickness, 0.5f, 2.f,
+					p_right - p_corners.bottomRightSizeX, p_bottom                             , 1.f                       , p_thickness, 0.5f, 2.f,
+					p_right - p_corners.bottomRightSizeX, p_bottom - p_corners.bottomRightSizeY, 1.f - distance/p_thickness, p_thickness, 0.5f, 2.f
+				}
+			);
+		}
+		else
+		{
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.bottomRightSizeX * p_corners.bottomRightSizeY);
+			float lastX = p_corners.bottomRightSizeX;
+			float lastY = 0.f;
+			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
+			{
+				float x = p_corners.bottomRightSizeX*s_unitCirclePoints[a].x;
+				float y = p_corners.bottomRightSizeY*s_unitCirclePoints[a].y;
+				float distance = 0.5f*(float)AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_right - p_corners.bottomRightSizeX        , p_bottom - p_corners.bottomRightSizeY        , 1.f - distance/p_thickness, p_thickness, 0.5f, 2.f,
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, 1.f                       , p_thickness, 0.5f, 2.f,
+						p_right - p_corners.bottomRightSizeX + x    , p_bottom - p_corners.bottomRightSizeY + y    , 1.f                       , p_thickness, 0.5f, 2.f
+					}
+				);
+				lastX = x;
+				lastY = y;
+			}
+			if (CIRCLE_RESOLUTION % (4*stride))
+			{
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_right - p_corners.bottomRightSizeX        , p_bottom - p_corners.bottomRightSizeY        , 1.f - p_corners.bottomRightSizeY/p_thickness, p_thickness, 0.5f, 2.f,
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, 1.f                                         , p_thickness, 0.5f, 2.f,
+						p_right - p_corners.bottomRightSizeX        , p_bottom                                     , 1.f                                         , p_thickness, 0.5f, 2.f
+					}
+				);
+			}
+		}
+
+	}
 	/*
 		The primitive type is GL_TRIANGLES
 	*/
-	static void createCornerRectangleGeometry(std::vector<float>& p_buffer, float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_corners)
+	static void createFilledCornerRectangleGeometry(std::vector<float>& p_buffer, float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_corners)
 	{
 		p_left -= 0.5f;
 		p_top -= 0.5f;
@@ -10119,8 +10351,8 @@ private:
 			p_buffer.insert(
 				p_buffer.end(),
 				{
-					p_left                         , p_top + p_corners.topLeftSizeY, 0.f, distance , 0.5f, 2.f,
-					p_left + p_corners.topLeftSizeX, p_top                         , 0.f, distance , 0.5f, 2.f,
+					p_left                         , p_top + p_corners.topLeftSizeY, 0.f , distance, 0.5f, 2.f,
+					p_left + p_corners.topLeftSizeX, p_top                         , 0.f , distance, 0.5f, 2.f,
 					p_left + p_corners.topLeftSizeX, p_top + p_corners.topLeftSizeY, 0.5f, distance, 0.5f, 2.f
 				}
 			);
@@ -10135,7 +10367,7 @@ private:
 				float x = p_corners.topLeftSizeX*s_unitCirclePoints[a].x;
 				float y = p_corners.topLeftSizeY*s_unitCirclePoints[a].y;
 				// Length of vector (0.5*(x1 + x2), 0.5*(y1 + y2)), doubled because the anti-aliasing attribute of the inner vertex is 0.5 (we don't want anti-aliasing for that vertex)
-				float distance = AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
+				auto distance = (float)AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
 				p_buffer.insert(
 					p_buffer.end(),
 					{
@@ -10180,7 +10412,7 @@ private:
 			{
 				float x = p_corners.topRightSizeX*s_unitCirclePoints[a].x;
 				float y = p_corners.topRightSizeY*s_unitCirclePoints[a].y;
-				float distance = AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
+				auto distance = (float)AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
 				p_buffer.insert(
 					p_buffer.end(),
 					{
@@ -10226,7 +10458,7 @@ private:
 			{
 				float x = p_corners.bottomLeftSizeX*s_unitCirclePoints[a].x;
 				float y = p_corners.bottomLeftSizeY*s_unitCirclePoints[a].y;
-				float distance = AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
+				auto distance = (float)AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
 				p_buffer.insert(
 					p_buffer.end(),
 					{
@@ -10272,7 +10504,7 @@ private:
 			{
 				float x = p_corners.bottomRightSizeX*s_unitCirclePoints[a].x;
 				float y = p_corners.bottomRightSizeY*s_unitCirclePoints[a].y;
-				float distance = AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
+				auto distance = (float)AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
 				p_buffer.insert(
 					p_buffer.end(),
 					{
@@ -10801,52 +11033,57 @@ void main()
 	void fillRectangle(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_rectangleCorners) override
 	{
 		size_t sizeBefore = m_vertexBuffer.size();
-		createCornerRectangleGeometry(m_vertexBuffer, p_left, p_top, p_right, p_bottom, p_rectangleCorners);
+		createFilledCornerRectangleGeometry(m_vertexBuffer, p_left, p_top, p_right, p_bottom, p_rectangleCorners);
 		addDrawCallAfter((m_vertexBuffer.size() - sizeBefore)/6, GL_TRIANGLES);
 	}
 
 	void fillRoundedRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius) override
 	{
+		fillRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, AvoGUI::RectangleCorners(p_radius));
 	}
 	void fillRoundedRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_radius) override
 	{
-	}
-	void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
-	{
+		fillRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, AvoGUI::RectangleCorners(p_radius));
 	}
 	void fillRoundedRectangle(AvoGUI::Point<float> const& p_size, float p_radius) override
 	{
+		fillRectangle(0.f, 0.f, p_size.x, p_size.y, AvoGUI::RectangleCorners(p_radius));
 	}
 	void fillRoundedRectangle(float p_width, float p_height, float p_radius) override
 	{
+		fillRectangle(0.f, 0.f, p_width, p_height, AvoGUI::RectangleCorners(p_radius));
+	}
+	void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
+	{
+		fillRectangle(p_left, p_top, p_right, p_bottom, AvoGUI::RectangleCorners(p_radius));
 	}
 
 	//------------------------------
 
-	void strokeRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_strokeWidth = 1.f) override
+	void strokeRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_strokeWidth) override
 	{
 		strokeRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_strokeWidth);
 	}
-	void strokeRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_strokeWidth = 1.f) override
+	void strokeRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_strokeWidth) override
 	{
 		strokeRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_strokeWidth);
 	}
-	void strokeRectangle(AvoGUI::Point<float> const& p_size, float p_strokeWidth = 1.f) override
+	void strokeRectangle(AvoGUI::Point<float> const& p_size, float p_strokeWidth) override
 	{
 		strokeRectangle(0.f, 0.f, p_size.x, p_size.y, p_strokeWidth);
 	}
-	void strokeRectangle(float p_width, float p_height, float p_strokeWidth = 1.f) override
+	void strokeRectangle(float p_width, float p_height, float p_strokeWidth) override
 	{
 		strokeRectangle(0.f, 0.f, p_width, p_height, p_strokeWidth);
 	}
-	void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth = 1.f) override
+	void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth) override
 	{
 		// Anti-aliasing requires an extra row of pixels
-		p_left -= 0.5f;
-		p_top -= 0.5f;
-		p_right += 0.5f;
-		p_bottom += 0.5f;
 		p_strokeWidth += 1.f;
+		p_left -= p_strokeWidth*0.5f;
+		p_top -= p_strokeWidth*0.5f;
+		p_right += p_strokeWidth*0.5f;
+		p_bottom += p_strokeWidth*0.5f;
 
 		float height = p_bottom - p_top;
 		float width = p_right - p_left;
@@ -10855,71 +11092,83 @@ void main()
 			m_vertexBuffer.end(),
 			{
 				// Top
-				p_left, p_top, 1.f, p_strokeWidth, 0.f, width,
-				p_left, p_top + p_strokeWidth, 0.f, p_strokeWidth, 0.f, width,
+				p_left , p_top                , 1.f, p_strokeWidth, 0.f, width,
+				p_left , p_top + p_strokeWidth, 0.f, p_strokeWidth, 0.f, width,
 				p_right, p_top + p_strokeWidth, 0.f, p_strokeWidth, 1.f, width,
 				p_right, p_top + p_strokeWidth, 1.f, p_strokeWidth, 0.f, width,
-				p_left, p_top, 0.f, p_strokeWidth, 1.f, width,
-				p_right, p_top, 0.f, p_strokeWidth, 0.f, width,
+				p_left , p_top                , 0.f, p_strokeWidth, 1.f, width,
+				p_right, p_top                , 0.f, p_strokeWidth, 0.f, width,
 
 				// Bottom
-				p_left, p_bottom - p_strokeWidth, 1.f, p_strokeWidth, 0.f, width,
-				p_left, p_bottom, 0.f, p_strokeWidth, 0.f, width,
-				p_right, p_bottom, 0.f, p_strokeWidth, 1.f, width,
-				p_right, p_bottom, 1.f, p_strokeWidth, 0.f, width,
-				p_left, p_bottom - p_strokeWidth, 0.f, p_strokeWidth, 1.f, width,
+				p_left , p_bottom - p_strokeWidth, 1.f, p_strokeWidth, 0.f, width,
+				p_left , p_bottom                , 0.f, p_strokeWidth, 0.f, width,
+				p_right, p_bottom                , 0.f, p_strokeWidth, 1.f, width,
+				p_right, p_bottom                , 1.f, p_strokeWidth, 0.f, width,
+				p_left , p_bottom - p_strokeWidth, 0.f, p_strokeWidth, 1.f, width,
 				p_right, p_bottom - p_strokeWidth, 0.f, p_strokeWidth, 0.f, width,
 
 				// Left
-				p_left, p_top + p_strokeWidth - 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
-				p_left, p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
+				p_left                , p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f,
+				p_left                , p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
 				p_left + p_strokeWidth, p_bottom - p_strokeWidth + 1.f, 0.f, p_strokeWidth, 0.5f, 2.f,
 				p_left + p_strokeWidth, p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
-				p_left, p_top + p_strokeWidth - 1.f, 0.f, p_strokeWidth, 0.5f, 2.f,
-				p_left + p_strokeWidth, p_top + p_strokeWidth - 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
+				p_left                , p_top + p_strokeWidth - 1.f   , 0.f, p_strokeWidth, 0.5f, 2.f,
+				p_left + p_strokeWidth, p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f,
 
 				// Right
-				p_right - p_strokeWidth, p_top + p_strokeWidth - 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
+				p_right - p_strokeWidth, p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f,
 				p_right - p_strokeWidth, p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
-				p_right, p_bottom - p_strokeWidth + 1.f, 0.f, p_strokeWidth, 0.5f, 2.f,
-				p_right, p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
-				p_right - p_strokeWidth, p_top + p_strokeWidth - 1.f, 0.f, p_strokeWidth, 0.5f, 2.f,
-				p_right, p_top + p_strokeWidth - 1.f, 1.f, p_strokeWidth, 0.5f, 2.f
+				p_right                , p_bottom - p_strokeWidth + 1.f, 0.f, p_strokeWidth, 0.5f, 2.f,
+				p_right                , p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
+				p_right - p_strokeWidth, p_top + p_strokeWidth - 1.f   , 0.f, p_strokeWidth, 0.5f, 2.f,
+				p_right                , p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f
 			}
 		);
 	}
 
 	void strokeRectangle(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
 	{
+		strokeRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_rectangleCorners, p_strokeWidth);
 	}
 	void strokeRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
 	{
-	}
-	void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
-	{
+		strokeRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_rectangleCorners, p_strokeWidth);
 	}
 	void strokeRectangle(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
 	{
+		strokeRectangle(0.f, 0.f, p_size.x, p_size.y, p_rectangleCorners, p_strokeWidth);
 	}
 	void strokeRectangle(float p_width, float p_height, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
 	{
+		strokeRectangle(0.f, 0.f, p_width, p_height, p_rectangleCorners, p_strokeWidth);
+	}
+	void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
+	{
+		size_t sizeBefore = m_vertexBuffer.size();
+		createStrokedCornerRectangleGeometry(m_vertexBuffer, p_left, p_top, p_right, p_bottom, p_rectangleCorners, p_strokeWidth);
+		addDrawCallAfter((m_vertexBuffer.size() - sizeBefore)/6);
 	}
 
 	void strokeRoundedRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius, float p_strokeWidth = 1.f) override
 	{
+		strokeRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, AvoGUI::RectangleCorners(p_radius), p_strokeWidth);
 	}
 	void strokeRoundedRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) override
 	{
+		strokeRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, AvoGUI::RectangleCorners(p_radius), p_strokeWidth);
 	}
 	void strokeRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_strokeWidth = 1.f) override
 	{
+		strokeRectangle(p_left, p_top, p_right, p_bottom, AvoGUI::RectangleCorners(p_radius), p_strokeWidth);
 	}
 
 	void strokeRoundedRectangle(AvoGUI::Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) override
 	{
+		strokeRectangle(0.f, 0.f, p_size.x, p_size.y, AvoGUI::RectangleCorners(p_radius), p_strokeWidth);
 	}
 	void strokeRoundedRectangle(float p_width, float p_height, float p_radius, float p_strokeWidth = 1.f) override
 	{
+		strokeRectangle(0.f, 0.f, p_width, p_height, AvoGUI::RectangleCorners(p_radius), p_strokeWidth);
 	}
 
 	//------------------------------
@@ -11016,9 +11265,15 @@ void main()
 
 	void strokeGeometry(AvoGUI::Geometry* p_geometry, float p_strokeWidth = 1.f) override
 	{
+		auto geometry = (OpenGlGeometry*)p_geometry;
+		addDrawCallBefore(geometry->m_vertexBuffer.size());
+		m_vertexBuffer.insert(m_vertexBuffer.end(), geometry->m_vertexBuffer.begin(), geometry->m_vertexBuffer.end());
 	}
 	void fillGeometry(AvoGUI::Geometry* p_geometry) override
 	{
+		auto geometry = (OpenGlGeometry*)p_geometry;
+		addDrawCallBefore(geometry->m_vertexBuffer.size());
+		m_vertexBuffer.insert(m_vertexBuffer.end(), geometry->m_vertexBuffer.begin(), geometry->m_vertexBuffer.end());
 	}
 
 	//------------------------------
