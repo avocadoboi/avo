@@ -21,6 +21,8 @@ public:
 		setThemeColor("background", AvoGUI::Color(0));
 
 		queueAnimationUpdate();
+
+		AvoGUI::Image* image = getDrawingContext()->createImage("/home/bjorn/Pictures/original/1430.png");
 	}
 	void updateAnimations() override
 	{
@@ -42,8 +44,8 @@ public:
 		p_context->fillRectangle(getCenterX() - 80.f, 10.f, getCenterX() + 80.f, 100.f, AvoGUI::RectangleCorners(10.f, AvoGUI::RectangleCornerType::Round));
 		p_context->fillRectangle(getCenterX() - 80.f, getBottom() - 100.f, getCenterX() + 80.f, getBottom() - 10.f, AvoGUI::RectangleCorners(10.f, AvoGUI::RectangleCornerType::Cut));
 
-		p_context->strokeRectangle(10.f, getCenterY() - 80.f, 100.f, getCenterY() + 80.f, AvoGUI::RectangleCorners(30.f, AvoGUI::RectangleCornerType::Round));
-		p_context->strokeRectangle(getRight() - 100.f, getCenterY() - 80.f, getRight() - 10.f, getCenterY() + 80.f, AvoGUI::RectangleCorners(10.f, AvoGUI::RectangleCornerType::Cut));
+		p_context->strokeRectangle(10.f, getCenterY() - 80.f, 100.f, getCenterY() + 80.f, AvoGUI::RectangleCorners(40.f, AvoGUI::RectangleCornerType::Round), 10.f);
+		p_context->strokeRectangle(getRight() - 100.f, getCenterY() - 80.f, getRight() - 10.f, getCenterY() + 80.f, AvoGUI::RectangleCorners(30.f, 20.f, AvoGUI::RectangleCornerType::Cut), 5.f);
 
 		p_context->setColor(AvoGUI::Color(0.1f, 1.f, 0.5f));
 		p_context->rotate(-m_time, getCenter());

@@ -8373,7 +8373,7 @@ namespace AvoGUI
 
 	/*
 		Platform-specific interface for cached geometry that can be created and drawn by a DrawingContext.
-		Used to accelerate drawing.
+		Used to draw more efficiently.
 	*/
 	class Geometry : public ReferenceCounted { };
 
@@ -8901,53 +8901,53 @@ namespace AvoGUI
 			Creates a Geometry object which represents a rounded rectangle.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry* createRoundedRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, float p_radius) = 0;
+		virtual Geometry* createRoundedRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, float p_radius, bool p_isStroked = false) = 0;
 		/*
 			Creates a Geometry object which represents a rounded rectangle.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry* createRoundedRectangleGeometry(Point<float> const& p_position, Point<float> const& p_size, float p_radius) = 0;
+		virtual Geometry* createRoundedRectangleGeometry(Point<float> const& p_position, Point<float> const& p_size, float p_radius, bool p_isStroked = false) = 0;
 		/*
 			Creates a Geometry object which represents a rounded rectangle.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry* createRoundedRectangleGeometry(Rectangle<float> const& p_rectangle, float p_radius) = 0;
+		virtual Geometry* createRoundedRectangleGeometry(Rectangle<float> const& p_rectangle, float p_radius, bool p_isStroked = false) = 0;
 		/*
 			Creates a Geometry object which represents a rounded rectangle at the origin.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry* createRoundedRectangleGeometry(float p_width, float p_height, float p_radius) = 0;
+		virtual Geometry* createRoundedRectangleGeometry(float p_width, float p_height, float p_radius, bool p_isStroked = false) = 0;
 		/*
 			Creates a Geometry object which represents a rounded rectangle at the origin.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry* createRoundedRectangleGeometry(Point<float> const& p_size, float p_radius) = 0;
+		virtual Geometry* createRoundedRectangleGeometry(Point<float> const& p_size, float p_radius, bool p_isStroked = false) = 0;
 
 		/*
 			Creates a Geometry object which represents a rectangle with custom corners.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry* createCornerRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners) = 0;
+		virtual Geometry* createCornerRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
 		/*
 			Creates a Geometry object which represents a rectangle with custom corners.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry* createCornerRectangleGeometry(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_corners) = 0;
+		virtual Geometry* createCornerRectangleGeometry(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
 		/*
 			Creates a Geometry object which represents a rectangle with custom corners.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry* createCornerRectangleGeometry(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners) = 0;
+		virtual Geometry* createCornerRectangleGeometry(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
 		/*
 			Creates a Geometry object which represents a rectangle with custom corners at the origin.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry* createCornerRectangleGeometry(float p_width, float p_height, RectangleCorners const& p_corners) = 0;
+		virtual Geometry* createCornerRectangleGeometry(float p_width, float p_height, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
 		/*
 			Creates a Geometry object which represents a rectangle with custom corners at the origin.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry* createCornerRectangleGeometry(Point<float> const& p_size, RectangleCorners const& p_corners) = 0;
+		virtual Geometry* createCornerRectangleGeometry(Point<float> const& p_size, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
 
 		//------------------------------
 
@@ -8955,12 +8955,12 @@ namespace AvoGUI
 			Creates a geometry object which represents a polygon.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry* createPolygonGeometry(std::vector<Point<float>> const& p_vertices) = 0;
+		virtual Geometry* createPolygonGeometry(std::vector<Point<float>> const& p_vertices, bool p_isStroked = false) = 0;
 		/*
 			Creates a geometry object which represents a polygon.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry* createPolygonGeometry(Point<float> const* p_vertices, uint32 p_numberOfVertices) = 0;
+		virtual Geometry* createPolygonGeometry(Point<float> const* p_vertices, uint32 p_numberOfVertices, bool p_isStroked = false) = 0;
 
 		//------------------------------
 
@@ -9194,7 +9194,7 @@ namespace AvoGUI
 
 			p_width and p_height are in pixels.
 		*/
-		virtual Image* createImage(void const* p_pixelData, uint32 p_width, uint32 p_height) = 0;
+		virtual Image* createImage(uint8 const* p_pixelData, uint32 p_width, uint32 p_height) = 0;
 		/*
 			Loads an image from the data of an image file.
 			p_imageData is a memory block which is p_size bytes in size.
