@@ -7,7 +7,7 @@
 #include <stack>
 #include <random>
 #include <chrono>
-#include <time.h>
+#include <ctime>
 
 #if __has_include("filesystem")
 #include <filesystem>
@@ -63,14 +63,22 @@
 #include <GL/gl.h>
 #include <GL/glext.h>
 
+#include <libpng/png.h>
+#include <jpeglib.h>
+
+#include <freetype2/ft2build.h>
+#include FT_FREETYPE_H
+
 #include <unistd.h>
+#include <stdio.h>
+#include <fstream>
 
 #undef None
 #endif
 
 //------------------------------
 
-std::default_random_engine randomEngine(time(0));
+std::default_random_engine randomEngine(time(nullptr));
 std::uniform_real_distribution<double> uniformDistribution(0.0, 1.0);
 std::normal_distribution<double> normalDistribution(0.0, 1.0);
 
@@ -435,14 +443,7 @@ void AvoGUI::View::updateClipGeometry()
 //
 
 AvoGUI::View::View(AvoGUI::View* p_parent, AvoGUI::Rectangle<float> const& p_bounds) :
-	ProtectedRectangle(p_bounds), 
-	m_isInAnimationUpdateQueue(false), m_isVisible(true), m_isOverlay(false),
-	m_areDragDropEventsEnabled(false),
-	m_areMouseEventsEnabled(false), m_cursor(AvoGUI::Cursor::Arrow),
-	m_opacity(1.f),
-	m_shadowBounds(p_bounds), m_hasShadow(true), m_elevation(0.f),
-	m_layerIndex(0), m_index(0), m_id(0),
-	m_isMouseHovering(false)
+	ProtectedRectangle(p_bounds), m_shadowBounds(p_bounds)
 {
 	if (p_parent && p_parent != this)
 	{
@@ -564,12 +565,7 @@ void AvoGUI::View::removeChild(uint32 p_viewIndex)
 }
 void AvoGUI::View::removeAllChildren()
 {
-	if (m_children.empty()) // That function naming, ew... Why didn't they call it getIsEmpty? empty() should be emptying something >:^(
-	{
-		return;
-	}
-
-	while (m_children.size())
+	while (!m_children.empty()) // That function naming, ew... Why didn't they call it getIsEmpty? empty() should be emptying something >:^(
 	{
 		AvoGUI::View* child = m_children.back();
 		m_children.pop_back();
@@ -665,166 +661,6 @@ void AvoGUI::View::setThemeColor(std::string const& p_name, Color const& p_color
 		handleThemeColorChange(p_name, p_color);
 	}
 }
-
-//------------------------------
-
-//bool AvoGUI::View::getIsIntersecting(AvoGUI::View* p_view) const
-//{
-//	AvoGUI::Rectangle<float> viewBounds(p_view->getAbsoluteBounds());
-//	if (p_view->getParent() != getParent())
-//	{
-//		viewBounds -= getParent()->getAbsoluteBounds().getTopLeft();
-//	}
-//	if (m_bounds.getIsIntersecting(viewBounds))
-//	{
-//		if (p_view->getCornerRadius() > 0.f)
-//		{
-//			if (m_cornerRadius > 0.f)
-//			{
-//				if (viewBounds.right - p_view->getCornerRadius() < m_bounds.left + m_cornerRadius)
-//				{
-//					if (viewBounds.bottom - p_view->getCornerRadius() < m_bounds.top + m_cornerRadius)
-//					{
-//						return AvoGUI::Point<>::getDistanceSquared(viewBounds.right - m_cornerRadius, viewBounds.bottom - m_cornerRadius, m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
-//					}
-//					if (viewBounds.top + p_view->getCornerRadius() > m_bounds.bottom - m_cornerRadius)
-//					{
-//						return AvoGUI::Point<>::getDistanceSquared(viewBounds.right - m_cornerRadius, viewBounds.top + m_cornerRadius, m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
-//					}
-//				}
-//				else if (viewBounds.left + p_view->getCornerRadius() > m_bounds.right - m_cornerRadius)
-//				{
-//					if (viewBounds.bottom - p_view->getCornerRadius() < m_bounds.top + m_cornerRadius)
-//					{
-//						return AvoGUI::Point<>::getDistanceSquared(viewBounds.left + m_cornerRadius, viewBounds.bottom - m_cornerRadius, m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
-//					}
-//					if (viewBounds.top + p_view->getCornerRadius() > m_bounds.bottom - m_cornerRadius)
-//					{
-//						return AvoGUI::Point<>::getDistanceSquared(viewBounds.left + m_cornerRadius, viewBounds.top + m_cornerRadius, m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius) < (p_view->getCornerRadius() + m_cornerRadius)*(p_view->getCornerRadius() + m_cornerRadius);
-//					}
-//				}
-//				return true;
-//			}
-//			float radius = p_view->getCornerRadius();
-//			if (m_bounds.right < viewBounds.left + radius)
-//			{
-//				if (m_bounds.bottom < viewBounds.top + radius)
-//				{
-//					return AvoGUI::Point<>::getDistanceSquared(m_bounds.right, m_bounds.bottom, viewBounds.left + radius, viewBounds.top + radius) < radius*radius;
-//				}
-//				if (m_bounds.top < viewBounds.bottom - radius)
-//				{
-//					return AvoGUI::Point<>::getDistanceSquared(m_bounds.right, m_bounds.top, viewBounds.left + radius, viewBounds.bottom - radius) < radius*radius;
-//				}
-//			}
-//			else if (m_bounds.left > viewBounds.right)
-//			{
-//				if (m_bounds.bottom < viewBounds.top + radius)
-//				{
-//					return AvoGUI::Point<>::getDistanceSquared(m_bounds.left, m_bounds.bottom, viewBounds.right - radius, viewBounds.top + radius) < radius*radius;
-//				}
-//				if (m_bounds.top < viewBounds.bottom - radius)
-//				{
-//					return AvoGUI::Point<>::getDistanceSquared(m_bounds.left, m_bounds.top, viewBounds.right - radius, viewBounds.bottom - radius) < radius*radius;
-//				}
-//			}
-//		}
-//		return true;
-//	}
-//	return false;
-//}
-
-//bool AvoGUI::View::getIsContaining(AvoGUI::View* p_view) const
-//{
-//	AvoGUI::Rectangle<float> viewBounds(p_view->getAbsoluteBounds());
-//	if (p_view->getParent() != getParent())
-//	{
-//		viewBounds -= getParent()->getAbsoluteBounds().getTopLeft();
-//	}
-//	if (getIsContaining(viewBounds))
-//	{
-//		float radius = p_view->getCornerRadius();
-//		float maxDistance = (m_cornerRadius - radius)*(m_cornerRadius - radius);
-//		if (viewBounds.left < m_bounds.left + m_cornerRadius)
-//		{
-//			if (viewBounds.top < m_bounds.top + m_cornerRadius)
-//			{
-//				if (AvoGUI::Point<>::getDistanceSquared(viewBounds.left + radius, viewBounds.top + radius, m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius) > maxDistance)
-//				{
-//					return false;
-//				}
-//			}
-//			if (viewBounds.bottom > m_bounds.bottom - m_cornerRadius)
-//			{
-//				if (AvoGUI::Point<>::getDistanceSquared(viewBounds.left + radius, viewBounds.bottom - radius, m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius) > maxDistance)
-//				{
-//					return false;
-//				}
-//			}
-//		}
-//		if (viewBounds.right > m_bounds.right - m_cornerRadius)
-//		{
-//			if (viewBounds.top < m_bounds.top + m_cornerRadius)
-//			{
-//				if (AvoGUI::Point<>::getDistanceSquared(viewBounds.right - radius, viewBounds.top + radius, m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius) > maxDistance)
-//				{
-//					return false;
-//				}
-//			}
-//			if (viewBounds.bottom > m_bounds.bottom - m_cornerRadius)
-//			{
-//				if (AvoGUI::Point<>::getDistanceSquared(viewBounds.right - radius, viewBounds.bottom - radius, m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius) > maxDistance)
-//				{
-//					return false;
-//				}
-//			}
-//		}
-//		return true;
-//	}
-//	if (viewBounds.getIsContaining(m_bounds))
-//	{
-//		float radius = p_view->getCornerRadius();
-//		float maxDistance = (m_cornerRadius - radius)*(m_cornerRadius - radius);
-//		if (m_bounds.left < viewBounds.left + radius)
-//		{
-//			if (m_bounds.top < viewBounds.top + radius)
-//			{
-//				if (AvoGUI::Point<>::getDistanceSquared(m_bounds.left + m_cornerRadius, m_bounds.top + m_cornerRadius, viewBounds.left + radius, viewBounds.top + radius) > maxDistance)
-//				{
-//					return false;
-//				}
-//			}
-//			if (m_bounds.bottom > viewBounds.bottom - radius)
-//			{
-//				if (AvoGUI::Point<>::getDistanceSquared(m_bounds.left + m_cornerRadius, m_bounds.bottom - m_cornerRadius, viewBounds.left + radius, viewBounds.bottom - radius) > maxDistance)
-//				{
-//					return false;
-//				}
-//			}
-//		}
-//		if (m_bounds.right > viewBounds.right - radius)
-//		{
-//			if (m_bounds.top < viewBounds.top + radius)
-//			{
-//				if (AvoGUI::Point<>::getDistanceSquared(m_bounds.right - m_cornerRadius, m_bounds.top + m_cornerRadius, viewBounds.right - radius, viewBounds.top + radius) > maxDistance)
-//				{
-//					return false;
-//				}
-//			}
-//			if (m_bounds.bottom > viewBounds.bottom - radius)
-//			{
-//				if (AvoGUI::Point<>::getDistanceSquared(m_bounds.right - m_cornerRadius, m_bounds.bottom - m_cornerRadius, viewBounds.right - radius, viewBounds.bottom - radius) > maxDistance)
-//				{
-//					return false;
-//				}
-//			}
-//		}
-//		return true;
-//	}
-//	return false;
-//}
-
-//------------------------------
 
 void AvoGUI::View::setIsVisible(bool p_isVisible)
 {
@@ -4756,20 +4592,28 @@ typedef Window XWindow;
 class LinuxWindow : public AvoGUI::Window
 {
 private:
-	AvoGUI::Gui* m_gui;
+	AvoGUI::Gui* m_gui{nullptr};
 
-	Display* m_server = 0;
-	XWindow m_windowHandle = 0;
+	Display* m_server{nullptr};
+	XWindow m_windowHandle{0};
+	Colormap m_colormap{0};
 
-	Atom m_windowCloseEvent;
-	bool m_isOpen = false;
+	XIM m_inputMethod{nullptr};
+	XIC m_inputContext{nullptr};
+
+	Atom m_windowManagerProtocolsMessageType{0};
+	Atom m_windowCloseEvent{0};
+
+	Atom m_backgroundColorMessageType{0};
+	
+	bool m_isOpen{false};
 	AvoGUI::Point<uint32> m_size;
 	AvoGUI::Point<float> m_minSize;
 	AvoGUI::Point<float> m_maxSize;
 
-	AvoGUI::WindowStyleFlags m_crossPlatformStyles;
+	AvoGUI::WindowStyleFlags m_crossPlatformStyles{AvoGUI::WindowStyleFlags::None};
 
-	float m_dipToPixelFactor = 1.f;
+	float m_dipToPixelFactor{1.f};
 
 	//------------------------------
 
@@ -5217,31 +5061,113 @@ private:
 	
 	//------------------------------
 
+	bool m_hasCreatedWindow = false;
+	std::condition_variable m_hasCreatedWindowConditionVariable;
+	std::mutex m_hasCreatedWindowMutex;
 	std::thread m_messageThread;
-	void thread_runEventLoop()
-	{	
+	void thread_runEventLoop(char const* p_title, uint32 p_titleSize, float p_x, float p_y, float p_width, float p_height, AvoGUI::Window* p_parent)
+	{
+		XInitThreads();
+
+		m_server = XOpenDisplay(nullptr); // Open connection to server
+
+		auto displayWidth = (float)XDisplayWidth(m_server, 0);
+		auto displayHeight = (float)XDisplayHeight(m_server, 0);
+		m_dipToPixelFactor = displayWidth / (float)XDisplayWidthMM(m_server, 0) * 25.4f / NORMAL_DPI;
+		m_size.set(p_width*m_dipToPixelFactor, p_height*m_dipToPixelFactor);
+
+		//------------------------------
+		// Select the OpenGL visual to be used when creating the window.
+
+		int framebufferAttributes[] =
+		{
+			GLX_X_RENDERABLE, 1,
+			GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+			GLX_RENDER_TYPE, GLX_RGBA_BIT,
+			GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
+			GLX_RED_SIZE, 8,
+			GLX_GREEN_SIZE, 8,
+			GLX_BLUE_SIZE, 8,
+			GLX_DEPTH_SIZE, 0, // 2D graphics, no z-buffering.
+			GLX_STENCIL_SIZE, 8,
+			GLX_DOUBLEBUFFER, 1,
+			0 // Null terminator
+		};
+
+		int numberOfMatchingConfigurations = 0;
+		GLXFBConfig* framebufferConfigurations = glXChooseFBConfig(m_server, DefaultScreen(m_server), framebufferAttributes, &numberOfMatchingConfigurations);
+
+		XVisualInfo* visualInfo = glXGetVisualFromFBConfig(m_server, *framebufferConfigurations);
+
+		XFree(framebufferConfigurations);
+
+		//------------------------------
+		// Create window
+
+		m_colormap = XCreateColormap(m_server, RootWindow(m_server, visualInfo->screen), visualInfo->visual, 0);
+		XSetWindowAttributes windowAttributes = { };
+		windowAttributes.colormap = m_colormap;
+		windowAttributes.event_mask =
+			ExposureMask |
+			EnterWindowMask | LeaveWindowMask |
+			StructureNotifyMask |
+			PointerMotionMask |
+			ButtonPressMask | ButtonReleaseMask |
+			ButtonMotionMask |
+			KeyPressMask | KeyReleaseMask;
+
+		m_windowHandle = XCreateWindow(
+			m_server, p_parent ? (XWindow)p_parent->getNativeHandle() : RootWindow(m_server, visualInfo->screen),
+			0, 0, // Initial x and y are ignored by the window manager
+			(unsigned int)(p_width*m_dipToPixelFactor),
+			(unsigned int)(p_height*m_dipToPixelFactor),
+			0,
+			visualInfo->depth,
+			InputOutput,
+			visualInfo->visual,
+			CWEventMask | CWBorderPixel | CWColormap,
+			&windowAttributes
+		);
+
+		XFree(visualInfo);
+
+		setTitle(p_title, p_titleSize);
+		XMapWindow(m_server, m_windowHandle); // Show the window
+		setPosition(p_x * (displayWidth - p_width*m_dipToPixelFactor), p_y * (displayHeight - p_height*m_dipToPixelFactor));
+
+		//------------------------------
 		// Open keyboard input
-		XIM inputMethod = XOpenIM(m_server, 0, 0, 0);
-		XIC inputContext = XCreateIC(
-			inputMethod, 
+
+		m_inputMethod = XOpenIM(m_server, nullptr, nullptr, nullptr);
+		m_inputContext = XCreateIC(
+			m_inputMethod,
 			XNInputStyle, XIMPreeditNothing | XIMStatusNothing, // Input style flags
 			XNClientWindow, m_windowHandle,
 			XNFocusWindow, m_windowHandle,
-			0 // Null terminator
+			nullptr // Null terminator
 		);
-		Time lastKeyPressTime = 0;
-		KeyCode lastKeyPressKeyCode = 0;
 
 		//------------------------------
 
+		m_backgroundColorMessageType = XInternAtom(m_server, "AVOGUI_SET_BACKGROUND_COLOR", false);
+
 		// We want the window manager to tell us when the window should be closed.
+		// WM_PROTOCOLS is the atom used to identify messages sent from the window manager in a ClientMessage.
+		m_windowManagerProtocolsMessageType = XInternAtom(m_server, "WM_PROTOCOLS", true);
+		// This is the atom sent as the data in a ClientMessage with type WM_PROTOCOLS, to indicate the close event.
 		m_windowCloseEvent = XInternAtom(m_server, "WM_DELETE_WINDOW", 0);
+		// Tell the window manager that we want it to send the event through WM_PROTOCOLS.
 		XSetWMProtocols(m_server, m_windowHandle, &m_windowCloseEvent, 1);
 
-		XFlush(m_server);
+		XFlush(m_server); // Execute the command queue
+
+		//------------------------------
 
 		XEvent event;
+		Time lastKeyPressTime = 0;
+		KeyCode lastKeyPressKeyCode = 0;
 
+		m_isOpen = true;
 		while (m_isOpen)
 		{
 			XNextEvent(m_server, &event);
@@ -5253,33 +5179,47 @@ private:
 
 			switch (event.type)
 			{
-			// case Expose:
-			// {
-			// 	if (!event.xexpose.count)
-			// 	{
-			// 		m_gui->invalidateRectangle(
-			// 			event.xexpose.x/m_dipToPixelFactor, event.xexpose.y/m_dipToPixelFactor, 
-			// 			event.xexpose.width/m_dipToPixelFactor, event.xexpose.height/m_dipToPixelFactor
-			// 		);
-			// 	}
-			// 	break;
-			// }
+			 case Expose:
+			 {
+			 	if (!event.xexpose.count)
+			 	{
+			 		m_gui->invalidateRectangle(
+					    (float)event.xexpose.x/m_dipToPixelFactor, (float)event.xexpose.y/m_dipToPixelFactor,
+					    (float)event.xexpose.width/m_dipToPixelFactor, (float)event.xexpose.height/m_dipToPixelFactor
+			 		);
+			 	}
+			 	break;
+			 }
 			case ClientMessage:
 			{
-				// Sent from the window manager when the user has tried to close the window, 
-				// it is up to us to decide whether to actually close and exit the application.
-				if (event.xclient.data.l[0] == m_windowCloseEvent)
+				if (event.xclient.message_type == m_windowManagerProtocolsMessageType)
 				{
-					if (m_gui->getWillClose())
+					// Sent from the window manager when the user has tried to close the window, 
+					// it is up to us to decide whether to actually close and exit the application.
+					if (event.xclient.data.l[0] == m_windowCloseEvent)
 					{
-						m_isOpen = false;
+						if (m_gui->getWillClose())
+						{
+							m_isOpen = false;
+						}
+						else
+						{
+							m_gui->excludeAnimationThread();
+							m_gui->handleWindowClose({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
+							m_gui->includeAnimationThread();
+						}
 					}
-					else
-					{
-						m_gui->excludeAnimationThread();
-						m_gui->handleWindowClose({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
-						m_gui->includeAnimationThread();
-					}
+				}
+				else if (event.xclient.message_type == m_backgroundColorMessageType)
+				{
+					// Sent from drawing context
+					XColor xColor;
+					xColor.red = event.xclient.data.l[0];
+					xColor.green = event.xclient.data.l[1];
+					xColor.blue = event.xclient.data.l[2];
+					xColor.flags = DoRed | DoGreen | DoBlue;
+					XAllocColor(m_server, m_colormap, &xColor);
+					XSetWindowBackground(m_server, m_windowHandle, xColor.pixel);
 				}
 				break;
 			}
@@ -5289,7 +5229,23 @@ private:
 			}
 			case ConfigureNotify:
 			{
-				if (m_size.x != event.xconfigure.width || m_size.y != event.xconfigure.height)
+				if (!m_hasCreatedWindow)
+				{
+					AvoGUI::WindowEvent windowEvent = { this, p_width, p_height };
+					m_gui->excludeAnimationThread();
+					m_gui->handleWindowCreate(windowEvent);
+					m_gui->includeAnimationThread();
+
+					m_gui->excludeAnimationThread();
+					m_gui->handleWindowSizeChange(windowEvent);
+					m_gui->includeAnimationThread();
+
+					m_hasCreatedWindowMutex.lock();
+					m_hasCreatedWindow = true;
+					m_hasCreatedWindowMutex.unlock();
+					m_hasCreatedWindowConditionVariable.notify_one();
+				}
+				else if (m_size.x != event.xconfigure.width || m_size.y != event.xconfigure.height)
 				{
 					m_size.set(event.xconfigure.width, event.xconfigure.height);
 					m_gui->excludeAnimationThread();
@@ -5313,7 +5269,7 @@ private:
 				char character[5];
 				KeySym key;
 				Status characterLookupStatus;
-				int length = Xutf8LookupString(inputContext, &event.xkey, character, 4, &key, &characterLookupStatus);
+				int length = Xutf8LookupString(m_inputContext, &event.xkey, character, 4, &key, &characterLookupStatus);
 				
 				AvoGUI::KeyboardEvent keyboardEvent;
 				keyboardEvent.isRepeated = lastKeyPressKeyCode == event.xkey.keycode && event.xkey.time < lastKeyPressTime + 2;
@@ -5363,6 +5319,9 @@ private:
 			}
 			} 
 		}
+		XDestroyIC(m_inputContext);
+		XCloseIM(m_inputMethod);
+		XFreeColormap(m_server, m_colormap);
 		XDestroyWindow(m_server, m_windowHandle);
 		XCloseDisplay(m_server);
 	}
@@ -5372,15 +5331,23 @@ public:
 	{
 		return m_server;
 	}
+	Colormap getColormap()
+	{
+		return m_colormap;
+	}
+	Atom getBackgroundColorMessageType()
+	{
+		return m_backgroundColorMessageType;
+	}
 
 	//------------------------------
 
-	LinuxWindow(AvoGUI::Gui* p_gui) :
+	explicit LinuxWindow(AvoGUI::Gui* p_gui) :
 		m_gui(p_gui)
 	{
 
 	}
-	~LinuxWindow()
+	~LinuxWindow() final
 	{
 		if (m_messageThread.joinable())
 		{
@@ -5390,106 +5357,34 @@ public:
 
 	//------------------------------
 
-	void create(char const* p_title, uint32 p_titleSize, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
+	void create(char const* p_title, uint32 p_titleSize, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = nullptr) override
 	{
-		XInitThreads();
-
-		m_server = XOpenDisplay(0); // Open connection to server
-		
-		float displayWidth = XDisplayWidth(m_server, 0);
-		float displayHeight = XDisplayHeight(m_server, 0);
-		m_dipToPixelFactor = displayWidth / (float)XDisplayWidthMM(m_server, 0) * 25.4f / NORMAL_DPI;
-
-		//------------------------------
-		// Select the OpenGL visual to be used when creating the window.
-
-		int framebufferAttributes[] = 
-		{
-			GLX_X_RENDERABLE, 1,
-			GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
-			GLX_RENDER_TYPE, GLX_RGBA_BIT,
-			GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
-			GLX_RED_SIZE, 8,
-			GLX_GREEN_SIZE, 8,
-			GLX_BLUE_SIZE, 8,
-			GLX_DEPTH_SIZE, 0, // 2D graphics, no z-buffering.
-			GLX_STENCIL_SIZE, 8,
-			GLX_DOUBLEBUFFER, 1,
-			0 // Null terminator
-		};
-
-		int numberOfMatchingConfigurations = 0;
-		GLXFBConfig* framebufferConfigurations = glXChooseFBConfig(m_server, DefaultScreen(m_server), framebufferAttributes, &numberOfMatchingConfigurations);
-
-		XVisualInfo* visualInfo = glXGetVisualFromFBConfig(m_server, *framebufferConfigurations);
-
-		XFree(framebufferConfigurations);
-
-		//------------------------------
-
-		XSetWindowAttributes windowAttributes = { };
-		windowAttributes.colormap = XCreateColormap(m_server, RootWindow(m_server, visualInfo->screen), visualInfo->visual, 0);
-		windowAttributes.event_mask = 
-			ExposureMask |
-			EnterWindowMask | LeaveWindowMask |
-			StructureNotifyMask |
-			PointerMotionMask |
-			ButtonPressMask | ButtonReleaseMask | 
-			ButtonMotionMask |
-			KeyPressMask | KeyReleaseMask;
-		
-		m_windowHandle = XCreateWindow(
-			m_server, p_parent ? (XWindow)p_parent->getNativeHandle() : RootWindow(m_server, visualInfo->screen), 
-			0, 0, // Initial x and y are ignored by the window manager
-			p_width*m_dipToPixelFactor,
-			p_height*m_dipToPixelFactor,
-			0, 
-			visualInfo->depth,
-			InputOutput,
-			visualInfo->visual,
-			CWEventMask | CWBorderPixel | CWColormap,
-			&windowAttributes
-		);
-
-		XFree(visualInfo);
-
-		setTitle(p_title, p_titleSize);
-		XMapWindow(m_server, m_windowHandle); // Show the window
-		setPosition(p_x * (displayWidth - p_width*m_dipToPixelFactor), p_y * (displayHeight - p_height*m_dipToPixelFactor));
-
-		XFlush(m_server);
-
-		m_size.set(p_width*m_dipToPixelFactor, p_height*m_dipToPixelFactor);
-		m_isOpen = true;
-
-		m_gui->excludeAnimationThread();
-		m_gui->handleWindowCreate({ this, p_width, p_height });
-		m_gui->includeAnimationThread();
-
-		m_gui->excludeAnimationThread();
-		m_gui->handleWindowSizeChange({ this, p_width, p_height });
-		m_gui->includeAnimationThread();
-
 		m_crossPlatformStyles = p_styleFlags;
-		m_messageThread = std::thread(&LinuxWindow::thread_runEventLoop, this);
+		m_messageThread = std::thread(&LinuxWindow::thread_runEventLoop, this, p_title, p_titleSize, p_x, p_y, p_width, p_height, p_parent);
+
+		if (!m_hasCreatedWindow)
+		{
+			std::unique_lock<std::mutex> lock(m_hasCreatedWindowMutex);
+			m_hasCreatedWindowConditionVariable.wait(lock, [=] { return (bool)m_hasCreatedWindow; });
+		}
 	}
-	void create(char const* p_title, uint32 p_titleSize, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
+	void create(char const* p_title, uint32 p_titleSize, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = nullptr) override
 	{
 		create(p_title, p_titleSize, 0.5f, 0.5f, p_width, p_height, p_styleFlags, p_parent);
 	}
-	void create(char const* p_title, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
+	void create(char const* p_title, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = nullptr) override
 	{
 		create(p_title, strlen(p_title), p_x, p_y, p_width, p_height, p_styleFlags, p_parent);
 	}
-	void create(char const* p_title, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
+	void create(char const* p_title, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = nullptr) override
 	{
 		create(p_title, strlen(p_title), 0.5f, 0.5f, p_width, p_height, p_styleFlags, p_parent);
 	}
-	void create(std::string const& p_title, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
+	void create(std::string const& p_title, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = nullptr) override
 	{
 		create(p_title.data(), p_title.size(), p_x, p_y, p_width, p_height, p_styleFlags, p_parent);
 	}
-	void create(std::string const& p_title, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override 
+	void create(std::string const& p_title, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = nullptr) override
 	{
 		create(p_title.data(), p_title.size(), 0.5f, 0.5f, p_width, p_height, p_styleFlags, p_parent);
 	}
@@ -5500,6 +5395,7 @@ public:
 		{
 			XEvent event;
 			event.type = ClientMessage;
+			event.xclient.message_type = m_windowManagerProtocolsMessageType;
 			event.xclient.data.l[0] = m_windowCloseEvent;
 			event.xclient.display = m_server;
 			event.xclient.window = m_windowHandle;
@@ -5543,13 +5439,13 @@ public:
 		XSetWMIconName(m_server, m_windowHandle, &textProperty);
 		XFlush(m_server);
 	}
-	void setTitle(char const* p_title)
+	void setTitle(char const* p_title) override
 	{
 		setTitle(p_title, strlen(p_title));
 	}
-	void setTitle(std::string const& p_title)
+	void setTitle(std::string const& p_title) override
 	{
-		setTitle(p_title);
+		setTitle(p_title.data(), p_title.size());
 	}
 	std::string getTitle() const override
 	{
@@ -5825,64 +5721,64 @@ public:
 
 	//------------------------------
 
-	AvoGUI::DragDropOperation dragAndDropString(std::string const& p_string, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	AvoGUI::DragDropOperation dragAndDropString(std::string const& p_string, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
 	{
 	}
-	AvoGUI::DragDropOperation dragAndDropString(char const* p_string, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	AvoGUI::DragDropOperation dragAndDropString(char const* p_string, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
 	{
 	}
-	AvoGUI::DragDropOperation dragAndDropString(char const* p_string, uint32 p_length, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-
-	AvoGUI::DragDropOperation dragAndDropString(std::wstring const& p_string, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropString(wchar_t const* p_string, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropString(wchar_t const* p_string, uint32 p_length, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	AvoGUI::DragDropOperation dragAndDropString(char const* p_string, uint32 p_length, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
 	{
 	}
 
-	AvoGUI::DragDropOperation dragAndDropImage(AvoGUI::Image* p_image, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	AvoGUI::DragDropOperation dragAndDropString(std::wstring const& p_string, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
 	{
 	}
-	AvoGUI::DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::string const& p_name, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	AvoGUI::DragDropOperation dragAndDropString(wchar_t const* p_string, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
 	{
 	}
-	AvoGUI::DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_data, std::wstring const& p_name, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_path, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
-	{
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::wstring const& p_path, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	AvoGUI::DragDropOperation dragAndDropString(wchar_t const* p_string, uint32 p_length, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
 	{
 	}
 
-	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_paths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	AvoGUI::DragDropOperation dragAndDropImage(AvoGUI::Image* p_image, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
 	{
 	}
-	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_paths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	AvoGUI::DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::string const& p_name, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
 	{
 	}
-	AvoGUI::DragDropOperation dragAndDropFiles(std::string* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	AvoGUI::DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
 	{
 	}
-	AvoGUI::DragDropOperation dragAndDropFiles(std::wstring* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
 	{
 	}
-	AvoGUI::DragDropOperation dragAndDropFiles(char const* const* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_data, std::wstring const& p_name, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
 	{
 	}
-	AvoGUI::DragDropOperation dragAndDropFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = 0, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override 
+	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_path, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFile(std::wstring const& p_path, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
+	{
+	}
+
+	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_paths, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_paths, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFiles(std::string* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFiles(std::wstring* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFiles(char const* const* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
+	{
+	}
+	AvoGUI::DragDropOperation dragAndDropFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage = nullptr, AvoGUI::Point<float> const& p_dragImageCursorPosition = AvoGUI::Point<float>()) override
 	{
 	}
 
@@ -9883,17 +9779,223 @@ public:
 		drawText(p_string, AvoGUI::Rectangle<float>(p_position.x, p_position.y, m_context->GetSize().width * 2, m_context->GetSize().height * 2));
 	}
 };
-ID2D1Factory2* Direct2DDrawingContext::s_direct2DFactory = 0;
-IDWriteFactory1* Direct2DDrawingContext::s_directWriteFactory = 0;
-FontCollectionLoader* Direct2DDrawingContext::s_fontCollectionLoader = 0;
-FontFileLoader* Direct2DDrawingContext::s_fontFileLoader = 0;
-IWICImagingFactory2* Direct2DDrawingContext::s_imagingFactory = 0;
+ID2D1Factory2* Direct2DDrawingContext::s_direct2DFactory{nullptr};
+IDWriteFactory1* Direct2DDrawingContext::s_directWriteFactory{nullptr};
+FontCollectionLoader* Direct2DDrawingContext::s_fontCollectionLoader{nullptr};
+FontFileLoader* Direct2DDrawingContext::s_fontFileLoader{nullptr};
+IWICImagingFactory2* Direct2DDrawingContext::s_imagingFactory{nullptr};
 #endif
 #ifdef __linux__
 
 bool areOpenGlFunctionsLoaded = false;
 
 PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB;
+PFNGLGENBUFFERSPROC glGenBuffers;
+PFNGLBINDBUFFERPROC glBindBuffer;
+PFNGLBUFFERDATAPROC glBufferData;
+PFNGLCREATESHADERPROC glCreateShader;
+PFNGLSHADERSOURCEPROC glShaderSource;
+PFNGLCOMPILESHADERPROC glCompileShader;
+PFNGLGETSHADERIVPROC glGetShaderiv;
+PFNGLGETSHADERINFOLOGPROC glGetShaderInfoLog;
+PFNGLCREATEPROGRAMPROC glCreateProgram;
+PFNGLATTACHSHADERPROC glAttachShader;
+PFNGLLINKPROGRAMPROC glLinkProgram;
+PFNGLDELETEPROGRAMPROC glDeleteProgram;
+PFNGLDELETESHADERPROC glDeleteShader;
+PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
+PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
+PFNGLGENVERTEXARRAYSPROC glGenVertexArrays;
+PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
+PFNGLUSEPROGRAMPROC glUseProgram;
+PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
+PFNGLUNIFORM1FPROC glUniform1f;
+PFNGLUNIFORM2FPROC glUniform2f;
+PFNGLUNIFORM3FPROC glUniform3f;
+PFNGLUNIFORM4FPROC glUniform4f;
+PFNGLUNIFORM1IPROC glUniform1i;
+PFNGLUNIFORM2IPROC glUniform2i;
+PFNGLUNIFORM3IPROC glUniform3i;
+PFNGLUNIFORM4IPROC glUniform4i;
+PFNGLUNIFORMMATRIX3FVPROC glUniformMatrix3fv;
+PFNGLGENERATEMIPMAPPROC glGenerateMipmap;
+
+//------------------------------
+
+class OpenGlShader
+{
+private:
+	GLuint m_programID{0};
+	GLuint m_vertexArrayObjectID{0};
+
+	GLuint m_vertexBufferID{0};
+	uint32 m_vertexBufferSize{0};
+	uint32 m_vertexSize{0};
+
+	GLuint m_indexBufferID{0};
+	uint32 m_indexBufferSize{0};
+
+public:
+	OpenGlShader() = default;
+	~OpenGlShader()
+	{
+		if (m_programID)
+		{
+			glDeleteProgram(m_programID);
+		}
+	}
+
+	void compile(char const* p_vertexShaderSource, char const* p_fragmentShaderSource)
+	{
+		GLuint vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
+		glShaderSource(vertexShaderID, 1, &p_vertexShaderSource, nullptr);
+		glCompileShader(vertexShaderID);
+
+		GLuint fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(fragmentShaderID, 1, &p_fragmentShaderSource, nullptr);
+		glCompileShader(fragmentShaderID);
+
+#ifdef _DEBUG
+		GLint wasSuccessful = 1;
+
+		// Check for vertex shader compile errors
+		glGetShaderiv(vertexShaderID, GL_COMPILE_STATUS, &wasSuccessful);
+		if (!wasSuccessful)
+		{
+			GLchar message[256];
+			glGetShaderInfoLog(vertexShaderID, 256, nullptr, message);
+			std::cout << "\nVertex shader compile error(s)!\n" << message << '\n';
+		}
+
+		// Check for fragment shader compile errors
+		glGetShaderiv(fragmentShaderID, GL_COMPILE_STATUS, &wasSuccessful);
+		if (!wasSuccessful)
+		{
+			GLchar message[256];
+			glGetShaderInfoLog(fragmentShaderID, 256, nullptr, message);
+			std::cout << "\nFragment shader compile error(s)!\n" << message << '\n';
+		}
+#endif
+
+		m_programID = glCreateProgram();
+		glAttachShader(m_programID, vertexShaderID);
+		glAttachShader(m_programID, fragmentShaderID);
+		glLinkProgram(m_programID);
+
+		glDeleteShader(fragmentShaderID);
+		glDeleteShader(vertexShaderID);
+
+		m_vertexArrayObjectID = 0;
+		glGenVertexArrays(1, &m_vertexArrayObjectID);
+
+		m_vertexBufferID = 0;
+		glGenBuffers(1, &m_vertexBufferID);
+	}
+
+	void setVertexData(float* p_data, uint32 p_dataSize, uint32 p_vertexSize, GLenum p_usage = GL_STATIC_DRAW)
+	{
+        glBindVertexArray(m_vertexArrayObjectID);
+
+		glBindBuffer(GL_ARRAY_BUFFER, m_vertexBufferID);
+		glBufferData(GL_ARRAY_BUFFER, p_dataSize, p_data, p_usage);
+
+		m_vertexBufferSize = p_dataSize;
+		m_vertexSize = p_vertexSize;
+	}
+	/*
+		Sets information about a vertex shader input.
+		p_shaderInputIndex is the layout index of the "in" variable in the vertex shader.
+		p_numberOfComponentsInShaderInput is the number of floats stored in the "in" variable, and is either 1, 2, 3 or 4.
+		p_pointerPosition is the start position of the input in the vertex buffer, in number of floats.
+	*/
+	void configureVertexShaderInput(uint32 p_shaderInputIndex, uint32 p_numberOfComponentsInShaderInput, uint32 p_pointerPosition)
+	{
+		glBindVertexArray(m_vertexArrayObjectID);
+
+		glVertexAttribPointer(p_shaderInputIndex, p_numberOfComponentsInShaderInput, GL_FLOAT, GL_FALSE, m_vertexSize, (void*)(p_pointerPosition*sizeof(float)));
+		glEnableVertexAttribArray(p_shaderInputIndex);
+	}
+
+	void setVertexDataOrder(uint32* p_indices, uint32 p_indexCount, GLenum p_usage = GL_STATIC_DRAW)
+    {
+        glBindVertexArray(m_vertexArrayObjectID);
+
+	    glGenBuffers(1, &m_indexBufferID);
+	    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_indexBufferID);
+	    glBufferData(GL_ELEMENT_ARRAY_BUFFER, p_indexCount, p_indices, p_usage);
+
+	    m_indexBufferSize = p_indexCount;
+    }
+
+    void setUniformValue(char const* p_name, float p_value)
+    {
+		glUniform1f(glGetUniformLocation(m_programID, p_name), p_value);
+    }
+	void setUniformVector(char const* p_name, float p_value_0, float p_value_1)
+	{
+		glUniform2f(glGetUniformLocation(m_programID, p_name), p_value_0, p_value_1);
+	}
+	void setUniformVector(char const* p_name, float p_value_0, float p_value_1, float p_value_2)
+	{
+		glUniform3f(glGetUniformLocation(m_programID, p_name), p_value_0, p_value_1, p_value_2);
+	}
+	void setUniformVector(char const* p_name, float p_value_0, float p_value_1, float p_value_2, float p_value_3)
+	{
+		glUniform4f(glGetUniformLocation(m_programID, p_name), p_value_0, p_value_1, p_value_2, p_value_3);
+	}
+	void setUniformValue(char const* p_name, int p_value)
+	{
+		glUniform1i(glGetUniformLocation(m_programID, p_name), p_value);
+	}
+	void setUniformVector(char const* p_name, int p_value_0, int p_value_1)
+	{
+		glUniform2i(glGetUniformLocation(m_programID, p_name), p_value_0, p_value_1);
+	}
+	void setUniformVector(char const* p_name, int p_value_0, int p_value_1, int p_value_2)
+	{
+		glUniform3i(glGetUniformLocation(m_programID, p_name), p_value_0, p_value_1, p_value_2);
+	}
+	void setUniformVector(char const* p_name, int p_value_0, int p_value_1, int p_value_2, int p_value_3)
+	{
+		glUniform4i(glGetUniformLocation(m_programID, p_name), p_value_0, p_value_1, p_value_2, p_value_3);
+	}
+    void setUniformColor(char const* p_name, AvoGUI::Color const& p_color)
+    {
+		glUniform4f(glGetUniformLocation(m_programID, p_name), p_color.red, p_color.green, p_color.blue, p_color.alpha);
+    }
+	/*
+		Sets a matrix uniform with 2 rows and 3 columns.
+		The values are in column-major order.
+	*/
+	void setUniformMatrix3x3(char const* p_name, float* p_values)
+	{
+		glUniformMatrix3fv(glGetUniformLocation(m_programID, p_name), 1, GL_FALSE, p_values);
+	}
+
+	void use()
+	{
+		glUseProgram(m_programID);
+	}
+
+    /*
+		If p_numberOfVerticesToRender is -1, it renders all vertices or all referred to by a previous call to setVertexDataOrder.
+    */
+    void draw(uint32 p_startVertexIndex = 0, uint32 p_numberOfVerticesToDraw = -1, GLenum p_mode = GL_TRIANGLES)
+    {
+	    glBindVertexArray(m_vertexArrayObjectID);
+
+        if (m_indexBufferID)
+        {
+            glDrawElements(p_mode, p_numberOfVerticesToDraw == -1 ? m_indexBufferSize : p_numberOfVerticesToDraw, GL_UNSIGNED_INT, nullptr);
+        }
+        else
+        {
+            glDrawArrays(p_mode, p_startVertexIndex, p_numberOfVerticesToDraw == -1 ? m_vertexBufferSize/m_vertexSize : p_numberOfVerticesToDraw);
+        }
+    }
+};
+
+//------------------------------
 
 class ClippingShape
 {
@@ -9901,7 +10003,7 @@ private:
 	AvoGUI::Rectangle<float> m_bounds;
 	
 public:
-	ClippingShape(AvoGUI::Rectangle<float> const& p_bounds) :
+	explicit ClippingShape(AvoGUI::Rectangle<float> const& p_bounds) :
 		m_bounds(p_bounds)
 	{
 	}
@@ -9916,53 +10018,874 @@ public:
 	}
 };
 
+class OpenGlDrawCall
+{
+public:
+	uint32 vertexBufferStartIndex{0};
+	uint32 numberOfVertices{0};
+	GLenum primitiveType{GL_TRIANGLES};
+	AvoGUI::Color color;
+	bool isStroked{false};
+	float lineWidth{1.f};
+	float transform[9];
+};
+
+class OpenGlGeometry : public AvoGUI::Geometry
+{
+public:
+	std::vector<float> vertexBuffer;
+	bool isStroked{false};
+};
+
+class OpenGlImage : public AvoGUI::Image
+{
+private:
+	GLuint m_textureID;
+	AvoGUI::Point<uint32> m_originalSize;
+
+	AvoGUI::ImageScalingMethod m_scalingMethod{AvoGUI::ImageScalingMethod::Pixelated};
+	AvoGUI::ImageBoundsSizing m_boundsSizing{AvoGUI::ImageBoundsSizing::Contain};
+	AvoGUI::Point<float> m_boundsPositioning{0.5f, 0.5f};
+
+	AvoGUI::Rectangle<float> m_cropRectangle;
+	float m_opacity{1.f};
+
+public:
+	OpenGlImage(GLuint p_textureID, uint32 p_width, uint32 p_height, float p_dipToPixelFactor) :
+		m_textureID(p_textureID), m_originalSize(p_width, p_height)
+	{
+		m_bounds.set(0.f, 0.f, p_width*p_dipToPixelFactor, p_height*p_dipToPixelFactor);
+		m_cropRectangle = m_bounds;
+	}
+
+	//------------------------------
+
+	void setCropRectangle(AvoGUI::Rectangle<float> const& p_rectangle) override
+	{
+		m_cropRectangle = p_rectangle;
+	}
+	AvoGUI::Rectangle<float> const& getCropRectangle() const override
+	{
+		return m_cropRectangle;
+	}
+
+	AvoGUI::Point<uint32> getOriginalSize() const override
+	{
+		return m_originalSize;
+	}
+	uint32 getOriginalWidth() const override
+	{
+		return m_originalSize.x;
+	}
+	uint32 getOriginalHeight() const override
+	{
+		return m_originalSize.y;
+	}
+
+	//------------------------------
+
+	void setBoundsSizing(AvoGUI::ImageBoundsSizing p_sizeMode) override
+	{
+		m_boundsSizing = p_sizeMode;
+	}
+	AvoGUI::ImageBoundsSizing getBoundsSizing() const override
+	{
+		return m_boundsSizing;
+	}
+
+	void setBoundsPositioning(float p_x, float p_y) override
+	{
+		m_boundsPositioning.set(p_x, p_y);
+	}
+	void setBoundsPositioningX(float p_x) override
+	{
+		m_boundsPositioning.x = p_x;
+	}
+	void setBoundsPositioningY(float p_y) override
+	{
+		m_boundsPositioning.y = p_y;
+	}
+	AvoGUI::Point<float> const& getBoundsPositioning() const override
+	{
+		return m_boundsPositioning;
+	}
+	float getBoundsPositioningX() const override
+	{
+		return m_boundsPositioning.x;
+	}
+	float getBoundsPositioningY() const override
+	{
+		return m_boundsPositioning.x;
+	}
+
+	//------------------------------
+
+	void setScalingMethod(AvoGUI::ImageScalingMethod p_scalingMethod) override
+	{
+		m_scalingMethod = p_scalingMethod;
+	}
+	AvoGUI::ImageScalingMethod getScalingMethod() const override
+	{
+		return m_scalingMethod;
+	}
+
+	//------------------------------
+
+	void setOpacity(float p_opacity) override
+	{
+		m_opacity = p_opacity;
+	}
+	float getOpacity() const override
+	{
+		return m_opacity;
+	}
+
+	//------------------------------
+
+	float getInnerWidth() const override
+	{
+		if (m_boundsSizing != AvoGUI::ImageBoundsSizing::Stretch &&
+		    m_boundsSizing == AvoGUI::ImageBoundsSizing::Contain != m_bounds.getWidth() / m_bounds.getHeight() < m_originalSize.x / (float)m_originalSize.y)
+		{
+			return m_bounds.getHeight() * m_originalSize.x / (float)m_originalSize.y;
+		}
+		return m_bounds.getWidth();
+	}
+	float getInnerHeight() const override
+	{
+		if (m_boundsSizing != AvoGUI::ImageBoundsSizing::Stretch &&
+		    m_boundsSizing == AvoGUI::ImageBoundsSizing::Contain != m_bounds.getWidth() / m_bounds.getHeight() > m_originalSize.x / (float)m_originalSize.y)
+		{
+			return m_bounds.getWidth() * m_originalSize.y / (float)m_originalSize.x;
+		}
+		return m_bounds.getHeight();
+	}
+	AvoGUI::Point<float> getInnerSize() const override
+	{
+		return AvoGUI::Point<float>(getInnerWidth(), getInnerHeight());
+	}
+	AvoGUI::Rectangle<float> getInnerBounds() const override
+	{
+		if (m_boundsSizing == AvoGUI::ImageBoundsSizing::Stretch)
+		{
+			return m_bounds;
+		}
+
+		AvoGUI::Rectangle<float> innerBounds = m_bounds;
+
+		bool areBoundsProportionallyWider = m_bounds.getWidth() / m_bounds.getHeight() > m_originalSize.x / (float)m_originalSize.y;
+		if (m_boundsSizing == AvoGUI::ImageBoundsSizing::Fill != areBoundsProportionallyWider)
+		{
+			innerBounds.setWidth(m_bounds.getHeight() * m_originalSize.x / (float)m_originalSize.y);
+		}
+		else if (m_boundsSizing == AvoGUI::ImageBoundsSizing::Contain != areBoundsProportionallyWider)
+		{
+			innerBounds.setHeight(m_bounds.getWidth() * m_originalSize.y / (float)m_originalSize.x);
+		}
+
+		innerBounds.move(m_boundsPositioning.x * (m_bounds.getWidth() - innerBounds.getWidth()), m_boundsPositioning.y * (m_bounds.getHeight() - innerBounds.getHeight()));
+
+		return innerBounds;
+	}
+
+	void* getHandle() const override
+	{
+		return (void*)m_textureID;
+	}
+};
+
 class OpenGlDrawingContext :
 	public AvoGUI::DrawingContext
-{	
+{
+private:
+	static constexpr uint32 CIRCLE_RESOLUTION{50};
+	static bool s_areStaticVariablesInitialized;
+	static AvoGUI::Point<float> s_unitCirclePoints[CIRCLE_RESOLUTION + 1];
+
+	static void initializeStaticVariables()
+	{
+		if (s_areStaticVariablesInitialized)
+		{
+			return;
+		}
+
+		s_unitCirclePoints[0].set(1.f, 0.f);
+		s_unitCirclePoints[CIRCLE_RESOLUTION].set(1.f, 0.f);
+		for (uint32 a = 1; a < CIRCLE_RESOLUTION; a++)
+		{
+			s_unitCirclePoints[a].setPolar((float)AvoGUI::TAU*a/(float)CIRCLE_RESOLUTION);
+		}
+
+		s_areStaticVariablesInitialized = true;
+	}
+
 private:
 	LinuxWindow* m_window;
 	XWindow m_windowHandle;
+	Display* m_server;
 	GLXContext m_context;
+	AvoGUI::Color m_backgroundColor;
+	
+	float m_transformMatrix[9]{};
+	AvoGUI::Point<float> m_scale{1.f, 1.f};
 
-	float m_dipToPixelFactor;
-	AvoGUI::Point<float> m_size;
+	AvoGUI::Color m_currentColor;
+	OpenGlShader m_renderShader;
+	std::vector<OpenGlDrawCall> m_drawCalls;
+	std::vector<float> m_vertexBuffer;
 
 	std::stack<ClippingShape> m_clippingShapeStack;
+	AvoGUI::LineJoin m_lineJoin{AvoGUI::LineJoin::Miter};
+	AvoGUI::LineCap m_lineCap{AvoGUI::LineCap::Round};
 
-	void loadOpenGlFunctions()
+	float m_dipToPixelFactor{1.f};
+	AvoGUI::Point<float> m_size;
+
+	//------------------------------
+
+	static void loadOpenGlFunctions()
 	{
 		if (areOpenGlFunctionsLoaded)
 		{
 			return;
 		}
-		glXCreateContextAttribsARB = (PFNGLXCREATECONTEXTATTRIBSARBPROC)glXGetProcAddressARB((GLubyte const*)"glXCreateContextAttribsARB");
+		
+		__GLXextFuncPtr function = nullptr;
+#define load(p_name) function = glXGetProcAddressARB((GLubyte const*)(#p_name)); memcpy(&p_name, &function, sizeof(p_name))
+
+		load(glXCreateContextAttribsARB);
+		load(glGenBuffers);
+		load(glBindBuffer);
+		load(glBufferData);
+		load(glCreateShader);
+		load(glShaderSource);
+		load(glCompileShader);
+		load(glGetShaderiv);
+		load(glGetShaderInfoLog);
+		load(glCreateProgram);
+		load(glAttachShader);
+		load(glLinkProgram);
+		load(glDeleteProgram);
+		load(glDeleteShader);
+		load(glVertexAttribPointer);
+		load(glEnableVertexAttribArray);
+		load(glGenVertexArrays);
+		load(glBindVertexArray);
+		load(glUseProgram);
+		load(glGetUniformLocation);
+		load(glUniform1f);
+		load(glUniform2f);
+		load(glUniform3f);
+		load(glUniform4f);
+		load(glUniform1i);
+		load(glUniform2i);
+		load(glUniform3i);
+		load(glUniform4i);
+		load(glUniformMatrix3fv);
+		load(glGenerateMipmap);
+
+#undef load
+
 		areOpenGlFunctionsLoaded = true;
 	}
-	
+	void addDrawCallBefore(uint32 p_numberOfVertices, GLenum p_primitiveType = GL_TRIANGLES)
+	{
+		m_drawCalls.push_back({ uint32(m_vertexBuffer.size()/6u), p_numberOfVertices, p_primitiveType, m_currentColor });
+		memcpy(m_drawCalls.back().transform, m_transformMatrix, sizeof(m_transformMatrix));
+	}
+	void addDrawCallAfter(uint32 p_numberOfVertices, GLenum p_primitiveType = GL_TRIANGLES)
+	{
+		m_drawCalls.push_back({ uint32(m_vertexBuffer.size()/6u - p_numberOfVertices), p_numberOfVertices, p_primitiveType, m_currentColor });
+		memcpy(m_drawCalls.back().transform, m_transformMatrix, sizeof(m_transformMatrix));
+	}
+	void addDrawCallAfter(uint32 p_numberOfVertices, float p_lineWidth, GLenum p_primitiveType = GL_TRIANGLES)
+	{
+		m_drawCalls.push_back({ uint32(m_vertexBuffer.size()/6u - p_numberOfVertices), p_numberOfVertices, p_primitiveType, m_currentColor, true, p_lineWidth });
+		memcpy(m_drawCalls.back().transform, m_transformMatrix, sizeof(m_transformMatrix));
+	}
+
+	static uint32 getCirclePointStrideForRadiusSquared(float p_radiusSquared)
+	{
+		return p_radiusSquared <= 25.f*25.f ? (p_radiusSquared <= 5.f*5.f ? 4 : 2) : 1;
+	}
+	/*
+		The primitive type is GL_TRIANGLES
+	*/
+	static void createStrokedCornerRectangleGeometry(std::vector<float>& p_buffer, float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners p_corners)
+	{
+		if (p_right - p_left < p_corners.topLeftSizeX + p_corners.topRightSizeY)
+		{
+			float factor = (p_right - p_left)/(p_corners.topLeftSizeX + p_corners.topRightSizeX);
+			p_corners.topLeftSizeX *= factor;
+			p_corners.topRightSizeX *= factor;
+		}
+		if (p_right - p_left < p_corners.bottomLeftSizeX + p_corners.bottomRightSizeY)
+		{
+			float factor = (p_right - p_left)/(p_corners.bottomLeftSizeX + p_corners.bottomRightSizeX);
+			p_corners.bottomLeftSizeX *= factor;
+			p_corners.bottomRightSizeX *= factor;
+		}
+		if (p_bottom - p_top < p_corners.topLeftSizeX + p_corners.bottomLeftSizeY)
+		{
+			float factor = (p_bottom - p_top)/(p_corners.topLeftSizeX + p_corners.bottomLeftSizeY);
+			p_corners.topLeftSizeX *= factor;
+			p_corners.bottomLeftSizeX *= factor;
+		}
+		if (p_bottom - p_top < p_corners.topRightSizeX + p_corners.bottomRightSizeY)
+		{
+			float factor = (p_bottom - p_top)/(p_corners.topRightSizeX + p_corners.bottomRightSizeY);
+			p_corners.topRightSizeX *= factor;
+			p_corners.bottomRightSizeX *= factor;
+		}
+
+		p_buffer.insert(
+			p_buffer.end(),
+			{
+				p_left + p_corners.topLeftSizeX  , p_top, 0.f, -1.f, 0.f, 0.f,
+				p_right - p_corners.topRightSizeX, p_top, 0.f, -1.f, 0.f, 0.f,
+				p_right - p_corners.topRightSizeX, p_top, 0.f, 1.f , 1.f, 0.f,
+				p_right - p_corners.topRightSizeX, p_top, 0.f, 1.f , 1.f, 0.f,
+				p_left + p_corners.topLeftSizeX  , p_top, 0.f, 1.f , 1.f, 0.f,
+				p_left + p_corners.topLeftSizeX  , p_top, 0.f, -1.f, 0.f, 0.f,
+
+				p_left + p_corners.bottomLeftSizeX  , p_bottom, 0.f, -1.f, 0.f, 0.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom, 0.f, -1.f, 0.f, 0.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom, 0.f, 1.f , 1.f, 0.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom, 0.f, 1.f , 1.f, 0.f,
+				p_left + p_corners.bottomLeftSizeX  , p_bottom, 0.f, 1.f , 1.f, 0.f,
+				p_left + p_corners.bottomLeftSizeX  , p_bottom, 0.f, -1.f, 0.f, 0.f,
+
+				p_left, p_top + p_corners.topLeftSizeY      , -1.f, 0.f, 0.f, 0.f,
+				p_left, p_top + p_corners.topLeftSizeY      , 1.f , 0.f, 1.f, 0.f,
+				p_left, p_bottom - p_corners.bottomLeftSizeY, 1.f , 0.f, 1.f, 0.f,
+				p_left, p_bottom - p_corners.bottomLeftSizeY, 1.f , 0.f, 1.f, 0.f,
+				p_left, p_bottom - p_corners.bottomLeftSizeY, -1.f, 0.f, 0.f, 0.f,
+				p_left, p_top + p_corners.topLeftSizeY      , -1.f, 0.f, 0.f, 0.f,
+
+				p_right, p_top + p_corners.topRightSizeY      , -1.f, 0.f, 0.f, 0.f,
+				p_right, p_top + p_corners.topRightSizeY      , 1.f , 0.f, 1.f, 0.f,
+				p_right, p_bottom - p_corners.bottomRightSizeY, 1.f , 0.f, 1.f, 0.f,
+				p_right, p_bottom - p_corners.bottomRightSizeY, 1.f , 0.f, 1.f, 0.f,
+				p_right, p_bottom - p_corners.bottomRightSizeY, -1.f, 0.f, 0.f, 0.f,
+				p_right, p_top + p_corners.topRightSizeY      , -1.f, 0.f, 0.f, 0.f,
+			}
+		);
+
+		if (p_corners.topLeftType == AvoGUI::RectangleCornerType::Cut)
+		{
+			AvoGUI::Point<float> normal(-p_corners.topLeftSizeY, -p_corners.topLeftSizeX);
+			normal.normalize();
+			p_buffer.insert(
+				p_buffer.end(),
+				{
+					p_left                         , p_top + p_corners.topLeftSizeY, -normal.x, -normal.y*2.f, 0.f, 0.f,
+					p_left                         , p_top + p_corners.topLeftSizeY, -1.f , 0.f , 1.f, 0.f,
+					p_left + p_corners.topLeftSizeX, p_top                         , 0.f , -1.f      , 1.f, 0.f,
+					p_left + p_corners.topLeftSizeX, p_top                         , 0.f , -1.f      , 1.f, 0.f,
+					p_left + p_corners.topLeftSizeX, p_top                         , -normal.x*2.f, -normal.y     , 0.f, 0.f,
+					p_left                         , p_top + p_corners.topLeftSizeY, -normal.x, -normal.y*2.f, 0.f, 0.f
+				}
+			);
+		}
+		else
+		{
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.topLeftSizeX * p_corners.topLeftSizeY);
+			float lastX = p_corners.topLeftSizeX;
+			float lastY = 0.f;
+			AvoGUI::Point<float> lastNormal(-lastX, -lastY);
+			lastNormal.normalizeFast();
+			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
+			{
+				float x = p_corners.topLeftSizeX*s_unitCirclePoints[a].x;
+				float y = p_corners.topLeftSizeY*s_unitCirclePoints[a].y;
+				AvoGUI::Point<float> normal(-x, -y);
+				normal.normalizeFast();
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX - x    , p_top + p_corners.topLeftSizeY - y    , normal.x     , normal.y     , 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX - x    , p_top + p_corners.topLeftSizeY - y    , -normal.x    , -normal.y    , 1.f, 0.f,
+						p_left + p_corners.topLeftSizeX - x    , p_top + p_corners.topLeftSizeY - y    , -normal.x    , -normal.y    , 1.f, 0.f,
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f,
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f
+					}
+				);
+				lastX = x;
+				lastY = y;
+				lastNormal = normal;
+			}
+			if (CIRCLE_RESOLUTION % (4*stride))
+			{
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x  , lastNormal.y , 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX        , p_top                                 , 0.f           , -1.f         , 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX        , p_top                                 , 0.f           , 1.f          , 1.f, 0.f,
+						p_left + p_corners.topLeftSizeX        , p_top                                 , 0.f           , 1.f          , 1.f, 0.f,
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, -lastNormal.x , -lastNormal.y, 1.f, 0.f,
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x  , lastNormal.y , 0.f, 0.f
+					}
+				);
+			}
+		}
+		if (p_corners.topLeftType == AvoGUI::RectangleCornerType::Cut)
+		{
+			AvoGUI::Point<float> normal(p_corners.topRightSizeY, -p_corners.topRightSizeX);
+			normal.normalize();
+			p_buffer.insert(
+				p_buffer.end(),
+				{
+					p_right                          , p_top + p_corners.topRightSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f,
+					p_right                          , p_top + p_corners.topRightSizeY, 1.f          , 0.f          , 1.f, 0.f,
+					p_right - p_corners.topRightSizeX, p_top                          , 0.f          , -1.f         , 1.f, 0.f,
+					p_right - p_corners.topRightSizeX, p_top                          , 0.f          , -1.f         , 1.f, 0.f,
+					p_right - p_corners.topRightSizeX, p_top                          , -normal.x*2.f, -normal.y    , 0.f, 0.f,
+					p_right                          , p_top + p_corners.topRightSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f
+				}
+			);
+		}
+		else
+		{
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.topRightSizeX * p_corners.topRightSizeY);
+			float lastX = p_corners.topRightSizeX;
+			float lastY = 0.f;
+			AvoGUI::Point<float> lastNormal(lastX, -lastY);
+			lastNormal.normalizeFast();
+			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
+			{
+				float x = p_corners.topRightSizeX*s_unitCirclePoints[a].x;
+				float y = p_corners.topRightSizeY*s_unitCirclePoints[a].y;
+				AvoGUI::Point<float> normal(x, -y);
+				normal.normalizeFast();
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f,
+						p_right - p_corners.topRightSizeX + x    , p_top + p_corners.topLeftSizeY - y    , normal.x     , normal.y     , 0.f, 0.f,
+						p_right - p_corners.topRightSizeX + x    , p_top + p_corners.topLeftSizeY - y    , -normal.x    , -normal.y    , 1.f, 0.f,
+						p_right - p_corners.topRightSizeX + x    , p_top + p_corners.topLeftSizeY - y    , -normal.x    , -normal.y    , 1.f, 0.f,
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f,
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f
+					}
+				);
+				lastX = x;
+				lastY = y;
+				lastNormal = normal;
+			}
+			if (CIRCLE_RESOLUTION % (4*stride))
+			{
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f,
+						p_right - p_corners.topRightSizeX        , p_top                                 , 0.f          , -1.f         , 0.f, 0.f,
+						p_right - p_corners.topRightSizeX        , p_top                                 , 0.f          , 1.f          , 1.f, 0.f,
+						p_right - p_corners.topRightSizeX        , p_top                                 , 0.f          , 1.f          , 1.f, 0.f,
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f,
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f
+					}
+				);
+			}
+		}
+		if (p_corners.topLeftType == AvoGUI::RectangleCornerType::Cut)
+		{
+			AvoGUI::Point<float> normal(-p_corners.bottomLeftSizeY, p_corners.bottomLeftSizeX);
+			normal.normalize();
+			p_buffer.insert(
+				p_buffer.end(),
+				{
+					p_left                            , p_bottom - p_corners.bottomLeftSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f,
+					p_left                            , p_bottom - p_corners.bottomLeftSizeY, -1.f         , 0.f          , 1.f, 0.f,
+					p_left + p_corners.bottomLeftSizeX, p_bottom                            , 0.f          , 1.f          , 1.f, 0.f,
+					p_left + p_corners.bottomLeftSizeX, p_bottom                            , 0.f          , 1.f          , 1.f, 0.f,
+					p_left + p_corners.bottomLeftSizeX, p_bottom                            , -normal.x*2.f, -normal.y    , 0.f, 0.f,
+					p_left                            , p_bottom - p_corners.bottomLeftSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f
+				}
+			);
+		}
+		else
+		{
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.bottomLeftSizeX * p_corners.bottomLeftSizeY);
+			float lastX = p_corners.bottomLeftSizeX;
+			float lastY = 0.f;
+			AvoGUI::Point<float> lastNormal(-lastX, lastY);
+			lastNormal.normalizeFast();
+			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
+			{
+				float x = p_corners.topLeftSizeX*s_unitCirclePoints[a].x;
+				float y = p_corners.topLeftSizeY*s_unitCirclePoints[a].y;
+				AvoGUI::Point<float> normal(-x, y);
+				normal.normalizeFast();
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - x    , p_bottom - p_corners.bottomLeftSizeY + y    , normal.x     , normal.y     , 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - x    , p_bottom - p_corners.bottomLeftSizeY + y    , -normal.x    , -normal.y    , 1.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - x    , p_bottom - p_corners.bottomLeftSizeY + y    , -normal.x    , -normal.y    , 1.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f
+					}
+				);
+				lastX = x;
+				lastY = y;
+				lastNormal = normal;
+			}
+			if (CIRCLE_RESOLUTION % (4*stride))
+			{
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX        , p_bottom                                    , 0.f          , 1.f          , 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX        , p_bottom                                    , 0.f          , -1.f         , 1.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX        , p_bottom                                    , 0.f          , -1.f         , 1.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f
+					}
+				);
+			}
+		}
+		if (p_corners.topLeftType == AvoGUI::RectangleCornerType::Cut)
+		{
+			AvoGUI::Point<float> normal(p_corners.bottomLeftSizeY, p_corners.bottomLeftSizeX);
+			normal.normalize();
+			p_buffer.insert(
+				p_buffer.end(),
+				{
+					p_right                             , p_bottom - p_corners.bottomLeftSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f,
+					p_right                             , p_bottom - p_corners.bottomLeftSizeY, 1.f          , 0.f          , 1.f, 0.f,
+					p_right - p_corners.bottomRightSizeX, p_bottom                            , 0.f          , 1.f          , 1.f, 0.f,
+					p_right - p_corners.bottomRightSizeX, p_bottom                            , 0.f          , 1.f          , 1.f, 0.f,
+					p_right - p_corners.bottomRightSizeX, p_bottom                            , -normal.x*2.f, -normal.y    , 0.f, 0.f,
+					p_right                             , p_bottom - p_corners.bottomLeftSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f
+				}
+			);
+		}
+		else
+		{
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.bottomRightSizeX * p_corners.bottomRightSizeY);
+			float lastX = p_corners.bottomRightSizeX;
+			float lastY = 0.f;
+			AvoGUI::Point<float> lastNormal(lastX, lastY);
+			lastNormal.normalizeFast();
+			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
+			{
+				float x = p_corners.topRightSizeX*s_unitCirclePoints[a].x;
+				float y = p_corners.topRightSizeY*s_unitCirclePoints[a].y;
+				AvoGUI::Point<float> normal(x, y);
+				normal.normalizeFast();
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + x    , p_bottom - p_corners.bottomRightSizeY + y    , normal.x     , normal.y     , 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + x    , p_bottom - p_corners.bottomRightSizeY + y    , -normal.x    , -normal.y    , 1.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + x    , p_bottom - p_corners.bottomRightSizeY + y    , -normal.x    , -normal.y    , 1.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f
+					}
+				);
+				lastX = x;
+				lastY = y;
+				lastNormal = normal;
+			}
+			if (CIRCLE_RESOLUTION % (4*stride))
+			{
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX        , p_bottom                                     , 0.f          , 1.f          , 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX        , p_bottom                                     , 0.f          , -1.f         , 1.f, 0.f,
+						p_right - p_corners.bottomRightSizeX        , p_bottom                                     , 0.f          , -1.f         , 1.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f
+					}
+				);
+			}
+		}
+	}
+	/*
+		The primitive type is GL_TRIANGLES
+	*/
+	static void createFilledCornerRectangleGeometry(std::vector<float>& p_buffer, float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners p_corners)
+	{
+		p_left -= 0.5f;
+		p_top -= 0.5f;
+		p_right += 0.5f;
+		p_bottom += 0.5f;
+		if (p_right - p_left < p_corners.topLeftSizeX + p_corners.topRightSizeY)
+		{
+			float factor = (p_right - p_left)/(p_corners.topLeftSizeX + p_corners.topRightSizeX);
+			p_corners.topLeftSizeX *= factor;
+			p_corners.topRightSizeX *= factor;
+		}
+		if (p_right - p_left < p_corners.bottomLeftSizeX + p_corners.bottomRightSizeY)
+		{
+			float factor = (p_right - p_left)/(p_corners.bottomLeftSizeX + p_corners.bottomRightSizeX);
+			p_corners.bottomLeftSizeX *= factor;
+			p_corners.bottomRightSizeX *= factor;
+		}
+		if (p_bottom - p_top < p_corners.topLeftSizeX + p_corners.bottomLeftSizeY)
+		{
+			float factor = (p_bottom - p_top)/(p_corners.topLeftSizeX + p_corners.bottomLeftSizeY);
+			p_corners.topLeftSizeX *= factor;
+			p_corners.bottomLeftSizeX *= factor;
+		}
+		if (p_bottom - p_top < p_corners.topRightSizeX + p_corners.bottomRightSizeY)
+		{
+			float factor = (p_bottom - p_top)/(p_corners.topRightSizeX + p_corners.bottomRightSizeY);
+			p_corners.topRightSizeX *= factor;
+			p_corners.bottomRightSizeX *= factor;
+		}
+
+		// Create the "body"
+		float width = p_right - p_left;
+		p_buffer.insert(
+			p_buffer.end(),
+			{
+				// Horizontal center bar
+				p_left , p_top + p_corners.topLeftSizeY       , 1.f, width, 0.5f, 2.f,
+				p_right, p_top + p_corners.topRightSizeY      , 0.f, width, 0.5f, 2.f,
+				p_right, p_bottom - p_corners.bottomRightSizeY, 0.f, width, 0.5f, 2.f,
+				p_right, p_bottom - p_corners.bottomRightSizeY, 1.f, width, 0.5f, 2.f,
+				p_left , p_bottom - p_corners.bottomLeftSizeY , 0.f, width, 0.5f, 2.f,
+				p_left , p_top + p_corners.topLeftSizeY       , 0.f, width, 0.5f, 2.f,
+
+				// Top center bar
+				p_left + p_corners.topLeftSizeX  , p_top                          , 0.f , p_corners.topLeftSizeY*2.f , 0.5f, 2.f,
+				p_right - p_corners.topRightSizeX, p_top                          , 0.f , p_corners.topRightSizeY*2.f, 0.5f, 2.f,
+				p_right - p_corners.topRightSizeX, p_top + p_corners.topRightSizeY, 0.5f, p_corners.topRightSizeY*2.f, 0.5f, 2.f,
+				p_right - p_corners.topRightSizeX, p_top + p_corners.topRightSizeY, 0.5f, p_corners.topRightSizeY*2.f, 0.5f, 2.f,
+				p_left + p_corners.topLeftSizeX  , p_top + p_corners.topLeftSizeY , 0.5f, p_corners.topLeftSizeY*2.f , 0.5f, 2.f,
+				p_left + p_corners.topLeftSizeX  , p_top                          , 0.f , p_corners.topLeftSizeY*2.f , 0.5f, 2.f,
+
+				// Bottom center bar
+				p_left + p_corners.bottomLeftSizeX  , p_bottom                             , 0.f , p_corners.bottomLeftSizeY*2.f , 0.5f, 2.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom                             , 0.f , p_corners.bottomRightSizeY*2.f, 0.5f, 2.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom - p_corners.bottomRightSizeY, 0.5f, p_corners.bottomRightSizeY*2.f, 0.5f, 2.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom - p_corners.bottomRightSizeY, 0.5f, p_corners.bottomRightSizeY*2.f, 0.5f, 2.f,
+				p_left + p_corners.bottomLeftSizeX  , p_bottom - p_corners.bottomLeftSizeY , 0.5f, p_corners.bottomLeftSizeY*2.f , 0.5f, 2.f,
+				p_left + p_corners.bottomLeftSizeX  , p_bottom                             , 0.f , p_corners.bottomLeftSizeY*2.f , 0.5f, 2.f
+			}
+		);
+
+		// Create the corners
+		if (p_corners.topLeftType == AvoGUI::RectangleCornerType::Cut)
+		{
+			float distance = 2.f*p_corners.topLeftSizeX*p_corners.topLeftSizeY/(float)AvoGUI::Point<float>::getLengthFast(p_corners.topLeftSizeX, p_corners.topLeftSizeY);
+			p_buffer.insert(
+				p_buffer.end(),
+				{
+					p_left                         , p_top + p_corners.topLeftSizeY, 0.f , distance, 0.5f, 2.f,
+					p_left + p_corners.topLeftSizeX, p_top                         , 0.f , distance, 0.5f, 2.f,
+					p_left + p_corners.topLeftSizeX, p_top + p_corners.topLeftSizeY, 0.5f, distance, 0.5f, 2.f
+				}
+			);
+		}
+		else
+		{
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.topLeftSizeX * p_corners.topLeftSizeY);
+			float lastX = p_corners.topLeftSizeX;
+			float lastY = 0.f;
+			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
+			{
+				float x = p_corners.topLeftSizeX*s_unitCirclePoints[a].x;
+				float y = p_corners.topLeftSizeY*s_unitCirclePoints[a].y;
+				// Length of vector (0.5*(x1 + x2), 0.5*(y1 + y2)), doubled because the anti-aliasing attribute of the inner vertex is 0.5 (we don't want anti-aliasing for that vertex)
+				auto distance = (float)AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_left + p_corners.topLeftSizeX        , p_top + p_corners.topLeftSizeY        , 0.5f, distance, 0.5f, 2.f,
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, 0.f , distance, 0.5f, 2.f,
+						p_left + p_corners.topLeftSizeX - x    , p_top + p_corners.topLeftSizeY - y    , 0.f , distance, 0.5f, 2.f
+					}
+				);
+				lastX = x;
+				lastY = y;
+			}
+			if (CIRCLE_RESOLUTION % (4*stride))
+			{
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_left + p_corners.topLeftSizeX        , p_top + p_corners.topLeftSizeY        , 0.5f, p_corners.topLeftSizeY*2.f, 0.5f, 2.f,
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, 0.f , p_corners.topLeftSizeY*2.f, 0.5f, 2.f,
+						p_left + p_corners.topLeftSizeX        , p_top                                 , 0.f , p_corners.topLeftSizeY*2.f, 0.5f, 2.f
+					}
+				);
+			}
+		}
+		if (p_corners.topRightType == AvoGUI::RectangleCornerType::Cut)
+		{
+			float distance = 2.f*p_corners.topRightSizeX*p_corners.topRightSizeY/(float)AvoGUI::Point<float>::getLengthFast(p_corners.topRightSizeX, p_corners.topRightSizeY);
+			p_buffer.insert(
+				p_buffer.end(),
+				{
+					p_right                          , p_top + p_corners.topRightSizeY, 0.f , distance, 0.5f, 2.f,
+					p_right - p_corners.topRightSizeX, p_top                          , 0.f , distance, 0.5f, 2.f,
+					p_right - p_corners.topRightSizeX, p_top + p_corners.topRightSizeY, 0.5f, distance, 0.5f, 2.f
+				}
+			);
+		}
+		else
+		{
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.topRightSizeX * p_corners.topRightSizeY);
+			float lastX = p_corners.topRightSizeX;
+			float lastY = 0.f;
+			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
+			{
+				float x = p_corners.topRightSizeX*s_unitCirclePoints[a].x;
+				float y = p_corners.topRightSizeY*s_unitCirclePoints[a].y;
+				auto distance = (float)AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_right - p_corners.topRightSizeX        , p_top + p_corners.topRightSizeY        , 0.5f, distance, 0.5f, 2.f,
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topRightSizeY - lastY, 0.f , distance, 0.5f, 2.f,
+						p_right - p_corners.topRightSizeX + x    , p_top + p_corners.topRightSizeY - y    , 0.f , distance, 0.5f, 2.f
+					}
+				);
+				lastX = x;
+				lastY = y;
+			}
+			if (CIRCLE_RESOLUTION % (4*stride))
+			{
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_right - p_corners.topRightSizeX        , p_top + p_corners.topRightSizeY        , 0.5f, p_corners.topRightSizeY*2.f, 0.5f, 2.f,
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topRightSizeY - lastY, 0.f , p_corners.topRightSizeY*2.f, 0.5f, 2.f,
+						p_right - p_corners.topRightSizeX        , p_top                                  , 0.f , p_corners.topRightSizeY*2.f, 0.5f, 2.f
+					}
+				);
+			}
+		}
+
+		if (p_corners.bottomLeftType == AvoGUI::RectangleCornerType::Cut)
+		{
+			float distance = 2.f*p_corners.bottomLeftSizeX*p_corners.bottomLeftSizeY/(float)AvoGUI::Point<float>::getLengthFast(p_corners.bottomLeftSizeX, p_corners.bottomLeftSizeY);
+			p_buffer.insert(
+				p_buffer.end(),
+				{
+					p_left                            , p_bottom - p_corners.bottomLeftSizeY, 0.f , distance, 0.5f, 2.f,
+					p_left + p_corners.bottomLeftSizeX, p_bottom                            , 0.f , distance, 0.5f, 2.f,
+					p_left + p_corners.bottomLeftSizeX, p_bottom - p_corners.bottomLeftSizeY, 0.5f, distance, 0.5f, 2.f
+				}
+			);
+		}
+		else
+		{
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.bottomLeftSizeX * p_corners.bottomLeftSizeY);
+			float lastX = p_corners.bottomLeftSizeX;
+			float lastY = 0.f;
+			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
+			{
+				float x = p_corners.bottomLeftSizeX*s_unitCirclePoints[a].x;
+				float y = p_corners.bottomLeftSizeY*s_unitCirclePoints[a].y;
+				auto distance = (float)AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_left + p_corners.bottomLeftSizeX        , p_bottom - p_corners.bottomLeftSizeY        , 0.5f, distance, 0.5f, 2.f,
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, 0.f , distance, 0.5f, 2.f,
+						p_left + p_corners.bottomLeftSizeX - x    , p_bottom - p_corners.bottomLeftSizeY + y    , 0.f , distance, 0.5f, 2.f
+					}
+				);
+				lastX = x;
+				lastY = y;
+			}
+			if (CIRCLE_RESOLUTION % (4*stride))
+			{
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_left + p_corners.bottomLeftSizeX        , p_bottom - p_corners.bottomLeftSizeY        , 0.5f, p_corners.bottomLeftSizeY*2.f, 0.5f, 2.f,
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, 0.f , p_corners.bottomLeftSizeY*2.f, 0.5f, 2.f,
+						p_left + p_corners.bottomLeftSizeX        , p_bottom                                    , 0.f , p_corners.bottomLeftSizeY*2.f, 0.5f, 2.f
+					}
+				);
+			}
+		}
+
+		if (p_corners.bottomRightType == AvoGUI::RectangleCornerType::Cut)
+		{
+			float distance = 2.f*p_corners.bottomRightSizeX*p_corners.bottomRightSizeY/(float)AvoGUI::Point<float>::getLengthFast(p_corners.bottomRightSizeX, p_corners.bottomRightSizeY);
+			p_buffer.insert(
+				p_buffer.end(),
+				{
+					p_right                             , p_bottom - p_corners.bottomRightSizeY, 0.f , distance, 0.5f, 2.f,
+					p_right - p_corners.bottomRightSizeX, p_bottom                             , 0.f , distance, 0.5f, 2.f,
+					p_right - p_corners.bottomRightSizeX, p_bottom - p_corners.bottomRightSizeY, 0.5f, distance, 0.5f, 2.f
+				}
+			);
+		}
+		else
+		{
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.bottomRightSizeX * p_corners.bottomRightSizeY);
+			float lastX = p_corners.bottomRightSizeX;
+			float lastY = 0.f;
+			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
+			{
+				float x = p_corners.bottomRightSizeX*s_unitCirclePoints[a].x;
+				float y = p_corners.bottomRightSizeY*s_unitCirclePoints[a].y;
+				auto distance = (float)AvoGUI::Point<float>::getLengthFast(lastX + x, lastY + y);
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_right - p_corners.bottomRightSizeX        , p_bottom - p_corners.bottomRightSizeY        , 0.5f, distance, 0.5f, 2.f,
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, 0.f , distance, 0.5f, 2.f,
+						p_right - p_corners.bottomRightSizeX + x    , p_bottom - p_corners.bottomRightSizeY + y    , 0.f , distance, 0.5f, 2.f
+					}
+				);
+				lastX = x;
+				lastY = y;
+			}
+			if (CIRCLE_RESOLUTION % (4*stride))
+			{
+				p_buffer.insert(
+					p_buffer.end(),
+					{
+						p_right - p_corners.bottomRightSizeX        , p_bottom - p_corners.bottomRightSizeY        , 0.5f, p_corners.bottomRightSizeY*2.f, 0.5f, 2.f,
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, 0.f , p_corners.bottomRightSizeY*2.f, 0.5f, 2.f,
+						p_right - p_corners.bottomRightSizeX        , p_bottom                                     , 0.f , p_corners.bottomRightSizeY*2.f, 0.5f, 2.f
+					}
+				);
+			}
+		}
+	}
+
 public:
-	OpenGlDrawingContext(AvoGUI::Window* p_window) :
+	explicit OpenGlDrawingContext(AvoGUI::Window* p_window) :
 		m_window((LinuxWindow*)p_window), m_windowHandle((XWindow)p_window->getNativeHandle())
 	{
 		loadOpenGlFunctions();
+
+		initializeStaticVariables();
 
 		//------------------------------
 		// Create the OpenGL context.
 		// Need to find the framebuffer configuration that was used to create the window, because our context should match it.
 
-		LinuxWindow* linuxWindow = (LinuxWindow*)p_window;
-		Display* server = linuxWindow->getServer();
+		m_server = XOpenDisplay(nullptr);
+
+		auto* linuxWindow = (LinuxWindow*)p_window;
 
 		m_dipToPixelFactor = linuxWindow->getDipToPixelFactor();
 
 		XWindowAttributes windowAttributes; // Used to match the VisualID
-		XGetWindowAttributes(server, m_windowHandle, &windowAttributes);
+		XGetWindowAttributes(m_server, m_windowHandle, &windowAttributes);
 
 		int numberOfConfigurations = 0;
-		GLXFBConfig* framebufferConfigurations = glXChooseFBConfig(server, DefaultScreen(server), 0, &numberOfConfigurations);
+		GLXFBConfig* framebufferConfigurations = glXChooseFBConfig(m_server, DefaultScreen(m_server), nullptr, &numberOfConfigurations);
 		GLXFBConfig framebufferConfiguration = *framebufferConfigurations;
 		for (uint32 a = 0; a < numberOfConfigurations; a++)
 		{
-			XVisualInfo* visualInfo = glXGetVisualFromFBConfig(server, framebufferConfigurations[a]);
+			XVisualInfo* visualInfo = glXGetVisualFromFBConfig(m_server, framebufferConfigurations[a]);
 			if (!visualInfo)
 			{
 				continue;
@@ -9976,7 +10899,7 @@ public:
 			XFree(visualInfo);
 		}
 
-		int contextAttributes[] = 
+		int contextAttributes[] =
 		{
 			// Our minimum supported OpenGL version is 3.3
 			GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
@@ -9986,45 +10909,145 @@ public:
 			#ifdef _DEBUG
 			| GLX_CONTEXT_DEBUG_BIT_ARB
 			#endif
-			, 0 // Null terminator	
+			, 0 // Null terminator
 		};
-		m_context = glXCreateContextAttribsARB(linuxWindow->getServer(), framebufferConfiguration, 0, true, contextAttributes);
+		m_context = glXCreateContextAttribsARB(m_server, framebufferConfiguration, nullptr, true, contextAttributes);
 
 		XFree(framebufferConfigurations);
-		
+
 		//------------------------------
 
-		glXMakeCurrent(m_window->getServer(), m_windowHandle, m_context);
+		glXMakeCurrent(m_server, m_windowHandle, m_context);
 		glViewport(0, 0, linuxWindow->getWidth()*m_dipToPixelFactor, linuxWindow->getHeight()*m_dipToPixelFactor);
 		m_size = linuxWindow->getSize();
-	}
-	~OpenGlDrawingContext()
+
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		//------------------------------
+
+		static char const* vertexShaderSource =
+R"(
+#version 330 core
+layout (location = 0) in vec2 in_vertex;
+layout (location = 1) in vec4 in_antiAliasAttribute;
+
+out vec4 pass_antiAliasAttribute;
+
+uniform mat3 u_transform;
+uniform mat3 u_viewTransform;
+uniform bool u_isStroked;
+uniform float u_lineWidth;
+
+void main()
+{
+	if (u_isStroked)
 	{
-		glXDestroyContext(m_window->getServer(), m_context);
+		pass_antiAliasAttribute.xy = in_antiAliasAttribute.xy*(u_lineWidth*0.5f);
+		gl_Position = vec4(u_viewTransform*u_transform*vec3(in_vertex + pass_antiAliasAttribute.xy, 1.f), 1.f);
 	}
-	
+	else
+	{
+		pass_antiAliasAttribute = in_antiAliasAttribute;
+		gl_Position = vec4(u_viewTransform*u_transform*vec3(in_vertex, 1.f), 1.f);
+	}
+}
+)";
+
+		// pass_edgeAttribute contains the data needed to perform anti-aliasing using automatic vertex attribute interpolation.
+		static char const* fragmentShaderSource =
+R"(
+#version 330 core
+in vec4 pass_antiAliasAttribute;
+
+out vec4 out_fragmentColor;
+
+uniform vec4 u_color;
+uniform bool u_isStroked;
+uniform float u_lineWidth;
+
+void main()
+{
+	if (u_isStroked) {
+		out_fragmentColor = vec4(u_color.rgb, min(pass_antiAliasAttribute.z*u_lineWidth, (1.f - pass_antiAliasAttribute.z)*u_lineWidth));
+	}
+	else {
+		out_fragmentColor = vec4(u_color.rgb, min(min(pass_antiAliasAttribute.z*pass_antiAliasAttribute.w, (1.f - pass_antiAliasAttribute.z)*pass_antiAliasAttribute.w), min(pass_antiAliasAttribute.x*pass_antiAliasAttribute.y, (1.f - pass_antiAliasAttribute.x)*pass_antiAliasAttribute.y)));
+	}
+}
+)";
+		m_renderShader.compile(vertexShaderSource, fragmentShaderSource);
+		m_renderShader.use();
+
+		// Identity matrix
+		m_transformMatrix[0] = 1.f;
+		m_transformMatrix[4] = 1.f;
+		m_transformMatrix[8] = 1.f;
+
+		m_renderShader.setUniformMatrix3x3("u_transform", m_transformMatrix);
+
+		//------------------------------
+
+		glEnable(GL_STENCIL_TEST);
+		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+		glStencilFunc(GL_NOTEQUAL, 0, 0xff);
+
+		//------------------------------
+
+		m_drawCalls.reserve(256);
+		m_vertexBuffer.reserve(8192);
+	}
+	~OpenGlDrawingContext() final
+	{
+		glXDestroyContext(m_server, m_context);
+		XCloseDisplay(m_server);
+	}
+
 	//------------------------------
-	
+
 	void beginDrawing() override
 	{
-		glXMakeCurrent(m_window->getServer(), m_windowHandle, m_context);
+		glXMakeCurrent(m_server, m_windowHandle, m_context);
+		m_drawCalls.clear();
+		m_vertexBuffer.clear();
+
+		glClear(GL_STENCIL_BUFFER_BIT);
 	}
 	void finishDrawing(std::vector<AvoGUI::Rectangle<float>> const& p_updatedRectangles) override
 	{
-		glXSwapBuffers(m_window->getServer(), m_windowHandle);
+		// GL_STATIC_DRAW hints that the buffer is modified once and used many times
+		m_renderShader.setVertexData(m_vertexBuffer.data(), m_vertexBuffer.size()*sizeof(float), 6*sizeof(float), GL_STATIC_DRAW);
+		m_renderShader.configureVertexShaderInput(0, 2, 0);
+		m_renderShader.configureVertexShaderInput(1, 4, 2);
+
+		for (auto& drawCall : m_drawCalls)
+		{
+			m_renderShader.setUniformColor("u_color", drawCall.color);
+			m_renderShader.setUniformMatrix3x3("u_transform", drawCall.transform);
+			if (drawCall.isStroked)
+			{
+				m_renderShader.setUniformValue("u_lineWidth", drawCall.lineWidth);
+			}
+			m_renderShader.setUniformValue("u_isStroked", drawCall.isStroked);
+			m_renderShader.draw(drawCall.vertexBufferStartIndex, drawCall.numberOfVertices, drawCall.primitiveType);
+		}
+
+		//------------------------------
+
+		glXSwapBuffers(m_server, m_windowHandle);
 	}
 
 	//------------------------------
 
 	AvoGUI::DrawingState* createDrawingState() override
 	{
-		return 0;
+		return nullptr;
 	}
-	
+
 	void saveDrawingState(AvoGUI::DrawingState* p_drawingState) override
 	{
 	}
-	
+
 	void restoreDrawingState(AvoGUI::DrawingState* p_drawingState) override
 	{
 	}
@@ -10051,15 +11074,47 @@ public:
 	}
 	bool getIsVsyncEnabled() override
 	{
+		return true;
 	}
 
 	//------------------------------
 
 	void setBackgroundColor(AvoGUI::Color const& p_color) override
 	{
+		// If we try to set the background color here directly, some methods block until XNextEvent in the event thread returns...
+		// So send the color in a client event instead and let the event thread set the background color of the window.
+
+		//Display* server = m_window->getServer();
+		//XLockDisplay(server);
+		//
+		//XEvent event;
+		//event.type = ClientMessage;
+		//event.xclient.message_type = m_window->getBackgroundColorMessageType();
+		//event.xclient.format = 32; // Using data.l, 32 bits per data item
+		//event.xclient.data.l[0] = long(p_color.red * 65535);
+		//event.xclient.data.l[1] = long(p_color.green * 65535);
+		//event.xclient.data.l[2] = long(p_color.blue * 65535);
+		//event.xclient.display = server;
+		//event.xclient.window = m_windowHandle;
+		//event.xclient.send_event = true;
+		//XSendEvent(server, m_windowHandle, false, 0, &event);
+		//XFlush(server);
+		//
+		//XUnlockDisplay(server);
+
+		//XColor xColor;
+		//xColor.red = (unsigned short)(p_color.red * 65535);
+		//xColor.green = (unsigned short)(p_color.green * 65535);
+		//xColor.blue = (unsigned short)(p_color.blue * 65535);
+		//xColor.flags = DoRed | DoGreen | DoBlue;
+		//XAllocColor(m_server, m_window->getColormap(), &xColor);
+		//XSetWindowBackground(m_server, m_windowHandle, xColor.pixel);
+
+		m_backgroundColor = p_color;
 	}
 	AvoGUI::Color getBackgroundColor() override
 	{
+		return m_backgroundColor;
 	}
 
 	//------------------------------
@@ -10077,84 +11132,162 @@ public:
 
 	void moveOrigin(AvoGUI::Point<float> const& p_offset) override
 	{
+		moveOrigin(p_offset.x, p_offset.y);
 	}
 	void moveOrigin(float p_offsetX, float p_offsetY) override
 	{
+		m_transformMatrix[7] -= p_offsetX;
+		m_transformMatrix[8] -= p_offsetY;
 	}
 	void setOrigin(AvoGUI::Point<float> const& p_origin) override
 	{
+		setOrigin(p_origin.x, p_origin.y);
 	}
 	void setOrigin(float p_x, float p_y) override
 	{
+		m_transformMatrix[7] = -p_x;
+		m_transformMatrix[8] = -p_y;
 	}
 	AvoGUI::Point<float> getOrigin() override
 	{
+		return AvoGUI::Point<float>(-m_transformMatrix[7], -m_transformMatrix[8]);
 	}
 
 	//------------------------------
 
 	void scale(float p_scale) override
 	{
+		scale(p_scale, p_scale);
 	}
 	void scale(float p_scaleX, float p_scaleY) override
 	{
+		m_transformMatrix[0] *= p_scaleX;
+		m_transformMatrix[1] *= p_scaleY;
+		m_transformMatrix[3] *= p_scaleX;
+		m_transformMatrix[4] *= p_scaleY;
 	}
 	void scale(float p_scale, AvoGUI::Point<float> const& p_origin) override
 	{
+		scale(p_scale, p_scale, p_origin.x, p_origin.y);
 	}
 	void scale(float p_scaleX, float p_scaleY, AvoGUI::Point<float> const& p_origin) override
 	{
+		scale(p_scaleX, p_scaleY, p_origin.x, p_origin.y);
 	}
 	void scale(float p_scale, float p_originX, float p_originY) override
 	{
+		scale(p_scale, p_scale, p_originX, p_originY);
 	}
 	void scale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) override
 	{
+		m_transformMatrix[0] *= p_scaleX;
+		m_transformMatrix[1] *= p_scaleX;
+		m_transformMatrix[3] *= p_scaleY;
+		m_transformMatrix[4] *= p_scaleY;
+		m_transformMatrix[7] += (p_originX - m_transformMatrix[7])*(1.f - p_scaleX);
+		m_transformMatrix[8] += (p_originY - m_transformMatrix[8])*(1.f - p_scaleY);
 	}
 	void setScale(float p_scale) override
 	{
+		scale(p_scale/m_scale.x, p_scale/m_scale.y);
 	}
 	void setScale(float p_scaleX, float p_scaleY) override
 	{
+		scale(p_scaleX/m_scale.x, p_scaleY/m_scale.y);
 	}
 	void setScale(float p_scale, AvoGUI::Point<float> const& p_origin) override
 	{
+		scale(p_scale/m_scale.x, p_scale/m_scale.y, p_origin.x, p_origin.y);
 	}
 	void setScale(float p_scaleX, float p_scaleY, AvoGUI::Point<float> const& p_origin) override
 	{
+		scale(p_scaleX/m_scale.x, p_scaleY/m_scale.y, p_origin.x, p_origin.y);
 	}
 	void setScale(float p_scale, float p_originX, float p_originY) override
 	{
+		scale(p_scale/m_scale.x, p_scale/m_scale.y, p_originX, p_originY);
 	}
 	void setScale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) override
 	{
+		scale(p_scaleX/m_scale.x, p_scaleY/m_scale.y, p_originX, p_originY);
 	}
 	AvoGUI::Point<float> const& getScale() override
 	{
+		return m_scale;
 	}
 	float getScaleX() override
 	{
+		return m_scale.x;
 	}
 	float getScaleY() override
 	{
+		return m_scale.y;
 	}
 
 	//------------------------------
 
 	void rotate(float p_radians) override
 	{
+		float cos = std::cos(p_radians);
+		float sin = std::sin(p_radians);
+
+		float previousMatrix[9];
+		memcpy(previousMatrix, m_transformMatrix, sizeof(previousMatrix));
+
+		/*
+			Matrix multiplication:
+			[cos -sin  0]   [m[0] m[3] m[6]]   [m[0]cos - m[1]sin  m[3]cos - m[4]sin  m[6]cos - m[7]sin]
+			[sin  cos  0] * [m[1] m[4] m[7]] = [m[0]sin + m[1]cos  m[3]sin + m[4]cos  m[6]sin + m[7]cos]
+			[0    0    1]   [0    0    1   ]   [0                  0                  1                ]
+		*/
+		m_transformMatrix[0] = cos*previousMatrix[0] - sin*previousMatrix[1];
+		m_transformMatrix[1] = sin*previousMatrix[0] + cos*previousMatrix[1];
+		m_transformMatrix[3] = cos*previousMatrix[3] - sin*previousMatrix[4];
+		m_transformMatrix[4] = sin*previousMatrix[3] + cos*previousMatrix[4];
+		m_transformMatrix[6] = cos*previousMatrix[6] - sin*previousMatrix[7];
+		m_transformMatrix[7] = sin*previousMatrix[6] + cos*previousMatrix[7];
 	}
 	void rotate(float p_radians, AvoGUI::Point<float> const& p_origin) override
 	{
+		rotate(p_radians, p_origin.x, p_origin.y);
 	}
 	void rotate(float p_radians, float p_originX, float p_originY) override
 	{
+		float cos = std::cos(p_radians);
+		float sin = std::sin(p_radians);
+
+		float previousMatrix[9];
+		memcpy(previousMatrix, m_transformMatrix, sizeof(previousMatrix));
+		previousMatrix[6] -= p_originX;
+		previousMatrix[7] -= p_originY;
+
+		/*
+			Matrix multiplication:
+			[cos -sin  0]   [m[0] m[3] m[6]]   [m[0]cos - m[1]sin  m[3]cos - m[4]sin  m[6]cos - m[7]sin]
+			[sin  cos  0] * [m[1] m[4] m[7]] = [m[0]sin + m[1]cos  m[3]sin + m[4]cos  m[6]sin + m[7]cos]
+			[0    0    1]   [0    0    1   ]   [0                  0                  1                ]
+		*/
+		m_transformMatrix[0] = cos*previousMatrix[0] - sin*previousMatrix[1];
+		m_transformMatrix[1] = sin*previousMatrix[0] + cos*previousMatrix[1];
+		m_transformMatrix[3] = cos*previousMatrix[3] - sin*previousMatrix[4];
+		m_transformMatrix[4] = sin*previousMatrix[3] + cos*previousMatrix[4];
+		m_transformMatrix[6] = cos*previousMatrix[6] - sin*previousMatrix[7] + p_originX;
+		m_transformMatrix[7] = sin*previousMatrix[6] + cos*previousMatrix[7] + p_originY;
 	}
 
 	//------------------------------
 
 	void resetTransformations() override
 	{
+		m_transformMatrix[0] = 1.f;
+		m_transformMatrix[1] = 0.f;
+		m_transformMatrix[2] = 0.f;
+		m_transformMatrix[3] = 0.f;
+		m_transformMatrix[4] = 1.f;
+		m_transformMatrix[5] = 0.f;
+		m_transformMatrix[6] = 0.f;
+		m_transformMatrix[7] = 0.f;
+		m_transformMatrix[8] = 1.f;
 	}
 
 	//------------------------------
@@ -10165,9 +11298,18 @@ public:
 	}
 	void setSize(float p_width, float p_height) override
 	{
-		glXMakeCurrent(m_window->getServer(), m_windowHandle, m_context);
+		glXMakeCurrent(m_server, m_windowHandle, m_context);
 		glViewport(0, 0, p_width*m_dipToPixelFactor, p_height*m_dipToPixelFactor);
 		m_size.set(p_width, p_height);
+
+		// Column-major order matrix
+		float transform[9] =
+		{
+			2.f/m_size.x, 0.f          , 0.f,
+			0.f         , -2.f/m_size.y, 0.f,
+			-1.f        , 1.f          , 1.f
+		};
+		m_renderShader.setUniformMatrix3x3("u_viewTransform", transform);
 	}
 	AvoGUI::Point<float> getSize() override
 	{
@@ -10191,136 +11333,285 @@ public:
 
 	void fillRectangle(float p_left, float p_top, float p_right, float p_bottom) override
 	{
+		// Anti-aliasing requires an extra row of pixels
+		p_left -= 0.5f;
+		p_top -= 0.5f;
+		p_right += 0.5f;
+		p_bottom += 0.5f;
 
+		float height = p_bottom - p_top;
+		float width = p_right - p_left;
+
+		addDrawCallBefore(6u);
+		m_vertexBuffer.insert(
+			m_vertexBuffer.end(),
+			{
+				p_left, p_top, 1.f, height, 0.f, width,
+				p_left, p_bottom, 0.f, height, 0.f, width,
+				p_right, p_bottom, 0.f, height, 1.f, width,
+
+				p_right, p_bottom, 1.f, height, 0.f, width,
+				p_left, p_top, 0.f, height, 1.f, width,
+				p_right, p_top, 0.f, height, 0.f, width
+			}
+		);
 	}
 	void fillRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size) override
 	{
+		fillRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y);
 	}
 	void fillRectangle(AvoGUI::Rectangle<float> const& p_rectangle) override
 	{
+		fillRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 	}
 	void fillRectangle(float p_width, float p_height) override
 	{
+		fillRectangle(0.f, 0.f, p_width, p_height);
 	}
 	void fillRectangle(AvoGUI::Point<float> const& p_size) override
 	{
+		fillRectangle(0.f, 0.f, p_size.x, p_size.y);
 	}
 
 	void fillRectangle(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_rectangleCorners) override
 	{
+		fillRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_rectangleCorners);
 	}
 	void fillRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_rectangleCorners) override
 	{
+		fillRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_rectangleCorners);
 	}
-	void fillRectangle(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_rectangleCorners) override
-	{
-	}
-
 	void fillRectangle(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_rectangleCorners) override
 	{
+		fillRectangle(0.f, 0.f, p_size.x, p_size.y, p_rectangleCorners);
 	}
 	void fillRectangle(float p_width, float p_height, AvoGUI::RectangleCorners const& p_rectangleCorners) override
 	{
+		fillRectangle(0.f, 0.f, p_width, p_height, p_rectangleCorners);
+	}
+	void fillRectangle(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_rectangleCorners) override
+	{
+		size_t sizeBefore = m_vertexBuffer.size();
+		createFilledCornerRectangleGeometry(m_vertexBuffer, p_left, p_top, p_right, p_bottom, p_rectangleCorners);
+		addDrawCallAfter((m_vertexBuffer.size() - sizeBefore)/6);
 	}
 
 	void fillRoundedRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius) override
 	{
+		fillRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, AvoGUI::RectangleCorners(p_radius));
 	}
 	void fillRoundedRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_radius) override
 	{
-	}
-	void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
-	{
+		fillRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, AvoGUI::RectangleCorners(p_radius));
 	}
 	void fillRoundedRectangle(AvoGUI::Point<float> const& p_size, float p_radius) override
 	{
+		fillRectangle(0.f, 0.f, p_size.x, p_size.y, AvoGUI::RectangleCorners(p_radius));
 	}
 	void fillRoundedRectangle(float p_width, float p_height, float p_radius) override
 	{
+		fillRectangle(0.f, 0.f, p_width, p_height, AvoGUI::RectangleCorners(p_radius));
+	}
+	void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
+	{
+		fillRectangle(p_left, p_top, p_right, p_bottom, AvoGUI::RectangleCorners(p_radius));
 	}
 
 	//------------------------------
 
-	void strokeRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_strokeWidth = 1.f) override
+	void strokeRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_strokeWidth) override
 	{
+		strokeRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_strokeWidth);
 	}
-	void strokeRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_strokeWidth = 1.f) override
+	void strokeRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_strokeWidth) override
 	{
+		strokeRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_strokeWidth);
 	}
-	void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth = 1.f) override
+	void strokeRectangle(AvoGUI::Point<float> const& p_size, float p_strokeWidth) override
 	{
+		strokeRectangle(0.f, 0.f, p_size.x, p_size.y, p_strokeWidth);
 	}
-	void strokeRectangle(AvoGUI::Point<float> const& p_size, float p_strokeWidth = 1.f) override
+	void strokeRectangle(float p_width, float p_height, float p_strokeWidth) override
 	{
+		strokeRectangle(0.f, 0.f, p_width, p_height, p_strokeWidth);
 	}
-	void strokeRectangle(float p_width, float p_height, float p_strokeWidth = 1.f) override
+	void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth) override
 	{
+		// Anti-aliasing requires an extra row of pixels
+		p_strokeWidth += 1.f;
+		p_left -= p_strokeWidth*0.5f;
+		p_top -= p_strokeWidth*0.5f;
+		p_right += p_strokeWidth*0.5f;
+		p_bottom += p_strokeWidth*0.5f;
+
+		float height = p_bottom - p_top;
+		float width = p_right - p_left;
+		addDrawCallBefore(24);
+		m_vertexBuffer.insert(
+			m_vertexBuffer.end(),
+			{
+				// Top
+				p_left , p_top                , 1.f, p_strokeWidth, 0.f, width,
+				p_left , p_top + p_strokeWidth, 0.f, p_strokeWidth, 0.f, width,
+				p_right, p_top + p_strokeWidth, 0.f, p_strokeWidth, 1.f, width,
+				p_right, p_top + p_strokeWidth, 1.f, p_strokeWidth, 0.f, width,
+				p_left , p_top                , 0.f, p_strokeWidth, 1.f, width,
+				p_right, p_top                , 0.f, p_strokeWidth, 0.f, width,
+
+				// Bottom
+				p_left , p_bottom - p_strokeWidth, 1.f, p_strokeWidth, 0.f, width,
+				p_left , p_bottom                , 0.f, p_strokeWidth, 0.f, width,
+				p_right, p_bottom                , 0.f, p_strokeWidth, 1.f, width,
+				p_right, p_bottom                , 1.f, p_strokeWidth, 0.f, width,
+				p_left , p_bottom - p_strokeWidth, 0.f, p_strokeWidth, 1.f, width,
+				p_right, p_bottom - p_strokeWidth, 0.f, p_strokeWidth, 0.f, width,
+
+				// Left
+				p_left                , p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f,
+				p_left                , p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
+				p_left + p_strokeWidth, p_bottom - p_strokeWidth + 1.f, 0.f, p_strokeWidth, 0.5f, 2.f,
+				p_left + p_strokeWidth, p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
+				p_left                , p_top + p_strokeWidth - 1.f   , 0.f, p_strokeWidth, 0.5f, 2.f,
+				p_left + p_strokeWidth, p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f,
+
+				// Right
+				p_right - p_strokeWidth, p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f,
+				p_right - p_strokeWidth, p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
+				p_right                , p_bottom - p_strokeWidth + 1.f, 0.f, p_strokeWidth, 0.5f, 2.f,
+				p_right                , p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
+				p_right - p_strokeWidth, p_top + p_strokeWidth - 1.f   , 0.f, p_strokeWidth, 0.5f, 2.f,
+				p_right                , p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f
+			}
+		);
 	}
 
-	void strokeRectangle(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
+	void strokeRectangle(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth) override
 	{
+		strokeRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_rectangleCorners, p_strokeWidth);
 	}
-	void strokeRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
+	void strokeRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth) override
 	{
+		strokeRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_rectangleCorners, p_strokeWidth);
 	}
-	void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
+	void strokeRectangle(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth) override
 	{
+		strokeRectangle(0.f, 0.f, p_size.x, p_size.y, p_rectangleCorners, p_strokeWidth);
 	}
-	void strokeRectangle(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
+	void strokeRectangle(float p_width, float p_height, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth) override
 	{
+		strokeRectangle(0.f, 0.f, p_width, p_height, p_rectangleCorners, p_strokeWidth);
 	}
-	void strokeRectangle(float p_width, float p_height, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) override
+	void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth) override
 	{
-	}
-
-	void strokeRoundedRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius, float p_strokeWidth = 1.f) override
-	{
-	}
-	void strokeRoundedRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) override
-	{
-	}
-	void strokeRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_strokeWidth = 1.f) override
-	{
+		p_strokeWidth += 1.f;
+		size_t sizeBefore = m_vertexBuffer.size();
+		createStrokedCornerRectangleGeometry(m_vertexBuffer, p_left, p_top, p_right, p_bottom, p_rectangleCorners);
+		addDrawCallAfter((m_vertexBuffer.size() - sizeBefore)/6, p_strokeWidth);
 	}
 
-	void strokeRoundedRectangle(AvoGUI::Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) override
+	void strokeRoundedRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius, float p_strokeWidth) override
 	{
+		strokeRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, AvoGUI::RectangleCorners(p_radius), p_strokeWidth);
 	}
-	void strokeRoundedRectangle(float p_width, float p_height, float p_radius, float p_strokeWidth = 1.f) override
+	void strokeRoundedRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_radius, float p_strokeWidth) override
 	{
+		strokeRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, AvoGUI::RectangleCorners(p_radius), p_strokeWidth);
+	}
+	void strokeRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_strokeWidth) override
+	{
+		strokeRectangle(p_left, p_top, p_right, p_bottom, AvoGUI::RectangleCorners(p_radius), p_strokeWidth);
+	}
+
+	void strokeRoundedRectangle(AvoGUI::Point<float> const& p_size, float p_radius, float p_strokeWidth) override
+	{
+		strokeRectangle(0.f, 0.f, p_size.x, p_size.y, AvoGUI::RectangleCorners(p_radius), p_strokeWidth);
+	}
+	void strokeRoundedRectangle(float p_width, float p_height, float p_radius, float p_strokeWidth) override
+	{
+		strokeRectangle(0.f, 0.f, p_width, p_height, AvoGUI::RectangleCorners(p_radius), p_strokeWidth);
 	}
 
 	//------------------------------
 
 	void fillCircle(AvoGUI::Point<float> const& p_position, float p_radius) override
 	{
+		fillCircle(p_position.x, p_position.y, p_radius);
 	}
 	void fillCircle(float p_x, float p_y, float p_radius) override
 	{
+		addDrawCallBefore(CIRCLE_RESOLUTION + 2, GL_TRIANGLE_FAN);
+
+		p_radius += 0.5f;
+		m_vertexBuffer.insert(m_vertexBuffer.end(), { p_x, p_y, 0.5f, p_radius*2.f, 0.5f, 2.f }); // Only want anti-aliasing on the outer edges of the triangles.
+		for (uint32 a = 0; a <= CIRCLE_RESOLUTION; a++)
+		{
+			m_vertexBuffer.insert(m_vertexBuffer.end(), { s_unitCirclePoints[a].x*p_radius + p_x, s_unitCirclePoints[a].y*p_radius + p_y, 0.f, p_radius*2.f, 0.5f, 2.f });
+		}
 	}
 
-	void strokeCircle(AvoGUI::Point<float> const& p_position, float p_radius, float p_strokeWidth = 1.f) override
+	void strokeCircle(AvoGUI::Point<float> const& p_position, float p_radius, float p_strokeWidth) override
 	{
+		strokeCircle(p_position.x, p_position.y, p_radius, p_strokeWidth);
 	}
-	void strokeCircle(float p_x, float p_y, float p_radius, float p_strokeWidth = 1.f) override
+	void strokeCircle(float p_x, float p_y, float p_radius, float p_strokeWidth) override
 	{
+		addDrawCallBefore(CIRCLE_RESOLUTION + 2, GL_TRIANGLE_FAN);
+
+		p_strokeWidth += 1.f; // Anti-aliasing needs extra pixels
+		p_radius += p_strokeWidth*0.5f;
+
+		float innerAntiAliasingStart = 1.f - p_radius/p_strokeWidth;
+		m_vertexBuffer.insert(m_vertexBuffer.end(), { p_x, p_y, innerAntiAliasingStart, p_strokeWidth, 0.5f, 2.f });
+		for (uint32 a = 0; a <= CIRCLE_RESOLUTION; a++)
+		{
+			m_vertexBuffer.insert(m_vertexBuffer.end(), { s_unitCirclePoints[a].x*p_radius + p_x, s_unitCirclePoints[a].y*p_radius + p_y, 1.f, p_strokeWidth, 0.5f, 2.f });
+		}
 	}
 
 	//------------------------------
 
-	void drawLine(AvoGUI::Point<float> const& p_point_0, AvoGUI::Point<float> const& p_point_1, float p_thickness = 1.f) override
+	void drawLine(AvoGUI::Point<float> const& p_point_0, AvoGUI::Point<float> const& p_point_1, float p_thickness) override
 	{
+		drawLine(p_point_0.x, p_point_0.y, p_point_1.x, p_point_1.y);
 	}
 	void drawLine(float p_x0, float p_y0, float p_x1, float p_y1, float p_thickness = 1.f) override
 	{
+		float distance = AvoGUI::fastSqrt((p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0));
+		float normalX = (p_y1 - p_y0)/distance;
+		float normalY = -(p_x1 - p_x0)/distance;
+
+		// Anti-aliasing requires extra pixels
+		p_x0 += 0.5f*normalY;
+		p_y0 -= 0.5f*normalX;
+		p_x1 -= 0.5f*normalY;
+		p_y1 += 0.5f*normalX;
+		distance += 1.f;
+
+		p_thickness += 1.f;
+		normalX *= p_thickness*0.5f;
+		normalY *= p_thickness*0.5f;
+
+		addDrawCallBefore(6u);
+		m_vertexBuffer.insert(
+			m_vertexBuffer.end(),
+			{
+				p_x0 + normalX, p_y0 + normalY, 1.f, p_thickness, 0.f, distance,
+				p_x0 - normalX, p_y0 - normalY , 0.f, p_thickness, 0.f, distance,
+				p_x1 - normalX, p_y1 - normalY, 0.f, p_thickness, 1.f, distance,
+
+				p_x1 - normalX, p_y1 - normalY, 1.f, p_thickness, 0.f, distance,
+				p_x0 + normalX, p_y0 + normalY, 0.f, p_thickness, 1.f, distance,
+				p_x1 + normalX, p_y1 + normalY, 0.f, p_thickness, 0.f, distance,
+			}
+		);
 	}
 
 	//------------------------------
 
-	void strokeShape(std::vector<AvoGUI::Point<float>> const& p_vertices, float p_lineThickness, bool p_isClosed = false) override
+	void strokeShape(std::vector<AvoGUI::Point<float>> const& p_vertices, float p_lineThickness, bool p_isClosed) override
 	{
 	}
-	void strokeShape(AvoGUI::Point<float> const* p_vertices, uint32 p_numberOfVertices, float p_lineThickness, bool p_isClosed = false) override
+	void strokeShape(AvoGUI::Point<float> const* p_vertices, uint32 p_numberOfVertices, float p_lineThickness, bool p_isClosed) override
 	{
 	}
 	void fillShape(std::vector<AvoGUI::Point<float>> const& p_vertices) override
@@ -10332,54 +11623,85 @@ public:
 
 	//------------------------------
 
-	void strokeGeometry(AvoGUI::Geometry* p_geometry, float p_strokeWidth = 1.f) override
+	void strokeGeometry(AvoGUI::Geometry* p_geometry, float p_strokeWidth) override
 	{
+		auto geometry = (OpenGlGeometry*)p_geometry;
+		addDrawCallBefore(geometry->vertexBuffer.size());
+		m_vertexBuffer.insert(m_vertexBuffer.end(), geometry->vertexBuffer.begin(), geometry->vertexBuffer.end());
 	}
 	void fillGeometry(AvoGUI::Geometry* p_geometry) override
 	{
+		auto geometry = (OpenGlGeometry*)p_geometry;
+		addDrawCallBefore(geometry->vertexBuffer.size());
+		m_vertexBuffer.insert(m_vertexBuffer.end(), geometry->vertexBuffer.begin(), geometry->vertexBuffer.end());
 	}
 
 	//------------------------------
 
-	AvoGUI::Geometry* createRoundedRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
+	AvoGUI::Geometry* createRoundedRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, float p_radius, bool p_isStroked) override
 	{
+		createCornerRectangleGeometry(p_left, p_top, p_right, p_bottom, AvoGUI::RectangleCorners(p_radius), p_isStroked);
 	}
-	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_radius) override
+	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_radius, bool p_isStroked) override
 	{
+		createCornerRectangleGeometry(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, AvoGUI::RectangleCorners(p_radius), p_isStroked);
 	}
-	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius) override
+	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius, bool p_isStroked) override
 	{
+		createCornerRectangleGeometry(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, AvoGUI::RectangleCorners(p_radius), p_isStroked);
 	}
-	AvoGUI::Geometry* createRoundedRectangleGeometry(float p_width, float p_height, float p_radius) override
+	AvoGUI::Geometry* createRoundedRectangleGeometry(float p_width, float p_height, float p_radius, bool p_isStroked) override
 	{
+		createCornerRectangleGeometry(0.f, 0.f, p_width, p_height, AvoGUI::RectangleCorners(p_radius), p_isStroked);
 	}
-	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Point<float> const& p_size, float p_radius) override
+	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Point<float> const& p_size, float p_radius, bool p_isStroked) override
 	{
+		createCornerRectangleGeometry(0.f, 0.f, p_size.x, p_size.y, AvoGUI::RectangleCorners(p_radius), p_isStroked);
 	}
 
-	AvoGUI::Geometry* createCornerRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_corners) override
+	AvoGUI::Geometry* createCornerRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_corners, bool p_isStroked) override
 	{
+		auto* geometry = new OpenGlGeometry();
+
+		if (p_isStroked)
+		{
+			createStrokedCornerRectangleGeometry(geometry->vertexBuffer, p_left, p_top, p_right, p_bottom, p_corners);
+		}
+		else
+		{
+			createFilledCornerRectangleGeometry(geometry->vertexBuffer, p_left, p_top, p_right, p_bottom, p_corners);
+		}
+		geometry->isStroked = p_isStroked;
+
+		return (AvoGUI::Geometry*)geometry;
 	}
-	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners) override
+	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners, bool p_isStroked) override
 	{
+		return createCornerRectangleGeometry(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_corners, p_isStroked);
 	}
-	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_corners) override
+	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_corners, bool p_isStroked) override
 	{
+		return createCornerRectangleGeometry(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners, p_isStroked);
 	}
-	AvoGUI::Geometry* createCornerRectangleGeometry(float p_width, float p_height, AvoGUI::RectangleCorners const& p_corners) override
+	AvoGUI::Geometry* createCornerRectangleGeometry(float p_width, float p_height, AvoGUI::RectangleCorners const& p_corners, bool p_isStroked) override
 	{
+		return createCornerRectangleGeometry(0.f, 0.f, p_width, p_height, p_corners, p_isStroked);
 	}
-	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners) override
+	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners, bool p_isStroked) override
 	{
+		return createCornerRectangleGeometry(0.f, 0.f, p_size.x, p_size.y, p_corners, p_isStroked);
 	}
 
 	//------------------------------
 
-	AvoGUI::Geometry* createPolygonGeometry(std::vector<AvoGUI::Point<float>> const& p_vertices) override
+	AvoGUI::Geometry* createPolygonGeometry(std::vector<AvoGUI::Point<float>> const& p_vertices, bool p_isStroked) override
 	{
+		return createPolygonGeometry(p_vertices.data(), p_vertices.size(), p_isStroked);
 	}
-	AvoGUI::Geometry* createPolygonGeometry(AvoGUI::Point<float> const* p_vertices, uint32 p_numberOfVertices) override
+	AvoGUI::Geometry* createPolygonGeometry(AvoGUI::Point<float> const* p_vertices, uint32 p_numberOfVertices, bool p_isStroked) override
 	{
+		auto* geometry = new OpenGlGeometry();
+		return (AvoGUI::Geometry*)geometry;
 	}
 
 	//------------------------------
@@ -10456,10 +11778,10 @@ public:
 
 	void popClipShape() override
 	{
-		if (m_clippingShapeStack.size())
+		if (!m_clippingShapeStack.empty())
 		{
 			m_clippingShapeStack.pop();
-			if (m_clippingShapeStack.size())
+			if (!m_clippingShapeStack.empty())
 			{
 				AvoGUI::Rectangle<float> bounds = m_clippingShapeStack.top().getBounds();
 				glScissor(bounds.left, bounds.top, std::ceil(bounds.getWidth()), std::ceil(bounds.getHeight()));
@@ -10475,7 +11797,7 @@ public:
 
 	void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_opacity) override
 	{
-		if (m_clippingShapeStack.size())
+		if (!m_clippingShapeStack.empty())
 		{
 			AvoGUI::Rectangle<float> clippingBounds = m_clippingShapeStack.top().getBounds().bound(p_left, p_top, p_right, p_bottom);
 			m_clippingShapeStack.push(ClippingShape(clippingBounds));
@@ -10496,25 +11818,25 @@ public:
 		pushClipRectangle(0, 0, p_size.x, p_size.y, p_opacity);
 	}
 
-	void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_corners, float p_opacity = 1.f) override
+	void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_corners, float p_opacity) override
 	{
 	}
-	void pushClipRectangle(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_corners, float p_opacity = 1.f) override
+	void pushClipRectangle(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_corners, float p_opacity) override
 	{
 	}
-	void pushClipRectangle(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners, float p_opacity = 1.f) override
+	void pushClipRectangle(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners, float p_opacity) override
 	{
 	}
 
 	//------------------------------
 
-	void pushRoundedClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_opacity = 1.f) override
+	void pushRoundedClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_opacity) override
 	{
 	}
-	void pushRoundedClipRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius, float p_opacity = 1.f) override
+	void pushRoundedClipRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius, float p_opacity) override
 	{
 	}
-	void pushRoundedClipRectangle(AvoGUI::Point<float> const& p_size, float p_radius, float p_opacity = 1.f) override
+	void pushRoundedClipRectangle(AvoGUI::Point<float> const& p_size, float p_radius, float p_opacity) override
 	{
 	}
 
@@ -10545,31 +11867,98 @@ public:
 
 	//------------------------------
 
-	AvoGUI::Image* createImage(void const* p_pixelData, uint32 p_width, uint32 p_height) override
+	AvoGUI::Image* createImage(uint8 const* p_pixelData, uint32 p_width, uint32 p_height) override
 	{
+		GLuint texture{0u};
+		glGenTextures(1, &texture);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_width, p_height, 0, GL_BGRA, GL_UNSIGNED_BYTE, p_pixelData);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		return new OpenGlImage(texture, p_width, p_height, m_dipToPixelFactor);
 	}
 	AvoGUI::Image* createImage(void const* p_imageData, uint32 p_size) override
 	{
+		png_image pngImage{};
+		pngImage.version = PNG_IMAGE_VERSION;
+		pngImage.format = PNG_FORMAT_BGRA;
+
+		if (!png_image_begin_read_from_memory(&pngImage,p_imageData, p_size))
+		{
+			return nullptr;
+		}
+
+		png_byte* data{new png_byte[PNG_IMAGE_SIZE(pngImage)]};
+		if (!png_image_finish_read(&pngImage, nullptr, data, 0, nullptr))
+		{
+			delete[] data;
+			return nullptr;
+		}
+
+		AvoGUI::Image* image = createImage(data, pngImage.width, pngImage.height);
+		delete[] data;
+		return image;
 	}
 	AvoGUI::Image* createImage(char const* p_filePath) override
 	{
+		char signatureBytes[8];
+
+		std::ifstream fileStream(p_filePath);
+		fileStream.read(signatureBytes, 8);
+		fileStream.close();
+
+		if (!strncmp(signatureBytes, "\xFF\xD8\xFF", 3)) // PNG signature
+		{
+			png_image pngImage{};
+			pngImage.version = PNG_IMAGE_VERSION;
+			pngImage.format = PNG_FORMAT_BGRA;
+
+			if (!png_image_begin_read_from_file(&pngImage, p_filePath))
+			{
+				return nullptr;
+			}
+
+			png_byte* data{new png_byte[PNG_IMAGE_SIZE(pngImage)]};
+			if (!png_image_finish_read(&pngImage, nullptr, data, 0, nullptr))
+			{
+				delete[] data;
+				return nullptr;
+			}
+
+			AvoGUI::Image* image = createImage(data, pngImage.width, pngImage.height);
+			delete[] data;
+			return image;
+		}
+		else if (!strncmp(signatureBytes, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8)) // JPEG signature
+		{
+
+		}
+		return nullptr;
 	}
 	AvoGUI::Image* createImage(void* p_handle) override
 	{
 	}
-	void drawImage(AvoGUI::Image* p_image, float p_multiplicativeOpacity = 1.f) override
+	void drawImage(AvoGUI::Image* p_image, float p_multiplicativeOpacity) override
 	{
 	}
 
 	//------------------------------
 
-	std::string createImageFileData(AvoGUI::Image* p_image, AvoGUI::ImageFormat p_format = AvoGUI::ImageFormat::Png) override
+	std::string createImageFileData(AvoGUI::Image* p_image, AvoGUI::ImageFormat p_format) override
 	{
 	}
-	void* createImageFileDataNativeStream(AvoGUI::Image* p_image, AvoGUI::ImageFormat p_format = AvoGUI::ImageFormat::Png) override
+	void* createImageFileDataNativeStream(AvoGUI::Image* p_image, AvoGUI::ImageFormat p_format) override
 	{
 	}
-	void saveImageToFile(AvoGUI::Image* p_image, std::string const& p_filePath, AvoGUI::ImageFormat p_format = AvoGUI::ImageFormat::Png) override
+	void saveImageToFile(AvoGUI::Image* p_image, std::string const& p_filePath, AvoGUI::ImageFormat p_format) override
 	{
 	}
 
@@ -10581,14 +11970,14 @@ public:
 
 	//------------------------------
 
-	AvoGUI::LinearGradient* createLinearGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, float p_startX = 0.f, float p_startY = 0.f, float p_endX = 0.f, float p_endY = 0.f) override
+	AvoGUI::LinearGradient* createLinearGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_endX, float p_endY) override
 	{
 	}
 	AvoGUI::LinearGradient* createLinearGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, AvoGUI::Point<float> const& p_startPosition, AvoGUI::Point<float> const& p_endPosition) override
 	{
 	}
 
-	AvoGUI::RadialGradient* createRadialGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, float p_startX = 0.f, float p_startY = 0.f, float p_radiusX = 0.f, float p_radiusY = 0.f) override
+	AvoGUI::RadialGradient* createRadialGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radiusX, float p_radiusY) override
 	{
 	}
 	AvoGUI::RadialGradient* createRadialGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radius) override
@@ -10612,6 +12001,7 @@ public:
 	}
 	void setColor(AvoGUI::Color const& p_color) override
 	{
+		m_currentColor = p_color;
 	}
 
 	void setOpacity(float p_opacity) override
@@ -10635,10 +12025,10 @@ public:
 
 	//------------------------------
 
-	AvoGUI::Text* createText(char const* p_string, float p_fontSize, AvoGUI::Rectangle<float> const& p_bounds = AvoGUI::Rectangle<float>()) override
+	AvoGUI::Text* createText(char const* p_string, float p_fontSize, AvoGUI::Rectangle<float> const& p_bounds) override
 	{
 	}
-	AvoGUI::Text* createText(std::string const& p_string, float p_fontSize, AvoGUI::Rectangle<float> const& p_bounds = AvoGUI::Rectangle<float>()) override
+	AvoGUI::Text* createText(std::string const& p_string, float p_fontSize, AvoGUI::Rectangle<float> const& p_bounds) override
 	{
 	}
 	void drawText(AvoGUI::Text* p_text) override
@@ -10661,6 +12051,10 @@ public:
 	{
 	}
 };
+
+bool OpenGlDrawingContext::s_areStaticVariablesInitialized = false;
+AvoGUI::Point<float> OpenGlDrawingContext::s_unitCirclePoints[OpenGlDrawingContext::CIRCLE_RESOLUTION + 1];
+
 #endif
 #pragma endregion
 
@@ -10696,7 +12090,7 @@ void AvoGUI::Gui::getTopMouseListenersAt(AvoGUI::Point<float> const& p_coordinat
 		for (int32 a = startIndex; a >= 0; a--)
 		{
 			AvoGUI::View* child = container->getChild(a);
-			// Invisible views and their children do not recieve mouse events.
+			// Invisible views and their children do not receive mouse events.
 			if (child->getIsVisible() && child->getIsContainingAbsolute(p_coordinates.x, p_coordinates.y))
 			{
 				bool hasChildren = child->getNumberOfChildren();
@@ -10779,11 +12173,11 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 		}
 		includeAnimationThread();
 
-		if (m_invalidRectangles.size())
+		if (!m_invalidRectangles.empty())
 		{
 			drawViews();
 
-			wasLastFrameDrawn = true;
+			//wasLastFrameDrawn = true;
 
 			if (!getDrawingContext()->getIsVsyncEnabled())
 			{
@@ -10819,8 +12213,7 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 //
 
 AvoGUI::Gui::Gui() :
-	AvoGUI::View(0), 
-	m_hasAnimationLoopStarted(false), m_willClose(false)
+	AvoGUI::View(nullptr)
 {
 #ifdef _WIN32
 	Direct2DDrawingContext::createStaticResources();
@@ -10842,17 +12235,17 @@ AvoGUI::Gui::~Gui()
 	if (m_window)
 	{
 		m_window->forget();
-		m_window = 0;
+		m_window = nullptr;
 	}
 	if (m_drawingContextState)
 	{
 		m_drawingContextState->forget();
-		m_drawingContextState = 0;
+		m_drawingContextState = nullptr;
 	}
 	if (m_drawingContext)
 	{
 		m_drawingContext->forget();
-		m_drawingContext = 0;
+		m_drawingContext = nullptr;
 	}
 	for (auto pair : m_viewsById)
 	{
@@ -10868,7 +12261,7 @@ void AvoGUI::Gui::create(char const* p_title, uint32 p_titleSize, float p_x, flo
 	}
 
 	m_absolutePosition.set(0, 0);
-	m_window->create(p_title, p_titleSize, p_x, p_y, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
+	m_window->create(p_title, p_titleSize, p_x, p_y, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : nullptr);
 
 	m_animationThread = std::thread(&AvoGUI::Gui::thread_runAnimationLoop, this);
 }
@@ -10880,7 +12273,7 @@ void AvoGUI::Gui::create(char const* p_title, uint32 p_titleSize, float p_width,
 	}
 
 	m_absolutePosition.set(0, 0);
-	m_window->create(p_title, p_titleSize, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : 0);
+	m_window->create(p_title, p_titleSize, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : nullptr);
 
 	m_animationThread = std::thread(&AvoGUI::Gui::thread_runAnimationLoop, this);
 }
@@ -10985,7 +12378,7 @@ bool AvoGUI::Gui::handleWindowClose(WindowEvent const& p_event)
 	m_willClose = willClose;
 	if (willClose)
 	{
-		if (m_animationUpdateQueue.size())
+		if (!m_animationUpdateQueue.empty())
 		{
 			for (AvoGUI::View* view : m_animationUpdateQueue)
 			{
@@ -10993,7 +12386,7 @@ bool AvoGUI::Gui::handleWindowClose(WindowEvent const& p_event)
 			}
 			m_animationUpdateQueue.clear();
 		}
-		if (m_pressedMouseEventListeners.size())
+		if (!m_pressedMouseEventListeners.empty())
 		{
 			for (AvoGUI::View* view : m_pressedMouseEventListeners)
 			{
@@ -11129,7 +12522,7 @@ void AvoGUI::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 						p_event.y = absoluteY - child->getAbsoluteTop();
 					}
 
-					bool isContainer = child->m_children.size();
+					bool isContainer = !child->m_children.empty();
 
 					if (child->m_isDraggingOver)
 					{
@@ -11335,7 +12728,7 @@ void AvoGUI::Gui::handleGlobalDragDropLeave(DragDropEvent& p_event)
 				}
 				child->m_isDraggingOver = false;
 
-				if (child->m_children.size())
+				if (!child->m_children.empty())
 				{
 					startIndex = child->m_children.size() - 1;
 					container = child;
@@ -11398,7 +12791,7 @@ void AvoGUI::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 	float absoluteX = p_event.x;
 	float absoluteY = p_event.y;
 
-	if (m_pressedMouseEventListeners.size())
+	if (!m_pressedMouseEventListeners.empty())
 	{
 		if (wasMouseReallyMoved)
 		{
@@ -11476,7 +12869,7 @@ void AvoGUI::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 							p_event.y = absoluteY - child->getAbsoluteTop();
 						}
 
-						bool isContainer = child->m_children.size();
+						bool isContainer = !child->m_children.empty();
 
 						if (child->m_isMouseHovering)
 						{
@@ -11641,7 +13034,7 @@ void AvoGUI::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 		}
 	}
 
-	if (m_globalMouseEventListeners.size() && wasMouseReallyMoved)
+	if (!m_globalMouseEventListeners.empty() && wasMouseReallyMoved)
 	{
 		p_event.x = absoluteX;
 		p_event.y = absoluteY;
@@ -11653,7 +13046,7 @@ void AvoGUI::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 }
 void AvoGUI::Gui::handleGlobalMouseLeave(MouseEvent& p_event)
 {
-	if (m_pressedMouseEventListeners.size())
+	if (!m_pressedMouseEventListeners.empty())
 	{
 		return;
 	}
@@ -11822,7 +13215,7 @@ void AvoGUI::Gui::invalidateRectangle(AvoGUI::Rectangle<float> p_rectangle)
 
 void AvoGUI::Gui::drawViews()
 {
-	if (m_invalidRectangles.size())
+	if (!m_invalidRectangles.empty())
 	{
 		m_invalidRectanglesMutex.lock();
 		std::vector<AvoGUI::Rectangle<float>> invalidRectangles(std::move(m_invalidRectangles));
