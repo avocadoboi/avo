@@ -6,11 +6,11 @@ class App :
 	public AvoGUI::Gui
 {
 private:
-	float m_time;
+	float m_time{ 0.f };
+	AvoGUI::Image* m_image{ nullptr };
 
 public:
-	App() :
-		m_time(0.f)
+	App()
 	{
 		create(u8"Linux test! Unicode: åäöâñëV݉sZ㇡ه搶o7賍", 600, 500, AvoGUI::WindowStyleFlags::Default);
 		waitForFinish();
@@ -22,7 +22,12 @@ public:
 
 		queueAnimationUpdate();
 
-		AvoGUI::Image* image = getDrawingContext()->createImage("/home/bjorn/Pictures/original/1430.png");
+		m_image = getDrawingContext()->createImage("/home/bjorn/Pictures/test.png");
+		m_image->setBounds(getBounds());
+	}
+	void handleSizeChange() override
+	{
+		m_image->setBounds(getBounds());
 	}
 	void updateAnimations() override
 	{
@@ -34,6 +39,12 @@ public:
 
 	void draw(AvoGUI::DrawingContext *p_context) override
 	{
+		p_context->setScale(1.5f, getCenter());
+		p_context->rotate(m_time*0.1, getCenter());
+		p_context->drawImage(m_image);
+		p_context->rotate(-m_time*0.1, getCenter());
+		p_context->setScale(1.f, getCenter());
+
 		p_context->setColor(AvoGUI::Color(1.f, 0.1f, 0.5f));
 		for (uint32 a = 0; a < 10; a++)
 		{

@@ -30,11 +30,12 @@
 
 //------------------------------
 
-#include <stdint.h> // Fixed-size integer typedefs
+#include <cstdint> // Fixed-size integer typedefs
 #include <cstdint> 
 #include <cfloat> // Range defines for float
-#include <math.h>
-#include <string.h>
+#include <cmath>
+#include <cstring>
+#include <fstream>
 
 // Data structures
 #include <string>
@@ -4423,7 +4424,7 @@ namespace AvoGUI
 		Point<float> m_absolutePosition;
 		Rectangle<float> m_lastInvalidatedShadowBounds;
 		Rectangle<float> m_shadowBounds;
-		Image* m_shadowImage = nullptr;
+		Image* m_shadowImage{nullptr};
 		bool m_hasShadow{true};
 
 		float m_elevation{0.f};
@@ -4456,7 +4457,7 @@ namespace AvoGUI
 			if (p_willUpdateChildren && !m_children.empty())
 			{
 				View* currentContainer = this;
-				View* child = 0;
+				View* child = nullptr;
 				uint32 startIndex = 0;
 				while (true)
 				{
@@ -7650,8 +7651,9 @@ namespace AvoGUI
 	{
 		Png,
 		Jpeg,
-		Bmp,
-		Ico
+		Bmp, // Only on Windows.
+		Ico, // Only on Windows.
+		Unknown
 	};
 
 	/*
@@ -8199,8 +8201,7 @@ namespace AvoGUI
 		float fontSize = {22.f};
 	};
 
-	class LinearGradient : 
-		public ReferenceCounted
+	class LinearGradient : public ReferenceCounted
 	{
 	public:
 		/*
@@ -8275,8 +8276,7 @@ namespace AvoGUI
 		*/
 		virtual float getEndPositionY() const = 0;
 	};
-	class RadialGradient : 
-		public ReferenceCounted
+	class RadialGradient : public ReferenceCounted
 	{
 		/*
 			Sets an offset in the start position.
@@ -8393,6 +8393,56 @@ namespace AvoGUI
 		TextProperties m_textProperties;
 
 	public:
+		/*
+			Returns the image format of the given image file.
+			Only the first 8 bytes of the file is needed.
+		*/
+		static AvoGUI::ImageFormat getImageFormatOfFile(uint8 const* p_fileData)
+		{
+			if (!std::strncmp((const char*)p_fileData, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8))
+			{
+				return AvoGUI::ImageFormat::Png;
+			}
+			else if (!std::strncmp((const char*)p_fileData, "\xFF\xD8\xFF", 3))
+			{
+				return AvoGUI::ImageFormat::Jpeg;
+			}
+			else if (!std::strncmp((const char*)p_fileData, "\x00\x00\x01\x00", 4) ||
+			         !std::strncmp((const char*)p_fileData, "\x00\x00\x02\x00", 4))
+			{
+				return AvoGUI::ImageFormat::Ico;
+			}
+			return AvoGUI::ImageFormat::Unknown;
+		}
+		/*
+			Returns the image format of the given image file.
+		*/
+		static AvoGUI::ImageFormat getImageFormatOfFile(std::string const& p_filePath)
+		{
+			char signatureBytes[8];
+
+			std::ifstream fileStream(p_filePath);
+			fileStream.read(signatureBytes, 8);
+			fileStream.close();
+
+			return getImageFormatOfFile((uint8 const*)signatureBytes);
+		}
+		/*
+			Returns the image format of the given image file.
+		*/
+		static AvoGUI::ImageFormat getImageFormatOfFile(char const* p_filePath)
+		{
+			char signatureBytes[8];
+
+			std::ifstream fileStream(p_filePath);
+			fileStream.read(signatureBytes, 8);
+			fileStream.close();
+
+			return getImageFormatOfFile((uint8 const*)signatureBytes);
+		}
+
+		//------------------------------
+
 		/*
 			Initializes drawing. The GUI calls this for you.
 		*/
@@ -10316,7 +10366,7 @@ namespace AvoGUI
 		uint32 m_timeSinceShow{0U};
 
 	public:
-		Tooltip(View* p_parent) : View(p_parent)
+		explicit Tooltip(View* p_parent) : View(p_parent)
 		{
 			setHasShadow(false);
 			setElevation(-1.f);
@@ -10386,7 +10436,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		virtual void updateAnimations() override
+		void updateAnimations() override
 		{
 			if (m_isShowing)
 			{
@@ -10418,7 +10468,7 @@ namespace AvoGUI
 			invalidate();
 		}
 
-		virtual void draw(DrawingContext* p_drawingContext) override
+		void draw(DrawingContext* p_drawingContext) override
 		{
 			if (m_text)
 			{
@@ -10455,18 +10505,16 @@ namespace AvoGUI
 	private:
 		Gui* m_gui;
 
-		bool m_canSelectMultipleFiles;
+		bool m_canSelectMultipleFiles{false};
 		std::vector<FileExtensionFilter> m_fileExtensions;
-		std::string m_title;
+		std::string m_title{"Open file..."};
 
 	public:
 		OpenFileDialog() :
-			m_gui(0),
-			m_canSelectMultipleFiles(false), m_title("Open file...")
+			m_gui(nullptr)
 		{ }
-		OpenFileDialog(Gui* p_gui) :
-			m_gui(p_gui),
-			m_canSelectMultipleFiles(false), m_title("Open file...")
+		explicit OpenFileDialog(Gui* p_gui) :
+			m_gui(p_gui)
 		{ }
 
 		/*
@@ -10566,34 +10614,32 @@ namespace AvoGUI
 	private:
 		Color m_color;
 
-		bool m_isEnabled;
+		bool m_isEnabled{true};
 
 		//------------------------------
 
 		Point<float> m_position;
-		float m_maxSize;
-		float m_size;
-		float m_circleAnimationTime;
+		float m_maxSize{0.f};
+		float m_size{0.f};
+		float m_circleAnimationTime{1.f};
 
 		//------------------------------
 
-		float m_alphaFactor;
-		float m_alphaAnimationTime;
-		bool m_isMouseDown;
+		float m_alphaFactor{0.f};
+		float m_alphaAnimationTime{0.f};
+		bool m_isMouseDown{false};
 
 		//------------------------------
 
-		float m_overlayAlphaFactor;
-		float m_overlayAnimationTime;
-		bool m_isMouseHovering;
-		bool m_hasHoverEffect;
+		float m_overlayAlphaFactor{0.f};
+		float m_overlayAnimationTime{0.f};
+		bool m_isMouseHovering{false};
+		bool m_hasHoverEffect{true};
 
 	public:
-		Ripple(View* p_parent, Color const& p_color = Color(1.f, 0.45f)) :
-			View(p_parent, p_parent->getBounds().createCopyAtOrigin()), m_color(p_color),
-			m_isEnabled(true), m_maxSize(0.f), m_size(0.f), m_circleAnimationTime(1.f), m_alphaFactor(0.f),
-			m_alphaAnimationTime(0.f), m_isMouseDown(false), m_overlayAlphaFactor(0.f), m_overlayAnimationTime(0.f),
-			m_isMouseHovering(false), m_hasHoverEffect(true)
+		explicit Ripple(View* p_parent, Color const& p_color = Color(1.f, 0.45f)) :
+			View(p_parent, p_parent->getBounds().createCopyAtOrigin()),
+			m_color(p_color)
 		{
 			setIsOverlay(true); // Mouse events should be sent through
 			setHasShadow(false);
@@ -10601,7 +10647,7 @@ namespace AvoGUI
 			enableMouseEvents();
 			p_parent->addViewListener(this);
 		}
-		~Ripple()
+		~Ripple() override
 		{
 		}
 
@@ -10806,26 +10852,26 @@ namespace AvoGUI
 		};
 
 	private:
-		Text* m_text = 0;
+		Text* m_text{nullptr};
 
-		Tooltip* m_tooltipView = 0;
+		Tooltip* m_tooltipView{nullptr};
 		std::string m_tooltipString;
 
-		Image* m_icon = 0;
+		Image* m_icon{nullptr};
 
-		float m_pressAnimationTime;
-		bool m_isPressed;
-		bool m_isRaising;
+		float m_pressAnimationTime{1.f};
+		bool m_isPressed{false};
+		bool m_isRaising{false};
 		Emphasis m_emphasis;
 
-		bool m_isEnabled;
+		bool m_isEnabled{true};
 		Color m_currentColor;
-		float m_colorAnimationTime;
-		bool m_isAccent;
+		float m_colorAnimationTime{1.f};
+		bool m_isAccent{false};
 
-		bool m_isMouseHovering;
+		bool m_isMouseHovering{false};
 
-		Ripple* m_ripple = 0;
+		Ripple* m_ripple{nullptr};
 
 		std::vector<ButtonListener*> m_buttonListeners;
 
@@ -10847,7 +10893,7 @@ namespace AvoGUI
 				updateSize();
 			}
 		}
-		void handleThemeColorChange(std::string const& p_name, Color const& p_newColor)
+		void handleThemeColorChange(std::string const& p_name, Color const& p_newColor) override
 		{
 			if (m_emphasis == Emphasis::High)
 			{
@@ -10865,10 +10911,9 @@ namespace AvoGUI
 		}
 
 	public:
-		Button(View* p_parent, char const* p_text = "", Emphasis p_emphasis = Emphasis::High, bool p_isAccent = false) :
-			View(p_parent), m_tooltipString(""),
-			m_pressAnimationTime(1.f), m_emphasis(p_emphasis), m_isEnabled(true),
-			m_colorAnimationTime(1.f)
+		explicit Button(View* p_parent, char const* p_text = "", Emphasis p_emphasis = Emphasis::High, bool p_isAccent = false) :
+			View(p_parent),
+			m_emphasis(p_emphasis)
 		{
 			setString(p_text);
 
@@ -10885,7 +10930,7 @@ namespace AvoGUI
 
 			enableMouseEvents();
 		}
-		~Button()
+		~Button() override
 		{
 			if (m_text)
 			{
@@ -10910,13 +10955,13 @@ namespace AvoGUI
 					m_icon->setCenter(sizeFactor * 38.f * 0.5f, getHeight() * 0.5f);
 
 					m_text->setLeft(38.f * sizeFactor);
-					setSize(round(m_text->getWidth()) + sizeFactor * (16.f + 38.f), 36.f * sizeFactor);
+					setSize(std::round(m_text->getWidth()) + sizeFactor * (16.f + 38.f), 36.f * sizeFactor);
 				}
 				else
 				{
 					if (m_text->getWidth() >= 32.f * sizeFactor)
 					{
-						setSize(round(m_text->getWidth()) + 32.f * sizeFactor, 36.f * sizeFactor);
+						setSize(std::round(m_text->getWidth()) + 32.f * sizeFactor, 36.f * sizeFactor);
 					}
 					else
 					{
@@ -11011,7 +11056,7 @@ namespace AvoGUI
 			}
 		}
 		/*
-			Returns whether the button uses the secondary/accent color. If not, it uses the primary color. The buton uses primary color by default.
+			Returns whether the button uses the secondary/accent color. If not, it uses the primary color. The button uses primary color by default.
 		*/
 		bool getIsAccent()
 		{
@@ -11041,7 +11086,7 @@ namespace AvoGUI
 			}
 			else 
 			{
-				m_text = 0;
+				m_text = nullptr;
 			}
 			updateSize();
 		}
@@ -11049,11 +11094,11 @@ namespace AvoGUI
 		/*
 			Returns the string that the button displays.
 		*/
-		char const* getString()
+		std::string getString()
 		{
 			if (m_text)
 			{
-				return m_text->getString().c_str();
+				return m_text->getString();
 			}
 			return "";
 		}
@@ -11130,7 +11175,7 @@ namespace AvoGUI
 
 		void handleMouseBackgroundEnter(MouseEvent const& p_event) override 
 		{ 
-			if (m_tooltipView && m_tooltipString != "")
+			if (m_tooltipView && !m_tooltipString.empty())
 			{
 				m_tooltipView->show(m_tooltipString, getAbsoluteBounds());
 			}
@@ -11141,7 +11186,7 @@ namespace AvoGUI
 		}
 		void handleMouseBackgroundLeave(MouseEvent const& p_event) override
 		{
-			if (m_tooltipView && m_tooltipString != "")
+			if (m_tooltipView && !m_tooltipString.empty())
 			{
 				m_tooltipView->hide();
 			}
@@ -11168,9 +11213,9 @@ namespace AvoGUI
 				}
 				if (m_isEnabled && getIsContaining(p_event.x + getLeft(), p_event.y + getTop()))
 				{
-					for (uint32 a = 0; a < m_buttonListeners.size(); a++)
+					for (auto& listener : m_buttonListeners)
 					{
-						m_buttonListeners[a]->handleButtonClick(this);
+						listener->handleButtonClick(this);
 					}
 				}
 			}
@@ -11327,22 +11372,22 @@ namespace AvoGUI
 	class EditableText : public View, public KeyboardListener
 	{
 	private:
-		Text* m_text = 0;
-		float m_textDrawingOffsetX;
+		Text* m_text{nullptr};
+		float m_textDrawingOffsetX{0.f};
 		float m_fontSize;
-		TextAlign m_textAlign;
+		TextAlign m_textAlign{TextAlign::Left};
 
-		uint32 m_caretCharacterIndex = 0;
-		uint32 m_caretByteIndex = 0;
+		uint32 m_caretCharacterIndex{0};
+		uint32 m_caretByteIndex{0};
 		Point<float> m_caretPosition;
-		bool m_isCaretVisible;
-		uint32 m_caretFrameCount = 0;
+		bool m_isCaretVisible{false};
+		uint32 m_caretFrameCount{0};
 
-		uint32 m_selectionEndCharacterIndex = 0;
-		uint32 m_selectionEndByteIndex = 0;
+		uint32 m_selectionEndCharacterIndex{0};
+		uint32 m_selectionEndByteIndex{0};
 		Point<float> m_selectionEndPosition;
-		bool m_isSelectingWithMouse = false;
-		bool m_isSelectionVisible;
+		bool m_isSelectingWithMouse{false};
+		bool m_isSelectionVisible{false};
 
 		std::vector<EditableTextListener*> m_listeners;
 
@@ -11417,17 +11462,11 @@ namespace AvoGUI
 				}
 			}
 		}
-		//void handleThemeValueChange(std::string const& p_name, float p_value) override
-		//{
-
-		//}
 
 	public:
-		EditableText(View* p_parent, float p_width = 0.f, float p_fontSize = 12.f) :
+		explicit EditableText(View* p_parent, float p_width = 0.f, float p_fontSize = 12.f) :
 			View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*1.2f)), 
-			m_textDrawingOffsetX(0.f), m_fontSize(p_fontSize), m_textAlign(TextAlign::Left),
-			m_isCaretVisible(false), 
-			m_isSelectingWithMouse(false), m_isSelectionVisible(false)
+			m_fontSize(p_fontSize)
 		{
 			setCursor(Cursor::Ibeam);
 			enableMouseEvents();
@@ -11650,231 +11689,155 @@ namespace AvoGUI
 			}
 			switch (p_event.key)
 			{
-			case KeyboardKey::Backspace:
-			{
-				if (!m_text)
+				case KeyboardKey::Backspace:
 				{
-					return;
-				}
-				if (!m_isSelectionVisible && m_caretCharacterIndex > 0)
-				{
-					if (window->getIsKeyDown(KeyboardKey::Control))
+					if (!m_text)
 					{
-						int32 characterIndex = m_caretCharacterIndex - 1;
-						for (int32 byteIndex = m_caretByteIndex - 1; byteIndex >= 0; byteIndex--)
-						{
-							if (getIsUnitStartOfUtf8Character(string[byteIndex]))
-							{
-								if (!byteIndex || (string[byteIndex - 1U] == ' ' && string[byteIndex] != ' '))
-								{
-									string.erase(byteIndex, (int32)m_caretByteIndex - byteIndex);
-									setString(string, characterIndex);
-									break;
-								}
-								characterIndex--;
-							}
-						}
+						return;
 					}
-					else
+					if (!m_isSelectionVisible && m_caretCharacterIndex > 0)
 					{
-						for (int32 byteIndex = m_caretByteIndex - 1; byteIndex >= 0; byteIndex--)
+						if (window->getIsKeyDown(KeyboardKey::Control))
 						{
-							int8 numberOfBytesInCharacter = getNumberOfUnitsInUtf8Character(string[byteIndex]);
-							if (numberOfBytesInCharacter)
-							{
-								setString(string.erase(byteIndex, numberOfBytesInCharacter), m_caretCharacterIndex - 1);
-								break;
-							}
-						}
-					}
-				}
-				m_caretFrameCount = 1;
-				m_isCaretVisible = true;
-				m_isSelectionVisible = false;
-				break;
-			}
-			case KeyboardKey::Delete:
-			{
-				if (!m_text)
-				{
-					return;
-				}
-				if (!m_isSelectionVisible && m_caretByteIndex < string.size())
-				{
-					if (window->getIsKeyDown(KeyboardKey::Control))
-					{
-						for (int32 byteIndex = m_caretByteIndex; byteIndex < string.size(); byteIndex++)
-						{
-							if (byteIndex == string.size() - 1 || (string[byteIndex + 1U] == ' ' && string[byteIndex] != ' '))
-							{
-								string.erase(m_caretByteIndex, byteIndex - (int32)m_caretByteIndex + 1);
-								setString(string);
-								break;
-							}
-						}
-					}
-					else
-					{
-						setString(string.erase(m_caretByteIndex, getNumberOfUnitsInUtf8Character(string[m_caretByteIndex])));
-					}
-				}
-				m_caretFrameCount = 1;
-				m_isCaretVisible = true;
-				m_isSelectionVisible = false;
-				break;
-			}
-			case KeyboardKey::Left:
-			{
-				if (!m_text)
-				{
-					return;
-				}
-				if (window->getIsKeyDown(KeyboardKey::Control))
-				{
-					if (window->getIsKeyDown(KeyboardKey::Shift))
-					{
-						if (!m_isSelectionVisible)
-						{
-							m_selectionEndCharacterIndex = m_caretCharacterIndex;
-							m_selectionEndByteIndex = m_caretByteIndex;
-						}
-						int32 characterIndex = m_selectionEndCharacterIndex - 1;
-						for (int32 byteIndex = m_selectionEndByteIndex - 1; byteIndex >= 0; byteIndex--)
-						{
-							if (getIsUnitStartOfUtf8Character(string[byteIndex]))
-							{
-								if (!byteIndex || (string[byteIndex - 1U] == ' ' && string[byteIndex] != ' '))
-								{
-									m_selectionEndByteIndex = byteIndex;
-									m_selectionEndCharacterIndex = characterIndex;
-									if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
-									{
-										m_isSelectionVisible = false;
-									}
-									else
-									{
-										m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
-										updateSelectionEndTracking();
-										m_isSelectionVisible = true;
-									}
-									break;
-								}
-								characterIndex--;
-							}
-						}
-					}
-					else
-					{
-						int32 characterIndex = m_caretCharacterIndex - 1;
-						for (int32 byteIndex = m_caretByteIndex - 1; byteIndex >= 0; byteIndex--)
-						{
-							if (getIsUnitStartOfUtf8Character(string[byteIndex]))
-							{
-								if (!byteIndex || (string[byteIndex - 1U] == ' ' && string[byteIndex] != ' '))
-								{
-									m_caretByteIndex = byteIndex;
-									m_caretCharacterIndex = characterIndex;
-									m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
-									updateCaretTracking();
-									m_isSelectionVisible = false;
-									break;
-								}
-								characterIndex--;
-							}
-						}
-					}
-				}
-				else if (window->getIsKeyDown(KeyboardKey::Shift))
-				{
-					if (!m_isSelectionVisible)
-					{
-						m_selectionEndCharacterIndex = m_caretCharacterIndex;
-						m_selectionEndByteIndex = m_caretByteIndex;
-					}
-					if (m_selectionEndCharacterIndex > 0)
-					{
-						for (int32 byteIndex = m_selectionEndByteIndex - 1; byteIndex >= 0; byteIndex--)
-						{
-							if (getIsUnitStartOfUtf8Character(string[byteIndex]))
-							{
-								m_selectionEndCharacterIndex--;
-								m_selectionEndByteIndex = byteIndex;
-								if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
-								{
-									m_isSelectionVisible = false;
-								}
-								else
-								{
-									m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
-									updateSelectionEndTracking();
-									m_isSelectionVisible = true;
-								}
-								break;
-							}
-						}
-					}
-				}
-				else
-				{
-					if (m_isSelectionVisible)
-					{
-						if (m_caretCharacterIndex > m_selectionEndCharacterIndex)
-						{
-							m_caretCharacterIndex = m_selectionEndCharacterIndex;
-							m_caretByteIndex = m_selectionEndByteIndex;
-							m_caretPosition = m_selectionEndPosition;
-						}
-						updateCaretTracking();
-						m_isSelectionVisible = false;
-					}
-					else
-					{
-						if (m_caretCharacterIndex > 0)
-						{
+							int32 characterIndex = m_caretCharacterIndex - 1;
 							for (int32 byteIndex = m_caretByteIndex - 1; byteIndex >= 0; byteIndex--)
 							{
 								if (getIsUnitStartOfUtf8Character(string[byteIndex]))
 								{
-									m_caretCharacterIndex--;
-									m_caretByteIndex = byteIndex;
-									m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
-									updateCaretTracking();
+									if (!byteIndex || (string[byteIndex - 1U] == ' ' && string[byteIndex] != ' '))
+									{
+										string.erase(byteIndex, (int32)m_caretByteIndex - byteIndex);
+										setString(string, characterIndex);
+										break;
+									}
+									characterIndex--;
+								}
+							}
+						}
+						else
+						{
+							for (int32 byteIndex = m_caretByteIndex - 1; byteIndex >= 0; byteIndex--)
+							{
+								int8 numberOfBytesInCharacter = getNumberOfUnitsInUtf8Character(string[byteIndex]);
+								if (numberOfBytesInCharacter)
+								{
+									setString(string.erase(byteIndex, numberOfBytesInCharacter), m_caretCharacterIndex - 1);
 									break;
 								}
 							}
 						}
 					}
+					m_caretFrameCount = 1;
+					m_isCaretVisible = true;
+					m_isSelectionVisible = false;
+					break;
 				}
-				m_caretFrameCount = 1;
-				m_isCaretVisible = true;
-				invalidate();
-				break;
-			}
-			case KeyboardKey::Right:
-			{
-				if (!m_text)
+				case KeyboardKey::Delete:
 				{
-					return;
+					if (!m_text)
+					{
+						return;
+					}
+					if (!m_isSelectionVisible && m_caretByteIndex < string.size())
+					{
+						if (window->getIsKeyDown(KeyboardKey::Control))
+						{
+							for (int32 byteIndex = m_caretByteIndex; byteIndex < string.size(); byteIndex++)
+							{
+								if (byteIndex == string.size() - 1 || (string[byteIndex + 1U] == ' ' && string[byteIndex] != ' '))
+								{
+									string.erase(m_caretByteIndex, byteIndex - (int32)m_caretByteIndex + 1);
+									setString(string);
+									break;
+								}
+							}
+						}
+						else
+						{
+							setString(string.erase(m_caretByteIndex, getNumberOfUnitsInUtf8Character(string[m_caretByteIndex])));
+						}
+					}
+					m_caretFrameCount = 1;
+					m_isCaretVisible = true;
+					m_isSelectionVisible = false;
+					break;
 				}
-				if (window->getIsKeyDown(KeyboardKey::Control))
+				case KeyboardKey::Left:
 				{
-					if (window->getIsKeyDown(KeyboardKey::Shift))
+					if (!m_text)
+					{
+						return;
+					}
+					if (window->getIsKeyDown(KeyboardKey::Control))
+					{
+						if (window->getIsKeyDown(KeyboardKey::Shift))
+						{
+							if (!m_isSelectionVisible)
+							{
+								m_selectionEndCharacterIndex = m_caretCharacterIndex;
+								m_selectionEndByteIndex = m_caretByteIndex;
+							}
+							int32 characterIndex = m_selectionEndCharacterIndex - 1;
+							for (int32 byteIndex = m_selectionEndByteIndex - 1; byteIndex >= 0; byteIndex--)
+							{
+								if (getIsUnitStartOfUtf8Character(string[byteIndex]))
+								{
+									if (!byteIndex || (string[byteIndex - 1U] == ' ' && string[byteIndex] != ' '))
+									{
+										m_selectionEndByteIndex = byteIndex;
+										m_selectionEndCharacterIndex = characterIndex;
+										if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
+										{
+											m_isSelectionVisible = false;
+										}
+										else
+										{
+											m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
+											updateSelectionEndTracking();
+											m_isSelectionVisible = true;
+										}
+										break;
+									}
+									characterIndex--;
+								}
+							}
+						}
+						else
+						{
+							int32 characterIndex = m_caretCharacterIndex - 1;
+							for (int32 byteIndex = m_caretByteIndex - 1; byteIndex >= 0; byteIndex--)
+							{
+								if (getIsUnitStartOfUtf8Character(string[byteIndex]))
+								{
+									if (!byteIndex || (string[byteIndex - 1U] == ' ' && string[byteIndex] != ' '))
+									{
+										m_caretByteIndex = byteIndex;
+										m_caretCharacterIndex = characterIndex;
+										m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+										updateCaretTracking();
+										m_isSelectionVisible = false;
+										break;
+									}
+									characterIndex--;
+								}
+							}
+						}
+					}
+					else if (window->getIsKeyDown(KeyboardKey::Shift))
 					{
 						if (!m_isSelectionVisible)
 						{
 							m_selectionEndCharacterIndex = m_caretCharacterIndex;
 							m_selectionEndByteIndex = m_caretByteIndex;
 						}
-						uint32 characterIndex = m_selectionEndCharacterIndex;
-						for (uint32 byteIndex = m_selectionEndByteIndex + 1; byteIndex <= string.size(); byteIndex++)
+						if (m_selectionEndCharacterIndex > 0)
 						{
-							if (byteIndex == string.size() || getIsUnitStartOfUtf8Character(string[byteIndex]))
+							for (int32 byteIndex = m_selectionEndByteIndex - 1; byteIndex >= 0; byteIndex--)
 							{
-								characterIndex++;
-								if (byteIndex == string.size() || string[byteIndex] == ' ' && string[byteIndex - 1] != ' ')
+								if (getIsUnitStartOfUtf8Character(string[byteIndex]))
 								{
+									m_selectionEndCharacterIndex--;
 									m_selectionEndByteIndex = byteIndex;
-									m_selectionEndCharacterIndex = characterIndex;
 									if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
 									{
 										m_isSelectionVisible = false;
@@ -11892,176 +11855,252 @@ namespace AvoGUI
 					}
 					else
 					{
-						uint32 characterIndex = m_caretCharacterIndex;
-						for (uint32 byteIndex = m_caretByteIndex + 1; byteIndex <= string.size(); byteIndex++)
+						if (m_isSelectionVisible)
 						{
-							if (byteIndex == string.size() || getIsUnitStartOfUtf8Character(string[byteIndex]))
+							if (m_caretCharacterIndex > m_selectionEndCharacterIndex)
 							{
-								characterIndex++;
-								if (byteIndex == string.size() || string[byteIndex] == ' ' && string[byteIndex - 1] != ' ')
-								{
-									m_caretByteIndex = byteIndex;
-									m_caretCharacterIndex = characterIndex;
-									m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
-									updateCaretTracking();
-									m_isSelectionVisible = false;
-									break;
-								}
+								m_caretCharacterIndex = m_selectionEndCharacterIndex;
+								m_caretByteIndex = m_selectionEndByteIndex;
+								m_caretPosition = m_selectionEndPosition;
 							}
-						}
-					}
-				}
-				else if (window->getIsKeyDown(KeyboardKey::Shift))
-				{
-					if (!m_isSelectionVisible)
-					{
-						m_selectionEndCharacterIndex = m_caretCharacterIndex;
-					}
-					if (m_selectionEndByteIndex < string.size())
-					{
-						m_selectionEndByteIndex += getNumberOfUnitsInUtf8Character(string[m_selectionEndByteIndex]);
-						m_selectionEndCharacterIndex++;
-						if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
-						{
+							updateCaretTracking();
 							m_isSelectionVisible = false;
 						}
 						else
 						{
-							m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
-							updateSelectionEndTracking();
-							m_isSelectionVisible = true;
+							if (m_caretCharacterIndex > 0)
+							{
+								for (int32 byteIndex = m_caretByteIndex - 1; byteIndex >= 0; byteIndex--)
+								{
+									if (getIsUnitStartOfUtf8Character(string[byteIndex]))
+									{
+										m_caretCharacterIndex--;
+										m_caretByteIndex = byteIndex;
+										m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+										updateCaretTracking();
+										break;
+									}
+								}
+							}
 						}
 					}
-				}
-				else
-				{
-					if (m_isSelectionVisible)
-					{
-						if (m_caretCharacterIndex < m_selectionEndCharacterIndex)
-						{
-							m_caretCharacterIndex = m_selectionEndCharacterIndex;
-							m_caretByteIndex = m_selectionEndByteIndex;
-							m_caretPosition = m_selectionEndPosition;
-							updateCaretTracking();
-						}
-						m_isSelectionVisible = false;
-					}
-					else
-					{
-						if (m_caretByteIndex < string.size())
-						{
-							m_caretByteIndex += getNumberOfUnitsInUtf8Character(string[m_caretByteIndex]);
-							m_caretCharacterIndex++;
-							m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
-							updateCaretTracking();
-						}
-					}
-				}
-				m_caretFrameCount = 1;
-				m_isCaretVisible = true;
-				invalidate();
-				break;
-			}
-			case KeyboardKey::C:
-			{
-				if (!m_text)
-				{
-					return;
-				}
-				if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
-				{
-					if (m_caretCharacterIndex < m_selectionEndCharacterIndex)
-					{
-						window->setClipboardString(string.substr(m_caretByteIndex, m_selectionEndByteIndex - m_caretByteIndex));
-					}
-					else
-					{
-						window->setClipboardString(string.substr(m_selectionEndByteIndex, m_caretByteIndex - m_selectionEndByteIndex));
-					}
-				}
-				break;
-			}
-			case KeyboardKey::X:
-			{
-				if (!m_text)
-				{
-					return;
-				}
-				if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
-				{
-					if (m_caretCharacterIndex < m_selectionEndCharacterIndex)
-					{
-						window->setClipboardString(string.substr(m_caretByteIndex, m_selectionEndByteIndex - m_caretByteIndex));
-						string.erase(m_caretByteIndex, m_selectionEndByteIndex - m_caretByteIndex);
-						setString(string);
-					}
-					else {
-						window->setClipboardString(string.substr(m_selectionEndByteIndex, m_caretByteIndex - m_selectionEndByteIndex));
-						string.erase(m_selectionEndByteIndex, m_caretByteIndex - m_selectionEndByteIndex);
-						setString(string, m_selectionEndCharacterIndex);
-					}
-
-					m_isSelectionVisible = false;
-
 					m_caretFrameCount = 1;
 					m_isCaretVisible = true;
+					invalidate();
+					break;
 				}
-				break;
-			}
-			case KeyboardKey::V:
-			{
-				if (window->getIsKeyDown(KeyboardKey::Control))
+				case KeyboardKey::Right:
 				{
-					uint32 caretCharacterIndex = m_caretCharacterIndex;
-					uint32 caretByteIndex = m_caretByteIndex;
-					if (m_isSelectionVisible)
+					if (!m_text)
 					{
-						if (caretCharacterIndex < m_selectionEndCharacterIndex)
+						return;
+					}
+					if (window->getIsKeyDown(KeyboardKey::Control))
+					{
+						if (window->getIsKeyDown(KeyboardKey::Shift))
 						{
-							string.erase(m_caretByteIndex, m_selectionEndByteIndex - m_caretByteIndex);
-							m_selectionEndCharacterIndex = m_caretCharacterIndex;
-							m_selectionEndByteIndex = m_caretByteIndex;
+							if (!m_isSelectionVisible)
+							{
+								m_selectionEndCharacterIndex = m_caretCharacterIndex;
+								m_selectionEndByteIndex = m_caretByteIndex;
+							}
+							uint32 characterIndex = m_selectionEndCharacterIndex;
+							for (uint32 byteIndex = m_selectionEndByteIndex + 1; byteIndex <= string.size(); byteIndex++)
+							{
+								if (byteIndex == string.size() || getIsUnitStartOfUtf8Character(string[byteIndex]))
+								{
+									characterIndex++;
+									if (byteIndex == string.size() || string[byteIndex] == ' ' && string[byteIndex - 1] != ' ')
+									{
+										m_selectionEndByteIndex = byteIndex;
+										m_selectionEndCharacterIndex = characterIndex;
+										if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
+										{
+											m_isSelectionVisible = false;
+										}
+										else
+										{
+											m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
+											updateSelectionEndTracking();
+											m_isSelectionVisible = true;
+										}
+										break;
+									}
+								}
+							}
 						}
 						else
 						{
-							string.erase(m_selectionEndByteIndex, m_caretByteIndex - m_selectionEndByteIndex);
-							caretCharacterIndex = m_selectionEndCharacterIndex;
-							caretByteIndex = m_selectionEndByteIndex;
+							uint32 characterIndex = m_caretCharacterIndex;
+							for (uint32 byteIndex = m_caretByteIndex + 1; byteIndex <= string.size(); byteIndex++)
+							{
+								if (byteIndex == string.size() || getIsUnitStartOfUtf8Character(string[byteIndex]))
+								{
+									characterIndex++;
+									if (byteIndex == string.size() || string[byteIndex] == ' ' && string[byteIndex - 1] != ' ')
+									{
+										m_caretByteIndex = byteIndex;
+										m_caretCharacterIndex = characterIndex;
+										m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+										updateCaretTracking();
+										m_isSelectionVisible = false;
+										break;
+									}
+								}
+							}
 						}
-						m_isSelectionVisible = false;
 					}
-					ClipboardData* clipboardData = window->getClipboardData();
-					std::string clipboardString = clipboardData->getString();
-					clipboardData->forget();
-					string.insert(caretByteIndex, clipboardString);
-					setString(string, caretCharacterIndex + getCharacterIndexFromUtf8UnitIndex(clipboardString, clipboardString.size()));
-					
+					else if (window->getIsKeyDown(KeyboardKey::Shift))
+					{
+						if (!m_isSelectionVisible)
+						{
+							m_selectionEndCharacterIndex = m_caretCharacterIndex;
+						}
+						if (m_selectionEndByteIndex < string.size())
+						{
+							m_selectionEndByteIndex += getNumberOfUnitsInUtf8Character(string[m_selectionEndByteIndex]);
+							m_selectionEndCharacterIndex++;
+							if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
+							{
+								m_isSelectionVisible = false;
+							}
+							else
+							{
+								m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
+								updateSelectionEndTracking();
+								m_isSelectionVisible = true;
+							}
+						}
+					}
+					else
+					{
+						if (m_isSelectionVisible)
+						{
+							if (m_caretCharacterIndex < m_selectionEndCharacterIndex)
+							{
+								m_caretCharacterIndex = m_selectionEndCharacterIndex;
+								m_caretByteIndex = m_selectionEndByteIndex;
+								m_caretPosition = m_selectionEndPosition;
+								updateCaretTracking();
+							}
+							m_isSelectionVisible = false;
+						}
+						else
+						{
+							if (m_caretByteIndex < string.size())
+							{
+								m_caretByteIndex += getNumberOfUnitsInUtf8Character(string[m_caretByteIndex]);
+								m_caretCharacterIndex++;
+								m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+								updateCaretTracking();
+							}
+						}
+					}
 					m_caretFrameCount = 1;
 					m_isCaretVisible = true;
+					invalidate();
+					break;
 				}
-				break;
-			}
-			case KeyboardKey::A:
-			{
-				if (!m_text)
+				case KeyboardKey::C:
 				{
-					return;
+					if (!m_text)
+					{
+						return;
+					}
+					if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
+					{
+						if (m_caretCharacterIndex < m_selectionEndCharacterIndex)
+						{
+							window->setClipboardString(string.substr(m_caretByteIndex, m_selectionEndByteIndex - m_caretByteIndex));
+						}
+						else
+						{
+							window->setClipboardString(string.substr(m_selectionEndByteIndex, m_caretByteIndex - m_selectionEndByteIndex));
+						}
+					}
+					break;
 				}
-				if (window->getIsKeyDown(KeyboardKey::Control))
+				case KeyboardKey::X:
 				{
-					selectAll();
-					return;
+					if (!m_text)
+					{
+						return;
+					}
+					if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
+					{
+						if (m_caretCharacterIndex < m_selectionEndCharacterIndex)
+						{
+							window->setClipboardString(string.substr(m_caretByteIndex, m_selectionEndByteIndex - m_caretByteIndex));
+							string.erase(m_caretByteIndex, m_selectionEndByteIndex - m_caretByteIndex);
+							setString(string);
+						}
+						else {
+							window->setClipboardString(string.substr(m_selectionEndByteIndex, m_caretByteIndex - m_selectionEndByteIndex));
+							string.erase(m_selectionEndByteIndex, m_caretByteIndex - m_selectionEndByteIndex);
+							setString(string, m_selectionEndCharacterIndex);
+						}
+
+						m_isSelectionVisible = false;
+
+						m_caretFrameCount = 1;
+						m_isCaretVisible = true;
+					}
+					break;
 				}
-				break;
-			}
-			case KeyboardKey::Enter:
-			{
-				for (EditableTextListener* listener : m_listeners)
+				case KeyboardKey::V:
 				{
-					listener->handleEditableTextEnter(this);
+					if (window->getIsKeyDown(KeyboardKey::Control))
+					{
+						uint32 caretCharacterIndex = m_caretCharacterIndex;
+						uint32 caretByteIndex = m_caretByteIndex;
+						if (m_isSelectionVisible)
+						{
+							if (caretCharacterIndex < m_selectionEndCharacterIndex)
+							{
+								string.erase(m_caretByteIndex, m_selectionEndByteIndex - m_caretByteIndex);
+								m_selectionEndCharacterIndex = m_caretCharacterIndex;
+								m_selectionEndByteIndex = m_caretByteIndex;
+							}
+							else
+							{
+								string.erase(m_selectionEndByteIndex, m_caretByteIndex - m_selectionEndByteIndex);
+								caretCharacterIndex = m_selectionEndCharacterIndex;
+								caretByteIndex = m_selectionEndByteIndex;
+							}
+							m_isSelectionVisible = false;
+						}
+						ClipboardData* clipboardData = window->getClipboardData();
+						std::string clipboardString = clipboardData->getString();
+						clipboardData->forget();
+						string.insert(caretByteIndex, clipboardString);
+						setString(string, caretCharacterIndex + getCharacterIndexFromUtf8UnitIndex(clipboardString, clipboardString.size()));
+
+						m_caretFrameCount = 1;
+						m_isCaretVisible = true;
+					}
+					break;
 				}
-				break;
-			}
+				case KeyboardKey::A:
+				{
+					if (!m_text)
+					{
+						return;
+					}
+					if (window->getIsKeyDown(KeyboardKey::Control))
+					{
+						selectAll();
+						return;
+					}
+					break;
+				}
+				case KeyboardKey::Enter:
+				{
+					for (EditableTextListener* listener : m_listeners)
+					{
+						listener->handleEditableTextEnter(this);
+					}
+					break;
+				}
 			}
 		}
 
@@ -12489,7 +12528,7 @@ namespace AvoGUI
 		}
 
 	public:
-		TextField(View* p_parent, Type p_type = Type::Filled, char const* p_label = "", float p_width = 120.f) :
+		explicit TextField(View* p_parent, Type p_type = Type::Filled, char const* p_label = "", float p_width = 120.f) :
 			View(p_parent),
 			m_editableText(0),
 			m_labelText(0), m_focusAnimationTime(0.f), m_focusAnimationValue(0.f),

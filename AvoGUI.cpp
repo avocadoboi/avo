@@ -11,8 +11,10 @@
 
 #if __has_include("filesystem")
 #include <filesystem>
+namespace filesystem = std::filesystem;
 #else
 #include <experimental/filesystem>
+namespace filesystem = std::experimental::filesystem;
 #endif
 
 //------------------------------
@@ -1144,14 +1146,14 @@ public:
 		AvoGUI::DragDropOperation operation = AvoGUI::DragDropOperation::None;
 		switch (p_effect)
 		{
-		case DROPEFFECT_COPY:
-			operation = AvoGUI::DragDropOperation::Copy;
-			break;
-		case DROPEFFECT_MOVE:
-			operation = AvoGUI::DragDropOperation::Move;
-			break;
-		case DROPEFFECT_LINK:
-			operation = AvoGUI::DragDropOperation::Link;
+			case DROPEFFECT_COPY:
+				operation = AvoGUI::DragDropOperation::Copy;
+				break;
+			case DROPEFFECT_MOVE:
+				operation = AvoGUI::DragDropOperation::Move;
+				break;
+			case DROPEFFECT_LINK:
+				operation = AvoGUI::DragDropOperation::Link;
 		}
 		m_gui->handleGlobalDragDropOperationChange(operation);
 		return DRAGDROP_S_USEDEFAULTCURSORS;
@@ -1268,38 +1270,38 @@ public:
 	{
 		switch (m_oleFormats[p_formatIndex].tymed)
 		{
-		case TYMED_HGLOBAL:
-		{
-			STGMEDIUM medium;
-			HRESULT result = m_dataObject->GetData(m_oleFormats + p_formatIndex, &medium);
-			if (result == S_OK)
+			case TYMED_HGLOBAL:
 			{
-				AvoGUI::DragDropFormatData data { (char const*)GlobalLock(medium.hGlobal), GlobalSize(medium.hGlobal) };
-				((OleClipboardData*)this)->m_globalDataToRelease.push_back(medium);
-				return data;
+				STGMEDIUM medium;
+				HRESULT result = m_dataObject->GetData(m_oleFormats + p_formatIndex, &medium);
+				if (result == S_OK)
+				{
+					AvoGUI::DragDropFormatData data { (char const*)GlobalLock(medium.hGlobal), GlobalSize(medium.hGlobal) };
+					((OleClipboardData*)this)->m_globalDataToRelease.push_back(medium);
+					return data;
+				}
+				break;
 			}
-			break;
-		}
-		case TYMED_ISTREAM:
-		{
-			STGMEDIUM medium;
-			HRESULT result = m_dataObject->GetData(m_oleFormats + p_formatIndex, &medium);
-			if (result == S_OK)
+			case TYMED_ISTREAM:
 			{
-				STATSTG stats;
-				medium.pstm->Stat(&stats, STATFLAG_NONAME);
+				STGMEDIUM medium;
+				HRESULT result = m_dataObject->GetData(m_oleFormats + p_formatIndex, &medium);
+				if (result == S_OK)
+				{
+					STATSTG stats;
+					medium.pstm->Stat(&stats, STATFLAG_NONAME);
 
-				char const* buffer = new char[stats.cbSize.QuadPart];
-				ULONG numberOfBytesRead = 0;
-				medium.pstm->Seek({ 0 }, SEEK_SET, 0);
-				medium.pstm->Read((void*)buffer, stats.cbSize.QuadPart, &numberOfBytesRead);
-				ReleaseStgMedium(&medium);
-				((OleClipboardData*)this)->m_streamBuffersToRelease.push_back(buffer);
+					char const* buffer = new char[stats.cbSize.QuadPart];
+					ULONG numberOfBytesRead = 0;
+					medium.pstm->Seek({ 0 }, SEEK_SET, 0);
+					medium.pstm->Read((void*)buffer, stats.cbSize.QuadPart, &numberOfBytesRead);
+					ReleaseStgMedium(&medium);
+					((OleClipboardData*)this)->m_streamBuffersToRelease.push_back(buffer);
 
-				return { buffer, numberOfBytesRead };
+					return { buffer, numberOfBytesRead };
+				}
+				break;
 			}
-			break;
-		}
 		}
 		return { 0, 0 };
 	}
@@ -1311,56 +1313,56 @@ public:
 		{
 			switch (p_format)
 			{
-			case CF_BITMAP:
-				return "CF_BITMAP";
-			case CF_DIB:
-				return "CF_DIB";
-			case CF_DIF:
-				return "CF_DIF";
-			case CF_DSPBITMAP:
-				return "CF_DSPBITMAP";
-			case CF_DSPENHMETAFILE:
-				return "CF_DSPENHMETAFILE";
-			case CF_DSPMETAFILEPICT:
-				return "CF_DSPMETAFILEPICT";
-			case CF_DSPTEXT:
-				return "CF_DSPTEXT";
-			case CF_ENHMETAFILE:
-				return "CF_ENHMETAFILE";
-			case CF_GDIOBJFIRST:
-				return "CF_GDIOBJFIRST";
-			case CF_GDIOBJLAST:
-				return "CF_GDIOBJLAST";
-			case CF_HDROP:
-				return "CF_HDROP";
-			case CF_LOCALE:
-				return "CF_LOCALE";
-			case CF_METAFILEPICT:
-				return "CF_METAFILEPICT";
-			case CF_OEMTEXT:
-				return "CF_OEMTEXT";
-			case CF_OWNERDISPLAY:
-				return "CF_OWNERDISPLAY";
-			case CF_PALETTE:
-				return "CF_PALETTE";
-			case CF_PENDATA:
-				return "CF_PENDATA";
-			case CF_PRIVATEFIRST:
-				return "CF_PRIVATEFIRST";
-			case CF_PRIVATELAST:
-				return "CF_PRIVATELAST";
-			case CF_RIFF:
-				return "CF_RIFF";
-			case CF_SYLK:
-				return "CF_SYLK";
-			case CF_TEXT:
-				return "CF_TEXT";
-			case CF_TIFF:
-				return "CF_TIFF";
-			case CF_UNICODETEXT:
-				return "CF_UNICODETEXT";
-			case CF_WAVE:
-				return "CF_WAVE";
+				case CF_BITMAP:
+					return "CF_BITMAP";
+				case CF_DIB:
+					return "CF_DIB";
+				case CF_DIF:
+					return "CF_DIF";
+				case CF_DSPBITMAP:
+					return "CF_DSPBITMAP";
+				case CF_DSPENHMETAFILE:
+					return "CF_DSPENHMETAFILE";
+				case CF_DSPMETAFILEPICT:
+					return "CF_DSPMETAFILEPICT";
+				case CF_DSPTEXT:
+					return "CF_DSPTEXT";
+				case CF_ENHMETAFILE:
+					return "CF_ENHMETAFILE";
+				case CF_GDIOBJFIRST:
+					return "CF_GDIOBJFIRST";
+				case CF_GDIOBJLAST:
+					return "CF_GDIOBJLAST";
+				case CF_HDROP:
+					return "CF_HDROP";
+				case CF_LOCALE:
+					return "CF_LOCALE";
+				case CF_METAFILEPICT:
+					return "CF_METAFILEPICT";
+				case CF_OEMTEXT:
+					return "CF_OEMTEXT";
+				case CF_OWNERDISPLAY:
+					return "CF_OWNERDISPLAY";
+				case CF_PALETTE:
+					return "CF_PALETTE";
+				case CF_PENDATA:
+					return "CF_PENDATA";
+				case CF_PRIVATEFIRST:
+					return "CF_PRIVATEFIRST";
+				case CF_PRIVATELAST:
+					return "CF_PRIVATELAST";
+				case CF_RIFF:
+					return "CF_RIFF";
+				case CF_SYLK:
+					return "CF_SYLK";
+				case CF_TEXT:
+					return "CF_TEXT";
+				case CF_TIFF:
+					return "CF_TIFF";
+				case CF_UNICODETEXT:
+					return "CF_UNICODETEXT";
+				case CF_WAVE:
+					return "CF_WAVE";
 			}
 			return "Unknown";
 		}
@@ -1733,17 +1735,17 @@ public:
 		m_gui->handleGlobalDragDropEnter(m_dragDropEvent);
 		switch (m_gui->getGlobalDragDropOperation(m_dragDropEvent))
 		{
-		case AvoGUI::DragDropOperation::Copy:
-			*p_effect = DROPEFFECT_COPY;
-			break;
-		case AvoGUI::DragDropOperation::Move:
-			*p_effect = DROPEFFECT_MOVE;
-			break;
-		case AvoGUI::DragDropOperation::Link:
-			*p_effect = DROPEFFECT_LINK;
-			break;
-		default:
-			*p_effect = DROPEFFECT_NONE;
+			case AvoGUI::DragDropOperation::Copy:
+				*p_effect = DROPEFFECT_COPY;
+				break;
+			case AvoGUI::DragDropOperation::Move:
+				*p_effect = DROPEFFECT_MOVE;
+				break;
+			case AvoGUI::DragDropOperation::Link:
+				*p_effect = DROPEFFECT_LINK;
+				break;
+			default:
+				*p_effect = DROPEFFECT_NONE;
 		}
 		m_gui->includeAnimationThread();
 		m_currentEffect = *p_effect;
@@ -1770,17 +1772,17 @@ public:
 		m_gui->handleGlobalDragDropMove(m_dragDropEvent);
 		switch (m_gui->getGlobalDragDropOperation(m_dragDropEvent))
 		{
-		case AvoGUI::DragDropOperation::Copy:
-			*p_effect = DROPEFFECT_COPY;
-			break;
-		case AvoGUI::DragDropOperation::Move:
-			*p_effect = DROPEFFECT_MOVE;
-			break;
-		case AvoGUI::DragDropOperation::Link:
-			*p_effect = DROPEFFECT_LINK;
-			break;
-		default:
-			*p_effect = DROPEFFECT_NONE;
+			case AvoGUI::DragDropOperation::Copy:
+				*p_effect = DROPEFFECT_COPY;
+				break;
+			case AvoGUI::DragDropOperation::Move:
+				*p_effect = DROPEFFECT_MOVE;
+				break;
+			case AvoGUI::DragDropOperation::Link:
+				*p_effect = DROPEFFECT_LINK;
+				break;
+			default:
+				*p_effect = DROPEFFECT_NONE;
 		}
 		m_gui->includeAnimationThread();
 		m_currentEffect = *p_effect;
@@ -1909,226 +1911,226 @@ private:
 	{
 		switch (p_data)
 		{
-		case VK_APPS:
-			return AvoGUI::KeyboardKey::Menu;
-		case VK_BACK:
-			return AvoGUI::KeyboardKey::Backspace;
-		case VK_CLEAR:
-			return AvoGUI::KeyboardKey::Clear;
-		case VK_TAB:
-			return AvoGUI::KeyboardKey::Tab;
-		case VK_RETURN:
-			return AvoGUI::KeyboardKey::Return;
-		case VK_SHIFT:
-			return AvoGUI::KeyboardKey::Shift;
-		case VK_CONTROL:
-			return AvoGUI::KeyboardKey::Control;
-		case VK_MENU:
-			return AvoGUI::KeyboardKey::Alt;
-		case VK_PAUSE:
-			return AvoGUI::KeyboardKey::Pause;
-		case VK_CAPITAL:
-			return AvoGUI::KeyboardKey::CapsLock;
-		case VK_ESCAPE:
-			return AvoGUI::KeyboardKey::Escape;
-		case VK_SPACE:
-			return AvoGUI::KeyboardKey::Spacebar;
-		case VK_PRIOR:
-			return AvoGUI::KeyboardKey::PageUp;
-		case VK_NEXT:
-			return AvoGUI::KeyboardKey::PageDown;
-		case VK_END:
-			return AvoGUI::KeyboardKey::End;
-		case VK_HOME:
-			return AvoGUI::KeyboardKey::Home;
-		case VK_LEFT:
-			return AvoGUI::KeyboardKey::Left;
-		case VK_RIGHT:
-			return AvoGUI::KeyboardKey::Right;
-		case VK_UP:
-			return AvoGUI::KeyboardKey::Up;
-		case VK_DOWN:
-			return AvoGUI::KeyboardKey::Down;
-		case VK_SNAPSHOT:
-			return AvoGUI::KeyboardKey::PrintScreen;
-		case VK_INSERT:
-			return AvoGUI::KeyboardKey::Insert;
-		case VK_DELETE:
-			return AvoGUI::KeyboardKey::Delete;
-		case VK_HELP:
-			return AvoGUI::KeyboardKey::Help;
-		case VK_NUMPAD0:
-			return AvoGUI::KeyboardKey::Numpad0;
-		case VK_NUMPAD1:
-			return AvoGUI::KeyboardKey::Numpad1;
-		case VK_NUMPAD2:
-			return AvoGUI::KeyboardKey::Numpad2;
-		case VK_NUMPAD3:
-			return AvoGUI::KeyboardKey::Numpad3;
-		case VK_NUMPAD4:
-			return AvoGUI::KeyboardKey::Numpad4;
-		case VK_NUMPAD5:
-			return AvoGUI::KeyboardKey::Numpad5;
-		case VK_NUMPAD6:
-			return AvoGUI::KeyboardKey::Numpad6;
-		case VK_NUMPAD7:
-			return AvoGUI::KeyboardKey::Numpad7;
-		case VK_NUMPAD8:
-			return AvoGUI::KeyboardKey::Numpad8;
-		case VK_NUMPAD9:
-			return AvoGUI::KeyboardKey::Numpad9;
-		case VK_ADD:
-			return AvoGUI::KeyboardKey::Add;
-		case VK_SUBTRACT:
-			return AvoGUI::KeyboardKey::Subtract;
-		case VK_MULTIPLY:
-			return AvoGUI::KeyboardKey::Multiply;
-		case VK_DIVIDE:
-			return AvoGUI::KeyboardKey::Divide;
-		case VK_F1:
-			return AvoGUI::KeyboardKey::F1;
-		case VK_F2:
-			return AvoGUI::KeyboardKey::F2;
-		case VK_F3:
-			return AvoGUI::KeyboardKey::F3;
-		case VK_F4:
-			return AvoGUI::KeyboardKey::F4;
-		case VK_F5:
-			return AvoGUI::KeyboardKey::F5;
-		case VK_F6:
-			return AvoGUI::KeyboardKey::F6;
-		case VK_F7:
-			return AvoGUI::KeyboardKey::F7;
-		case VK_F8:
-			return AvoGUI::KeyboardKey::F8;
-		case VK_F9:
-			return AvoGUI::KeyboardKey::F9;
-		case VK_F10:
-			return AvoGUI::KeyboardKey::F10;
-		case VK_F11:
-			return AvoGUI::KeyboardKey::F11;
-		case VK_F12:
-			return AvoGUI::KeyboardKey::F12;
-		case VK_F13:
-			return AvoGUI::KeyboardKey::F13;
-		case VK_F14:
-			return AvoGUI::KeyboardKey::F14;
-		case VK_F15:
-			return AvoGUI::KeyboardKey::F15;
-		case VK_F16:
-			return AvoGUI::KeyboardKey::F16;
-		case VK_F17:
-			return AvoGUI::KeyboardKey::F17;
-		case VK_F18:
-			return AvoGUI::KeyboardKey::F18;
-		case VK_F19:
-			return AvoGUI::KeyboardKey::F19;
-		case VK_F20:
-			return AvoGUI::KeyboardKey::F20;
-		case VK_F21:
-			return AvoGUI::KeyboardKey::F21;
-		case VK_F22:
-			return AvoGUI::KeyboardKey::F22;
-		case VK_F23:
-			return AvoGUI::KeyboardKey::F23;
-		case VK_F24:
-			return AvoGUI::KeyboardKey::F24;
-		case VK_NUMLOCK:
-			return AvoGUI::KeyboardKey::NumLock;
-		case 0x30:
-			return AvoGUI::KeyboardKey::Number0;
-		case 0x31:
-			return AvoGUI::KeyboardKey::Number1;
-		case 0x32:
-			return AvoGUI::KeyboardKey::Number2;
-		case 0x33:
-			return AvoGUI::KeyboardKey::Number3;
-		case 0x34:
-			return AvoGUI::KeyboardKey::Number4;
-		case 0x35:
-			return AvoGUI::KeyboardKey::Number5;
-		case 0x36:
-			return AvoGUI::KeyboardKey::Number6;
-		case 0x37:
-			return AvoGUI::KeyboardKey::Number7;
-		case 0x38:
-			return AvoGUI::KeyboardKey::Number8;
-		case 0x39:
-			return AvoGUI::KeyboardKey::Number9;
-		case 0x41:
-			return AvoGUI::KeyboardKey::A;
-		case 0x42:
-			return AvoGUI::KeyboardKey::B;
-		case 0x43:
-			return AvoGUI::KeyboardKey::C;
-		case 0x44:
-			return AvoGUI::KeyboardKey::D;
-		case 0x45:
-			return AvoGUI::KeyboardKey::E;
-		case 0x46:
-			return AvoGUI::KeyboardKey::F;
-		case 0x47:
-			return AvoGUI::KeyboardKey::G;
-		case 0x48:
-			return AvoGUI::KeyboardKey::H;
-		case 0x49:
-			return AvoGUI::KeyboardKey::I;
-		case 0x4A:
-			return AvoGUI::KeyboardKey::J;
-		case 0x4B:
-			return AvoGUI::KeyboardKey::K;
-		case 0x4C:
-			return AvoGUI::KeyboardKey::L;
-		case 0x4D:
-			return AvoGUI::KeyboardKey::M;
-		case 0x4E:
-			return AvoGUI::KeyboardKey::N;
-		case 0x4F:
-			return AvoGUI::KeyboardKey::O;
-		case 0x50:
-			return AvoGUI::KeyboardKey::P;
-		case 0x51:
-			return AvoGUI::KeyboardKey::Q;
-		case 0x52:
-			return AvoGUI::KeyboardKey::R;
-		case 0x53:
-			return AvoGUI::KeyboardKey::S;
-		case 0x54:
-			return AvoGUI::KeyboardKey::T;
-		case 0x55:
-			return AvoGUI::KeyboardKey::U;
-		case 0x56:
-			return AvoGUI::KeyboardKey::V;
-		case 0x57:
-			return AvoGUI::KeyboardKey::W;
-		case 0x58:
-			return AvoGUI::KeyboardKey::X;
-		case 0x59:
-			return AvoGUI::KeyboardKey::Y;
-		case 0x5A:
-			return AvoGUI::KeyboardKey::Z;
-		case VK_OEM_COMMA:
-			return AvoGUI::KeyboardKey::Comma;
-		case VK_OEM_PERIOD:
-			return AvoGUI::KeyboardKey::Period;
-		case VK_OEM_PLUS:
-			return AvoGUI::KeyboardKey::Plus;
-		case VK_OEM_MINUS:
-			return AvoGUI::KeyboardKey::Minus;
-		case VK_OEM_1:
-			return AvoGUI::KeyboardKey::Regional1;
-		case VK_OEM_2:
-			return AvoGUI::KeyboardKey::Regional2;
-		case VK_OEM_3:
-			return AvoGUI::KeyboardKey::Regional3;
-		case VK_OEM_4:
-			return AvoGUI::KeyboardKey::Regional4;
-		case VK_OEM_5:
-			return AvoGUI::KeyboardKey::Regional5;
-		case VK_OEM_6:
-			return AvoGUI::KeyboardKey::Regional6;
-		case VK_OEM_7:
-			return AvoGUI::KeyboardKey::Regional7;
+			case VK_APPS:
+				return AvoGUI::KeyboardKey::Menu;
+			case VK_BACK:
+				return AvoGUI::KeyboardKey::Backspace;
+			case VK_CLEAR:
+				return AvoGUI::KeyboardKey::Clear;
+			case VK_TAB:
+				return AvoGUI::KeyboardKey::Tab;
+			case VK_RETURN:
+				return AvoGUI::KeyboardKey::Return;
+			case VK_SHIFT:
+				return AvoGUI::KeyboardKey::Shift;
+			case VK_CONTROL:
+				return AvoGUI::KeyboardKey::Control;
+			case VK_MENU:
+				return AvoGUI::KeyboardKey::Alt;
+			case VK_PAUSE:
+				return AvoGUI::KeyboardKey::Pause;
+			case VK_CAPITAL:
+				return AvoGUI::KeyboardKey::CapsLock;
+			case VK_ESCAPE:
+				return AvoGUI::KeyboardKey::Escape;
+			case VK_SPACE:
+				return AvoGUI::KeyboardKey::Spacebar;
+			case VK_PRIOR:
+				return AvoGUI::KeyboardKey::PageUp;
+			case VK_NEXT:
+				return AvoGUI::KeyboardKey::PageDown;
+			case VK_END:
+				return AvoGUI::KeyboardKey::End;
+			case VK_HOME:
+				return AvoGUI::KeyboardKey::Home;
+			case VK_LEFT:
+				return AvoGUI::KeyboardKey::Left;
+			case VK_RIGHT:
+				return AvoGUI::KeyboardKey::Right;
+			case VK_UP:
+				return AvoGUI::KeyboardKey::Up;
+			case VK_DOWN:
+				return AvoGUI::KeyboardKey::Down;
+			case VK_SNAPSHOT:
+				return AvoGUI::KeyboardKey::PrintScreen;
+			case VK_INSERT:
+				return AvoGUI::KeyboardKey::Insert;
+			case VK_DELETE:
+				return AvoGUI::KeyboardKey::Delete;
+			case VK_HELP:
+				return AvoGUI::KeyboardKey::Help;
+			case VK_NUMPAD0:
+				return AvoGUI::KeyboardKey::Numpad0;
+			case VK_NUMPAD1:
+				return AvoGUI::KeyboardKey::Numpad1;
+			case VK_NUMPAD2:
+				return AvoGUI::KeyboardKey::Numpad2;
+			case VK_NUMPAD3:
+				return AvoGUI::KeyboardKey::Numpad3;
+			case VK_NUMPAD4:
+				return AvoGUI::KeyboardKey::Numpad4;
+			case VK_NUMPAD5:
+				return AvoGUI::KeyboardKey::Numpad5;
+			case VK_NUMPAD6:
+				return AvoGUI::KeyboardKey::Numpad6;
+			case VK_NUMPAD7:
+				return AvoGUI::KeyboardKey::Numpad7;
+			case VK_NUMPAD8:
+				return AvoGUI::KeyboardKey::Numpad8;
+			case VK_NUMPAD9:
+				return AvoGUI::KeyboardKey::Numpad9;
+			case VK_ADD:
+				return AvoGUI::KeyboardKey::Add;
+			case VK_SUBTRACT:
+				return AvoGUI::KeyboardKey::Subtract;
+			case VK_MULTIPLY:
+				return AvoGUI::KeyboardKey::Multiply;
+			case VK_DIVIDE:
+				return AvoGUI::KeyboardKey::Divide;
+			case VK_F1:
+				return AvoGUI::KeyboardKey::F1;
+			case VK_F2:
+				return AvoGUI::KeyboardKey::F2;
+			case VK_F3:
+				return AvoGUI::KeyboardKey::F3;
+			case VK_F4:
+				return AvoGUI::KeyboardKey::F4;
+			case VK_F5:
+				return AvoGUI::KeyboardKey::F5;
+			case VK_F6:
+				return AvoGUI::KeyboardKey::F6;
+			case VK_F7:
+				return AvoGUI::KeyboardKey::F7;
+			case VK_F8:
+				return AvoGUI::KeyboardKey::F8;
+			case VK_F9:
+				return AvoGUI::KeyboardKey::F9;
+			case VK_F10:
+				return AvoGUI::KeyboardKey::F10;
+			case VK_F11:
+				return AvoGUI::KeyboardKey::F11;
+			case VK_F12:
+				return AvoGUI::KeyboardKey::F12;
+			case VK_F13:
+				return AvoGUI::KeyboardKey::F13;
+			case VK_F14:
+				return AvoGUI::KeyboardKey::F14;
+			case VK_F15:
+				return AvoGUI::KeyboardKey::F15;
+			case VK_F16:
+				return AvoGUI::KeyboardKey::F16;
+			case VK_F17:
+				return AvoGUI::KeyboardKey::F17;
+			case VK_F18:
+				return AvoGUI::KeyboardKey::F18;
+			case VK_F19:
+				return AvoGUI::KeyboardKey::F19;
+			case VK_F20:
+				return AvoGUI::KeyboardKey::F20;
+			case VK_F21:
+				return AvoGUI::KeyboardKey::F21;
+			case VK_F22:
+				return AvoGUI::KeyboardKey::F22;
+			case VK_F23:
+				return AvoGUI::KeyboardKey::F23;
+			case VK_F24:
+				return AvoGUI::KeyboardKey::F24;
+			case VK_NUMLOCK:
+				return AvoGUI::KeyboardKey::NumLock;
+			case 0x30:
+				return AvoGUI::KeyboardKey::Number0;
+			case 0x31:
+				return AvoGUI::KeyboardKey::Number1;
+			case 0x32:
+				return AvoGUI::KeyboardKey::Number2;
+			case 0x33:
+				return AvoGUI::KeyboardKey::Number3;
+			case 0x34:
+				return AvoGUI::KeyboardKey::Number4;
+			case 0x35:
+				return AvoGUI::KeyboardKey::Number5;
+			case 0x36:
+				return AvoGUI::KeyboardKey::Number6;
+			case 0x37:
+				return AvoGUI::KeyboardKey::Number7;
+			case 0x38:
+				return AvoGUI::KeyboardKey::Number8;
+			case 0x39:
+				return AvoGUI::KeyboardKey::Number9;
+			case 0x41:
+				return AvoGUI::KeyboardKey::A;
+			case 0x42:
+				return AvoGUI::KeyboardKey::B;
+			case 0x43:
+				return AvoGUI::KeyboardKey::C;
+			case 0x44:
+				return AvoGUI::KeyboardKey::D;
+			case 0x45:
+				return AvoGUI::KeyboardKey::E;
+			case 0x46:
+				return AvoGUI::KeyboardKey::F;
+			case 0x47:
+				return AvoGUI::KeyboardKey::G;
+			case 0x48:
+				return AvoGUI::KeyboardKey::H;
+			case 0x49:
+				return AvoGUI::KeyboardKey::I;
+			case 0x4A:
+				return AvoGUI::KeyboardKey::J;
+			case 0x4B:
+				return AvoGUI::KeyboardKey::K;
+			case 0x4C:
+				return AvoGUI::KeyboardKey::L;
+			case 0x4D:
+				return AvoGUI::KeyboardKey::M;
+			case 0x4E:
+				return AvoGUI::KeyboardKey::N;
+			case 0x4F:
+				return AvoGUI::KeyboardKey::O;
+			case 0x50:
+				return AvoGUI::KeyboardKey::P;
+			case 0x51:
+				return AvoGUI::KeyboardKey::Q;
+			case 0x52:
+				return AvoGUI::KeyboardKey::R;
+			case 0x53:
+				return AvoGUI::KeyboardKey::S;
+			case 0x54:
+				return AvoGUI::KeyboardKey::T;
+			case 0x55:
+				return AvoGUI::KeyboardKey::U;
+			case 0x56:
+				return AvoGUI::KeyboardKey::V;
+			case 0x57:
+				return AvoGUI::KeyboardKey::W;
+			case 0x58:
+				return AvoGUI::KeyboardKey::X;
+			case 0x59:
+				return AvoGUI::KeyboardKey::Y;
+			case 0x5A:
+				return AvoGUI::KeyboardKey::Z;
+			case VK_OEM_COMMA:
+				return AvoGUI::KeyboardKey::Comma;
+			case VK_OEM_PERIOD:
+				return AvoGUI::KeyboardKey::Period;
+			case VK_OEM_PLUS:
+				return AvoGUI::KeyboardKey::Plus;
+			case VK_OEM_MINUS:
+				return AvoGUI::KeyboardKey::Minus;
+			case VK_OEM_1:
+				return AvoGUI::KeyboardKey::Regional1;
+			case VK_OEM_2:
+				return AvoGUI::KeyboardKey::Regional2;
+			case VK_OEM_3:
+				return AvoGUI::KeyboardKey::Regional3;
+			case VK_OEM_4:
+				return AvoGUI::KeyboardKey::Regional4;
+			case VK_OEM_5:
+				return AvoGUI::KeyboardKey::Regional5;
+			case VK_OEM_6:
+				return AvoGUI::KeyboardKey::Regional6;
+			case VK_OEM_7:
+				return AvoGUI::KeyboardKey::Regional7;
 		}
 		return AvoGUI::KeyboardKey::None;
 	}
@@ -2350,7 +2352,7 @@ private:
 		//------------------------------
 
 		OleDataObject* dataObject = 0;
-		if (std::filesystem::is_regular_file(path))
+		if (filesystem::is_regular_file(path))
 		{
 			formats[2].cfFormat = m_clipboardFormat_fileContents;
 			formats[2].tymed = TYMED_ISTREAM;
@@ -2387,7 +2389,7 @@ private:
 	}
 	OleDataObject* createFileOleDataObject(std::wstring const& p_path) const
 	{
-		std::filesystem::path path(p_path);
+		filesystem::path path(p_path);
 		uint32 widePathStringSize = (p_path.size() + 1) * sizeof(wchar_t);
 
 		FORMATETC formats[4];
@@ -2429,7 +2431,7 @@ private:
 		//------------------------------
 
 		OleDataObject* dataObject = 0;
-		if (std::filesystem::is_regular_file(path))
+		if (filesystem::is_regular_file(path))
 		{
 			formats[2].cfFormat = m_clipboardFormat_fileContents;
 			formats[2].tymed = TYMED_ISTREAM;
@@ -3222,230 +3224,230 @@ public:
 	{
 		switch (p_key)
 		{
-		case AvoGUI::KeyboardKey::A:
-			return GetAsyncKeyState(0x41) & (1 << 16);
-		case AvoGUI::KeyboardKey::B:
-			return GetAsyncKeyState(0x42) & (1 << 16);
-		case AvoGUI::KeyboardKey::C:
-			return GetAsyncKeyState(0x43) & (1 << 16);
-		case AvoGUI::KeyboardKey::D:
-			return GetAsyncKeyState(0x44) & (1 << 16);
-		case AvoGUI::KeyboardKey::E:
-			return GetAsyncKeyState(0x45) & (1 << 16);
-		case AvoGUI::KeyboardKey::F:
-			return GetAsyncKeyState(0x46) & (1 << 16);
-		case AvoGUI::KeyboardKey::G:
-			return GetAsyncKeyState(0x47) & (1 << 16);
-		case AvoGUI::KeyboardKey::H:
-			return GetAsyncKeyState(0x48) & (1 << 16);
-		case AvoGUI::KeyboardKey::I:
-			return GetAsyncKeyState(0x49) & (1 << 16);
-		case AvoGUI::KeyboardKey::J:
-			return GetAsyncKeyState(0x4A) & (1 << 16);
-		case AvoGUI::KeyboardKey::K:
-			return GetAsyncKeyState(0x4B) & (1 << 16);
-		case AvoGUI::KeyboardKey::L:
-			return GetAsyncKeyState(0x4C) & (1 << 16);
-		case AvoGUI::KeyboardKey::M:
-			return GetAsyncKeyState(0x4D) & (1 << 16);
-		case AvoGUI::KeyboardKey::N:
-			return GetAsyncKeyState(0x4E) & (1 << 16);
-		case AvoGUI::KeyboardKey::O:
-			return GetAsyncKeyState(0x4F) & (1 << 16);
-		case AvoGUI::KeyboardKey::P:
-			return GetAsyncKeyState(0x50) & (1 << 16);
-		case AvoGUI::KeyboardKey::Q:
-			return GetAsyncKeyState(0x51) & (1 << 16);
-		case AvoGUI::KeyboardKey::R:
-			return GetAsyncKeyState(0x52) & (1 << 16);
-		case AvoGUI::KeyboardKey::S:
-			return GetAsyncKeyState(0x53) & (1 << 16);
-		case AvoGUI::KeyboardKey::T:
-			return GetAsyncKeyState(0x54) & (1 << 16);
-		case AvoGUI::KeyboardKey::U:
-			return GetAsyncKeyState(0x55) & (1 << 16);
-		case AvoGUI::KeyboardKey::V:
-			return GetAsyncKeyState(0x56) & (1 << 16);
-		case AvoGUI::KeyboardKey::W:
-			return GetAsyncKeyState(0x57) & (1 << 16);
-		case AvoGUI::KeyboardKey::X:
-			return GetAsyncKeyState(0x58) & (1 << 16);
-		case AvoGUI::KeyboardKey::Y:
-			return GetAsyncKeyState(0x59) & (1 << 16);
-		case AvoGUI::KeyboardKey::Z:
-			return GetAsyncKeyState(0x5A) & (1 << 16);
-		case AvoGUI::KeyboardKey::Alt:
-			return GetAsyncKeyState(VK_MENU) & (1 << 16);
-		case AvoGUI::KeyboardKey::Backspace:
-			return GetAsyncKeyState(VK_BACK) & (1 << 16);
-		case AvoGUI::KeyboardKey::CapsLock:
-			return GetAsyncKeyState(VK_CAPITAL) & (1 << 16);
-		case AvoGUI::KeyboardKey::Clear:
-			return GetAsyncKeyState(VK_CLEAR) & (1 << 16);
-		case AvoGUI::KeyboardKey::Control:
-			return GetAsyncKeyState(VK_CONTROL) & (1 << 16);
-		case AvoGUI::KeyboardKey::Decimal:
-			return GetAsyncKeyState(VK_DECIMAL) & (1 << 16);
-		case AvoGUI::KeyboardKey::Delete:
-			return GetAsyncKeyState(VK_DELETE) & (1 << 16);
-		case AvoGUI::KeyboardKey::Down:
-			return GetAsyncKeyState(VK_DOWN) & (1 << 16);
-		case AvoGUI::KeyboardKey::End:
-			return GetAsyncKeyState(VK_END) & (1 << 16);
-		case AvoGUI::KeyboardKey::Enter:
-			return GetAsyncKeyState(VK_RETURN) & (1 << 16);
-		case AvoGUI::KeyboardKey::Escape:
-			return GetAsyncKeyState(VK_ESCAPE) & (1 << 16);
-		case AvoGUI::KeyboardKey::F1:
-			return GetAsyncKeyState(VK_F1) & (1 << 16);
-		case AvoGUI::KeyboardKey::F2:
-			return GetAsyncKeyState(VK_F2) & (1 << 16);
-		case AvoGUI::KeyboardKey::F3:
-			return GetAsyncKeyState(VK_F3) & (1 << 16);
-		case AvoGUI::KeyboardKey::F4:
-			return GetAsyncKeyState(VK_F4) & (1 << 16);
-		case AvoGUI::KeyboardKey::F5:
-			return GetAsyncKeyState(VK_F5) & (1 << 16);
-		case AvoGUI::KeyboardKey::F6:
-			return GetAsyncKeyState(VK_F6) & (1 << 16);
-		case AvoGUI::KeyboardKey::F7:
-			return GetAsyncKeyState(VK_F7) & (1 << 16);
-		case AvoGUI::KeyboardKey::F8:
-			return GetAsyncKeyState(VK_F8) & (1 << 16);
-		case AvoGUI::KeyboardKey::F9:
-			return GetAsyncKeyState(VK_F9) & (1 << 16);
-		case AvoGUI::KeyboardKey::F10:
-			return GetAsyncKeyState(VK_F10) & (1 << 16);
-		case AvoGUI::KeyboardKey::F11:
-			return GetAsyncKeyState(VK_F11) & (1 << 16);
-		case AvoGUI::KeyboardKey::F12:
-			return GetAsyncKeyState(VK_F12) & (1 << 16);
-		case AvoGUI::KeyboardKey::F13:
-			return GetAsyncKeyState(VK_F13) & (1 << 16);
-		case AvoGUI::KeyboardKey::F14:
-			return GetAsyncKeyState(VK_F14) & (1 << 16);
-		case AvoGUI::KeyboardKey::F15:
-			return GetAsyncKeyState(VK_F15) & (1 << 16);
-		case AvoGUI::KeyboardKey::F16:
-			return GetAsyncKeyState(VK_F16) & (1 << 16);
-		case AvoGUI::KeyboardKey::F17:
-			return GetAsyncKeyState(VK_F17) & (1 << 16);
-		case AvoGUI::KeyboardKey::F18:
-			return GetAsyncKeyState(VK_F18) & (1 << 16);
-		case AvoGUI::KeyboardKey::F19:
-			return GetAsyncKeyState(VK_F19) & (1 << 16);
-		case AvoGUI::KeyboardKey::F20:
-			return GetAsyncKeyState(VK_F20) & (1 << 16);
-		case AvoGUI::KeyboardKey::F21:
-			return GetAsyncKeyState(VK_F21) & (1 << 16);
-		case AvoGUI::KeyboardKey::F22:
-			return GetAsyncKeyState(VK_F22) & (1 << 16);
-		case AvoGUI::KeyboardKey::F23:
-			return GetAsyncKeyState(VK_F23) & (1 << 16);
-		case AvoGUI::KeyboardKey::F24:
-			return GetAsyncKeyState(VK_F24) & (1 << 16);
-		case AvoGUI::KeyboardKey::Help:
-			return GetAsyncKeyState(VK_HELP) & (1 << 16);
-		case AvoGUI::KeyboardKey::Home:
-			return GetAsyncKeyState(VK_HOME) & (1 << 16);
-		case AvoGUI::KeyboardKey::Insert:
-			return GetAsyncKeyState(VK_INSERT) & (1 << 16);
-		case AvoGUI::KeyboardKey::Left:
-			return GetAsyncKeyState(VK_LEFT) & (1 << 16);
-		case AvoGUI::KeyboardKey::Menu:
-			return GetAsyncKeyState(VK_APPS) & (1 << 16);
-		case AvoGUI::KeyboardKey::Number0:
-			return GetAsyncKeyState(0x30) & (1 << 16);
-		case AvoGUI::KeyboardKey::Number1:
-			return GetAsyncKeyState(0x31) & (1 << 16);
-		case AvoGUI::KeyboardKey::Number2:
-			return GetAsyncKeyState(0x32) & (1 << 16);
-		case AvoGUI::KeyboardKey::Number3:
-			return GetAsyncKeyState(0x33) & (1 << 16);
-		case AvoGUI::KeyboardKey::Number4:
-			return GetAsyncKeyState(0x34) & (1 << 16);
-		case AvoGUI::KeyboardKey::Number5:
-			return GetAsyncKeyState(0x35) & (1 << 16);
-		case AvoGUI::KeyboardKey::Number6:
-			return GetAsyncKeyState(0x36) & (1 << 16);
-		case AvoGUI::KeyboardKey::Number7:
-			return GetAsyncKeyState(0x37) & (1 << 16);
-		case AvoGUI::KeyboardKey::Number8:
-			return GetAsyncKeyState(0x38) & (1 << 16);
-		case AvoGUI::KeyboardKey::Number9:
-			return GetAsyncKeyState(0x39) & (1 << 16);
-		case AvoGUI::KeyboardKey::NumLock:
-			return GetAsyncKeyState(VK_NUMLOCK) & (1 << 16);
-		case AvoGUI::KeyboardKey::Numpad0:
-			return GetAsyncKeyState(VK_NUMPAD0) & (1 << 16);
-		case AvoGUI::KeyboardKey::Numpad1:
-			return GetAsyncKeyState(VK_NUMPAD1) & (1 << 16);
-		case AvoGUI::KeyboardKey::Numpad2:
-			return GetAsyncKeyState(VK_NUMPAD2) & (1 << 16);
-		case AvoGUI::KeyboardKey::Numpad3:
-			return GetAsyncKeyState(VK_NUMPAD3) & (1 << 16);
-		case AvoGUI::KeyboardKey::Numpad4:
-			return GetAsyncKeyState(VK_NUMPAD4) & (1 << 16);
-		case AvoGUI::KeyboardKey::Numpad5:
-			return GetAsyncKeyState(VK_NUMPAD5) & (1 << 16);
-		case AvoGUI::KeyboardKey::Numpad6:
-			return GetAsyncKeyState(VK_NUMPAD6) & (1 << 16);
-		case AvoGUI::KeyboardKey::Numpad7:
-			return GetAsyncKeyState(VK_NUMPAD7) & (1 << 16);
-		case AvoGUI::KeyboardKey::Numpad8:
-			return GetAsyncKeyState(VK_NUMPAD8) & (1 << 16);
-		case AvoGUI::KeyboardKey::Numpad9:
-			return GetAsyncKeyState(VK_NUMPAD9) & (1 << 16);
-		case AvoGUI::KeyboardKey::Add:
-			return GetAsyncKeyState(VK_ADD) & (1 << 16);
-		case AvoGUI::KeyboardKey::Subtract:
-			return GetAsyncKeyState(VK_SUBTRACT) & (1 << 16);
-		case AvoGUI::KeyboardKey::Multiply:
-			return GetAsyncKeyState(VK_MULTIPLY) & (1 << 16);
-		case AvoGUI::KeyboardKey::Divide:
-			return GetAsyncKeyState(VK_DIVIDE) & (1 << 16);
-		case AvoGUI::KeyboardKey::PageDown:
-			return GetAsyncKeyState(VK_NEXT) & (1 << 16);
-		case AvoGUI::KeyboardKey::PageUp:
-			return GetAsyncKeyState(VK_PRIOR) & (1 << 16);
-		case AvoGUI::KeyboardKey::Pause:
-			return GetAsyncKeyState(VK_PAUSE) & (1 << 16);
-		case AvoGUI::KeyboardKey::PrintScreen:
-			return GetAsyncKeyState(VK_SNAPSHOT) & (1 << 16);
-		case AvoGUI::KeyboardKey::Comma:
-			return GetAsyncKeyState(VK_OEM_COMMA) & (1 << 16);
-		case AvoGUI::KeyboardKey::Period:
-			return GetAsyncKeyState(VK_OEM_PERIOD) & (1 << 16);
-		case AvoGUI::KeyboardKey::Plus:
-			return GetAsyncKeyState(VK_OEM_PLUS) & (1 << 16);
-		case AvoGUI::KeyboardKey::Minus:
-			return GetAsyncKeyState(VK_OEM_MINUS) & (1 << 16);
-		case AvoGUI::KeyboardKey::Regional1:
-			return GetAsyncKeyState(VK_OEM_1) & (1 << 16);
-		case AvoGUI::KeyboardKey::Regional2:
-			return GetAsyncKeyState(VK_OEM_2) & (1 << 16);
-		case AvoGUI::KeyboardKey::Regional3:
-			return GetAsyncKeyState(VK_OEM_3) & (1 << 16);
-		case AvoGUI::KeyboardKey::Regional4:
-			return GetAsyncKeyState(VK_OEM_4) & (1 << 16);
-		case AvoGUI::KeyboardKey::Regional5:
-			return GetAsyncKeyState(VK_OEM_5) & (1 << 16);
-		case AvoGUI::KeyboardKey::Regional6:
-			return GetAsyncKeyState(VK_OEM_6) & (1 << 16);
-		case AvoGUI::KeyboardKey::Regional7:
-			return GetAsyncKeyState(VK_OEM_7) & (1 << 16);
-		case AvoGUI::KeyboardKey::Right:
-			return GetAsyncKeyState(VK_RIGHT) & (1 << 16);
-		case AvoGUI::KeyboardKey::Separator:
-			return GetAsyncKeyState(VK_SEPARATOR) & (1 << 16);
-		case AvoGUI::KeyboardKey::Shift:
-			return GetAsyncKeyState(VK_SHIFT) & (1 << 16);
-		case AvoGUI::KeyboardKey::Spacebar:
-			return GetAsyncKeyState(VK_SPACE) & (1 << 16);
-		case AvoGUI::KeyboardKey::Tab:
-			return GetAsyncKeyState(VK_TAB) & (1 << 16);
-		case AvoGUI::KeyboardKey::Up:
-			return GetAsyncKeyState(VK_UP) & (1 << 16);
+			case AvoGUI::KeyboardKey::A:
+				return GetAsyncKeyState(0x41) & (1 << 16);
+			case AvoGUI::KeyboardKey::B:
+				return GetAsyncKeyState(0x42) & (1 << 16);
+			case AvoGUI::KeyboardKey::C:
+				return GetAsyncKeyState(0x43) & (1 << 16);
+			case AvoGUI::KeyboardKey::D:
+				return GetAsyncKeyState(0x44) & (1 << 16);
+			case AvoGUI::KeyboardKey::E:
+				return GetAsyncKeyState(0x45) & (1 << 16);
+			case AvoGUI::KeyboardKey::F:
+				return GetAsyncKeyState(0x46) & (1 << 16);
+			case AvoGUI::KeyboardKey::G:
+				return GetAsyncKeyState(0x47) & (1 << 16);
+			case AvoGUI::KeyboardKey::H:
+				return GetAsyncKeyState(0x48) & (1 << 16);
+			case AvoGUI::KeyboardKey::I:
+				return GetAsyncKeyState(0x49) & (1 << 16);
+			case AvoGUI::KeyboardKey::J:
+				return GetAsyncKeyState(0x4A) & (1 << 16);
+			case AvoGUI::KeyboardKey::K:
+				return GetAsyncKeyState(0x4B) & (1 << 16);
+			case AvoGUI::KeyboardKey::L:
+				return GetAsyncKeyState(0x4C) & (1 << 16);
+			case AvoGUI::KeyboardKey::M:
+				return GetAsyncKeyState(0x4D) & (1 << 16);
+			case AvoGUI::KeyboardKey::N:
+				return GetAsyncKeyState(0x4E) & (1 << 16);
+			case AvoGUI::KeyboardKey::O:
+				return GetAsyncKeyState(0x4F) & (1 << 16);
+			case AvoGUI::KeyboardKey::P:
+				return GetAsyncKeyState(0x50) & (1 << 16);
+			case AvoGUI::KeyboardKey::Q:
+				return GetAsyncKeyState(0x51) & (1 << 16);
+			case AvoGUI::KeyboardKey::R:
+				return GetAsyncKeyState(0x52) & (1 << 16);
+			case AvoGUI::KeyboardKey::S:
+				return GetAsyncKeyState(0x53) & (1 << 16);
+			case AvoGUI::KeyboardKey::T:
+				return GetAsyncKeyState(0x54) & (1 << 16);
+			case AvoGUI::KeyboardKey::U:
+				return GetAsyncKeyState(0x55) & (1 << 16);
+			case AvoGUI::KeyboardKey::V:
+				return GetAsyncKeyState(0x56) & (1 << 16);
+			case AvoGUI::KeyboardKey::W:
+				return GetAsyncKeyState(0x57) & (1 << 16);
+			case AvoGUI::KeyboardKey::X:
+				return GetAsyncKeyState(0x58) & (1 << 16);
+			case AvoGUI::KeyboardKey::Y:
+				return GetAsyncKeyState(0x59) & (1 << 16);
+			case AvoGUI::KeyboardKey::Z:
+				return GetAsyncKeyState(0x5A) & (1 << 16);
+			case AvoGUI::KeyboardKey::Alt:
+				return GetAsyncKeyState(VK_MENU) & (1 << 16);
+			case AvoGUI::KeyboardKey::Backspace:
+				return GetAsyncKeyState(VK_BACK) & (1 << 16);
+			case AvoGUI::KeyboardKey::CapsLock:
+				return GetAsyncKeyState(VK_CAPITAL) & (1 << 16);
+			case AvoGUI::KeyboardKey::Clear:
+				return GetAsyncKeyState(VK_CLEAR) & (1 << 16);
+			case AvoGUI::KeyboardKey::Control:
+				return GetAsyncKeyState(VK_CONTROL) & (1 << 16);
+			case AvoGUI::KeyboardKey::Decimal:
+				return GetAsyncKeyState(VK_DECIMAL) & (1 << 16);
+			case AvoGUI::KeyboardKey::Delete:
+				return GetAsyncKeyState(VK_DELETE) & (1 << 16);
+			case AvoGUI::KeyboardKey::Down:
+				return GetAsyncKeyState(VK_DOWN) & (1 << 16);
+			case AvoGUI::KeyboardKey::End:
+				return GetAsyncKeyState(VK_END) & (1 << 16);
+			case AvoGUI::KeyboardKey::Enter:
+				return GetAsyncKeyState(VK_RETURN) & (1 << 16);
+			case AvoGUI::KeyboardKey::Escape:
+				return GetAsyncKeyState(VK_ESCAPE) & (1 << 16);
+			case AvoGUI::KeyboardKey::F1:
+				return GetAsyncKeyState(VK_F1) & (1 << 16);
+			case AvoGUI::KeyboardKey::F2:
+				return GetAsyncKeyState(VK_F2) & (1 << 16);
+			case AvoGUI::KeyboardKey::F3:
+				return GetAsyncKeyState(VK_F3) & (1 << 16);
+			case AvoGUI::KeyboardKey::F4:
+				return GetAsyncKeyState(VK_F4) & (1 << 16);
+			case AvoGUI::KeyboardKey::F5:
+				return GetAsyncKeyState(VK_F5) & (1 << 16);
+			case AvoGUI::KeyboardKey::F6:
+				return GetAsyncKeyState(VK_F6) & (1 << 16);
+			case AvoGUI::KeyboardKey::F7:
+				return GetAsyncKeyState(VK_F7) & (1 << 16);
+			case AvoGUI::KeyboardKey::F8:
+				return GetAsyncKeyState(VK_F8) & (1 << 16);
+			case AvoGUI::KeyboardKey::F9:
+				return GetAsyncKeyState(VK_F9) & (1 << 16);
+			case AvoGUI::KeyboardKey::F10:
+				return GetAsyncKeyState(VK_F10) & (1 << 16);
+			case AvoGUI::KeyboardKey::F11:
+				return GetAsyncKeyState(VK_F11) & (1 << 16);
+			case AvoGUI::KeyboardKey::F12:
+				return GetAsyncKeyState(VK_F12) & (1 << 16);
+			case AvoGUI::KeyboardKey::F13:
+				return GetAsyncKeyState(VK_F13) & (1 << 16);
+			case AvoGUI::KeyboardKey::F14:
+				return GetAsyncKeyState(VK_F14) & (1 << 16);
+			case AvoGUI::KeyboardKey::F15:
+				return GetAsyncKeyState(VK_F15) & (1 << 16);
+			case AvoGUI::KeyboardKey::F16:
+				return GetAsyncKeyState(VK_F16) & (1 << 16);
+			case AvoGUI::KeyboardKey::F17:
+				return GetAsyncKeyState(VK_F17) & (1 << 16);
+			case AvoGUI::KeyboardKey::F18:
+				return GetAsyncKeyState(VK_F18) & (1 << 16);
+			case AvoGUI::KeyboardKey::F19:
+				return GetAsyncKeyState(VK_F19) & (1 << 16);
+			case AvoGUI::KeyboardKey::F20:
+				return GetAsyncKeyState(VK_F20) & (1 << 16);
+			case AvoGUI::KeyboardKey::F21:
+				return GetAsyncKeyState(VK_F21) & (1 << 16);
+			case AvoGUI::KeyboardKey::F22:
+				return GetAsyncKeyState(VK_F22) & (1 << 16);
+			case AvoGUI::KeyboardKey::F23:
+				return GetAsyncKeyState(VK_F23) & (1 << 16);
+			case AvoGUI::KeyboardKey::F24:
+				return GetAsyncKeyState(VK_F24) & (1 << 16);
+			case AvoGUI::KeyboardKey::Help:
+				return GetAsyncKeyState(VK_HELP) & (1 << 16);
+			case AvoGUI::KeyboardKey::Home:
+				return GetAsyncKeyState(VK_HOME) & (1 << 16);
+			case AvoGUI::KeyboardKey::Insert:
+				return GetAsyncKeyState(VK_INSERT) & (1 << 16);
+			case AvoGUI::KeyboardKey::Left:
+				return GetAsyncKeyState(VK_LEFT) & (1 << 16);
+			case AvoGUI::KeyboardKey::Menu:
+				return GetAsyncKeyState(VK_APPS) & (1 << 16);
+			case AvoGUI::KeyboardKey::Number0:
+				return GetAsyncKeyState(0x30) & (1 << 16);
+			case AvoGUI::KeyboardKey::Number1:
+				return GetAsyncKeyState(0x31) & (1 << 16);
+			case AvoGUI::KeyboardKey::Number2:
+				return GetAsyncKeyState(0x32) & (1 << 16);
+			case AvoGUI::KeyboardKey::Number3:
+				return GetAsyncKeyState(0x33) & (1 << 16);
+			case AvoGUI::KeyboardKey::Number4:
+				return GetAsyncKeyState(0x34) & (1 << 16);
+			case AvoGUI::KeyboardKey::Number5:
+				return GetAsyncKeyState(0x35) & (1 << 16);
+			case AvoGUI::KeyboardKey::Number6:
+				return GetAsyncKeyState(0x36) & (1 << 16);
+			case AvoGUI::KeyboardKey::Number7:
+				return GetAsyncKeyState(0x37) & (1 << 16);
+			case AvoGUI::KeyboardKey::Number8:
+				return GetAsyncKeyState(0x38) & (1 << 16);
+			case AvoGUI::KeyboardKey::Number9:
+				return GetAsyncKeyState(0x39) & (1 << 16);
+			case AvoGUI::KeyboardKey::NumLock:
+				return GetAsyncKeyState(VK_NUMLOCK) & (1 << 16);
+			case AvoGUI::KeyboardKey::Numpad0:
+				return GetAsyncKeyState(VK_NUMPAD0) & (1 << 16);
+			case AvoGUI::KeyboardKey::Numpad1:
+				return GetAsyncKeyState(VK_NUMPAD1) & (1 << 16);
+			case AvoGUI::KeyboardKey::Numpad2:
+				return GetAsyncKeyState(VK_NUMPAD2) & (1 << 16);
+			case AvoGUI::KeyboardKey::Numpad3:
+				return GetAsyncKeyState(VK_NUMPAD3) & (1 << 16);
+			case AvoGUI::KeyboardKey::Numpad4:
+				return GetAsyncKeyState(VK_NUMPAD4) & (1 << 16);
+			case AvoGUI::KeyboardKey::Numpad5:
+				return GetAsyncKeyState(VK_NUMPAD5) & (1 << 16);
+			case AvoGUI::KeyboardKey::Numpad6:
+				return GetAsyncKeyState(VK_NUMPAD6) & (1 << 16);
+			case AvoGUI::KeyboardKey::Numpad7:
+				return GetAsyncKeyState(VK_NUMPAD7) & (1 << 16);
+			case AvoGUI::KeyboardKey::Numpad8:
+				return GetAsyncKeyState(VK_NUMPAD8) & (1 << 16);
+			case AvoGUI::KeyboardKey::Numpad9:
+				return GetAsyncKeyState(VK_NUMPAD9) & (1 << 16);
+			case AvoGUI::KeyboardKey::Add:
+				return GetAsyncKeyState(VK_ADD) & (1 << 16);
+			case AvoGUI::KeyboardKey::Subtract:
+				return GetAsyncKeyState(VK_SUBTRACT) & (1 << 16);
+			case AvoGUI::KeyboardKey::Multiply:
+				return GetAsyncKeyState(VK_MULTIPLY) & (1 << 16);
+			case AvoGUI::KeyboardKey::Divide:
+				return GetAsyncKeyState(VK_DIVIDE) & (1 << 16);
+			case AvoGUI::KeyboardKey::PageDown:
+				return GetAsyncKeyState(VK_NEXT) & (1 << 16);
+			case AvoGUI::KeyboardKey::PageUp:
+				return GetAsyncKeyState(VK_PRIOR) & (1 << 16);
+			case AvoGUI::KeyboardKey::Pause:
+				return GetAsyncKeyState(VK_PAUSE) & (1 << 16);
+			case AvoGUI::KeyboardKey::PrintScreen:
+				return GetAsyncKeyState(VK_SNAPSHOT) & (1 << 16);
+			case AvoGUI::KeyboardKey::Comma:
+				return GetAsyncKeyState(VK_OEM_COMMA) & (1 << 16);
+			case AvoGUI::KeyboardKey::Period:
+				return GetAsyncKeyState(VK_OEM_PERIOD) & (1 << 16);
+			case AvoGUI::KeyboardKey::Plus:
+				return GetAsyncKeyState(VK_OEM_PLUS) & (1 << 16);
+			case AvoGUI::KeyboardKey::Minus:
+				return GetAsyncKeyState(VK_OEM_MINUS) & (1 << 16);
+			case AvoGUI::KeyboardKey::Regional1:
+				return GetAsyncKeyState(VK_OEM_1) & (1 << 16);
+			case AvoGUI::KeyboardKey::Regional2:
+				return GetAsyncKeyState(VK_OEM_2) & (1 << 16);
+			case AvoGUI::KeyboardKey::Regional3:
+				return GetAsyncKeyState(VK_OEM_3) & (1 << 16);
+			case AvoGUI::KeyboardKey::Regional4:
+				return GetAsyncKeyState(VK_OEM_4) & (1 << 16);
+			case AvoGUI::KeyboardKey::Regional5:
+				return GetAsyncKeyState(VK_OEM_5) & (1 << 16);
+			case AvoGUI::KeyboardKey::Regional6:
+				return GetAsyncKeyState(VK_OEM_6) & (1 << 16);
+			case AvoGUI::KeyboardKey::Regional7:
+				return GetAsyncKeyState(VK_OEM_7) & (1 << 16);
+			case AvoGUI::KeyboardKey::Right:
+				return GetAsyncKeyState(VK_RIGHT) & (1 << 16);
+			case AvoGUI::KeyboardKey::Separator:
+				return GetAsyncKeyState(VK_SEPARATOR) & (1 << 16);
+			case AvoGUI::KeyboardKey::Shift:
+				return GetAsyncKeyState(VK_SHIFT) & (1 << 16);
+			case AvoGUI::KeyboardKey::Spacebar:
+				return GetAsyncKeyState(VK_SPACE) & (1 << 16);
+			case AvoGUI::KeyboardKey::Tab:
+				return GetAsyncKeyState(VK_TAB) & (1 << 16);
+			case AvoGUI::KeyboardKey::Up:
+				return GetAsyncKeyState(VK_UP) & (1 << 16);
 		}
 		return false;
 	}
@@ -3453,16 +3455,16 @@ public:
 	{
 		switch (p_button)
 		{
-		case AvoGUI::MouseButton::Left:
-			return GetAsyncKeyState(VK_LBUTTON) & (1 << 16);
-		case AvoGUI::MouseButton::Middle:
-			return GetAsyncKeyState(VK_MBUTTON) & (1 << 16);
-		case AvoGUI::MouseButton::Right:
-			return GetAsyncKeyState(VK_RBUTTON) & (1 << 16);
-		case AvoGUI::MouseButton::X0:
-			return GetAsyncKeyState(VK_XBUTTON1) & (1 << 16);
-		case AvoGUI::MouseButton::X1:
-			return GetAsyncKeyState(VK_XBUTTON2) & (1 << 16);
+			case AvoGUI::MouseButton::Left:
+				return GetAsyncKeyState(VK_LBUTTON) & (1 << 16);
+			case AvoGUI::MouseButton::Middle:
+				return GetAsyncKeyState(VK_MBUTTON) & (1 << 16);
+			case AvoGUI::MouseButton::Right:
+				return GetAsyncKeyState(VK_RBUTTON) & (1 << 16);
+			case AvoGUI::MouseButton::X0:
+				return GetAsyncKeyState(VK_XBUTTON1) & (1 << 16);
+			case AvoGUI::MouseButton::X1:
+				return GetAsyncKeyState(VK_XBUTTON2) & (1 << 16);
 		}
 		return false;
 	}
@@ -3480,36 +3482,36 @@ public:
 		wchar_t const* name = 0;
 		switch (p_cursor)
 		{
-		case AvoGUI::Cursor::Arrow:
-			name = (wchar_t const*)IDC_ARROW;
-			break;
-		case AvoGUI::Cursor::Blocked:
-			name = (wchar_t const*)IDC_NO;
-			break;
-		case AvoGUI::Cursor::Hand:
-			name = (wchar_t const*)IDC_HAND;
-			break;
-		case AvoGUI::Cursor::Ibeam:
-			name = (wchar_t const*)IDC_IBEAM;
-			break;
-		case AvoGUI::Cursor::ResizeAll:
-			name = (wchar_t const*)IDC_SIZEALL;
-			break;
-		case AvoGUI::Cursor::ResizeNESW:
-			name = (wchar_t const*)IDC_SIZENESW;
-			break;
-		case AvoGUI::Cursor::ResizeNS:
-			name = (wchar_t const*)IDC_SIZENS;
-			break;
-		case AvoGUI::Cursor::ResizeNWSE:
-			name = (wchar_t const*)IDC_SIZENWSE;
-			break;
-		case AvoGUI::Cursor::ResizeWE:
-			name = (wchar_t const*)IDC_SIZEWE;
-			break;
-		case AvoGUI::Cursor::Wait:
-			name = (wchar_t const*)IDC_WAIT;
-			break;
+			case AvoGUI::Cursor::Arrow:
+				name = (wchar_t const*)IDC_ARROW;
+				break;
+			case AvoGUI::Cursor::Blocked:
+				name = (wchar_t const*)IDC_NO;
+				break;
+			case AvoGUI::Cursor::Hand:
+				name = (wchar_t const*)IDC_HAND;
+				break;
+			case AvoGUI::Cursor::Ibeam:
+				name = (wchar_t const*)IDC_IBEAM;
+				break;
+			case AvoGUI::Cursor::ResizeAll:
+				name = (wchar_t const*)IDC_SIZEALL;
+				break;
+			case AvoGUI::Cursor::ResizeNESW:
+				name = (wchar_t const*)IDC_SIZENESW;
+				break;
+			case AvoGUI::Cursor::ResizeNS:
+				name = (wchar_t const*)IDC_SIZENS;
+				break;
+			case AvoGUI::Cursor::ResizeNWSE:
+				name = (wchar_t const*)IDC_SIZENWSE;
+				break;
+			case AvoGUI::Cursor::ResizeWE:
+				name = (wchar_t const*)IDC_SIZEWE;
+				break;
+			case AvoGUI::Cursor::Wait:
+				name = (wchar_t const*)IDC_WAIT;
+				break;
 		}
 		m_cursorType = p_cursor;
 		if (m_cursorHandle)
@@ -3552,12 +3554,12 @@ public:
 
 		switch (dropOperation)
 		{
-		case DROPEFFECT_COPY:
-			return AvoGUI::DragDropOperation::Copy;
-		case DROPEFFECT_MOVE:
-			return AvoGUI::DragDropOperation::Move;
-		case DROPEFFECT_LINK:
-			return AvoGUI::DragDropOperation::Link;
+			case DROPEFFECT_COPY:
+				return AvoGUI::DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return AvoGUI::DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return AvoGUI::DragDropOperation::Link;
 		}
 		return AvoGUI::DragDropOperation::None;
 	}
@@ -3578,12 +3580,12 @@ public:
 
 		switch (dropOperation)
 		{
-		case DROPEFFECT_COPY:
-			return AvoGUI::DragDropOperation::Copy;
-		case DROPEFFECT_MOVE:
-			return AvoGUI::DragDropOperation::Move;
-		case DROPEFFECT_LINK:
-			return AvoGUI::DragDropOperation::Link;
+			case DROPEFFECT_COPY:
+				return AvoGUI::DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return AvoGUI::DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return AvoGUI::DragDropOperation::Link;
 		}
 		return AvoGUI::DragDropOperation::None;
 	}
@@ -3596,12 +3598,12 @@ public:
 
 		switch (dropOperation)
 		{
-		case DROPEFFECT_COPY:
-			return AvoGUI::DragDropOperation::Copy;
-		case DROPEFFECT_MOVE:
-			return AvoGUI::DragDropOperation::Move;
-		case DROPEFFECT_LINK:
-			return AvoGUI::DragDropOperation::Link;
+			case DROPEFFECT_COPY:
+				return AvoGUI::DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return AvoGUI::DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return AvoGUI::DragDropOperation::Link;
 		}
 		return AvoGUI::DragDropOperation::None;
 	}
@@ -3613,12 +3615,12 @@ public:
 
 		switch (dropOperation)
 		{
-		case DROPEFFECT_COPY:
-			return AvoGUI::DragDropOperation::Copy;
-		case DROPEFFECT_MOVE:
-			return AvoGUI::DragDropOperation::Move;
-		case DROPEFFECT_LINK:
-			return AvoGUI::DragDropOperation::Link;
+			case DROPEFFECT_COPY:
+				return AvoGUI::DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return AvoGUI::DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return AvoGUI::DragDropOperation::Link;
 		}
 		return AvoGUI::DragDropOperation::None;
 	}
@@ -3630,12 +3632,12 @@ public:
 
 		switch (dropOperation)
 		{
-		case DROPEFFECT_COPY:
-			return AvoGUI::DragDropOperation::Copy;
-		case DROPEFFECT_MOVE:
-			return AvoGUI::DragDropOperation::Move;
-		case DROPEFFECT_LINK:
-			return AvoGUI::DragDropOperation::Link;
+			case DROPEFFECT_COPY:
+				return AvoGUI::DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return AvoGUI::DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return AvoGUI::DragDropOperation::Link;
 		}
 		return AvoGUI::DragDropOperation::None;
 	}
@@ -3655,12 +3657,12 @@ public:
 
 		switch (dropOperation)
 		{
-		case DROPEFFECT_COPY:
-			return AvoGUI::DragDropOperation::Copy;
-		case DROPEFFECT_MOVE:
-			return AvoGUI::DragDropOperation::Move;
-		case DROPEFFECT_LINK:
-			return AvoGUI::DragDropOperation::Link;
+			case DROPEFFECT_COPY:
+				return AvoGUI::DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return AvoGUI::DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return AvoGUI::DragDropOperation::Link;
 		}
 		return AvoGUI::DragDropOperation::None;
 	}
@@ -3672,12 +3674,12 @@ public:
 
 		switch (dropOperation)
 		{
-		case DROPEFFECT_COPY:
-			return AvoGUI::DragDropOperation::Copy;
-		case DROPEFFECT_MOVE:
-			return AvoGUI::DragDropOperation::Move;
-		case DROPEFFECT_LINK:
-			return AvoGUI::DragDropOperation::Link;
+			case DROPEFFECT_COPY:
+				return AvoGUI::DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return AvoGUI::DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return AvoGUI::DragDropOperation::Link;
 		}
 		return AvoGUI::DragDropOperation::None;
 	}
@@ -3698,12 +3700,12 @@ public:
 
 		switch (dropOperation)
 		{
-		case DROPEFFECT_COPY:
-			return AvoGUI::DragDropOperation::Copy;
-		case DROPEFFECT_MOVE:
-			return AvoGUI::DragDropOperation::Move;
-		case DROPEFFECT_LINK:
-			return AvoGUI::DragDropOperation::Link;
+			case DROPEFFECT_COPY:
+				return AvoGUI::DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return AvoGUI::DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return AvoGUI::DragDropOperation::Link;
 		}
 		return AvoGUI::DragDropOperation::None;
 	}
@@ -3715,12 +3717,12 @@ public:
 
 		switch (dropOperation)
 		{
-		case DROPEFFECT_COPY:
-			return AvoGUI::DragDropOperation::Copy;
-		case DROPEFFECT_MOVE:
-			return AvoGUI::DragDropOperation::Move;
-		case DROPEFFECT_LINK:
-			return AvoGUI::DragDropOperation::Link;
+			case DROPEFFECT_COPY:
+				return AvoGUI::DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return AvoGUI::DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return AvoGUI::DragDropOperation::Link;
 		}
 		return AvoGUI::DragDropOperation::None;
 	}
@@ -3732,12 +3734,12 @@ public:
 
 		switch (dropOperation)
 		{
-		case DROPEFFECT_COPY:
-			return AvoGUI::DragDropOperation::Copy;
-		case DROPEFFECT_MOVE:
-			return AvoGUI::DragDropOperation::Move;
-		case DROPEFFECT_LINK:
-			return AvoGUI::DragDropOperation::Link;
+			case DROPEFFECT_COPY:
+				return AvoGUI::DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return AvoGUI::DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return AvoGUI::DragDropOperation::Link;
 		}
 		return AvoGUI::DragDropOperation::None;
 	}
@@ -3749,12 +3751,12 @@ public:
 
 		switch (dropOperation)
 		{
-		case DROPEFFECT_COPY:
-			return AvoGUI::DragDropOperation::Copy;
-		case DROPEFFECT_MOVE:
-			return AvoGUI::DragDropOperation::Move;
-		case DROPEFFECT_LINK:
-			return AvoGUI::DragDropOperation::Link;
+			case DROPEFFECT_COPY:
+				return AvoGUI::DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return AvoGUI::DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return AvoGUI::DragDropOperation::Link;
 		}
 		return AvoGUI::DragDropOperation::None;
 	}
@@ -3873,633 +3875,633 @@ public:
 	{
 		switch (p_message)
 		{
-		case WM_CREATE:
-		{
-			OleInitialize(0);
-
-			m_oleDropSource = new OleDropSource(m_gui);
-			m_oleDropTarget = new OleDropTarget(m_gui);
-			RegisterDragDrop(m_windowHandle, m_oleDropTarget);
-
-			m_clipboardFormat_fileContents = RegisterClipboardFormatW(CFSTR_FILECONTENTS);
-			m_clipboardFormat_fileGroupDescriptor = RegisterClipboardFormatW(CFSTR_FILEDESCRIPTORW);
-
-			//------------------------------
-
-			EnableNonClientDpiScaling(m_windowHandle);
-
-			/*
-				LCS_WINDOWS_COLOR_SPACE is the default colorspace, but we want the background erase 
-				color to be consistent with the colors of Direct2D and other potential graphics APIs 
-				so it is changed to the sRGB color space.
-			*/
-			LOGCOLORSPACEW colorSpaceSettings;
-			colorSpaceSettings.lcsSignature = LCS_SIGNATURE;
-			colorSpaceSettings.lcsVersion = 0x400;
-			colorSpaceSettings.lcsSize = sizeof(colorSpaceSettings);
-			colorSpaceSettings.lcsCSType = LCS_sRGB;
-			colorSpaceSettings.lcsIntent = LCS_GM_ABS_COLORIMETRIC;
-
-			HCOLORSPACE colorSpace = CreateColorSpaceW(&colorSpaceSettings);
-			SetColorSpace(GetDC(m_windowHandle), colorSpace);
-
-			//------------------------------
-
-			m_isOpen = true;
-			AvoGUI::WindowEvent event;
-			event.window = this;
-
-			m_gui->excludeAnimationThread();
-			m_gui->handleWindowCreate(event);
-			m_gui->includeAnimationThread();
-
-			return 0;
-		}
-		case WM_ACTIVATE:
-		{
-			if (uint32(m_crossPlatformStyles & AvoGUI::WindowStyleFlags::CustomBorder))
+			case WM_CREATE:
 			{
-				MARGINS margins = { 0, 0, 1, 0 };
-				DwmExtendFrameIntoClientArea(m_windowHandle, &margins);
+				OleInitialize(0);
 
-				DWORD flags = DWMNCRP_ENABLED;
-				DwmSetWindowAttribute(m_windowHandle, DWMWA_NCRENDERING_POLICY, &flags, sizeof(DWORD));
+				m_oleDropSource = new OleDropSource(m_gui);
+				m_oleDropTarget = new OleDropTarget(m_gui);
+				RegisterDragDrop(m_windowHandle, m_oleDropTarget);
+
+				m_clipboardFormat_fileContents = RegisterClipboardFormatW(CFSTR_FILECONTENTS);
+				m_clipboardFormat_fileGroupDescriptor = RegisterClipboardFormatW(CFSTR_FILEDESCRIPTORW);
+
+				//------------------------------
+
+				EnableNonClientDpiScaling(m_windowHandle);
+
+				/*
+					LCS_WINDOWS_COLOR_SPACE is the default colorspace, but we want the background erase
+					color to be consistent with the colors of Direct2D and other potential graphics APIs
+					so it is changed to the sRGB color space.
+				*/
+				LOGCOLORSPACEW colorSpaceSettings;
+				colorSpaceSettings.lcsSignature = LCS_SIGNATURE;
+				colorSpaceSettings.lcsVersion = 0x400;
+				colorSpaceSettings.lcsSize = sizeof(colorSpaceSettings);
+				colorSpaceSettings.lcsCSType = LCS_sRGB;
+				colorSpaceSettings.lcsIntent = LCS_GM_ABS_COLORIMETRIC;
+
+				HCOLORSPACE colorSpace = CreateColorSpaceW(&colorSpaceSettings);
+				SetColorSpace(GetDC(m_windowHandle), colorSpace);
+
+				//------------------------------
+
+				m_isOpen = true;
+				AvoGUI::WindowEvent event;
+				event.window = this;
+
+				m_gui->excludeAnimationThread();
+				m_gui->handleWindowCreate(event);
+				m_gui->includeAnimationThread();
+
 				return 0;
 			}
-			break;
-		}
-		case WM_APP_CHANGE_SIZE:
-		{
-			SetWindowPos(m_windowHandle, 0, 0, 0, (uint32)p_data_a, (uint32)p_data_b, SWP_NOMOVE | SWP_NOZORDER);
-
-			return 0;
-		}
-		case WM_APP_SET_IS_ENABLED:
-		{
-			if (p_data_a)
+			case WM_ACTIVATE:
 			{
-				EnableWindow(m_windowHandle, true);
-				SetForegroundWindow(m_windowHandle);
-			}
-			else
-			{
-				HWND child = GetWindow(m_windowHandle, GW_HWNDFIRST);
-				if (child)
+				if (uint32(m_crossPlatformStyles & AvoGUI::WindowStyleFlags::CustomBorder))
 				{
-					SetForegroundWindow(child);
-					//SetActiveWindow(child);
-					//SetFocus(child);
+					MARGINS margins = { 0, 0, 1, 0 };
+					DwmExtendFrameIntoClientArea(m_windowHandle, &margins);
+
+					DWORD flags = DWMNCRP_ENABLED;
+					DwmSetWindowAttribute(m_windowHandle, DWMWA_NCRENDERING_POLICY, &flags, sizeof(DWORD));
+					return 0;
 				}
-
-				EnableWindow(m_windowHandle, false);
+				break;
 			}
-
-			return 0;
-		}
-		case WM_ERASEBKGND:
-		{
-			HDC deviceContext = (HDC)p_data_a;
-
-			RECT rectangle;
-			GetUpdateRect(m_windowHandle, &rectangle, false);
-			AvoGUI::Color color = m_gui->getDrawingContext()->getBackgroundColor(); // Thread safe I think?
-			FillRect(deviceContext, &rectangle, CreateSolidBrush(RGB(color.red * 255, color.green * 255, color.blue * 255)));
-
-			return 1; // We erased it.
-		}
-		case WM_NCCALCSIZE:
-		{
-			if (uint32(m_crossPlatformStyles & AvoGUI::WindowStyleFlags::CustomBorder) && p_data_a)
+			case WM_APP_CHANGE_SIZE:
 			{
-				NCCALCSIZE_PARAMS* parameters = (NCCALCSIZE_PARAMS*)p_data_b;
+				SetWindowPos(m_windowHandle, 0, 0, 0, (uint32)p_data_a, (uint32)p_data_b, SWP_NOMOVE | SWP_NOZORDER);
 
-				if (IsMaximized(m_windowHandle))
+				return 0;
+			}
+			case WM_APP_SET_IS_ENABLED:
+			{
+				if (p_data_a)
 				{
-					MONITORINFO info = { };
-					info.cbSize = sizeof(MONITORINFO);
-					GetMonitorInfo(MonitorFromRect(parameters->rgrc, MONITOR_DEFAULTTONEAREST), &info);
+					EnableWindow(m_windowHandle, true);
+					SetForegroundWindow(m_windowHandle);
+				}
+				else
+				{
+					HWND child = GetWindow(m_windowHandle, GW_HWNDFIRST);
+					if (child)
+					{
+						SetForegroundWindow(child);
+						//SetActiveWindow(child);
+						//SetFocus(child);
+					}
 
-					parameters->rgrc[0] = info.rcWork;
+					EnableWindow(m_windowHandle, false);
 				}
 
 				return 0;
 			}
-			break;
-		}
-		case WM_NCMOUSEMOVE:
-		{
-			if (uint32(m_crossPlatformStyles & AvoGUI::WindowStyleFlags::CustomBorder) && GetCapture() != m_windowHandle)
+			case WM_ERASEBKGND:
 			{
-				POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
-				ScreenToClient(m_windowHandle, &mousePosition);
+				HDC deviceContext = (HDC)p_data_a;
 
-				bool wasMousePositionInsideWindow = m_mousePosition.x >= 0 && m_mousePosition.y >= 0 && m_mousePosition.x < m_size.x && m_mousePosition.y < m_size.y;
-				if (!m_isMouseOutsideClientArea || m_isMouseOutsideClientArea && !wasMousePositionInsideWindow) // Is was outside of the nonclient area before this mousemove.
+				RECT rectangle;
+				GetUpdateRect(m_windowHandle, &rectangle, false);
+				AvoGUI::Color color = m_gui->getDrawingContext()->getBackgroundColor(); // Thread safe I think?
+				FillRect(deviceContext, &rectangle, CreateSolidBrush(RGB(color.red * 255, color.green * 255, color.blue * 255)));
+
+				return 1; // We erased it.
+			}
+			case WM_NCCALCSIZE:
+			{
+				if (uint32(m_crossPlatformStyles & AvoGUI::WindowStyleFlags::CustomBorder) && p_data_a)
 				{
+					NCCALCSIZE_PARAMS* parameters = (NCCALCSIZE_PARAMS*)p_data_b;
+
+					if (IsMaximized(m_windowHandle))
+					{
+						MONITORINFO info = { };
+						info.cbSize = sizeof(MONITORINFO);
+						GetMonitorInfo(MonitorFromRect(parameters->rgrc, MONITOR_DEFAULTTONEAREST), &info);
+
+						parameters->rgrc[0] = info.rcWork;
+					}
+
+					return 0;
+				}
+				break;
+			}
+			case WM_NCMOUSEMOVE:
+			{
+				if (uint32(m_crossPlatformStyles & AvoGUI::WindowStyleFlags::CustomBorder) && GetCapture() != m_windowHandle)
+				{
+					POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
+					ScreenToClient(m_windowHandle, &mousePosition);
+
+					bool wasMousePositionInsideWindow = m_mousePosition.x >= 0 && m_mousePosition.y >= 0 && m_mousePosition.x < m_size.x && m_mousePosition.y < m_size.y;
+					if (!m_isMouseOutsideClientArea || m_isMouseOutsideClientArea && !wasMousePositionInsideWindow) // Is was outside of the nonclient area before this mousemove.
+					{
+						TRACKMOUSEEVENT trackStructure = { };
+						trackStructure.dwFlags = TME_LEAVE | TME_NONCLIENT;
+						trackStructure.cbSize = sizeof(TRACKMOUSEEVENT);
+						trackStructure.hwndTrack = m_windowHandle;
+						TrackMouseEvent(&trackStructure);
+						if (m_isMouseOutsideClientArea)
+						{
+							// The window will recieve WM_MOUSELEAVE - no need for extra mouse events, so return.
+							m_isMouseOutsideClientArea = true;
+							return 0;
+						}
+					}
+
+					m_isMouseOutsideClientArea = true;
+
+					// We want the GUI to recieve mouse move events even when the mouse is inside the nonclient area of the window -
+					// because it is in this case part of the GUI (since the CustomBorder style flag is true).
+					if (mousePosition.x >= 0 && mousePosition.y >= 0 && mousePosition.x < m_size.x && mousePosition.y < m_size.y)
+					{
+						AvoGUI::MouseEvent mouseEvent;
+						mouseEvent.x = mousePosition.x;
+						mouseEvent.y = mousePosition.y;
+						mouseEvent.movementX = mousePosition.x - m_mousePosition.x;
+						mouseEvent.movementY = mousePosition.y - m_mousePosition.y;
+
+						m_mousePosition.x = mousePosition.x;
+						m_mousePosition.y = mousePosition.y;
+
+						m_gui->excludeAnimationThread();
+						m_gui->handleGlobalMouseMove(mouseEvent);
+						m_gui->includeAnimationThread();
+					}
+					return 0;
+				}
+				break;
+			}
+			case WM_MOUSEMOVE:
+			{
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
+
+				if (x == m_mousePosition.x && y == m_mousePosition.y)
+				{
+					return 0;
+				}
+
+				AvoGUI::MouseEvent mouseEvent;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
+				mouseEvent.movementX = (x - m_mousePosition.x) / m_dipToPixelFactor;
+				mouseEvent.movementY = (y - m_mousePosition.y) / m_dipToPixelFactor;
+
+				m_mousePosition.x = x;
+				m_mousePosition.y = y;
+
+				m_gui->excludeAnimationThread();
+				m_gui->handleGlobalMouseMove(mouseEvent);
+				m_gui->includeAnimationThread();
+
+				if (m_isMouseOutsideClientArea)
+				{
+					SetCursor(m_cursorHandle);
+
+					// This is to make the window recieve WM_MOUSELEAVE.
 					TRACKMOUSEEVENT trackStructure = { };
-					trackStructure.dwFlags = TME_LEAVE | TME_NONCLIENT;
+					trackStructure.dwFlags = TME_LEAVE;
 					trackStructure.cbSize = sizeof(TRACKMOUSEEVENT);
 					trackStructure.hwndTrack = m_windowHandle;
 					TrackMouseEvent(&trackStructure);
-					if (m_isMouseOutsideClientArea)
-					{
-						// The window will recieve WM_MOUSELEAVE - no need for extra mouse events, so return.
-						m_isMouseOutsideClientArea = true;
-						return 0;
-					}
+
+					m_isMouseOutsideClientArea = false;
 				}
 
-				m_isMouseOutsideClientArea = true;
-
-				// We want the GUI to recieve mouse move events even when the mouse is inside the nonclient area of the window - 
-				// because it is in this case part of the GUI (since the CustomBorder style flag is true).
-				if (mousePosition.x >= 0 && mousePosition.y >= 0 && mousePosition.x < m_size.x && mousePosition.y < m_size.y)
+				return 0;
+			}
+			case WM_NCMOUSELEAVE:
+			case WM_MOUSELEAVE:
+			{
+				if (GetCapture() != m_windowHandle)
 				{
+					POINT mousePosition;
+					GetCursorPos(&mousePosition);
+
+					bool isMouseOverWindow = WindowFromPoint(mousePosition) == m_windowHandle;
+
+					ScreenToClient(m_windowHandle, &mousePosition);
+
+					if (mousePosition.x >= 0 && mousePosition.y >= 0 && mousePosition.x < m_size.x && mousePosition.y < m_size.y && isMouseOverWindow)
+					{
+						// If it's a WM_MOUSELEAVE message, then it has entered the nonclient area if the new mouse position still is inside the window.
+						// If it's a WM_NCMOUSELEAVE message, then it has entered the client area.
+						// Note that both these cases would mean that the window has the CustomBorder style flag set.
+						m_isMouseOutsideClientArea = p_message == WM_MOUSELEAVE;
+						return 0;
+					}
+
+					m_isMouseOutsideClientArea = true;
+
 					AvoGUI::MouseEvent mouseEvent;
-					mouseEvent.x = mousePosition.x;
-					mouseEvent.y = mousePosition.y;
-					mouseEvent.movementX = mousePosition.x - m_mousePosition.x;
-					mouseEvent.movementY = mousePosition.y - m_mousePosition.y;
+					mouseEvent.x = mousePosition.x / m_dipToPixelFactor;
+					mouseEvent.y = mousePosition.y / m_dipToPixelFactor;
+					mouseEvent.movementX = (mousePosition.x - m_mousePosition.x) / m_dipToPixelFactor;
+					mouseEvent.movementY = (mousePosition.y - m_mousePosition.y) / m_dipToPixelFactor;
 
 					m_mousePosition.x = mousePosition.x;
 					m_mousePosition.y = mousePosition.y;
 
 					m_gui->excludeAnimationThread();
 					m_gui->handleGlobalMouseMove(mouseEvent);
+					m_gui->handleGlobalMouseLeave(mouseEvent);
 					m_gui->includeAnimationThread();
 				}
 				return 0;
 			}
-			break;
-		}
-		case WM_MOUSEMOVE:
-		{
-			int32 x = GET_X_LPARAM(p_data_b);
-			int32 y = GET_Y_LPARAM(p_data_b);
-
-			if (x == m_mousePosition.x && y == m_mousePosition.y)
+			case WM_NCHITTEST:
 			{
+				if (uint32(m_crossPlatformStyles & AvoGUI::WindowStyleFlags::CustomBorder) && p_data_b)
+				{
+					POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
+					ScreenToClient(m_windowHandle, &mousePosition);
+
+					AvoGUI::WindowBorderArea area = m_gui->getWindowBorderAreaAtPosition(mousePosition.x/m_dipToPixelFactor, mousePosition.y/m_dipToPixelFactor);
+					if (IsMaximized(m_windowHandle) && area != AvoGUI::WindowBorderArea::Dragging && area != AvoGUI::WindowBorderArea::None)
+					{
+						return HTCLIENT;
+					}
+					switch (area)
+					{
+					case AvoGUI::WindowBorderArea::TopLeftResize:
+						return HTTOPLEFT;
+					case AvoGUI::WindowBorderArea::TopResize:
+						return HTTOP;
+					case AvoGUI::WindowBorderArea::TopRightResize:
+						return HTTOPRIGHT;
+					case AvoGUI::WindowBorderArea::LeftResize:
+						return HTLEFT;
+					case AvoGUI::WindowBorderArea::RightResize:
+						return HTRIGHT;
+					case AvoGUI::WindowBorderArea::BottomLeftResize:
+						return HTBOTTOMLEFT;
+					case AvoGUI::WindowBorderArea::BottomResize:
+						return HTBOTTOM;
+					case AvoGUI::WindowBorderArea::BottomRightResize:
+						return HTBOTTOMRIGHT;
+					case AvoGUI::WindowBorderArea::Dragging:
+						return HTCAPTION;
+					case AvoGUI::WindowBorderArea::None:
+						return HTCLIENT;
+					}
+					return 0;
+				}
+				break;
+			}
+			case WM_DPICHANGED:
+			{
+				m_gui->getDrawingContext()->setDpi(float(HIWORD(p_data_a)));
+				m_dipToPixelFactor = HIWORD(p_data_a) / (float)USER_DEFAULT_SCREEN_DPI;
+				RECT* newRectangle = (RECT*)p_data_b;
+				SetWindowPos(m_windowHandle, 0, newRectangle->left, newRectangle->top, newRectangle->right - newRectangle->left, newRectangle->bottom - newRectangle->top, SWP_NOZORDER | SWP_NOACTIVATE);
 				return 0;
 			}
-
-			AvoGUI::MouseEvent mouseEvent;
-			mouseEvent.x = x / m_dipToPixelFactor;
-			mouseEvent.y = y / m_dipToPixelFactor;
-			mouseEvent.movementX = (x - m_mousePosition.x) / m_dipToPixelFactor;
-			mouseEvent.movementY = (y - m_mousePosition.y) / m_dipToPixelFactor;
-
-			m_mousePosition.x = x;
-			m_mousePosition.y = y;
-
-			m_gui->excludeAnimationThread();
-			m_gui->handleGlobalMouseMove(mouseEvent);
-			m_gui->includeAnimationThread();
-
-			if (m_isMouseOutsideClientArea)
+			case WM_SIZE:
 			{
-				SetCursor(m_cursorHandle);
+				AvoGUI::WindowEvent windowEvent;
+				windowEvent.window = this;
+				if (p_data_a == SIZE_MINIMIZED)
+				{
+					m_gui->excludeAnimationThread();
+					m_gui->handleWindowMinimize(windowEvent);
+					m_gui->includeAnimationThread();
+					m_state = AvoGUI::WindowState::Minimized;
+				}
+				else
+				{
+					uint32 width = p_data_b & 0xffff;
+					uint32 height = p_data_b >> 16 & 0xffff;
+					m_size.x = width;
+					m_size.y = height;
+					windowEvent.width = width / m_dipToPixelFactor;
+					windowEvent.height = height / m_dipToPixelFactor;
 
-				// This is to make the window recieve WM_MOUSELEAVE.
-				TRACKMOUSEEVENT trackStructure = { };
-				trackStructure.dwFlags = TME_LEAVE;
-				trackStructure.cbSize = sizeof(TRACKMOUSEEVENT);
-				trackStructure.hwndTrack = m_windowHandle;
-				TrackMouseEvent(&trackStructure);
+					m_gui->excludeAnimationThread();
+					if (p_data_a == SIZE_MAXIMIZED)
+					{
+						m_gui->handleWindowMaximize(windowEvent);
+						m_state = AvoGUI::WindowState::Maximized;
+					}
+					else if (p_data_a == SIZE_RESTORED && m_state != AvoGUI::WindowState::Restored)
+					{
+						m_gui->handleWindowRestore(windowEvent);
+						m_state = AvoGUI::WindowState::Restored;
+					}
+					m_gui->handleWindowSizeChange(windowEvent);
+					m_gui->includeAnimationThread();
+				}
 
-				m_isMouseOutsideClientArea = false;
+				if (!m_hasCreatedWindow)
+				{
+					m_hasCreatedWindowMutex.lock();
+					m_hasCreatedWindow = true;
+					m_hasCreatedWindowMutex.unlock();
+					m_hasCreatedWindowConditionVariable.notify_one();
+				}
+				return 0;
 			}
+			case WM_GETMINMAXINFO:
+			{
+				MINMAXINFO* minMaxInfo = (MINMAXINFO*)p_data_b;
+				RECT rect = { 0, 0, (int)m_minSize.x, (int)m_minSize.y };
+				AdjustWindowRect(&rect, m_styles, 0);
 
-			return 0;
-		}
-		case WM_NCMOUSELEAVE:
-		case WM_MOUSELEAVE:
-		{
-			if (GetCapture() != m_windowHandle)
+				if (m_minSize.x > 0U || m_minSize.y > 0U)
+				{
+					minMaxInfo->ptMinTrackSize.x = rect.right - rect.left;
+					minMaxInfo->ptMinTrackSize.y = rect.bottom - rect.top;
+				}
+				if (m_maxSize.x > 0U || m_maxSize.y > 0U)
+				{
+					minMaxInfo->ptMaxTrackSize.x = rect.right - rect.left;
+					minMaxInfo->ptMaxTrackSize.y = rect.bottom - rect.top;
+				}
+				return 0;
+			}
+			case WM_MOVE:
+			{
+				RECT rect;
+				GetWindowRect(m_windowHandle, &rect);
+				m_position.set(rect.left, rect.top);
+
+				return 0;
+			}
+			case WM_MOUSEWHEEL:
 			{
 				POINT mousePosition;
-				GetCursorPos(&mousePosition);
-
-				bool isMouseOverWindow = WindowFromPoint(mousePosition) == m_windowHandle;
+				mousePosition.x = GET_X_LPARAM(p_data_b);
+				mousePosition.y = GET_Y_LPARAM(p_data_b);
 
 				ScreenToClient(m_windowHandle, &mousePosition);
 
-				if (mousePosition.x >= 0 && mousePosition.y >= 0 && mousePosition.x < m_size.x && mousePosition.y < m_size.y && isMouseOverWindow)
-				{
-					// If it's a WM_MOUSELEAVE message, then it has entered the nonclient area if the new mouse position still is inside the window.
-					// If it's a WM_NCMOUSELEAVE message, then it has entered the client area.
-					// Note that both these cases would mean that the window has the CustomBorder style flag set.
-					m_isMouseOutsideClientArea = p_message == WM_MOUSELEAVE;
-					return 0;
-				}
+				float delta = float(GET_WHEEL_DELTA_WPARAM(p_data_a)) / 120.f;
 
-				m_isMouseOutsideClientArea = true;
+				AvoGUI::ModifierKeyFlags modifierKeyFlags = convertWindowsKeyStateToModifierKeyFlags(GET_KEYSTATE_WPARAM(p_data_a));
 
 				AvoGUI::MouseEvent mouseEvent;
 				mouseEvent.x = mousePosition.x / m_dipToPixelFactor;
 				mouseEvent.y = mousePosition.y / m_dipToPixelFactor;
-				mouseEvent.movementX = (mousePosition.x - m_mousePosition.x) / m_dipToPixelFactor;
-				mouseEvent.movementY = (mousePosition.y - m_mousePosition.y) / m_dipToPixelFactor;
-
-				m_mousePosition.x = mousePosition.x;
-				m_mousePosition.y = mousePosition.y;
+				mouseEvent.scrollDelta = delta;
+				mouseEvent.modifierKeys = modifierKeyFlags;
 
 				m_gui->excludeAnimationThread();
-				m_gui->handleGlobalMouseMove(mouseEvent);
-				m_gui->handleGlobalMouseLeave(mouseEvent);
+				m_gui->handleGlobalMouseScroll(mouseEvent);
 				m_gui->includeAnimationThread();
-			}
-			return 0;
-		}
-		case WM_NCHITTEST:
-		{
-			if (uint32(m_crossPlatformStyles & AvoGUI::WindowStyleFlags::CustomBorder) && p_data_b)
-			{
-				POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
-				ScreenToClient(m_windowHandle, &mousePosition);
 
-				AvoGUI::WindowBorderArea area = m_gui->getWindowBorderAreaAtPosition(mousePosition.x/m_dipToPixelFactor, mousePosition.y/m_dipToPixelFactor);
-				if (IsMaximized(m_windowHandle) && area != AvoGUI::WindowBorderArea::Dragging && area != AvoGUI::WindowBorderArea::None)
-				{
-					return HTCLIENT;
-				}
-				switch (area)
-				{
-				case AvoGUI::WindowBorderArea::TopLeftResize:
-					return HTTOPLEFT;
-				case AvoGUI::WindowBorderArea::TopResize:
-					return HTTOP;
-				case AvoGUI::WindowBorderArea::TopRightResize:
-					return HTTOPRIGHT;
-				case AvoGUI::WindowBorderArea::LeftResize:
-					return HTLEFT;
-				case AvoGUI::WindowBorderArea::RightResize:
-					return HTRIGHT;
-				case AvoGUI::WindowBorderArea::BottomLeftResize:
-					return HTBOTTOMLEFT;
-				case AvoGUI::WindowBorderArea::BottomResize:
-					return HTBOTTOM;
-				case AvoGUI::WindowBorderArea::BottomRightResize:
-					return HTBOTTOMRIGHT;
-				case AvoGUI::WindowBorderArea::Dragging:
-					return HTCAPTION;
-				case AvoGUI::WindowBorderArea::None:
-					return HTCLIENT;
-				}
 				return 0;
 			}
-			break;
-		}
-		case WM_DPICHANGED:
-		{
-			m_gui->getDrawingContext()->setDpi(float(HIWORD(p_data_a)));
-			m_dipToPixelFactor = HIWORD(p_data_a) / (float)USER_DEFAULT_SCREEN_DPI;
-			RECT* newRectangle = (RECT*)p_data_b;
-			SetWindowPos(m_windowHandle, 0, newRectangle->left, newRectangle->top, newRectangle->right - newRectangle->left, newRectangle->bottom - newRectangle->top, SWP_NOZORDER | SWP_NOACTIVATE);
-			return 0;
-		}
-		case WM_SIZE:
-		{
-			AvoGUI::WindowEvent windowEvent;
-			windowEvent.window = this;
-			if (p_data_a == SIZE_MINIMIZED)
+			case WM_LBUTTONDOWN:
 			{
-				m_gui->excludeAnimationThread();
-				m_gui->handleWindowMinimize(windowEvent);
-				m_gui->includeAnimationThread();
-				m_state = AvoGUI::WindowState::Minimized;
-			}
-			else
-			{
-				uint32 width = p_data_b & 0xffff;
-				uint32 height = p_data_b >> 16 & 0xffff;
-				m_size.x = width;
-				m_size.y = height;
-				windowEvent.width = width / m_dipToPixelFactor;
-				windowEvent.height = height / m_dipToPixelFactor;
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
+
+				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+
+				AvoGUI::MouseEvent mouseEvent;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
+				mouseEvent.mouseButton = AvoGUI::MouseButton::Left;
+				mouseEvent.modifierKeys = modifierFlags;
 
 				m_gui->excludeAnimationThread();
-				if (p_data_a == SIZE_MAXIMIZED)
+				m_gui->handleGlobalMouseDown(mouseEvent);
+				m_gui->includeAnimationThread();
+
+				SetCapture(m_windowHandle);
+
+				return 0;
+			}
+			case WM_LBUTTONUP:
+			{
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
+
+				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+
+				AvoGUI::MouseEvent mouseEvent;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
+				mouseEvent.mouseButton = AvoGUI::MouseButton::Left;
+				mouseEvent.modifierKeys = modifierFlags;
+
+				m_gui->excludeAnimationThread();
+				m_gui->handleGlobalMouseUp(mouseEvent);
+				m_gui->includeAnimationThread();
+
+				ReleaseCapture();
+
+				return 0;
+			}
+			case WM_LBUTTONDBLCLK:
+			{
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
+
+				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+
+				AvoGUI::MouseEvent mouseEvent;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
+				mouseEvent.mouseButton = AvoGUI::MouseButton::Left;
+				mouseEvent.modifierKeys = modifierFlags;
+				m_gui->excludeAnimationThread();
+				m_gui->handleGlobalMouseDoubleClick(mouseEvent);
+				m_gui->includeAnimationThread();
+
+				return 0;
+			}
+			case WM_RBUTTONDOWN:
+			{
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
+
+				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+
+				AvoGUI::MouseEvent mouseEvent;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
+				mouseEvent.mouseButton = AvoGUI::MouseButton::Right;
+				mouseEvent.modifierKeys = modifierFlags;
+				m_gui->excludeAnimationThread();
+				m_gui->handleGlobalMouseDown(mouseEvent);
+				m_gui->includeAnimationThread();
+
+				return 0;
+			}
+			case WM_RBUTTONUP:
+			{
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
+
+				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+
+				AvoGUI::MouseEvent mouseEvent;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
+				mouseEvent.mouseButton = AvoGUI::MouseButton::Right;
+				mouseEvent.modifierKeys = modifierFlags;
+				m_gui->excludeAnimationThread();
+				m_gui->handleGlobalMouseUp(mouseEvent);
+				m_gui->includeAnimationThread();
+
+				return 0;
+			}
+			case WM_RBUTTONDBLCLK:
+			{
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
+
+				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+
+				AvoGUI::MouseEvent mouseEvent;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
+				mouseEvent.mouseButton = AvoGUI::MouseButton::Right;
+				mouseEvent.modifierKeys = modifierFlags;
+				m_gui->excludeAnimationThread();
+				m_gui->handleGlobalMouseDoubleClick(mouseEvent);
+				m_gui->includeAnimationThread();
+
+				return 0;
+			}
+			case WM_MBUTTONDOWN:
+			{
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
+
+				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+
+				AvoGUI::MouseEvent mouseEvent;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
+				mouseEvent.mouseButton = AvoGUI::MouseButton::Middle;
+				mouseEvent.modifierKeys = modifierFlags;
+				m_gui->excludeAnimationThread();
+				m_gui->handleGlobalMouseDown(mouseEvent);
+				m_gui->includeAnimationThread();
+
+				return 0;
+			}
+			case WM_MBUTTONUP:
+			{
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
+
+				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+
+				AvoGUI::MouseEvent mouseEvent;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
+				mouseEvent.mouseButton = AvoGUI::MouseButton::Middle;
+				mouseEvent.modifierKeys = modifierFlags;
+				m_gui->excludeAnimationThread();
+				m_gui->handleGlobalMouseUp(mouseEvent);
+				m_gui->includeAnimationThread();
+
+				return 0;
+			}
+			case WM_MBUTTONDBLCLK:
+			{
+				int32 x = GET_X_LPARAM(p_data_b);
+				int32 y = GET_Y_LPARAM(p_data_b);
+
+				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+
+				AvoGUI::MouseEvent mouseEvent;
+				mouseEvent.x = x / m_dipToPixelFactor;
+				mouseEvent.y = y / m_dipToPixelFactor;
+				mouseEvent.mouseButton = AvoGUI::MouseButton::Middle;
+				mouseEvent.modifierKeys = modifierFlags;
+				m_gui->excludeAnimationThread();
+				m_gui->handleGlobalMouseDoubleClick(mouseEvent);
+				m_gui->includeAnimationThread();
+
+				return 0;
+			}
+			case WM_SYSKEYDOWN:
+			case WM_KEYDOWN:
+			{
+				bool isRepeated = p_data_b & (1 << 30);
+				AvoGUI::KeyboardKey key = convertWindowsDataToKeyboardKey(p_data_a);
+
+				AvoGUI::KeyboardEvent keyboardEvent;
+				keyboardEvent.key = key;
+				keyboardEvent.isRepeated = isRepeated;
+				m_gui->excludeAnimationThread();
+				m_gui->handleGlobalKeyboardKeyDown(keyboardEvent);
+				m_gui->includeAnimationThread();
+
+				return 0;
+			}
+			case WM_SYSKEYUP:
+			case WM_KEYUP:
+			{
+				AvoGUI::KeyboardKey key = convertWindowsDataToKeyboardKey(p_data_a);
+
+				AvoGUI::KeyboardEvent keyboardEvent;
+				keyboardEvent.key = key;
+				m_gui->excludeAnimationThread();
+				m_gui->handleGlobalKeyboardKeyUp(keyboardEvent);
+				m_gui->includeAnimationThread();
+
+				return 0;
+			}
+			case WM_CHAR:
+			{
+				bool isRepeated = p_data_b & (1 << 30);
+
+				// Length is 5 because 4 is the max number of bytes in a utf-8 encoded character, and the null terminator is included
+				char character[5];
+				AvoGUI::convertUtf16ToUtf8((wchar_t const*)&p_data_a, character, 5);
+
+				AvoGUI::KeyboardEvent keyboardEvent;
+				keyboardEvent.character = character;
+				keyboardEvent.isRepeated = isRepeated;
+				m_gui->excludeAnimationThread();
+				m_gui->handleGlobalCharacterInput(keyboardEvent);
+				m_gui->includeAnimationThread();
+				return 0;
+			}
+			case WM_MENUCHAR:
+			{
+				return 1 << 16;
+			}
+			case WM_CLOSE:
+			{
+				if (m_gui->getWillClose())
 				{
-					m_gui->handleWindowMaximize(windowEvent);
-					m_state = AvoGUI::WindowState::Maximized;
+					DeleteColorSpace(GetColorSpace(GetDC(m_windowHandle)));
+
+					RevokeDragDrop(m_windowHandle);
+					OleUninitialize();
+
+					m_isOpen = false;
+					DestroyWindow(m_windowHandle);
 				}
-				else if (p_data_a == SIZE_RESTORED && m_state != AvoGUI::WindowState::Restored)
+				else
 				{
-					m_gui->handleWindowRestore(windowEvent);
-					m_state = AvoGUI::WindowState::Restored;
+					m_gui->excludeAnimationThread();
+					m_gui->handleWindowClose({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
+					m_gui->includeAnimationThread();
 				}
-				m_gui->handleWindowSizeChange(windowEvent);
-				m_gui->includeAnimationThread();
-			}
 
-			if (!m_hasCreatedWindow)
+				return 0;
+			}
+			case WM_DESTROY:
 			{
-				m_hasCreatedWindowMutex.lock();
-				m_hasCreatedWindow = true;
-				m_hasCreatedWindowMutex.unlock();
-				m_hasCreatedWindowConditionVariable.notify_one();
+				m_windowHandle = 0;
+				s_numberOfWindows--;
+				if (!s_numberOfWindows)
+				{
+					UnregisterClassW(WINDOW_CLASS_NAME, GetModuleHandle(0));
+				}
+				PostQuitMessage(0);
+
+				return 0;
 			}
-			return 0;
-		}
-		case WM_GETMINMAXINFO:
-		{
-			MINMAXINFO* minMaxInfo = (MINMAXINFO*)p_data_b;
-			RECT rect = { 0, 0, (int)m_minSize.x, (int)m_minSize.y };
-			AdjustWindowRect(&rect, m_styles, 0);
-
-			if (m_minSize.x > 0U || m_minSize.y > 0U)
-			{
-				minMaxInfo->ptMinTrackSize.x = rect.right - rect.left;
-				minMaxInfo->ptMinTrackSize.y = rect.bottom - rect.top;
-			}
-			if (m_maxSize.x > 0U || m_maxSize.y > 0U)
-			{
-				minMaxInfo->ptMaxTrackSize.x = rect.right - rect.left;
-				minMaxInfo->ptMaxTrackSize.y = rect.bottom - rect.top;
-			}
-			return 0;
-		}
-		case WM_MOVE:
-		{
-			RECT rect;
-			GetWindowRect(m_windowHandle, &rect);
-			m_position.set(rect.left, rect.top);
-
-			return 0;
-		}
-		case WM_MOUSEWHEEL:
-		{
-			POINT mousePosition;
-			mousePosition.x = GET_X_LPARAM(p_data_b);
-			mousePosition.y = GET_Y_LPARAM(p_data_b);
-			
-			ScreenToClient(m_windowHandle, &mousePosition);
-
-			float delta = float(GET_WHEEL_DELTA_WPARAM(p_data_a)) / 120.f;
-
-			AvoGUI::ModifierKeyFlags modifierKeyFlags = convertWindowsKeyStateToModifierKeyFlags(GET_KEYSTATE_WPARAM(p_data_a));
-
-			AvoGUI::MouseEvent mouseEvent;
-			mouseEvent.x = mousePosition.x / m_dipToPixelFactor;
-			mouseEvent.y = mousePosition.y / m_dipToPixelFactor;
-			mouseEvent.scrollDelta = delta;
-			mouseEvent.modifierKeys = modifierKeyFlags;
-
-			m_gui->excludeAnimationThread();
-			m_gui->handleGlobalMouseScroll(mouseEvent);
-			m_gui->includeAnimationThread();
-
-			return 0;
-		}
-		case WM_LBUTTONDOWN:
-		{
-			int32 x = GET_X_LPARAM(p_data_b);
-			int32 y = GET_Y_LPARAM(p_data_b);
-
-			AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-			AvoGUI::MouseEvent mouseEvent;
-			mouseEvent.x = x / m_dipToPixelFactor;
-			mouseEvent.y = y / m_dipToPixelFactor;
-			mouseEvent.mouseButton = AvoGUI::MouseButton::Left;
-			mouseEvent.modifierKeys = modifierFlags;
-
-			m_gui->excludeAnimationThread();
-			m_gui->handleGlobalMouseDown(mouseEvent);
-			m_gui->includeAnimationThread();
-
-			SetCapture(m_windowHandle);
-
-			return 0;
-		}
-		case WM_LBUTTONUP:
-		{
-			int32 x = GET_X_LPARAM(p_data_b);
-			int32 y = GET_Y_LPARAM(p_data_b);
-
-			AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-			AvoGUI::MouseEvent mouseEvent;
-			mouseEvent.x = x / m_dipToPixelFactor;
-			mouseEvent.y = y / m_dipToPixelFactor;
-			mouseEvent.mouseButton = AvoGUI::MouseButton::Left;
-			mouseEvent.modifierKeys = modifierFlags;
-
-			m_gui->excludeAnimationThread();
-			m_gui->handleGlobalMouseUp(mouseEvent);
-			m_gui->includeAnimationThread();
-
-			ReleaseCapture();
-
-			return 0;
-		}
-		case WM_LBUTTONDBLCLK:
-		{
-			int32 x = GET_X_LPARAM(p_data_b);
-			int32 y = GET_Y_LPARAM(p_data_b);
-
-			AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-			AvoGUI::MouseEvent mouseEvent;
-			mouseEvent.x = x / m_dipToPixelFactor;
-			mouseEvent.y = y / m_dipToPixelFactor;
-			mouseEvent.mouseButton = AvoGUI::MouseButton::Left;
-			mouseEvent.modifierKeys = modifierFlags;
-			m_gui->excludeAnimationThread();
-			m_gui->handleGlobalMouseDoubleClick(mouseEvent);
-			m_gui->includeAnimationThread();
-
-			return 0;
-		}
-		case WM_RBUTTONDOWN:
-		{
-			int32 x = GET_X_LPARAM(p_data_b);
-			int32 y = GET_Y_LPARAM(p_data_b);
-
-			AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-			AvoGUI::MouseEvent mouseEvent;
-			mouseEvent.x = x / m_dipToPixelFactor;
-			mouseEvent.y = y / m_dipToPixelFactor;
-			mouseEvent.mouseButton = AvoGUI::MouseButton::Right;
-			mouseEvent.modifierKeys = modifierFlags;
-			m_gui->excludeAnimationThread();
-			m_gui->handleGlobalMouseDown(mouseEvent);
-			m_gui->includeAnimationThread();
-
-			return 0;
-		}
-		case WM_RBUTTONUP:
-		{
-			int32 x = GET_X_LPARAM(p_data_b);
-			int32 y = GET_Y_LPARAM(p_data_b);
-
-			AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-			AvoGUI::MouseEvent mouseEvent;
-			mouseEvent.x = x / m_dipToPixelFactor;
-			mouseEvent.y = y / m_dipToPixelFactor;
-			mouseEvent.mouseButton = AvoGUI::MouseButton::Right;
-			mouseEvent.modifierKeys = modifierFlags;
-			m_gui->excludeAnimationThread();
-			m_gui->handleGlobalMouseUp(mouseEvent);
-			m_gui->includeAnimationThread();
-
-			return 0;
-		}
-		case WM_RBUTTONDBLCLK:
-		{
-			int32 x = GET_X_LPARAM(p_data_b);
-			int32 y = GET_Y_LPARAM(p_data_b);
-
-			AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-			AvoGUI::MouseEvent mouseEvent;
-			mouseEvent.x = x / m_dipToPixelFactor;
-			mouseEvent.y = y / m_dipToPixelFactor;
-			mouseEvent.mouseButton = AvoGUI::MouseButton::Right;
-			mouseEvent.modifierKeys = modifierFlags;
-			m_gui->excludeAnimationThread();
-			m_gui->handleGlobalMouseDoubleClick(mouseEvent);
-			m_gui->includeAnimationThread();
-
-			return 0;
-		}
-		case WM_MBUTTONDOWN:
-		{
-			int32 x = GET_X_LPARAM(p_data_b);
-			int32 y = GET_Y_LPARAM(p_data_b);
-
-			AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-			AvoGUI::MouseEvent mouseEvent;
-			mouseEvent.x = x / m_dipToPixelFactor;
-			mouseEvent.y = y / m_dipToPixelFactor;
-			mouseEvent.mouseButton = AvoGUI::MouseButton::Middle;
-			mouseEvent.modifierKeys = modifierFlags;
-			m_gui->excludeAnimationThread();
-			m_gui->handleGlobalMouseDown(mouseEvent);
-			m_gui->includeAnimationThread();
-
-			return 0;
-		}
-		case WM_MBUTTONUP:
-		{
-			int32 x = GET_X_LPARAM(p_data_b);
-			int32 y = GET_Y_LPARAM(p_data_b);
-
-			AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-			AvoGUI::MouseEvent mouseEvent;
-			mouseEvent.x = x / m_dipToPixelFactor;
-			mouseEvent.y = y / m_dipToPixelFactor;
-			mouseEvent.mouseButton = AvoGUI::MouseButton::Middle;
-			mouseEvent.modifierKeys = modifierFlags;
-			m_gui->excludeAnimationThread();
-			m_gui->handleGlobalMouseUp(mouseEvent);
-			m_gui->includeAnimationThread();
-
-			return 0;
-		}
-		case WM_MBUTTONDBLCLK:
-		{
-			int32 x = GET_X_LPARAM(p_data_b);
-			int32 y = GET_Y_LPARAM(p_data_b);
-
-			AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-			AvoGUI::MouseEvent mouseEvent;
-			mouseEvent.x = x / m_dipToPixelFactor;
-			mouseEvent.y = y / m_dipToPixelFactor;
-			mouseEvent.mouseButton = AvoGUI::MouseButton::Middle;
-			mouseEvent.modifierKeys = modifierFlags;
-			m_gui->excludeAnimationThread();
-			m_gui->handleGlobalMouseDoubleClick(mouseEvent);
-			m_gui->includeAnimationThread();
-
-			return 0;
-		}
-		case WM_SYSKEYDOWN:
-		case WM_KEYDOWN:
-		{
-			bool isRepeated = p_data_b & (1 << 30);
-			AvoGUI::KeyboardKey key = convertWindowsDataToKeyboardKey(p_data_a);
-
-			AvoGUI::KeyboardEvent keyboardEvent;
-			keyboardEvent.key = key;
-			keyboardEvent.isRepeated = isRepeated;
-			m_gui->excludeAnimationThread();
-			m_gui->handleGlobalKeyboardKeyDown(keyboardEvent);
-			m_gui->includeAnimationThread();
-
-			return 0;
-		}
-		case WM_SYSKEYUP:
-		case WM_KEYUP:
-		{
-			AvoGUI::KeyboardKey key = convertWindowsDataToKeyboardKey(p_data_a);
-
-			AvoGUI::KeyboardEvent keyboardEvent;
-			keyboardEvent.key = key;
-			m_gui->excludeAnimationThread();
-			m_gui->handleGlobalKeyboardKeyUp(keyboardEvent);
-			m_gui->includeAnimationThread();
-
-			return 0;
-		}
-		case WM_CHAR:
-		{
-			bool isRepeated = p_data_b & (1 << 30);
-
-			// Length is 5 because 4 is the max number of bytes in a utf-8 encoded character, and the null terminator is included
-			char character[5];
-			AvoGUI::convertUtf16ToUtf8((wchar_t const*)&p_data_a, character, 5);
-
-			AvoGUI::KeyboardEvent keyboardEvent;
-			keyboardEvent.character = character;
-			keyboardEvent.isRepeated = isRepeated;
-			m_gui->excludeAnimationThread();
-			m_gui->handleGlobalCharacterInput(keyboardEvent);
-			m_gui->includeAnimationThread();
-			return 0;
-		}
-		case WM_MENUCHAR:
-		{
-			return 1 << 16;
-		}
-		case WM_CLOSE:
-		{
-			if (m_gui->getWillClose())
-			{
-				DeleteColorSpace(GetColorSpace(GetDC(m_windowHandle)));
-				
-				RevokeDragDrop(m_windowHandle);
-				OleUninitialize();
-
-				m_isOpen = false;
-				DestroyWindow(m_windowHandle);
-			}
-			else
-			{
-				m_gui->excludeAnimationThread();
-				m_gui->handleWindowClose({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
-				m_gui->includeAnimationThread();
-			}
-
-			return 0;
-		}
-		case WM_DESTROY:
-		{
-			m_windowHandle = 0;
-			s_numberOfWindows--;
-			if (!s_numberOfWindows)
-			{
-				UnregisterClassW(WINDOW_CLASS_NAME, GetModuleHandle(0));
-			}
-			PostQuitMessage(0);
-
-			return 0;
-		}
 		}
 		return ~0LL;
 	}
@@ -4582,218 +4584,218 @@ private:
 	{
 		switch (p_key)
 		{
-		case AvoGUI::KeyboardKey::Menu:
-			return XK_Menu;
-		case AvoGUI::KeyboardKey::Backspace:
-			return XK_BackSpace;
-		case AvoGUI::KeyboardKey::Clear:
-			return XK_Clear;
-		case AvoGUI::KeyboardKey::Tab:
-			return XK_Tab;
-		case AvoGUI::KeyboardKey::Return:
-			return XK_Return;
-		case AvoGUI::KeyboardKey::Shift:
-			return XK_Shift_L;
-		case AvoGUI::KeyboardKey::Control:
-			return XK_Control_L;
-		case AvoGUI::KeyboardKey::Alt:
-			return XK_Alt_L;
-		case AvoGUI::KeyboardKey::Pause:
-			return XK_Pause;
-		case AvoGUI::KeyboardKey::CapsLock:
-			return XK_Caps_Lock;
-		case AvoGUI::KeyboardKey::Escape:
-			return XK_Escape;
-		case AvoGUI::KeyboardKey::Spacebar:
-			return XK_space;
-		case AvoGUI::KeyboardKey::PageUp:
-			return XK_Page_Up;
-		case AvoGUI::KeyboardKey::PageDown:
-			return XK_Page_Down;
-		case AvoGUI::KeyboardKey::End:
-			return XK_End;
-		case AvoGUI::KeyboardKey::Home:
-			return XK_Home;
-		case AvoGUI::KeyboardKey::Left:
-			return XK_Left;
-		case AvoGUI::KeyboardKey::Right:
-			return XK_Right;
-		case AvoGUI::KeyboardKey::Up:
-			return XK_Up;
-		case AvoGUI::KeyboardKey::Down:
-			return XK_Down;
-		case AvoGUI::KeyboardKey::PrintScreen:
-			return XK_Print;
-		case AvoGUI::KeyboardKey::Insert:
-			return XK_Insert;
-		case AvoGUI::KeyboardKey::Delete:
-			return XK_Delete;
-		case AvoGUI::KeyboardKey::Help:
-			return XK_Help;
-		case AvoGUI::KeyboardKey::Numpad0:
-			return XK_KP_0;
-		case AvoGUI::KeyboardKey::Numpad1:
-			return XK_KP_1;
-		case AvoGUI::KeyboardKey::Numpad2:
-			return XK_KP_2;
-		case AvoGUI::KeyboardKey::Numpad3:
-			return XK_KP_3;
-		case AvoGUI::KeyboardKey::Numpad4:
-			return XK_KP_4;
-		case AvoGUI::KeyboardKey::Numpad5:
-			return XK_KP_5;
-		case AvoGUI::KeyboardKey::Numpad6:
-			return XK_KP_6;
-		case AvoGUI::KeyboardKey::Numpad7:
-			return XK_KP_7;
-		case AvoGUI::KeyboardKey::Numpad8:
-			return XK_KP_8;
-		case AvoGUI::KeyboardKey::Numpad9:
-			return XK_KP_9;
-		case AvoGUI::KeyboardKey::Add:
-			return XK_KP_Add;
-		case AvoGUI::KeyboardKey::Subtract:
-			return XK_KP_Subtract;
-		case AvoGUI::KeyboardKey::Multiply:
-			return XK_KP_Multiply;
-		case AvoGUI::KeyboardKey::Divide:
-			return XK_KP_Divide;
-		case AvoGUI::KeyboardKey::F1:
-			return XK_F1;
-		case AvoGUI::KeyboardKey::F2:
-			return XK_F2;
-		case AvoGUI::KeyboardKey::F3:
-			return XK_F3;
-		case AvoGUI::KeyboardKey::F4:
-			return XK_F4;
-		case AvoGUI::KeyboardKey::F5:
-			return XK_F5;
-		case AvoGUI::KeyboardKey::F6:
-			return XK_F6;
-		case AvoGUI::KeyboardKey::F7:
-			return XK_F7;
-		case AvoGUI::KeyboardKey::F8:
-			return XK_F8;
-		case AvoGUI::KeyboardKey::F9:
-			return XK_F9;
-		case AvoGUI::KeyboardKey::F10:
-			return XK_F10;
-		case AvoGUI::KeyboardKey::F11:
-			return XK_F11;
-		case AvoGUI::KeyboardKey::F12:
-			return XK_F12;
-		case AvoGUI::KeyboardKey::F13:
-			return XK_F13;
-		case AvoGUI::KeyboardKey::F14:
-			return XK_F14;
-		case AvoGUI::KeyboardKey::F15:
-			return XK_F15;
-		case AvoGUI::KeyboardKey::F16:
-			return XK_F16;
-		case AvoGUI::KeyboardKey::F17:
-			return XK_F17;
-		case AvoGUI::KeyboardKey::F18:
-			return XK_F18;
-		case AvoGUI::KeyboardKey::F19:
-			return XK_F19;
-		case AvoGUI::KeyboardKey::F20:
-			return XK_F20;
-		case AvoGUI::KeyboardKey::F21:
-			return XK_F21;
-		case AvoGUI::KeyboardKey::F22:
-			return XK_F22;
-		case AvoGUI::KeyboardKey::F23:
-			return XK_F23;
-		case AvoGUI::KeyboardKey::F24:
-			return XK_F24;
-		case AvoGUI::KeyboardKey::NumLock:
-			return XK_Num_Lock;
-		case AvoGUI::KeyboardKey::Number0:
-			return XK_0;
-		case AvoGUI::KeyboardKey::Number1:
-			return XK_1;
-		case AvoGUI::KeyboardKey::Number2:
-			return XK_2;
-		case AvoGUI::KeyboardKey::Number3:
-			return XK_3;
-		case AvoGUI::KeyboardKey::Number4:
-			return XK_4;
-		case AvoGUI::KeyboardKey::Number5:
-			return XK_5;
-		case AvoGUI::KeyboardKey::Number6:
-			return XK_6;
-		case AvoGUI::KeyboardKey::Number7:
-			return XK_7;
-		case AvoGUI::KeyboardKey::Number8:
-			return XK_8;
-		case AvoGUI::KeyboardKey::Number9:
-			return XK_9;
-		case AvoGUI::KeyboardKey::A:
-			return XK_A;
-		case AvoGUI::KeyboardKey::B:
-			return XK_B;
-		case AvoGUI::KeyboardKey::C:
-			return XK_C;
-		case AvoGUI::KeyboardKey::D:
-			return XK_D;
-		case AvoGUI::KeyboardKey::E:
-			return XK_E;
-		case AvoGUI::KeyboardKey::F:
-			return XK_F;
-		case AvoGUI::KeyboardKey::G:
-			return XK_G;
-		case AvoGUI::KeyboardKey::H:
-			return XK_H;
-		case AvoGUI::KeyboardKey::I:
-			return XK_I;
-		case AvoGUI::KeyboardKey::J:
-			return XK_J;
-		case AvoGUI::KeyboardKey::K:
-			return XK_K;
-		case AvoGUI::KeyboardKey::L:
-			return XK_L;
-		case AvoGUI::KeyboardKey::M:
-			return XK_M;
-		case AvoGUI::KeyboardKey::N:
-			return XK_N;
-		case AvoGUI::KeyboardKey::O:
-			return XK_O;
-		case AvoGUI::KeyboardKey::P:
-			return XK_P;
-		case AvoGUI::KeyboardKey::Q:
-			return XK_Q;
-		case AvoGUI::KeyboardKey::R:
-			return XK_R;
-		case AvoGUI::KeyboardKey::S:
-			return XK_S;
-		case AvoGUI::KeyboardKey::T:
-			return XK_T;
-		case AvoGUI::KeyboardKey::U:
-			return XK_U;
-		case AvoGUI::KeyboardKey::V:
-			return XK_V;
-		case AvoGUI::KeyboardKey::W:
-			return XK_W;
-		case AvoGUI::KeyboardKey::X:
-			return XK_X;
-		case AvoGUI::KeyboardKey::Y:
-			return XK_Y;
-		case AvoGUI::KeyboardKey::Z:
-			return XK_Z;
-		case AvoGUI::KeyboardKey::Regional1:
-			return XK_semicolon;
-		case AvoGUI::KeyboardKey::Regional2:
-			return XK_slash;
-		case AvoGUI::KeyboardKey::Regional3:
-			return XK_grave;
-		case AvoGUI::KeyboardKey::Regional4:
-			return XK_bracketleft;
-		case AvoGUI::KeyboardKey::Regional5:
-			return XK_backslash;
-		case AvoGUI::KeyboardKey::Regional6:
-			return XK_bracketright;
-		case AvoGUI::KeyboardKey::Regional7:
-			return XK_apostrophe;
+			case AvoGUI::KeyboardKey::Menu:
+				return XK_Menu;
+			case AvoGUI::KeyboardKey::Backspace:
+				return XK_BackSpace;
+			case AvoGUI::KeyboardKey::Clear:
+				return XK_Clear;
+			case AvoGUI::KeyboardKey::Tab:
+				return XK_Tab;
+			case AvoGUI::KeyboardKey::Return:
+				return XK_Return;
+			case AvoGUI::KeyboardKey::Shift:
+				return XK_Shift_L;
+			case AvoGUI::KeyboardKey::Control:
+				return XK_Control_L;
+			case AvoGUI::KeyboardKey::Alt:
+				return XK_Alt_L;
+			case AvoGUI::KeyboardKey::Pause:
+				return XK_Pause;
+			case AvoGUI::KeyboardKey::CapsLock:
+				return XK_Caps_Lock;
+			case AvoGUI::KeyboardKey::Escape:
+				return XK_Escape;
+			case AvoGUI::KeyboardKey::Spacebar:
+				return XK_space;
+			case AvoGUI::KeyboardKey::PageUp:
+				return XK_Page_Up;
+			case AvoGUI::KeyboardKey::PageDown:
+				return XK_Page_Down;
+			case AvoGUI::KeyboardKey::End:
+				return XK_End;
+			case AvoGUI::KeyboardKey::Home:
+				return XK_Home;
+			case AvoGUI::KeyboardKey::Left:
+				return XK_Left;
+			case AvoGUI::KeyboardKey::Right:
+				return XK_Right;
+			case AvoGUI::KeyboardKey::Up:
+				return XK_Up;
+			case AvoGUI::KeyboardKey::Down:
+				return XK_Down;
+			case AvoGUI::KeyboardKey::PrintScreen:
+				return XK_Print;
+			case AvoGUI::KeyboardKey::Insert:
+				return XK_Insert;
+			case AvoGUI::KeyboardKey::Delete:
+				return XK_Delete;
+			case AvoGUI::KeyboardKey::Help:
+				return XK_Help;
+			case AvoGUI::KeyboardKey::Numpad0:
+				return XK_KP_0;
+			case AvoGUI::KeyboardKey::Numpad1:
+				return XK_KP_1;
+			case AvoGUI::KeyboardKey::Numpad2:
+				return XK_KP_2;
+			case AvoGUI::KeyboardKey::Numpad3:
+				return XK_KP_3;
+			case AvoGUI::KeyboardKey::Numpad4:
+				return XK_KP_4;
+			case AvoGUI::KeyboardKey::Numpad5:
+				return XK_KP_5;
+			case AvoGUI::KeyboardKey::Numpad6:
+				return XK_KP_6;
+			case AvoGUI::KeyboardKey::Numpad7:
+				return XK_KP_7;
+			case AvoGUI::KeyboardKey::Numpad8:
+				return XK_KP_8;
+			case AvoGUI::KeyboardKey::Numpad9:
+				return XK_KP_9;
+			case AvoGUI::KeyboardKey::Add:
+				return XK_KP_Add;
+			case AvoGUI::KeyboardKey::Subtract:
+				return XK_KP_Subtract;
+			case AvoGUI::KeyboardKey::Multiply:
+				return XK_KP_Multiply;
+			case AvoGUI::KeyboardKey::Divide:
+				return XK_KP_Divide;
+			case AvoGUI::KeyboardKey::F1:
+				return XK_F1;
+			case AvoGUI::KeyboardKey::F2:
+				return XK_F2;
+			case AvoGUI::KeyboardKey::F3:
+				return XK_F3;
+			case AvoGUI::KeyboardKey::F4:
+				return XK_F4;
+			case AvoGUI::KeyboardKey::F5:
+				return XK_F5;
+			case AvoGUI::KeyboardKey::F6:
+				return XK_F6;
+			case AvoGUI::KeyboardKey::F7:
+				return XK_F7;
+			case AvoGUI::KeyboardKey::F8:
+				return XK_F8;
+			case AvoGUI::KeyboardKey::F9:
+				return XK_F9;
+			case AvoGUI::KeyboardKey::F10:
+				return XK_F10;
+			case AvoGUI::KeyboardKey::F11:
+				return XK_F11;
+			case AvoGUI::KeyboardKey::F12:
+				return XK_F12;
+			case AvoGUI::KeyboardKey::F13:
+				return XK_F13;
+			case AvoGUI::KeyboardKey::F14:
+				return XK_F14;
+			case AvoGUI::KeyboardKey::F15:
+				return XK_F15;
+			case AvoGUI::KeyboardKey::F16:
+				return XK_F16;
+			case AvoGUI::KeyboardKey::F17:
+				return XK_F17;
+			case AvoGUI::KeyboardKey::F18:
+				return XK_F18;
+			case AvoGUI::KeyboardKey::F19:
+				return XK_F19;
+			case AvoGUI::KeyboardKey::F20:
+				return XK_F20;
+			case AvoGUI::KeyboardKey::F21:
+				return XK_F21;
+			case AvoGUI::KeyboardKey::F22:
+				return XK_F22;
+			case AvoGUI::KeyboardKey::F23:
+				return XK_F23;
+			case AvoGUI::KeyboardKey::F24:
+				return XK_F24;
+			case AvoGUI::KeyboardKey::NumLock:
+				return XK_Num_Lock;
+			case AvoGUI::KeyboardKey::Number0:
+				return XK_0;
+			case AvoGUI::KeyboardKey::Number1:
+				return XK_1;
+			case AvoGUI::KeyboardKey::Number2:
+				return XK_2;
+			case AvoGUI::KeyboardKey::Number3:
+				return XK_3;
+			case AvoGUI::KeyboardKey::Number4:
+				return XK_4;
+			case AvoGUI::KeyboardKey::Number5:
+				return XK_5;
+			case AvoGUI::KeyboardKey::Number6:
+				return XK_6;
+			case AvoGUI::KeyboardKey::Number7:
+				return XK_7;
+			case AvoGUI::KeyboardKey::Number8:
+				return XK_8;
+			case AvoGUI::KeyboardKey::Number9:
+				return XK_9;
+			case AvoGUI::KeyboardKey::A:
+				return XK_A;
+			case AvoGUI::KeyboardKey::B:
+				return XK_B;
+			case AvoGUI::KeyboardKey::C:
+				return XK_C;
+			case AvoGUI::KeyboardKey::D:
+				return XK_D;
+			case AvoGUI::KeyboardKey::E:
+				return XK_E;
+			case AvoGUI::KeyboardKey::F:
+				return XK_F;
+			case AvoGUI::KeyboardKey::G:
+				return XK_G;
+			case AvoGUI::KeyboardKey::H:
+				return XK_H;
+			case AvoGUI::KeyboardKey::I:
+				return XK_I;
+			case AvoGUI::KeyboardKey::J:
+				return XK_J;
+			case AvoGUI::KeyboardKey::K:
+				return XK_K;
+			case AvoGUI::KeyboardKey::L:
+				return XK_L;
+			case AvoGUI::KeyboardKey::M:
+				return XK_M;
+			case AvoGUI::KeyboardKey::N:
+				return XK_N;
+			case AvoGUI::KeyboardKey::O:
+				return XK_O;
+			case AvoGUI::KeyboardKey::P:
+				return XK_P;
+			case AvoGUI::KeyboardKey::Q:
+				return XK_Q;
+			case AvoGUI::KeyboardKey::R:
+				return XK_R;
+			case AvoGUI::KeyboardKey::S:
+				return XK_S;
+			case AvoGUI::KeyboardKey::T:
+				return XK_T;
+			case AvoGUI::KeyboardKey::U:
+				return XK_U;
+			case AvoGUI::KeyboardKey::V:
+				return XK_V;
+			case AvoGUI::KeyboardKey::W:
+				return XK_W;
+			case AvoGUI::KeyboardKey::X:
+				return XK_X;
+			case AvoGUI::KeyboardKey::Y:
+				return XK_Y;
+			case AvoGUI::KeyboardKey::Z:
+				return XK_Z;
+			case AvoGUI::KeyboardKey::Regional1:
+				return XK_semicolon;
+			case AvoGUI::KeyboardKey::Regional2:
+				return XK_slash;
+			case AvoGUI::KeyboardKey::Regional3:
+				return XK_grave;
+			case AvoGUI::KeyboardKey::Regional4:
+				return XK_bracketleft;
+			case AvoGUI::KeyboardKey::Regional5:
+				return XK_backslash;
+			case AvoGUI::KeyboardKey::Regional6:
+				return XK_bracketright;
+			case AvoGUI::KeyboardKey::Regional7:
+				return XK_apostrophe;
 		}
 		return 0;
 	}
@@ -4801,221 +4803,221 @@ private:
 	{
 		switch (p_keySym)
 		{
-		case XK_Menu:
-			return AvoGUI::KeyboardKey::Menu;
-		case XK_BackSpace:
-			return AvoGUI::KeyboardKey::Backspace;
-		case XK_Clear:
-			return AvoGUI::KeyboardKey::Clear;
-		case XK_Tab:
-			return AvoGUI::KeyboardKey::Tab;
-		case XK_Return:
-			return AvoGUI::KeyboardKey::Return;
-		case XK_Shift_L:
-		case XK_Shift_R:
-			return AvoGUI::KeyboardKey::Shift;
-		case XK_Control_L:
-		case XK_Control_R:
-			return AvoGUI::KeyboardKey::Control;
-		case XK_Alt_L:
-		case XK_Alt_R:
-			return AvoGUI::KeyboardKey::Alt;
-		case XK_Pause:
-			return AvoGUI::KeyboardKey::Pause;
-		case XK_Caps_Lock:
-			return AvoGUI::KeyboardKey::CapsLock;
-		case XK_Escape:
-			return AvoGUI::KeyboardKey::Escape;
-		case XK_space:
-			return AvoGUI::KeyboardKey::Spacebar;
-		case XK_Page_Up:
-			return AvoGUI::KeyboardKey::PageUp;
-		case XK_Page_Down:
-			return AvoGUI::KeyboardKey::PageDown;
-		case XK_End:
-			return AvoGUI::KeyboardKey::End;
-		case XK_Home:
-			return AvoGUI::KeyboardKey::Home;
-		case XK_Left:
-			return AvoGUI::KeyboardKey::Left;
-		case XK_Right:
-			return AvoGUI::KeyboardKey::Right;
-		case XK_Up:
-			return AvoGUI::KeyboardKey::Up;
-		case XK_Down:
-			return AvoGUI::KeyboardKey::Down;
-		case XK_Print:
-			return AvoGUI::KeyboardKey::PrintScreen;
-		case XK_Insert:
-			return AvoGUI::KeyboardKey::Insert;
-		case XK_Delete:
-			return AvoGUI::KeyboardKey::Delete;
-		case XK_Help:
-			return AvoGUI::KeyboardKey::Help;
-		case XK_KP_0:
-			return AvoGUI::KeyboardKey::Numpad0;
-		case XK_KP_1:
-			return AvoGUI::KeyboardKey::Numpad1;
-		case XK_KP_2:
-			return AvoGUI::KeyboardKey::Numpad2;
-		case XK_KP_3:
-			return AvoGUI::KeyboardKey::Numpad3;
-		case XK_KP_4:
-			return AvoGUI::KeyboardKey::Numpad4;
-		case XK_KP_5:
-			return AvoGUI::KeyboardKey::Numpad5;
-		case XK_KP_6:
-			return AvoGUI::KeyboardKey::Numpad6;
-		case XK_KP_7:
-			return AvoGUI::KeyboardKey::Numpad7;
-		case XK_KP_8:
-			return AvoGUI::KeyboardKey::Numpad8;
-		case XK_KP_9:
-			return AvoGUI::KeyboardKey::Numpad9;
-		case XK_KP_Add:
-			return AvoGUI::KeyboardKey::Add;
-		case XK_KP_Subtract:
-			return AvoGUI::KeyboardKey::Subtract;
-		case XK_KP_Multiply:
-			return AvoGUI::KeyboardKey::Multiply;
-		case XK_KP_Divide:
-			return AvoGUI::KeyboardKey::Divide;
-		case XK_F1:
-			return AvoGUI::KeyboardKey::F1;
-		case XK_F2:
-			return AvoGUI::KeyboardKey::F2;
-		case XK_F3:
-			return AvoGUI::KeyboardKey::F3;
-		case XK_F4:
-			return AvoGUI::KeyboardKey::F4;
-		case XK_F5:
-			return AvoGUI::KeyboardKey::F5;
-		case XK_F6:
-			return AvoGUI::KeyboardKey::F6;
-		case XK_F7:
-			return AvoGUI::KeyboardKey::F7;
-		case XK_F8:
-			return AvoGUI::KeyboardKey::F8;
-		case XK_F9:
-			return AvoGUI::KeyboardKey::F9;
-		case XK_F10:
-			return AvoGUI::KeyboardKey::F10;
-		case XK_F11:
-			return AvoGUI::KeyboardKey::F11;
-		case XK_F12:
-			return AvoGUI::KeyboardKey::F12;
-		case XK_F13:
-			return AvoGUI::KeyboardKey::F13;
-		case XK_F14:
-			return AvoGUI::KeyboardKey::F14;
-		case XK_F15:
-			return AvoGUI::KeyboardKey::F15;
-		case XK_F16:
-			return AvoGUI::KeyboardKey::F16;
-		case XK_F17:
-			return AvoGUI::KeyboardKey::F17;
-		case XK_F18:
-			return AvoGUI::KeyboardKey::F18;
-		case XK_F19:
-			return AvoGUI::KeyboardKey::F19;
-		case XK_F20:
-			return AvoGUI::KeyboardKey::F20;
-		case XK_F21:
-			return AvoGUI::KeyboardKey::F21;
-		case XK_F22:
-			return AvoGUI::KeyboardKey::F22;
-		case XK_F23:
-			return AvoGUI::KeyboardKey::F23;
-		case XK_F24:
-			return AvoGUI::KeyboardKey::F24;
-		case XK_Num_Lock:
-			return AvoGUI::KeyboardKey::NumLock;
-		case XK_0:
-			return AvoGUI::KeyboardKey::Number0;
-		case XK_1:
-			return AvoGUI::KeyboardKey::Number1;
-		case XK_2:
-			return AvoGUI::KeyboardKey::Number2;
-		case XK_3:
-			return AvoGUI::KeyboardKey::Number3;
-		case XK_4:
-			return AvoGUI::KeyboardKey::Number4;
-		case XK_5:
-			return AvoGUI::KeyboardKey::Number5;
-		case XK_6:
-			return AvoGUI::KeyboardKey::Number6;
-		case XK_7:
-			return AvoGUI::KeyboardKey::Number7;
-		case XK_8:
-			return AvoGUI::KeyboardKey::Number8;
-		case XK_9:
-			return AvoGUI::KeyboardKey::Number9;
-		case XK_A:
-			return AvoGUI::KeyboardKey::A;
-		case XK_B:
-			return AvoGUI::KeyboardKey::B;
-		case XK_C:
-			return AvoGUI::KeyboardKey::C;
-		case XK_D:
-			return AvoGUI::KeyboardKey::D;
-		case XK_E:
-			return AvoGUI::KeyboardKey::E;
-		case XK_F:
-			return AvoGUI::KeyboardKey::F;
-		case XK_G:
-			return AvoGUI::KeyboardKey::G;
-		case XK_H:
-			return AvoGUI::KeyboardKey::H;
-		case XK_I:
-			return AvoGUI::KeyboardKey::I;
-		case XK_J:
-			return AvoGUI::KeyboardKey::J;
-		case XK_K:
-			return AvoGUI::KeyboardKey::K;
-		case XK_L:
-			return AvoGUI::KeyboardKey::L;
-		case XK_M:
-			return AvoGUI::KeyboardKey::M;
-		case XK_N:
-			return AvoGUI::KeyboardKey::N;
-		case XK_O:
-			return AvoGUI::KeyboardKey::O;
-		case XK_P:
-			return AvoGUI::KeyboardKey::P;
-		case XK_Q:
-			return AvoGUI::KeyboardKey::Q;
-		case XK_R:
-			return AvoGUI::KeyboardKey::R;
-		case XK_S:
-			return AvoGUI::KeyboardKey::S;
-		case XK_T:
-			return AvoGUI::KeyboardKey::T;
-		case XK_U:
-			return AvoGUI::KeyboardKey::U;
-		case XK_V:
-			return AvoGUI::KeyboardKey::V;
-		case XK_W:
-			return AvoGUI::KeyboardKey::W;
-		case XK_X:
-			return AvoGUI::KeyboardKey::X;
-		case XK_Y:
-			return AvoGUI::KeyboardKey::Y;
-		case XK_Z:
-			return AvoGUI::KeyboardKey::Z;
-		case XK_semicolon:
-			return AvoGUI::KeyboardKey::Regional1;
-		case XK_slash:
-			return AvoGUI::KeyboardKey::Regional2;
-		case XK_grave:
-			return AvoGUI::KeyboardKey::Regional3;
-		case XK_bracketleft:
-			return AvoGUI::KeyboardKey::Regional4;
-		case XK_backslash:
-			return AvoGUI::KeyboardKey::Regional5;
-		case XK_bracketright:
-			return AvoGUI::KeyboardKey::Regional6;
-		case XK_apostrophe:
-			return AvoGUI::KeyboardKey::Regional7;
+			case XK_Menu:
+				return AvoGUI::KeyboardKey::Menu;
+			case XK_BackSpace:
+				return AvoGUI::KeyboardKey::Backspace;
+			case XK_Clear:
+				return AvoGUI::KeyboardKey::Clear;
+			case XK_Tab:
+				return AvoGUI::KeyboardKey::Tab;
+			case XK_Return:
+				return AvoGUI::KeyboardKey::Return;
+			case XK_Shift_L:
+			case XK_Shift_R:
+				return AvoGUI::KeyboardKey::Shift;
+			case XK_Control_L:
+			case XK_Control_R:
+				return AvoGUI::KeyboardKey::Control;
+			case XK_Alt_L:
+			case XK_Alt_R:
+				return AvoGUI::KeyboardKey::Alt;
+			case XK_Pause:
+				return AvoGUI::KeyboardKey::Pause;
+			case XK_Caps_Lock:
+				return AvoGUI::KeyboardKey::CapsLock;
+			case XK_Escape:
+				return AvoGUI::KeyboardKey::Escape;
+			case XK_space:
+				return AvoGUI::KeyboardKey::Spacebar;
+			case XK_Page_Up:
+				return AvoGUI::KeyboardKey::PageUp;
+			case XK_Page_Down:
+				return AvoGUI::KeyboardKey::PageDown;
+			case XK_End:
+				return AvoGUI::KeyboardKey::End;
+			case XK_Home:
+				return AvoGUI::KeyboardKey::Home;
+			case XK_Left:
+				return AvoGUI::KeyboardKey::Left;
+			case XK_Right:
+				return AvoGUI::KeyboardKey::Right;
+			case XK_Up:
+				return AvoGUI::KeyboardKey::Up;
+			case XK_Down:
+				return AvoGUI::KeyboardKey::Down;
+			case XK_Print:
+				return AvoGUI::KeyboardKey::PrintScreen;
+			case XK_Insert:
+				return AvoGUI::KeyboardKey::Insert;
+			case XK_Delete:
+				return AvoGUI::KeyboardKey::Delete;
+			case XK_Help:
+				return AvoGUI::KeyboardKey::Help;
+			case XK_KP_0:
+				return AvoGUI::KeyboardKey::Numpad0;
+			case XK_KP_1:
+				return AvoGUI::KeyboardKey::Numpad1;
+			case XK_KP_2:
+				return AvoGUI::KeyboardKey::Numpad2;
+			case XK_KP_3:
+				return AvoGUI::KeyboardKey::Numpad3;
+			case XK_KP_4:
+				return AvoGUI::KeyboardKey::Numpad4;
+			case XK_KP_5:
+				return AvoGUI::KeyboardKey::Numpad5;
+			case XK_KP_6:
+				return AvoGUI::KeyboardKey::Numpad6;
+			case XK_KP_7:
+				return AvoGUI::KeyboardKey::Numpad7;
+			case XK_KP_8:
+				return AvoGUI::KeyboardKey::Numpad8;
+			case XK_KP_9:
+				return AvoGUI::KeyboardKey::Numpad9;
+			case XK_KP_Add:
+				return AvoGUI::KeyboardKey::Add;
+			case XK_KP_Subtract:
+				return AvoGUI::KeyboardKey::Subtract;
+			case XK_KP_Multiply:
+				return AvoGUI::KeyboardKey::Multiply;
+			case XK_KP_Divide:
+				return AvoGUI::KeyboardKey::Divide;
+			case XK_F1:
+				return AvoGUI::KeyboardKey::F1;
+			case XK_F2:
+				return AvoGUI::KeyboardKey::F2;
+			case XK_F3:
+				return AvoGUI::KeyboardKey::F3;
+			case XK_F4:
+				return AvoGUI::KeyboardKey::F4;
+			case XK_F5:
+				return AvoGUI::KeyboardKey::F5;
+			case XK_F6:
+				return AvoGUI::KeyboardKey::F6;
+			case XK_F7:
+				return AvoGUI::KeyboardKey::F7;
+			case XK_F8:
+				return AvoGUI::KeyboardKey::F8;
+			case XK_F9:
+				return AvoGUI::KeyboardKey::F9;
+			case XK_F10:
+				return AvoGUI::KeyboardKey::F10;
+			case XK_F11:
+				return AvoGUI::KeyboardKey::F11;
+			case XK_F12:
+				return AvoGUI::KeyboardKey::F12;
+			case XK_F13:
+				return AvoGUI::KeyboardKey::F13;
+			case XK_F14:
+				return AvoGUI::KeyboardKey::F14;
+			case XK_F15:
+				return AvoGUI::KeyboardKey::F15;
+			case XK_F16:
+				return AvoGUI::KeyboardKey::F16;
+			case XK_F17:
+				return AvoGUI::KeyboardKey::F17;
+			case XK_F18:
+				return AvoGUI::KeyboardKey::F18;
+			case XK_F19:
+				return AvoGUI::KeyboardKey::F19;
+			case XK_F20:
+				return AvoGUI::KeyboardKey::F20;
+			case XK_F21:
+				return AvoGUI::KeyboardKey::F21;
+			case XK_F22:
+				return AvoGUI::KeyboardKey::F22;
+			case XK_F23:
+				return AvoGUI::KeyboardKey::F23;
+			case XK_F24:
+				return AvoGUI::KeyboardKey::F24;
+			case XK_Num_Lock:
+				return AvoGUI::KeyboardKey::NumLock;
+			case XK_0:
+				return AvoGUI::KeyboardKey::Number0;
+			case XK_1:
+				return AvoGUI::KeyboardKey::Number1;
+			case XK_2:
+				return AvoGUI::KeyboardKey::Number2;
+			case XK_3:
+				return AvoGUI::KeyboardKey::Number3;
+			case XK_4:
+				return AvoGUI::KeyboardKey::Number4;
+			case XK_5:
+				return AvoGUI::KeyboardKey::Number5;
+			case XK_6:
+				return AvoGUI::KeyboardKey::Number6;
+			case XK_7:
+				return AvoGUI::KeyboardKey::Number7;
+			case XK_8:
+				return AvoGUI::KeyboardKey::Number8;
+			case XK_9:
+				return AvoGUI::KeyboardKey::Number9;
+			case XK_A:
+				return AvoGUI::KeyboardKey::A;
+			case XK_B:
+				return AvoGUI::KeyboardKey::B;
+			case XK_C:
+				return AvoGUI::KeyboardKey::C;
+			case XK_D:
+				return AvoGUI::KeyboardKey::D;
+			case XK_E:
+				return AvoGUI::KeyboardKey::E;
+			case XK_F:
+				return AvoGUI::KeyboardKey::F;
+			case XK_G:
+				return AvoGUI::KeyboardKey::G;
+			case XK_H:
+				return AvoGUI::KeyboardKey::H;
+			case XK_I:
+				return AvoGUI::KeyboardKey::I;
+			case XK_J:
+				return AvoGUI::KeyboardKey::J;
+			case XK_K:
+				return AvoGUI::KeyboardKey::K;
+			case XK_L:
+				return AvoGUI::KeyboardKey::L;
+			case XK_M:
+				return AvoGUI::KeyboardKey::M;
+			case XK_N:
+				return AvoGUI::KeyboardKey::N;
+			case XK_O:
+				return AvoGUI::KeyboardKey::O;
+			case XK_P:
+				return AvoGUI::KeyboardKey::P;
+			case XK_Q:
+				return AvoGUI::KeyboardKey::Q;
+			case XK_R:
+				return AvoGUI::KeyboardKey::R;
+			case XK_S:
+				return AvoGUI::KeyboardKey::S;
+			case XK_T:
+				return AvoGUI::KeyboardKey::T;
+			case XK_U:
+				return AvoGUI::KeyboardKey::U;
+			case XK_V:
+				return AvoGUI::KeyboardKey::V;
+			case XK_W:
+				return AvoGUI::KeyboardKey::W;
+			case XK_X:
+				return AvoGUI::KeyboardKey::X;
+			case XK_Y:
+				return AvoGUI::KeyboardKey::Y;
+			case XK_Z:
+				return AvoGUI::KeyboardKey::Z;
+			case XK_semicolon:
+				return AvoGUI::KeyboardKey::Regional1;
+			case XK_slash:
+				return AvoGUI::KeyboardKey::Regional2;
+			case XK_grave:
+				return AvoGUI::KeyboardKey::Regional3;
+			case XK_bracketleft:
+				return AvoGUI::KeyboardKey::Regional4;
+			case XK_backslash:
+				return AvoGUI::KeyboardKey::Regional5;
+			case XK_bracketright:
+				return AvoGUI::KeyboardKey::Regional6;
+			case XK_apostrophe:
+				return AvoGUI::KeyboardKey::Regional7;
 		}
 		return AvoGUI::KeyboardKey::None;
 	}
@@ -5140,144 +5142,144 @@ private:
 
 			switch (event.type)
 			{
-			 case Expose:
-			 {
-			 	if (!event.xexpose.count)
-			 	{
-			 		m_gui->invalidateRectangle(
-					    (float)event.xexpose.x/m_dipToPixelFactor, (float)event.xexpose.y/m_dipToPixelFactor,
-					    (float)event.xexpose.width/m_dipToPixelFactor, (float)event.xexpose.height/m_dipToPixelFactor
-			 		);
-			 	}
-			 	break;
-			 }
-			case ClientMessage:
-			{
-				if (event.xclient.message_type == m_windowManagerProtocolsMessageType)
+				case Expose:
 				{
-					// Sent from the window manager when the user has tried to close the window, 
-					// it is up to us to decide whether to actually close and exit the application.
-					if (event.xclient.data.l[0] == m_windowCloseEvent)
+					if (!event.xexpose.count)
 					{
-						if (m_gui->getWillClose())
+						m_gui->invalidateRectangle(
+							(float)event.xexpose.x/m_dipToPixelFactor, (float)event.xexpose.y/m_dipToPixelFactor,
+							(float)event.xexpose.width/m_dipToPixelFactor, (float)event.xexpose.height/m_dipToPixelFactor
+						);
+					}
+					break;
+				}
+				case ClientMessage:
+				{
+					if (event.xclient.message_type == m_windowManagerProtocolsMessageType)
+					{
+						// Sent from the window manager when the user has tried to close the window,
+						// it is up to us to decide whether to actually close and exit the application.
+						if (event.xclient.data.l[0] == m_windowCloseEvent)
 						{
-							m_isOpen = false;
-						}
-						else
-						{
-							m_gui->excludeAnimationThread();
-							m_gui->handleWindowClose({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
-							m_gui->includeAnimationThread();
+							if (m_gui->getWillClose())
+							{
+								m_isOpen = false;
+							}
+							else
+							{
+								m_gui->excludeAnimationThread();
+								m_gui->handleWindowClose({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
+								m_gui->includeAnimationThread();
+							}
 						}
 					}
-				}
-				else if (event.xclient.message_type == m_backgroundColorMessageType)
-				{
-					// Sent from drawing context
-					XColor xColor;
-					xColor.red = event.xclient.data.l[0];
-					xColor.green = event.xclient.data.l[1];
-					xColor.blue = event.xclient.data.l[2];
-					xColor.flags = DoRed | DoGreen | DoBlue;
-					XAllocColor(m_server, m_colormap, &xColor);
-					XSetWindowBackground(m_server, m_windowHandle, xColor.pixel);
-				}
-				break;
-			}
-			case GravityNotify:
-			{
-				break;
-			}
-			case ConfigureNotify:
-			{
-				if (!m_hasCreatedWindow)
-				{
-					AvoGUI::WindowEvent windowEvent = { this, p_width, p_height };
-					m_gui->excludeAnimationThread();
-					m_gui->handleWindowCreate(windowEvent);
-					m_gui->includeAnimationThread();
-
-					m_gui->excludeAnimationThread();
-					m_gui->handleWindowSizeChange(windowEvent);
-					m_gui->includeAnimationThread();
-
-					m_hasCreatedWindowMutex.lock();
-					m_hasCreatedWindow = true;
-					m_hasCreatedWindowMutex.unlock();
-					m_hasCreatedWindowConditionVariable.notify_one();
-				}
-				else if (m_size.x != event.xconfigure.width || m_size.y != event.xconfigure.height)
-				{
-					m_size.set(event.xconfigure.width, event.xconfigure.height);
-					m_gui->excludeAnimationThread();
-					m_gui->handleWindowSizeChange({ this, m_size.x / m_dipToPixelFactor, m_size.y / m_dipToPixelFactor });
-					m_gui->includeAnimationThread();
-				}
-				break;
-			}
-			case ButtonPress:
-			{
-				break;
-			}
-			case ButtonRelease:
-			{
-
-				break;
-			}
-			case KeyPress:
-			{
-				// Length is 5 because 4 is the max number of bytes in a utf-8 encoded character
-				char character[5];
-				KeySym key;
-				Status characterLookupStatus;
-				int length = Xutf8LookupString(m_inputContext, &event.xkey, character, 4, &key, &characterLookupStatus);
-				
-				AvoGUI::KeyboardEvent keyboardEvent;
-				keyboardEvent.isRepeated = lastKeyPressKeyCode == event.xkey.keycode && event.xkey.time < lastKeyPressTime + 2;
-				if (characterLookupStatus == XLookupBoth || characterLookupStatus == XLookupChars)
-				{
-					keyboardEvent.character = character;
-					m_gui->excludeAnimationThread();
-					m_gui->handleGlobalCharacterInput(keyboardEvent);
-					m_gui->includeAnimationThread();
-				}
-				if (characterLookupStatus == XLookupBoth || characterLookupStatus == XLookupKeySym)
-				{
-					keyboardEvent.character = "";
-					keyboardEvent.key = convertKeySymToKeyboardKey(key);
-					m_gui->excludeAnimationThread();
-					m_gui->handleGlobalKeyboardKeyDown(keyboardEvent);
-					m_gui->includeAnimationThread();
-				}
-
-				lastKeyPressTime = event.xkey.time;
-
-				break;
-			}
-			case KeyRelease:
-			{
-				AvoGUI::KeyboardEvent keyboardEvent;
-				
-				// Try the four modifier groups until one matches
-				for (uint32 a = 0; a < 4; a++)
-				{
-					if (AvoGUI::KeyboardKey::None != (keyboardEvent.key = convertKeySymToKeyboardKey(XLookupKeysym(&event.xkey, a))))
+					else if (event.xclient.message_type == m_backgroundColorMessageType)
 					{
-						break;
+						// Sent from drawing context
+						XColor xColor;
+						xColor.red = event.xclient.data.l[0];
+						xColor.green = event.xclient.data.l[1];
+						xColor.blue = event.xclient.data.l[2];
+						xColor.flags = DoRed | DoGreen | DoBlue;
+						XAllocColor(m_server, m_colormap, &xColor);
+						XSetWindowBackground(m_server, m_windowHandle, xColor.pixel);
 					}
+					break;
 				}
-
-				if (keyboardEvent.key != AvoGUI::KeyboardKey::None)
+				case GravityNotify:
 				{
+					break;
+				}
+				case ConfigureNotify:
+				{
+					if (!m_hasCreatedWindow)
+					{
+						AvoGUI::WindowEvent windowEvent = { this, p_width, p_height };
+						m_gui->excludeAnimationThread();
+						m_gui->handleWindowCreate(windowEvent);
+						m_gui->includeAnimationThread();
+
+						m_gui->excludeAnimationThread();
+						m_gui->handleWindowSizeChange(windowEvent);
+						m_gui->includeAnimationThread();
+
+						m_hasCreatedWindowMutex.lock();
+						m_hasCreatedWindow = true;
+						m_hasCreatedWindowMutex.unlock();
+						m_hasCreatedWindowConditionVariable.notify_one();
+					}
+					else if (m_size.x != event.xconfigure.width || m_size.y != event.xconfigure.height)
+					{
+						m_size.set(event.xconfigure.width, event.xconfigure.height);
+						m_gui->excludeAnimationThread();
+						m_gui->handleWindowSizeChange({ this, m_size.x / m_dipToPixelFactor, m_size.y / m_dipToPixelFactor });
+						m_gui->includeAnimationThread();
+					}
+					break;
+				}
+				case ButtonPress:
+				{
+					break;
+				}
+				case ButtonRelease:
+				{
+
+					break;
+				}
+				case KeyPress:
+				{
+					// Length is 5 because 4 is the max number of bytes in a utf-8 encoded character
+					char character[5];
+					KeySym key;
+					Status characterLookupStatus;
+					int length = Xutf8LookupString(m_inputContext, &event.xkey, character, 4, &key, &characterLookupStatus);
+
+					AvoGUI::KeyboardEvent keyboardEvent;
 					keyboardEvent.isRepeated = lastKeyPressKeyCode == event.xkey.keycode && event.xkey.time < lastKeyPressTime + 2;
-					m_gui->excludeAnimationThread();
-					m_gui->handleGlobalKeyboardKeyUp(keyboardEvent);
-					m_gui->includeAnimationThread();
-					lastKeyPressTime = event.xkey.time;
-				}
+					if (characterLookupStatus == XLookupBoth || characterLookupStatus == XLookupChars)
+					{
+						keyboardEvent.character = character;
+						m_gui->excludeAnimationThread();
+						m_gui->handleGlobalCharacterInput(keyboardEvent);
+						m_gui->includeAnimationThread();
+					}
+					if (characterLookupStatus == XLookupBoth || characterLookupStatus == XLookupKeySym)
+					{
+						keyboardEvent.character = "";
+						keyboardEvent.key = convertKeySymToKeyboardKey(key);
+						m_gui->excludeAnimationThread();
+						m_gui->handleGlobalKeyboardKeyDown(keyboardEvent);
+						m_gui->includeAnimationThread();
+					}
 
-				break;
-			}
+					lastKeyPressTime = event.xkey.time;
+
+					break;
+				}
+				case KeyRelease:
+				{
+					AvoGUI::KeyboardEvent keyboardEvent;
+
+					// Try the four modifier groups until one matches
+					for (uint32 a = 0; a < 4; a++)
+					{
+						if (AvoGUI::KeyboardKey::None != (keyboardEvent.key = convertKeySymToKeyboardKey(XLookupKeysym(&event.xkey, a))))
+						{
+							break;
+						}
+					}
+
+					if (keyboardEvent.key != AvoGUI::KeyboardKey::None)
+					{
+						keyboardEvent.isRepeated = lastKeyPressKeyCode == event.xkey.keycode && event.xkey.time < lastKeyPressTime + 2;
+						m_gui->excludeAnimationThread();
+						m_gui->handleGlobalKeyboardKeyUp(keyboardEvent);
+						m_gui->includeAnimationThread();
+						lastKeyPressTime = event.xkey.time;
+					}
+
+					break;
+				}
 			} 
 		}
 		XDestroyIC(m_inputContext);
@@ -6023,31 +6025,31 @@ public:
 	{
 		switch (p_wordWrapping)
 		{
-		case AvoGUI::WordWrapping::Always:
-			m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_WRAP);
-			break;
-		case AvoGUI::WordWrapping::Emergency:
-			m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_EMERGENCY_BREAK);
-			break;
-		case AvoGUI::WordWrapping::Never:
-			m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_NO_WRAP);
-			break;
-		case AvoGUI::WordWrapping::WholeWord:
-			m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_WHOLE_WORD);
+			case AvoGUI::WordWrapping::Always:
+				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_WRAP);
+				break;
+			case AvoGUI::WordWrapping::Emergency:
+				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_EMERGENCY_BREAK);
+				break;
+			case AvoGUI::WordWrapping::Never:
+				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_NO_WRAP);
+				break;
+			case AvoGUI::WordWrapping::WholeWord:
+				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_WHOLE_WORD);
 		}
 	}
 	AvoGUI::WordWrapping getWordWrapping() override
 	{
 		switch (m_handle->GetWordWrapping())
 		{
-		case DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_WRAP:
-			return AvoGUI::WordWrapping::Always;
-		case DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_EMERGENCY_BREAK:
-			return AvoGUI::WordWrapping::Emergency;
-		case DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_NO_WRAP:
-			return AvoGUI::WordWrapping::Never;
-		case DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_WHOLE_WORD:
-			return AvoGUI::WordWrapping::WholeWord;
+			case DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_WRAP:
+				return AvoGUI::WordWrapping::Always;
+			case DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_EMERGENCY_BREAK:
+				return AvoGUI::WordWrapping::Emergency;
+			case DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_NO_WRAP:
+				return AvoGUI::WordWrapping::Never;
+			case DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_WHOLE_WORD:
+				return AvoGUI::WordWrapping::WholeWord;
 		}
 		return AvoGUI::WordWrapping::Never;
 	}
@@ -6194,32 +6196,32 @@ public:
 	{
 		switch (p_textAlign)
 		{
-		case AvoGUI::TextAlign::Left:
-			m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING);
-			break;
-		case AvoGUI::TextAlign::Center:
-			m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_CENTER);
-			break;
-		case AvoGUI::TextAlign::Right:
-			m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_TRAILING);
-			break;
-		case AvoGUI::TextAlign::Fill:
-			m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED);
-			break;
+			case AvoGUI::TextAlign::Left:
+				m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING);
+				break;
+			case AvoGUI::TextAlign::Center:
+				m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_CENTER);
+				break;
+			case AvoGUI::TextAlign::Right:
+				m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_TRAILING);
+				break;
+			case AvoGUI::TextAlign::Fill:
+				m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED);
+				break;
 		}
 	}
 	AvoGUI::TextAlign getTextAlign() override
 	{
 		switch (m_handle->GetTextAlignment())
 		{
-		case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING:
-			return AvoGUI::TextAlign::Left;
-		case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_CENTER:
-			return AvoGUI::TextAlign::Center;
-		case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_TRAILING:
-			return AvoGUI::TextAlign::Right;
-		case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED:
-			return AvoGUI::TextAlign::Fill;
+			case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING:
+				return AvoGUI::TextAlign::Left;
+			case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_CENTER:
+				return AvoGUI::TextAlign::Center;
+			case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_TRAILING:
+				return AvoGUI::TextAlign::Right;
+			case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED:
+				return AvoGUI::TextAlign::Fill;
 		}
 	}
 
@@ -6227,32 +6229,32 @@ public:
 	{
 		switch (p_readingDirection)
 		{
-		case AvoGUI::ReadingDirection::LeftToRight:
-			m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_LEFT_TO_RIGHT);
-			break;
-		case AvoGUI::ReadingDirection::RightToLeft:
-			m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
-			break;
-		case AvoGUI::ReadingDirection::TopToBottom:
-			m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM);
-			break;
-		case AvoGUI::ReadingDirection::BottomToTop:
-			m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP);
-			break;
+			case AvoGUI::ReadingDirection::LeftToRight:
+				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_LEFT_TO_RIGHT);
+				break;
+			case AvoGUI::ReadingDirection::RightToLeft:
+				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
+				break;
+			case AvoGUI::ReadingDirection::TopToBottom:
+				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM);
+				break;
+			case AvoGUI::ReadingDirection::BottomToTop:
+				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP);
+				break;
 		}
 	}
 	AvoGUI::ReadingDirection getReadingDirection() override
 	{
 		switch (m_handle->GetReadingDirection())
 		{
-		case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_LEFT_TO_RIGHT:
-			return AvoGUI::ReadingDirection::LeftToRight;
-		case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT:
-			return AvoGUI::ReadingDirection::RightToLeft;
-		case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM:
-			return AvoGUI::ReadingDirection::TopToBottom;
-		case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP:
-			return AvoGUI::ReadingDirection::BottomToTop;
+			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_LEFT_TO_RIGHT:
+				return AvoGUI::ReadingDirection::LeftToRight;
+			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT:
+				return AvoGUI::ReadingDirection::RightToLeft;
+			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM:
+				return AvoGUI::ReadingDirection::TopToBottom;
+			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP:
+				return AvoGUI::ReadingDirection::BottomToTop;
 		}
 	}
 
@@ -8405,21 +8407,21 @@ public:
 	{
 		switch (p_lineCap)
 		{
-		case AvoGUI::LineCap::Flat:
-			m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
-			m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
-			break;
-		case AvoGUI::LineCap::Round:
-			m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
-			m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
-			break;
-		case AvoGUI::LineCap::Square:
-			m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
-			m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
-			break;
-		case AvoGUI::LineCap::Triangle:
-			m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
-			m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+			case AvoGUI::LineCap::Flat:
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				break;
+			case AvoGUI::LineCap::Round:
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				break;
+			case AvoGUI::LineCap::Square:
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				break;
+			case AvoGUI::LineCap::Triangle:
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
 		}
 		updateStrokeStyle();
 	}
@@ -8427,17 +8429,17 @@ public:
 	{
 		switch (p_lineCap)
 		{
-		case AvoGUI::LineCap::Flat:
-			m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
-			break;
-		case AvoGUI::LineCap::Round:
-			m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
-			break;
-		case AvoGUI::LineCap::Square:
-			m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
-			break;
-		case AvoGUI::LineCap::Triangle:
-			m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+			case AvoGUI::LineCap::Flat:
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				break;
+			case AvoGUI::LineCap::Round:
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				break;
+			case AvoGUI::LineCap::Square:
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				break;
+			case AvoGUI::LineCap::Triangle:
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
 		}
 		updateStrokeStyle();
 	}
@@ -8445,17 +8447,17 @@ public:
 	{
 		switch (p_lineCap)
 		{
-		case AvoGUI::LineCap::Flat:
-			m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
-			break;
-		case AvoGUI::LineCap::Round:
-			m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
-			break;
-		case AvoGUI::LineCap::Square:
-			m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
-			break;
-		case AvoGUI::LineCap::Triangle:
-			m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+			case AvoGUI::LineCap::Flat:
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				break;
+			case AvoGUI::LineCap::Round:
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				break;
+			case AvoGUI::LineCap::Square:
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				break;
+			case AvoGUI::LineCap::Triangle:
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
 		}
 		updateStrokeStyle();
 	}
@@ -8463,14 +8465,14 @@ public:
 	{
 		switch (m_strokeStyleProperties.startCap)
 		{
-		case D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT:
-			return AvoGUI::LineCap::Flat;
-		case D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND:
-			return AvoGUI::LineCap::Round;
-		case D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE:
-			return AvoGUI::LineCap::Square;
-		case D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE:
-			return AvoGUI::LineCap::Triangle;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT:
+				return AvoGUI::LineCap::Flat;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND:
+				return AvoGUI::LineCap::Round;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE:
+				return AvoGUI::LineCap::Square;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE:
+				return AvoGUI::LineCap::Triangle;
 		}
 		return AvoGUI::LineCap::Triangle;
 	}
@@ -8478,14 +8480,14 @@ public:
 	{
 		switch (m_strokeStyleProperties.endCap)
 		{
-		case D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT:
-			return AvoGUI::LineCap::Flat;
-		case D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND:
-			return AvoGUI::LineCap::Round;
-		case D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE:
-			return AvoGUI::LineCap::Square;
-		case D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE:
-			return AvoGUI::LineCap::Triangle;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT:
+				return AvoGUI::LineCap::Flat;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND:
+				return AvoGUI::LineCap::Round;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE:
+				return AvoGUI::LineCap::Square;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE:
+				return AvoGUI::LineCap::Triangle;
 		}
 		return AvoGUI::LineCap::Triangle;
 	}
@@ -8496,15 +8498,15 @@ public:
 	{
 		switch (p_lineJoin)
 		{
-		case AvoGUI::LineJoin::Bevel:
-			m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_BEVEL;
-			break;
-		case AvoGUI::LineJoin::Miter:
-			m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_MITER;
-			break;
-		case AvoGUI::LineJoin::Round:
-			m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_ROUND;
-			break;
+			case AvoGUI::LineJoin::Bevel:
+				m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_BEVEL;
+				break;
+			case AvoGUI::LineJoin::Miter:
+				m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_MITER;
+				break;
+			case AvoGUI::LineJoin::Round:
+				m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_ROUND;
+				break;
 		}
 		updateStrokeStyle();
 	}
@@ -8512,12 +8514,12 @@ public:
 	{
 		switch (m_strokeStyleProperties.lineJoin)
 		{
-		case D2D1_LINE_JOIN::D2D1_LINE_JOIN_BEVEL:
-			return AvoGUI::LineJoin::Bevel;
-		case D2D1_LINE_JOIN::D2D1_LINE_JOIN_MITER:
-			return AvoGUI::LineJoin::Miter;
-		case D2D1_LINE_JOIN::D2D1_LINE_JOIN_ROUND:
-			return AvoGUI::LineJoin::Round;
+			case D2D1_LINE_JOIN::D2D1_LINE_JOIN_BEVEL:
+				return AvoGUI::LineJoin::Bevel;
+			case D2D1_LINE_JOIN::D2D1_LINE_JOIN_MITER:
+				return AvoGUI::LineJoin::Miter;
+			case D2D1_LINE_JOIN::D2D1_LINE_JOIN_ROUND:
+				return AvoGUI::LineJoin::Round;
 		}
 		return AvoGUI::LineJoin::Miter;
 	}
@@ -8538,23 +8540,23 @@ public:
 	{
 		switch (p_dashStyle)
 		{
-		case AvoGUI::LineDashStyle::Solid:
-			m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_SOLID;
-			break;
-		case AvoGUI::LineDashStyle::Dash:
-			m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH;
-			break;
-		case AvoGUI::LineDashStyle::Dot:
-			m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DOT;
-			break;
-		case AvoGUI::LineDashStyle::DashDot:
-			m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT;
-			break;
-		case AvoGUI::LineDashStyle::DashDotDot:
-			m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT_DOT;
-			break;
-		case AvoGUI::LineDashStyle::Custom:
-			m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_CUSTOM;
+			case AvoGUI::LineDashStyle::Solid:
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_SOLID;
+				break;
+			case AvoGUI::LineDashStyle::Dash:
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH;
+				break;
+			case AvoGUI::LineDashStyle::Dot:
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DOT;
+				break;
+			case AvoGUI::LineDashStyle::DashDot:
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT;
+				break;
+			case AvoGUI::LineDashStyle::DashDotDot:
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT_DOT;
+				break;
+			case AvoGUI::LineDashStyle::Custom:
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_CUSTOM;
 		}
 		updateStrokeStyle();
 	}
@@ -8562,18 +8564,18 @@ public:
 	{
 		switch (m_strokeStyleProperties.dashStyle)
 		{
-		case D2D1_DASH_STYLE::D2D1_DASH_STYLE_SOLID:
-			return AvoGUI::LineDashStyle::Solid;
-		case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH:
-			return AvoGUI::LineDashStyle::Dash;
-		case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DOT:
-			return AvoGUI::LineDashStyle::Dot;
-		case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT:
-			return AvoGUI::LineDashStyle::DashDot;
-		case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT_DOT:
-			return AvoGUI::LineDashStyle::DashDotDot;
-		case D2D1_DASH_STYLE::D2D1_DASH_STYLE_CUSTOM:
-			return AvoGUI::LineDashStyle::Custom;
+			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_SOLID:
+				return AvoGUI::LineDashStyle::Solid;
+			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH:
+				return AvoGUI::LineDashStyle::Dash;
+			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DOT:
+				return AvoGUI::LineDashStyle::Dot;
+			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT:
+				return AvoGUI::LineDashStyle::DashDot;
+			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT_DOT:
+				return AvoGUI::LineDashStyle::DashDotDot;
+			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_CUSTOM:
+				return AvoGUI::LineDashStyle::Custom;
 		}
 	}
 
@@ -8591,17 +8593,17 @@ public:
 	{
 		switch (p_dashCap)
 		{
-		case AvoGUI::LineCap::Flat:
-			m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
-			break;
-		case AvoGUI::LineCap::Round:
-			m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
-			break;
-		case AvoGUI::LineCap::Square:
-			m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
-			break;
-		case AvoGUI::LineCap::Triangle:
-			m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+			case AvoGUI::LineCap::Flat:
+				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				break;
+			case AvoGUI::LineCap::Round:
+				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				break;
+			case AvoGUI::LineCap::Square:
+				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				break;
+			case AvoGUI::LineCap::Triangle:
+				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
 		}
 		updateStrokeStyle();
 	}
@@ -8609,14 +8611,14 @@ public:
 	{
 		switch (m_strokeStyleProperties.dashCap)
 		{
-		case D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT:
-			return AvoGUI::LineCap::Flat;
-		case D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND:
-			return AvoGUI::LineCap::Round;
-		case D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE:
-			return AvoGUI::LineCap::Square;
-		case D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE:
-			return AvoGUI::LineCap::Triangle;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT:
+				return AvoGUI::LineCap::Flat;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND:
+				return AvoGUI::LineCap::Round;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE:
+				return AvoGUI::LineCap::Square;
+			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE:
+				return AvoGUI::LineCap::Triangle;
 		}
 	}
 
@@ -9298,18 +9300,18 @@ public:
 		GUID formatGuid;
 		switch (p_format)
 		{
-		case AvoGUI::ImageFormat::Jpeg:
-			formatGuid = GUID_ContainerFormatJpeg;
-			break;
-		case AvoGUI::ImageFormat::Png:
-			formatGuid = GUID_ContainerFormatPng;
-			break;
-		case AvoGUI::ImageFormat::Bmp:
-			formatGuid = GUID_ContainerFormatBmp;
-			break;
-		case AvoGUI::ImageFormat::Ico:
-			formatGuid = GUID_ContainerFormatIco;
-			break;
+			case AvoGUI::ImageFormat::Jpeg:
+				formatGuid = GUID_ContainerFormatJpeg;
+				break;
+			case AvoGUI::ImageFormat::Png:
+				formatGuid = GUID_ContainerFormatPng;
+				break;
+			case AvoGUI::ImageFormat::Bmp:
+				formatGuid = GUID_ContainerFormatBmp;
+				break;
+			case AvoGUI::ImageFormat::Ico:
+				formatGuid = GUID_ContainerFormatIco;
+				break;
 		}
 
 		IWICBitmapEncoder* bitmapEncoder = 0;
@@ -9364,18 +9366,17 @@ public:
 		GUID formatGuid;
 		switch (p_format)
 		{
-		case AvoGUI::ImageFormat::Jpeg:
-			formatGuid = GUID_ContainerFormatJpeg;
-			break;
-		case AvoGUI::ImageFormat::Png:
-			formatGuid = GUID_ContainerFormatPng;
-			break;
-		case AvoGUI::ImageFormat::Bmp:
-			formatGuid = GUID_ContainerFormatBmp;
-			break;
-		case AvoGUI::ImageFormat::Ico:
-			formatGuid = GUID_ContainerFormatIco;
-			break;
+			case AvoGUI::ImageFormat::Jpeg:
+				formatGuid = GUID_ContainerFormatJpeg;
+				break;
+			case AvoGUI::ImageFormat::Png:
+				formatGuid = GUID_ContainerFormatPng;
+				break;
+			case AvoGUI::ImageFormat::Bmp:
+				formatGuid = GUID_ContainerFormatBmp;
+				break;
+			case AvoGUI::ImageFormat::Ico:
+				formatGuid = GUID_ContainerFormatIco;
 		}
 
 		IWICBitmapEncoder* bitmapEncoder = 0;
@@ -9414,18 +9415,17 @@ public:
 		GUID formatGuid;
 		switch (p_format)
 		{
-		case AvoGUI::ImageFormat::Jpeg:
-			formatGuid = GUID_ContainerFormatJpeg;
-			break;
-		case AvoGUI::ImageFormat::Png:
-			formatGuid = GUID_ContainerFormatPng;
-			break;
-		case AvoGUI::ImageFormat::Bmp:
-			formatGuid = GUID_ContainerFormatBmp;
-			break;
-		case AvoGUI::ImageFormat::Ico:
-			formatGuid = GUID_ContainerFormatIco;
-			break;
+			case AvoGUI::ImageFormat::Jpeg:
+				formatGuid = GUID_ContainerFormatJpeg;
+				break;
+			case AvoGUI::ImageFormat::Png:
+				formatGuid = GUID_ContainerFormatPng;
+				break;
+			case AvoGUI::ImageFormat::Bmp:
+				formatGuid = GUID_ContainerFormatBmp;
+				break;
+			case AvoGUI::ImageFormat::Ico:
+				formatGuid = GUID_ContainerFormatIco;
 		}
 
 		IWICBitmapEncoder* bitmapEncoder = 0;
@@ -9615,30 +9615,29 @@ public:
 
 		switch (p_textProperties.textAlign)
 		{
-		case AvoGUI::TextAlign::Left:
-			m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING);
-			break;
-		case AvoGUI::TextAlign::Center:
-			m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_CENTER);
-			break;
-		case AvoGUI::TextAlign::Right:
-			m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_TRAILING);
-			break;
-		case AvoGUI::TextAlign::Fill:
-			m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED);
+			case AvoGUI::TextAlign::Left:
+				m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING);
+				break;
+			case AvoGUI::TextAlign::Center:
+				m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_CENTER);
+				break;
+			case AvoGUI::TextAlign::Right:
+				m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_TRAILING);
+				break;
+			case AvoGUI::TextAlign::Fill:
+				m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED);
 		}
 
 		switch (p_textProperties.readingDirection)
 		{
-		case AvoGUI::ReadingDirection::RightToLeft:
-			m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
-			break;
-		case AvoGUI::ReadingDirection::TopToBottom:
-			m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM);
-			break;
-		case AvoGUI::ReadingDirection::BottomToTop:
-			m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP);
-			break;
+			case AvoGUI::ReadingDirection::RightToLeft:
+				m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
+				break;
+			case AvoGUI::ReadingDirection::TopToBottom:
+				m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM);
+				break;
+			case AvoGUI::ReadingDirection::BottomToTop:
+				m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP);
 		}
 		m_textFormat->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_textProperties.lineHeight, p_textProperties.lineHeight * 0.8f);
 
@@ -9982,8 +9981,9 @@ public:
 	uint32 numberOfVertices{0};
 	GLenum primitiveType{GL_TRIANGLES};
 	AvoGUI::Color color;
-	bool isStroked{false};
+	int renderMode{0};
 	float lineWidth{1.f};
+	GLuint texture{0u};
 	float transform[9];
 };
 
@@ -10147,7 +10147,7 @@ public:
 
 	void* getHandle() const override
 	{
-		return (void*)m_textureID;
+		return (void*)&m_textureID;
 	}
 };
 
@@ -10156,6 +10156,8 @@ class OpenGlDrawingContext :
 {
 private:
 	static constexpr uint32 CIRCLE_RESOLUTION{50};
+	static constexpr uint32 VERTEX_DATA_LENGTH{8};
+
 	static bool s_areStaticVariablesInitialized;
 	static AvoGUI::Point<float> s_unitCirclePoints[CIRCLE_RESOLUTION + 1];
 
@@ -10245,19 +10247,34 @@ private:
 
 		areOpenGlFunctionsLoaded = true;
 	}
-	void addDrawCallBefore(uint32 p_numberOfVertices, GLenum p_primitiveType = GL_TRIANGLES)
+	/*
+		This is called after the vertices have been added to the buffer.
+	*/
+	void addDrawCall(uint32 p_numberOfVertices, GLuint p_texture = 0u, GLenum p_primitiveType = GL_TRIANGLES)
 	{
-		m_drawCalls.push_back({ uint32(m_vertexBuffer.size()/6u), p_numberOfVertices, p_primitiveType, m_currentColor });
+		OpenGlDrawCall drawCall;
+		drawCall.vertexBufferStartIndex = uint32(m_vertexBuffer.size()/VERTEX_DATA_LENGTH - p_numberOfVertices);
+		drawCall.numberOfVertices = p_numberOfVertices;
+		drawCall.primitiveType = p_primitiveType;
+		drawCall.color = m_currentColor;
+		drawCall.renderMode = bool(p_texture) + 1;
+		drawCall.texture = p_texture;
+		m_drawCalls.push_back(drawCall);
 		memcpy(m_drawCalls.back().transform, m_transformMatrix, sizeof(m_transformMatrix));
 	}
-	void addDrawCallAfter(uint32 p_numberOfVertices, GLenum p_primitiveType = GL_TRIANGLES)
+	/*
+		This is called after the vertices have been added to the buffer.
+	*/
+	void addDrawCall(uint32 p_numberOfVertices, float p_lineWidth, GLenum p_primitiveType = GL_TRIANGLES)
 	{
-		m_drawCalls.push_back({ uint32(m_vertexBuffer.size()/6u - p_numberOfVertices), p_numberOfVertices, p_primitiveType, m_currentColor });
-		memcpy(m_drawCalls.back().transform, m_transformMatrix, sizeof(m_transformMatrix));
-	}
-	void addDrawCallAfter(uint32 p_numberOfVertices, float p_lineWidth, GLenum p_primitiveType = GL_TRIANGLES)
-	{
-		m_drawCalls.push_back({ uint32(m_vertexBuffer.size()/6u - p_numberOfVertices), p_numberOfVertices, p_primitiveType, m_currentColor, true, p_lineWidth });
+		OpenGlDrawCall drawCall;
+		drawCall.vertexBufferStartIndex = uint32(m_vertexBuffer.size()/VERTEX_DATA_LENGTH - p_numberOfVertices);
+		drawCall.numberOfVertices = p_numberOfVertices;
+		drawCall.primitiveType = p_primitiveType;
+		drawCall.color = m_currentColor;
+		drawCall.renderMode = 0;
+		drawCall.lineWidth = p_lineWidth;
+		m_drawCalls.push_back(drawCall);
 		memcpy(m_drawCalls.back().transform, m_transformMatrix, sizeof(m_transformMatrix));
 	}
 
@@ -10298,33 +10315,33 @@ private:
 		p_buffer.insert(
 			p_buffer.end(),
 			{
-				p_left + p_corners.topLeftSizeX  , p_top, 0.f, -1.f, 0.f, 0.f,
-				p_right - p_corners.topRightSizeX, p_top, 0.f, -1.f, 0.f, 0.f,
-				p_right - p_corners.topRightSizeX, p_top, 0.f, 1.f , 1.f, 0.f,
-				p_right - p_corners.topRightSizeX, p_top, 0.f, 1.f , 1.f, 0.f,
-				p_left + p_corners.topLeftSizeX  , p_top, 0.f, 1.f , 1.f, 0.f,
-				p_left + p_corners.topLeftSizeX  , p_top, 0.f, -1.f, 0.f, 0.f,
+				p_left + p_corners.topLeftSizeX  , p_top, 0.f, -1.f, 0.f, 0.f, 0.f, 0.f,
+				p_right - p_corners.topRightSizeX, p_top, 0.f, -1.f, 0.f, 0.f, 0.f, 0.f,
+				p_right - p_corners.topRightSizeX, p_top, 0.f, 1.f , 1.f, 0.f, 0.f, 0.f,
+				p_right - p_corners.topRightSizeX, p_top, 0.f, 1.f , 1.f, 0.f, 0.f, 0.f,
+				p_left + p_corners.topLeftSizeX  , p_top, 0.f, 1.f , 1.f, 0.f, 0.f, 0.f,
+				p_left + p_corners.topLeftSizeX  , p_top, 0.f, -1.f, 0.f, 0.f, 0.f, 0.f,
 
-				p_left + p_corners.bottomLeftSizeX  , p_bottom, 0.f, -1.f, 0.f, 0.f,
-				p_right - p_corners.bottomRightSizeX, p_bottom, 0.f, -1.f, 0.f, 0.f,
-				p_right - p_corners.bottomRightSizeX, p_bottom, 0.f, 1.f , 1.f, 0.f,
-				p_right - p_corners.bottomRightSizeX, p_bottom, 0.f, 1.f , 1.f, 0.f,
-				p_left + p_corners.bottomLeftSizeX  , p_bottom, 0.f, 1.f , 1.f, 0.f,
-				p_left + p_corners.bottomLeftSizeX  , p_bottom, 0.f, -1.f, 0.f, 0.f,
+				p_left + p_corners.bottomLeftSizeX  , p_bottom, 0.f, -1.f, 0.f, 0.f, 0.f, 0.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom, 0.f, -1.f, 0.f, 0.f, 0.f, 0.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom, 0.f, 1.f , 1.f, 0.f, 0.f, 0.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom, 0.f, 1.f , 1.f, 0.f, 0.f, 0.f,
+				p_left + p_corners.bottomLeftSizeX  , p_bottom, 0.f, 1.f , 1.f, 0.f, 0.f, 0.f,
+				p_left + p_corners.bottomLeftSizeX  , p_bottom, 0.f, -1.f, 0.f, 0.f, 0.f, 0.f,
 
-				p_left, p_top + p_corners.topLeftSizeY      , -1.f, 0.f, 0.f, 0.f,
-				p_left, p_top + p_corners.topLeftSizeY      , 1.f , 0.f, 1.f, 0.f,
-				p_left, p_bottom - p_corners.bottomLeftSizeY, 1.f , 0.f, 1.f, 0.f,
-				p_left, p_bottom - p_corners.bottomLeftSizeY, 1.f , 0.f, 1.f, 0.f,
-				p_left, p_bottom - p_corners.bottomLeftSizeY, -1.f, 0.f, 0.f, 0.f,
-				p_left, p_top + p_corners.topLeftSizeY      , -1.f, 0.f, 0.f, 0.f,
+				p_left, p_top + p_corners.topLeftSizeY      , -1.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+				p_left, p_top + p_corners.topLeftSizeY      , 1.f , 0.f, 1.f, 0.f, 0.f, 0.f,
+				p_left, p_bottom - p_corners.bottomLeftSizeY, 1.f , 0.f, 1.f, 0.f, 0.f, 0.f,
+				p_left, p_bottom - p_corners.bottomLeftSizeY, 1.f , 0.f, 1.f, 0.f, 0.f, 0.f,
+				p_left, p_bottom - p_corners.bottomLeftSizeY, -1.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+				p_left, p_top + p_corners.topLeftSizeY      , -1.f, 0.f, 0.f, 0.f, 0.f, 0.f,
 
-				p_right, p_top + p_corners.topRightSizeY      , -1.f, 0.f, 0.f, 0.f,
-				p_right, p_top + p_corners.topRightSizeY      , 1.f , 0.f, 1.f, 0.f,
-				p_right, p_bottom - p_corners.bottomRightSizeY, 1.f , 0.f, 1.f, 0.f,
-				p_right, p_bottom - p_corners.bottomRightSizeY, 1.f , 0.f, 1.f, 0.f,
-				p_right, p_bottom - p_corners.bottomRightSizeY, -1.f, 0.f, 0.f, 0.f,
-				p_right, p_top + p_corners.topRightSizeY      , -1.f, 0.f, 0.f, 0.f,
+				p_right, p_top + p_corners.topRightSizeY      , -1.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+				p_right, p_top + p_corners.topRightSizeY      , 1.f , 0.f, 1.f, 0.f, 0.f, 0.f,
+				p_right, p_bottom - p_corners.bottomRightSizeY, 1.f , 0.f, 1.f, 0.f, 0.f, 0.f,
+				p_right, p_bottom - p_corners.bottomRightSizeY, 1.f , 0.f, 1.f, 0.f, 0.f, 0.f,
+				p_right, p_bottom - p_corners.bottomRightSizeY, -1.f, 0.f, 0.f, 0.f, 0.f, 0.f,
+				p_right, p_top + p_corners.topRightSizeY      , -1.f, 0.f, 0.f, 0.f, 0.f, 0.f
 			}
 		);
 
@@ -10335,12 +10352,12 @@ private:
 			p_buffer.insert(
 				p_buffer.end(),
 				{
-					p_left                         , p_top + p_corners.topLeftSizeY, -normal.x, -normal.y*2.f, 0.f, 0.f,
-					p_left                         , p_top + p_corners.topLeftSizeY, -1.f , 0.f , 1.f, 0.f,
-					p_left + p_corners.topLeftSizeX, p_top                         , 0.f , -1.f      , 1.f, 0.f,
-					p_left + p_corners.topLeftSizeX, p_top                         , 0.f , -1.f      , 1.f, 0.f,
-					p_left + p_corners.topLeftSizeX, p_top                         , -normal.x*2.f, -normal.y     , 0.f, 0.f,
-					p_left                         , p_top + p_corners.topLeftSizeY, -normal.x, -normal.y*2.f, 0.f, 0.f
+					p_left                         , p_top + p_corners.topLeftSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f, 0.f, 0.f,
+					p_left                         , p_top + p_corners.topLeftSizeY, -1.f         , 0.f          , 1.f, 0.f, 0.f, 0.f,
+					p_left + p_corners.topLeftSizeX, p_top                         , 0.f          , -1.f         , 1.f, 0.f, 0.f, 0.f,
+					p_left + p_corners.topLeftSizeX, p_top                         , 0.f          , -1.f         , 1.f, 0.f, 0.f, 0.f,
+					p_left + p_corners.topLeftSizeX, p_top                         , -normal.x*2.f, -normal.y    , 0.f, 0.f, 0.f, 0.f,
+					p_left                         , p_top + p_corners.topLeftSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f, 0.f, 0.f
 				}
 			);
 		}
@@ -10360,12 +10377,12 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f,
-						p_left + p_corners.topLeftSizeX - x    , p_top + p_corners.topLeftSizeY - y    , normal.x     , normal.y     , 0.f, 0.f,
-						p_left + p_corners.topLeftSizeX - x    , p_top + p_corners.topLeftSizeY - y    , -normal.x    , -normal.y    , 1.f, 0.f,
-						p_left + p_corners.topLeftSizeX - x    , p_top + p_corners.topLeftSizeY - y    , -normal.x    , -normal.y    , 1.f, 0.f,
-						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f,
-						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX - x    , p_top + p_corners.topLeftSizeY - y    , normal.x     , normal.y     , 0.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX - x    , p_top + p_corners.topLeftSizeY - y    , -normal.x    , -normal.y    , 1.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX - x    , p_top + p_corners.topLeftSizeY - y    , -normal.x    , -normal.y    , 1.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f, 0.f, 0.f,
 					}
 				);
 				lastX = x;
@@ -10377,12 +10394,12 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x  , lastNormal.y , 0.f, 0.f,
-						p_left + p_corners.topLeftSizeX        , p_top                                 , 0.f           , -1.f         , 0.f, 0.f,
-						p_left + p_corners.topLeftSizeX        , p_top                                 , 0.f           , 1.f          , 1.f, 0.f,
-						p_left + p_corners.topLeftSizeX        , p_top                                 , 0.f           , 1.f          , 1.f, 0.f,
-						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, -lastNormal.x , -lastNormal.y, 1.f, 0.f,
-						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x  , lastNormal.y , 0.f, 0.f
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x  , lastNormal.y , 0.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX        , p_top                                 , 0.f           , -1.f         , 0.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX        , p_top                                 , 0.f           , 1.f          , 1.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX        , p_top                                 , 0.f           , 1.f          , 1.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, -lastNormal.x , -lastNormal.y, 1.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x  , lastNormal.y , 0.f, 0.f, 0.f, 0.f
 					}
 				);
 			}
@@ -10394,12 +10411,12 @@ private:
 			p_buffer.insert(
 				p_buffer.end(),
 				{
-					p_right                          , p_top + p_corners.topRightSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f,
-					p_right                          , p_top + p_corners.topRightSizeY, 1.f          , 0.f          , 1.f, 0.f,
-					p_right - p_corners.topRightSizeX, p_top                          , 0.f          , -1.f         , 1.f, 0.f,
-					p_right - p_corners.topRightSizeX, p_top                          , 0.f          , -1.f         , 1.f, 0.f,
-					p_right - p_corners.topRightSizeX, p_top                          , -normal.x*2.f, -normal.y    , 0.f, 0.f,
-					p_right                          , p_top + p_corners.topRightSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f
+					p_right                          , p_top + p_corners.topRightSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f, 0.f, 0.f,
+					p_right                          , p_top + p_corners.topRightSizeY, 1.f          , 0.f          , 1.f, 0.f, 0.f, 0.f,
+					p_right - p_corners.topRightSizeX, p_top                          , 0.f          , -1.f         , 1.f, 0.f, 0.f, 0.f,
+					p_right - p_corners.topRightSizeX, p_top                          , 0.f          , -1.f         , 1.f, 0.f, 0.f, 0.f,
+					p_right - p_corners.topRightSizeX, p_top                          , -normal.x*2.f, -normal.y    , 0.f, 0.f, 0.f, 0.f,
+					p_right                          , p_top + p_corners.topRightSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f, 0.f, 0.f
 				}
 			);
 		}
@@ -10419,12 +10436,12 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f,
-						p_right - p_corners.topRightSizeX + x    , p_top + p_corners.topLeftSizeY - y    , normal.x     , normal.y     , 0.f, 0.f,
-						p_right - p_corners.topRightSizeX + x    , p_top + p_corners.topLeftSizeY - y    , -normal.x    , -normal.y    , 1.f, 0.f,
-						p_right - p_corners.topRightSizeX + x    , p_top + p_corners.topLeftSizeY - y    , -normal.x    , -normal.y    , 1.f, 0.f,
-						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f,
-						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.topRightSizeX + x    , p_top + p_corners.topLeftSizeY - y    , normal.x     , normal.y     , 0.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.topRightSizeX + x    , p_top + p_corners.topLeftSizeY - y    , -normal.x    , -normal.y    , 1.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.topRightSizeX + x    , p_top + p_corners.topLeftSizeY - y    , -normal.x    , -normal.y    , 1.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f, 0.f, 0.f
 					}
 				);
 				lastX = x;
@@ -10436,12 +10453,12 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f,
-						p_right - p_corners.topRightSizeX        , p_top                                 , 0.f          , -1.f         , 0.f, 0.f,
-						p_right - p_corners.topRightSizeX        , p_top                                 , 0.f          , 1.f          , 1.f, 0.f,
-						p_right - p_corners.topRightSizeX        , p_top                                 , 0.f          , 1.f          , 1.f, 0.f,
-						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f,
-						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.topRightSizeX        , p_top                                 , 0.f          , -1.f         , 0.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.topRightSizeX        , p_top                                 , 0.f          , 1.f          , 1.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.topRightSizeX        , p_top                                 , 0.f          , 1.f          , 1.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topLeftSizeY - lastY, lastNormal.x , lastNormal.y , 0.f, 0.f, 0.f, 0.f
 					}
 				);
 			}
@@ -10453,12 +10470,12 @@ private:
 			p_buffer.insert(
 				p_buffer.end(),
 				{
-					p_left                            , p_bottom - p_corners.bottomLeftSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f,
-					p_left                            , p_bottom - p_corners.bottomLeftSizeY, -1.f         , 0.f          , 1.f, 0.f,
-					p_left + p_corners.bottomLeftSizeX, p_bottom                            , 0.f          , 1.f          , 1.f, 0.f,
-					p_left + p_corners.bottomLeftSizeX, p_bottom                            , 0.f          , 1.f          , 1.f, 0.f,
-					p_left + p_corners.bottomLeftSizeX, p_bottom                            , -normal.x*2.f, -normal.y    , 0.f, 0.f,
-					p_left                            , p_bottom - p_corners.bottomLeftSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f
+					p_left                            , p_bottom - p_corners.bottomLeftSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f, 0.f, 0.f,
+					p_left                            , p_bottom - p_corners.bottomLeftSizeY, -1.f         , 0.f          , 1.f, 0.f, 0.f, 0.f,
+					p_left + p_corners.bottomLeftSizeX, p_bottom                            , 0.f          , 1.f          , 1.f, 0.f, 0.f, 0.f,
+					p_left + p_corners.bottomLeftSizeX, p_bottom                            , 0.f          , 1.f          , 1.f, 0.f, 0.f, 0.f,
+					p_left + p_corners.bottomLeftSizeX, p_bottom                            , -normal.x*2.f, -normal.y    , 0.f, 0.f, 0.f, 0.f,
+					p_left                            , p_bottom - p_corners.bottomLeftSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f, 0.f, 0.f
 				}
 			);
 		}
@@ -10478,12 +10495,12 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f,
-						p_left + p_corners.bottomLeftSizeX - x    , p_bottom - p_corners.bottomLeftSizeY + y    , normal.x     , normal.y     , 0.f, 0.f,
-						p_left + p_corners.bottomLeftSizeX - x    , p_bottom - p_corners.bottomLeftSizeY + y    , -normal.x    , -normal.y    , 1.f, 0.f,
-						p_left + p_corners.bottomLeftSizeX - x    , p_bottom - p_corners.bottomLeftSizeY + y    , -normal.x    , -normal.y    , 1.f, 0.f,
-						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f,
-						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - x    , p_bottom - p_corners.bottomLeftSizeY + y    , normal.x     , normal.y     , 0.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - x    , p_bottom - p_corners.bottomLeftSizeY + y    , -normal.x    , -normal.y    , 1.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - x    , p_bottom - p_corners.bottomLeftSizeY + y    , -normal.x    , -normal.y    , 1.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f, 0.f, 0.f
 					}
 				);
 				lastX = x;
@@ -10495,12 +10512,12 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f,
-						p_left + p_corners.bottomLeftSizeX        , p_bottom                                    , 0.f          , 1.f          , 0.f, 0.f,
-						p_left + p_corners.bottomLeftSizeX        , p_bottom                                    , 0.f          , -1.f         , 1.f, 0.f,
-						p_left + p_corners.bottomLeftSizeX        , p_bottom                                    , 0.f          , -1.f         , 1.f, 0.f,
-						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f,
-						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX        , p_bottom                                    , 0.f          , 1.f          , 0.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX        , p_bottom                                    , 0.f          , -1.f         , 1.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX        , p_bottom                                    , 0.f          , -1.f         , 1.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f, 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f, 0.f, 0.f
 					}
 				);
 			}
@@ -10512,12 +10529,12 @@ private:
 			p_buffer.insert(
 				p_buffer.end(),
 				{
-					p_right                             , p_bottom - p_corners.bottomLeftSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f,
-					p_right                             , p_bottom - p_corners.bottomLeftSizeY, 1.f          , 0.f          , 1.f, 0.f,
-					p_right - p_corners.bottomRightSizeX, p_bottom                            , 0.f          , 1.f          , 1.f, 0.f,
-					p_right - p_corners.bottomRightSizeX, p_bottom                            , 0.f          , 1.f          , 1.f, 0.f,
-					p_right - p_corners.bottomRightSizeX, p_bottom                            , -normal.x*2.f, -normal.y    , 0.f, 0.f,
-					p_right                             , p_bottom - p_corners.bottomLeftSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f
+					p_right                             , p_bottom - p_corners.bottomLeftSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f, 0.f, 0.f,
+					p_right                             , p_bottom - p_corners.bottomLeftSizeY, 1.f          , 0.f          , 1.f, 0.f, 0.f, 0.f,
+					p_right - p_corners.bottomRightSizeX, p_bottom                            , 0.f          , 1.f          , 1.f, 0.f, 0.f, 0.f,
+					p_right - p_corners.bottomRightSizeX, p_bottom                            , 0.f          , 1.f          , 1.f, 0.f, 0.f, 0.f,
+					p_right - p_corners.bottomRightSizeX, p_bottom                            , -normal.x*2.f, -normal.y    , 0.f, 0.f, 0.f, 0.f,
+					p_right                             , p_bottom - p_corners.bottomLeftSizeY, -normal.x    , -normal.y*2.f, 0.f, 0.f, 0.f, 0.f
 				}
 			);
 		}
@@ -10537,12 +10554,12 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f,
-						p_right - p_corners.bottomRightSizeX + x    , p_bottom - p_corners.bottomRightSizeY + y    , normal.x     , normal.y     , 0.f, 0.f,
-						p_right - p_corners.bottomRightSizeX + x    , p_bottom - p_corners.bottomRightSizeY + y    , -normal.x    , -normal.y    , 1.f, 0.f,
-						p_right - p_corners.bottomRightSizeX + x    , p_bottom - p_corners.bottomRightSizeY + y    , -normal.x    , -normal.y    , 1.f, 0.f,
-						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f,
-						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + x    , p_bottom - p_corners.bottomRightSizeY + y    , normal.x     , normal.y     , 0.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + x    , p_bottom - p_corners.bottomRightSizeY + y    , -normal.x    , -normal.y    , 1.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + x    , p_bottom - p_corners.bottomRightSizeY + y    , -normal.x    , -normal.y    , 1.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f, 0.f, 0.f
 					}
 				);
 				lastX = x;
@@ -10554,12 +10571,12 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f,
-						p_right - p_corners.bottomRightSizeX        , p_bottom                                     , 0.f          , 1.f          , 0.f, 0.f,
-						p_right - p_corners.bottomRightSizeX        , p_bottom                                     , 0.f          , -1.f         , 1.f, 0.f,
-						p_right - p_corners.bottomRightSizeX        , p_bottom                                     , 0.f          , -1.f         , 1.f, 0.f,
-						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f,
-						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX        , p_bottom                                     , 0.f          , 1.f          , 0.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX        , p_bottom                                     , 0.f          , -1.f         , 1.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX        , p_bottom                                     , 0.f          , -1.f         , 1.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, -lastNormal.x, -lastNormal.y, 1.f, 0.f, 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, lastNormal.x , lastNormal.y , 0.f, 0.f, 0.f, 0.f
 					}
 				);
 			}
@@ -10605,28 +10622,28 @@ private:
 			p_buffer.end(),
 			{
 				// Horizontal center bar
-				p_left , p_top + p_corners.topLeftSizeY       , 1.f, width, 0.5f, 2.f,
-				p_right, p_top + p_corners.topRightSizeY      , 0.f, width, 0.5f, 2.f,
-				p_right, p_bottom - p_corners.bottomRightSizeY, 0.f, width, 0.5f, 2.f,
-				p_right, p_bottom - p_corners.bottomRightSizeY, 1.f, width, 0.5f, 2.f,
-				p_left , p_bottom - p_corners.bottomLeftSizeY , 0.f, width, 0.5f, 2.f,
-				p_left , p_top + p_corners.topLeftSizeY       , 0.f, width, 0.5f, 2.f,
+				p_left , p_top + p_corners.topLeftSizeY       , 1.f, width, 0.5f, 2.f, 0.f, 0.f,
+				p_right, p_top + p_corners.topRightSizeY      , 0.f, width, 0.5f, 2.f, 0.f, 0.f,
+				p_right, p_bottom - p_corners.bottomRightSizeY, 0.f, width, 0.5f, 2.f, 0.f, 0.f,
+				p_right, p_bottom - p_corners.bottomRightSizeY, 1.f, width, 0.5f, 2.f, 0.f, 0.f,
+				p_left , p_bottom - p_corners.bottomLeftSizeY , 0.f, width, 0.5f, 2.f, 0.f, 0.f,
+				p_left , p_top + p_corners.topLeftSizeY       , 0.f, width, 0.5f, 2.f, 0.f, 0.f,
 
 				// Top center bar
-				p_left + p_corners.topLeftSizeX  , p_top                          , 0.f , p_corners.topLeftSizeY*2.f , 0.5f, 2.f,
-				p_right - p_corners.topRightSizeX, p_top                          , 0.f , p_corners.topRightSizeY*2.f, 0.5f, 2.f,
-				p_right - p_corners.topRightSizeX, p_top + p_corners.topRightSizeY, 0.5f, p_corners.topRightSizeY*2.f, 0.5f, 2.f,
-				p_right - p_corners.topRightSizeX, p_top + p_corners.topRightSizeY, 0.5f, p_corners.topRightSizeY*2.f, 0.5f, 2.f,
-				p_left + p_corners.topLeftSizeX  , p_top + p_corners.topLeftSizeY , 0.5f, p_corners.topLeftSizeY*2.f , 0.5f, 2.f,
-				p_left + p_corners.topLeftSizeX  , p_top                          , 0.f , p_corners.topLeftSizeY*2.f , 0.5f, 2.f,
+				p_left + p_corners.topLeftSizeX  , p_top                          , 0.f , p_corners.topLeftSizeY*2.f , 0.5f, 2.f, 0.f, 0.f,
+				p_right - p_corners.topRightSizeX, p_top                          , 0.f , p_corners.topRightSizeY*2.f, 0.5f, 2.f, 0.f, 0.f,
+				p_right - p_corners.topRightSizeX, p_top + p_corners.topRightSizeY, 0.5f, p_corners.topRightSizeY*2.f, 0.5f, 2.f, 0.f, 0.f,
+				p_right - p_corners.topRightSizeX, p_top + p_corners.topRightSizeY, 0.5f, p_corners.topRightSizeY*2.f, 0.5f, 2.f, 0.f, 0.f,
+				p_left + p_corners.topLeftSizeX  , p_top + p_corners.topLeftSizeY , 0.5f, p_corners.topLeftSizeY*2.f , 0.5f, 2.f, 0.f, 0.f,
+				p_left + p_corners.topLeftSizeX  , p_top                          , 0.f , p_corners.topLeftSizeY*2.f , 0.5f, 2.f, 0.f, 0.f,
 
 				// Bottom center bar
-				p_left + p_corners.bottomLeftSizeX  , p_bottom                             , 0.f , p_corners.bottomLeftSizeY*2.f , 0.5f, 2.f,
-				p_right - p_corners.bottomRightSizeX, p_bottom                             , 0.f , p_corners.bottomRightSizeY*2.f, 0.5f, 2.f,
-				p_right - p_corners.bottomRightSizeX, p_bottom - p_corners.bottomRightSizeY, 0.5f, p_corners.bottomRightSizeY*2.f, 0.5f, 2.f,
-				p_right - p_corners.bottomRightSizeX, p_bottom - p_corners.bottomRightSizeY, 0.5f, p_corners.bottomRightSizeY*2.f, 0.5f, 2.f,
-				p_left + p_corners.bottomLeftSizeX  , p_bottom - p_corners.bottomLeftSizeY , 0.5f, p_corners.bottomLeftSizeY*2.f , 0.5f, 2.f,
-				p_left + p_corners.bottomLeftSizeX  , p_bottom                             , 0.f , p_corners.bottomLeftSizeY*2.f , 0.5f, 2.f
+				p_left + p_corners.bottomLeftSizeX  , p_bottom                             , 0.f , p_corners.bottomLeftSizeY*2.f , 0.5f, 2.f, 0.f, 0.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom                             , 0.f , p_corners.bottomRightSizeY*2.f, 0.5f, 2.f, 0.f, 0.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom - p_corners.bottomRightSizeY, 0.5f, p_corners.bottomRightSizeY*2.f, 0.5f, 2.f, 0.f, 0.f,
+				p_right - p_corners.bottomRightSizeX, p_bottom - p_corners.bottomRightSizeY, 0.5f, p_corners.bottomRightSizeY*2.f, 0.5f, 2.f, 0.f, 0.f,
+				p_left + p_corners.bottomLeftSizeX  , p_bottom - p_corners.bottomLeftSizeY , 0.5f, p_corners.bottomLeftSizeY*2.f , 0.5f, 2.f, 0.f, 0.f,
+				p_left + p_corners.bottomLeftSizeX  , p_bottom                             , 0.f , p_corners.bottomLeftSizeY*2.f , 0.5f, 2.f, 0.f, 0.f
 			}
 		);
 
@@ -10637,9 +10654,9 @@ private:
 			p_buffer.insert(
 				p_buffer.end(),
 				{
-					p_left                         , p_top + p_corners.topLeftSizeY, 0.f , distance, 0.5f, 2.f,
-					p_left + p_corners.topLeftSizeX, p_top                         , 0.f , distance, 0.5f, 2.f,
-					p_left + p_corners.topLeftSizeX, p_top + p_corners.topLeftSizeY, 0.5f, distance, 0.5f, 2.f
+					p_left                         , p_top + p_corners.topLeftSizeY, 0.f , distance, 0.5f, 2.f, 0.f, 0.f,
+					p_left + p_corners.topLeftSizeX, p_top                         , 0.f , distance, 0.5f, 2.f, 0.f, 0.f,
+					p_left + p_corners.topLeftSizeX, p_top + p_corners.topLeftSizeY, 0.5f, distance, 0.5f, 2.f, 0.f, 0.f
 				}
 			);
 		}
@@ -10657,9 +10674,9 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_left + p_corners.topLeftSizeX        , p_top + p_corners.topLeftSizeY        , 0.5f, distance, 0.5f, 2.f,
-						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, 0.f , distance, 0.5f, 2.f,
-						p_left + p_corners.topLeftSizeX - x    , p_top + p_corners.topLeftSizeY - y    , 0.f , distance, 0.5f, 2.f
+						p_left + p_corners.topLeftSizeX        , p_top + p_corners.topLeftSizeY        , 0.5f, distance, 0.5f, 2.f, 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, 0.f , distance, 0.5f, 2.f, 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX - x    , p_top + p_corners.topLeftSizeY - y    , 0.f , distance, 0.5f, 2.f, 0.f, 0.f
 					}
 				);
 				lastX = x;
@@ -10670,9 +10687,9 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_left + p_corners.topLeftSizeX        , p_top + p_corners.topLeftSizeY        , 0.5f, p_corners.topLeftSizeY*2.f, 0.5f, 2.f,
-						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, 0.f , p_corners.topLeftSizeY*2.f, 0.5f, 2.f,
-						p_left + p_corners.topLeftSizeX        , p_top                                 , 0.f , p_corners.topLeftSizeY*2.f, 0.5f, 2.f
+						p_left + p_corners.topLeftSizeX        , p_top + p_corners.topLeftSizeY        , 0.5f, p_corners.topLeftSizeY*2.f, 0.5f, 2.f, 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX - lastX, p_top + p_corners.topLeftSizeY - lastY, 0.f , p_corners.topLeftSizeY*2.f, 0.5f, 2.f, 0.f, 0.f,
+						p_left + p_corners.topLeftSizeX        , p_top                                 , 0.f , p_corners.topLeftSizeY*2.f, 0.5f, 2.f, 0.f, 0.f
 					}
 				);
 			}
@@ -10683,9 +10700,9 @@ private:
 			p_buffer.insert(
 				p_buffer.end(),
 				{
-					p_right                          , p_top + p_corners.topRightSizeY, 0.f , distance, 0.5f, 2.f,
-					p_right - p_corners.topRightSizeX, p_top                          , 0.f , distance, 0.5f, 2.f,
-					p_right - p_corners.topRightSizeX, p_top + p_corners.topRightSizeY, 0.5f, distance, 0.5f, 2.f
+					p_right                          , p_top + p_corners.topRightSizeY, 0.f , distance, 0.5f, 2.f, 0.f, 0.f,
+					p_right - p_corners.topRightSizeX, p_top                          , 0.f , distance, 0.5f, 2.f, 0.f, 0.f,
+					p_right - p_corners.topRightSizeX, p_top + p_corners.topRightSizeY, 0.5f, distance, 0.5f, 2.f, 0.f, 0.f
 				}
 			);
 		}
@@ -10702,9 +10719,9 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_right - p_corners.topRightSizeX        , p_top + p_corners.topRightSizeY        , 0.5f, distance, 0.5f, 2.f,
-						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topRightSizeY - lastY, 0.f , distance, 0.5f, 2.f,
-						p_right - p_corners.topRightSizeX + x    , p_top + p_corners.topRightSizeY - y    , 0.f , distance, 0.5f, 2.f
+						p_right - p_corners.topRightSizeX        , p_top + p_corners.topRightSizeY        , 0.5f, distance, 0.5f, 2.f, 0.f, 0.f,
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topRightSizeY - lastY, 0.f , distance, 0.5f, 2.f, 0.f, 0.f,
+						p_right - p_corners.topRightSizeX + x    , p_top + p_corners.topRightSizeY - y    , 0.f , distance, 0.5f, 2.f, 0.f, 0.f
 					}
 				);
 				lastX = x;
@@ -10715,9 +10732,9 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_right - p_corners.topRightSizeX        , p_top + p_corners.topRightSizeY        , 0.5f, p_corners.topRightSizeY*2.f, 0.5f, 2.f,
-						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topRightSizeY - lastY, 0.f , p_corners.topRightSizeY*2.f, 0.5f, 2.f,
-						p_right - p_corners.topRightSizeX        , p_top                                  , 0.f , p_corners.topRightSizeY*2.f, 0.5f, 2.f
+						p_right - p_corners.topRightSizeX        , p_top + p_corners.topRightSizeY        , 0.5f, p_corners.topRightSizeY*2.f, 0.5f, 2.f, 0.f, 0.f,
+						p_right - p_corners.topRightSizeX + lastX, p_top + p_corners.topRightSizeY - lastY, 0.f , p_corners.topRightSizeY*2.f, 0.5f, 2.f, 0.f, 0.f,
+						p_right - p_corners.topRightSizeX        , p_top                                  , 0.f , p_corners.topRightSizeY*2.f, 0.5f, 2.f, 0.f, 0.f
 					}
 				);
 			}
@@ -10729,9 +10746,9 @@ private:
 			p_buffer.insert(
 				p_buffer.end(),
 				{
-					p_left                            , p_bottom - p_corners.bottomLeftSizeY, 0.f , distance, 0.5f, 2.f,
-					p_left + p_corners.bottomLeftSizeX, p_bottom                            , 0.f , distance, 0.5f, 2.f,
-					p_left + p_corners.bottomLeftSizeX, p_bottom - p_corners.bottomLeftSizeY, 0.5f, distance, 0.5f, 2.f
+					p_left                            , p_bottom - p_corners.bottomLeftSizeY, 0.f , distance, 0.5f, 2.f, 0.f, 0.f,
+					p_left + p_corners.bottomLeftSizeX, p_bottom                            , 0.f , distance, 0.5f, 2.f, 0.f, 0.f,
+					p_left + p_corners.bottomLeftSizeX, p_bottom - p_corners.bottomLeftSizeY, 0.5f, distance, 0.5f, 2.f, 0.f, 0.f
 				}
 			);
 		}
@@ -10748,9 +10765,9 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_left + p_corners.bottomLeftSizeX        , p_bottom - p_corners.bottomLeftSizeY        , 0.5f, distance, 0.5f, 2.f,
-						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, 0.f , distance, 0.5f, 2.f,
-						p_left + p_corners.bottomLeftSizeX - x    , p_bottom - p_corners.bottomLeftSizeY + y    , 0.f , distance, 0.5f, 2.f
+						p_left + p_corners.bottomLeftSizeX        , p_bottom - p_corners.bottomLeftSizeY        , 0.5f, distance, 0.5f, 2.f, 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, 0.f , distance, 0.5f, 2.f, 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - x    , p_bottom - p_corners.bottomLeftSizeY + y    , 0.f , distance, 0.5f, 2.f, 0.f, 0.f
 					}
 				);
 				lastX = x;
@@ -10761,9 +10778,9 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_left + p_corners.bottomLeftSizeX        , p_bottom - p_corners.bottomLeftSizeY        , 0.5f, p_corners.bottomLeftSizeY*2.f, 0.5f, 2.f,
-						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, 0.f , p_corners.bottomLeftSizeY*2.f, 0.5f, 2.f,
-						p_left + p_corners.bottomLeftSizeX        , p_bottom                                    , 0.f , p_corners.bottomLeftSizeY*2.f, 0.5f, 2.f
+						p_left + p_corners.bottomLeftSizeX        , p_bottom - p_corners.bottomLeftSizeY        , 0.5f, p_corners.bottomLeftSizeY*2.f, 0.5f, 2.f, 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX - lastX, p_bottom - p_corners.bottomLeftSizeY + lastY, 0.f , p_corners.bottomLeftSizeY*2.f, 0.5f, 2.f, 0.f, 0.f,
+						p_left + p_corners.bottomLeftSizeX        , p_bottom                                    , 0.f , p_corners.bottomLeftSizeY*2.f, 0.5f, 2.f, 0.f, 0.f
 					}
 				);
 			}
@@ -10775,9 +10792,9 @@ private:
 			p_buffer.insert(
 				p_buffer.end(),
 				{
-					p_right                             , p_bottom - p_corners.bottomRightSizeY, 0.f , distance, 0.5f, 2.f,
-					p_right - p_corners.bottomRightSizeX, p_bottom                             , 0.f , distance, 0.5f, 2.f,
-					p_right - p_corners.bottomRightSizeX, p_bottom - p_corners.bottomRightSizeY, 0.5f, distance, 0.5f, 2.f
+					p_right                             , p_bottom - p_corners.bottomRightSizeY, 0.f , distance, 0.5f, 2.f, 0.f, 0.f,
+					p_right - p_corners.bottomRightSizeX, p_bottom                             , 0.f , distance, 0.5f, 2.f, 0.f, 0.f,
+					p_right - p_corners.bottomRightSizeX, p_bottom - p_corners.bottomRightSizeY, 0.5f, distance, 0.5f, 2.f, 0.f, 0.f
 				}
 			);
 		}
@@ -10794,9 +10811,9 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_right - p_corners.bottomRightSizeX        , p_bottom - p_corners.bottomRightSizeY        , 0.5f, distance, 0.5f, 2.f,
-						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, 0.f , distance, 0.5f, 2.f,
-						p_right - p_corners.bottomRightSizeX + x    , p_bottom - p_corners.bottomRightSizeY + y    , 0.f , distance, 0.5f, 2.f
+						p_right - p_corners.bottomRightSizeX        , p_bottom - p_corners.bottomRightSizeY        , 0.5f, distance, 0.5f, 2.f, 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, 0.f , distance, 0.5f, 2.f, 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + x    , p_bottom - p_corners.bottomRightSizeY + y    , 0.f , distance, 0.5f, 2.f, 0.f, 0.f
 					}
 				);
 				lastX = x;
@@ -10807,9 +10824,9 @@ private:
 				p_buffer.insert(
 					p_buffer.end(),
 					{
-						p_right - p_corners.bottomRightSizeX        , p_bottom - p_corners.bottomRightSizeY        , 0.5f, p_corners.bottomRightSizeY*2.f, 0.5f, 2.f,
-						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, 0.f , p_corners.bottomRightSizeY*2.f, 0.5f, 2.f,
-						p_right - p_corners.bottomRightSizeX        , p_bottom                                     , 0.f , p_corners.bottomRightSizeY*2.f, 0.5f, 2.f
+						p_right - p_corners.bottomRightSizeX        , p_bottom - p_corners.bottomRightSizeY        , 0.5f, p_corners.bottomRightSizeY*2.f, 0.5f, 2.f, 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX + lastX, p_bottom - p_corners.bottomRightSizeY + lastY, 0.f , p_corners.bottomRightSizeY*2.f, 0.5f, 2.f, 0.f, 0.f,
+						p_right - p_corners.bottomRightSizeX        , p_bottom                                     , 0.f , p_corners.bottomRightSizeY*2.f, 0.5f, 2.f, 0.f, 0.f
 					}
 				);
 			}
@@ -10888,25 +10905,31 @@ R"(
 #version 330 core
 layout (location = 0) in vec2 in_vertex;
 layout (location = 1) in vec4 in_antiAliasAttribute;
+layout (location = 2) in vec2 in_textureCoordinate;
 
 out vec4 pass_antiAliasAttribute;
+out vec2 pass_textureCoordinates;
 
 uniform mat3 u_transform;
 uniform mat3 u_viewTransform;
-uniform bool u_isStroked;
+uniform int u_renderMode;
 uniform float u_lineWidth;
 
 void main()
 {
-	if (u_isStroked)
+	if (u_renderMode != 0)
+	{
+		pass_antiAliasAttribute = in_antiAliasAttribute;
+		gl_Position = vec4(u_viewTransform*u_transform*vec3(in_vertex, 1.f), 1.f);
+	}
+	else
 	{
 		pass_antiAliasAttribute.xy = in_antiAliasAttribute.xy*(u_lineWidth*0.5f);
 		gl_Position = vec4(u_viewTransform*u_transform*vec3(in_vertex + pass_antiAliasAttribute.xy, 1.f), 1.f);
 	}
-	else
+	if (u_renderMode == 2)
 	{
-		pass_antiAliasAttribute = in_antiAliasAttribute;
-		gl_Position = vec4(u_viewTransform*u_transform*vec3(in_vertex, 1.f), 1.f);
+		pass_textureCoordinates = in_textureCoordinate;
 	}
 }
 )";
@@ -10916,20 +10939,26 @@ void main()
 R"(
 #version 330 core
 in vec4 pass_antiAliasAttribute;
+in vec2 pass_textureCoordinates;
 
 out vec4 out_fragmentColor;
 
 uniform vec4 u_color;
-uniform bool u_isStroked;
+uniform int u_renderMode;
 uniform float u_lineWidth;
+uniform sampler2D u_texture;
 
 void main()
 {
-	if (u_isStroked) {
-		out_fragmentColor = vec4(u_color.rgb, min(pass_antiAliasAttribute.z*u_lineWidth, (1.f - pass_antiAliasAttribute.z)*u_lineWidth));
+	if (u_renderMode == 0) {
+		out_fragmentColor = vec4(u_color.rgb, u_color.a*min(pass_antiAliasAttribute.z*u_lineWidth, (1.f - pass_antiAliasAttribute.z)*u_lineWidth));
 	}
-	else {
-		out_fragmentColor = vec4(u_color.rgb, min(min(pass_antiAliasAttribute.z*pass_antiAliasAttribute.w, (1.f - pass_antiAliasAttribute.z)*pass_antiAliasAttribute.w), min(pass_antiAliasAttribute.x*pass_antiAliasAttribute.y, (1.f - pass_antiAliasAttribute.x)*pass_antiAliasAttribute.y)));
+	else if (u_renderMode == 1) {
+		out_fragmentColor = vec4(u_color.rgb, u_color.a*min(min(pass_antiAliasAttribute.z*pass_antiAliasAttribute.w, (1.f - pass_antiAliasAttribute.z)*pass_antiAliasAttribute.w), min(pass_antiAliasAttribute.x*pass_antiAliasAttribute.y, (1.f - pass_antiAliasAttribute.x)*pass_antiAliasAttribute.y)));
+	}
+	else if (u_renderMode == 2) {
+		out_fragmentColor = texture(u_texture, pass_textureCoordinates);
+		out_fragmentColor.a *= min(min(pass_antiAliasAttribute.z*pass_antiAliasAttribute.w, (1.f - pass_antiAliasAttribute.z)*pass_antiAliasAttribute.w), min(pass_antiAliasAttribute.x*pass_antiAliasAttribute.y, (1.f - pass_antiAliasAttribute.x)*pass_antiAliasAttribute.y));
 	}
 }
 )";
@@ -10942,12 +10971,6 @@ void main()
 		m_transformMatrix[8] = 1.f;
 
 		m_renderShader.setUniformMatrix3x3("u_transform", m_transformMatrix);
-
-		//------------------------------
-
-		glEnable(GL_STENCIL_TEST);
-		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-		glStencilFunc(GL_NOTEQUAL, 0, 0xff);
 
 		//------------------------------
 
@@ -10973,19 +10996,24 @@ void main()
 	void finishDrawing(std::vector<AvoGUI::Rectangle<float>> const& p_updatedRectangles) override
 	{
 		// GL_STATIC_DRAW hints that the buffer is modified once and used many times
-		m_renderShader.setVertexData(m_vertexBuffer.data(), m_vertexBuffer.size()*sizeof(float), 6*sizeof(float), GL_STATIC_DRAW);
+		m_renderShader.setVertexData(m_vertexBuffer.data(), m_vertexBuffer.size()*sizeof(float), VERTEX_DATA_LENGTH*sizeof(float), GL_STATIC_DRAW);
 		m_renderShader.configureVertexShaderInput(0, 2, 0);
 		m_renderShader.configureVertexShaderInput(1, 4, 2);
+		m_renderShader.configureVertexShaderInput(2, 2, 6);
 
 		for (auto& drawCall : m_drawCalls)
 		{
 			m_renderShader.setUniformColor("u_color", drawCall.color);
 			m_renderShader.setUniformMatrix3x3("u_transform", drawCall.transform);
-			if (drawCall.isStroked)
+			if (drawCall.renderMode == 0)
 			{
 				m_renderShader.setUniformValue("u_lineWidth", drawCall.lineWidth);
 			}
-			m_renderShader.setUniformValue("u_isStroked", drawCall.isStroked);
+			else if (drawCall.renderMode == 2)
+			{
+				glBindTexture(GL_TEXTURE_2D, drawCall.texture);
+			}
+			m_renderShader.setUniformValue("u_renderMode", drawCall.renderMode);
 			m_renderShader.draw(drawCall.vertexBufferStartIndex, drawCall.numberOfVertices, drawCall.primitiveType);
 		}
 
@@ -11118,6 +11146,8 @@ void main()
 	}
 	void scale(float p_scaleX, float p_scaleY) override
 	{
+		m_scale.x *= p_scaleX;
+		m_scale.y *= p_scaleY;
 		m_transformMatrix[0] *= p_scaleX;
 		m_transformMatrix[1] *= p_scaleY;
 		m_transformMatrix[3] *= p_scaleX;
@@ -11137,12 +11167,14 @@ void main()
 	}
 	void scale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) override
 	{
+		m_scale.x *= p_scaleX;
+		m_scale.y *= p_scaleY;
 		m_transformMatrix[0] *= p_scaleX;
 		m_transformMatrix[1] *= p_scaleX;
 		m_transformMatrix[3] *= p_scaleY;
 		m_transformMatrix[4] *= p_scaleY;
-		m_transformMatrix[7] += (p_originX - m_transformMatrix[7])*(1.f - p_scaleX);
-		m_transformMatrix[8] += (p_originY - m_transformMatrix[8])*(1.f - p_scaleY);
+		m_transformMatrix[6] += (p_originX - m_transformMatrix[6])*(1.f - p_scaleX);
+		m_transformMatrix[7] += (p_originY - m_transformMatrix[7])*(1.f - p_scaleY);
 	}
 	void setScale(float p_scale) override
 	{
@@ -11299,19 +11331,19 @@ void main()
 		float height = p_bottom - p_top;
 		float width = p_right - p_left;
 
-		addDrawCallBefore(6u);
 		m_vertexBuffer.insert(
 			m_vertexBuffer.end(),
 			{
-				p_left, p_top, 1.f, height, 0.f, width,
-				p_left, p_bottom, 0.f, height, 0.f, width,
-				p_right, p_bottom, 0.f, height, 1.f, width,
+				p_left,  p_top,    1.f, height, 0.f, width, 0.f, 0.f,
+				p_left,  p_bottom, 0.f, height, 0.f, width, 0.f, 0.f,
+				p_right, p_bottom, 0.f, height, 1.f, width, 0.f, 0.f,
 
-				p_right, p_bottom, 1.f, height, 0.f, width,
-				p_left, p_top, 0.f, height, 1.f, width,
-				p_right, p_top, 0.f, height, 0.f, width
+				p_right, p_bottom, 1.f, height, 0.f, width, 0.f, 0.f,
+				p_left,  p_top,    0.f, height, 1.f, width, 0.f, 0.f,
+				p_right, p_top,    0.f, height, 0.f, width, 0.f, 0.f
 			}
 		);
+		addDrawCall(6u);
 	}
 	void fillRectangle(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size) override
 	{
@@ -11350,7 +11382,7 @@ void main()
 	{
 		size_t sizeBefore = m_vertexBuffer.size();
 		createFilledCornerRectangleGeometry(m_vertexBuffer, p_left, p_top, p_right, p_bottom, p_rectangleCorners);
-		addDrawCallAfter((m_vertexBuffer.size() - sizeBefore)/6);
+		addDrawCall((m_vertexBuffer.size() - sizeBefore)/VERTEX_DATA_LENGTH);
 	}
 
 	void fillRoundedRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius) override
@@ -11403,43 +11435,43 @@ void main()
 
 		float height = p_bottom - p_top;
 		float width = p_right - p_left;
-		addDrawCallBefore(24);
 		m_vertexBuffer.insert(
 			m_vertexBuffer.end(),
 			{
 				// Top
-				p_left , p_top                , 1.f, p_strokeWidth, 0.f, width,
-				p_left , p_top + p_strokeWidth, 0.f, p_strokeWidth, 0.f, width,
-				p_right, p_top + p_strokeWidth, 0.f, p_strokeWidth, 1.f, width,
-				p_right, p_top + p_strokeWidth, 1.f, p_strokeWidth, 0.f, width,
-				p_left , p_top                , 0.f, p_strokeWidth, 1.f, width,
-				p_right, p_top                , 0.f, p_strokeWidth, 0.f, width,
+				p_left , p_top                , 1.f, p_strokeWidth, 0.f, width, 0.f, 0.f,
+				p_left , p_top + p_strokeWidth, 0.f, p_strokeWidth, 0.f, width, 0.f, 0.f,
+				p_right, p_top + p_strokeWidth, 0.f, p_strokeWidth, 1.f, width, 0.f, 0.f,
+				p_right, p_top + p_strokeWidth, 1.f, p_strokeWidth, 0.f, width, 0.f, 0.f,
+				p_left , p_top                , 0.f, p_strokeWidth, 1.f, width, 0.f, 0.f,
+				p_right, p_top                , 0.f, p_strokeWidth, 0.f, width, 0.f, 0.f,
 
 				// Bottom
-				p_left , p_bottom - p_strokeWidth, 1.f, p_strokeWidth, 0.f, width,
-				p_left , p_bottom                , 0.f, p_strokeWidth, 0.f, width,
-				p_right, p_bottom                , 0.f, p_strokeWidth, 1.f, width,
-				p_right, p_bottom                , 1.f, p_strokeWidth, 0.f, width,
-				p_left , p_bottom - p_strokeWidth, 0.f, p_strokeWidth, 1.f, width,
-				p_right, p_bottom - p_strokeWidth, 0.f, p_strokeWidth, 0.f, width,
+				p_left , p_bottom - p_strokeWidth, 1.f, p_strokeWidth, 0.f, width, 0.f, 0.f,
+				p_left , p_bottom                , 0.f, p_strokeWidth, 0.f, width, 0.f, 0.f,
+				p_right, p_bottom                , 0.f, p_strokeWidth, 1.f, width, 0.f, 0.f,
+				p_right, p_bottom                , 1.f, p_strokeWidth, 0.f, width, 0.f, 0.f,
+				p_left , p_bottom - p_strokeWidth, 0.f, p_strokeWidth, 1.f, width, 0.f, 0.f,
+				p_right, p_bottom - p_strokeWidth, 0.f, p_strokeWidth, 0.f, width, 0.f, 0.f,
 
 				// Left
-				p_left                , p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f,
-				p_left                , p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
-				p_left + p_strokeWidth, p_bottom - p_strokeWidth + 1.f, 0.f, p_strokeWidth, 0.5f, 2.f,
-				p_left + p_strokeWidth, p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
-				p_left                , p_top + p_strokeWidth - 1.f   , 0.f, p_strokeWidth, 0.5f, 2.f,
-				p_left + p_strokeWidth, p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f,
+				p_left                , p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f,
+				p_left                , p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f,
+				p_left + p_strokeWidth, p_bottom - p_strokeWidth + 1.f, 0.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f,
+				p_left + p_strokeWidth, p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f,
+				p_left                , p_top + p_strokeWidth - 1.f   , 0.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f,
+				p_left + p_strokeWidth, p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f,
 
 				// Right
-				p_right - p_strokeWidth, p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f,
-				p_right - p_strokeWidth, p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
-				p_right                , p_bottom - p_strokeWidth + 1.f, 0.f, p_strokeWidth, 0.5f, 2.f,
-				p_right                , p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f,
-				p_right - p_strokeWidth, p_top + p_strokeWidth - 1.f   , 0.f, p_strokeWidth, 0.5f, 2.f,
-				p_right                , p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f
+				p_right - p_strokeWidth, p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f,
+				p_right - p_strokeWidth, p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f,
+				p_right                , p_bottom - p_strokeWidth + 1.f, 0.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f,
+				p_right                , p_bottom - p_strokeWidth + 1.f, 1.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f,
+				p_right - p_strokeWidth, p_top + p_strokeWidth - 1.f   , 0.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f,
+				p_right                , p_top + p_strokeWidth - 1.f   , 1.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f,
 			}
 		);
+		addDrawCall(24);
 	}
 
 	void strokeRectangle(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_rectangleCorners, float p_strokeWidth) override
@@ -11463,7 +11495,7 @@ void main()
 		p_strokeWidth += 1.f;
 		size_t sizeBefore = m_vertexBuffer.size();
 		createStrokedCornerRectangleGeometry(m_vertexBuffer, p_left, p_top, p_right, p_bottom, p_rectangleCorners);
-		addDrawCallAfter((m_vertexBuffer.size() - sizeBefore)/6, p_strokeWidth);
+		addDrawCall((m_vertexBuffer.size() - sizeBefore)/VERTEX_DATA_LENGTH, p_strokeWidth);
 	}
 
 	void strokeRoundedRectangle(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius, float p_strokeWidth) override
@@ -11496,14 +11528,13 @@ void main()
 	}
 	void fillCircle(float p_x, float p_y, float p_radius) override
 	{
-		addDrawCallBefore(CIRCLE_RESOLUTION + 2, GL_TRIANGLE_FAN);
-
 		p_radius += 0.5f;
-		m_vertexBuffer.insert(m_vertexBuffer.end(), { p_x, p_y, 0.5f, p_radius*2.f, 0.5f, 2.f }); // Only want anti-aliasing on the outer edges of the triangles.
+		m_vertexBuffer.insert(m_vertexBuffer.end(), { p_x, p_y, 0.5f, p_radius*2.f, 0.5f, 2.f, 0.f, 0.f }); // Only want anti-aliasing on the outer edges of the triangles.
 		for (uint32 a = 0; a <= CIRCLE_RESOLUTION; a++)
 		{
-			m_vertexBuffer.insert(m_vertexBuffer.end(), { s_unitCirclePoints[a].x*p_radius + p_x, s_unitCirclePoints[a].y*p_radius + p_y, 0.f, p_radius*2.f, 0.5f, 2.f });
+			m_vertexBuffer.insert(m_vertexBuffer.end(), { s_unitCirclePoints[a].x*p_radius + p_x, s_unitCirclePoints[a].y*p_radius + p_y, 0.f, p_radius*2.f, 0.5f, 2.f, 0.f, 0.f, });
 		}
+		addDrawCall(CIRCLE_RESOLUTION + 2, 0u, (GLenum)GL_TRIANGLE_FAN);
 	}
 
 	void strokeCircle(AvoGUI::Point<float> const& p_position, float p_radius, float p_strokeWidth) override
@@ -11512,17 +11543,16 @@ void main()
 	}
 	void strokeCircle(float p_x, float p_y, float p_radius, float p_strokeWidth) override
 	{
-		addDrawCallBefore(CIRCLE_RESOLUTION + 2, GL_TRIANGLE_FAN);
-
 		p_strokeWidth += 1.f; // Anti-aliasing needs extra pixels
 		p_radius += p_strokeWidth*0.5f;
 
 		float innerAntiAliasingStart = 1.f - p_radius/p_strokeWidth;
-		m_vertexBuffer.insert(m_vertexBuffer.end(), { p_x, p_y, innerAntiAliasingStart, p_strokeWidth, 0.5f, 2.f });
+		m_vertexBuffer.insert(m_vertexBuffer.end(), { p_x, p_y, innerAntiAliasingStart, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f });
 		for (uint32 a = 0; a <= CIRCLE_RESOLUTION; a++)
 		{
-			m_vertexBuffer.insert(m_vertexBuffer.end(), { s_unitCirclePoints[a].x*p_radius + p_x, s_unitCirclePoints[a].y*p_radius + p_y, 1.f, p_strokeWidth, 0.5f, 2.f });
+			m_vertexBuffer.insert(m_vertexBuffer.end(), { s_unitCirclePoints[a].x*p_radius + p_x, s_unitCirclePoints[a].y*p_radius + p_y, 1.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f });
 		}
+		addDrawCall(CIRCLE_RESOLUTION + 2, 0u, (GLenum)GL_TRIANGLE_FAN);
 	}
 
 	//------------------------------
@@ -11548,19 +11578,19 @@ void main()
 		normalX *= p_thickness*0.5f;
 		normalY *= p_thickness*0.5f;
 
-		addDrawCallBefore(6u);
 		m_vertexBuffer.insert(
 			m_vertexBuffer.end(),
 			{
-				p_x0 + normalX, p_y0 + normalY, 1.f, p_thickness, 0.f, distance,
-				p_x0 - normalX, p_y0 - normalY , 0.f, p_thickness, 0.f, distance,
-				p_x1 - normalX, p_y1 - normalY, 0.f, p_thickness, 1.f, distance,
+				p_x0 + normalX, p_y0 + normalY, 1.f, p_thickness, 0.f, distance, 0.f, 0.f,
+				p_x0 - normalX, p_y0 - normalY, 0.f, p_thickness, 0.f, distance, 0.f, 0.f,
+				p_x1 - normalX, p_y1 - normalY, 0.f, p_thickness, 1.f, distance, 0.f, 0.f,
 
-				p_x1 - normalX, p_y1 - normalY, 1.f, p_thickness, 0.f, distance,
-				p_x0 + normalX, p_y0 + normalY, 0.f, p_thickness, 1.f, distance,
-				p_x1 + normalX, p_y1 + normalY, 0.f, p_thickness, 0.f, distance,
+				p_x1 - normalX, p_y1 - normalY, 1.f, p_thickness, 0.f, distance, 0.f, 0.f,
+				p_x0 + normalX, p_y0 + normalY, 0.f, p_thickness, 1.f, distance, 0.f, 0.f,
+				p_x1 + normalX, p_y1 + normalY, 0.f, p_thickness, 0.f, distance, 0.f, 0.f
 			}
 		);
+		addDrawCall(6u);
 	}
 
 	//------------------------------
@@ -11583,14 +11613,14 @@ void main()
 	void strokeGeometry(AvoGUI::Geometry* p_geometry, float p_strokeWidth) override
 	{
 		auto geometry = (OpenGlGeometry*)p_geometry;
-		addDrawCallBefore(geometry->vertexBuffer.size());
 		m_vertexBuffer.insert(m_vertexBuffer.end(), geometry->vertexBuffer.begin(), geometry->vertexBuffer.end());
+		addDrawCall(geometry->vertexBuffer.size());
 	}
 	void fillGeometry(AvoGUI::Geometry* p_geometry) override
 	{
 		auto geometry = (OpenGlGeometry*)p_geometry;
-		addDrawCallBefore(geometry->vertexBuffer.size());
 		m_vertexBuffer.insert(m_vertexBuffer.end(), geometry->vertexBuffer.begin(), geometry->vertexBuffer.end());
+		addDrawCall(geometry->vertexBuffer.size());
 	}
 
 	//------------------------------
@@ -11828,8 +11858,6 @@ void main()
 	{
 		GLuint texture{0u};
 		glGenTextures(1, &texture);
-
-		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -11848,7 +11876,7 @@ void main()
 		pngImage.version = PNG_IMAGE_VERSION;
 		pngImage.format = PNG_FORMAT_BGRA;
 
-		if (!png_image_begin_read_from_memory(&pngImage,p_imageData, p_size))
+		if (!png_image_begin_read_from_memory(&pngImage, p_imageData, p_size))
 		{
 			return nullptr;
 		}
@@ -11866,37 +11894,77 @@ void main()
 	}
 	AvoGUI::Image* createImage(char const* p_filePath) override
 	{
-		char signatureBytes[8];
-
-		std::ifstream fileStream(p_filePath);
-		fileStream.read(signatureBytes, 8);
-		fileStream.close();
-
-		if (!strncmp(signatureBytes, "\xFF\xD8\xFF", 3)) // PNG signature
+		if (!filesystem::is_regular_file(p_filePath))
 		{
-			png_image pngImage{};
-			pngImage.version = PNG_IMAGE_VERSION;
-			pngImage.format = PNG_FORMAT_BGRA;
-
-			if (!png_image_begin_read_from_file(&pngImage, p_filePath))
-			{
-				return nullptr;
-			}
-
-			png_byte* data{new png_byte[PNG_IMAGE_SIZE(pngImage)]};
-			if (!png_image_finish_read(&pngImage, nullptr, data, 0, nullptr))
-			{
-				delete[] data;
-				return nullptr;
-			}
-
-			AvoGUI::Image* image = createImage(data, pngImage.width, pngImage.height);
-			delete[] data;
-			return image;
+			return nullptr;
 		}
-		else if (!strncmp(signatureBytes, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8)) // JPEG signature
+		switch (getImageFormatOfFile(p_filePath))
 		{
+			case AvoGUI::ImageFormat::Png:
+			{
+				png_image pngImage{};
+				pngImage.version = PNG_IMAGE_VERSION;
 
+				if (!png_image_begin_read_from_file(&pngImage, p_filePath))
+				{
+					return nullptr;
+				}
+
+				pngImage.format = PNG_FORMAT_BGRA;
+
+				png_byte* data{new png_byte[PNG_IMAGE_SIZE(pngImage)]};
+				if (!png_image_finish_read(&pngImage, nullptr, data, 0, nullptr))
+				{
+					delete[] data;
+					return nullptr;
+				}
+
+				AvoGUI::Image *image = createImage(data, pngImage.width, pngImage.height);
+				delete[] data;
+				return image;
+			}
+			case AvoGUI::ImageFormat::Jpeg:
+			{
+				FILE* file{ fopen(p_filePath, "rb") };
+				if (!file)
+				{
+					return nullptr;
+				}
+
+				jpeg_error_mgr errorHandler;
+				errorHandler.error_exit = [] (j_common_ptr p_info) -> void {
+					p_info->err->output_message(p_info);
+				};
+
+				jpeg_decompress_struct decompressor{};
+				decompressor.err = jpeg_std_error(&errorHandler);
+
+				jpeg_create_decompress(&decompressor);
+				jpeg_stdio_src(&decompressor, file);
+				jpeg_read_header(&decompressor, true);
+
+				decompressor.out_color_space = JCS_EXT_BGRA;
+				jpeg_start_decompress(&decompressor);
+
+				uint32 rowStride = decompressor.output_width * decompressor.output_components;
+				JSAMPARRAY rowBuffer = (*decompressor.mem->alloc_sarray)((j_common_ptr)&decompressor, JPOOL_IMAGE, rowStride, 1);
+
+				uint8* data = new uint8[rowStride*decompressor.output_height];
+
+				while (decompressor.output_scanline < decompressor.output_height)
+				{
+					jpeg_read_scanlines(&decompressor, rowBuffer, 1);
+					std::memcpy(data + (decompressor.output_scanline - 1)*rowStride, rowBuffer[0], rowStride);
+				}
+
+				AvoGUI::Image* image = createImage(data, decompressor.output_width, decompressor.output_height);
+
+				jpeg_finish_decompress(&decompressor);
+				jpeg_destroy_decompress(&decompressor);
+				fclose(file);
+
+				return image;
+			}
 		}
 		return nullptr;
 	}
@@ -11905,6 +11973,30 @@ void main()
 	}
 	void drawImage(AvoGUI::Image* p_image, float p_multiplicativeOpacity) override
 	{
+		AvoGUI::Rectangle<float> innerBounds = p_image->getInnerBounds();
+		float width = innerBounds.getWidth();
+		float height = innerBounds.getHeight();
+
+		AvoGUI::Rectangle<float> cropRectangle = p_image->getCropRectangle();
+		AvoGUI::Point<float> originalSize = p_image->getOriginalSize();
+		cropRectangle.left /= originalSize.x;
+		cropRectangle.top /= originalSize.y;
+		cropRectangle.right /= originalSize.x;
+		cropRectangle.bottom /= originalSize.y;
+
+		m_vertexBuffer.insert(
+			m_vertexBuffer.end(),
+			{
+				innerBounds.left , innerBounds.top   , 1.f, width, 0.f, height, cropRectangle.left , cropRectangle.top,
+				innerBounds.right, innerBounds.top   , 0.f, width, 0.f, height, cropRectangle.right, cropRectangle.top,
+				innerBounds.right, innerBounds.bottom, 0.f, width, 1.f, height, cropRectangle.right, cropRectangle.bottom,
+
+				innerBounds.left , innerBounds.top   , 0.f, width, 1.f, height, cropRectangle.left , cropRectangle.top,
+				innerBounds.left , innerBounds.bottom, 0.f, width, 0.f, height, cropRectangle.left , cropRectangle.bottom,
+				innerBounds.right, innerBounds.bottom, 1.f, width, 0.f, height, cropRectangle.right, cropRectangle.bottom,
+			}
+		);
+		addDrawCall(6, *(GLuint*)p_image->getHandle());
 	}
 
 	//------------------------------
