@@ -101,6 +101,12 @@ void AvoGUI::convertUtf8ToUtf16(char const* p_input, wchar_t* p_output, uint32 p
 	MultiByteToWideChar(CP_UTF8, 0, p_input, -1, p_output, p_numberOfUnitsInOutput);
 #endif
 }
+void AvoGUI::convertUtf8ToUtf16(std::string const& p_input, wchar_t* p_output, uint32 p_numberOfUnitsInOutput)
+{
+#ifdef _WIN32
+	MultiByteToWideChar(CP_UTF8, 0, p_input.data(), p_input.size() + 1, p_output, p_numberOfUnitsInOutput);
+#endif
+}
 void AvoGUI::convertUtf8ToUtf16(char const* p_input, uint32 p_numberOfUnitsInInput, wchar_t* p_output, uint32 p_numberOfUnitsInOutput)
 {
 #ifdef _WIN32
@@ -111,8 +117,8 @@ std::wstring AvoGUI::convertUtf8ToUtf16(std::string const& p_input)
 {
 #ifdef _WIN32
 	std::wstring result;
-	result.resize(MultiByteToWideChar(CP_UTF8, 0, p_input.c_str(), p_input.size(), 0, 0));
-	MultiByteToWideChar(CP_UTF8, 0, p_input.c_str(), p_input.size(), (wchar_t*)result.data(), result.size());
+	result.resize(MultiByteToWideChar(CP_UTF8, 0, p_input.data(), p_input.size(), 0, 0));
+	MultiByteToWideChar(CP_UTF8, 0, p_input.data(), p_input.size(), (wchar_t*)result.data(), result.size());
 	return result;
 #endif
 }
@@ -163,6 +169,12 @@ void AvoGUI::convertUtf16ToUtf8(wchar_t const* p_input, uint32 p_numberOfUnitsIn
 {
 #ifdef _WIN32
 	WideCharToMultiByte(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, p_output, p_numberOfCharactersInResult, 0, false);
+#endif
+}
+void AvoGUI::convertUtf16ToUtf8(std::wstring const& p_input, char* p_output, uint32 p_numberOfCharactersInOutput)
+{
+#ifdef _WIN32
+	WideCharToMultiByte(CP_UTF8, 0, p_input.data(), p_input.size() + 1, p_output, p_numberOfCharactersInOutput, 0, false);
 #endif
 }
 std::string AvoGUI::convertUtf16ToUtf8(std::wstring const& p_input)
@@ -709,7 +721,9 @@ void AvoGUI::View::queueAnimationUpdate()
 {
 	if (!m_isInAnimationUpdateQueue && m_gui && m_isVisible)
 	{
-		m_gui->queueAnimationUpdateForView(this);
+		m_gui->m_animationUpdateQueue.push_back(this);
+		remember();
+
 		m_isInAnimationUpdateQueue = true;
 	}
 }
@@ -825,15 +839,15 @@ AvoGUI::ModifierKeyFlags convertWindowsKeyStateToModifierKeyFlags(unsigned short
 class OleFormatEnumerator : public IEnumFORMATETC
 {
 private:
-	uint32 m_referenceCount;
+	uint32 m_referenceCount{ 1 };
 
-	FORMATETC* m_formats;
+	FORMATETC* m_formats{ nullptr };
 	uint32 m_numberOfFormats;
-	uint32 m_currentFormatIndex;
+	uint32 m_currentFormatIndex{ 0 };
 
 public:
 	OleFormatEnumerator(FORMATETC* p_formats, uint32 p_numberOfFormats) :
-		m_referenceCount(1), m_numberOfFormats(p_numberOfFormats)
+		m_numberOfFormats(p_numberOfFormats)
 	{
 		m_formats = new FORMATETC[p_numberOfFormats];
 		for (uint32 a = 0; a < p_numberOfFormats; a++)
@@ -1850,59 +1864,72 @@ class WindowsWindow : public AvoGUI::Window
 private:
 	AvoGUI::Gui* m_gui;
 
-	OleDropSource* m_oleDropSource;
-	OleDropTarget* m_oleDropTarget;
+	OleDropSource* m_oleDropSource{ nullptr };
+	OleDropTarget* m_oleDropTarget{ nullptr };
 
-	uint32 m_clipboardFormat_fileContents;
-	uint32 m_clipboardFormat_fileGroupDescriptor;
+	uint32 m_clipboardFormat_fileContents{ 0 };
+	uint32 m_clipboardFormat_fileGroupDescriptor{ 0 };
 
-	HWND m_windowHandle = 0;
+	//------------------------------
+
+	HWND m_windowHandle{ 0 };
 	AvoGUI::WindowStyleFlags m_crossPlatformStyles;
-	uint32 m_styles = 0;
+	uint32 m_styles{ 0 };
+	AvoGUI::WindowState m_state{ AvoGUI::WindowState::Restored };
 
-	bool m_isOpen = false;
+	//------------------------------
+
+	bool m_hasGottenInitialSizeMessageForCustomBorderWindows{ false };
+	bool m_isOpen{ false };
 	AvoGUI::Point<int32> m_position;
 	AvoGUI::Point<uint32> m_size;
 	AvoGUI::Point<uint32> m_minSize;
 	AvoGUI::Point<uint32> m_maxSize;
 
-	float m_dipToPixelFactor = 1.f;
+	float m_dipToPixelFactor{ 1.f };
 
-	bool m_isFullscreen = false;
+	bool m_isFullscreen{ false };
 	RECT m_windowRectBeforeFullscreen;
-	bool m_wasWindowMaximizedBeforeFullscreen = false;
+	bool m_wasWindowMaximizedBeforeFullscreen{ false };
 
-	AvoGUI::WindowState m_state = AvoGUI::WindowState::Restored;
+	//------------------------------
 
-	bool m_isMouseOutsideClientArea = true;
-	AvoGUI::Point<int32> m_mousePosition;
-	HCURSOR m_cursorHandle = 0;
-	AvoGUI::Cursor m_cursorType = (AvoGUI::Cursor)-1;
+	bool m_isMouseOutsideClientArea{ true };
+	AvoGUI::Point<int32> m_mousePosition{ -1, -1 };
+	HCURSOR m_cursorHandle{ 0 };
+	AvoGUI::Cursor m_cursorType{ (AvoGUI::Cursor)-1 };
 
+	//------------------------------
+
+	bool getHasCustomBorder()
+	{
+		return bool(m_crossPlatformStyles & AvoGUI::WindowStyleFlags::CustomBorder);
+	}
 	uint32 convertWindowStyleFlagsToWindowsWindowStyleFlags(AvoGUI::WindowStyleFlags p_styleFlags, bool p_hasParent)
 	{
 		uint32 styles = 0;
 
-		if (p_hasParent)
+		if (p_hasParent || bool(p_styleFlags & AvoGUI::WindowStyleFlags::CustomBorder))
 		{
 			styles |= WS_POPUP;
 		}
 
-		if (!uint32(p_styleFlags & AvoGUI::WindowStyleFlags::Invisible))
+		if (!bool(p_styleFlags & AvoGUI::WindowStyleFlags::Invisible))
 			styles |= WS_VISIBLE;
-		if (uint32(p_styleFlags & AvoGUI::WindowStyleFlags::Border))
+		if (bool(p_styleFlags & AvoGUI::WindowStyleFlags::Border) || 
+			bool(p_styleFlags & AvoGUI::WindowStyleFlags::CustomBorder))
 			styles |= WS_CAPTION | WS_SYSMENU;
 
-		if (uint32(p_styleFlags & AvoGUI::WindowStyleFlags::Minimized))
+		if (bool(p_styleFlags & AvoGUI::WindowStyleFlags::Minimized))
 			styles |= WS_MINIMIZE;
-		else if (uint32(p_styleFlags & AvoGUI::WindowStyleFlags::Maximized))
+		else if (bool(p_styleFlags & AvoGUI::WindowStyleFlags::Maximized))
 			styles |= WS_MAXIMIZE;
 
-		if (uint32(p_styleFlags & AvoGUI::WindowStyleFlags::MinimizeButton))
+		if (bool(p_styleFlags & AvoGUI::WindowStyleFlags::MinimizeButton))
 			styles |= WS_MINIMIZEBOX;
-		if (uint32(p_styleFlags & AvoGUI::WindowStyleFlags::MaximizeButton))
+		if (bool(p_styleFlags & AvoGUI::WindowStyleFlags::MaximizeButton))
 			styles |= WS_MAXIMIZEBOX;
-		if (uint32(p_styleFlags & AvoGUI::WindowStyleFlags::ResizeBorder))
+		if (bool(p_styleFlags & AvoGUI::WindowStyleFlags::ResizeBorder))
 			styles |= WS_THICKFRAME;
 
 		return styles;
@@ -2745,7 +2772,7 @@ private:
 		// Calculate nonclient window rectangle from client size.
 		RECT windowRect = { 0, 0, (int)std::ceil(p_width * m_dipToPixelFactor), (int)std::ceil(p_height * m_dipToPixelFactor) };
 		m_size.set(windowRect.right, windowRect.bottom); // Client area
-
+		
 		AdjustWindowRect(&windowRect, m_styles, 0);
 
 		//------------------------------
@@ -2774,28 +2801,50 @@ private:
 		std::wstring wideTitle = AvoGUI::convertUtf8ToUtf16(p_title, p_titleSize);
 
 		// m_windowHandle is initialized by the WM_CREATE event, before CreateWindow returns.
-		CreateWindowW(
-			WINDOW_CLASS_NAME,
-			wideTitle.c_str(),
-			m_styles,
-			parentRect.left + windowRect.left + p_x * (parentRect.right - parentRect.left - windowRect.right + windowRect.left),
-			parentRect.top + windowRect.top + p_y * (parentRect.bottom - parentRect.top - windowRect.bottom + windowRect.top),
-			windowRect.right - windowRect.left,
-			windowRect.bottom - windowRect.top,
-			p_parent ? (HWND)p_parent->getNativeHandle() : 0,
-			0, // No menu
-			GetModuleHandle(0),
-			this // Additional window data - the instance
-		);
 
-		if (uint32(m_crossPlatformStyles & AvoGUI::WindowStyleFlags::CustomBorder))
+		if (getHasCustomBorder())
 		{
+			CreateWindowW(
+				WINDOW_CLASS_NAME,
+				wideTitle.c_str(),
+				m_styles,
+				0, 0,
+				0, 0,
+				p_parent ? (HWND)p_parent->getNativeHandle() : 0,
+				0, // No menu
+				GetModuleHandle(0),
+				this // Additional window data - the instance
+			);
+
+			/*
+				Remove border, can't do that just with styles without losing the window shadow.
+			*/
+			MARGINS margins = { 0, 0, 0, 1 };
+			DwmExtendFrameIntoClientArea(m_windowHandle, &margins);
+
 			SetWindowPos(
-				m_windowHandle, 0,
-				parentRect.left + p_x * (parentRect.right - parentRect.left - m_size.x),
-				parentRect.top + p_y * (parentRect.bottom - parentRect.top - m_size.y),
-				m_size.x, m_size.y,
-				SWP_NOZORDER
+				m_windowHandle, nullptr,
+				parentRect.left + windowRect.left + p_x * (parentRect.right - parentRect.left - m_size.x),
+				parentRect.top + windowRect.top + p_y * (parentRect.bottom - parentRect.top - m_size.y),
+				m_size.x,
+				m_size.y,
+				SWP_FRAMECHANGED | SWP_NOZORDER
+			);
+		}
+		else
+		{
+			CreateWindowW(
+				WINDOW_CLASS_NAME,
+				wideTitle.c_str(),
+				m_styles,
+				parentRect.left + windowRect.left + p_x * (parentRect.right - parentRect.left - windowRect.right + windowRect.left),
+				parentRect.top + windowRect.top + p_y * (parentRect.bottom - parentRect.top - windowRect.bottom + windowRect.top),
+				windowRect.right - windowRect.left,
+				windowRect.bottom - windowRect.top,
+				p_parent ? (HWND)p_parent->getNativeHandle() : 0,
+				0, // No menu
+				GetModuleHandle(0),
+				this // Additional window data - the instance
 			);
 		}
 		s_numberOfWindows++;
@@ -2815,14 +2864,12 @@ public:
 	//------------------------------
 
 	WindowsWindow(AvoGUI::Gui* p_gui) :
-		m_gui(p_gui), m_crossPlatformStyles((AvoGUI::WindowStyleFlags)0),
-		m_mousePosition(-1, -1)
+		m_gui(p_gui), m_crossPlatformStyles((AvoGUI::WindowStyleFlags)0)
 	{
 		setCursor(AvoGUI::Cursor::Arrow);
 	}
 	WindowsWindow(AvoGUI::Gui* p_gui, char const* p_title, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) :
-		m_gui(p_gui), m_crossPlatformStyles(p_styleFlags), 
-		m_mousePosition(-1, -1)
+		m_gui(p_gui), m_crossPlatformStyles(p_styleFlags)
 	{
 		create(p_title, p_width, p_height, p_styleFlags, p_parent);
 
@@ -3055,7 +3102,7 @@ public:
 		SetWindowPos(m_windowHandle, 0, p_x, p_y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 		m_position.set(p_x, p_y);
 	}
-	AvoGUI::Point<int32> const& getPosition() const override
+	AvoGUI::Point<int32> getPosition() const override
 	{
 		return m_position;
 	}
@@ -3076,14 +3123,21 @@ public:
 	{
 		if (m_windowHandle)
 		{
-			RECT windowRect = { 0, 0, (int)std::ceil(p_width * m_dipToPixelFactor), (int)std::ceil(p_height * m_dipToPixelFactor) };
-			AdjustWindowRect(&windowRect, m_styles, 0);
+			if (getHasCustomBorder())
+			{
+				PostMessage(m_windowHandle, WM_APP_CHANGE_SIZE, std::ceil(p_width*m_dipToPixelFactor), std::ceil(p_height*m_dipToPixelFactor));
+			}
+			else
+			{
+				RECT windowRect = { 0, 0, (int)std::ceil(p_width * m_dipToPixelFactor), (int)std::ceil(p_height * m_dipToPixelFactor) };
+				AdjustWindowRect(&windowRect, m_styles, 0);
 			
-			PostMessage(m_windowHandle, WM_APP_CHANGE_SIZE, uint32(windowRect.right - windowRect.left), uint32(windowRect.bottom - windowRect.top));
+				PostMessage(m_windowHandle, WM_APP_CHANGE_SIZE, uint32(windowRect.right - windowRect.left), uint32(windowRect.bottom - windowRect.top));
+			}
 		}
 	}
 
-	AvoGUI::Point<float> const& getSize() const override
+	AvoGUI::Point<float> getSize() const override
 	{
 		return m_size / m_dipToPixelFactor;
 	}
@@ -3891,8 +3945,8 @@ public:
 				EnableNonClientDpiScaling(m_windowHandle);
 
 				/*
-					LCS_WINDOWS_COLOR_SPACE is the default colorspace, but we want the background erase
-					color to be consistent with the colors of Direct2D and other potential graphics APIs
+					LCS_WINDOWS_COLOR_SPACE is the default colorspace, but we want the background erase 
+					color to be consistent with the colors of Direct2D and other potential graphics APIs 
 					so it is changed to the sRGB color space.
 				*/
 				LOGCOLORSPACEW colorSpaceSettings;
@@ -3905,30 +3959,58 @@ public:
 				HCOLORSPACE colorSpace = CreateColorSpaceW(&colorSpaceSettings);
 				SetColorSpace(GetDC(m_windowHandle), colorSpace);
 
-				//------------------------------
-
 				m_isOpen = true;
-				AvoGUI::WindowEvent event;
-				event.window = this;
 
 				m_gui->excludeAnimationThread();
-				m_gui->handleWindowCreate(event);
+				m_gui->handleWindowCreate({ this, m_size.x / m_dipToPixelFactor, m_size.y / m_dipToPixelFactor });
 				m_gui->includeAnimationThread();
 
 				return 0;
 			}
-			case WM_ACTIVATE:
+			case WM_SIZE:
 			{
-				if (uint32(m_crossPlatformStyles & AvoGUI::WindowStyleFlags::CustomBorder))
+				if (!m_hasCreatedWindow)
 				{
-					MARGINS margins = { 0, 0, 1, 0 };
-					DwmExtendFrameIntoClientArea(m_windowHandle, &margins);
-
-					DWORD flags = DWMNCRP_ENABLED;
-					DwmSetWindowAttribute(m_windowHandle, DWMWA_NCRENDERING_POLICY, &flags, sizeof(DWORD));
+					m_hasCreatedWindowMutex.lock();
+					m_hasCreatedWindow = true;
+					m_hasCreatedWindowMutex.unlock();
+					m_hasCreatedWindowConditionVariable.notify_one();
 					return 0;
 				}
-				break;
+
+				AvoGUI::WindowEvent windowEvent;
+				windowEvent.window = this;
+				if (p_data_a == SIZE_MINIMIZED)
+				{
+					m_gui->excludeAnimationThread();
+					m_gui->handleWindowMinimize(windowEvent);
+					m_gui->includeAnimationThread();
+					m_state = AvoGUI::WindowState::Minimized;
+				}
+				else if (m_hasGottenInitialSizeMessageForCustomBorderWindows || !getHasCustomBorder())
+				{
+					m_size.x = p_data_b & 0xffff;
+					m_size.y = p_data_b >> 16 & 0xffff;
+					windowEvent.width = m_size.x / m_dipToPixelFactor;
+					windowEvent.height = m_size.y / m_dipToPixelFactor;
+
+					m_gui->excludeAnimationThread();
+					if (p_data_a == SIZE_MAXIMIZED)
+					{
+						m_gui->handleWindowMaximize(windowEvent);
+						m_state = AvoGUI::WindowState::Maximized;
+					}
+					else if (p_data_a == SIZE_RESTORED && m_state != AvoGUI::WindowState::Restored)
+					{
+						m_gui->handleWindowRestore(windowEvent);
+						m_state = AvoGUI::WindowState::Restored;
+					}
+					m_gui->handleWindowSizeChange(windowEvent);
+					m_gui->includeAnimationThread();
+				}
+				m_hasGottenInitialSizeMessageForCustomBorderWindows = true;
+
+				return 0;
 			}
 			case WM_APP_CHANGE_SIZE:
 			{
@@ -3971,26 +4053,24 @@ public:
 			}
 			case WM_NCCALCSIZE:
 			{
-				if (uint32(m_crossPlatformStyles & AvoGUI::WindowStyleFlags::CustomBorder) && p_data_a)
+				if (getHasCustomBorder() && p_data_a)
 				{
-					NCCALCSIZE_PARAMS* parameters = (NCCALCSIZE_PARAMS*)p_data_b;
-
 					if (IsMaximized(m_windowHandle))
 					{
+						NCCALCSIZE_PARAMS* parameters = (NCCALCSIZE_PARAMS*)p_data_b;
 						MONITORINFO info = { };
 						info.cbSize = sizeof(MONITORINFO);
 						GetMonitorInfo(MonitorFromRect(parameters->rgrc, MONITOR_DEFAULTTONEAREST), &info);
 
 						parameters->rgrc[0] = info.rcWork;
 					}
-
 					return 0;
 				}
 				break;
 			}
 			case WM_NCMOUSEMOVE:
 			{
-				if (uint32(m_crossPlatformStyles & AvoGUI::WindowStyleFlags::CustomBorder) && GetCapture() != m_windowHandle)
+				if (getHasCustomBorder() && GetCapture() != m_windowHandle)
 				{
 					POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
 					ScreenToClient(m_windowHandle, &mousePosition);
@@ -4013,7 +4093,7 @@ public:
 
 					m_isMouseOutsideClientArea = true;
 
-					// We want the GUI to recieve mouse move events even when the mouse is inside the nonclient area of the window -
+					// We want the GUI to recieve mouse move events even when the mouse is inside the nonclient area of the window - 
 					// because it is in this case part of the GUI (since the CustomBorder style flag is true).
 					if (mousePosition.x >= 0 && mousePosition.y >= 0 && mousePosition.x < m_size.x && mousePosition.y < m_size.y)
 					{
@@ -4114,38 +4194,41 @@ public:
 			}
 			case WM_NCHITTEST:
 			{
-				if (uint32(m_crossPlatformStyles & AvoGUI::WindowStyleFlags::CustomBorder) && p_data_b)
+				if (getHasCustomBorder())
 				{
-					POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
-					ScreenToClient(m_windowHandle, &mousePosition);
+					if (p_data_b)
+					{
+						POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
+						ScreenToClient(m_windowHandle, &mousePosition);
 
-					AvoGUI::WindowBorderArea area = m_gui->getWindowBorderAreaAtPosition(mousePosition.x/m_dipToPixelFactor, mousePosition.y/m_dipToPixelFactor);
-					if (IsMaximized(m_windowHandle) && area != AvoGUI::WindowBorderArea::Dragging && area != AvoGUI::WindowBorderArea::None)
-					{
-						return HTCLIENT;
-					}
-					switch (area)
-					{
-					case AvoGUI::WindowBorderArea::TopLeftResize:
-						return HTTOPLEFT;
-					case AvoGUI::WindowBorderArea::TopResize:
-						return HTTOP;
-					case AvoGUI::WindowBorderArea::TopRightResize:
-						return HTTOPRIGHT;
-					case AvoGUI::WindowBorderArea::LeftResize:
-						return HTLEFT;
-					case AvoGUI::WindowBorderArea::RightResize:
-						return HTRIGHT;
-					case AvoGUI::WindowBorderArea::BottomLeftResize:
-						return HTBOTTOMLEFT;
-					case AvoGUI::WindowBorderArea::BottomResize:
-						return HTBOTTOM;
-					case AvoGUI::WindowBorderArea::BottomRightResize:
-						return HTBOTTOMRIGHT;
-					case AvoGUI::WindowBorderArea::Dragging:
-						return HTCAPTION;
-					case AvoGUI::WindowBorderArea::None:
-						return HTCLIENT;
+						AvoGUI::WindowBorderArea area = m_gui->getWindowBorderAreaAtPosition(mousePosition.x / m_dipToPixelFactor, mousePosition.y / m_dipToPixelFactor);
+						if (IsMaximized(m_windowHandle) && area != AvoGUI::WindowBorderArea::Dragging && area != AvoGUI::WindowBorderArea::None)
+						{
+							return HTCLIENT;
+						}
+						switch (area)
+						{
+						case AvoGUI::WindowBorderArea::TopLeftResize:
+							return HTTOPLEFT;
+						case AvoGUI::WindowBorderArea::TopResize:
+							return HTTOP;
+						case AvoGUI::WindowBorderArea::TopRightResize:
+							return HTTOPRIGHT;
+						case AvoGUI::WindowBorderArea::LeftResize:
+							return HTLEFT;
+						case AvoGUI::WindowBorderArea::RightResize:
+							return HTRIGHT;
+						case AvoGUI::WindowBorderArea::BottomLeftResize:
+							return HTBOTTOMLEFT;
+						case AvoGUI::WindowBorderArea::BottomResize:
+							return HTBOTTOM;
+						case AvoGUI::WindowBorderArea::BottomRightResize:
+							return HTBOTTOMRIGHT;
+						case AvoGUI::WindowBorderArea::Dragging:
+							return HTCAPTION;
+						case AvoGUI::WindowBorderArea::None:
+							return HTCLIENT;
+						}
 					}
 					return 0;
 				}
@@ -4157,50 +4240,6 @@ public:
 				m_dipToPixelFactor = HIWORD(p_data_a) / (float)USER_DEFAULT_SCREEN_DPI;
 				RECT* newRectangle = (RECT*)p_data_b;
 				SetWindowPos(m_windowHandle, 0, newRectangle->left, newRectangle->top, newRectangle->right - newRectangle->left, newRectangle->bottom - newRectangle->top, SWP_NOZORDER | SWP_NOACTIVATE);
-				return 0;
-			}
-			case WM_SIZE:
-			{
-				AvoGUI::WindowEvent windowEvent;
-				windowEvent.window = this;
-				if (p_data_a == SIZE_MINIMIZED)
-				{
-					m_gui->excludeAnimationThread();
-					m_gui->handleWindowMinimize(windowEvent);
-					m_gui->includeAnimationThread();
-					m_state = AvoGUI::WindowState::Minimized;
-				}
-				else
-				{
-					uint32 width = p_data_b & 0xffff;
-					uint32 height = p_data_b >> 16 & 0xffff;
-					m_size.x = width;
-					m_size.y = height;
-					windowEvent.width = width / m_dipToPixelFactor;
-					windowEvent.height = height / m_dipToPixelFactor;
-
-					m_gui->excludeAnimationThread();
-					if (p_data_a == SIZE_MAXIMIZED)
-					{
-						m_gui->handleWindowMaximize(windowEvent);
-						m_state = AvoGUI::WindowState::Maximized;
-					}
-					else if (p_data_a == SIZE_RESTORED && m_state != AvoGUI::WindowState::Restored)
-					{
-						m_gui->handleWindowRestore(windowEvent);
-						m_state = AvoGUI::WindowState::Restored;
-					}
-					m_gui->handleWindowSizeChange(windowEvent);
-					m_gui->includeAnimationThread();
-				}
-
-				if (!m_hasCreatedWindow)
-				{
-					m_hasCreatedWindowMutex.lock();
-					m_hasCreatedWindow = true;
-					m_hasCreatedWindowMutex.unlock();
-					m_hasCreatedWindowConditionVariable.notify_one();
-				}
 				return 0;
 			}
 			case WM_GETMINMAXINFO:
@@ -4234,7 +4273,7 @@ public:
 				POINT mousePosition;
 				mousePosition.x = GET_X_LPARAM(p_data_b);
 				mousePosition.y = GET_Y_LPARAM(p_data_b);
-
+				
 				ScreenToClient(m_windowHandle, &mousePosition);
 
 				float delta = float(GET_WHEEL_DELTA_WPARAM(p_data_a)) / 120.f;
@@ -4474,7 +4513,7 @@ public:
 				if (m_gui->getWillClose())
 				{
 					DeleteColorSpace(GetColorSpace(GetDC(m_windowHandle)));
-
+					
 					RevokeDragDrop(m_windowHandle);
 					OleUninitialize();
 
@@ -6611,7 +6650,7 @@ public:
 
 	//------------------------------
 
-	void setFontFamily(char const* p_name, int32 p_startPosition, int32 p_length) override
+	void setFontFamily(std::string const& p_name, int32 p_startPosition, int32 p_length) override
 	{
 		wchar_t wideName[100];
 		AvoGUI::convertUtf8ToUtf16(p_name, wideName, 100);
@@ -9667,6 +9706,10 @@ public:
 	}
 	AvoGUI::Text* createText(std::string const& p_string, float p_fontSize, AvoGUI::Rectangle<float> const& p_bounds = AvoGUI::Rectangle<float>()) override
 	{
+		if (p_bounds.right > p_bounds.left)
+		{
+		}
+
 		int32 numberOfCharacters = MultiByteToWideChar(CP_UTF8, 0, p_string.c_str(), p_string.size(), 0, 0);
 		wchar_t* wideString = new wchar_t[numberOfCharacters];
 		MultiByteToWideChar(CP_UTF8, 0, p_string.c_str(), p_string.size(), wideString, numberOfCharacters);
@@ -12193,23 +12236,23 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 
 	while (!m_willClose)
 	{
-		if (m_hasNewWindowSize)
-		{
-			excludeAnimationThread();
-			m_hasNewWindowSize = false;
+		//if (m_hasNewWindowSize)
+		//{
+			//excludeAnimationThread();
+			//m_hasNewWindowSize = false;
 
-			AvoGUI::Point<float> sizeBefore = getBottomRight();
-			m_drawingContext->setSize(m_newWindowSize.x, m_newWindowSize.y);
-			m_bounds.set(0, 0, m_newWindowSize.x, m_newWindowSize.y);
-			m_shadowBounds = m_bounds;
-			m_lastWindowSize = m_newWindowSize;
+			//AvoGUI::Point<float> sizeBefore = getBottomRight();
+			//m_drawingContext->setSize(m_newWindowSize.x, m_newWindowSize.y);
+			//m_bounds.set(0, 0, m_newWindowSize.x, m_newWindowSize.y);
+			//m_shadowBounds = m_bounds;
+			//m_lastWindowSize = m_newWindowSize;
 
-			sendBoundsChangeEvents(AvoGUI::Rectangle<float>(0.f, 0.f, sizeBefore.x, sizeBefore.y));
+			//sendBoundsChangeEvents(AvoGUI::Rectangle<float>(0.f, 0.f, sizeBefore.x, sizeBefore.y));
 
-			m_invalidRectangles.clear();
-			invalidate();
-			includeAnimationThread();
-		}
+			//m_invalidRectangles.clear();
+			//invalidate();
+			//includeAnimationThread();
+		//}
 
 		excludeAnimationThread();
 		uint32 numberOfEventsToProcess = m_animationUpdateQueue.size();
@@ -12309,9 +12352,6 @@ void AvoGUI::Gui::create(char const* p_title, uint32 p_titleSize, float p_x, flo
 		m_parent = p_parent;
 	}
 
-	m_lastWindowSize.set(p_width, p_height);
-	m_bounds = AvoGUI::Rectangle<float>(0, 0, p_width, p_height);
-	m_shadowBounds = m_bounds;
 	m_absolutePosition.set(0, 0);
 	m_window->create(p_title, p_titleSize, p_x, p_y, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : nullptr);
 
@@ -12324,9 +12364,6 @@ void AvoGUI::Gui::create(char const* p_title, uint32 p_titleSize, float p_width,
 		m_parent = p_parent;
 	}
 
-	m_lastWindowSize.set(p_width, p_height);
-	m_bounds = AvoGUI::Rectangle<float>(0, 0, p_width, p_height);
-	m_shadowBounds = m_bounds;
 	m_absolutePosition.set(0, 0);
 	m_window->create(p_title, p_titleSize, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : nullptr);
 
@@ -12399,12 +12436,26 @@ void AvoGUI::Gui::handleWindowCreate(WindowEvent const& p_event)
 #endif
 	m_drawingContextState = m_drawingContext->createDrawingState();
 
+	m_bounds.set(0.f, 0.f, p_event.width, p_event.height);
+	m_shadowBounds = m_bounds;
+
 	createContent();
 
 	for (auto listener : m_windowEventListeners)
 	{
 		listener->handleWindowCreate(p_event);
 	}
+
+	/*
+		createContent might have changed the size of the GUI. 
+		In that case, corresponding size event(s) will be caused later by a window size change event.
+	*/
+	if (getWidth() == p_event.width && getHeight() == p_event.height)
+	{
+		View::sendBoundsChangeEvents(AvoGUI::Rectangle<float>());
+	}
+
+	invalidate();
 }
 bool AvoGUI::Gui::handleWindowClose(WindowEvent const& p_event)
 {
@@ -12461,8 +12512,20 @@ void AvoGUI::Gui::handleWindowRestore(WindowEvent const& p_event)
 }
 void AvoGUI::Gui::handleWindowSizeChange(WindowEvent const& p_event)
 {
-	m_newWindowSize.set(p_event.width, p_event.height);
-	m_hasNewWindowSize = true;
+	AvoGUI::Point<float> sizeBefore = getSize();
+	
+	excludeAnimationThread();
+	m_drawingContext->setSize(p_event.width, p_event.height);
+	includeAnimationThread();
+
+	m_bounds.set(0, 0, p_event.width, p_event.height);
+	m_shadowBounds = m_bounds;
+
+	sendBoundsChangeEvents(AvoGUI::Rectangle<float>(0.f, 0.f, sizeBefore.x, sizeBefore.y));
+
+	m_invalidRectangles.clear();
+
+	invalidate();
 
 	for (auto listener : m_windowEventListeners)
 	{
@@ -13371,7 +13434,7 @@ void AvoGUI::OpenFileDialog::open(std::vector<std::wstring>& p_openedFilePaths)
 	CoCreateInstance(CLSID_FileOpenDialog, 0, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&dialog));
 
 	wchar_t wideTitle[200];
-	convertUtf8ToUtf16(m_title, wideTitle, 200);
+	convertUtf8ToUtf16(m_title.data(), m_title.size(), wideTitle, 200);
 	dialog->SetTitle(wideTitle);
 
 	COMDLG_FILTERSPEC* filters = new COMDLG_FILTERSPEC[m_fileExtensions.size()];

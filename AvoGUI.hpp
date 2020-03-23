@@ -237,6 +237,12 @@ namespace AvoGUI
 	*/
 	void convertUtf8ToUtf16(char const* p_input, wchar_t* p_output, uint32 p_numberOfUnitsInOutput);
 	/*
+		Converts a UTF-8 encoded string to a UTF-16 encoded wchar_t string.
+		p_output should be allocated with p_numberOfUnitsInOutput number of wchar_t units.
+		The output includes the null terminator.
+	*/
+	void convertUtf8ToUtf16(std::string const& p_input, wchar_t* p_output, uint32 p_numberOfUnitsInOutput);
+	/*
 		Converts a UTF-8 encoded char string to a UTF-16 encoded wchar_t string.
 		p_numberOfUnitsInInput is the size in bytes of p_input.
 		p_output should be allocated with p_numberOfUnitsInOutput number of wchar_t units.
@@ -281,6 +287,12 @@ namespace AvoGUI
 		The output includes the null terminator.
 	*/
 	void convertUtf16ToUtf8(wchar_t const* p_input, char* p_output, uint32 p_numberOfUnitsInOutput);
+	/*
+		Converts a UTF-16 encoded wstring to a UTF-8 encoded char string.
+		p_output should be allocated with p_numberOfUnitsInOutput number of wchar_t units.
+		The output includes the null terminator.
+	*/
+	void convertUtf16ToUtf8(std::wstring const& p_input, char* p_output, uint32 p_numberOfUnitsInOutput);
 	/*
 		Converts a UTF-16 encoded wchar_t string to a UTF-8 encoded char string.
 		p_numberOfUnitsInInput is the size of p_input, in wchar_t units.
@@ -9418,26 +9430,23 @@ namespace AvoGUI
 	class Gui : public View, public WindowListener
 	{
 	private:
-		Gui* m_parent{nullptr};
-		Window* m_window{nullptr};
-		DrawingContext* m_drawingContext{nullptr};
-		DrawingState* m_drawingContextState{nullptr};
+		Gui* m_parent{ nullptr };
+		Window* m_window{ nullptr };
+		DrawingContext* m_drawingContext{ nullptr };
+		DrawingState* m_drawingContextState{ nullptr };
 
 		std::vector<WindowListener*> m_windowEventListeners;
 
 		//------------------------------
 
-		Point<float> m_lastWindowSize;
-		Point<float> m_newWindowSize;
-		bool m_hasNewWindowSize{false};
 		std::deque<View*> m_animationUpdateQueue;
 
 		std::mutex m_invalidRectanglesMutex;
 		std::vector<Rectangle<float>> m_invalidRectangles;
 
 		std::recursive_mutex m_animationThreadMutex;
-		bool m_hasAnimationLoopStarted{false};
-		bool m_willClose{false};
+		bool m_hasAnimationLoopStarted{ false };
+		bool m_willClose{ false };
 
 		//------------------------------
 
@@ -9474,7 +9483,7 @@ namespace AvoGUI
 
 		void sendBoundsChangeEvents(AvoGUI::Rectangle<float> const& p_previousBounds) override
 		{
-			if ((uint32)getWidth() != (uint32)m_lastWindowSize.x || (uint32)getHeight() != (uint32)m_lastWindowSize.y)
+			if ((uint32)getWidth() != (uint32)m_window->getSize().x || (uint32)getHeight() != (uint32)m_window->getSize().y)
 			{
 				m_window->setSize(getSize());
 			}
@@ -9497,7 +9506,7 @@ namespace AvoGUI
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
 
-			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+			waitForFinish or detachFromThread must be called after creation and before the main thread returns.
 
 			p_title is the text that appears in the title bar of the window (if it has an OS border).
 			p_titleSize is the size of p_title in bytes.
@@ -9519,7 +9528,7 @@ namespace AvoGUI
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
 
-			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+			waitForFinish or detachFromThread must be called after creation and before the main thread returns.
 
 			p_title is the text that appears in the title bar of the window (if it has an OS border).
 			p_titleSize is the size of p_title in bytes.
@@ -9536,7 +9545,7 @@ namespace AvoGUI
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
 		
-			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+			waitForFinish or detachFromThread must be called after creation and before the main thread returns.
 
 			p_title is the text that appears in the title bar of the window (if it has an OS border).
 			
@@ -9557,7 +9566,7 @@ namespace AvoGUI
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
 
-			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+			waitForFinish or detachFromThread must be called after creation and before the main thread returns.
 		
 			p_title is the text that appears in the title bar of the window (if it has an OS border).
 			p_width is the width of the client area in DIPs (device independent pixels).
@@ -9572,7 +9581,7 @@ namespace AvoGUI
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
 
-			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+			waitForFinish or detachFromThread must be called after creation and before the main thread returns.
 
 			p_title is the text that appears in the title bar of the window (if it has an OS border).
 
@@ -9593,7 +9602,7 @@ namespace AvoGUI
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
 
-			waitForFinish or detachFromParent must be called after creation and before the main thread returns.
+			waitForFinish or detachFromThread must be called after creation and before the main thread returns.
 
 			p_title is the text that appears in the title bar of the window (if it has an OS border).
 			p_width is the width of the client area in DIPs (device independent pixels).
@@ -9624,7 +9633,7 @@ namespace AvoGUI
 			This is recommended to be used for child GUIs like popup windows and such, since the parent thread needs to continue running 
 			and can't wait for the child GUI to finish.
 		*/
-		void detachFromParent()
+		void detachFromThread()
 		{
 			m_animationThread.detach();
 		}
@@ -10285,29 +10294,6 @@ namespace AvoGUI
 		virtual void createContent() { };
 
 		//------------------------------
-
-		/*
-			LIBRARY IMPLEMENTED
-			Returns whether the window has been resized since the last GUI size update. Used internally.
-		*/
-		bool getHasNewWindowSize()
-		{
-			return m_hasNewWindowSize;
-		}
-
-		//------------------------------
-
-		/*
-			LIBRARY IMPLEMENTED
-			Adds a view to the animation update queue. Views that are in the animation update queue will be updated after a certain interval.
-			Do not use this method, because it is possible to add a view twice to the queue. Instead use queueAnimationUpdate() on the view.
-			Using that method ensures that animations are only updated max once per interval for every view.
-		*/
-		void queueAnimationUpdateForView(View* p_view)
-		{
-			m_animationUpdateQueue.push_back(p_view);
-			p_view->remember();
-		}
 
 		/*
 			LIBRARY IMPLEMENTED
