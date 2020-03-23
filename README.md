@@ -51,7 +51,7 @@ public:
   
   // Other event listeners that you can override in your GUI are: handleMouseUp, handleMouseDoubleClick, 
   // handleMouseMove, handleMouseScroll, handleMouseEnter, handleMouseLeave, handleMouseBackgroundEnter,
-  // handleMouseBackgroundLeave, handleCharacterInput, handleKeyboardKeyDown and handleKeyboardKeyUp - 
+  // handleMouseBackgroundLeave, handleGlobalCharacterInput, handleGlobalKeyboardKeyDown and handleGlobalKeyboardKeyUp - 
   // as well as the global versions of mouse events. Mouse events and keyboard events are explained more 
   // later in this readme.
 
@@ -96,7 +96,7 @@ public:
   }
 }
 ```
-Don't forget that you might want to create a Gui object too! Views and GUIs have to be dynamically allocated (as with all other classes that inherit ReferenceCounted).
+Don't forget that you might want to create a Gui object too, quite possibly in your entry point function! Views and GUIs have to be dynamically allocated (as with all other classes that inherit ReferenceCounted).
 
 ### Creating a view
 A view is a rectangle that can draw itself and react to different events. Views are used to create components and build up the GUI. They are also used as containers for other views, by setting them as the parent of the views that should be contained within it, using setParent() or the View constructor. Child views can only ever be drawn within their parent.
@@ -180,7 +180,7 @@ public:
 ### Events
 An event is something that happens. You often want your GUI components (views) to react to things that happen outside of their reach, for example a mouse click or when a child has resized itself. Views can inherit abstract classes which have *event handlers* you can override. The names of these abstract classes end with *Listener*, since they are objects that listen for events. The view also needs to be registered to the sender to recieve any events. The registering methods begin with "add" and end with the name of the event listener class. There are also unregistering methods which begin with "remove". You need to call that whenever a registered view is destroyed.
 
-However, this is a bit different for a couple of event listeners.
+However, this is a bit different for a couple of event listeners in the framework.
 To recieve keyboard events:
 1. Let your class inherit AvoGUI::KeyboardListener.
 2. Override the keyboard event handler methods you want to use.
@@ -203,10 +203,10 @@ To support right-to-left languages, set the reading direction of the text to Rea
 Look around in the documentation in AvoGUI.hpp for more information about anything!
 
 ## Compatible platforms
-The goal is to support Windows, Linux and MacOS. Currently, only Windows is supported.
+The goal is to support Windows, Linux and MacOS. Currently, only Windows is fully supported and Linux development is in progress.
 
 ## Development state
-The project is constantly morphing and taking shape to become the ideal GUI library, which means big changes can happen anytime as long as they improve for example workflow, consistency or efficiency. 
+The project is constantly morphing and taking shape to become the ideal GUI library, which means big changes can happen anytime as long as they improve for example workflow, consistency or efficiency. However, the latest version on the master branch should be pretty stable at this point.
 
 ## Contributing
 Don't be afraid to submit issues about the little things! All issues are very welcome, and they help the development of the library a lot. Pull requests are also welcome.
