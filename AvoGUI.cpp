@@ -8354,7 +8354,7 @@ public:
 
 	//------------------------------
 
-	AvoGUI::Geometry* createRoundedRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
+	AvoGUI::Geometry* createRoundedRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, float p_radius, bool p_isStroked) override
 	{
 		ID2D1RoundedRectangleGeometry* geometry;
 		s_direct2DFactory->CreateRoundedRectangleGeometry(
@@ -8366,24 +8366,24 @@ public:
 
 		return new Direct2DGeometry((ID2D1Geometry*)geometry);
 	}
-	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_radius) override
+	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_radius, bool p_isStroked) override
 	{
-		return createRoundedRectangleGeometry(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_radius);
+		return createRoundedRectangleGeometry(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_radius, p_isStroked);
 	}
-	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius) override
+	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Rectangle<float> const& p_rectangle, float p_radius, bool p_isStroked) override
 	{
-		return createRoundedRectangleGeometry(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius);
+		return createRoundedRectangleGeometry(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius, p_isStroked);
 	}
-	AvoGUI::Geometry* createRoundedRectangleGeometry(float p_width, float p_height, float p_radius) override
+	AvoGUI::Geometry* createRoundedRectangleGeometry(float p_width, float p_height, float p_radius, bool p_isStroked) override
 	{
-		return createRoundedRectangleGeometry(0.f, 0.f, p_width, p_height, p_radius);
+		return createRoundedRectangleGeometry(0.f, 0.f, p_width, p_height, p_radius, p_isStroked);
 	}
-	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Point<float> const& p_size, float p_radius) override
+	AvoGUI::Geometry* createRoundedRectangleGeometry(AvoGUI::Point<float> const& p_size, float p_radius, bool p_isStroked) override
 	{
-		return createRoundedRectangleGeometry(0.f, 0.f, p_size.x, p_size.y, p_radius);
+		return createRoundedRectangleGeometry(0.f, 0.f, p_size.x, p_size.y, p_radius, p_isStroked);
 	}
 
-	AvoGUI::Geometry* createCornerRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_corners) override
+	AvoGUI::Geometry* createCornerRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, AvoGUI::RectangleCorners const& p_corners, bool p_isStroked) override
 	{
 		ID2D1PathGeometry1* pathGeometry = 0;
 		s_direct2DFactory->CreatePathGeometry(&pathGeometry);
@@ -8391,30 +8391,30 @@ public:
 
 		return new Direct2DGeometry((ID2D1Geometry*)pathGeometry);
 	}
-	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners)
+	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners, bool p_isStroked) override
 	{
-		return createCornerRectangleGeometry(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_corners);
+		return createCornerRectangleGeometry(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_corners, p_isStroked);
 	}
-	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_corners)
+	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Rectangle<float> const& p_rectangle, AvoGUI::RectangleCorners const& p_corners, bool p_isStroked) override
 	{
-		return createCornerRectangleGeometry(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners);
+		return createCornerRectangleGeometry(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners, p_isStroked);
 	}
-	AvoGUI::Geometry* createCornerRectangleGeometry(float p_width, float p_height, AvoGUI::RectangleCorners const& p_corners)
+	AvoGUI::Geometry* createCornerRectangleGeometry(float p_width, float p_height, AvoGUI::RectangleCorners const& p_corners, bool p_isStroked) override
 	{
-		return createCornerRectangleGeometry(0.f, 0.f, p_width, p_height, p_corners);
+		return createCornerRectangleGeometry(0.f, 0.f, p_width, p_height, p_corners, p_isStroked);
 	}
-	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners)
+	AvoGUI::Geometry* createCornerRectangleGeometry(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners, bool p_isStroked) override
 	{
-		return createCornerRectangleGeometry(0.f, 0.f, p_size.x, p_size.y, p_corners);
+		return createCornerRectangleGeometry(0.f, 0.f, p_size.x, p_size.y, p_corners, p_isStroked);
 	}
 
 	//------------------------------
 
-	AvoGUI::Geometry* createPolygonGeometry(std::vector<AvoGUI::Point<float>> const& p_vertices) override
+	AvoGUI::Geometry* createPolygonGeometry(std::vector<AvoGUI::Point<float>> const& p_vertices, bool p_isStroked) override
 	{
-		return createPolygonGeometry(p_vertices.data(), p_vertices.size());
+		return createPolygonGeometry(p_vertices.data(), p_vertices.size(), p_isStroked);
 	}
-	AvoGUI::Geometry* createPolygonGeometry(AvoGUI::Point<float> const* p_vertices, uint32 p_numberOfVertices) override
+	AvoGUI::Geometry* createPolygonGeometry(AvoGUI::Point<float> const* p_vertices, uint32 p_numberOfVertices, bool p_isStroked) override
 	{
 		if (!p_numberOfVertices)
 		{
@@ -9192,7 +9192,7 @@ public:
 
 	//------------------------------
 
-	AvoGUI::Image* createImage(void const* p_pixelData, uint32 p_width, uint32 p_height) override
+	AvoGUI::Image* createImage(uint8 const* p_pixelData, uint32 p_width, uint32 p_height) override
 	{
 		ID2D1Bitmap1* bitmap = 0;
 		m_context->CreateBitmap(
@@ -12516,12 +12516,12 @@ void AvoGUI::Gui::handleWindowSizeChange(WindowEvent const& p_event)
 	
 	excludeAnimationThread();
 	m_drawingContext->setSize(p_event.width, p_event.height);
-	includeAnimationThread();
 
 	m_bounds.set(0, 0, p_event.width, p_event.height);
 	m_shadowBounds = m_bounds;
 
 	sendBoundsChangeEvents(AvoGUI::Rectangle<float>(0.f, 0.f, sizeBefore.x, sizeBefore.y));
+	includeAnimationThread();
 
 	m_invalidRectangles.clear();
 
