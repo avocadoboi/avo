@@ -162,27 +162,27 @@ uint32 AvoGUI::getNumberOfUnitsInUtfConvertedString(std::string const& p_string)
 void AvoGUI::convertUtf16ToUtf8(wchar_t const* p_input, char* p_output, uint32 p_numberOfCharactersInOutput)
 {
 #ifdef _WIN32
-	WideCharToMultiByte(CP_UTF8, 0, p_input, -1, p_output, p_numberOfCharactersInOutput, 0, false);
+	WideCharToMultiByte(CP_UTF8, 0, p_input, -1, p_output, p_numberOfCharactersInOutput, 0, 0);
 #endif
 }
 void AvoGUI::convertUtf16ToUtf8(wchar_t const* p_input, uint32 p_numberOfUnitsInInput, char* p_output, uint32 p_numberOfCharactersInResult)
 {
 #ifdef _WIN32
-	WideCharToMultiByte(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, p_output, p_numberOfCharactersInResult, 0, false);
+	WideCharToMultiByte(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, p_output, p_numberOfCharactersInResult, 0, 0);
 #endif
 }
 void AvoGUI::convertUtf16ToUtf8(std::wstring const& p_input, char* p_output, uint32 p_numberOfCharactersInOutput)
 {
 #ifdef _WIN32
-	WideCharToMultiByte(CP_UTF8, 0, p_input.data(), p_input.size() + 1, p_output, p_numberOfCharactersInOutput, 0, false);
+	WideCharToMultiByte(CP_UTF8, 0, p_input.data(), p_input.size() + 1, p_output, p_numberOfCharactersInOutput, 0, 0);
 #endif
 }
 std::string AvoGUI::convertUtf16ToUtf8(std::wstring const& p_input)
 {
 #ifdef _WIN32
 	std::string result;
-	result.resize(WideCharToMultiByte(CP_UTF8, 0, p_input.c_str(), p_input.size(), 0, 0, 0, false));
-	WideCharToMultiByte(CP_UTF8, 0, p_input.c_str(), p_input.size(), (char*)result.data(), result.size(), 0, false);
+	result.resize(WideCharToMultiByte(CP_UTF8, 0, p_input.c_str(), p_input.size(), 0, 0, 0, 0));
+	WideCharToMultiByte(CP_UTF8, 0, p_input.c_str(), p_input.size(), (char*)result.data(), result.size(), 0, 0);
 	return result;
 #endif
 }
@@ -190,8 +190,8 @@ std::string AvoGUI::convertUtf16ToUtf8(wchar_t const* p_input)
 {
 #ifdef _WIN32
 	std::string result;
-	result.resize(WideCharToMultiByte(CP_UTF8, 0, p_input, -1, 0, 0, 0, false) - 1);
-	WideCharToMultiByte(CP_UTF8, 0, p_input, -1, (char*)result.data(), result.size(), 0, false);
+	result.resize(WideCharToMultiByte(CP_UTF8, 0, p_input, -1, 0, 0, 0, 0) - 1);
+	WideCharToMultiByte(CP_UTF8, 0, p_input, -1, (char*)result.data(), result.size(), 0, 0);
 	return result;
 #endif
 }
@@ -199,27 +199,27 @@ std::string AvoGUI::convertUtf16ToUtf8(wchar_t const* p_input, uint32 p_numberOf
 {
 #ifdef _WIN32
 	std::string result;
-	result.resize(WideCharToMultiByte(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, 0, 0, 0, false));
-	WideCharToMultiByte(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, (char*)result.data(), result.size(), 0, false);
+	result.resize(WideCharToMultiByte(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, 0, 0, 0, 0));
+	WideCharToMultiByte(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, (char*)result.data(), result.size(), 0, 0);
 	return result;
 #endif
 }
 uint32 AvoGUI::getNumberOfUnitsInUtfConvertedString(wchar_t const* p_input)
 {
 #ifdef _WIN32
-	return WideCharToMultiByte(CP_UTF8, 0, p_input, -1, 0, 0, 0, false);
+	return WideCharToMultiByte(CP_UTF8, 0, p_input, -1, 0, 0, 0, 0);
 #endif
 }
 uint32 AvoGUI::getNumberOfUnitsInUtfConvertedString(wchar_t const* p_input, uint32 p_numberOfUnitsInInput)
 {
 #ifdef _WIN32
-	return WideCharToMultiByte(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, 0, 0, 0, false);
+	return WideCharToMultiByte(CP_UTF8, 0, p_input, p_numberOfUnitsInInput, 0, 0, 0, 0);
 #endif
 }
 uint32 AvoGUI::getNumberOfUnitsInUtfConvertedString(std::wstring const& p_string)
 {
 #ifdef _WIN32
-	return WideCharToMultiByte(CP_UTF8, 0, p_string.data(), p_string.size() + 1, 0, 0, 0, false);
+	return WideCharToMultiByte(CP_UTF8, 0, p_string.data(), p_string.size() + 1, 0, 0, 0, 0);
 #endif
 }
 
@@ -1180,14 +1180,14 @@ class OleClipboardData :
 	public AvoGUI::ClipboardData
 {
 private:
-	IDataObject* m_dataObject = 0;
-	FORMATETC* m_oleFormats = 0;
-	uint32 m_numberOfFormats = 0;
-	uint32 m_numberOfFiles = 0;
+	IDataObject* m_dataObject{ nullptr };
+	FORMATETC* m_oleFormats{ nullptr };
+	uint32 m_numberOfFormats{ 0 };
+	uint32 m_numberOfFiles{ 0 };
 
-	FORMATETC* m_fileDescriptorFormat = 0;
-	FORMATETC* m_itemNamesFormat = 0;
-	FORMATETC* m_textFormat = 0;
+	FORMATETC* m_fileDescriptorFormat{ nullptr };
+	FORMATETC* m_itemNamesFormat{ nullptr };
+	FORMATETC* m_textFormat{ nullptr };
 
 	std::vector<STGMEDIUM> m_globalDataToRelease;
 	std::vector<char const*> m_streamBuffersToRelease;
@@ -2232,7 +2232,7 @@ private:
 		FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[1].hGlobal;
 		groupDescriptor->cItems = 1;
 		groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
-		wcscpy_s(groupDescriptor->fgd[0].cFileName, L"AvoGUI::Image.png");
+		wcscpy_s(groupDescriptor->fgd[0].cFileName, L"image.png");
 
 		return new OleDataObject(formats, mediums, 2);
 	}
@@ -7310,27 +7310,29 @@ public:
 	}
 
 private:
-	AvoGUI::Window* m_window = 0;
+	AvoGUI::Window* m_window{ nullptr };
 
-	ID2D1DeviceContext1* m_context = 0;
-	IDXGISwapChain1* m_swapChain = 0;
-	ID2D1Bitmap1* m_targetWindowBitmap = 0;
-	bool m_isVsyncEnabled;
+	ID2D1DeviceContext1* m_context{ nullptr };
+	IDXGISwapChain1* m_swapChain{ nullptr };
+	ID2D1Bitmap1* m_targetWindowBitmap{ nullptr };
+	bool m_isVsyncEnabled{ true };
 
 	std::stack<bool> m_clipTypeStack;
 
-	ID2D1SolidColorBrush* m_solidColorBrush = 0;
-	ID2D1Brush* m_currentBrush = 0;
-	float m_brushOpacity;
+	ID2D1SolidColorBrush* m_solidColorBrush{ nullptr };
+	ID2D1Brush* m_currentBrush{ nullptr };
+	float m_brushOpacity{ 1.f };
 
 	D2D1_STROKE_STYLE_PROPERTIES1 m_strokeStyleProperties;
 	ID2D1StrokeStyle1* m_strokeStyle = 0;
 
-	AvoGUI::Point<float> m_scale;
+	AvoGUI::Point<float> m_scale{ 1.f, 1.f };
 
 	IDWriteTextFormat* m_textFormat = 0;
 	IDWriteFontCollection* m_fontCollection = 0;
 	std::vector<FontData*> m_fontData;
+
+	std::recursive_mutex m_targetMutex;
 
 	//------------------------------
 
@@ -7471,10 +7473,7 @@ private:
 
 public:
 	Direct2DDrawingContext(AvoGUI::Window* p_window) :
-		m_window(p_window), 
-		m_isVsyncEnabled(true), 
-		m_brushOpacity(1.f), 
-		m_scale(1.f, 1.f)
+		m_window(p_window)
 	{
 		// Create temporary Direct3D device
 
@@ -7675,6 +7674,7 @@ public:
 
 	void beginDrawing() override
 	{
+		m_targetMutex.lock();
 		m_context->BeginDraw();
 	}
 	void finishDrawing(std::vector<AvoGUI::Rectangle<float>> const& p_updatedRectangles) override
@@ -7692,6 +7692,7 @@ public:
 			float dpiFactor = getDpi() / USER_DEFAULT_SCREEN_DPI;
 
 			D2D1_SIZE_U size = m_context->GetPixelSize();
+			m_targetMutex.unlock();
 
 			// If you're getting an exception below, you have three options; 
 			// 1. don't invalidate so damn many rectangles
@@ -7709,7 +7710,13 @@ public:
 			presentParameters.pScrollOffset = 0;
 			presentParameters.pScrollRect = 0;
 
+			ID2D1Multithread* multithreader;
+			s_direct2DFactory->QueryInterface(IID_PPV_ARGS(&multithreader));
+
+			multithreader->Enter();
 			m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
+			multithreader->Leave();
+
 			//delete[] updatedRects;
 		}
 		//else
@@ -7785,15 +7792,25 @@ public:
 			dxgiColor.b = p_color.blue;
 			dxgiColor.a = p_color.alpha;
 
+			ID2D1Multithread* multithreader;
+			s_direct2DFactory->QueryInterface(IID_PPV_ARGS(&multithreader));
+
+			multithreader->Enter();
 			m_swapChain->SetBackgroundColor(&dxgiColor);
+			multithreader->Leave();
 		}
 	}
 	AvoGUI::Color getBackgroundColor()
 	{
 		if (m_swapChain)
 		{
+			ID2D1Multithread* multithreader;
+			s_direct2DFactory->QueryInterface(IID_PPV_ARGS(&multithreader));
+
+			multithreader->Enter();
 			DXGI_RGBA dxgiColor;
 			m_swapChain->GetBackgroundColor(&dxgiColor);
+			multithreader->Leave();
 
 			return AvoGUI::Color(dxgiColor.r, dxgiColor.g, dxgiColor.b, dxgiColor.a);
 		}
@@ -7982,6 +7999,7 @@ public:
 			return;
 		}
 
+		m_targetMutex.lock();
 		ID2D1Image* oldTarget = 0;
 		m_context->GetTarget(&oldTarget);
 
@@ -7999,12 +8017,19 @@ public:
 
 		AvoGUI::Point<float> newSize(p_width * dpi / USER_DEFAULT_SCREEN_DPI, p_height* dpi / USER_DEFAULT_SCREEN_DPI);
 
+		ID2D1Multithread* multithreader;
+		s_direct2DFactory->QueryInterface(IID_PPV_ARGS(&multithreader));
+
+		multithreader->Enter();
+
 		// Resize buffers, creating new ones
 		m_swapChain->ResizeBuffers(0, p_width*dpi / USER_DEFAULT_SCREEN_DPI, p_height*dpi / USER_DEFAULT_SCREEN_DPI, DXGI_FORMAT_UNKNOWN, 0);
 
 		// Get the new back buffer and create new bitmap connected to it
 		IDXGISurface* dxgiBackBuffer = 0;
 		m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
+
+		multithreader->Leave();
 
 		m_context->CreateBitmapFromDxgiSurface(
 			dxgiBackBuffer,
@@ -8022,6 +8047,7 @@ public:
 		{
 			m_context->SetTarget(m_targetWindowBitmap);
 		}
+		m_targetMutex.unlock();
 	}
 	AvoGUI::Point<float> getSize() override
 	{
@@ -8963,6 +8989,8 @@ public:
 
 		p_blur *= 2.f / 3.f;
 
+		m_targetMutex.lock();
+
 		float dpiX = 0;
 		float dpiY = 0;
 		m_context->GetDpi(&dpiX, &dpiY);
@@ -9024,6 +9052,8 @@ public:
 		m_context->EndDraw();
 		m_context->SetTarget(targetBefore);
 
+		m_targetMutex.unlock();
+
 		shadowEffect->Release();
 		inputBitmap->Release();
 		targetBefore->Release();
@@ -9039,6 +9069,8 @@ public:
 		if (!p_width || !p_height || !p_color.alpha) return 0;
 
 		p_blur *= 2.f / 3.f;
+
+		m_targetMutex.lock();
 
 		float dpiX = 0;
 		float dpiY = 0;
@@ -9103,6 +9135,8 @@ public:
 		m_context->EndDraw();
 		m_context->SetTarget(targetBefore);
 
+		m_targetMutex.unlock();
+
 		shadowEffect->Release();
 		inputBitmap->Release();
 		targetBefore->Release();
@@ -9119,6 +9153,8 @@ public:
 		if (!p_width || !p_height || !p_color.alpha) return 0;
 
 		p_blur *= 2.f / 3.f;
+
+		m_targetMutex.lock();
 
 		float dpiX = 0;
 		float dpiY = 0;
@@ -9182,6 +9218,8 @@ public:
 		m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f / dipToPixelFactor, p_blur * 3.f / dipToPixelFactor));
 		m_context->EndDraw();
 		m_context->SetTarget(targetBefore);
+
+		m_targetMutex.unlock();
 
 		shadowEffect->Release();
 		inputBitmap->Release();
@@ -12438,6 +12476,7 @@ void AvoGUI::Gui::handleWindowCreate(WindowEvent const& p_event)
 
 	m_bounds.set(0.f, 0.f, p_event.width, p_event.height);
 	m_shadowBounds = m_bounds;
+	m_lastUpdatedWindowSize.set(p_event.width, p_event.height);
 
 	createContent();
 
@@ -12512,17 +12551,14 @@ void AvoGUI::Gui::handleWindowRestore(WindowEvent const& p_event)
 }
 void AvoGUI::Gui::handleWindowSizeChange(WindowEvent const& p_event)
 {
-	AvoGUI::Point<float> sizeBefore = getSize();
-	
-	excludeAnimationThread();
 	m_drawingContext->setSize(p_event.width, p_event.height);
 
 	m_bounds.set(0, 0, p_event.width, p_event.height);
 	m_shadowBounds = m_bounds;
 
-	sendBoundsChangeEvents(AvoGUI::Rectangle<float>(0.f, 0.f, sizeBefore.x, sizeBefore.y));
-	includeAnimationThread();
+	sendBoundsChangeEvents(AvoGUI::Rectangle<float>(0.f, 0.f, m_lastUpdatedWindowSize.x, m_lastUpdatedWindowSize.y));
 
+	m_lastUpdatedWindowSize.set(p_event.width, p_event.height);
 	m_invalidRectangles.clear();
 
 	invalidate();
@@ -13417,8 +13453,8 @@ void AvoGUI::Gui::drawViews()
 			drawOverlay(m_drawingContext, targetRectangle);
 			m_drawingContext->popClipShape();
 		}
-		m_drawingContext->restoreDrawingState(m_drawingContextState);
 		includeAnimationThread();
+		m_drawingContext->restoreDrawingState(m_drawingContextState);
 		m_drawingContext->finishDrawing(invalidRectangles);
 	}
 }

@@ -4340,7 +4340,7 @@ namespace AvoGUI
 		/*
 			Contains the data that is being dragged.
 		*/
-		ClipboardData* data{ 0 };
+		ClipboardData* data{ nullptr };
 	};
 
 	//------------------------------
@@ -9436,6 +9436,8 @@ namespace AvoGUI
 		DrawingState* m_drawingContextState{ nullptr };
 
 		std::vector<WindowListener*> m_windowEventListeners;
+
+		Point<float> m_lastUpdatedWindowSize;
 
 		//------------------------------
 
