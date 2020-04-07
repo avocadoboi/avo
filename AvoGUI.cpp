@@ -7716,6 +7716,7 @@ public:
 			multithreader->Enter();
 			m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
 			multithreader->Leave();
+			multithreader->Release();
 
 			//delete[] updatedRects;
 		}
@@ -7798,6 +7799,7 @@ public:
 			multithreader->Enter();
 			m_swapChain->SetBackgroundColor(&dxgiColor);
 			multithreader->Leave();
+			multithreader->Release();
 		}
 	}
 	AvoGUI::Color getBackgroundColor()
@@ -7811,6 +7813,7 @@ public:
 			DXGI_RGBA dxgiColor;
 			m_swapChain->GetBackgroundColor(&dxgiColor);
 			multithreader->Leave();
+			multithreader->Release();
 
 			return AvoGUI::Color(dxgiColor.r, dxgiColor.g, dxgiColor.b, dxgiColor.a);
 		}
@@ -8030,6 +8033,7 @@ public:
 		m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
 
 		multithreader->Leave();
+		multithreader->Release();
 
 		m_context->CreateBitmapFromDxgiSurface(
 			dxgiBackBuffer,
