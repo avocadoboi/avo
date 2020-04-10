@@ -296,15 +296,11 @@ void AvoGUI::View::addChild(AvoGUI::View* p_view)
 {
 	if (p_view)
 	{
-		p_view->setIndex(m_children.size());
+		p_view->m_index = m_children.size();
 		m_children.push_back(p_view);
 		updateViewDrawingIndex(p_view);
 
-		handleChildAttachment(p_view);
-		for (auto view : m_viewEventListeners)
-		{
-			view->handleViewChildAttachment(this, p_view);
-		}
+		sendChildAttachmentEvents(p_view);
 	}
 }
 
@@ -324,13 +320,13 @@ void AvoGUI::View::updateViewDrawingIndex(AvoGUI::View* p_view)
 			if (a == numberOfViews - 1U || m_children[a + 1U]->getElevation() >= elevation)
 			{
 				m_children[a] = p_view;
-				p_view->setIndex(a);
+				p_view->m_index = a;
 				return;
 			}
 			else
 			{
 				m_children[a] = m_children[a + 1U];
-				m_children[a]->setIndex(a);
+				m_children[a]->m_index = a;
 			}
 		}
 	}
@@ -341,13 +337,13 @@ void AvoGUI::View::updateViewDrawingIndex(AvoGUI::View* p_view)
 			if (!a || m_children[a - 1]->getElevation() <= elevation)
 			{
 				m_children[a] = p_view;
-				p_view->setIndex(a);
+				p_view->m_index = a;
 				return;
 			}
 			else
 			{
 				m_children[a] = m_children[a - 1];
-				m_children[a]->setIndex(a);
+				m_children[a]->m_index = a;
 			}
 		}
 	}
@@ -394,11 +390,7 @@ void AvoGUI::View::sendBoundsChangeEvents(AvoGUI::Rectangle<float> const& p_prev
 		{
 			updateShadow(); // This is to update the shadow bounds and image.
 
-			handleSizeChange(p_previousBounds.getWidth(), p_previousBounds.getHeight());
-			for (auto viewListener : m_viewEventListeners)
-			{
-				viewListener->handleViewSizeChange(this, p_previousBounds.getWidth(), p_previousBounds.getHeight());
-			}
+			sendSizeChangeEvents(p_previousBounds.getWidth(), p_previousBounds.getHeight());
 
 			updateClipGeometry();
 		}
@@ -415,11 +407,7 @@ void AvoGUI::View::sendBoundsChangeEvents(AvoGUI::Rectangle<float> const& p_prev
 			}
 		}
 
-		handleBoundsChange(p_previousBounds);
-		for (auto viewListener : m_viewEventListeners)
-		{
-			viewListener->handleViewBoundsChange(this, p_previousBounds);
-		}
+		m_boundsChangeListeners.notifyAll(this, p_previousBounds);
 	}
 }
 
@@ -554,15 +542,11 @@ void AvoGUI::View::removeChild(uint32 p_viewIndex)
 	for (uint32 a = p_viewIndex; a < m_children.size() - 1; a++)
 	{
 		m_children[a] = m_children[a + 1];
-		m_children[a]->setIndex(a);
+		m_children[a]->m_index = a;
 	}
 	m_children.pop_back();
 
-	handleChildDetachment(childToRemove);
-	for (auto view : m_viewEventListeners)
-	{
-		view->handleViewChildDetachment(this, childToRemove);
-	}
+	sendChildDetachmentEvents(childToRemove);
 	childToRemove->forget();
 }
 void AvoGUI::View::removeAllChildren()
@@ -572,11 +556,7 @@ void AvoGUI::View::removeAllChildren()
 		AvoGUI::View* child = m_children.back();
 		m_children.pop_back();
 
-		handleChildDetachment(child);
-		for (auto listener : m_viewEventListeners)
-		{
-			listener->handleViewChildDetachment(this, child);
-		}
+		sendChildDetachmentEvents(child);
 		child->forget();
 	}
 }
@@ -3961,9 +3941,7 @@ public:
 
 				m_isOpen = true;
 
-				m_gui->excludeAnimationThread();
-				m_gui->handleWindowCreate({ this, m_size.x / m_dipToPixelFactor, m_size.y / m_dipToPixelFactor });
-				m_gui->includeAnimationThread();
+				sendWindowCreateEvents({ this, m_size.x / m_dipToPixelFactor, m_size.y / m_dipToPixelFactor });
 
 				return 0;
 			}
@@ -3982,9 +3960,7 @@ public:
 				windowEvent.window = this;
 				if (p_data_a == SIZE_MINIMIZED)
 				{
-					m_gui->excludeAnimationThread();
-					m_gui->handleWindowMinimize(windowEvent);
-					m_gui->includeAnimationThread();
+					sendWindowMinimizeEvents(windowEvent);
 					m_state = AvoGUI::WindowState::Minimized;
 				}
 				else if (m_hasGottenInitialSizeMessageForCustomBorderWindows || !getHasCustomBorder())
@@ -3994,19 +3970,17 @@ public:
 					windowEvent.width = m_size.x / m_dipToPixelFactor;
 					windowEvent.height = m_size.y / m_dipToPixelFactor;
 
-					m_gui->excludeAnimationThread();
 					if (p_data_a == SIZE_MAXIMIZED)
 					{
-						m_gui->handleWindowMaximize(windowEvent);
+						sendWindowMaximizeEvents(windowEvent);
 						m_state = AvoGUI::WindowState::Maximized;
 					}
 					else if (p_data_a == SIZE_RESTORED && m_state != AvoGUI::WindowState::Restored)
 					{
-						m_gui->handleWindowRestore(windowEvent);
+						sendWindowRestoreEvents(windowEvent);
 						m_state = AvoGUI::WindowState::Restored;
 					}
-					m_gui->handleWindowSizeChange(windowEvent);
-					m_gui->includeAnimationThread();
+					sendWindowSizeChangeEvents(windowEvent);
 				}
 				m_hasGottenInitialSizeMessageForCustomBorderWindows = true;
 
@@ -4510,7 +4484,7 @@ public:
 			}
 			case WM_CLOSE:
 			{
-				if (m_gui->getWillClose())
+				if (m_willClose)
 				{
 					DeleteColorSpace(GetColorSpace(GetDC(m_windowHandle)));
 					
@@ -4522,9 +4496,7 @@ public:
 				}
 				else
 				{
-					m_gui->excludeAnimationThread();
-					m_gui->handleWindowClose({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
-					m_gui->includeAnimationThread();
+					m_willClose = sendWindowCloseEvents({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
 				}
 
 				return 0;
@@ -12276,7 +12248,7 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 
 	bool wasLastFrameDrawn = false;
 
-	while (!m_willClose)
+	while (!m_window->getWillClose())
 	{
 		//if (m_hasNewWindowSize)
 		//{
@@ -12357,12 +12329,11 @@ AvoGUI::Gui::Gui() :
 	m_window = new LinuxWindow(this);
 #endif
 
+	m_window->addWindowCreateListener(AvoGUI::bind(&Gui::handleWindowCreate, this));
+	m_window->addWindowDestroyListener(AvoGUI::bind(&Gui::handleWindowDestroy, this));
+	m_window->addWindowSizeChangeListener(AvoGUI::bind(&Gui::handleWindowSizeChange, this));
+
 	m_gui = this;
-
-	//------------------------------
-
-	m_windowEventListeners.reserve(5);
-	m_globalKeyboardEventListeners.reserve(20);
 }
 AvoGUI::Gui::~Gui()
 {
@@ -12467,6 +12438,7 @@ AvoGUI::View* AvoGUI::Gui::getViewAt(float p_x, float p_y)
 
 void AvoGUI::Gui::handleWindowCreate(WindowEvent const& p_event)
 {
+	excludeAnimationThread();
 	if (m_drawingContext)
 	{
 		m_drawingContext->forget();
@@ -12484,11 +12456,6 @@ void AvoGUI::Gui::handleWindowCreate(WindowEvent const& p_event)
 
 	createContent();
 
-	for (auto listener : m_windowEventListeners)
-	{
-		listener->handleWindowCreate(p_event);
-	}
-
 	/*
 		createContent might have changed the size of the GUI. 
 		In that case, corresponding size event(s) will be caused later by a window size change event.
@@ -12499,62 +12466,32 @@ void AvoGUI::Gui::handleWindowCreate(WindowEvent const& p_event)
 	}
 
 	invalidate();
+	includeAnimationThread();
 }
-bool AvoGUI::Gui::handleWindowClose(WindowEvent const& p_event)
+void AvoGUI::Gui::handleWindowDestroy(WindowEvent const& p_event)
 {
-	bool willClose = true;
-	for (auto listener : m_windowEventListeners)
+	excludeAnimationThread();
+	if (!m_animationUpdateQueue.empty())
 	{
-		if (!listener->handleWindowClose(p_event))
+		for (AvoGUI::View* view : m_animationUpdateQueue)
 		{
-			willClose = false;
+			view->forget();
 		}
+		m_animationUpdateQueue.clear();
 	}
-	m_willClose = willClose;
-	if (willClose)
+	if (!m_pressedMouseEventListeners.empty())
 	{
-		if (!m_animationUpdateQueue.empty())
+		for (AvoGUI::View* view : m_pressedMouseEventListeners)
 		{
-			for (AvoGUI::View* view : m_animationUpdateQueue)
-			{
-				view->forget();
-			}
-			m_animationUpdateQueue.clear();
+			view->forget();
 		}
-		if (!m_pressedMouseEventListeners.empty())
-		{
-			for (AvoGUI::View* view : m_pressedMouseEventListeners)
-			{
-				view->forget();
-			}
-			m_pressedMouseEventListeners.clear();
-		}
+		m_pressedMouseEventListeners.clear();
 	}
-	return willClose;
-}
-void AvoGUI::Gui::handleWindowMinimize(WindowEvent const& p_event)
-{
-	for (WindowListener* listener : m_windowEventListeners)
-	{
-		listener->handleWindowMinimize(p_event);
-	}
-}
-void AvoGUI::Gui::handleWindowMaximize(WindowEvent const& p_event)
-{
-	for (WindowListener* listener : m_windowEventListeners)
-	{
-		listener->handleWindowMaximize(p_event);
-	}
-}
-void AvoGUI::Gui::handleWindowRestore(WindowEvent const& p_event)
-{
-	for (WindowListener* listener : m_windowEventListeners)
-	{
-		listener->handleWindowRestore(p_event);
-	}
+	includeAnimationThread();
 }
 void AvoGUI::Gui::handleWindowSizeChange(WindowEvent const& p_event)
 {
+	excludeAnimationThread();
 	m_drawingContext->setSize(p_event.width, p_event.height);
 
 	m_bounds.set(0, 0, p_event.width, p_event.height);
@@ -12566,25 +12503,7 @@ void AvoGUI::Gui::handleWindowSizeChange(WindowEvent const& p_event)
 	m_invalidRectangles.clear();
 
 	invalidate();
-
-	for (auto listener : m_windowEventListeners)
-	{
-		listener->handleWindowSizeChange(p_event);
-	}
-}
-void AvoGUI::Gui::handleWindowFocus(WindowEvent const& p_event)
-{
-	for (auto listener : m_windowEventListeners)
-	{
-		listener->handleWindowFocus(p_event);
-	}
-}
-void AvoGUI::Gui::handleWindowUnfocus(WindowEvent const& p_event)
-{
-	for (auto listener : m_windowEventListeners)
-	{
-		listener->handleWindowUnfocus(p_event);
-	}
+	includeAnimationThread();
 }
 
 //------------------------------
@@ -12819,10 +12738,6 @@ void AvoGUI::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 	}
 	p_event.x = absoluteX;
 	p_event.y = absoluteY;
-	for (GlobalDragDropListener* listener : m_globalDragDropListeners)
-	{
-		listener->handleGlobalDragDropMove(p_event);
-	}
 }
 void AvoGUI::Gui::handleGlobalDragDropLeave(DragDropEvent& p_event)
 {
@@ -12904,11 +12819,6 @@ void AvoGUI::Gui::handleGlobalDragDropLeave(DragDropEvent& p_event)
 		{
 			break;
 		}
-	}
-
-	for (GlobalDragDropListener* listener : m_globalDragDropListeners)
-	{
-		listener->handleGlobalDragDropLeave(p_event);
 	}
 }
 
@@ -13165,16 +13075,6 @@ void AvoGUI::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 			}
 		}
 	}
-
-	if (!m_globalMouseEventListeners.empty() && wasMouseReallyMoved)
-	{
-		p_event.x = absoluteX;
-		p_event.y = absoluteY;
-		for (auto listener : m_globalMouseEventListeners)
-		{
-			listener->handleGlobalMouseMove(p_event);
-		}
-	}
 }
 void AvoGUI::Gui::handleGlobalMouseLeave(MouseEvent& p_event)
 {
@@ -13352,13 +13252,6 @@ void AvoGUI::Gui::drawViews()
 		m_invalidRectanglesMutex.lock();
 		std::vector<AvoGUI::Rectangle<float>> invalidRectangles(std::move(m_invalidRectangles));
 		m_invalidRectanglesMutex.unlock();
-		//std::cout << "Invalid rectangles:\n";
-		//for (auto rect : invalidRectangles)
-		//{
-		//	std::cout << "(" << rect.left << ", " << rect.top << ", " << rect.right << ", " << rect.bottom << ")\n";
-		//}
-		//std::cout << "\n\n";
-		//includeAnimationThread();
 
 		excludeAnimationThread(); // State needs to be static during drawing.
 

@@ -31,7 +31,7 @@
 //------------------------------
 
 #include <cstdint> // Fixed-size integer typedefs
-#include <cstdint> 
+#include <cstdint>
 #include <cfloat> // Range defines for float
 #include <cmath>
 #include <cstring>
@@ -43,6 +43,7 @@
 #include <vector>
 #include <deque>
 #include <unordered_map>
+#include <functional>
 
 // Threading
 #include <thread>
@@ -56,15 +57,15 @@
 //------------------------------
 // I don't like the t
 
-typedef int8_t int8;
-typedef int16_t int16;
-typedef int32_t int32;
-typedef int64_t int64;
+using int8 = int8_t;
+using int16 = int16_t;
+using int32 = int32_t;
+using int64 = int64_t;
 
-typedef uint8_t uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
+using uint8 = uint8_t;
+using uint16 = uint16_t;
+using uint32 = uint32_t;
+using uint64 = uint64_t;
 
 //------------------------------
 
@@ -77,7 +78,7 @@ namespace AvoGUI
 	double const TAU =     6.28318530717958647;
 
 	/*
-		Returns a number multiplied by itself (x to the 2nd power, meaning x^2, meaning x*x). 
+		Returns a number multiplied by itself (x to the 2nd power, meaning x^2, meaning x*x).
 		Can be useful if you want to quickly square a longer expression.
 	*/
 	template<typename T>
@@ -106,7 +107,7 @@ namespace AvoGUI
 	}
 
 	/*
-		Returns a random double between 0 and 1 from a uniform distribution. 
+		Returns a random double between 0 and 1 from a uniform distribution.
 		It just uses the standard library random header. Convenient function.
 	*/
 	double random();
@@ -169,7 +170,7 @@ namespace AvoGUI
 		return p_start * (1.0 - p_progress) + p_end * p_progress;
 	}
 	/*
-		Clips p_value so that the returned value is never below p_min or above p_max. 
+		Clips p_value so that the returned value is never below p_min or above p_max.
 		If p_min <= p_value <= p_max, then the returned value is equal to p_value.
 	*/
 	template<typename T>
@@ -209,7 +210,7 @@ namespace AvoGUI
 	}
 
 	/*
-		Removes an element from a vector without keeping the order of the elements in the vector, making it more efficient. 
+		Removes an element from a vector without keeping the order of the elements in the vector, making it more efficient.
 		The function returns true if the element existed in the vector and was removed (replaced by the last element).
 	*/
 	template<typename T>
@@ -279,7 +280,7 @@ namespace AvoGUI
 		The output includes the null terminator.
 	*/
 	uint32 getNumberOfUnitsInUtfConvertedString(std::string const& p_input);
-	
+
 	/*
 		Converts a UTF-16 encoded wchar_t string to a UTF-8 encoded char string.
 		It is assumed that p_input is null-terminated.
@@ -458,7 +459,7 @@ namespace AvoGUI
 		{
 			return p_string.size();
 		}
-		
+
 		uint32 numberOfCharactersCounted = 0;
 		for (uint32 a = 0; a < p_string.size(); a++)
 		{
@@ -513,8 +514,8 @@ namespace AvoGUI
 
 	enum class RoundingType
 	{
-		Down, 
-		Up, 
+		Down,
+		Up,
 		Nearest
 	};
 
@@ -557,219 +558,39 @@ namespace AvoGUI
 	}
 
 	/*
-		Represents an object or value that can be converted to a string.
-		This is used to create formatted strings.
-		You can inherit it to create your own formattable type to be used in AvoGUI::createFormattedString.
-		If the Formattable class is constructed without parameters, the type is set to Type::Other which indicates
-		that it is a custom formattable type and AvoGUI::createFormattedString will use the convertToString method.
-	*/
-	class Formattable
-	{
-	public:
-		enum class Type
-		{
-			String,
-			Int32,
-			Uint32,
-			Int64,
-			Uint64,
-			Float,
-			Double,
-			Other
-		};
+		Simple function to format a string by replacing placeholders in p_format with p_objects.
+		p_objects can be any objects which have a std::ostring << operator defined.
 
-		union Data
-		{
-			std::string stringData;
-			uint32 uint32Data;
-			int32 int32Data;
-			uint64 uint64Data;
-			int64 int64Data;
-			float floatData;
-			double doubleData;
-
-			Data() : 
-				int64Data(0) 
-			{ }
-			~Data() { }
-		};
-
-	private:
-		Type m_type;
-		Data m_data;
-
-	public:
-		Formattable() :
-			m_type(Type::Other)
-		{
-		}
-		Formattable(Formattable const& p_formattable) :
-			m_type(p_formattable.m_type)
-		{
-			if (m_type == Type::String)
-			{
-				new (&m_data.stringData) std::string(p_formattable.m_data.stringData);
-			}
-			else
-			{
-				// It's a number, just copy the bits over
-				memcpy(&m_data, &p_formattable.m_data, sizeof(Data));
-			}
-		}
-		Formattable(std::string&& p_movableString) :
-			m_type(Type::String)
-		{
-			new (&m_data.stringData) std::string(p_movableString);
-		}
-		Formattable(std::string const& p_string) :
-			m_type(Type::String)
-		{ 
-			new (&m_data.stringData) std::string(p_string);
-		}
-		Formattable(char const* p_string) :
-			m_type(Type::String)
-		{
-			new (&m_data.stringData) std::string(p_string);
-		}
-		Formattable(uint32 p_value) :
-			m_type(Type::Uint32)
-		{
-			m_data.uint32Data = p_value;
-		}
-		Formattable(int32 p_value) :
-			m_type(Type::Int32)
-		{
-			m_data.uint32Data = p_value;
-		}
-		Formattable(uint64 p_value) :
-			m_type(Type::Uint64)
-		{
-			m_data.uint32Data = p_value;
-		}
-		Formattable(int64 p_value) :
-			m_type(Type::Int64)
-		{
-			m_data.uint32Data = p_value;
-		}
-		Formattable(double p_value) :
-			m_type(Type::Double)
-		{
-			m_data.doubleData = p_value;
-		}
-		Formattable(float p_value) :
-			m_type(Type::Float)
-		{
-			m_data.floatData = p_value;
-		}
-		virtual ~Formattable()
-		{
-			if (m_type == Type::String)
-			{
-				m_data.stringData.~basic_string();
-			}
-		}
-
-		//------------------------------
-
-		/*
-			
-		*/
-		Type getDataType()
-		{
-			return m_type;
-		}
-		/*
-			Returns the formattable data if the type is not Type::Other.
-		*/
-		Data& getData()
-		{
-			return m_data;
-		}
-
-		//------------------------------
-
-		/*
-			Returns a string representation of the formattable object.
-		*/
-		virtual std::string convertToString()
-		{
-			switch (m_type)
-			{
-			case Type::String:
-				return m_data.stringData;
-			case Type::Uint32:
-				return convertNumberToString(m_data.uint32Data);
-			case Type::Int32:
-				return convertNumberToString(m_data.uint32Data);
-			case Type::Uint64:
-				return convertNumberToString(m_data.uint32Data);
-			case Type::Int64:
-				return convertNumberToString(m_data.uint32Data);
-			case Type::Double:
-				return convertNumberToString(m_data.doubleData);
-			case Type::Float:
-				return convertNumberToString(m_data.floatData);
-			}
-		}
-	};
-	/*
-		Formats a string by replacing placeholders in p_format with the output of formattable objects which can 
-		be values, strings or custom objects.
-		
 		The placeholders are in the form of {index} where index is the index of the argument to be inserted.
 		Writing {0} will insert the first item, {1} will insert the second item.
 		Only values of [0, 9] are allowed as the indicies, meaning max 10 objects can be inserted in one call.
 
 		Example:
 		std::string formattedString(AvoGUI::createFormattedString(
-			"I have {1} {2} and {3} {4} and {5} {6}. Pi: {0}", 
-			{ AvoGUI::PI, 2, "cats", 0, "dogs", 10, "fingers" }
+			"I have {1} {2} and {3} {4} and {5} {6}. Pi: {0}",
+			AvoGUI::PI, 2, "cats", 0, "dogs", 10, "fingers"
 		));
 	*/
-	inline std::string createFormattedString(std::string p_format, std::vector<Formattable> p_insertedObjects)
+	template<typename ... FormattableType>
+	inline std::string createFormattedString(std::string p_format, FormattableType&& ... p_objects)
 	{
+		// c++ is amazing
+		std::vector<std::ostringstream> stringifiedObjects(sizeof...(p_objects));
+		uint32 objectIndex = 0u; 
+		((stringifiedObjects[objectIndex++] << p_objects), ...);
+
 		std::ostringstream stream;
 		stream.precision(10);
-		
+
 		uint32 lastPlaceholderEndIndex = 0;
-		for (uint32 a = 0; a < p_format.size() - 2; a++)
+		for (uint32 a = 0u; a < p_format.size() - 2; a++)
 		{
 			// Utf-8 is backwards-compatible with ASCII so this should work fine.
-			if (p_format[a] == '{' && p_format[++a] >= '0' && p_format[a] <= '9')
+			if (p_format[a] == '{' && p_format[++a] >= '0' && p_format[a] <= '9' && p_format[a + 1] == '}')
 			{
-				Formattable& objectToInsert = p_insertedObjects[p_format[a] - '0'];
-				if (p_format[a + 1] == '}')
-				{
-					stream.write(p_format.data() + lastPlaceholderEndIndex, a - 1 - lastPlaceholderEndIndex);
-					switch (objectToInsert.getDataType())
-					{
-					case Formattable::Type::String:
-						stream << objectToInsert.getData().stringData;
-						break;
-					case Formattable::Type::Uint32:
-						stream << objectToInsert.getData().uint32Data;
-						break;
-					case Formattable::Type::Int32:
-						stream << objectToInsert.getData().int32Data;
-						break;
-					case Formattable::Type::Uint64:
-						stream << objectToInsert.getData().uint64Data;
-						break;
-					case Formattable::Type::Int64:
-						stream << objectToInsert.getData().int64Data;
-						break;
-					case Formattable::Type::Double:
-						stream << objectToInsert.getData().doubleData;
-						break;
-					case Formattable::Type::Float:
-						stream << objectToInsert.getData().floatData;
-						break;
-					default:
-						stream << objectToInsert.convertToString();
-					}
-
-					lastPlaceholderEndIndex = a += 2;
-				}
+				stream.write(p_format.data() + lastPlaceholderEndIndex, a - 1 - lastPlaceholderEndIndex);
+				stream << stringifiedObjects[p_format[a] - '0'].str();
+				lastPlaceholderEndIndex = a += 2;
 			}
 		}
 		stream.write(p_format.data() + lastPlaceholderEndIndex, p_format.size() - 1 - lastPlaceholderEndIndex);
@@ -1099,7 +920,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Calculates the length of the 2d vector with pythagorean theorem. 
+			Calculates the length of the 2d vector with pythagorean theorem.
 			This is faster than getLength() and getLengthFast() since no square root is needed, so use this one when you can!
 		*/
 		PointType getLengthSquared() const
@@ -1490,7 +1311,7 @@ namespace AvoGUI
 	class ProtectedRectangle;
 
 	/*
-		A 2D axis-aligned rectangle. right > left and bottom > top. 
+		A 2D axis-aligned rectangle. right > left and bottom > top.
 		Increasingly positive values for bottom and top will move the rectangle downwards and increasingly positive
 		values for left and right will move the rectangle to the right (when used in the AvoGUI framework).
 	*/
@@ -1675,7 +1496,7 @@ namespace AvoGUI
 			return setTopLeft(p_topAndLeft, p_topAndLeft, p_willKeepSize);
 		}
 		/*
-			Sets the top left coordinates of the rectangle. 
+			Sets the top left coordinates of the rectangle.
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		template<typename T>
@@ -1684,7 +1505,7 @@ namespace AvoGUI
 			return setTopLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
-			Sets the top left coordinates of the rectangle. 
+			Sets the top left coordinates of the rectangle.
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		Rectangle<RectangleType>& setTopLeft(RectangleType p_left, RectangleType p_top, bool p_willKeepSize = true)
@@ -1742,7 +1563,7 @@ namespace AvoGUI
 			return setTopRight(p_topAndRight, p_topAndRight, p_willKeepSize);
 		}
 		/*
-			Sets the top right coordinates of the rectangle. 
+			Sets the top right coordinates of the rectangle.
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		template<typename T>
@@ -1751,7 +1572,7 @@ namespace AvoGUI
 			return setTopRight(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
-			Sets the top right coordinates of the rectangle. 
+			Sets the top right coordinates of the rectangle.
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		Rectangle<RectangleType>& setTopRight(RectangleType p_right, RectangleType p_top, bool p_willKeepSize = true)
@@ -1809,7 +1630,7 @@ namespace AvoGUI
 			return setBottomLeft(p_bottomAndLeft, p_bottomAndLeft, p_willKeepSize);
 		}
 		/*
-			Sets the bottom left coordinates of the rectangle. 
+			Sets the bottom left coordinates of the rectangle.
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		template<typename T>
@@ -1818,7 +1639,7 @@ namespace AvoGUI
 			return setBottomLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
-			Sets the bottom left coordinates of the rectangle. 
+			Sets the bottom left coordinates of the rectangle.
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		Rectangle<RectangleType>& setBottomLeft(RectangleType p_left, RectangleType p_bottom, bool p_willKeepSize = true)
@@ -1876,7 +1697,7 @@ namespace AvoGUI
 			return setBottomRight(p_bottomAndRight, p_bottomAndRight, p_willKeepSize);
 		}
 		/*
-			Sets the bottom right coordinates of the rectangle. 
+			Sets the bottom right coordinates of the rectangle.
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		template<typename T>
@@ -1885,7 +1706,7 @@ namespace AvoGUI
 			return setBottomRight(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
-			Sets the bottom right coordinates of the rectangle. 
+			Sets the bottom right coordinates of the rectangle.
 			If p_willKeepSize is true, the rectangle will only get moved, keeping its size.
 		*/
 		Rectangle<RectangleType>& setBottomRight(RectangleType p_right, RectangleType p_bottom, bool p_willKeepSize = true)
@@ -2021,7 +1842,7 @@ namespace AvoGUI
 			return Rectangle<RectangleType>(offsetX + left, offsetY + top, offsetX + right, offsetY + bottom);
 		}
 		/*
-			Sets the same center coordinates of the rectangle for the x-axis and the y-axis. 
+			Sets the same center coordinates of the rectangle for the x-axis and the y-axis.
 		*/
 		template<typename T>
 		Rectangle<RectangleType>& setCenter(T p_centerXY)
@@ -2029,7 +1850,7 @@ namespace AvoGUI
 			return setCenter(p_centerXY, p_centerXY);
 		}
 		/*
-			Sets the center coordinates of the rectangle by moving it. 
+			Sets the center coordinates of the rectangle by moving it.
 		*/
 		template<typename T>
 		Rectangle<RectangleType>& setCenter(Point<T> const& p_position)
@@ -2037,7 +1858,7 @@ namespace AvoGUI
 			return setCenter(p_position.x, p_position.y);
 		}
 		/*
-			Sets the center coordinates of the rectangle by moving it. 
+			Sets the center coordinates of the rectangle by moving it.
 		*/
 		template<typename T0, typename T1>
 		Rectangle<RectangleType>& setCenter(T0 p_x, T1 p_y)
@@ -2386,13 +2207,13 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType>& contain(Rectangle<T> const& p_rectangle)
 		{
-			if (p_rectangle.left < left) 
+			if (p_rectangle.left < left)
 				left = p_rectangle.left;
-			if (p_rectangle.top < top) 
+			if (p_rectangle.top < top)
 				top = p_rectangle.top;
-			if (p_rectangle.right > right) 
+			if (p_rectangle.right > right)
 				right = p_rectangle.right;
-			if (p_rectangle.bottom > bottom) 
+			if (p_rectangle.bottom > bottom)
 				bottom = p_rectangle.bottom;
 
 			return *this;
@@ -2403,13 +2224,13 @@ namespace AvoGUI
 		*/
 		Rectangle<RectangleType>& contain(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom)
 		{
-			if (p_left < left) 
+			if (p_left < left)
 				left = p_left;
-			if (p_top < top) 
+			if (p_top < top)
 				top = p_top;
-			if (p_right > right) 
+			if (p_right > right)
 				right = p_right;
-			if (p_bottom > bottom) 
+			if (p_bottom > bottom)
 				bottom = p_bottom;
 
 			return *this;
@@ -2775,7 +2596,7 @@ namespace AvoGUI
 
 		float bottomRightSizeX;
 		float bottomRightSizeY;
-		
+
 		RectangleCorners() :
 			topLeftSizeX(0.f), topLeftSizeY(0.f), topRightSizeX(0.f), topRightSizeY(0.f),
 			bottomLeftSizeX(0.f), bottomLeftSizeY(0.f), bottomRightSizeX(0.f), bottomRightSizeY(0.f),
@@ -2895,7 +2716,7 @@ namespace AvoGUI
 			Transforms a normalized value according to a cubic bezier curve.
 			p_precision is the maximum amount of error in the output value.
 
-			It calculates a quick newton's method estimation since the cubic bezier curve is defined as a calculation of points; 
+			It calculates a quick newton's method estimation since the cubic bezier curve is defined as a calculation of points;
 			f(t) = (x, y) where 0 <= t <= 1, and we want to ease over x (p_value is x) and not t. This why we have a precision parameter.
 		*/
 		float easeValue(float p_value, float p_precision = 0.005f) const;
@@ -2906,7 +2727,7 @@ namespace AvoGUI
 	/*
 		This is very useful when storing pointers to dynamically allocated objects in multiple places.
 		The object doesn't get deleted until every remember() has a forget().
-		The constructor is the first remember(), meaning m_referenceCount is initialized with 1. 
+		The constructor is the first remember(), meaning m_referenceCount is initialized with 1.
 		Don't use the delete operator with objects that are ReferenceCounted, use forget() instead.
 
 		I just like this a lot more than using std::shared_ptr etc. You have more control! And it may be more efficient.
@@ -2959,7 +2780,7 @@ namespace AvoGUI
 	/*
 		ARGB formatted 32-bit packed color, where every channel has 8 bits.
 	*/
-	typedef uint32 colorInt;
+	using colorInt = uint32;
 
 	inline uint8 getRedChannel(colorInt p_color)
 	{
@@ -3611,9 +3432,9 @@ namespace AvoGUI
 	inline Color interpolate(Color const& p_start, Color const& p_end, float p_progress)
 	{
 		return Color(
-			p_start.red * (1.f - p_progress) + p_end.red*p_progress, 
-			p_start.green * (1.f - p_progress) + p_end.green*p_progress, 
-			p_start.blue * (1.f - p_progress) + p_end.blue*p_progress, 
+			p_start.red * (1.f - p_progress) + p_end.red*p_progress,
+			p_start.green * (1.f - p_progress) + p_end.green*p_progress,
+			p_start.blue * (1.f - p_progress) + p_end.blue*p_progress,
 			p_start.alpha * (1.f - p_progress) + p_end.alpha*p_progress
 		);
 	}
@@ -3916,7 +3737,7 @@ namespace AvoGUI
 		std::unordered_map<std::string, float> values;
 
 		/*
-			This initializes the default theme. 
+			This initializes the default theme.
 			If you want to know the default values you can look at the definition in AvoGUI.hpp.
 			In Visual Studio and Visual Studio Code, you can go to the definition of Theme (ctrl + T, "Theme") to find
 			it quickly. In CLion, you can use ctrl + N, "Theme" to go to its definition (by default).
@@ -3984,6 +3805,52 @@ namespace AvoGUI
 		~Theme() override = default;
 	};
 
+	//------------------------------
+
+	template<typename ReturnType, typename Class, typename ... Arguments>
+	std::function<ReturnType(Arguments...)> bind(ReturnType(Class::*p_function)(Arguments...), Class* p_instance)
+	{
+		return [p_instance, p_function](Arguments... arguments) { return (p_instance->*p_function)(arguments...); };
+	}
+
+	template<typename FunctionalType>
+	class EventListeners
+	{
+	public:
+		std::vector<std::function<FunctionalType>> listeners;
+
+		void add(std::function<FunctionalType> p_listener)
+		{
+			listeners.push_back(p_listener);
+		}
+		void remove(std::function<FunctionalType> p_listener)
+		{
+			auto const& listenerType = p_listener.target_type();
+			auto listenerPointer = *(p_listener.template target<FunctionalType*>());
+			for (auto& listener : listeners)
+			{
+				if (listenerType == listener.target_type())
+				{
+					// template keyword is used to expicitly tell the compiler that target is a template method for
+					// std::function<FunctionalType> and < shouldn't be parsed as the less-than operator
+					if (listenerPointer == *(listener.template target<FunctionalType*>()))
+					{
+						listener = listeners.back();
+						listeners.pop_back();
+						break;
+					}
+				}
+			}
+		}
+		template<typename ... T>
+		void notifyAll(T&& ... p_eventArguments)
+		{
+			for (auto listener : listeners)
+			{
+				listener(std::forward<T>(p_eventArguments)...);
+			}
+		}
+	};
 #pragma endregion
 
 	//------------------------------
@@ -4042,9 +3909,15 @@ namespace AvoGUI
 		X1
 	};
 
+	class View;
 	class MouseEvent
 	{
 	public:
+	    /*
+            The view that the mouse interacted with.
+        */
+	    View* target;
+
 		/*
 			X coordinate of the mouse pointer.
 		*/
@@ -4084,53 +3957,6 @@ namespace AvoGUI
 		{ }
 	};
 
-	/*
-		This can be inherited by any class.
-		Remember to register it to the GUI by calling the addGlobalMouseListener() method on it.
-		A GlobalMouseListener will receive mouse events as long as the window is focused.
-	*/
-	class GlobalMouseListener
-	{
-	public:
-		/*
-			USER IMPLEMENTED
-			Gets called when a mouse button has been pressed down while the mouse cursor is inside the window.
-			p_event is an object that contains information about the mouse event.
-		*/
-		virtual void handleGlobalMouseDown(MouseEvent const& p_event) { }
-		/*
-			USER IMPLEMENTED
-			Gets called when a mouse button has been released after having been pressed down when the mouse pointer was inside the window.
-			The mouse cursor may have left the window during the time the button is pressed, but it will still receive the event.
-			p_event is an object that contains information about the mouse event.
-		*/
-		virtual void handleGlobalMouseUp(MouseEvent const& p_event) { }
-		/*
-			USER IMPLEMENTED
-			Gets called when a mouse button has been double clicked while the mouse pointer is inside the window.
-			p_event is an object that contains information about the mouse event.
-		*/
-		virtual void handleGlobalMouseDoubleClick(MouseEvent const& p_event) { }
-
-		/*
-			USER IMPLEMENTED
-			Gets called when the mouse has been moved while the mouse cursor is inside the window.
-			p_event is an object that contains information about the mouse event.
-		*/
-		virtual void handleGlobalMouseMove(MouseEvent const& p_event) { }
-		/*
-			USER IMPLEMENTED
-			Gets called when the mouse wheel has been scrolled while the mouse pointer is inside the window.
-			p_event is an object that contains information about the mouse event.
-		*/
-		virtual void handleGlobalMouseScroll(MouseEvent const& p_event) { }
-		/*
-			USER IMPLEMENTED
-			Gets called when the cursor has been moved from the GUI.
-		*/
-		virtual void handleGlobalMouseLeave(MouseEvent const& p_event) { }
-	};
-
 	//------------------------------
 
 	enum class KeyboardKey
@@ -4141,8 +3967,8 @@ namespace AvoGUI
 		Tab,
 		Return, // Enter and return have the same value.
 		Enter = Return, // Enter and return have the same value.
-		Shift, 
-		Control, 
+		Shift,
+		Control,
 		Menu,
 		Alt,
 		CapsLock,
@@ -4152,7 +3978,7 @@ namespace AvoGUI
 		PrintScreen,
 		Insert,
 		Delete,
-		Pause, 
+		Pause,
 		Help,
 		Separator,
 		Left, Right, Up, Down,
@@ -4171,6 +3997,10 @@ namespace AvoGUI
 	{
 	public:
 		/*
+			A pointer to the view that the event is directed towards.
+		*/
+		View* target;
+		/*
 			The character that was pressed. This is only valid for character press events.
 			Since the multibyte UTF-8 encoding is used, this is a string that could be up to 4 8-bit chars.
 		*/
@@ -4187,34 +4017,6 @@ namespace AvoGUI
 		KeyboardEvent() :
 			key(KeyboardKey::None), isRepeated(false)
 		{ }
-	};
-
-	class KeyboardListener
-	{
-	public:
-		/*
-			This method is called when a character key has been pressed.
-			Only p_event.character and p_event.isRepeated are valid for this event type.
-		*/
-		virtual void handleCharacterInput(KeyboardEvent const& p_event) { }
-		/*
-			This method is called when a keyboard key has been pressed.
-			Only p_event.key and p_event.isRepeated are valid for this event type.
-		*/
-		virtual void handleKeyboardKeyDown(KeyboardEvent const& p_event) { }
-		/*
-			This method is called when a keyboard key has been released.
-			Only p_event.key is valid for this event type.
-		*/
-		virtual void handleKeyboardKeyUp(KeyboardEvent const& p_event) { }
-		/*
-			Gets called when another keyboard event listener becomes the target of keyboard events.
-		*/
-		virtual void handleKeyboardFocusLose() { }
-		/*
-			Gets called when this keyboard event listener becomes the target of keyboard events.
-		*/
-		virtual void handleKeyboardFocusGain() { }
 	};
 
 	//------------------------------
@@ -4316,6 +4118,10 @@ namespace AvoGUI
 	{
 	public:
 		/*
+			The view that the event is directed towards.
+		*/
+		View* target;
+		/*
 			The modifier keys that were pressed when the event fired.
 		*/
 		ModifierKeyFlags modifierKeys{ ModifierKeyFlags::None };
@@ -4343,66 +4149,11 @@ namespace AvoGUI
 		ClipboardData* data{ nullptr };
 	};
 
-	//------------------------------
-
-	class GlobalDragDropListener
-	{
-	public:
-		/*
-			Gets sent from the GUI that this listener is registered to whenever a dragged item enters the GUI.
-		*/
-		virtual void handleGlobalDragDropEnter(DragDropEvent const& p_event) { }
-		/*
-			Gets sent from the GUI that this listener is registered to whenever a dragged item enters the GUI.
-		*/
-		virtual void handleGlobalDragDropMove(DragDropEvent const& p_event) { }
-		/*
-			Gets sent from the GUI that this listener is registered to whenever a dragged item enters the GUI.
-		*/
-		virtual void handleGlobalDragDropLeave(DragDropEvent const& p_event) { }
-		/*
-			Gets sent from the GUI that this listener is registered to whenever a dragged item is dropped over the GUI.
-		*/
-		virtual void handleGlobalDragDropFinish(DragDropEvent const& p_event) { }
-		/*
-			Gets sent from the GUI that this listener is registered to whenever the operation type of a drag and drop from the GUI has changed, possibly by other applications.
-			The type of a drag and drop operation can change when the cursor enters and/or moves over different drop targets or when the state of the alt and/or shift keys change.
-		*/
-		virtual void handleGlobalDragDropOperationChange(DragDropOperation p_newOperation) { }
-	};
 #pragma endregion
 
 	//------------------------------
 
 #pragma region View
-	class View;
-
-	class ViewListener
-	{
-	public:
-		/*
-			USER IMPLEMENTED
-			This gets called when a view that has registered this listener has changed its size.
-		*/
-		virtual void handleViewSizeChange(View* p_view, float p_previousWidth, float p_previousHeight) { }
-		/*
-			USER IMPLEMENTED
-			This gets called when a view that has registered this listener has changed any of its bounding rectangle coordinates.
-			The size and/or the position of the view may have changed.
-		*/
-		virtual void handleViewBoundsChange(View* p_view, Rectangle<float> const& p_previousBounds) { }
-		/*
-			USER IMPLEMENTED
-			This gets called when a view that has registered this listener has gotten a child attached to it.
-		*/
-		virtual void handleViewChildAttachment(View* p_parent, View* p_attachedChild) { }
-		/*
-			USER IMPLEMENTED
-			This gets called when a view that has registered this listener has gotten a child detached from it.
-		*/
-		virtual void handleViewChildDetachment(View* p_parent, View* p_detachedChild) { }
-	};
-
 	// forward declaration <3
 
 	class Gui;
@@ -4417,18 +4168,9 @@ namespace AvoGUI
 	*/
 	class View : public ReferenceCounted, public ProtectedRectangle
 	{
-	private:
-		std::vector<ViewListener*> m_viewEventListeners;
-		bool m_isInAnimationUpdateQueue{false};
-		bool m_isVisible{true};
-		bool m_isOverlay{false};
+    private:
+        friend class Gui;
 
-		bool m_areDragDropEventsEnabled{false};
-
-		bool m_areMouseEventsEnabled{false};
-		Cursor m_cursor{Cursor::Arrow};
-
-		float m_opacity{1.f};
 		RectangleCorners m_corners;
 
 		//------------------------------
@@ -4436,79 +4178,24 @@ namespace AvoGUI
 		Point<float> m_absolutePosition;
 		Rectangle<float> m_lastInvalidatedShadowBounds;
 		Rectangle<float> m_shadowBounds;
-		Image* m_shadowImage{nullptr};
-		bool m_hasShadow{true};
+		Image* m_shadowImage{ nullptr };
+		bool m_hasShadow{ true };
 
-		float m_elevation{0.f};
-
-		//------------------------------
-
-		uint32 m_layerIndex{0};
-		uint32 m_index{0};
-		uint64 m_id{0};
+		float m_elevation{ 0.f };
 
 		//------------------------------
 
-		bool m_isMouseHovering{false};
-		bool m_isDraggingOver{false};
-
-		friend class Gui;
+		uint32 m_layerIndex{ 0 };
+		uint32 m_index{ 0 };
+		uint64 m_id{ 0 };
 
 		//------------------------------
 
 		/*
 			LIBRARY IMPLEMENTED
-			Moves the point(s) representing the absolute position(s) of this view and/or all children of this view (recursively).
-			The absolute positions of views are used often for mouse event targeting, among other things.
-			Because of this, it is pre-calculated in this way only when this view or a parent view has moved.
-		*/
-		void moveAbsolutePositions(float p_offsetX, float p_offsetY, bool p_willUpdateChildren = true)
-		{
-			m_absolutePosition.move(p_offsetX, p_offsetY);
-
-			if (p_willUpdateChildren && !m_children.empty())
-			{
-				View* currentContainer = this;
-				View* child = nullptr;
-				uint32 startIndex = 0;
-				while (true)
-				{
-				loopBody:
-					for (uint32 a = startIndex; a < currentContainer->getNumberOfChildren(); a++)
-					{
-						child = currentContainer->getChild(a);
-						child->moveAbsolutePositions(p_offsetX, p_offsetY, false);
-						if (child->getNumberOfChildren())
-						{
-							currentContainer = child;
-							startIndex = 0;
-							goto loopBody; // THIS IS GOOD USE OF GOTO OK
-						}
-					}
-					if (currentContainer == this)
-					{
-						return;
-					}
-					startIndex = currentContainer->getIndex() + 1;
-					currentContainer = currentContainer->getParent();
-				}
-			}
-		}
-		Point<float> calculateAbsolutePositionRelativeTo(Point<float> p_position) const;
-
-		/*
-			LIBRARY IMPLEMENTED
-			Only adds a child view to the child list of this view. 
+			Only adds a child view to the child list of this view.
 		*/
 		void addChild(View* p_view);
-		/*
-			LIBRARY IMPLEMENTED
-			This doesn't change the actual index of this view, it only helps the view keep track of its current index.
-		*/
-		void setIndex(uint32 p_index)
-		{
-			m_index = p_index;
-		}
 		/*
 			LIBRARY IMPLEMENTED
 			Makes sure the view is drawn at the correct time, according to elevation.
@@ -4519,18 +4206,18 @@ namespace AvoGUI
 			Updates the shadow bounds and the shadow image.
 		*/
 		void updateShadow();
-
-	protected:
-		Gui* m_gui{nullptr};
-		View* m_parent{nullptr};
-		Theme* m_theme{nullptr};
-
-		std::vector<View*> m_children;
-
 		/*
 			LIBRARY IMPLEMENTED
+			Draws the shadow of the view.
 		*/
-		virtual void sendBoundsChangeEvents(Rectangle<float> const& p_previousBounds);
+		void drawShadow(DrawingContext* p_drawingContext);
+
+	protected:
+		Gui* m_gui{ nullptr };
+		View* m_parent{ nullptr };
+		Theme* m_theme{ nullptr };
+
+		std::vector<View*> m_children;
 
 		/*
 			USER IMPLEMENTED
@@ -4553,7 +4240,7 @@ namespace AvoGUI
 		*/
 		virtual void handleThemeValueChange(std::string const& p_name, float p_newValue) { };
 
-		Geometry* m_clipGeometry = 0;
+		Geometry* m_clipGeometry{ nullptr };
 		/*
 			LIBRARY IMPLEMENTED
 			This is called whenever the clipping geometry of the view needs to be updated.
@@ -4575,8 +4262,8 @@ namespace AvoGUI
 
 		/*
 			Sets the geometry being used to clip the view's contents.
-			The clip geometry of the view is by default updated automatically in the updateGeometry method when the size has changed, but only if the old geometry's reference count is equal to 1. 
-			Note that hit testing is not by default affected by this, override getIsContaining(float p_x, float p_y) if you want custom hit testing. 
+			The clip geometry of the view is by default updated automatically in the updateGeometry method when the size has changed, but only if the old geometry's reference count is equal to 1.
+			Note that hit testing is not by default affected by this, override getIsContaining(float p_x, float p_y) if you want custom hit testing.
 		*/
 		void setClipGeometry(Geometry* p_geometry);
 		/*
@@ -4589,6 +4276,9 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		bool m_isOverlay{ false };
+	public:
 		/*
 			LIBRARY IMPLEMENTED
 			If you set this to true, this view will not block any mouse events from reaching views below this one.
@@ -4600,7 +4290,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Returns whether this view blocks mouse events from reaching views below this one. 
+			Returns whether this view blocks mouse events from reaching views below this one.
 			False means it blocks, true means it does not.
 		*/
 		bool getIsOverlay()
@@ -4610,6 +4300,28 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		bool m_isVisible{ true };
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Sets whether the view is visible and can receive events.
+		*/
+		void setIsVisible(bool p_isVisible);
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether the view is visible and can receive events.
+		*/
+		bool getIsVisible() const
+		{
+			return m_isVisible;
+		}
+
+		//------------------------------
+
+	private:
+		float m_opacity{ 1.f };
+	public:
 		/*
 			Sets how opaque the view and its children are (multiplied with parent opacity).
 		*/
@@ -4691,13 +4403,13 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Removes a child view from this view. This forgets the view being removed. 
+			Removes a child view from this view. This forgets the view being removed.
 			If you haven't remembered it yourself, it will get deleted.
 		*/
 		void removeChild(View* p_view);
 		/*
 			LIBRARY IMPLEMENTED
-			Removes a child view from this view. This forgets the view being removed. 
+			Removes a child view from this view. This forgets the view being removed.
 			If you haven't remembered it yourself, it will get deleted.
 		*/
 		void removeChild(uint32 p_viewIndex);
@@ -4706,17 +4418,6 @@ namespace AvoGUI
 			Forgets the children views and empties this view from children.
 		*/
 		void removeAllChildren();
-
-		/*
-			USER IMPLEMENTED
-			Gets called when a child view has been added to this view.
-		*/
-		virtual void handleChildAttachment(View* p_attachedChild) { }
-		/*
-			USER IMPLEMENTED
-			Gets called when a child view has been removed from this view.
-		*/
-		virtual void handleChildDetachment(View* p_detachedChild) { }
 
 		/*
 			LIBRARY IMPLEMENTED
@@ -4894,7 +4595,7 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Returns the leftmost edge of all child views belonging to this View. 
+			Returns the leftmost edge of all child views belonging to this View.
 			The returned offset is relative to the left edge of this view.
 		*/
 		float calculateContentLeft() const
@@ -4916,7 +4617,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Returns the rightmost edge of all child views belonging to this View. 
+			Returns the rightmost edge of all child views belonging to this View.
 			The returned offset is relative to the left edge of this view.
 		*/
 		float calculateContentRight() const
@@ -4938,7 +4639,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Returns the topmost edge of all child views belonging to this View. 
+			Returns the topmost edge of all child views belonging to this View.
 			The returned offset is relative to the top edge of this view.
 		*/
 		float calculateContentTop() const
@@ -4960,7 +4661,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Returns the bottommost edge of all child views belonging to this View. 
+			Returns the bottommost edge of all child views belonging to this View.
 			The returned offset is relative to the top edge of this view.
 		*/
 		float calculateContentBottom() const
@@ -4996,7 +4697,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sets a certain spacing between the outer edges of the contents and the edges of this View.
 			This may move the child views with a uniform offset and/or change the size of this view.
-		
+
 			p_horizontalPadding is the spacing at the left and right edges
 			p_verticalPadding is the spacing at the top and bottom edges
 		*/
@@ -5038,7 +4739,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the spacing between the rightmost edge of the contents and the right edge of this View. 
+			Sets the spacing between the rightmost edge of the contents and the right edge of this View.
 			This changes the width of this view.
 		*/
 		void setRightPadding(float p_rightPadding)
@@ -5062,7 +4763,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the spacing between the bottommost edge of the contents and the bottom edge of this View. 
+			Sets the spacing between the bottommost edge of the contents and the bottom edge of this View.
 			This changes the height of this view.
 		*/
 		void setBottomPadding(float p_bottomPadding)
@@ -5227,7 +4928,7 @@ namespace AvoGUI
 		{
 			return m_theme->fontFamilies[p_name];
 		}
-		
+
 		/*
 			LIBRARY IMPLEMENTED
 
@@ -5306,6 +5007,46 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		/*
+			Moves the point(s) representing the absolute position(s) of this view and/or all children of this view (recursively).
+			The absolute positions of views are used often for mouse event targeting, among other things.
+			Because of this, it is pre-calculated in this way only when this view or a parent view has moved.
+		*/
+		void moveAbsolutePositions(float p_offsetX, float p_offsetY, bool p_willUpdateChildren = true)
+		{
+			m_absolutePosition.move(p_offsetX, p_offsetY);
+
+			if (p_willUpdateChildren && !m_children.empty())
+			{
+				View* currentContainer = this;
+				View* child = nullptr;
+				uint32 startIndex = 0;
+				while (true)
+				{
+					loopBody:
+					for (uint32 a = startIndex; a < currentContainer->getNumberOfChildren(); a++)
+					{
+						child = currentContainer->getChild(a);
+						child->moveAbsolutePositions(p_offsetX, p_offsetY, false);
+						if (child->getNumberOfChildren())
+						{
+							currentContainer = child;
+							startIndex = 0;
+							goto loopBody; // THIS IS GOOD USE OF GOTO OK
+						}
+					}
+					if (currentContainer == this)
+					{
+						return;
+					}
+					startIndex = currentContainer->getIndex() + 1;
+					currentContainer = currentContainer->getParent();
+				}
+			}
+		}
+		Point<float> calculateAbsolutePositionRelativeTo(Point<float> p_position) const;
+	public:
 		/*
 			LIBRARY IMPLEMENTED
 			Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.
@@ -5441,7 +5182,7 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the top left coordinates of the view relative to the top left corner of the parent. 
+			Sets the top left coordinates of the view relative to the top left corner of the parent.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setTopLeft(Point<float> const& p_position, bool p_willKeepSize = true) override
@@ -5450,7 +5191,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the top left coordinates of the view relative to the top left corner of the GUI. 
+			Sets the top left coordinates of the view relative to the top left corner of the GUI.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setAbsoluteTopLeft(Point<float> const& p_position, bool p_willKeepSize = true)
@@ -5459,7 +5200,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the top left coordinates of the view relative to the top left corner of the parent. 
+			Sets the top left coordinates of the view relative to the top left corner of the parent.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setTopLeft(float p_left, float p_top, bool p_willKeepSize = true) override
@@ -5474,7 +5215,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the top left coordinates of the view relative to the top left corner of the GUI. 
+			Sets the top left coordinates of the view relative to the top left corner of the GUI.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setAbsoluteTopLeft(float p_left, float p_top, bool p_willKeepSize = true)
@@ -5508,7 +5249,7 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the top right coordinates of the view relative to the top left corner of the parent. 
+			Sets the top right coordinates of the view relative to the top left corner of the parent.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setTopRight(Point<float> const& p_position, bool p_willKeepSize = true) override
@@ -5517,7 +5258,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the top right coordinates of the view relative to the top left corner of the GUI. 
+			Sets the top right coordinates of the view relative to the top left corner of the GUI.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setAbsoluteTopRight(Point<float> const& p_position, bool p_willKeepSize = true)
@@ -5526,7 +5267,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the top right coordinates of the view relative to the top left corner of the parent. 
+			Sets the top right coordinates of the view relative to the top left corner of the parent.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setTopRight(float p_right, float p_top, bool p_willKeepSize = true) override
@@ -5541,7 +5282,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the top right coordinates of the view relative to the top left corner of the GUI. 
+			Sets the top right coordinates of the view relative to the top left corner of the GUI.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setAbsoluteTopRight(float p_right, float p_top, bool p_willKeepSize = true)
@@ -5575,7 +5316,7 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the bottom left coordinates of the view relative to the top left corner of the parent. 
+			Sets the bottom left coordinates of the view relative to the top left corner of the parent.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setBottomLeft(Point<float> const& p_position, bool p_willKeepSize = true) override
@@ -5584,7 +5325,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the bottom left coordinates of the view relative to the top left corner of the GUI. 
+			Sets the bottom left coordinates of the view relative to the top left corner of the GUI.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setAbsoluteBottomLeft(Point<float> const& p_position, bool p_willKeepSize = true)
@@ -5593,7 +5334,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the bottom left coordinates of the view relative to the top left corner of the parent. 
+			Sets the bottom left coordinates of the view relative to the top left corner of the parent.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true) override
@@ -5608,7 +5349,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the bottom left coordinates of the view relative to the top left corner of the GUI. 
+			Sets the bottom left coordinates of the view relative to the top left corner of the GUI.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setAbsoluteBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true)
@@ -5642,7 +5383,7 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the bottom right coordinates of the view relative to the top left corner of the parent. 
+			Sets the bottom right coordinates of the view relative to the top left corner of the parent.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setBottomRight(Point<float> const& p_position, bool p_willKeepSize = true) override
@@ -5651,7 +5392,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the bottom right coordinates of the view relative to the top left corner of the GUI. 
+			Sets the bottom right coordinates of the view relative to the top left corner of the GUI.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setAbsoluteBottomRight(Point<float> const& p_position, bool p_willKeepSize = true)
@@ -5660,7 +5401,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the bottom right coordinates of the view relative to the top left corner of the parent. 
+			Sets the bottom right coordinates of the view relative to the top left corner of the parent.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true) override
@@ -5678,7 +5419,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the bottom right coordinates of the view relative to the top left corner of the GUI. 
+			Sets the bottom right coordinates of the view relative to the top left corner of the GUI.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
 		void setAbsoluteBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true)
@@ -5712,7 +5453,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns the coordinates of the bottom right corner of the view relative to the top left corner of the GUI.
 		*/
-		Point<float> getAbsoluteBottomRight() const 
+		Point<float> getAbsoluteBottomRight() const
 		{
 			return Point<float>(m_absolutePosition.x + m_bounds.right - m_bounds.left, m_absolutePosition.y + m_bounds.bottom - m_bounds.top);
 		}
@@ -5721,7 +5462,7 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the center coordinates of the view relative to the top left corner of the parent. 
+			Sets the center coordinates of the view relative to the top left corner of the parent.
 		*/
 		void setCenter(Point<float> const& p_position) override
 		{
@@ -5729,7 +5470,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the center coordinates of the view relative to the top left corner of the GUI. 
+			Sets the center coordinates of the view relative to the top left corner of the GUI.
 		*/
 		void setAbsoluteCenter(Point<float> const& p_position)
 		{
@@ -5737,7 +5478,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the center coordinates of the view relative to the top left corner of the parent. 
+			Sets the center coordinates of the view relative to the top left corner of the parent.
 		*/
 		void setCenter(float p_x, float p_y) override
 		{
@@ -5751,7 +5492,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the center coordinates of the view relative to the top left corner of the GUI. 
+			Sets the center coordinates of the view relative to the top left corner of the GUI.
 		*/
 		void setAbsoluteCenter(float p_x, float p_y)
 		{
@@ -5876,7 +5617,7 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the left coordinate of this view relative to the left edge of the parent. 
+			Sets the left coordinate of this view relative to the left edge of the parent.
 			If p_willKeepWidth is true, the right coordinate will also be changed so that the width of the view stays the same.
 		*/
 		void setLeft(float p_left, bool p_willKeepWidth = true) override
@@ -5891,7 +5632,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the left coordinate of this view and updates the layout relative to the left edge of the GUI. 
+			Sets the left coordinate of this view and updates the layout relative to the left edge of the GUI.
 			If p_willKeepWidth is true, the right coordinate will also be changed so that the width of the view stays the same.
 		*/
 		void setAbsoluteLeft(float p_left, bool p_willKeepWidth = true)
@@ -5916,14 +5657,14 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns the left coordinate of this view relative to the left edge of the GUI.
 		*/
-		float getAbsoluteLeft() const 
+		float getAbsoluteLeft() const
 		{
 			return m_absolutePosition.x;
 		}
 
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the top coordinate of this view relative to the top edge of the parent. 
+			Sets the top coordinate of this view relative to the top edge of the parent.
 			If p_willKeepHeight is true, the bottom coordinate will also be changed so that the height of the view stays the same.
 		*/
 		void setTop(float p_top, bool p_willKeepHeight = true) override
@@ -5938,7 +5679,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the top coordinate of this view relative to the top edge of the GUI. 
+			Sets the top coordinate of this view relative to the top edge of the GUI.
 			If p_willKeepHeight is true, the bottom coordinate will also be changed so that the height of the view stays the same.
 		*/
 		void setAbsoluteTop(float p_top, bool p_willKeepHeight = true)
@@ -5970,7 +5711,7 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the right coordinate of this view relative to the left edge of the parent. 
+			Sets the right coordinate of this view relative to the left edge of the parent.
 			If p_willKeepWidth is true, the left coordinate will also be changed so that the width of the view stays the same.
 		*/
 		void setRight(float p_right, bool p_willKeepWidth = true) override
@@ -5988,10 +5729,10 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the right coordinate of this view relative to the left edge of the GUI. 
+			Sets the right coordinate of this view relative to the left edge of the GUI.
 			If p_willKeepWidth is true, the left coordinate will also be changed so that the width of the view stays the same.
 		*/
-		void setAbsoluteRight(float p_right, bool p_willKeepWidth = true) 
+		void setAbsoluteRight(float p_right, bool p_willKeepWidth = true)
 		{
 			float offset = p_right - m_absolutePosition.x + m_bounds.left - m_bounds.right;
 			if (offset)
@@ -6002,7 +5743,7 @@ namespace AvoGUI
 					moveAbsolutePositions(offset, 0);
 					m_bounds.moveX(offset);
 				}
-				else 
+				else
 				{
 					m_bounds.right += offset;
 				}
@@ -6028,7 +5769,7 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the bottom coordinate of this view relative to the top edge of the parent and updates the layout. 
+			Sets the bottom coordinate of this view relative to the top edge of the parent and updates the layout.
 			If p_willKeepHeight is true, the top coordinate will also be changed so that the height of the view stays the same.
 		*/
 		void setBottom(float p_bottom, bool p_willKeepHeight = true) override
@@ -6046,7 +5787,7 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the bottom coordinate of this view relative to the top edge of the GUI and updates the layout. 
+			Sets the bottom coordinate of this view relative to the top edge of the GUI and updates the layout.
 			If p_willKeepHeight is true, the top coordinate will also be changed so that the height of the view stays the same.
 		*/
 		void setAbsoluteBottom(float p_bottom, bool p_willKeepHeight = true)
@@ -6079,7 +5820,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Returns the coordinate of the bottom edge of this view relative to the top edge of the GUI.
 		*/
-		float getAbsoluteBottom() const 
+		float getAbsoluteBottom() const
 		{
 			return m_absolutePosition.y + m_bounds.bottom - m_bounds.top;
 		}
@@ -6414,22 +6155,6 @@ namespace AvoGUI
 
 		/*
 			LIBRARY IMPLEMENTED
-			Sets whether the view is visible and can receive events.
-		*/
-		void setIsVisible(bool p_isVisible);
-		/*
-			LIBRARY IMPLEMENTED
-			Returns whether the view is visible and can receive events.
-		*/
-		bool getIsVisible() const
-		{
-			return m_isVisible;
-		}
-
-		//------------------------------
-
-		/*
-			LIBRARY IMPLEMENTED
 			Sets the roundness of the corners of the view. p_radius is the radius of the corner circles.
 		*/
 		void setCornerRadius(float p_radius)
@@ -6510,10 +6235,10 @@ namespace AvoGUI
 		*/
 		bool getHasCornerStyles()
 		{
-			return m_corners.topLeftSizeX && m_corners.topLeftSizeY || m_corners.topRightSizeX && m_corners.topRightSizeY || 
+			return m_corners.topLeftSizeX && m_corners.topLeftSizeY || m_corners.topRightSizeX && m_corners.topRightSizeY ||
 				m_corners.bottomLeftSizeX && m_corners.bottomLeftSizeY || m_corners.bottomRightSizeX && m_corners.bottomRightSizeY;
 		}
-		
+
 		//------------------------------
 
 		/*
@@ -6564,7 +6289,6 @@ namespace AvoGUI
 		{
 			return m_index;
 		}
-
 		/*
 			LIBRARY IMPLEMENTED
 			Returns the layer index of the view, how deep down the view hierarchy it is.
@@ -6577,11 +6301,8 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/*
-			LIBRARY IMPLEMENTED
-			Queues an animation update for the next frame.
-		*/
-		void queueAnimationUpdate();
+	private:
+		bool m_isInAnimationUpdateQueue{ false };
 		/*
 			LIBRARY IMPLEMENTED
 			Don't do anything with this.
@@ -6590,45 +6311,204 @@ namespace AvoGUI
 		{
 			m_isInAnimationUpdateQueue = false;
 		}
-
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Queues an animation update for the next frame.
+		*/
+		void queueAnimationUpdate();
 		/*
 			USER IMPLEMENTED
 			Updates things like animations and does anything that you never want to happen more than once every frame.
-			Call queueAnimationUpdate() when you want this method to be called in the next interval. 
+			Call queueAnimationUpdate() when you want this method to be called in the next interval.
 			This system allows for animations to only get updated when they have to.
 		*/
 		virtual void updateAnimations() { }
 
 		//------------------------------
 
+		using KeyboardListener = std::function<void(KeyboardEvent const&)>;
+
+	private:
+		EventListeners<void(KeyboardEvent const&)> m_characterInputListeners;
+	public:
 		/*
 			LIBRARY IMPLEMENTED
-			Adds an event listener to the view, which receives events about when the view has changed size.
-			The listener is not remembered, just put into a list.
 		*/
-		void addViewListener(ViewListener* p_eventListener)
+		void sendCharacterInputEvents(KeyboardEvent const& p_event)
 		{
-			m_viewEventListeners.push_back(p_eventListener);
+			m_characterInputListeners.notifyAll(p_event);
+			handleCharacterInput(p_event);
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			This only removes the pointer from a list, it doesn't forget it or anything.
+			Adds a callback for character input events on this view.
+			See View::handleCharacterInput for more info.
 		*/
-		void removeViewListener(ViewListener* p_eventListener)
+		void addCharacterInputListener(KeyboardListener p_listener)
 		{
-			removeVectorElementWhileKeepingOrder(m_viewEventListeners, p_eventListener);
+			m_characterInputListeners.add(p_listener);
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			This only removes a pointer from a list, it doesn't forget it or anything.
 		*/
-		void removeViewListener(uint32 p_index)
+		void removeCharacterInputListener(KeyboardListener p_listener)
 		{
-			m_viewEventListeners.erase(m_viewEventListeners.begin() + p_index);
+			m_characterInputListeners.remove(p_listener);
 		}
+		/*
+			USER IMPLEMENTED
+			This method is called when a character key has been pressed.
+			Only p_event.character and p_event.isRepeated are valid for this event type.
+		*/
+		virtual void handleCharacterInput(KeyboardEvent const& p_event) { }
+
+	private:
+		EventListeners<void(KeyboardEvent const&)> m_keyboardKeyDownListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendKeyboardKeyDownEvents(KeyboardEvent const& p_event)
+		{
+			m_keyboardKeyDownListeners.notifyAll(p_event);
+			handleKeyboardKeyDown(p_event);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for keyboard key down events on this view.
+			See View::handleKeyboardKeyDown for more info.
+		*/
+		void addkeyboardKeyDownListener(KeyboardListener p_listener)
+		{
+			m_keyboardKeyDownListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeKeyboardKeyDownListener(KeyboardListener p_listener)
+		{
+			m_keyboardKeyDownListeners.remove(p_listener);
+		}
+		/*
+			USER IMPLEMENTED
+			This method is called when a keyboard key has been pressed.
+			Only p_event.key and p_event.isRepeated are valid for this event type.
+		*/
+		virtual void handleKeyboardKeyDown(KeyboardEvent const& p_event) { }
+
+	private:
+		EventListeners<void(KeyboardEvent const&)> m_keyboardKeyUpListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendKeyboardKeyUpEvents(KeyboardEvent const& p_event)
+		{
+			m_keyboardKeyUpListeners.notifyAll(p_event);
+			handleKeyboardKeyUp(p_event);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for keyboard key up events on this view.
+			See View::handleKeyboardKeyUp for more info.
+		*/
+		void addkeyboardKeyUpListener(KeyboardListener p_listener)
+		{
+			m_keyboardKeyUpListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeKeyboardKeyUpListener(KeyboardListener p_listener)
+		{
+			m_keyboardKeyUpListeners.remove(p_listener);
+		}
+		/*
+			USER IMPLEMENTED
+			This method is called when a keyboard key has been released.
+			Only p_event.key is valid for this event type.
+		*/
+		virtual void handleKeyboardKeyUp(KeyboardEvent const& p_event) { }
+
+	private:
+		EventListeners<void(View*)> m_keyboardFocusLoseListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendKeyboardFocusLoseEvents()
+		{
+			m_keyboardFocusLoseListeners.notifyAll(this);
+			handleKeyboardFocusLose();
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for keyboard focus lose events on this view.
+			Listener signature:
+				void (View* target)
+			target is a pointer to the view that lost keyboard focus.
+			See View::handleKeyboardFocusLose for more info.
+		*/
+		void addkeyboardFocusLoseListener(std::function<void(View*)> p_listener)
+		{
+			m_keyboardFocusLoseListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeKeyboardFocusLoseListener(std::function<void(View*)> p_listener)
+		{
+			m_keyboardFocusLoseListeners.remove(p_listener);
+		}
+		/*
+			USER IMPLEMENTED
+			Gets called when another keyboard event listener becomes the target of keyboard events.
+		*/
+		virtual void handleKeyboardFocusLose() { }
+
+	private:
+		EventListeners<void(View*)> m_keyboardFocusGainListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendKeyboardFocusGainEvents()
+		{
+			m_keyboardFocusGainListeners.notifyAll(this);
+			handleKeyboardFocusGain();
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for keyboard focus gain events on this view.
+			Listener signature:
+				void (View* target)
+			target is a pointer to the view that gained keyboard focus.
+			See View::handleKeyboardFocusGain for more info.
+		*/
+		void addkeyboardFocusGainListener(std::function<void(View*)> p_listener)
+		{
+			m_keyboardFocusGainListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeKeyboardFocusGainListener(std::function<void(View*)> p_listener)
+		{
+			m_keyboardFocusGainListeners.remove(p_listener);
+		}
+		/*
+			USER IMPLEMENTED
+			Gets called when this keyboard event listener becomes the target of keyboard events.
+		*/
+		virtual void handleKeyboardFocusGain() { }
 
 		//------------------------------
 
+	private:
+		bool m_areDragDropEventsEnabled{ false };
+		bool m_isDraggingOver{ false };
+	public:
 		/*
 			LIBRARY IMPLEMENTED
 			Drag drop events are disabled by default.
@@ -6663,35 +6543,193 @@ namespace AvoGUI
 		{
 			return DragDropOperation::None;
 		}
+
+		using DragDropListener = std::function<void(DragDropEvent const&)>;
+
+	private:
+		EventListeners<void(DragDropEvent const&)> m_dragDropEnterListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendDragDropEnterEvents(DragDropEvent const& p_event)
+		{
+			m_dragDropEnterListeners.notifyAll(p_event);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for drag drop enter events on this view.
+		*/
+		void addDragDropEnterListener(DragDropListener p_listener)
+		{
+			m_dragDropEnterListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeDragDropEnterListener(DragDropListener p_listener)
+		{
+			m_dragDropEnterListeners.remove(p_listener);
+		}
 		/*
 			USER IMPLEMENTED
 			Gets called when the cursor enters the bounds of the view during a drag and drop operation.
 			p_event contains information about the event, including the data and data type of what is to be dropped.
 		*/
 		virtual void handleDragDropEnter(DragDropEvent const& p_event) { }
+
+	private:
+		EventListeners<void(DragDropEvent const&)> m_dragDropBackgroundEnterListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendDragDropBackgroundEnterEvents(DragDropEvent const& p_event)
+		{
+			m_dragDropBackgroundEnterListeners.notifyAll(p_event);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for drag drop background enter events on this view.
+		*/
+		void addDragDropBackgroundEnterListener(DragDropListener p_listener)
+		{
+			m_dragDropBackgroundEnterListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeDragDropBackgroundEnterListener(DragDropListener p_listener)
+		{
+			m_dragDropBackgroundEnterListeners.remove(p_listener);
+		}
 		/*
 			USER IMPLEMENTED
 			Gets called when the cursor enters the parts of the view that are not occupied by children, during a drag and drop operation.
 			p_event contains information about the event, including the data and data type of what is to be dropped.
 		*/
 		virtual void handleDragDropBackgroundEnter(DragDropEvent const& p_event) { }
+
+	private:
+		EventListeners<void(DragDropEvent const&)> m_dragDropMoveListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendDragDropMoveEvents(DragDropEvent const& p_event)
+		{
+			m_dragDropMoveListeners.notifyAll(p_event);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for drag drop move events on this view.
+		*/
+		void addDragDropMoveListener(DragDropListener p_listener)
+		{
+			m_dragDropMoveListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeDragDropMoveListener(DragDropListener p_listener)
+		{
+			m_dragDropMoveListeners.remove(p_listener);
+		}
 		/*
 			USER IMPLEMENTED
 			Gets called when the cursor moves over the view during a drag and drop operation.
 		*/
 		virtual void handleDragDropMove(DragDropEvent const& p_event) { }
+
+	private:
+		EventListeners<void(DragDropEvent const&)> m_dragDropLeaveListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendDragDropLeaveEvents(DragDropEvent const& p_event)
+		{
+			m_dragDropLeaveListeners.notifyAll(p_event);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for drag drop leave events on this view.
+		*/
+		void addDragDropLeaveListener(DragDropListener p_listener)
+		{
+			m_dragDropLeaveListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeDragDropLeaveListener(DragDropListener p_listener)
+		{
+			m_dragDropLeaveListeners.remove(p_listener);
+		}
 		/*
 			USER IMPLEMENTED
 			Gets called when the cursor leaves the bounds of the view during a drag and drop operation.
 			p_event contains information about the event, including the data and data type of what is to be dropped.
 		*/
 		virtual void handleDragDropLeave(DragDropEvent const& p_event) { }
+
+	private:
+		EventListeners<void(DragDropEvent const&)> m_dragDropBackgroundLeaveListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendDragDropBackgroundLeaveEvents(DragDropEvent const& p_event)
+		{
+			m_dragDropBackgroundLeaveListeners.notifyAll(p_event);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for drag drop background leave events on this view.
+		*/
+		void addDragDropBackgroundLeaveListener(DragDropListener p_listener)
+		{
+			m_dragDropBackgroundLeaveListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeDragDropBackgroundLeaveListener(DragDropListener p_listener)
+		{
+			m_dragDropBackgroundLeaveListeners.remove(p_listener);
+		}
 		/*
 			USER IMPLEMENTED
 			Gets called when the cursor leaves the parts of the view that are not occupied by children, during a drag and drop operation.
 			p_event contains information about the event, including the data and data type of what is to be dropped.
 		*/
 		virtual void handleDragDropBackgroundLeave(DragDropEvent const& p_event) { }
+
+	private:
+		EventListeners<void(DragDropEvent const&)> m_dragDropFinishListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendDragDropFinishEvents(DragDropEvent const& p_event)
+		{
+			m_dragDropFinishListeners.notifyAll(p_event);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for drag drop finish events on this view.
+		*/
+		void addDragDropFinishListener(DragDropListener p_listener)
+		{
+			m_dragDropFinishListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeDragDropFinishListener(DragDropListener p_listener)
+		{
+			m_dragDropFinishListeners.remove(p_listener);
+		}
 		/*
 			USER IMPLEMENTED
 			Gets called when the user drops data above the view, finishing a drag and drop operation.
@@ -6700,7 +6738,12 @@ namespace AvoGUI
 		virtual void handleDragDropFinish(DragDropEvent const& p_event) { }
 
 		//------------------------------
-		
+
+	private:
+		bool m_areMouseEventsEnabled{ false };
+		bool m_isMouseHovering{ false };
+		Cursor m_cursor{ Cursor::Arrow };
+	public:
 		/*
 			LIBRARY IMPLEMENTED
 			Mouse events are disabled by default.
@@ -6725,12 +6768,67 @@ namespace AvoGUI
 			return m_areMouseEventsEnabled;
 		}
 
+		using MouseListener = std::function<void(MouseEvent const&)>;
+
+	private:
+		EventListeners<void(MouseEvent const&)> m_mouseDownListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendMouseDownEvents(MouseEvent const& p_event)
+		{
+			m_mouseDownListeners.notifyAll(p_event);
+			handleMouseDown(p_event);
+		}
+		/*
+		    LIBRARY IMPLEMENTED
+		    Adds a callback for mouse down events on this view.
+		*/
+		void addMouseDownListener(MouseListener p_listener)
+        {
+			m_mouseDownListeners.add(p_listener);
+        }
+        /*
+            LIBRARY IMPLEMENTED
+        */
+        void removeMouseDownListener(MouseListener p_listener)
+        {
+			m_mouseDownListeners.remove(p_listener);
+		}
 		/*
 			USER IMPLEMENTED
 			Gets called when a mouse button has been pressed down while the pointer is above the view.
 			p_event is an object that contains information about the mouse event.
 		*/
 		virtual void handleMouseDown(MouseEvent const& p_event) { }
+
+	private:
+		EventListeners<void(MouseEvent const&)> m_mouseUpListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendMouseUpEvents(MouseEvent const& p_event)
+		{
+			m_mouseUpListeners.notifyAll(p_event);
+			handleMouseUp(p_event);
+		}
+        /*
+            LIBRARY IMPLEMENTED
+            Adds a callback for mouse up events on this view.
+        */
+        void addMousUpListener(MouseListener p_listener)
+        {
+        	m_mouseUpListeners.add(p_listener);
+        }
+        /*
+            LIBRARY IMPLEMENTED
+        */
+        void removeMouseUpListener(MouseListener p_listener)
+        {
+        	m_mouseUpListeners.remove(p_listener);
+        }
 		/*
 			USER IMPLEMENTED
 			Gets called when a mouse button has been released after having been pressed down when the mouse pointer was above the view.
@@ -6738,47 +6836,141 @@ namespace AvoGUI
 			p_event is an object that contains information about the mouse event.
 		*/
 		virtual void handleMouseUp(MouseEvent const& p_event) { }
+
+	private:
+		EventListeners<void(MouseEvent const&)> m_mouseDoubleClickListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendMouseDoubleClickEvents(MouseEvent const& p_event)
+		{
+			m_mouseDoubleClickListeners.notifyAll(p_event);
+			handleMouseDoubleClick(p_event);
+		}
+		/*
+            LIBRARY IMPLEMENTED
+            Adds a callback for double click events on this view.
+        */
+        void addMouseDoubleClickListener(MouseListener p_listener)
+        {
+        	m_mouseDoubleClickListeners.add(p_listener);
+        }
+        /*
+            LIBRARY IMPLEMENTED
+        */
+        void removeMouseDoubleClickListener(MouseListener p_listener)
+        {
+        	m_mouseDoubleClickListeners.remove(p_listener);
+        }
 		/*
 			USER IMPLEMENTED
 			Gets called when a mouse button has been double clicked while the mouse pointer is above the view.
 			The default implementation calls handleMouseUp.
 			p_event is an object that contains information about the mouse event.
 		*/
-		virtual void handleMouseDoubleClick(MouseEvent const& p_event) 
+		virtual void handleMouseDoubleClick(MouseEvent const& p_event)
 		{
 			handleMouseUp(p_event);
 		}
 
+	private:
+		EventListeners<void(MouseEvent const&)> m_mouseMoveListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendMouseMoveEvents(MouseEvent const& p_event)
+		{
+			m_mouseMoveListeners.notifyAll(p_event);
+			handleMouseMove(p_event);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for mouse move events on this view.
+		*/
+		void addMouseMoveListener(MouseListener p_listener)
+		{
+			m_mouseMoveListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeMouseMoveListener(MouseListener p_listener)
+		{
+			m_mouseMoveListeners.remove(p_listener);
+		}
 		/*
 			USER IMPLEMENTED
-			Gets called when the mouse pointer has been moved within the bounds of the view. 
+			Gets called when the mouse pointer has been moved within the bounds of the view.
 			This can be blocked by non-overlay views which have the same parent and are overlapping this one.
 			The event is never blocked by children of this view.
 			If it has entered the view, a mouse enter event is sent, and if it has left the view, a mouse leave event is sent.
 			p_event is an object that contains information about the mouse event.
 		*/
 		virtual void handleMouseMove(MouseEvent const& p_event) { }
+
+	private:
+		EventListeners<void(MouseEvent const&)> m_mouseEnterListeners;
+	public:
 		/*
-			LIBRARY IMPLEMENTED (only default behavior)
-			Gets called when the mouse pointer has entered any part of the view that is not occupied by children of this view.
-			By default, this changes the mouse cursor to the cursor that is set with setCursor on the view.
-			p_event is an object that contains information about the mouse event.
+			LIBRARY IMPLEMENTED
 		*/
-		virtual void handleMouseBackgroundEnter(MouseEvent const& p_event);
-		/*
-			USER IMPLEMENTED
-			Gets called when the mouse pointer has left any part of the view that is not occupied by children of this view.
-			p_event is an object that contains information about the mouse event.
-		*/
-		virtual void handleMouseBackgroundLeave(MouseEvent const& p_event) { }
+		void sendMouseEnterEvents(MouseEvent const& p_event)
+		{
+			m_mouseEnterListeners.notifyAll(p_event);
+			handleMouseEnter(p_event);
+		}
+        /*
+            LIBRARY IMPLEMENTED
+            Adds a callback for mouse enter events on this view.
+        */
+        void addMouseEnterListener(MouseListener p_listener)
+        {
+        	m_mouseEnterListeners.add(p_listener);
+        }
+        /*
+            LIBRARY IMPLEMENTED
+        */
+        void removeMouseEnterListener(MouseListener p_listener)
+        {
+        	m_mouseEnterListeners.remove(p_listener);
+        }
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse pointer has entered the bounds of the view.
-			This can be called on one or more views at the same time, but among views that have the same parent, only the topmost view 
+			This can be called on one or more views at the same time, but among views that have the same parent, only the topmost view
 			that the mouse has entered gets the event (except for overlay views, they always get the event as long as they are targeted).
 			p_event is an object that contains information about the mouse event.
 		*/
 		virtual void handleMouseEnter(MouseEvent const& p_event) { }
+
+	private:
+		EventListeners<void(MouseEvent const&)> m_mouseLeaveListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendMouseLeaveEvents(MouseEvent const& p_event)
+		{
+			m_mouseLeaveListeners.notifyAll(p_event);
+			handleMouseLeave(p_event);
+		}
+        /*
+            LIBRARY IMPLEMENTED
+            Adds a callback for mouse leave events on this view.
+        */
+        void addMouseLeaveListener(MouseListener p_listener)
+        {
+        	m_mouseLeaveListeners.add(p_listener);
+        }
+        /*
+            LIBRARY IMPLEMENTED
+        */
+        void removeMouseLeaveListener(MouseListener p_listener)
+        {
+        	m_mouseLeaveListeners.remove(p_listener);
+        }
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse cursor has left the bounds of the view.
@@ -6787,6 +6979,101 @@ namespace AvoGUI
 			p_event is an object that contains information about the mouse event.
 		*/
 		virtual void handleMouseLeave(MouseEvent const& p_event) { }
+
+	private:
+		EventListeners<void(MouseEvent const&)> m_mouseBackgroundEnterListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendMouseBackgroundEnterEvents(MouseEvent const& p_event)
+		{
+			m_mouseBackgroundEnterListeners.notifyAll(p_event);
+			handleMouseBackgroundEnter(p_event);
+		}
+		/*
+            LIBRARY IMPLEMENTED
+            Adds a callback for mouse background enter events on this view.
+        */
+        void addMouseBackgroundEnterListener(MouseListener p_listener)
+        {
+        	m_mouseBackgroundEnterListeners.add(p_listener);
+        }
+        /*
+            LIBRARY IMPLEMENTED
+        */
+        void removeMouseBackgroundEnterListener(MouseListener p_listener)
+        {
+        	m_mouseBackgroundEnterListeners.remove(p_listener);
+        }
+		/*
+			LIBRARY IMPLEMENTED (only default behavior)
+			Gets called when the mouse pointer has entered any part of the view that is not occupied by children of this view.
+			By default, this changes the mouse cursor to the cursor that is set with setCursor on the view.
+			p_event is an object that contains information about the mouse event.
+		*/
+		virtual void handleMouseBackgroundEnter(MouseEvent const& p_event);
+
+	private:
+		EventListeners<void(MouseEvent const&)> m_mouseBackgroundLeaveListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendMouseBackgroundLeaveEvents(MouseEvent const& p_event)
+		{
+			m_mouseBackgroundLeaveListeners.notifyAll(p_event);
+			handleMouseBackgroundLeave(p_event);
+		}
+        /*
+            LIBRARY IMPLEMENTED
+            Adds a callback for mouse background leave events on this view.
+        */
+        void addMouseBackgroundLeaveListener(MouseListener p_listener)
+        {
+        	m_mouseBackgroundLeaveListeners.add(p_listener);
+        }
+        /*
+            LIBRARY IMPLEMENTED
+        */
+        void removeMouseBackgroundLeaveListener(MouseListener p_listener)
+        {
+        	m_mouseBackgroundLeaveListeners.remove(p_listener);
+        }
+		/*
+			USER IMPLEMENTED
+			Gets called when the mouse pointer has left any part of the view that is not occupied by children of this view.
+			p_event is an object that contains information about the mouse event.
+		*/
+		virtual void handleMouseBackgroundLeave(MouseEvent const& p_event) { }
+
+	private:
+		EventListeners<void(MouseEvent const&)> m_mouseScrollListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendMouseScrollEvents(MouseEvent const& p_event)
+		{
+			m_mouseScrollListeners.notifyAll(p_event);
+			handleMouseScroll(p_event);
+		}
+        /*
+            LIBRARY IMPLEMENTED
+            Adds a callback for mouse scroll events on this view.
+        */
+        void addMouseScrollListener(MouseListener p_listener)
+        {
+        	m_mouseScrollListeners.add(p_listener);
+        }
+        /*
+            LIBRARY IMPLEMENTED
+        */
+        void removeMouseScrollListener(MouseListener p_listener)
+        {
+        	m_mouseScrollListeners.remove(p_listener);
+        }
+
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse wheel has been moved/scrolled while the mouse pointer is above the view.
@@ -6795,12 +7082,70 @@ namespace AvoGUI
 		virtual void handleMouseScroll(MouseEvent const& p_event) { }
 
 		//------------------------------
+		// Size change events
 
+	private:
+		EventListeners<void(View*, Rectangle<float> const&)> m_boundsChangeListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		virtual void sendBoundsChangeEvents(Rectangle<float> const& p_previousBounds);
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for bounds change events on this view.
+			Listener signature:
+				void (View* target, Rectangle<float> const& previousBounds)
+			target is a pointer to the view that changed size.
+			See View::handleBoundsChange for more info.
+		*/
+		void addBoundsChangeListener(std::function<void(View*, Rectangle<float> const&)> p_listener)
+		{
+			m_boundsChangeListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeBoundsChangeListener(std::function<void(View*, Rectangle<float> const&)> p_listener)
+		{
+			m_boundsChangeListeners.remove(p_listener);
+		}
 		/*
 			USER IMPLEMENTED
-			Implement this method in your view if you want to update things when the size of the view has been changed.
+			Implement this method in your view if you want to update things when the bounds of the view have been changed.
 		*/
-		virtual void handleSizeChange() { }
+		virtual void handleBoundsChange(Rectangle<float> const& p_previousBounds) { }
+
+	private:
+		EventListeners<void(View*, float, float)> m_sizeChangeListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendSizeChangeEvents(float p_previousWidth, float p_previousHeight)
+		{
+			m_sizeChangeListeners.notifyAll(this, p_previousWidth, p_previousHeight);
+			handleSizeChange(p_previousWidth, p_previousHeight);
+		}
+        /*
+		    LIBRARY IMPLEMENTED
+            Adds a callback for size change events on this view.
+            Listener signature:
+                void (View* target, float previousWidth, float previousHeight)
+            target is a pointer to the view that changed size.
+            See View::handleSizeChange for more info.
+        */
+        void addSizeChangeListener(std::function<void(View*, float, float)> p_listener)
+        {
+        	m_sizeChangeListeners.add(p_listener);
+        }
+        /*
+            LIBRARY IMPLEMENTED
+        */
+        void removeSizeChangeListener(std::function<void(View*, float, float)> p_listener)
+        {
+        	m_sizeChangeListeners.remove(p_listener);
+        }
 		/*
 			LIBRARY IMPLEMENTED
 			This calls handleSizeChange() by default. Override this method if you need to know the previous size of the view.
@@ -6811,9 +7156,83 @@ namespace AvoGUI
 		}
 		/*
 			USER IMPLEMENTED
-			Implement this method in your view if you want to update things when the bounds of the view have been changed.
+			Implement this method in your view if you want to update things when the size of the view has been changed.
 		*/
-		virtual void handleBoundsChange(Rectangle<float> const& p_previousBounds) { }
+		virtual void handleSizeChange() { }
+
+		//------------------------------
+
+	private:
+		EventListeners<void(View*, View*)> m_childAttachmentListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendChildAttachmentEvents(View* p_child)
+		{
+			m_childAttachmentListeners.notifyAll(this, p_child);
+			handleChildAttachment(p_child);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for child attachment events on this view.
+			Listener signature:
+				void (View* target, View* attachedChild)
+			See View::handleChildAttachment for more info.
+		*/
+		void addChildAttachmentListener(std::function<void(View*, View*)> p_listener)
+		{
+			m_childAttachmentListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeChildAttachmentListener(std::function<void(View*, View*)> p_listener)
+		{
+			m_childAttachmentListeners.remove(p_listener);
+		}
+		/*
+			USER IMPLEMENTED
+			Gets called when a child view has been added to this view.
+		*/
+		virtual void handleChildAttachment(View* p_attachedChild) { }
+
+	private:
+		EventListeners<void(View*, View*)> m_childDetachmentListeners;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void sendChildDetachmentEvents(View* p_child)
+		{
+			m_childDetachmentListeners.notifyAll(this, p_child);
+			handleChildDetachment(p_child);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for child detachment events on this view.
+			Listener signature:
+				void (View* target, View* attachedChild)
+			See View::handleChildDetachment for more info.
+		*/
+		void addChildDetachmentListener(std::function<void(View*, View*)> p_listener)
+		{
+			m_childDetachmentListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeChildDetachmentListener(std::function<void(View*, View*)> p_listener)
+		{
+			m_childDetachmentListeners.remove(p_listener);
+		}
+		/*
+			USER IMPLEMENTED
+			Gets called when a child view has been removed from this view.
+		*/
+		virtual void handleChildDetachment(View* p_detachedChild) { }
+
+		//------------------------------
 
 		/*
 			LIBRARY IMPLEMENTED
@@ -6822,17 +7241,11 @@ namespace AvoGUI
 		void invalidate();
 
 		/*
-			LIBRARY IMPLEMENTED
-			Draws the shadow of the view. This gets called by the parent View before the
-			content of the view is drawn.
-		*/
-		void drawShadow(DrawingContext* p_drawingContext);
-		/*
 			USER IMPLEMENTED
-			Draws the contents of the view. 
-			This method is called by default from the other draw method that also takes the target rectangle as input. 
+			Draws the contents of the view.
+			This method is called by default from the other draw method that also takes the target rectangle as input.
 			You often don't need to use that parameter.
-			
+
 			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
 		*/
 		virtual void draw(DrawingContext* p_drawingContext) { }
@@ -6840,9 +7253,9 @@ namespace AvoGUI
 			USER IMPLEMENTED
 			Draws the content of the view. Override this method if you want the target rectangle, override the overloaded
 			method that only takes the drawing context otherwise.
-		
+
 			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
-			p_targetRectangle is the rectangle that needs to be drawn, relative to the top-left corner of the GUI. 
+			p_targetRectangle is the rectangle that needs to be drawn, relative to the top-left corner of the GUI.
 			To optimize your application, you can make sure to only draw stuff in this region.
 		*/
 		virtual void draw(DrawingContext* p_drawingContext, Rectangle<float> const& p_targetRectangle)
@@ -6852,19 +7265,19 @@ namespace AvoGUI
 
 		/*
 			USER IMPLEMENTED
-			Draws on top of child views. 
-			This method is called by default from the other drawOverlay method that also takes the target rectangle as input. 
+			Draws on top of child views.
+			This method is called by default from the other drawOverlay method that also takes the target rectangle as input.
 			You do not often care about that parameter.
-		
+
 			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
 		*/
-		virtual void drawOverlay(DrawingContext* p_drawingContext) {}
+		virtual void drawOverlay(DrawingContext* p_drawingContext) { }
 
 		/*
 			USER IMPLEMENTED
-			Draws on top of child views. Override this method if you want the target rectangle, override the overloaded 
+			Draws on top of child views. Override this method if you want the target rectangle, override the overloaded
 			method that only takes the drawing context otherwise.
-		
+
 			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
 			p_targetRectangle is the rectangle that needs to be drawn, relative to the top-left corner of the GUI.
 			To optimize your application, you can make sure to only draw stuff in this region.
@@ -6901,64 +7314,64 @@ namespace AvoGUI
 		float height{0.f};
 	};
 
-	class WindowListener
+/*	class WindowListener
 	{
 	public:
-		/*
+		*//*
 			USER IMPLEMENTED
 			Gets called when a window has been created.
 			p_event is an object that contains information about the event.
-		*/
+		*//*
 		virtual void handleWindowCreate(WindowEvent const& p_event) { }
-		/*
+		*//*
 			LIBRARY IMPLEMENTED (only default behavior)
-			Gets called when a window has been requested to be closed. 
+			Gets called when a window has been requested to be closed.
 			If the handler returns true, the window will close and get destroyed. This is the default behavior.
 			p_event is an object containing information about the event.
-		*/
+		*//*
 		virtual bool handleWindowClose(WindowEvent const& p_event) { return true; }
 
-		/*
+		*//*
 			USER IMPLEMENTED
-			Gets called when a window has been minimized in the taskbar. 
+			Gets called when a window has been minimized in the taskbar.
 			p_event is an object containing information about the event.
-		*/
+		*//*
 		virtual void handleWindowMinimize(WindowEvent const& p_event) { }
-		/*
+		*//*
 			USER IMPLEMENTED
 			Gets called when a window has been maximized so that it is as big as possible while still showing the border.
 			The width and height properties of p_event tell you the new size of the window.
-		*/
+		*//*
 		virtual void handleWindowMaximize(WindowEvent const& p_event) { }
 
-		/*
+		*//*
 			USER IMPLEMENTED
 			Gets called when a window has been restored after being in a minimized or maximized state.
 			The width and height properties of p_event tell you the new size of the window.
-		*/
+		*//*
 		virtual void handleWindowRestore(WindowEvent const& p_event) { }
 
-		/*
+		*//*
 			USER IMPLEMENTED
-			Gets called when the size of a window has changed. 
-			This includes if it has been maximized, or if the border has been dragged to resize it. 
+			Gets called when the size of a window has changed.
+			This includes if it has been maximized, or if the border has been dragged to resize it.
 			The width and height properties of p_event tell you the new size of the window.
-		*/
+		*//*
 		virtual void handleWindowSizeChange(WindowEvent const& p_event) { }
 
-		/*
+		*//*
 			USER IMPLEMENTED
 			Gets called when a window has been focused, meaning it has been interacted with so that another window loses focus.
 			p_event is an object containing information about the event.
-		*/
+		*//*
 		virtual void handleWindowFocus(WindowEvent const& p_event) { }
-		/*
+		*//*
 			USER IMPLEMENTED
 			Gets called when a window has been unfocused, meaning another window is interacted with.
 			p_event is an object containing information about the event.
-		*/
+		*//*
 		virtual void handleWindowUnfocus(WindowEvent const& p_event) { }
-	};
+	};*/
 
 	//------------------------------
 
@@ -7016,9 +7429,9 @@ namespace AvoGUI
 	class Gui;
 
 	/*
-		An abstract window, which has an OS-specific implementation. 
+		An abstract window, which has an OS-specific implementation.
 		The window is responsible for receiving events from the OS and sending them to the GUI.
-		It's like a portal between your application and the operating system. 
+		It's like a portal between your application and the operating system.
 		It is only intended to be created by a GUI, and you can access and use it from there.
 	*/
 	class Window : public ReferenceCounted
@@ -7026,7 +7439,7 @@ namespace AvoGUI
 	public:
 		/*
 			Creates the window. To close it, use close().
-		
+
 			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
 			p_titleSize is the size in bytes of p_title.
 
@@ -7043,7 +7456,7 @@ namespace AvoGUI
 		virtual void create(char const* p_title, uint32 p_titleSize, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
 		/*
 			Creates the window in the center of the screen. To close it, use close().
-		
+
 			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
 			p_titleSize is the size in bytes of p_title.
 			p_width is the width of the client area in DIPs (device independent pixels).
@@ -7115,6 +7528,18 @@ namespace AvoGUI
 		*/
 		virtual bool getIsOpen() const = 0;
 
+	protected:
+		bool m_willClose{ false };
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether the GUI and its window is awaiting being closed by the animation/drawing thread.
+		*/
+		bool getWillClose()
+		{
+			return m_willClose;
+		}
+
 		//------------------------------
 
 		/*
@@ -7156,7 +7581,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Changes the styles that determine how the window is drawn by the OS. 
+			Changes the styles that determine how the window is drawn by the OS.
 			These are set when the window is created, and you can change them afterwards here.
 		*/
 		virtual void setStyles(WindowStyleFlags p_styles) = 0;
@@ -7179,7 +7604,7 @@ namespace AvoGUI
 		*/
 		virtual void setIsFullscreen(bool p_isFullscreen) = 0;
 		/*
-			Switches between fullscreen and windowed mode. 
+			Switches between fullscreen and windowed mode.
 			If the window is currently windowed, it will become fullscreen, and the other way around.
 		*/
 		virtual void switchFullscreen() = 0;
@@ -7213,13 +7638,13 @@ namespace AvoGUI
 		virtual void restore() = 0;
 
 		/*
-			Changes the window state, which determines how the window is viewed; hidden in the taskbar, maximized so it fills the client area 
+			Changes the window state, which determines how the window is viewed; hidden in the taskbar, maximized so it fills the client area
 			of the screen, or restored which is the default window state where the window can overlap other windows and be resized normally.
 			Methods maximize(), minimize() and restore() do the same thing.
 		*/
 		virtual void setState(WindowState p_state) = 0;
 		/*
-			Returns the window state, which determines how the window is viewed; hidden in the taskbar, maximized so it fills the client area 
+			Returns the window state, which determines how the window is viewed; hidden in the taskbar, maximized so it fills the client area
 			of the screen, or restored which is the default window state where the window can overlap other windows and be resized normally.
 		*/
 		virtual WindowState getState() const = 0;
@@ -7630,6 +8055,163 @@ namespace AvoGUI
 			It must be forgotten by the caller.
 		*/
 		[[nodiscard]] virtual ClipboardData* getClipboardData() const = 0;
+
+		//------------------------------
+		// Window events
+
+		using WindowListener = std::function<void(WindowEvent const&)>;
+
+	private:
+		EventListeners<void(WindowEvent const&)> m_windowCreateListeners;
+	public:
+		void sendWindowCreateEvents(WindowEvent const& p_event)
+		{
+			m_windowCreateListeners.notifyAll(p_event);
+		}
+		void addWindowCreateListener(WindowListener p_listener)
+		{
+			m_windowCreateListeners.add(p_listener);
+		}
+		void removeWindowCreateListener(WindowListener p_listener)
+		{
+			m_windowCreateListeners.remove(p_listener);
+		}
+
+	private:
+		EventListeners<bool(WindowEvent const&)> m_windowCloseListeners;
+	public:
+		bool sendWindowCloseEvents(WindowEvent const& p_event)
+		{
+			bool willClose = true;
+			for (auto& listener : m_windowCloseListeners.listeners)
+			{
+				if (!listener(p_event))
+				{
+					willClose = false;
+				}
+			}
+			return willClose;
+		}
+		void addWindowCloseListener(std::function<bool(WindowEvent const&)> p_listener)
+		{
+			m_windowCloseListeners.add(p_listener);
+		}
+		void removeWindowCloseListener(std::function<bool(WindowEvent const&)> p_listener)
+		{
+			m_windowCloseListeners.remove(p_listener);
+		}
+
+	private:
+		EventListeners<void(WindowEvent const&)> m_windowDestroyListeners;
+	public:
+		void sendWindowDestroyEvents(WindowEvent const& p_event)
+		{
+			m_windowDestroyListeners.notifyAll(p_event);
+		}
+		void addWindowDestroyListener(WindowListener p_listener)
+		{
+			m_windowDestroyListeners.add(p_listener);
+		}
+		void removeWindowDestroyListener(WindowListener p_listener)
+		{
+			m_windowDestroyListeners.remove(p_listener);
+		}
+
+	private:
+		EventListeners<void(WindowEvent const&)> m_windowMinimizeListeners;
+	public:
+		void sendWindowMinimizeEvents(WindowEvent const& p_event)
+		{
+			m_windowMinimizeListeners.notifyAll(p_event);
+		}
+		void addWindowMinimizeListener(WindowListener p_listener)
+		{
+			m_windowMinimizeListeners.add(p_listener);
+		}
+		void removeWindowMinimizeListener(WindowListener p_listener)
+		{
+			m_windowMinimizeListeners.remove(p_listener);
+		}
+
+	private:
+		EventListeners<void(WindowEvent const&)> m_windowMaximizeListeners;
+	public:
+		void sendWindowMaximizeEvents(WindowEvent const& p_event)
+		{
+			m_windowMaximizeListeners.notifyAll(p_event);
+		}
+		void addWindowMaximizeListener(WindowListener p_listener)
+		{
+			m_windowMaximizeListeners.add(p_listener);
+		}
+		void removeWindowMaximizeListener(WindowListener p_listener)
+		{
+			m_windowMaximizeListeners.remove(p_listener);
+		}
+
+	private:
+		EventListeners<void(WindowEvent const&)> m_windowRestoreListeners;
+	public:
+		void sendWindowRestoreEvents(WindowEvent const& p_event)
+		{
+			m_windowRestoreListeners.notifyAll(p_event);
+		}
+		void addWindowRestoreListener(WindowListener p_listener)
+		{
+			m_windowRestoreListeners.add(p_listener);
+		}
+		void removeWindowRestoreListener(WindowListener p_listener)
+		{
+			m_windowRestoreListeners.remove(p_listener);
+		}
+
+	private:
+		EventListeners<void(WindowEvent const&)> m_windowSizeChangeListeners;
+	public:
+		void sendWindowSizeChangeEvents(WindowEvent const& p_event)
+		{
+			m_windowSizeChangeListeners.notifyAll(p_event);
+		}
+		void addWindowSizeChangeListener(WindowListener p_listener)
+		{
+			m_windowSizeChangeListeners.add(p_listener);
+		}
+		void removeWindowSizeChangeListener(WindowListener p_listener)
+		{
+			m_windowSizeChangeListeners.remove(p_listener);
+		}
+
+	private:
+		EventListeners<void(WindowEvent const&)> m_windowFocusGainListeners;
+	public:
+		void sendWindowFocusGainEvents(WindowEvent const& p_event)
+		{
+			m_windowFocusGainListeners.notifyAll(p_event);
+		}
+		void addWindowFocusGainListener(WindowListener p_listener)
+		{
+			m_windowFocusGainListeners.add(p_listener);
+		}
+		void removeWindowFocusGainListener(WindowListener p_listener)
+		{
+			m_windowFocusGainListeners.remove(p_listener);
+		}
+
+	private:
+		EventListeners<void(WindowEvent const&)> m_windowFocusLoseListeners;
+	public:
+		void sendWindowFocusLoseEvents(WindowEvent const& p_event)
+		{
+			m_windowFocusLoseListeners.notifyAll(p_event);
+		}
+		void addWindowFocusLoseListener(WindowListener p_listener)
+		{
+			m_windowFocusLoseListeners.add(p_listener);
+		}
+		void removeWindowFocusLoseListener(WindowListener p_listener)
+		{
+			m_windowFocusLoseListeners.remove(p_listener);
+		}
 	};
 
 #pragma endregion
@@ -7669,7 +8251,7 @@ namespace AvoGUI
 	};
 
 	/*
-		Represents an image on the GPU which can be created and drawn by a DrawingContext. 
+		Represents an image on the GPU which can be created and drawn by a DrawingContext.
 		Notice that this is not a view but should be treated as a drawable object.
 		It is your responsibility to manage its lifetime, using remember() and forget().
 	*/
@@ -7713,16 +8295,16 @@ namespace AvoGUI
 
 		/*
 			Sets the way the image is positioned within its bounds.
-		
-			p_x represents the x coordinate of the point on the image that aligns with the same point but relative to the bounds. 
-			p_x is expressed as a factor of the width of the image. For example, if p_x is 1, the right edge of the image will be 
-			aligned with the right edge of the bounds. 0.5 means the centers will be aligned. 
+
+			p_x represents the x coordinate of the point on the image that aligns with the same point but relative to the bounds.
+			p_x is expressed as a factor of the width of the image. For example, if p_x is 1, the right edge of the image will be
+			aligned with the right edge of the bounds. 0.5 means the centers will be aligned.
 			Same for p_y but vertical coordinates.
 		*/
 		virtual void setBoundsPositioning(float p_x, float p_y) = 0;
 		/*
 			Sets the way the image is positioned within its bounds on the x-axis.
-		
+
 			p_x represents the x coordinate of the point on the image that aligns with the same point but relative to the bounds.
 			p_x is expressed as a factor of the width of the image. For example, if p_x is 1, the right edge of the image will be
 			aligned with the right edge of the bounds. 0.5 means the centers will be aligned.
@@ -7730,7 +8312,7 @@ namespace AvoGUI
 		virtual void setBoundsPositioningX(float p_x) = 0;
 		/*
 			Sets the way the image is positioned within its bounds on the y-axis.
-		
+
 			p_y represents the y coordinate of the point on the image that aligns with the same point but relative to the bounds.
 			p_y is expressed as a factor of the height of the image. For example, if p_y is 1, the bottom edge of the image will be
 			aligned with the bottom edge of the bounds. 0.5 means the centers will be aligned.
@@ -7866,7 +8448,7 @@ namespace AvoGUI
 	};
 
 	/*
-		Represents a text block which can be calculated once and drawn any number of times by a DrawingContext. 
+		Represents a text block which can be calculated once and drawn any number of times by a DrawingContext.
 		Notice that this is not a view, but should be treated as a drawable object created by a DrawingContext.
 		It is your responsibility to mange its lifetime, using remember() and forget().
 	*/
@@ -7928,7 +8510,7 @@ namespace AvoGUI
 		*/
 		virtual void setIsTopTrimmed(bool p_isTopTrimmed) = 0;
 		/*
-			Returns whether the top of the text is trimmed so that there is no space between the top of the tallest 
+			Returns whether the top of the text is trimmed so that there is no space between the top of the tallest
 			character of the text and the top edge of the bounds. This is false by default.
 		*/
 		virtual bool getIsTopTrimmed() = 0;
@@ -7937,7 +8519,7 @@ namespace AvoGUI
 
 		/*
 			Returns the 2d position of a character in the text, specified by its index in the string.
-			p_isRelativeToOrigin is whether the position returned is relative to the origin of the drawing context. 
+			p_isRelativeToOrigin is whether the position returned is relative to the origin of the drawing context.
 			If not, it is relative to the bounds of the text.
 		*/
 		virtual Point<float> getCharacterPosition(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
@@ -7947,45 +8529,45 @@ namespace AvoGUI
 		virtual Point<float> getCharacterSize(uint32 p_characterIndex) = 0;
 		/*
 			Returns a rectangle enclosing a character in the text, specified by its index in the string.
-			p_isRelativeToOrigin is whether the position of the bounds returned is relative to the origin of the drawing context. 
+			p_isRelativeToOrigin is whether the position of the bounds returned is relative to the origin of the drawing context.
 			If not, it is relative to the bounds of the text.
 		*/
 		virtual Rectangle<float> getCharacterBounds(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
-		
+
 		/*
 			Returns the index of the character which is nearest to a point.
-			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context. 
+			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context.
 			If not, it is relative to the bounds of the text.
 		*/
 		virtual uint32 getNearestCharacterIndex(Point<float> const& p_point, bool p_isRelativeToOrigin = false) = 0;
 		/*
 			Returns the index of the character which is nearest to a point.
-		
-			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context. 
+
+			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context.
 			If not, it is relative to the bounds of the text.
 		*/
 		virtual uint32 getNearestCharacterIndex(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false) = 0;
 		/*
 			Returns the index and position of the character which is nearest to a point.
-		
+
 			p_outCharacterIndex is a pointer to the character index to be returned.
 			p_outCharacterPosition is a pointer to the 2d position to be returned.
-			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. 
+			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context.
 			If not, they are relative to the bounds of the text.
 		*/
 		virtual void getNearestCharacterIndexAndPosition(Point<float> const& p_point, uint32* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
 		/*
 			Returns the index and position of the character which is nearest to a point.
-		
+
 			p_outCharacterIndex is a pointer to the character index to be returned.
 			p_outCharacterPosition is a pointer to the 2d position to be returned.
-			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. 
+			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context.
 			If not, they are relative to the bounds of the text.
 		*/
 		virtual void getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, uint32* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
 		/*
 			Returns the index and bounds of the character which is nearest to a point.
-		
+
 			p_outCharacterIndex is a pointer to the character index to be returned.
 			p_outCharacterBounds is a pointer to the bounding rectangle to be returned.
 			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.
@@ -7993,7 +8575,7 @@ namespace AvoGUI
 		virtual void getNearestCharacterIndexAndBounds(Point<float> const& p_point, uint32* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
 		/*
 			Returns the index and bounds of the character which is nearest to a point.
-		
+
 			p_outCharacterIndex is a pointer to the character index to be returned.
 			p_outCharacterBounds is a pointer to the bounding rectangle to be returned.
 			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.
@@ -8026,12 +8608,12 @@ namespace AvoGUI
 
 		/*
 			Sets the font family to be used in a section of the text.
-	
+
 			p_name is the name of the font family.
 
 			p_startPosition is the position of the first character to use this font.
 			If this is negative, it is relative to the end of the text.
-			
+
 			p_length is the number of characters to use this font.
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
@@ -8042,27 +8624,27 @@ namespace AvoGUI
 
 		/*
 			Sets the spacing between characters in a section of the text.
-		
+
 			p_startPosition is the position of the first character to use this spacing.
 			If this is negative, it is relative to the end of the text.
-			
+
 			p_length is the number of characters to use this spacing.
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
-		*/	
+		*/
 		virtual void setCharacterSpacing(float p_characterSpacing, int32 p_startPosition = 0, int32 p_length = 0) = 0;
 		/*
 			Sets the leading and trailing spacing of the characters in a section of the text.
-		
+
 			p_leading is the spacing before the characters of the text.
 			p_trailing is the spacing after the characters of the text.
 			p_startPosition is the position of the first character to use this spacing.
 			If this is negative, it is relative to the end of the text.
-			
+
 			p_length is the number of characters to use this spacing.
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
-		*/	
+		*/
 		virtual void setCharacterSpacing(float p_leading, float p_trailing, int32 p_startPosition = 0, int32 p_length = 0) = 0;
 		/*
 			Returns the spacing before one of the characters.
@@ -8088,14 +8670,14 @@ namespace AvoGUI
 
 		/*
 			Sets the thickness of characters in a section of the text.
-		
+
 			p_startPosition is the position of the first character to use this font weight.
 			If this is negative, it is relative to the end of the text.
-			
+
 			p_length is the number of characters to use this font weight.
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
-		*/	
+		*/
 		virtual void setFontWeight(FontWeight p_fontWeight, int32 p_startPosition = 0, int32 p_length = 0) = 0;
 		/*
 			Returns the weight/thickness of a character in the text.
@@ -8106,14 +8688,14 @@ namespace AvoGUI
 
 		/*
 			Sets the font style in a section of the text.
-		
+
 			p_startPosition is the position of the first character to use this font style.
 			If this is negative, it is relative to the end of the text.
-			
+
 			p_length is the number of characters to use this font style.
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
-		*/	
+		*/
 		virtual void setFontStyle(FontStyle p_fontStyle, int32 p_startPosition = 0, int32 p_length = 0) = 0;
 		/*
 			Returns the style of a character in the text.
@@ -8124,14 +8706,14 @@ namespace AvoGUI
 
 		/*
 			Sets the font stretch in a section of the text. Not all fonts support this.
-		
+
 			p_startPosition is the position of the first character to use this font stretch.
 			If this is negative, it is relative to the end of the text.
-			
+
 			p_length is the number of characters to use this font stretch.
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
-		*/	
+		*/
 		virtual void setFontStretch(FontStretch p_fontStretch, int32 p_startPosition = 0, int32 p_length = 0) = 0;
 		/*
 			Returns the font stretch of a character in the text.
@@ -8142,10 +8724,10 @@ namespace AvoGUI
 
 		/*
 			Sets the font size in a section of the text.
-		
+
 			p_startPosition is the position of the first character to use this font size.
 			If this is negative, it is relative to the end of the text.
-			
+
 			p_length is the number of characters to use this font size.
 			If this is negative, it goes to the left of the start position.
 			If it is 0, everything after the starting position will be affected.
@@ -8207,7 +8789,7 @@ namespace AvoGUI
 		FontStretch fontStretch{FontStretch::Medium};
 		TextAlign textAlign{TextAlign::Left};
 		ReadingDirection readingDirection{ReadingDirection::LeftToRight};
-		
+
 		float characterSpacing = {0.f}; // Only supported for text objects.
 		float lineHeight = {1.f};
 		float fontSize = {22.f};
@@ -8396,7 +8978,7 @@ namespace AvoGUI
 	class DrawingState : public ReferenceCounted { };
 
 	/*
-		A drawing context interface, created by a GUI to be used to create objects 
+		A drawing context interface, created by a GUI to be used to create objects
 		like text and images (and more) as well as to draw graphics in views.
 	*/
 	class DrawingContext : public ReferenceCounted
@@ -8487,7 +9069,7 @@ namespace AvoGUI
 		*/
 		virtual void setIsFullscreen(bool p_isFullscreen) = 0;
 		/*
-			Switches between windowed and fullscreen mode. 
+			Switches between windowed and fullscreen mode.
 			If it is currently windowed, it switches to fullscreen, and the other way around.
 		*/
 		virtual void switchFullscreen() = 0;
@@ -8626,7 +9208,7 @@ namespace AvoGUI
 		*/
 		virtual void setScale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) = 0;
 		/*
-			Returns the sizing factor which is transforming graphics drawing so that it is bigger or smaller. 
+			Returns the sizing factor which is transforming graphics drawing so that it is bigger or smaller.
 			If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.
 		*/
 		virtual Point<float> const& getScale() = 0;
@@ -8650,14 +9232,14 @@ namespace AvoGUI
 		*/
 		virtual void rotate(float p_radians) = 0;
 		/*
-			Rotates all future graphics drawing, with an angle in radians. 
+			Rotates all future graphics drawing, with an angle in radians.
 			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
 			p_radians is the angle to rotate, in radians.
 			Positive angle is clockwise and negative is anticlockwise (in our coordinate system).
 		*/
 		virtual void rotate(float p_radians, Point<float> const& p_origin) = 0;
 		/*
-			Rotates all future graphics drawing, with an angle in radians. 
+			Rotates all future graphics drawing, with an angle in radians.
 			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
 			p_radians is the angle to rotate, in radians.
 			Positive angle is clockwise and negative is anticlockwise (in our coordinate system).
@@ -8702,27 +9284,27 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Draws a filled rectangle using the current color or gradient. 
+			Draws a filled rectangle using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(Rectangle<float> const& p_rectangle) = 0;
 		/*
-			Draws a filled rectangle using the current color or gradient. 
+			Draws a filled rectangle using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(Point<float> const& p_position, Point<float> const& p_size) = 0;
 		/*
-			Draws a filled rectangle using the current color or gradient. 
+			Draws a filled rectangle using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(float p_left, float p_top, float p_right, float p_bottom) = 0;
 		/*
-			Draws a filled rectangle at the origin using the current color or gradient. 
+			Draws a filled rectangle at the origin using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(Point<float> const& p_size) = 0;
 		/*
-			Draws a filled rectangle at the origin using the current color or gradient. 
+			Draws a filled rectangle at the origin using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
 		virtual void fillRectangle(float p_width, float p_height) = 0;
@@ -8783,27 +9365,27 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Draws a rectangle outline using the current color or gradient. 
+			Draws a rectangle outline using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(Rectangle<float> const& p_rectangle, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rectangle outline using the current color or gradient. 
+			Draws a rectangle outline using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rectangle outline using the current color or gradient. 
+			Draws a rectangle outline using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rectangle outline at the origin using the current color or gradient. 
+			Draws a rectangle outline at the origin using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(Point<float> const& p_size, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a rectangle outline at the origin using the current color or gradient. 
+			Draws a rectangle outline at the origin using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void strokeRectangle(float p_width, float p_height, float p_strokeWidth = 1.f) = 0;
@@ -8864,32 +9446,32 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Draws a filled circle using the current color or gradient. 
+			Draws a filled circle using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		
+
 			p_position is the center position of the circle.
 		*/
 		virtual void fillCircle(Point<float> const& p_position, float p_radius) = 0;
 		/*
-			Draws a filled circle using the current color or gradient. 
+			Draws a filled circle using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		
+
 			p_x is the horizontal center position of the circle.
 			p_y is the vertical center position of the circle.
 		*/
 		virtual void fillCircle(float p_x, float p_y, float p_radius) = 0;
 
 		/*
-			Draws a circle outline using the current color or gradient. 
+			Draws a circle outline using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		
+
 			p_position is the center position of the circle.
 		*/
 		virtual void strokeCircle(Point<float> const& p_position, float p_radius, float p_strokeWidth = 1.f) = 0;
 		/*
-			Draws a circle outline using the current color or gradient. 
+			Draws a circle outline using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		
+
 			p_position is the center position of the circle.
 		*/
 		virtual void strokeCircle(float p_x, float p_y, float p_radius, float p_strokeWidth = 1.f) = 0;
@@ -8897,7 +9479,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Draws a straight line between two points using the current color or gradient. 
+			Draws a straight line between two points using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
 		virtual void drawLine(Point<float> const& p_point_0, Point<float> const& p_point_1, float p_thickness = 1.f) = 0;
@@ -8911,7 +9493,7 @@ namespace AvoGUI
 
 		/*
 			Draws the edge of a custom shape.
-		
+
 			p_vertices is a vector of the points that make up the shape.
 			p_lineThickness is how thicc the edges of the shape are.
 			p_isClosed is whether the last vertex will be connected to the first one to close the shape.
@@ -8919,7 +9501,7 @@ namespace AvoGUI
 		virtual void strokeShape(std::vector<Point<float>> const& p_vertices, float p_lineThickness, bool p_isClosed = false) = 0;
 		/*
 			Draws the edge of a custom shape.
-		
+
 			p_vertices is an array of points that make up the shape.
 			p_numberOfVertices is the number of points that make up the shape.
 			p_lineThickness is how thicc the edges of the shape are.
@@ -8934,7 +9516,7 @@ namespace AvoGUI
 		virtual void fillShape(std::vector<Point<float>> const& p_vertices) = 0;
 		/*
 			Fills a custom shape with the current color or gradient.
-		
+
 			p_vertices is an array of points that make up the shape.
 			p_numberOfVertices is he number of points that make up the shape.
 		*/
@@ -9190,7 +9772,7 @@ namespace AvoGUI
 
 		/*
 			Generates an image of a shadow that is cast by a rectangle.
-		
+
 			p_size is the size of the rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.
 			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
@@ -9198,7 +9780,7 @@ namespace AvoGUI
 		virtual Image* createRectangleShadowImage(Point<float> const& p_size, float p_blur, Color const& p_color) = 0;
 		/*
 			Generates an image of a shadow that is cast by a rectangle.
-		
+
 			p_width is the width of the rectangle which will cast the shadow. The shadow will be wider than this if p_blur > 0.
 			p_height is the height of the rectangle which will cast the shadow. The shadow will be taller than this if p_blur > 0.
 			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
@@ -9228,7 +9810,7 @@ namespace AvoGUI
 
 		/*
 			Generates an image of a shadow that is cast by a rounded rectangle.
-		
+
 			p_size is the size of the rounded rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.
 			p_radius is the corner radius ("roundness") of the rounded rectangle which will cast the shadow.
 			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
@@ -9237,7 +9819,7 @@ namespace AvoGUI
 		virtual Image* createRoundedRectangleShadowImage(Point<float> const& p_size, float p_radius, float p_blur, Color const& p_color) = 0;
 		/*
 			Generates an image of a shadow that is cast by a rounded rectangle.
-		
+
 			p_width is the width of the rounded rectangle which will cast the shadow. The shadow will be wider than this if p_blur > 0.
 			p_height is the height of the rounded rectangle which will cast the shadow. The shadow will be taller than this if p_blur > 0.
 			p_radius is the corner radius ("roundness") of the rounded rectangle which will cast the shadow.
@@ -9251,7 +9833,7 @@ namespace AvoGUI
 		/*
 			Loads an image from pixel data in BGRA format.
 
-			p_pixelData is an array which is 4*width*height bytes in size. 
+			p_pixelData is an array which is 4*width*height bytes in size.
 			It contains the color values for every pixel in the image, row-by-row. One byte for every color channel.
 
 			p_width and p_height are in pixels.
@@ -9365,12 +9947,12 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Sets the default properties of text created with this drawing context. 
+			Sets the default properties of text created with this drawing context.
 			These properties can be overridden by changing the properties of a text object.
 		*/
 		virtual void setDefaultTextProperties(TextProperties const& p_textProperties) = 0;
 		/*
-			Returns the default properties of text created with this drawing context. 
+			Returns the default properties of text created with this drawing context.
 			These properties can be overridden by changing the properties of a text object.
 		*/
 		virtual TextProperties getDefaultTextProperties() = 0;
@@ -9427,15 +10009,13 @@ namespace AvoGUI
 		It is connected to a window which it holds and receives events from.
 		When the window has been closed and destroyed, forget() is called on the GUI.
 	*/
-	class Gui : public View, public WindowListener
+	class Gui : public View
 	{
 	private:
 		Gui* m_parent{ nullptr };
 		Window* m_window{ nullptr };
 		DrawingContext* m_drawingContext{ nullptr };
 		DrawingState* m_drawingContextState{ nullptr };
-
-		std::vector<WindowListener*> m_windowEventListeners;
 
 		Point<float> m_lastUpdatedWindowSize;
 
@@ -9446,15 +10026,7 @@ namespace AvoGUI
 		std::mutex m_invalidRectanglesMutex;
 		std::vector<Rectangle<float>> m_invalidRectangles;
 
-		std::recursive_mutex m_animationThreadMutex;
-		bool m_hasAnimationLoopStarted{ false };
-		bool m_willClose{ false };
-
 		//------------------------------
-
-		std::vector<GlobalMouseListener*> m_globalMouseEventListeners;
-		std::vector<View*> m_pressedMouseEventListeners;
-		Point<float> m_mouseDownPosition;
 
 		/*
 			LIBRARY IMPLEMENTED
@@ -9466,15 +10038,6 @@ namespace AvoGUI
 			Returns the topmost non-overlay view which contains the coordinates given, as well as any overlay views which are above the non-overlay view.
 		*/
 		void getTopMouseListenersAt(float p_x, float p_y, std::vector<View*>& p_result);
-
-		//------------------------------
-
-		std::vector<KeyboardListener*> m_globalKeyboardEventListeners;
-		KeyboardListener* m_keyboardFocus{nullptr};
-
-		//------------------------------
-
-		std::vector<GlobalDragDropListener*> m_globalDragDropListeners;
 
 		//------------------------------
 
@@ -9494,9 +10057,6 @@ namespace AvoGUI
 				View::sendBoundsChangeEvents(p_previousBounds);
 			}
 		}
-
-		std::thread m_animationThread;
-		void thread_runAnimationLoop();
 
 	public:
 		Gui();
@@ -9546,16 +10106,16 @@ namespace AvoGUI
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
-		
+
 			waitForFinish or detachFromThread must be called after creation and before the main thread returns.
 
 			p_title is the text that appears in the title bar of the window (if it has an OS border).
-			
-			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge 
+
+			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
 			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
-			
+
 			p_positionFactorY is the vertical equivalent to p_positionFactorX.
-			
+
 			p_width is the width of the client area in DIPs (device independent pixels).
 			p_height is the height of the client area in DIPs (device independent pixels).
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
@@ -9569,7 +10129,7 @@ namespace AvoGUI
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
 
 			waitForFinish or detachFromThread must be called after creation and before the main thread returns.
-		
+
 			p_title is the text that appears in the title bar of the window (if it has an OS border).
 			p_width is the width of the client area in DIPs (device independent pixels).
 			p_height is the height of the client area in DIPs (device independent pixels).
@@ -9632,7 +10192,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			This detaches the GUI from the creator thread, so that it continues to run independently.
 			The GUI is forgotten automatically when the window has closed.
-			This is recommended to be used for child GUIs like popup windows and such, since the parent thread needs to continue running 
+			This is recommended to be used for child GUIs like popup windows and such, since the parent thread needs to continue running
 			and can't wait for the child GUI to finish.
 		*/
 		void detachFromThread()
@@ -9647,17 +10207,6 @@ namespace AvoGUI
 		Gui* getParent()
 		{
 			return m_parent;
-		}
-
-		//------------------------------
-
-		/*
-			LIBRARY IMPLEMENTED
-			Returns whether the GUI and its window is awaiting being closed by the animation/drawing thread.
-		*/
-		bool getWillClose()
-		{
-			return m_willClose;
 		}
 
 		//------------------------------
@@ -9705,55 +10254,44 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		bool m_hasAnimationLoopStarted{ false };
+		std::recursive_mutex m_animationThreadMutex;
+		std::thread m_animationThread;
+		void thread_runAnimationLoop();
+	public:
 		/*
 			LIBRARY IMPLEMENTED
-			Creates a new drawing context and calls createContent() to initialize the layout, as well as sends the event down to all window listeners.
+			This locks the animation thread mutex, so that the critical section in the animation thread does not run until the mutex is unlocked again (or the other way around).
 		*/
-		void handleWindowCreate(WindowEvent const& p_event) override;
+		void excludeAnimationThread()
+		{
+			m_animationThreadMutex.lock();
+		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sends the event down to all window listeners and returns whether the window will close.
+			This unlocks the animation thread mutex, so that the critical section in the animation thread is allowed to run.
 		*/
-		bool handleWindowClose(WindowEvent const& p_event) override;
-		/*
-			LIBRARY IMPLEMENTED
-			Sends the event down to all window listeners.
-		*/
-		void handleWindowMinimize(WindowEvent const& p_event) override;
-		/*
-			LIBRARY IMPLEMENTED
-			Sends the event down to all window listeners.
-		*/
-		void handleWindowMaximize(WindowEvent const& p_event) override;
-		/*
-			LIBRARY IMPLEMENTED
-			Sends the event down to all window listeners.
-		*/
-		void handleWindowRestore(WindowEvent const& p_event) override;
-		/*
-			LIBRARY IMPLEMENTED
-			Resizes the buffers held by the drawing context and updates the size of the GUI, as well as sends the event down to all window listeners.
-		*/
-		void handleWindowSizeChange(WindowEvent const& p_event) override;
-		/*
-			LIBRARY IMPLEMENTED
-			Sends the event down to all window listeners.
-		*/
-		void handleWindowFocus(WindowEvent const& p_event) override;
-		/*
-			LIBRARY IMPLEMENTED
-			Sends the event down to all window listeners.
-		*/
-		void handleWindowUnfocus(WindowEvent const& p_event) override;
+		void includeAnimationThread()
+		{
+			m_animationThreadMutex.unlock();
+		}
 
 		//------------------------------
 
+	private:
+		void handleWindowCreate(WindowEvent const& p_event);
+		void handleWindowDestroy(WindowEvent const& p_event);
+		void handleWindowSizeChange(WindowEvent const& p_event);
+
+		//------------------------------
+
+	public:
 		/*
-			LIBRARY IMPLEMENTED
 			This is used to tell the OS what type of operation is supported for the dragged data.
 			Queries the targeted views.
 		*/
-		virtual DragDropOperation getGlobalDragDropOperation(DragDropEvent& p_event)
+		DragDropOperation getGlobalDragDropOperation(DragDropEvent& p_event)
 		{
 			std::vector<View*> targets;
 			getTopMouseListenersAt(p_event.x, p_event.y, targets);
@@ -9782,34 +10320,13 @@ namespace AvoGUI
 			return result;
 		}
 
-		/*
-			LIBRARY IMPLEMENTED
-			Sends events down to targeted drag and drop enabled views and global drag and drop listeners.
-		*/
-		virtual void handleGlobalDragDropEnter(DragDropEvent& p_event)
+		void handleGlobalDragDropEnter(DragDropEvent& p_event)
 		{
 			handleGlobalDragDropMove(p_event);
-
-			for (GlobalDragDropListener* listener : m_globalDragDropListeners)
-			{
-				listener->handleGlobalDragDropEnter(p_event);
-			}
 		}
-		/*
-			LIBRARY IMPLEMENTED
-			Sends the event down to targeted drag and drop enabled views and global drag and drop listeners.
-		*/
-		virtual void handleGlobalDragDropMove(DragDropEvent& p_event);
-		/*
-			LIBRARY IMPLEMENTED
-			Sends the event down to targeted drag and drop enabled views and global drag and drop listeners.
-		*/
-		virtual void handleGlobalDragDropLeave(DragDropEvent& p_event);
-		/*
-			LIBRARY IMPLEMENTED
-			Sends the event down to targeted drag and drop enabled views and global drag and drop listeners.
-		*/
-		virtual void handleGlobalDragDropFinish(DragDropEvent& p_event)
+		void handleGlobalDragDropMove(DragDropEvent& p_event);
+		void handleGlobalDragDropLeave(DragDropEvent& p_event);
+		void handleGlobalDragDropFinish(DragDropEvent& p_event)
 		{
 			if (m_areDragDropEventsEnabled)
 			{
@@ -9840,7 +10357,7 @@ namespace AvoGUI
 							{
 								p_event.x = absoluteX - child->getAbsoluteLeft();
 								p_event.y = absoluteY - child->getAbsoluteTop();
-								child->handleDragDropFinish(p_event);
+								child->sendDragDropFinishEvents(p_event);
 							}
 							container = child;
 							startIndex = container->getNumberOfChildren() - 1;
@@ -9852,7 +10369,7 @@ namespace AvoGUI
 							{
 								p_event.x = absoluteX - child->getAbsoluteLeft();
 								p_event.y = absoluteY - child->getAbsoluteTop();
-								child->handleDragDropFinish(p_event);
+								child->sendDragDropFinishEvents(p_event);
 							}
 
 							if (!child->getIsOverlay())
@@ -9873,30 +10390,40 @@ namespace AvoGUI
 				startIndex = container->getIndex() - 1;
 				container = container->getParent();
 			}
-			for (GlobalDragDropListener* listener : m_globalDragDropListeners)
-			{
-				listener->handleGlobalDragDropFinish(p_event);
-			}
+		}
+
+	private:
+		EventListeners<void(DragDropOperation)> m_dragDropOperationChangeListeners;
+	public:
+		void handleGlobalDragDropOperationChange(DragDropOperation p_newOperation)
+		{
+			m_dragDropOperationChangeListeners.notifyAll(p_newOperation);
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Sends the event down to global drag and drop listeners.
+			Adds a callback for drag drop operation change events on the GUI.
+			Listener signature:
+				void (DragDropOperation newOperation)
 		*/
-		virtual void handleGlobalDragDropOperationChange(DragDropOperation p_newOperation)
+		void addDragDropOperationChangeListener(std::function<void(DragDropOperation)> p_listener)
 		{
-			for (GlobalDragDropListener* listener : m_globalDragDropListeners)
-			{
-				listener->handleGlobalDragDropOperationChange(p_newOperation);
-			}
+			m_dragDropOperationChangeListeners.add(p_listener);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeDragDropOperationChangeListener(std::function<void(DragDropOperation)> p_listener)
+		{
+			m_dragDropOperationChangeListeners.remove(p_listener);
 		}
 
 		//------------------------------
 
-		/*
-			LIBRARY IMPLEMENTED
-			Sends the event down to global and targeted mouse event listeners.
-		*/
-		virtual void handleGlobalMouseDown(MouseEvent& p_event)
+	private:
+		std::vector<View*> m_pressedMouseEventListeners;
+		Point<float> m_mouseDownPosition;
+	public:
+		void handleGlobalMouseDown(MouseEvent& p_event)
 		{
 			std::vector<View*> targets;
 			getTopMouseListenersAt(p_event.x, p_event.y, targets);
@@ -9911,28 +10438,14 @@ namespace AvoGUI
 					p_event.x = absoluteX - view->getAbsoluteLeft();
 					p_event.y = absoluteY - view->getAbsoluteTop();
 
-					view->handleMouseDown(p_event);
+					view->sendMouseDownEvents(p_event);
 					m_pressedMouseEventListeners.push_back(view);
 				}
 			}
 
 			m_mouseDownPosition.set(absoluteX, absoluteY);
-
-			if (!m_globalMouseEventListeners.empty())
-			{
-				p_event.x = absoluteX;
-				p_event.y = absoluteY;
-				for (GlobalMouseListener* listener : m_globalMouseEventListeners)
-				{
-					listener->handleGlobalMouseDown(p_event);
-				}
-			}
 		}
-		/*
-			LIBRARY IMPLEMENTED
-			Sends the event down to global and targeted mouse event listeners.
-		*/
-		virtual void handleGlobalMouseUp(MouseEvent& p_event)
+		void handleGlobalMouseUp(MouseEvent& p_event)
 		{
 			float absoluteX = p_event.x;
 			float absoluteY = p_event.y;
@@ -9942,7 +10455,7 @@ namespace AvoGUI
 				{
 					p_event.x = absoluteX - view->getAbsoluteLeft();
 					p_event.y = absoluteY - view->getAbsoluteTop();
-					view->handleMouseUp(p_event);
+					view->sendMouseUpEvents(p_event);
 				}
 				for (View* view : m_pressedMouseEventListeners)
 				{
@@ -9959,22 +10472,8 @@ namespace AvoGUI
 					handleGlobalMouseMove(p_event); // This is so that any views that the mouse has entered while pressed get their events.
 				}
 			}
-
-			if (!m_globalMouseEventListeners.empty())
-			{
-				p_event.x = absoluteX;
-				p_event.y = absoluteY;
-				for (auto listener : m_globalMouseEventListeners)
-				{
-					listener->handleGlobalMouseUp(p_event);
-				}
-			}
 		}
-		/*
-			LIBRARY IMPLEMENTED
-			Sends the event down to global and targeted mouse event listeners.
-		*/
-		virtual void handleGlobalMouseDoubleClick(MouseEvent& p_event)
+		void handleGlobalMouseDoubleClick(MouseEvent& p_event)
 		{
 			std::vector<View*> targets;
 			getTopMouseListenersAt(p_event.x, p_event.y, targets);
@@ -9989,40 +10488,17 @@ namespace AvoGUI
 					p_event.x = absoluteX - view->getAbsoluteLeft();
 					p_event.y = absoluteY - view->getAbsoluteTop();
 
-					view->handleMouseDoubleClick(p_event);
+					view->sendMouseDoubleClickEvents(p_event);
 				}
 				for (View* view : targets)
 				{
 					view->forget();
 				}
 			}
-
-			if (!m_globalMouseEventListeners.empty())
-			{
-				p_event.x = absoluteX;
-				p_event.y = absoluteY;
-				for (auto listener : m_globalMouseEventListeners)
-				{
-					listener->handleGlobalMouseDoubleClick(p_event);
-				}
-			}
 		}
-
-		/*
-			LIBRARY IMPLEMENTED
-			Sends the event down to global and targeted mouse event listeners.
-		*/
-		virtual void handleGlobalMouseMove(MouseEvent& p_event);
-		/*
-			LIBRARY IMPLEMENTED
-			Sends the event down to global and targeted mouse event listeners.
-		*/
-		virtual void handleGlobalMouseLeave(MouseEvent& p_event);
-		/*
-			LIBRARY IMPLEMENTED
-			Sends the event down to global and targeted mouse event listeners.
-		*/
-		virtual void handleGlobalMouseScroll(MouseEvent& p_event)
+		void handleGlobalMouseMove(MouseEvent& p_event);
+		void handleGlobalMouseLeave(MouseEvent& p_event);
+		void handleGlobalMouseScroll(MouseEvent& p_event)
 		{
 			std::vector<View*> targets;
 			getTopMouseListenersAt(p_event.x, p_event.y, targets);
@@ -10037,7 +10513,7 @@ namespace AvoGUI
 					p_event.x = absoluteX - view->getAbsoluteLeft();
 					p_event.y = absoluteY - view->getAbsoluteTop();
 
-					view->handleMouseScroll(p_event);
+					view->sendMouseScrollEvents(p_event);
 				}
 				for (View* view : targets)
 				{
@@ -10048,14 +10524,6 @@ namespace AvoGUI
 			p_event.x = absoluteX;
 			p_event.y = absoluteY;
 			handleGlobalMouseMove(p_event);
-
-			if (!m_globalMouseEventListeners.empty())
-			{
-				for (auto listener : m_globalMouseEventListeners)
-				{
-					listener->handleGlobalMouseScroll(p_event);
-				}
-			}
 		}
 
 		//------------------------------
@@ -10071,8 +10539,8 @@ namespace AvoGUI
 		*/
 		virtual WindowBorderArea getWindowBorderAreaAtPosition(float p_x, float p_y)
 		{
-			float borderWidth = 5.f;
-			float diagonalBorderWidth = 7.f;
+			constexpr float borderWidth = 5.f;
+			constexpr float diagonalBorderWidth = 7.f;
 
 			if (p_y < diagonalBorderWidth)
 			{
@@ -10117,154 +10585,103 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		View* m_keyboardFocus{nullptr};
+	public:
 		/*
 			LIBRARY IMPLEMENTED
 			Sets the keyboard event listener that keyboard events are sent to.
 		*/
-		void setKeyboardFocus(KeyboardListener* p_keyboardFocus)
+		void setKeyboardFocus(View* p_view)
 		{
-			if (m_keyboardFocus == p_keyboardFocus)
+			if (m_keyboardFocus == p_view)
 			{
 				return;
 			}
 
-			KeyboardListener* focusBefore = m_keyboardFocus;
+			View* focusBefore = m_keyboardFocus;
 
-			m_keyboardFocus = p_keyboardFocus;
+			m_keyboardFocus = p_view;
 
 			if (focusBefore)
 			{
-				focusBefore->handleKeyboardFocusLose();
+				focusBefore->sendKeyboardFocusLoseEvents();
 			}
 
-			if (p_keyboardFocus)
+			if (p_view)
 			{
-				p_keyboardFocus->handleKeyboardFocusGain();
+				p_view->sendKeyboardFocusGainEvents();
 			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
 			Returns the keyboard event listener that keyboard events are sent to.
 		*/
-		KeyboardListener* getKeyboardFocus()
+		View* getKeyboardFocus()
 		{
 			return m_keyboardFocus;
 		}
 
-		/*
-			LIBRARY IMPLEMENTED
-			Handles a character pressed event that has been sent directly from the window to the GUI. 
-			If there are no global keyboard listeners, the event is only sent to the keyboard focus.
-		*/
-		virtual void handleGlobalCharacterInput(KeyboardEvent const& p_event)
+		using GlobalKeyboardListener = std::function<void(KeyboardEvent const&)>;
+
+	private:
+		EventListeners<void(KeyboardEvent const&)> m_globalCharacterInputListeners;
+	public:
+		void handleGlobalCharacterInput(KeyboardEvent const& p_event)
 		{
 			if (m_keyboardFocus)
 			{
-				m_keyboardFocus->handleCharacterInput(p_event);
+				m_keyboardFocus->sendCharacterInputEvents(p_event);
 			}
-			for (auto listener : m_globalKeyboardEventListeners)
-			{
-				listener->handleCharacterInput(p_event);
-			}
+			m_globalCharacterInputListeners.notifyAll(p_event);
 		}
-		/*
-			LIBRARY IMPLEMENTED
-			Handles a key pressed event that has been sent directly from the window to the GUI. 
-			If there are no global keyboard listeners, the event is only sent to the keyboard focus.
-		*/
-		virtual void handleGlobalKeyboardKeyDown(KeyboardEvent const& p_event)
+		void addGlobalCharacterInputListener(GlobalKeyboardListener p_listener)
 		{
-			if (m_keyboardFocus)
-			{
-				m_keyboardFocus->handleKeyboardKeyDown(p_event);
-			}
-			for (auto listener : m_globalKeyboardEventListeners)
-			{
-				listener->handleKeyboardKeyDown(p_event);
-			}
+			m_globalCharacterInputListeners.add(p_listener);
 		}
-		/*
-			LIBRARY IMPLEMENTED
-			Handles a key release event that has been sent directly from the window to the GUI. 
-			If there are no global keyboard listeners, the event is only sent to the keyboard focus.
-		*/
-		virtual void handleGlobalKeyboardKeyUp(KeyboardEvent const& p_event)
+		void removeGlobalCharacterInputListener(GlobalKeyboardListener p_listener)
 		{
-			if (m_keyboardFocus)
-			{
-				m_keyboardFocus->handleKeyboardKeyUp(p_event);
-			}
-			for (auto listener : m_globalKeyboardEventListeners)
-			{
-				listener->handleKeyboardKeyUp(p_event);
-			}
+			m_globalCharacterInputListeners.remove(p_listener);
 		}
 
-		//------------------------------
+	private:
+		EventListeners<void(KeyboardEvent const&)> m_globalKeyboardKeyDownListeners;
+	public:
+		void handleGlobalKeyboardKeyDown(KeyboardEvent const& p_event)
+		{
+			if (m_keyboardFocus)
+			{
+				m_keyboardFocus->sendKeyboardKeyDownEvents(p_event);
+			}
+			m_globalKeyboardKeyDownListeners.notifyAll(p_event);
+		}
+		void addGlobalKeyboardKeyDownListener(GlobalKeyboardListener p_listener)
+		{
+			m_globalKeyboardKeyDownListeners.add(p_listener);
+		}
+		void removeGlobalKeyboardKeyDownListener(GlobalKeyboardListener p_listener)
+		{
+			m_globalKeyboardKeyDownListeners.remove(p_listener);
+		}
 
-		/*
-			LIBRARY IMPLEMENTED
-			Enables a window event listener to receive events.
-		*/
-		void addWindowListener(WindowListener* p_listener)
+	private:
+		EventListeners<void(KeyboardEvent const&)> m_globalKeyboardKeyUpListeners;
+	public:
+		void handleGlobalKeyboardKeyUp(KeyboardEvent const& p_event)
 		{
-			m_windowEventListeners.push_back(p_listener);
+			if (m_keyboardFocus)
+			{
+				m_keyboardFocus->sendKeyboardKeyUpEvents(p_event);
+			}
+			m_globalKeyboardKeyUpListeners.notifyAll(p_event);
 		}
-		/*
-			LIBRARY IMPLEMENTED
-			Disables a window event listener to receive events.
-		*/
-		void removeWindowListener(WindowListener* p_listener)
+		void addGlobalKeyboardKeyUpListener(GlobalKeyboardListener p_listener)
 		{
-			removeVectorElementWithoutKeepingOrder(m_windowEventListeners, p_listener);
+			m_globalKeyboardKeyUpListeners.add(p_listener);
 		}
-		/*
-			LIBRARY IMPLEMENTED
-			Enables a keyboard event listener to receive events even if it is not the keyboard focus.
-		*/
-		void addGlobalKeyboardListener(KeyboardListener* p_listener)
+		void removeGlobalKeyboardKeyUpListener(GlobalKeyboardListener p_listener)
 		{
-			m_globalKeyboardEventListeners.push_back(p_listener);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Disables a keyboard event listener to receive events when it is not the keyboard focus.
-		*/
-		void removeGlobalKeyboardListener(KeyboardListener* p_listener)
-		{
-			removeVectorElementWithoutKeepingOrder(m_globalKeyboardEventListeners, p_listener);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Enables a global mouse event listener to receive events.
-		*/
-		void addGlobalMouseListener(GlobalMouseListener* p_listener)
-		{
-			m_globalMouseEventListeners.push_back(p_listener);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Disables a global mouse event listener to receive events.
-		*/
-		void removeGlobalMouseListener(GlobalMouseListener* p_listener)
-		{
-			removeVectorElementWithoutKeepingOrder(m_globalMouseEventListeners, p_listener);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Enables a global drag and drop event listener to receive events from this GUI.
-		*/
-		void addGlobalDragDropListener(GlobalDragDropListener* p_listener)
-		{
-			m_globalDragDropListeners.push_back(p_listener);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Disables a global drag and drop event listener to receive events from this GUI.
-		*/
-		void removeGlobalDragDropListener(GlobalDragDropListener* p_listener)
-		{
-			removeVectorElementWithoutKeepingOrder(m_globalDragDropListeners, p_listener);
+			m_globalKeyboardKeyUpListeners.remove(p_listener);
 		}
 
 		//------------------------------
@@ -10290,35 +10707,16 @@ namespace AvoGUI
 
 		/*
 			USER IMPLEMENTED
-			This is called after the window and drawing context have been created. 
+			This is called after the window and drawing context have been created.
 			It is a good idea to initialize your GUI in this method, but do the layout in handleSizeChange() - it is called right after creation too.
 		*/
-		virtual void createContent() { };
+		virtual void createContent() { }
 
 		//------------------------------
 
 		/*
 			LIBRARY IMPLEMENTED
-			This locks the animation thread mutex, so that the critical section in the animation thread does not run until the mutex is unlocked again (or the other way around).
-		*/
-		void excludeAnimationThread()
-		{
-			m_animationThreadMutex.lock();
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			This unlocks the animation thread mutex, so that the critical section in the animation thread is allowed to run.
-		*/
-		void includeAnimationThread()
-		{
-			m_animationThreadMutex.unlock();
-		}
-
-		//------------------------------
-
-		/*
-			LIBRARY IMPLEMENTED
-			Invalidates a part of the GUI that has been changed, and therefore needs to be redrawn. 
+			Invalidates a part of the GUI that has been changed, and therefore needs to be redrawn.
 			Views that intersect with any invalid rectangles will be drawn in the next call to drawViews() (which is made internally) automatically.
 		*/
 		void invalidateRectangle(Rectangle<float> p_rectangle);
@@ -10341,7 +10739,7 @@ namespace AvoGUI
 	//------------------------------
 
 	/*
-		Shows a short info message about a view. 
+		Shows a short info message about a view.
 		The parent of a tooltip is the GUI.
 	*/
 	class Tooltip : public View
@@ -10544,7 +10942,7 @@ namespace AvoGUI
 			See the properties of FileExtensionFilter for details.
 
 			You can initialize the vector like this:
-			
+
 			{
 				{ "Images", "*.jpg;*.png" }
 				{ "Sound files", "*.mp3;*.wav;*.ogg" }
@@ -10597,7 +10995,7 @@ namespace AvoGUI
 		A view that shows a ripple effect when you click it and optionally shows a hover effect when the mouse hovers over it.
 		It is a mouse event overlay which means views behind this view are targeted as if this view didn't exist.
 	*/
-	class Ripple : public View, public ViewListener
+	class Ripple : public View
 	{
 	private:
 		Color m_color;
@@ -10633,7 +11031,8 @@ namespace AvoGUI
 			setHasShadow(false);
 			setElevation(FLT_MAX); // Nothing can be above a ripple...
 			enableMouseEvents();
-			p_parent->addViewListener(this);
+
+			p_parent->addSizeChangeListener(bind(&Ripple::handleParentSizeChange, this));
 		}
 		~Ripple() override
 		{
@@ -10700,7 +11099,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void handleViewSizeChange(View* p_view, float p_previousWidth, float p_previousHeight) override
+		void handleParentSizeChange(View* p_view, float p_previousWidth, float p_previousHeight)
 		{
 			setSize(p_view->getSize());
 			m_maxSize = 2.f * Point<>::getDistanceFast(m_position, Point<float>(m_position.x < getWidth() * 0.5 ? getWidth() : 0, m_position.y < getHeight() * 0.5 ? getHeight() : 0));
@@ -10821,14 +11220,6 @@ namespace AvoGUI
 
 	//------------------------------
 
-	class Button;
-
-	class ButtonListener
-	{
-	public:
-		virtual void handleButtonClick(Button* p_button) { };
-	};
-
 	class Button : public View
 	{
 	public:
@@ -10860,8 +11251,6 @@ namespace AvoGUI
 		bool m_isMouseHovering{false};
 
 		Ripple* m_ripple{nullptr};
-
-		std::vector<ButtonListener*> m_buttonListeners;
 
 	protected:
 		void handleThemeValueChange(std::string const& p_name, float p_newValue) override
@@ -10966,12 +11355,16 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/*
-			Registers a button listener to this button. The button listener will get an event when the button has been pressed.
-		*/
-		void addButtonListener(ButtonListener* p_buttonListener)
+	private:
+		EventListeners<void(Button*)> m_buttonListeners;
+	public:
+		void addButtonListener(std::function<void(Button*)> p_listener)
 		{
-			m_buttonListeners.push_back(p_buttonListener);
+			m_buttonListeners.add(p_listener);
+		}
+		void removeButtonListener(std::function<void(Button*)> p_listener)
+		{
+			m_buttonListeners.remove(p_listener);
 		}
 
 		//------------------------------
@@ -11072,7 +11465,7 @@ namespace AvoGUI
 				//m_text->setIsTopTrimmed(true);
 				m_text->fitSizeToText();
 			}
-			else 
+			else
 			{
 				m_text = nullptr;
 			}
@@ -11139,7 +11532,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Sets a string to be shown as a tooltip when the mouse hovers over the button. 
+			Sets a string to be shown as a tooltip when the mouse hovers over the button.
 			Should give the user additional information about the button's purpose.
 			An empty string disables the tooltip.
 		*/
@@ -11149,7 +11542,7 @@ namespace AvoGUI
 			m_tooltipString = p_info;
 		}
 		/*
-			Sets a string to be shown as a tooltip when the mouse hovers over the button. 
+			Sets a string to be shown as a tooltip when the mouse hovers over the button.
 			Should give the user additional information about the button's purpose.
 			An empty string disables the tooltip.
 		*/
@@ -11161,8 +11554,8 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void handleMouseBackgroundEnter(MouseEvent const& p_event) override 
-		{ 
+		void handleMouseBackgroundEnter(MouseEvent const& p_event) override
+		{
 			if (m_tooltipView && !m_tooltipString.empty())
 			{
 				m_tooltipView->show(m_tooltipString, getAbsoluteBounds());
@@ -11201,10 +11594,7 @@ namespace AvoGUI
 				}
 				if (m_isEnabled && getIsContaining(p_event.x + getLeft(), p_event.y + getTop()))
 				{
-					for (auto& listener : m_buttonListeners)
-					{
-						listener->handleButtonClick(this);
-					}
+					m_buttonListeners.notifyAll(this);
 				}
 			}
 		}
@@ -11339,13 +11729,13 @@ namespace AvoGUI
 			Gets called when the text of an EditableText view is about to be changed, either by the user or programmatically.
 			p_newString is the string that will be set if all listeners return true from this handler. Otherwise, the string is left unchanged.
 			p_newString can be modified, and the contents of the string after all listeners have handled the event is what will be set as the new text.
-			p_newCaretCharacterIndex works in a similar way, and it is the index of the cursor showing where new user input is inserted. 
+			p_newCaretCharacterIndex works in a similar way, and it is the index of the cursor showing where new user input is inserted.
 			This index can be equal to the size of the new string, and in that case the cursor ends up at the end of the text.
 			The default implementation of this method calls the simpler version that only takes the p_editableText parameter.
 		*/
-		virtual bool handleEditableTextChange(EditableText* p_editableText, std::string& p_newString, int32& p_newCaretIndex) 
-		{ 
-			return handleEditableTextChange(p_editableText); 
+		virtual bool handleEditableTextChange(EditableText* p_editableText, std::string& p_newString, int32& p_newCaretIndex)
+		{
+			return handleEditableTextChange(p_editableText);
 		}
 		/*
 			USER IMPLEMENTED
@@ -11357,7 +11747,7 @@ namespace AvoGUI
 	/*
 		A view that only consists of text that can be edited by the user.
 	*/
-	class EditableText : public View, public KeyboardListener
+	class EditableText : public View
 	{
 	private:
 		Text* m_text{nullptr};
@@ -11453,7 +11843,7 @@ namespace AvoGUI
 
 	public:
 		explicit EditableText(View* p_parent, float p_width = 0.f, float p_fontSize = 12.f) :
-			View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*1.2f)), 
+			View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*1.2f)),
 			m_fontSize(p_fontSize)
 		{
 			setCursor(Cursor::Ibeam);
@@ -11520,7 +11910,7 @@ namespace AvoGUI
 					m_isSelectionVisible = true;
 					invalidate();
 				}
-			}	
+			}
 		}
 		void handleMouseDown(MouseEvent const& p_event) override
 		{
@@ -12393,7 +12783,7 @@ namespace AvoGUI
 
 	constexpr float TEXT_FIELD_OUTLINED_PADDING_LABEL = 5.f;
 
-	class TextField : public View, public KeyboardListener, public EditableTextListener
+	class TextField : public View, public EditableTextListener
 	{
 	public:
 		enum Type
