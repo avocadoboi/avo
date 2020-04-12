@@ -357,7 +357,7 @@ void AvoGUI::View::updateShadow()
 		{
 			m_shadowImage->forget();
 		}
-		m_shadowImage = m_gui->getDrawingContext()->createRectangleShadowImage(getSize(), m_corners, m_elevation, m_theme->colors["shadow"]);
+		m_shadowImage = m_gui->getDrawingContext()->createRectangleShadowImage(getSize(), m_corners, m_elevation, m_theme->colors[ThemeColors::shadow]);
 		m_shadowBounds = AvoGUI::Rectangle<float>(
 			AvoGUI::Point<float>(
 				0.5f * (m_bounds.right - m_bounds.left - (float)m_shadowImage->getWidth()),
@@ -472,6 +472,11 @@ AvoGUI::View::~View()
 		m_clipGeometry->forget();
 	}
 	removeAllChildren();
+	if (m_parent)
+	{
+		remember();
+		m_parent->removeChild(m_index);
+	}
 }
 
 //------------------------------
@@ -538,6 +543,10 @@ void AvoGUI::View::removeChild(AvoGUI::View* p_view)
 void AvoGUI::View::removeChild(uint32 p_viewIndex)
 {
 	AvoGUI::View* childToRemove = m_children[p_viewIndex];
+	sendChildDetachmentEvents(childToRemove);
+
+	childToRemove->m_parent = nullptr;
+	childToRemove->forget();
 
 	for (uint32 a = p_viewIndex; a < m_children.size() - 1; a++)
 	{
@@ -545,19 +554,19 @@ void AvoGUI::View::removeChild(uint32 p_viewIndex)
 		m_children[a]->m_index = a;
 	}
 	m_children.pop_back();
-
-	sendChildDetachmentEvents(childToRemove);
-	childToRemove->forget();
 }
 void AvoGUI::View::removeAllChildren()
 {
 	while (!m_children.empty()) // That function naming, ew... Why didn't they call it getIsEmpty? empty() should be emptying something >:^(
 	{
 		AvoGUI::View* child = m_children.back();
-		m_children.pop_back();
 
 		sendChildDetachmentEvents(child);
+
+		child->m_parent = nullptr;
 		child->forget();
+
+		m_children.pop_back();
 	}
 }
 void AvoGUI::View::setId(uint64 p_id)
@@ -592,57 +601,6 @@ void AvoGUI::View::setId(uint64 p_id)
 }
 
 //------------------------------
-
-void AvoGUI::View::setThemeColor(std::string const& p_name, Color const& p_color, bool p_willAffectChildren)
-{
-	if (p_willAffectChildren)
-	{
-		AvoGUI::View* view = this;
-		uint32 startIndex = 0;
-		while (true)
-		{
-		loopStart:
-			for (uint32 a = startIndex; a < view->getNumberOfChildren(); a++)
-			{
-				view->getChild(a)->setThemeColor(p_name, p_color, false);
-				if (view->getChild(a)->getNumberOfChildren())
-				{
-					view = view->getChild(a);
-					startIndex = 0;
-					goto loopStart; // dont @ me
-				}
-			}
-			if (view == this)
-			{
-				break;
-			}
-			startIndex = view->getIndex() + 1;
-			view = view->getParent();
-		}
-	}
-
-	// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
-	// It's not the other way around because the parent lays out the children and the size of the children may change in the handler.
-	if (!m_theme)
-	{
-		m_theme = new Theme();
-	}
-	else if (m_theme->getReferenceCount() > 1)
-	{
-		m_theme->forget();
-		m_theme = new Theme(*m_theme);
-	}
-
-	if (m_theme->colors[p_name] != p_color)
-	{
-		m_theme->colors[p_name] = p_color;
-		if (getGui() == this && p_name == "background")
-		{
-			((AvoGUI::Gui*)this)->getDrawingContext()->setBackgroundColor(p_color);
-		}
-		handleThemeColorChange(p_name, p_color);
-	}
-}
 
 void AvoGUI::View::setIsVisible(bool p_isVisible)
 {
@@ -6735,16 +6693,17 @@ public:
 	}
 };
 
-class FontData
-{
-public:
-	void const* data;
-	uint32 dataSize;
-
-	FontData(void const* p_data, uint32 p_dataSize) :
-		data(p_data), dataSize(p_dataSize)
-	{ }
-};
+//class FontData
+//{
+//public:
+//	void const* data;
+//	uint32 dataSize;
+//
+//	FontData(void const* p_data, uint32 p_dataSize) :
+//		data(p_data), dataSize(p_dataSize)
+//	{ }
+//};
+using FontData = std::shared_ptr<std::vector<uint8>>;
 
 class FontFileStream : public IDWriteFontFileStream
 {
@@ -6753,8 +6712,8 @@ private:
 	FontData m_fontData;
 
 public:
-	FontFileStream(FontData* p_fontData) : 
-		m_referenceCount(1), m_fontData(*p_fontData)
+	FontFileStream(FontData p_fontData) : 
+		m_referenceCount(1), m_fontData(p_fontData)
 	{ 
 	}
 
@@ -6766,14 +6725,14 @@ public:
 
 	HRESULT __stdcall ReadFileFragment(void const** p_fragment, UINT64 p_fileOffset, UINT64 p_fragmentSize, void** p_fragmentContext) override
 	{
-		if (p_fileOffset + p_fragmentSize > m_fontData.dataSize || !p_fragmentSize)
+		if (p_fileOffset + p_fragmentSize > m_fontData->size() || !p_fragmentSize)
 		{
 			*p_fragment = 0;
 			*p_fragmentContext = 0;
 			return E_FAIL;
 		}
 
-		*p_fragment = (char const*)m_fontData.data + p_fileOffset;
+		*p_fragment = (char const*)m_fontData->data() + p_fileOffset;
 		*p_fragmentContext = 0;
 
 		return S_OK;
@@ -6782,7 +6741,7 @@ public:
 
 	HRESULT __stdcall GetFileSize(UINT64* p_fileSize) override
 	{
-		*p_fileSize = m_fontData.dataSize;
+		*p_fileSize = m_fontData->size();
 		return S_OK;
 	}
 	HRESULT __stdcall GetLastWriteTime(UINT64* p_lastWriteTime) override
@@ -6816,7 +6775,7 @@ public:
 			*p_stream = 0;
 			return E_INVALIDARG;
 		}
-		*p_stream = new FontFileStream((FontData*)p_data);
+		*p_stream = new FontFileStream(*(FontData*)p_data);
 		return S_OK;
 	}
 };
@@ -6830,12 +6789,12 @@ private:
 	IDWriteFactory* m_factory;
 	FontFileLoader* m_fontFileLoader;
 
-	std::vector<FontData*>* m_fontData;
+	std::vector<FontData>* m_fontData;
 	IDWriteFontFile* m_currentFontFile = 0;
 	int32 m_currentFontFileIndex;
 
 public:
-	FontFileEnumerator(IDWriteFactory* p_factory, FontFileLoader* p_fontFileLoader, std::vector<FontData*>* p_data) :
+	FontFileEnumerator(IDWriteFactory* p_factory, FontFileLoader* p_fontFileLoader, std::vector<FontData>* p_data) :
 		m_referenceCount(1), m_factory(p_factory), m_fontFileLoader(p_fontFileLoader), m_fontData(p_data),
 		m_currentFontFileIndex(-1)
 	{
@@ -6868,7 +6827,7 @@ public:
 		else
 		{
 			*p_hasCurrentFile = 1;
-			m_factory->CreateCustomFontFileReference((void const*)*(m_fontData->data() + m_currentFontFileIndex), sizeof(FontData), m_fontFileLoader, &m_currentFontFile);
+			m_factory->CreateCustomFontFileReference((void const*)(m_fontData->data() + m_currentFontFileIndex), sizeof(FontData), m_fontFileLoader, &m_currentFontFile);
 		}
 		return S_OK;
 	}
@@ -6893,7 +6852,7 @@ public:
 
 	HRESULT __stdcall CreateEnumeratorFromKey(IDWriteFactory* p_factory, void const* p_data, UINT32 p_dataSize, IDWriteFontFileEnumerator** p_fontFileEnumerator)
 	{
-		*p_fontFileEnumerator = new FontFileEnumerator(p_factory, m_fontFileLoader, *((std::vector<FontData*>**)p_data));
+		*p_fontFileEnumerator = new FontFileEnumerator(p_factory, m_fontFileLoader, (std::vector<FontData>*)p_data);
 		return S_OK;
 	}
 };
@@ -6905,8 +6864,8 @@ class Direct2DGeometry :
 {
 private:
 	ID2D1Geometry* m_geometry;
-	ID2D1GeometryRealization* m_strokedRealization = 0;
-	ID2D1GeometryRealization* m_filledRealization = 0;
+	ID2D1GeometryRealization* m_strokedRealization{ nullptr };
+	ID2D1GeometryRealization* m_filledRealization{ nullptr };
 
 public:
 	Direct2DGeometry(ID2D1Geometry* p_geometry) :
@@ -7302,7 +7261,7 @@ private:
 
 	IDWriteTextFormat* m_textFormat = 0;
 	IDWriteFontCollection* m_fontCollection = 0;
-	std::vector<FontData*> m_fontData;
+	std::vector<FontData> m_fontData;
 
 	std::recursive_mutex m_targetMutex;
 
@@ -7404,8 +7363,8 @@ private:
 		{
 			m_fontCollection->Release();
 		}
-		std::vector<FontData*>* fontDataPointer = &m_fontData;
-		s_directWriteFactory->CreateCustomFontCollection(s_fontCollectionLoader, &fontDataPointer, sizeof(std::vector<FontData*>*), &m_fontCollection);
+		//std::vector<FontData>* fontDataPointer = &m_fontData;
+		s_directWriteFactory->CreateCustomFontCollection(s_fontCollectionLoader, &m_fontData, sizeof(std::vector<FontData>), &m_fontCollection);
 	}
 
 	void realizeStrokedGeometry(Direct2DGeometry* p_geometry, float p_strokeWidth)
@@ -7585,11 +7544,11 @@ public:
 		// Create text stuff
 
 		m_fontData.reserve(8);
-		m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_LIGHT, FONT_DATA_SIZE_ROBOTO_LIGHT));
-		m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_SIZE_ROBOTO_REGULAR));
-		m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_MEDIUM, FONT_DATA_SIZE_ROBOTO_MEDIUM));
-		m_fontData.push_back(new FontData(FONT_DATA_ROBOTO_BOLD, FONT_DATA_SIZE_ROBOTO_BOLD));
-		m_fontData.push_back(new FontData(FONT_DATA_MATERIAL_ICONS, FONT_DATA_SIZE_MATERIAL_ICONS));
+		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_LIGHT, FONT_DATA_ROBOTO_LIGHT + FONT_DATA_SIZE_ROBOTO_LIGHT));
+		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_ROBOTO_REGULAR + FONT_DATA_SIZE_ROBOTO_REGULAR));
+		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_MEDIUM, FONT_DATA_ROBOTO_MEDIUM + FONT_DATA_SIZE_ROBOTO_MEDIUM));
+		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_BOLD, FONT_DATA_ROBOTO_BOLD + FONT_DATA_SIZE_ROBOTO_BOLD));
+		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_MATERIAL_ICONS, FONT_DATA_MATERIAL_ICONS + FONT_DATA_SIZE_MATERIAL_ICONS));
 		updateFontCollection();
 
 		// Just for debugging...
@@ -7613,11 +7572,6 @@ public:
 
 	~Direct2DDrawingContext()
 	{
-		for (uint32 a = 0; a < m_fontData.size(); a++)
-		{
-			delete m_fontData[a];
-		}
-
 		if (m_solidColorBrush)
 		{
 			m_solidColorBrush->Release();
@@ -9258,8 +9212,8 @@ public:
 	}
 	AvoGUI::Image* createImage(char const* p_filePath) override
 	{
-		wchar_t wideFilePath[200];
-		AvoGUI::convertUtf8ToUtf16(p_filePath, wideFilePath, 200);
+		wchar_t wideFilePath[MAX_PATH];
+		AvoGUI::convertUtf8ToUtf16(p_filePath, wideFilePath, MAX_PATH);
 
 		IWICBitmapDecoder* decoder = 0;
 		s_imagingFactory->CreateDecoderFromFilename(wideFilePath, 0, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &decoder);
@@ -9636,9 +9590,26 @@ public:
 
 	//------------------------------
 
-	void addFont(void const* p_data, uint32 p_dataSize)
+	void addFont(std::string const& p_filePath) override
 	{
-		m_fontData.push_back(new FontData(p_data, p_dataSize));
+		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(AvoGUI::readFile(p_filePath)));
+		updateFontCollection();
+	}
+
+	void addFont(std::vector<uint8> const& p_data) override
+	{
+		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(p_data));
+		updateFontCollection();
+	}
+	void addFont(std::vector<uint8>&& p_data) override
+	{
+		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(std::move(p_data)));
+		updateFontCollection();
+	}
+
+	void addFont(uint8 const* p_data, uint32 p_dataSize) override
+	{
+		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(p_data, p_data + p_dataSize));
 		updateFontCollection();
 	}
 
@@ -9703,8 +9674,10 @@ public:
 
 	//------------------------------
 
-	AvoGUI::Text* createText(char const* p_string, float p_fontSize, AvoGUI::Rectangle<float> const& p_bounds = AvoGUI::Rectangle<float>()) override
+	AvoGUI::Text* createText(char const* p_string, float p_fontSize, AvoGUI::Rectangle<float> p_bounds = AvoGUI::Rectangle<float>()) override
 	{
+		p_bounds.clipNegativeSpace();
+
 		std::wstring wideString = AvoGUI::convertUtf8ToUtf16(p_string);
 
 		IDWriteTextLayout1* textLayout;
@@ -9718,11 +9691,9 @@ public:
 
 		return new DirectWriteText(textLayout, wideString, p_string, p_bounds);
 	}
-	AvoGUI::Text* createText(std::string const& p_string, float p_fontSize, AvoGUI::Rectangle<float> const& p_bounds = AvoGUI::Rectangle<float>()) override
+	AvoGUI::Text* createText(std::string const& p_string, float p_fontSize, AvoGUI::Rectangle<float> p_bounds = AvoGUI::Rectangle<float>()) override
 	{
-		if (p_bounds.right > p_bounds.left)
-		{
-		}
+		p_bounds.clipNegativeSpace();
 
 		int32 numberOfCharacters = MultiByteToWideChar(CP_UTF8, 0, p_string.c_str(), p_string.size(), 0, 0);
 		wchar_t* wideString = new wchar_t[numberOfCharacters];
@@ -13266,7 +13237,7 @@ void AvoGUI::Gui::drawViews()
 			m_drawingContext->setOpacity(1.f);
 			m_drawingContext->pushClipRectangle(targetRectangle);
 
-			m_drawingContext->clear(m_theme->colors["background"]);
+			m_drawingContext->clear(m_theme->colors[ThemeColors::background]);
 
 			draw(m_drawingContext, targetRectangle);
 

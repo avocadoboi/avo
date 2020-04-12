@@ -597,6 +597,19 @@ namespace AvoGUI
 
 		return stream.str();
 	}
+
+	//------------------------------
+
+	inline std::vector<uint8> readFile(std::string const& p_path)
+	{
+		std::ifstream file(p_path, std::ios::ate | std::ios::binary);
+
+		std::vector<uint8> result(file.tellg());
+		file.seekg(0, std::ios::beg);
+		file.read((char*)result.data(), result.size());
+
+		return result;
+	}
 #pragma endregion
 
 	//------------------------------
@@ -1381,6 +1394,18 @@ namespace AvoGUI
 			top = p_rectangle.top;
 			right = p_rectangle.right;
 			bottom = p_rectangle.bottom;
+			return *this;
+		}
+
+		/*
+			Makes the size >= 0 like this:
+			If right < left, right = left.
+			If bottom < top, bottom = top.
+		*/
+		Rectangle<RectangleType>& clipNegativeSpace()
+		{
+			if (right < left) right = left;
+			if (bottom < top) bottom = top;
 			return *this;
 		}
 
@@ -3721,19 +3746,76 @@ namespace AvoGUI
 	// Font family names
 	//
 
-	char const* const FONT_FAMILY_ROBOTO = "Roboto";
-	char const* const FONT_FAMILY_MATERIAL_ICONS = "Material Icons";
+	char const* const FONT_FAMILY_ROBOTO{ "Roboto" };
+	char const* const FONT_FAMILY_MATERIAL_ICONS{ "Material Icons" };
+
+	/*
+		Default theme color names.
+	*/
+	namespace ThemeColors
+	{
+		char const* const background{ "background" };
+		char const* const onBackground{ "on background" };
+
+		char const* const primary{ "primary" };
+		char const* const primaryOnBackground{ "primary on background" };
+		char const* const onPrimary{ "on primary" };
+
+		char const* const secondary{ "secondary" };
+		char const* const secondaryOnBackground{ "secondary on background" };
+		char const* const onSecondary{ "on secondary" };
+
+		char const* const tooltipBackground{ "tooltip background" };
+		char const* const tooltipOnBackground{ "tooltip on background" };
+
+		char const* const selection{ "selection" };
+		char const* const shadow{ "shadow" };
+	};
+
+	/*
+		Default theme easing names.
+	*/
+	namespace ThemeEasings
+	{
+		char const* const in = "in";
+		char const* const out = "out";
+		char const* const inOut = "inOut";
+		char const* const symmetricalInOut = "symmetrical in out";
+		char const* const ripple = "ripple";
+	}
+
+	/*
+		Default theme value names.
+	*/
+	namespace ThemeValues
+	{
+		char const* const hoverAnimationSpeed = "hover animation speed";
+
+		char const* const tooltipFontSize = "tooltip font size";
+
+		char const* const buttonFontSize = "button font size";
+		char const* const buttonCharacterSpacing = "button character spacing";
+
+		char const* const editableTextCaretBlinkRate = "editable text caret blink rate";
+
+		char const* const textFieldFontSize = "text field font size";
+		char const* const textFieldHeight = "text field height";
+		char const* const textFieldPaddingLeft = "text field padding left";
+		char const* const textFieldPaddingRight = "text field padding right";
+		char const* const textFieldFilledPaddingBottom = "text field filled padding bottom";
+
+	}
 
 	/*
 		A theme consists of different variables that change the look and feel of the parts of the GUI that are using the theme.
-		Can be used for changing and accessing any values, colors, easings and font families.
+		Can be used for changing and accessing any values, colors and easings.
+		All the default names are in AvoGUI::ThemeColors, AvoGUI::ThemeEasings and AvoGUI::ThemeValues
 	*/
 	class Theme : public ReferenceCounted
 	{
 	public:
 		std::unordered_map<std::string, Color> colors;
 		std::unordered_map<std::string, Easing> easings;
-		std::unordered_map<std::string, std::string> fontFamilies;
 		std::unordered_map<std::string, float> values;
 
 		/*
@@ -3746,38 +3828,33 @@ namespace AvoGUI
 		{
 			// Colors
 
-			colors["background"] = 0xfffefefe;
-			colors["on background"] = 0xff070707;
+			colors[ThemeColors::background] = 0xfffefefe;
+			colors[ThemeColors::onBackground] = 0xff070707;
 
-			colors["primary"] = COLOR_DEEP_PURPLE_A700;
-			colors["primary on background"] = COLOR_DEEP_PURPLE_700;
-			colors["on primary"] = ~0U;
+			colors[ThemeColors::primary] = COLOR_DEEP_PURPLE_A700;
+			colors[ThemeColors::primaryOnBackground] = COLOR_DEEP_PURPLE_700;
+			colors[ThemeColors::onPrimary] = ~0U;
 
-			colors["secondary"] = COLOR_TEAL_A400;
-			colors["secondary on background"] = COLOR_TEAL_A700;
-			colors["on secondary"] = 0xff070707;
+			colors[ThemeColors::secondary] = COLOR_TEAL_A400;
+			colors[ThemeColors::secondaryOnBackground] = COLOR_TEAL_A700;
+			colors[ThemeColors::onSecondary] = 0xff070707;
 
-			colors["tooltip background"] = Color(0.2f, 0.8f);
-			colors["tooltip on background"] = Color(1.f, 0.95f);
+			colors[ThemeColors::tooltipBackground] = Color(0.2f, 0.8f);
+			colors[ThemeColors::tooltipOnBackground] = Color(1.f, 0.95f);
 
-			colors["selection"] = 0x90488db5;
+			colors[ThemeColors::selection] = 0x90488db5;
 
-			colors["shadow"] = 0x68000000;
+			colors[ThemeColors::shadow] = 0x68000000;
 
 			//------------------------------
 			// Easings
 
-			easings["in"] = Easing(0.6, 0.0, 0.8, 0.2);
-			easings["out"] = Easing(0.1, 0.9, 0.2, 1.0);
-			easings["in out"] = Easing(0.4, 0.0, 0.0, 1.0);
-			easings["symmetrical in out"] = Easing(0.6, 0.0, 0.4, 1.0);
+			easings[ThemeEasings::in] = Easing(0.6, 0.0, 0.8, 0.2);
+			easings[ThemeEasings::out] = Easing(0.1, 0.9, 0.2, 1.0);
+			easings[ThemeEasings::inOut] = Easing(0.4, 0.0, 0.0, 1.0);
+			easings[ThemeEasings::symmetricalInOut] = Easing(0.6, 0.0, 0.4, 1.0);
 
-			easings["ripple"] = Easing(0.1, 0.8, 0.2, 0.95);
-
-			//------------------------------
-			// Font families
-
-			fontFamilies["main"] = "Roboto";
+			easings[ThemeEasings::ripple] = Easing(0.1, 0.8, 0.2, 0.95);
 
 			//------------------------------
 			// Values
@@ -3813,27 +3890,36 @@ namespace AvoGUI
 		return [p_instance, p_function](Arguments... arguments) { return (p_instance->*p_function)(arguments...); };
 	}
 
+	/*
+		This is a class used to easily manage event listeners. Any type of functional can be a listener.
+		The return type and arguments have to be the same for all listeners added to one instance of EventListeners.
+	*/
 	template<typename FunctionalType>
 	class EventListeners
 	{
 	public:
 		std::vector<std::function<FunctionalType>> listeners;
 
-		void add(std::function<FunctionalType> p_listener)
+		void add(std::function<FunctionalType> const& p_listener)
 		{
 			listeners.push_back(p_listener);
 		}
-		void remove(std::function<FunctionalType> p_listener)
+		EventListeners& operator+=(std::function<FunctionalType> const& p_listener)
+		{
+			add(p_listener);
+			return *this;
+		}
+
+		void remove(std::function<FunctionalType> const& p_listener)
 		{
 			auto const& listenerType = p_listener.target_type();
-			auto listenerPointer = *(p_listener.template target<FunctionalType*>());
 			for (auto& listener : listeners)
 			{
 				if (listenerType == listener.target_type())
 				{
 					// template keyword is used to expicitly tell the compiler that target is a template method for
 					// std::function<FunctionalType> and < shouldn't be parsed as the less-than operator
-					if (listenerPointer == *(listener.template target<FunctionalType*>()))
+					if (*(p_listener.template target<FunctionalType>()) == *(listener.template target<FunctionalType>()))
 					{
 						listener = listeners.back();
 						listeners.pop_back();
@@ -3842,6 +3928,15 @@ namespace AvoGUI
 				}
 			}
 		}
+		EventListeners& operator-=(std::function<FunctionalType> const& p_listener)
+		{
+			remove(p_listener);
+			return *this;
+		}
+
+		/*
+			Calls all of the listeners with p_eventArguments as the arguments.
+		*/
 		template<typename ... T>
 		void notifyAll(T&& ... p_eventArguments)
 		{
@@ -4219,27 +4314,6 @@ namespace AvoGUI
 
 		std::vector<View*> m_children;
 
-		/*
-			USER IMPLEMENTED
-			This gets called whenever a theme color has changed, not including initialization.
-		*/
-		virtual void handleThemeColorChange(std::string const& p_name, Color const& p_newColor) { };
-		/*
-			USER IMPLEMENTED
-			This gets called whenever a theme easing has changed, not including initialization.
-		*/
-		virtual void handleThemeEasingChange(std::string const& p_name, Easing const& p_newEasing) { };
-		/*
-			USER IMPLEMENTED
-			This gets called whenever a theme font family name has changed, not including initialization.
-		*/
-		virtual void handleThemeFontFamilyChange(std::string const& p_name, std::string const& p_newFontFamilyName) { };
-		/*
-			USER IMPLEMENTED
-			This gets called whenever a theme value has changed, not including initialization.
-		*/
-		virtual void handleThemeValueChange(std::string const& p_name, float p_newValue) { };
-
 		Geometry* m_clipGeometry{ nullptr };
 		/*
 			LIBRARY IMPLEMENTED
@@ -4343,10 +4417,12 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sets the cursor that will by default be shown when the mouse enters the view.
 			The default implementation of handleMouseBackgroundEnter sets the cursor to this one, and you can override this behaviour.
+			This method also calls enableMouseEvents().
 		*/
 		void setCursor(Cursor p_cursor)
 		{
 			m_cursor = p_cursor;
+			enableMouseEvents();
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -4773,6 +4849,154 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		using ThemeColorChangeListener = void(View*, std::string const&, Color const&);
+		EventListeners<ThemeColorChangeListener> m_themeColorChangeListeners;
+
+		void sendThemeColorChangeEvents(std::string const& p_name, Color const& p_color)
+		{
+			m_themeColorChangeListeners.notifyAll(this, p_name, p_color);
+			handleThemeColorChange(p_name, p_color);
+		}
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for theme color change events on the view.
+			Listener signature:
+				void (View* target, std::string const& name, Color const& color)
+			See View::handleThemeColorChange for more information.
+		*/
+		void addThemeColorChangeListener(std::function<ThemeColorChangeListener> p_listener)
+		{
+			m_themeColorChangeListeners += p_listener;
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeThemeColorChangeListener(std::function<ThemeColorChangeListener> p_listener)
+		{
+			m_themeColorChangeListeners -= p_listener;
+		}
+		/*
+			USER IMPLEMENTED
+			This gets called whenever a theme color has changed, not including initialization.
+		*/
+		virtual void handleThemeColorChange(std::string const& p_name, Color const& p_newColor) { }
+
+	private:
+		using ThemeEasingChangeListener = void(View*, std::string const&, Easing const&);
+		EventListeners<ThemeEasingChangeListener> m_themeEasingChangeListeners;
+
+		void sendThemeEasingChangeEvents(std::string const& p_name, Easing const& p_easing)
+		{
+			m_themeEasingChangeListeners.notifyAll(this, p_name, p_easing);
+			handleThemeEasingChange(p_name, p_easing);
+		}
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for theme easing change events on the view.
+			Listener signature:
+				void (View* target, std::string const& name, Easing const& easing)
+			See View::handleThemeEasingChange for more information.
+		*/
+		void addThemeEasingChangeListener(std::function<ThemeEasingChangeListener> p_listener)
+		{
+			m_themeEasingChangeListeners += p_listener;
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeThemeEasingChangeListener(std::function<ThemeEasingChangeListener> p_listener)
+		{
+			m_themeEasingChangeListeners -= p_listener;
+		}
+		/*
+			USER IMPLEMENTED
+			This gets called whenever a theme easing has changed, not including initialization.
+		*/
+		virtual void handleThemeEasingChange(std::string const& p_name, Easing const& p_newEasing) { };
+
+	private:
+		using ThemeValueChangeListener = void(View*, std::string const&, float);
+		EventListeners<ThemeValueChangeListener> m_themeValueChangeListeners;
+
+		void sendThemeValueChangeEvents(std::string const& p_name, float p_value)
+		{
+			m_themeValueChangeListeners.notifyAll(this, p_name, p_value);
+			handleThemeValueChange(p_name, p_value);
+		}
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Adds a callback for theme value change events on the view.
+			Listener signature:
+				void (View* target, std::string const& name, float value)
+			See View::handleThemeValueChange for more information.
+		*/
+		void addThemeValueChangeListener(std::function<ThemeValueChangeListener> p_listener)
+		{
+			m_themeValueChangeListeners += p_listener;
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeThemeValueChangeListener(std::function<ThemeValueChangeListener> p_listener)
+		{
+			m_themeValueChangeListeners -= p_listener;
+		}
+		/*
+			USER IMPLEMENTED
+			This gets called whenever a theme value has changed, not including initialization.
+		*/
+		virtual void handleThemeValueChange(std::string const& p_name, float p_newValue) { };
+
+		//------------------------------
+
+	private:
+		template<typename T, typename U>
+		void propagateThemePropertyChange(void(View::* p_function)(std::string const&, T, bool), std::string const& p_name, U&& p_property, bool p_willAffectChildren)
+		{
+			if (p_willAffectChildren)
+			{
+				View* view = this;
+				uint32 startIndex = 0;
+				while (true)
+				{
+				loopStart:
+					for (uint32 a = startIndex; a < view->m_children.size(); a++)
+					{
+						(view->m_children[a]->*p_function)(p_name, std::forward<U>(p_property), false);
+						if (view->m_children[a]->m_children.size())
+						{
+							view = view->m_children[a];
+							startIndex = 0;
+							goto loopStart;
+						}
+					}
+					if (view == this)
+					{
+						break;
+					}
+					startIndex = view->m_index + 1;
+					view = view->m_parent;
+				}
+			}
+
+			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
+			// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
+			if (!m_theme)
+			{
+				m_theme = new Theme();
+			}
+			else if (m_theme->getReferenceCount() > 1)
+			{
+				m_theme->forget();
+				m_theme = new Theme(*m_theme);
+			}
+		}
+
+	public:
 		/*
 			LIBRARY IMPLEMENTED
 
@@ -4785,7 +5009,16 @@ namespace AvoGUI
 			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default colors and more details.
 			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
-		void setThemeColor(std::string const& p_name, Color const& p_color, bool p_willAffectChildren = true);
+		void setThemeColor(std::string const& p_name, Color const& p_color, bool p_willAffectChildren = true)
+		{
+			propagateThemePropertyChange(&View::setThemeColor, p_name, p_color, p_willAffectChildren);
+
+			if (m_theme->colors[p_name] != p_color)
+			{
+				m_theme->colors[p_name] = p_color;
+				sendThemeColorChangeEvents(p_name, p_color);
+			}
+		}
 		/*
 			LIBRARY IMPLEMENTED
 			See setThemeColor for names that have colors by default.
@@ -4808,48 +5041,12 @@ namespace AvoGUI
 		*/
 		void setThemeEasing(std::string const& p_name, Easing const& p_easing, bool p_willAffectChildren = true)
 		{
-			if (p_willAffectChildren)
-			{
-				View* view = this;
-				uint32 startIndex = 0;
-				while (true)
-				{
-				loopStart:
-					for (uint32 a = startIndex; a < view->getNumberOfChildren(); a++)
-					{
-						view->getChild(a)->setThemeEasing(p_name, p_easing, false);
-						if (view->getChild(a)->getNumberOfChildren())
-						{
-							view = view->getChild(a);
-							startIndex = 0;
-							goto loopStart;
-						}
-					}
-					if (view == this)
-					{
-						break;
-					}
-					startIndex = view->getIndex() + 1;
-					view = view->getParent();
-				}
-			}
-
-			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
-			// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
-			if (!m_theme)
-			{
-				m_theme = new Theme();
-			}
-			else if (m_theme->getReferenceCount() > 1)
-			{
-				m_theme->forget();
-				m_theme = new Theme(*m_theme);
-			}
+			propagateThemePropertyChange(&View::setThemeEasing, p_name, p_easing, p_willAffectChildren);
 
 			if (m_theme->easings[p_name] != p_easing)
 			{
 				m_theme->easings[p_name] = p_easing;
-				handleThemeEasingChange(p_name, p_easing);
+				sendThemeEasingChangeEvents(p_name, p_easing);
 			}
 		}
 		/*
@@ -4859,74 +5056,6 @@ namespace AvoGUI
 		Easing const& getThemeEasing(std::string const& p_name) const
 		{
 			return m_theme->easings[p_name];
-		}
-		/*
-			LIBRARY IMPLEMENTED
-
-			p_name can be used to identify the usage or type of the font family, while p_fontFamilyName is the actual name of the font family.
-			Some values of p_name have default font family names that can be changed.
-			Those font families may be used by views that come with the library, but you can use them yourself too.
-			If p_name is anything else, the font family is kept in the theme and you can use it yourself.
-
-			if p_willAffectChildren is true, all children and views below those too will change this font family in their themes.
-
-			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default font families and more details.
-			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
-		*/
-		void setThemeFontFamily(std::string const& p_name, std::string const& p_fontFamilyName, bool p_willAffectChildren = true)
-		{
-			if (p_willAffectChildren)
-			{
-				View* view = this;
-				uint32 startIndex = 0;
-				while (true)
-				{
-				loopStart:
-					for (uint32 a = startIndex; a < view->getNumberOfChildren(); a++)
-					{
-						view->getChild(a)->setThemeFontFamily(p_name, p_fontFamilyName, false);
-						if (view->getChild(a)->getNumberOfChildren())
-						{
-							view = view->getChild(a);
-							startIndex = 0;
-							goto loopStart;
-						}
-					}
-					if (view == this)
-					{
-						break;
-					}
-					startIndex = view->getIndex() + 1;
-					view = view->getParent();
-				}
-			}
-
-			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
-			// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
-			if (!m_theme)
-			{
-				m_theme = new Theme();
-			}
-			else if (m_theme->getReferenceCount() > 1)
-			{
-				m_theme->forget();
-				m_theme = new Theme(*m_theme);
-			}
-
-			if (m_theme->fontFamilies[p_name] != p_fontFamilyName)
-			{
-				m_theme->fontFamilies[p_name] = p_fontFamilyName;
-				handleThemeFontFamilyChange(p_name, p_fontFamilyName);
-			}
-
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			"main" has a font family by default, but you can also access your own font families here.
-		*/
-		std::string const& getThemeFontFamily(std::string const& p_name) const
-		{
-			return m_theme->fontFamilies[p_name];
 		}
 
 		/*
@@ -4943,48 +5072,12 @@ namespace AvoGUI
 		*/
 		void setThemeValue(std::string const& p_name, float p_value, bool p_willAffectChildren = true)
 		{
-			if (p_willAffectChildren)
-			{
-				View* view = this;
-				uint32 startIndex = 0;
-				while (true)
-				{
-					loopStart:
-					for (uint32 a = startIndex; a < view->getNumberOfChildren(); a++)
-					{
-						view->getChild(a)->setThemeValue(p_name, p_value, false);
-						if (view->getChild(a)->getNumberOfChildren())
-						{
-							view = view->getChild(a);
-							startIndex = 0;
-							goto loopStart;
-						}
-					}
-					if (view == this)
-					{
-						break;
-					}
-					startIndex = view->getIndex() + 1;
-					view = view->getParent();
-				}
-			}
-
-			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
-			// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
-			if (!m_theme)
-			{
-				m_theme = new Theme();
-			}
-			else if (m_theme->getReferenceCount() > 1)
-			{
-				m_theme->forget();
-				m_theme = new Theme(*m_theme);
-			}
+			propagateThemePropertyChange(&View::setThemeValue, p_name, p_value, p_willAffectChildren);
 
 			if (m_theme->values[p_name] != p_value)
 			{
 				m_theme->values[p_name] = p_value;
-				handleThemeValueChange(p_name, p_value);
+				sendThemeValueChangeEvents(p_name, p_value);
 			}
 		}
 		/*
@@ -6347,14 +6440,14 @@ namespace AvoGUI
 		*/
 		void addCharacterInputListener(KeyboardListener p_listener)
 		{
-			m_characterInputListeners.add(p_listener);
+			m_characterInputListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeCharacterInputListener(KeyboardListener p_listener)
 		{
-			m_characterInputListeners.remove(p_listener);
+			m_characterInputListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -6381,14 +6474,14 @@ namespace AvoGUI
 		*/
 		void addkeyboardKeyDownListener(KeyboardListener p_listener)
 		{
-			m_keyboardKeyDownListeners.add(p_listener);
+			m_keyboardKeyDownListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeKeyboardKeyDownListener(KeyboardListener p_listener)
 		{
-			m_keyboardKeyDownListeners.remove(p_listener);
+			m_keyboardKeyDownListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -6415,14 +6508,14 @@ namespace AvoGUI
 		*/
 		void addkeyboardKeyUpListener(KeyboardListener p_listener)
 		{
-			m_keyboardKeyUpListeners.add(p_listener);
+			m_keyboardKeyUpListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeKeyboardKeyUpListener(KeyboardListener p_listener)
 		{
-			m_keyboardKeyUpListeners.remove(p_listener);
+			m_keyboardKeyUpListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -6452,14 +6545,14 @@ namespace AvoGUI
 		*/
 		void addkeyboardFocusLoseListener(std::function<void(View*)> p_listener)
 		{
-			m_keyboardFocusLoseListeners.add(p_listener);
+			m_keyboardFocusLoseListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeKeyboardFocusLoseListener(std::function<void(View*)> p_listener)
 		{
-			m_keyboardFocusLoseListeners.remove(p_listener);
+			m_keyboardFocusLoseListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -6488,14 +6581,14 @@ namespace AvoGUI
 		*/
 		void addkeyboardFocusGainListener(std::function<void(View*)> p_listener)
 		{
-			m_keyboardFocusGainListeners.add(p_listener);
+			m_keyboardFocusGainListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeKeyboardFocusGainListener(std::function<void(View*)> p_listener)
 		{
-			m_keyboardFocusGainListeners.remove(p_listener);
+			m_keyboardFocusGainListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -6562,14 +6655,14 @@ namespace AvoGUI
 		*/
 		void addDragDropEnterListener(DragDropListener p_listener)
 		{
-			m_dragDropEnterListeners.add(p_listener);
+			m_dragDropEnterListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeDragDropEnterListener(DragDropListener p_listener)
 		{
-			m_dragDropEnterListeners.remove(p_listener);
+			m_dragDropEnterListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -6594,14 +6687,14 @@ namespace AvoGUI
 		*/
 		void addDragDropBackgroundEnterListener(DragDropListener p_listener)
 		{
-			m_dragDropBackgroundEnterListeners.add(p_listener);
+			m_dragDropBackgroundEnterListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeDragDropBackgroundEnterListener(DragDropListener p_listener)
 		{
-			m_dragDropBackgroundEnterListeners.remove(p_listener);
+			m_dragDropBackgroundEnterListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -6626,14 +6719,14 @@ namespace AvoGUI
 		*/
 		void addDragDropMoveListener(DragDropListener p_listener)
 		{
-			m_dragDropMoveListeners.add(p_listener);
+			m_dragDropMoveListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeDragDropMoveListener(DragDropListener p_listener)
 		{
-			m_dragDropMoveListeners.remove(p_listener);
+			m_dragDropMoveListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -6657,14 +6750,14 @@ namespace AvoGUI
 		*/
 		void addDragDropLeaveListener(DragDropListener p_listener)
 		{
-			m_dragDropLeaveListeners.add(p_listener);
+			m_dragDropLeaveListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeDragDropLeaveListener(DragDropListener p_listener)
 		{
-			m_dragDropLeaveListeners.remove(p_listener);
+			m_dragDropLeaveListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -6689,14 +6782,14 @@ namespace AvoGUI
 		*/
 		void addDragDropBackgroundLeaveListener(DragDropListener p_listener)
 		{
-			m_dragDropBackgroundLeaveListeners.add(p_listener);
+			m_dragDropBackgroundLeaveListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeDragDropBackgroundLeaveListener(DragDropListener p_listener)
 		{
-			m_dragDropBackgroundLeaveListeners.remove(p_listener);
+			m_dragDropBackgroundLeaveListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -6721,14 +6814,14 @@ namespace AvoGUI
 		*/
 		void addDragDropFinishListener(DragDropListener p_listener)
 		{
-			m_dragDropFinishListeners.add(p_listener);
+			m_dragDropFinishListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeDragDropFinishListener(DragDropListener p_listener)
 		{
-			m_dragDropFinishListeners.remove(p_listener);
+			m_dragDropFinishListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -6787,14 +6880,14 @@ namespace AvoGUI
 		*/
 		void addMouseDownListener(MouseListener p_listener)
         {
-			m_mouseDownListeners.add(p_listener);
+			m_mouseDownListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
         void removeMouseDownListener(MouseListener p_listener)
         {
-			m_mouseDownListeners.remove(p_listener);
+			m_mouseDownListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -6818,16 +6911,16 @@ namespace AvoGUI
             LIBRARY IMPLEMENTED
             Adds a callback for mouse up events on this view.
         */
-        void addMousUpListener(MouseListener p_listener)
+        void addMouseUpListener(MouseListener p_listener)
         {
-        	m_mouseUpListeners.add(p_listener);
+        	m_mouseUpListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
         void removeMouseUpListener(MouseListener p_listener)
         {
-        	m_mouseUpListeners.remove(p_listener);
+        	m_mouseUpListeners -= p_listener;
         }
 		/*
 			USER IMPLEMENTED
@@ -6854,14 +6947,14 @@ namespace AvoGUI
         */
         void addMouseDoubleClickListener(MouseListener p_listener)
         {
-        	m_mouseDoubleClickListeners.add(p_listener);
+        	m_mouseDoubleClickListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
         void removeMouseDoubleClickListener(MouseListener p_listener)
         {
-        	m_mouseDoubleClickListeners.remove(p_listener);
+        	m_mouseDoubleClickListeners -= p_listener;
         }
 		/*
 			USER IMPLEMENTED
@@ -6891,14 +6984,14 @@ namespace AvoGUI
 		*/
 		void addMouseMoveListener(MouseListener p_listener)
 		{
-			m_mouseMoveListeners.add(p_listener);
+			m_mouseMoveListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeMouseMoveListener(MouseListener p_listener)
 		{
-			m_mouseMoveListeners.remove(p_listener);
+			m_mouseMoveListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -6927,14 +7020,14 @@ namespace AvoGUI
         */
         void addMouseEnterListener(MouseListener p_listener)
         {
-        	m_mouseEnterListeners.add(p_listener);
+        	m_mouseEnterListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
         void removeMouseEnterListener(MouseListener p_listener)
         {
-        	m_mouseEnterListeners.remove(p_listener);
+        	m_mouseEnterListeners -= p_listener;
         }
 		/*
 			USER IMPLEMENTED
@@ -6962,14 +7055,14 @@ namespace AvoGUI
         */
         void addMouseLeaveListener(MouseListener p_listener)
         {
-        	m_mouseLeaveListeners.add(p_listener);
+        	m_mouseLeaveListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
         void removeMouseLeaveListener(MouseListener p_listener)
         {
-        	m_mouseLeaveListeners.remove(p_listener);
+        	m_mouseLeaveListeners -= p_listener;
         }
 		/*
 			USER IMPLEMENTED
@@ -6997,14 +7090,14 @@ namespace AvoGUI
         */
         void addMouseBackgroundEnterListener(MouseListener p_listener)
         {
-        	m_mouseBackgroundEnterListeners.add(p_listener);
+        	m_mouseBackgroundEnterListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
         void removeMouseBackgroundEnterListener(MouseListener p_listener)
         {
-        	m_mouseBackgroundEnterListeners.remove(p_listener);
+        	m_mouseBackgroundEnterListeners -= p_listener;
         }
 		/*
 			LIBRARY IMPLEMENTED (only default behavior)
@@ -7031,14 +7124,14 @@ namespace AvoGUI
         */
         void addMouseBackgroundLeaveListener(MouseListener p_listener)
         {
-        	m_mouseBackgroundLeaveListeners.add(p_listener);
+        	m_mouseBackgroundLeaveListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
         void removeMouseBackgroundLeaveListener(MouseListener p_listener)
         {
-        	m_mouseBackgroundLeaveListeners.remove(p_listener);
+        	m_mouseBackgroundLeaveListeners -= p_listener;
         }
 		/*
 			USER IMPLEMENTED
@@ -7064,14 +7157,14 @@ namespace AvoGUI
         */
         void addMouseScrollListener(MouseListener p_listener)
         {
-        	m_mouseScrollListeners.add(p_listener);
+        	m_mouseScrollListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
         void removeMouseScrollListener(MouseListener p_listener)
         {
-        	m_mouseScrollListeners.remove(p_listener);
+        	m_mouseScrollListeners -= p_listener;
         }
 
 		/*
@@ -7101,14 +7194,14 @@ namespace AvoGUI
 		*/
 		void addBoundsChangeListener(std::function<void(View*, Rectangle<float> const&)> p_listener)
 		{
-			m_boundsChangeListeners.add(p_listener);
+			m_boundsChangeListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeBoundsChangeListener(std::function<void(View*, Rectangle<float> const&)> p_listener)
 		{
-			m_boundsChangeListeners.remove(p_listener);
+			m_boundsChangeListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -7137,14 +7230,14 @@ namespace AvoGUI
         */
         void addSizeChangeListener(std::function<void(View*, float, float)> p_listener)
         {
-        	m_sizeChangeListeners.add(p_listener);
+        	m_sizeChangeListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
         void removeSizeChangeListener(std::function<void(View*, float, float)> p_listener)
         {
-        	m_sizeChangeListeners.remove(p_listener);
+        	m_sizeChangeListeners -= p_listener;
         }
 		/*
 			LIBRARY IMPLEMENTED
@@ -7182,14 +7275,14 @@ namespace AvoGUI
 		*/
 		void addChildAttachmentListener(std::function<void(View*, View*)> p_listener)
 		{
-			m_childAttachmentListeners.add(p_listener);
+			m_childAttachmentListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeChildAttachmentListener(std::function<void(View*, View*)> p_listener)
 		{
-			m_childAttachmentListeners.remove(p_listener);
+			m_childAttachmentListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -7217,14 +7310,14 @@ namespace AvoGUI
 		*/
 		void addChildDetachmentListener(std::function<void(View*, View*)> p_listener)
 		{
-			m_childDetachmentListeners.add(p_listener);
+			m_childDetachmentListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeChildDetachmentListener(std::function<void(View*, View*)> p_listener)
 		{
-			m_childDetachmentListeners.remove(p_listener);
+			m_childDetachmentListeners -= p_listener;
 		}
 		/*
 			USER IMPLEMENTED
@@ -8070,11 +8163,11 @@ namespace AvoGUI
 		}
 		void addWindowCreateListener(WindowListener p_listener)
 		{
-			m_windowCreateListeners.add(p_listener);
+			m_windowCreateListeners += p_listener;
 		}
 		void removeWindowCreateListener(WindowListener p_listener)
 		{
-			m_windowCreateListeners.remove(p_listener);
+			m_windowCreateListeners -= p_listener;
 		}
 
 	private:
@@ -8094,11 +8187,11 @@ namespace AvoGUI
 		}
 		void addWindowCloseListener(std::function<bool(WindowEvent const&)> p_listener)
 		{
-			m_windowCloseListeners.add(p_listener);
+			m_windowCloseListeners += p_listener;
 		}
 		void removeWindowCloseListener(std::function<bool(WindowEvent const&)> p_listener)
 		{
-			m_windowCloseListeners.remove(p_listener);
+			m_windowCloseListeners -= p_listener;
 		}
 
 	private:
@@ -8110,11 +8203,11 @@ namespace AvoGUI
 		}
 		void addWindowDestroyListener(WindowListener p_listener)
 		{
-			m_windowDestroyListeners.add(p_listener);
+			m_windowDestroyListeners += p_listener;
 		}
 		void removeWindowDestroyListener(WindowListener p_listener)
 		{
-			m_windowDestroyListeners.remove(p_listener);
+			m_windowDestroyListeners -= p_listener;
 		}
 
 	private:
@@ -8126,11 +8219,11 @@ namespace AvoGUI
 		}
 		void addWindowMinimizeListener(WindowListener p_listener)
 		{
-			m_windowMinimizeListeners.add(p_listener);
+			m_windowMinimizeListeners += p_listener;
 		}
 		void removeWindowMinimizeListener(WindowListener p_listener)
 		{
-			m_windowMinimizeListeners.remove(p_listener);
+			m_windowMinimizeListeners -= p_listener;
 		}
 
 	private:
@@ -8142,11 +8235,11 @@ namespace AvoGUI
 		}
 		void addWindowMaximizeListener(WindowListener p_listener)
 		{
-			m_windowMaximizeListeners.add(p_listener);
+			m_windowMaximizeListeners += p_listener;
 		}
 		void removeWindowMaximizeListener(WindowListener p_listener)
 		{
-			m_windowMaximizeListeners.remove(p_listener);
+			m_windowMaximizeListeners -= p_listener;
 		}
 
 	private:
@@ -8158,11 +8251,11 @@ namespace AvoGUI
 		}
 		void addWindowRestoreListener(WindowListener p_listener)
 		{
-			m_windowRestoreListeners.add(p_listener);
+			m_windowRestoreListeners += p_listener;
 		}
 		void removeWindowRestoreListener(WindowListener p_listener)
 		{
-			m_windowRestoreListeners.remove(p_listener);
+			m_windowRestoreListeners -= p_listener;
 		}
 
 	private:
@@ -8174,11 +8267,11 @@ namespace AvoGUI
 		}
 		void addWindowSizeChangeListener(WindowListener p_listener)
 		{
-			m_windowSizeChangeListeners.add(p_listener);
+			m_windowSizeChangeListeners += p_listener;
 		}
 		void removeWindowSizeChangeListener(WindowListener p_listener)
 		{
-			m_windowSizeChangeListeners.remove(p_listener);
+			m_windowSizeChangeListeners -= p_listener;
 		}
 
 	private:
@@ -8190,11 +8283,11 @@ namespace AvoGUI
 		}
 		void addWindowFocusGainListener(WindowListener p_listener)
 		{
-			m_windowFocusGainListeners.add(p_listener);
+			m_windowFocusGainListeners += p_listener;
 		}
 		void removeWindowFocusGainListener(WindowListener p_listener)
 		{
-			m_windowFocusGainListeners.remove(p_listener);
+			m_windowFocusGainListeners -= p_listener;
 		}
 
 	private:
@@ -8206,11 +8299,11 @@ namespace AvoGUI
 		}
 		void addWindowFocusLoseListener(WindowListener p_listener)
 		{
-			m_windowFocusLoseListeners.add(p_listener);
+			m_windowFocusLoseListeners += p_listener;
 		}
 		void removeWindowFocusLoseListener(WindowListener p_listener)
 		{
-			m_windowFocusLoseListeners.remove(p_listener);
+			m_windowFocusLoseListeners -= p_listener;
 		}
 	};
 
@@ -9939,10 +10032,26 @@ namespace AvoGUI
 
 		/*
 			Adds a new font family that can be used by text.
-			p_data is the data that would be in a standard font file.
-			p_dataSize is the length/size of the data in bytes.
+			p_filePath is a path to a font file with a common format.
 		*/
-		virtual void addFont(void const* p_data, uint32 p_dataSize) = 0;
+		virtual void addFont(std::string const& p_filePath) = 0;
+
+		/*
+			Adds a new font to a font family that can be used by text.
+			p_data is the data that would be in a font file with a common format.
+		*/
+		virtual void addFont(std::vector<uint8> const& p_data) = 0;
+		/*
+			Adds a new font to a font family that can be used by text.
+			p_data is the data that would be in a font file with a common format.
+		*/
+		virtual void addFont(std::vector<uint8>&& p_data) = 0;
+		/*
+			Adds a new font to a font family that can be used by text.
+			p_data is the data that would be in a font file with a common format.
+			p_size is the size of the data in bytes.
+		*/
+		virtual void addFont(uint8 const* p_data, uint32 p_size) = 0;
 
 		//------------------------------
 
@@ -9963,12 +10072,12 @@ namespace AvoGUI
 			Creates a new Text object which represents a pre-calculated text layout, using the current text properties.
 			p_bounds is the maximum bounds of the text. If it's (0, 0, 0, 0) then the bounds will be calculated to fit the text.
 		*/
-		virtual Text* createText(char const* p_string, float p_fontSize, Rectangle<float> const& p_bounds = Rectangle<float>()) = 0;
+		virtual Text* createText(char const* p_string, float p_fontSize, Rectangle<float> p_bounds = Rectangle<float>()) = 0;
 		/*
 			Creates a new Text object which represents a pre-calculated text layout, using the current text properties.
 			p_bounds is the maximum bounds of the text. If it's (0, 0, 0, 0) then the bounds will be calculated to fit the text.
 		*/
-		virtual Text* createText(std::string const& p_string, float p_fontSize, Rectangle<float> const& p_bounds = Rectangle<float>()) = 0;
+		virtual Text* createText(std::string const& p_string, float p_fontSize, Rectangle<float> p_bounds = Rectangle<float>()) = 0;
 		/*
 			Draws pre-calculated text created with the createText method.
 		*/
@@ -10055,6 +10164,14 @@ namespace AvoGUI
 			else
 			{
 				View::sendBoundsChangeEvents(p_previousBounds);
+			}
+		}
+
+		void handleThemeColorChange(std::string const& p_name, Color const& p_newColor) override
+		{
+			if (p_name == ThemeColors::background)
+			{
+				getDrawingContext()->setBackgroundColor(p_newColor);
 			}
 		}
 
@@ -10407,14 +10524,14 @@ namespace AvoGUI
 		*/
 		void addDragDropOperationChangeListener(std::function<void(DragDropOperation)> p_listener)
 		{
-			m_dragDropOperationChangeListeners.add(p_listener);
+			m_dragDropOperationChangeListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
 		void removeDragDropOperationChangeListener(std::function<void(DragDropOperation)> p_listener)
 		{
-			m_dragDropOperationChangeListeners.remove(p_listener);
+			m_dragDropOperationChangeListeners -= p_listener;
 		}
 
 		//------------------------------
@@ -10637,11 +10754,11 @@ namespace AvoGUI
 		}
 		void addGlobalCharacterInputListener(GlobalKeyboardListener p_listener)
 		{
-			m_globalCharacterInputListeners.add(p_listener);
+			m_globalCharacterInputListeners += p_listener;
 		}
 		void removeGlobalCharacterInputListener(GlobalKeyboardListener p_listener)
 		{
-			m_globalCharacterInputListeners.remove(p_listener);
+			m_globalCharacterInputListeners -= p_listener;
 		}
 
 	private:
@@ -10657,11 +10774,11 @@ namespace AvoGUI
 		}
 		void addGlobalKeyboardKeyDownListener(GlobalKeyboardListener p_listener)
 		{
-			m_globalKeyboardKeyDownListeners.add(p_listener);
+			m_globalKeyboardKeyDownListeners += p_listener;
 		}
 		void removeGlobalKeyboardKeyDownListener(GlobalKeyboardListener p_listener)
 		{
-			m_globalKeyboardKeyDownListeners.remove(p_listener);
+			m_globalKeyboardKeyDownListeners -= p_listener;
 		}
 
 	private:
@@ -10677,11 +10794,11 @@ namespace AvoGUI
 		}
 		void addGlobalKeyboardKeyUpListener(GlobalKeyboardListener p_listener)
 		{
-			m_globalKeyboardKeyUpListeners.add(p_listener);
+			m_globalKeyboardKeyUpListeners += p_listener;
 		}
 		void removeGlobalKeyboardKeyUpListener(GlobalKeyboardListener p_listener)
 		{
-			m_globalKeyboardKeyUpListeners.remove(p_listener);
+			m_globalKeyboardKeyUpListeners -= p_listener;
 		}
 
 		//------------------------------
@@ -10828,7 +10945,7 @@ namespace AvoGUI
 			{
 				if (m_timeSinceShow > 6U)
 				{
-					m_opacity = getThemeEasing("out").easeValue(m_opacityAnimationTime);
+					m_opacity = getThemeEasing(ThemeEasings::out).easeValue(m_opacityAnimationTime);
 					if (m_opacity < 1.f)
 					{
 						m_opacityAnimationTime = min(m_opacityAnimationTime + 0.08f, 1.f);
@@ -10843,7 +10960,7 @@ namespace AvoGUI
 			}
 			else
 			{
-				m_opacity = getThemeEasing("in out").easeValue(m_opacityAnimationTime);
+				m_opacity = getThemeEasing(ThemeEasings::inOut).easeValue(m_opacityAnimationTime);
 				if (m_opacity > 0.f)
 				{
 					m_opacityAnimationTime = max(m_opacityAnimationTime - 0.2f, 0.f);
@@ -10859,9 +10976,9 @@ namespace AvoGUI
 			if (m_text)
 			{
 				p_drawingContext->scale(m_opacity * 0.3f + 0.7f, getAbsoluteCenter());
-				p_drawingContext->setColor(Color(m_theme->colors["tooltip background"], m_opacity));
+				p_drawingContext->setColor(Color(m_theme->colors[ThemeColors::tooltipBackground], m_opacity));
 				p_drawingContext->fillRectangle(getSize());
-				p_drawingContext->setColor(Color(m_theme->colors["tooltip on background"], m_opacity));
+				p_drawingContext->setColor(Color(m_theme->colors[ThemeColors::tooltipOnBackground], m_opacity));
 				p_drawingContext->drawText(m_text);
 				p_drawingContext->scale(1.f / (m_opacity * 0.3f + 0.7f), getAbsoluteCenter());
 			}
@@ -11150,7 +11267,7 @@ namespace AvoGUI
 		{
 			if (m_hasHoverEffect)
 			{
-				m_overlayAlphaFactor = getThemeEasing("in out").easeValue(m_overlayAnimationTime);
+				m_overlayAlphaFactor = getThemeEasing(ThemeEasings::inOut).easeValue(m_overlayAnimationTime);
 
 				if (m_isMouseHovering)
 				{
@@ -11170,7 +11287,7 @@ namespace AvoGUI
 			float circleAnimationValue = 1.f;
 			if (m_circleAnimationTime < 1.f)
 			{
-				circleAnimationValue = getThemeEasing("ripple").easeValue(m_circleAnimationTime);
+				circleAnimationValue = getThemeEasing(ThemeEasings::ripple).easeValue(m_circleAnimationTime);
 				m_circleAnimationTime += 0.05f;
 				m_size = interpolate(m_maxSize * 0.4f, m_maxSize, circleAnimationValue);
 			}
@@ -11186,7 +11303,7 @@ namespace AvoGUI
 			{
 				if (m_alphaAnimationTime < 1.f)
 				{
-					m_alphaFactor = 1.f - getThemeEasing("in out").easeValue(m_alphaAnimationTime);
+					m_alphaFactor = 1.f - getThemeEasing(ThemeEasings::inOut).easeValue(m_alphaAnimationTime);
 					m_alphaAnimationTime = min(1.f, m_alphaAnimationTime + 0.05f);
 
 					queueAnimationUpdate();
@@ -11274,13 +11391,13 @@ namespace AvoGUI
 		{
 			if (m_emphasis == Emphasis::High)
 			{
-				if (p_name == (m_isAccent ? "secondary" : "primary") ||
-					p_name == (m_isAccent ? "on secondary" : "on primary"))
+				if (p_name == (m_isAccent ? ThemeColors::secondary : ThemeColors::primary) ||
+					p_name == (m_isAccent ? ThemeColors::onSecondary : ThemeColors::onPrimary))
 				{
 					m_currentColor = p_newColor;
 				}
 			}
-			else if (p_name == (m_isAccent ? "secondary on background" : "primary on background"))
+			else if (p_name == (m_isAccent ? ThemeColors::secondaryOnBackground : ThemeColors::primaryOnBackground))
 			{
 				m_currentColor = p_newColor;
 				m_ripple->setColor(AvoGUI::Color(p_newColor, 0.3f));
@@ -11360,11 +11477,11 @@ namespace AvoGUI
 	public:
 		void addButtonListener(std::function<void(Button*)> p_listener)
 		{
-			m_buttonListeners.add(p_listener);
+			m_buttonListeners += p_listener;
 		}
 		void removeButtonListener(std::function<void(Button*)> p_listener)
 		{
-			m_buttonListeners.remove(p_listener);
+			m_buttonListeners -= p_listener;
 		}
 
 		//------------------------------
@@ -11427,13 +11544,13 @@ namespace AvoGUI
 			m_isAccent = p_isAccent;
 			if (m_emphasis == Emphasis::High)
 			{
-				m_currentColor = m_isAccent ? getThemeColor("secondary") : getThemeColor("primary");
-				m_ripple->setColor(Color(m_isAccent ? getThemeColor("on secondary") : getThemeColor("on primary"), 0.3f));
+				m_currentColor = m_isAccent ? getThemeColor(ThemeColors::secondary) : getThemeColor(ThemeColors::primary);
+				m_ripple->setColor(Color(m_isAccent ? getThemeColor(ThemeColors::onSecondary) : getThemeColor(ThemeColors::onPrimary), 0.3f));
 			}
 			else
 			{
-				m_currentColor = m_isAccent ? getThemeColor("secondary on background") : getThemeColor("primary on background");
-				m_ripple->setColor(Color(m_isAccent ? getThemeColor("secondary on background") : getThemeColor("primary on background"), 0.3f));
+				m_currentColor = m_isAccent ? getThemeColor(ThemeColors::secondaryOnBackground) : getThemeColor(ThemeColors::primaryOnBackground);
+				m_ripple->setColor(Color(m_isAccent ? getThemeColor(ThemeColors::secondaryOnBackground) : getThemeColor(ThemeColors::primaryOnBackground), 0.3f));
 			}
 		}
 		/*
@@ -11458,7 +11575,6 @@ namespace AvoGUI
 			if (p_string[0])
 			{
 				m_text = getGui()->getDrawingContext()->createText(p_string, getThemeValue("button font size"));
-				m_text->setFontFamily(m_theme->fontFamilies["main"]);
 				m_text->setWordWrapping(WordWrapping::Never);
 				m_text->setCharacterSpacing(getThemeValue("button character spacing"));
 				m_text->setFontWeight(FontWeight::Medium);
@@ -11605,14 +11721,14 @@ namespace AvoGUI
 		{
 			if ((m_colorAnimationTime != 1.f && m_isEnabled) || (m_colorAnimationTime != 0.f && !m_isEnabled))
 			{
-				float colorAnimationValue = getThemeEasing("symmetrical in out").easeValue(m_colorAnimationTime);
+				float colorAnimationValue = getThemeEasing(ThemeEasings::symmetricalInOut).easeValue(m_colorAnimationTime);
 				if (m_emphasis == Emphasis::High)
 				{
-					m_currentColor = m_isAccent ? m_theme->colors["secondary"] : m_theme->colors["primary"];
+					m_currentColor = m_isAccent ? m_theme->colors[ThemeColors::secondary] : m_theme->colors[ThemeColors::primary];
 				}
 				else
 				{
-					m_currentColor = m_isAccent ? m_theme->colors["secondary on background"] : m_theme->colors["primary on background"];
+					m_currentColor = m_isAccent ? m_theme->colors[ThemeColors::secondaryOnBackground] : m_theme->colors[ThemeColors::primaryOnBackground];
 				}
 				m_currentColor.setSaturationHSL(colorAnimationValue);
 
@@ -11636,7 +11752,7 @@ namespace AvoGUI
 
 			if (m_emphasis == Emphasis::High)
 			{
-				float pressAnimationValue = getThemeEasing("in out").easeValue(m_pressAnimationTime);
+				float pressAnimationValue = getThemeEasing(ThemeEasings::inOut).easeValue(m_pressAnimationTime);
 				m_pressAnimationTime += 0.06f;
 
 				if (m_isRaising || m_isPressed)
@@ -11670,7 +11786,7 @@ namespace AvoGUI
 		{
 			if (m_emphasis == Emphasis::Medium)
 			{
-				p_drawingContext->setColor(Color(m_theme->colors["on background"], 0.25f));
+				p_drawingContext->setColor(Color(m_theme->colors[ThemeColors::onBackground], 0.25f));
 				p_drawingContext->strokeRoundedRectangle(Rectangle<float>(0.5f, 0.5f, getWidth() - 0.5f, getHeight() - 0.5f), getCorners().topLeftSizeX, 1.f);
 			}
 		}
@@ -11680,7 +11796,7 @@ namespace AvoGUI
 			if (m_emphasis == Emphasis::High)
 			{
 				p_drawingContext->clear(m_currentColor);
-				p_drawingContext->setColor(m_isAccent ? m_theme->colors["on secondary"] : m_theme->colors["on primary"]);
+				p_drawingContext->setColor(m_isAccent ? m_theme->colors[ThemeColors::onSecondary] : m_theme->colors[ThemeColors::onPrimary]);
 			}
 			else
 			{
@@ -11825,19 +11941,6 @@ namespace AvoGUI
 			else if (m_selectionEndPosition.x + m_textDrawingOffsetX < 0.f)
 			{
 				m_textDrawingOffsetX = -m_selectionEndPosition.x;
-			}
-		}
-
-	protected:
-		void handleThemeFontFamilyChange(std::string const& p_name, std::string const& p_newFontFamily) override
-		{
-			if (p_name == "main")
-			{
-				if (m_text)
-				{
-					m_text->setFontFamily(p_newFontFamily);
-					m_text->fitSizeToText();
-				}
 			}
 		}
 
@@ -12600,7 +12703,6 @@ namespace AvoGUI
 			}
 
 			m_text = getGui()->getDrawingContext()->createText(newString.c_str(), m_fontSize);
-			m_text->setFontFamily(getThemeFontFamily("main"));
 			m_text->setFontWeight(FontWeight::Regular);
 			m_text->setTextAlign(m_textAlign);
 			m_text->setWidth(getWidth());
@@ -12761,13 +12863,13 @@ namespace AvoGUI
 			//p_context->setColor(Color(0.f));
 			//p_context->strokeRectangle(getSize(), 1.f);
 			p_context->moveOrigin(m_textDrawingOffsetX, 0.f);
-			p_context->setColor(getThemeColor("on background"));
+			p_context->setColor(getThemeColor(ThemeColors::onBackground));
 			if (m_text)
 			{
 				p_context->drawText(m_text);
 				if (m_isSelectionVisible)
 				{
-					p_context->setColor(getThemeColor("selection"));
+					p_context->setColor(getThemeColor(ThemeColors::selection));
 					p_context->fillRectangle(m_caretPosition.x, 0.f, m_selectionEndPosition.x, getHeight());
 				}
 			}
@@ -12810,33 +12912,6 @@ namespace AvoGUI
 		Type m_type;
 
 	protected:
-		void handleThemeFontFamilyChange(std::string const& p_name, std::string const& p_newFontFamilyName) override
-		{
-			if (p_name == "main")
-			{
-				if (m_labelText)
-				{
-					m_labelText->setFontFamily(p_newFontFamilyName);
-					m_labelText->fitSizeToText();
-				}
-				if (m_prefixText)
-				{
-					m_prefixText->setFontFamily(p_newFontFamilyName);
-					m_prefixText->fitSizeToText();
-					m_editableText->setLeft(m_prefixText->getRight() + 1.f, false);
-					if (m_labelText)
-					{
-						m_labelText->setLeft(m_prefixText->getRight() + 1.f);
-					}
-				}
-				if (m_suffixText)
-				{
-					m_suffixText->setFontFamily(p_newFontFamilyName);
-					m_suffixText->fitSizeToText();
-					m_editableText->setRight(m_suffixText->getRight() - 1.f, false);
-				}
-			}
-		}
 		void handleThemeValueChange(std::string const& p_name, float p_newValue) override
 		{
 			if (p_name == "text field font size")
@@ -13042,7 +13117,6 @@ namespace AvoGUI
 			else
 			{
 				m_labelText = getGui()->getDrawingContext()->createText(p_label, getThemeValue("text field font size"));
-				m_labelText->setFontFamily(getThemeFontFamily("main"));
 				m_labelText->setFontWeight(AvoGUI::FontWeight::Regular);
 				m_labelText->fitSizeToText();
 				if (m_type == Type::Filled)
@@ -13083,7 +13157,6 @@ namespace AvoGUI
 				return;
 			}
 			m_prefixText = getGui()->getDrawingContext()->createText(p_string, getThemeValue("text field font size"));
-			m_prefixText->setFontFamily(getThemeFontFamily("main"));
 			m_prefixText->setFontWeight(AvoGUI::FontWeight::Regular);
 			m_prefixText->setHeight(m_prefixText->getFontSize()*1.2f);
 			if (m_type == Type::Filled)
@@ -13129,7 +13202,6 @@ namespace AvoGUI
 				return;
 			}
 			m_suffixText = getGui()->getDrawingContext()->createText(p_string, getThemeValue("text field font size"));
-			m_suffixText->setFontFamily(getThemeFontFamily("main"));
 			m_suffixText->setFontWeight(AvoGUI::FontWeight::Regular);
 			m_suffixText->setHeight(m_suffixText->getFontSize()*1.2f);
 			if (m_type == Type::Filled)
@@ -13269,7 +13341,7 @@ namespace AvoGUI
 			{
 				if (m_focusAnimationValue < 1.f)
 				{
-					m_focusAnimationValue = getThemeEasing("in out").easeValue(m_focusAnimationTime);
+					m_focusAnimationValue = getThemeEasing(ThemeEasings::inOut).easeValue(m_focusAnimationTime);
 					m_focusAnimationTime = min(1.f, m_focusAnimationTime + 0.09f);
 					invalidate();
 					queueAnimationUpdate();
@@ -13277,7 +13349,7 @@ namespace AvoGUI
 			}
 			else if (m_focusAnimationValue > 0.f)
 			{
-				m_focusAnimationValue = 1.f - getThemeEasing("in out").easeValue(1.f - m_focusAnimationTime);
+				m_focusAnimationValue = 1.f - getThemeEasing(ThemeEasings::inOut).easeValue(1.f - m_focusAnimationTime);
 				m_focusAnimationTime = max(0.f, m_focusAnimationTime - 0.09f);
 				invalidate();
 				queueAnimationUpdate();
@@ -13286,7 +13358,7 @@ namespace AvoGUI
 			{
 				if (m_hoverAnimationValue < 1.f)
 				{
-					m_hoverAnimationValue = getThemeEasing("symmetrical in out").easeValue(m_hoverAnimationTime);
+					m_hoverAnimationValue = getThemeEasing(ThemeEasings::symmetricalInOut).easeValue(m_hoverAnimationTime);
 					m_hoverAnimationTime = min(1.f, m_hoverAnimationTime + getThemeValue("hover animation speed"));
 					invalidate();
 					queueAnimationUpdate();
@@ -13294,25 +13366,25 @@ namespace AvoGUI
 			}
 			else if (m_hoverAnimationValue > 0.f)
 			{
-				m_hoverAnimationValue = 1.f - getThemeEasing("symmetrical in out").easeValue(1.f - m_hoverAnimationTime);
+				m_hoverAnimationValue = 1.f - getThemeEasing(ThemeEasings::symmetricalInOut).easeValue(1.f - m_hoverAnimationTime);
 				m_hoverAnimationTime = max(0.f, m_hoverAnimationTime - getThemeValue("hover animation speed"));
 				invalidate();
 				queueAnimationUpdate();
 			}
-			m_labelColor = interpolate(interpolate(getThemeColor("background"), getThemeColor("on background"), (1.f - m_focusAnimationValue) * m_hoverAnimationValue * 0.3f + 0.4f), getThemeColor("primary on background"), m_focusAnimationValue);
+			m_labelColor = interpolate(interpolate(getThemeColor(ThemeColors::background), getThemeColor(ThemeColors::onBackground), (1.f - m_focusAnimationValue) * m_hoverAnimationValue * 0.3f + 0.4f), getThemeColor(ThemeColors::primaryOnBackground), m_focusAnimationValue);
 		}
 
 		void draw(DrawingContext* p_context) override
 		{
 			if (m_type == Type::Filled)
 			{
-				p_context->setColor(Color(interpolate(getThemeColor("background"), getThemeColor("on background"), 0.05f + 0.05f * min(m_hoverAnimationValue*0.3f + m_focusAnimationValue, 1.f)), 1.f));
+				p_context->setColor(Color(interpolate(getThemeColor(ThemeColors::background), getThemeColor(ThemeColors::onBackground), 0.05f + 0.05f * min(m_hoverAnimationValue*0.3f + m_focusAnimationValue, 1.f)), 1.f));
 				p_context->fillRectangle(getSize());
-				p_context->setColor(Color(getThemeColor("on background"), 0.4));
+				p_context->setColor(Color(getThemeColor(ThemeColors::onBackground), 0.4));
 				p_context->drawLine(0.f, getHeight() - 1.f, getWidth(), getHeight() - 0.5f, 1.f);
 				if (m_focusAnimationValue > 0.01f)
 				{
-					p_context->setColor(getThemeColor("primary on background"));
+					p_context->setColor(getThemeColor(ThemeColors::primaryOnBackground));
 					p_context->drawLine((1.f - m_focusAnimationValue) * getWidth() * 0.5f, getHeight() - 1.f, (1.f + m_focusAnimationValue) * getWidth() * 0.5f, getHeight() - 1.f, 2.f);
 				}
 				if (m_labelText)
@@ -13338,7 +13410,7 @@ namespace AvoGUI
 					p_context->moveOrigin(getThemeValue("text field padding left") + 2.f * labelAnimationValue, -(getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.3f * labelAnimationValue);
 					p_context->setScale(1.f - labelAnimationValue * 0.3f);
 
-					p_context->setColor(getThemeColor("background"));
+					p_context->setColor(getThemeColor(ThemeColors::background));
 					p_context->fillRoundedRectangle(Rectangle<float>(m_labelText->getLeft() - 4.f, m_labelText->getTop(), m_labelText->getRight() + 4.f, m_labelText->getBottom()), 2.f);
 
 					p_context->setColor(m_labelColor);
@@ -13351,12 +13423,12 @@ namespace AvoGUI
 
 			if (m_prefixText)
 			{
-				p_context->setColor(Color(getThemeColor("on background"), 0.5f/* * (m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f)*/));
+				p_context->setColor(Color(getThemeColor(ThemeColors::onBackground), 0.5f/* * (m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f)*/));
 				p_context->drawText(m_prefixText);
 			}
 			if (m_suffixText)
 			{
-				p_context->setColor(Color(getThemeColor("on background"), 0.5f/* * (m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f)*/));
+				p_context->setColor(Color(getThemeColor(ThemeColors::onBackground), 0.5f/* * (m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f)*/));
 				p_context->drawText(m_suffixText);
 			}
 		}
