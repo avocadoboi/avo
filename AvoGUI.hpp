@@ -72,10 +72,11 @@ using uint64 = uint64_t;
 namespace AvoGUI
 {
 #pragma region Helper methods and constants
-	double const E =       2.71828182845904523;
-	double const HALF_PI = 1.57079632679489661;
-	double const PI =      3.14159265358979323;
-	double const TAU =     6.28318530717958647;
+	constexpr double E =       2.71828182845904523;
+	constexpr double HALF_PI = 1.57079632679489661;
+	constexpr double PI =      3.14159265358979323;
+	constexpr double TWO_PI =  6.28318530717958647;
+	constexpr double TAU =     TWO_PI;
 
 	/*
 		Returns a number multiplied by itself (x to the 2nd power, meaning x^2, meaning x*x).
@@ -2754,8 +2755,6 @@ namespace AvoGUI
 		The object doesn't get deleted until every remember() has a forget().
 		The constructor is the first remember(), meaning m_referenceCount is initialized with 1.
 		Don't use the delete operator with objects that are ReferenceCounted, use forget() instead.
-
-		I just like this a lot more than using std::shared_ptr etc. You have more control! And it may be more efficient.
 	*/
 	class ReferenceCounted
 	{
@@ -2898,7 +2897,7 @@ namespace AvoGUI
 		/*
 			Initializes the color with a grayscale value. The values are in the range [0, 255].
 		*/
-		explicit Color(uint32 p_lightness, uint32 p_alpha = 255)
+		explicit Color(uint32 p_lightness, uint32 p_alpha)
 		{
 			red = green = blue = constrain(float(p_lightness) / 255.f);
 			alpha = constrain(float(p_alpha) / 255.f);
@@ -4307,21 +4306,6 @@ namespace AvoGUI
 		*/
 		void drawShadow(DrawingContext* p_drawingContext);
 
-	protected:
-		Gui* m_gui{ nullptr };
-		View* m_parent{ nullptr };
-		Theme* m_theme{ nullptr };
-
-		std::vector<View*> m_children;
-
-		Geometry* m_clipGeometry{ nullptr };
-		/*
-			LIBRARY IMPLEMENTED
-			This is called whenever the clipping geometry of the view needs to be updated.
-			You can override this if you want a custom clipping geometry - just remember to forget() the old one if it's not null.
-		*/
-		virtual void updateClipGeometry();
-
 	public:
 		explicit View(View* p_parent, Rectangle<float> const& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
 		template<typename T>
@@ -4334,6 +4318,16 @@ namespace AvoGUI
 
 		//------------------------------
 
+	protected:
+		Geometry* m_clipGeometry{ nullptr };
+		/*
+			LIBRARY IMPLEMENTED
+			This is called whenever the clipping geometry of the view needs to be updated.
+			You can override this if you want a custom clipping geometry - just remember to forget() the old one if it's not null.
+		*/
+		virtual void updateClipGeometry();
+
+	public:
 		/*
 			Sets the geometry being used to clip the view's contents.
 			The clip geometry of the view is by default updated automatically in the updateGeometry method when the size has changed, but only if the old geometry's reference count is equal to 1.
@@ -4435,6 +4429,10 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		Gui* m_gui{ nullptr };
+
+	public:
 		/*
 			LIBRARY IMPLEMENTED
 			Returns a pointer to the highest view in the hierarchy, the GUI.
@@ -4453,7 +4451,17 @@ namespace AvoGUI
 		{
 			return (T*)m_gui;
 		}
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the object used for drawing.
+			The same as calling getGui()->getDrawingContext(), but more convenient.
+		*/
+		DrawingContext* getDrawingContext();
 
+	private:
+		View* m_parent{ nullptr };
+
+	public:
 		/*
 			LIBRARY IMPLEMENTED
 			Attaches this view to a new parent, which will manage the lifetime of the view unless you've called remember() on it.
@@ -4477,6 +4485,10 @@ namespace AvoGUI
 			return (T*)m_parent;
 		}
 
+	private:
+		std::vector<View*> m_children;
+
+	public:
 		/*
 			LIBRARY IMPLEMENTED
 			Removes a child view from this view. This forgets the view being removed.
@@ -4954,6 +4966,8 @@ namespace AvoGUI
 		//------------------------------
 
 	private:
+		Theme* m_theme{ nullptr };
+
 		template<typename T, typename U>
 		void propagateThemePropertyChange(void(View::* p_function)(std::string const&, T, bool), std::string const& p_name, U&& p_property, bool p_willAffectChildren)
 		{
@@ -5023,7 +5037,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			See setThemeColor for names that have colors by default.
 		*/
-		Color const& getThemeColor(std::string const& p_name) const
+		Color getThemeColor(std::string const& p_name) const
 		{
 			return m_theme->colors[p_name];
 		}
@@ -5053,7 +5067,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			See setThemeEasing for names that have easings by default.
 		*/
-		Easing const& getThemeEasing(std::string const& p_name) const
+		Easing getThemeEasing(std::string const& p_name) const
 		{
 			return m_theme->easings[p_name];
 		}
@@ -10976,9 +10990,9 @@ namespace AvoGUI
 			if (m_text)
 			{
 				p_drawingContext->scale(m_opacity * 0.3f + 0.7f, getAbsoluteCenter());
-				p_drawingContext->setColor(Color(m_theme->colors[ThemeColors::tooltipBackground], m_opacity));
+				p_drawingContext->setColor(Color(getThemeColor(ThemeColors::tooltipBackground), m_opacity));
 				p_drawingContext->fillRectangle(getSize());
-				p_drawingContext->setColor(Color(m_theme->colors[ThemeColors::tooltipOnBackground], m_opacity));
+				p_drawingContext->setColor(Color(getThemeColor(ThemeColors::tooltipOnBackground), m_opacity));
 				p_drawingContext->drawText(m_text);
 				p_drawingContext->scale(1.f / (m_opacity * 0.3f + 0.7f), getAbsoluteCenter());
 			}
@@ -11273,13 +11287,13 @@ namespace AvoGUI
 				{
 					if (m_overlayAlphaFactor < 1.f)
 					{
-						m_overlayAnimationTime = min(m_overlayAnimationTime + m_theme->values["hover animation speed"], 1.f);
+						m_overlayAnimationTime = min(m_overlayAnimationTime + getThemeValue("hover animation speed"), 1.f);
 						queueAnimationUpdate();
 					}
 				}
 				else if (m_overlayAlphaFactor > 0.f)
 				{
-					m_overlayAnimationTime = max(m_overlayAnimationTime - m_theme->values["hover animation speed"], 0.f);
+					m_overlayAnimationTime = max(m_overlayAnimationTime - getThemeValue("hover animation speed"), 0.f);
 					queueAnimationUpdate();
 				}
 			}
@@ -11724,11 +11738,11 @@ namespace AvoGUI
 				float colorAnimationValue = getThemeEasing(ThemeEasings::symmetricalInOut).easeValue(m_colorAnimationTime);
 				if (m_emphasis == Emphasis::High)
 				{
-					m_currentColor = m_isAccent ? m_theme->colors[ThemeColors::secondary] : m_theme->colors[ThemeColors::primary];
+					m_currentColor = m_isAccent ? getThemeColor(ThemeColors::secondary) : getThemeColor(ThemeColors::primary);
 				}
 				else
 				{
-					m_currentColor = m_isAccent ? m_theme->colors[ThemeColors::secondaryOnBackground] : m_theme->colors[ThemeColors::primaryOnBackground];
+					m_currentColor = m_isAccent ? getThemeColor(ThemeColors::secondaryOnBackground) : getThemeColor(ThemeColors::primaryOnBackground);
 				}
 				m_currentColor.setSaturationHSL(colorAnimationValue);
 
@@ -11786,7 +11800,7 @@ namespace AvoGUI
 		{
 			if (m_emphasis == Emphasis::Medium)
 			{
-				p_drawingContext->setColor(Color(m_theme->colors[ThemeColors::onBackground], 0.25f));
+				p_drawingContext->setColor(Color(getThemeColor(ThemeColors::onBackground), 0.25f));
 				p_drawingContext->strokeRoundedRectangle(Rectangle<float>(0.5f, 0.5f, getWidth() - 0.5f, getHeight() - 0.5f), getCorners().topLeftSizeX, 1.f);
 			}
 		}
@@ -11796,7 +11810,7 @@ namespace AvoGUI
 			if (m_emphasis == Emphasis::High)
 			{
 				p_drawingContext->clear(m_currentColor);
-				p_drawingContext->setColor(m_isAccent ? m_theme->colors[ThemeColors::onSecondary] : m_theme->colors[ThemeColors::onPrimary]);
+				p_drawingContext->setColor(m_isAccent ? getThemeColor(ThemeColors::onSecondary) : getThemeColor(ThemeColors::onPrimary));
 			}
 			else
 			{

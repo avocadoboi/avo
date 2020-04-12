@@ -493,6 +493,13 @@ void AvoGUI::View::setClipGeometry(Geometry* p_geometry)
 
 //------------------------------
 
+AvoGUI::DrawingContext* AvoGUI::View::getDrawingContext()
+{
+	return m_gui->getDrawingContext();
+}
+
+//------------------------------
+
 void AvoGUI::View::setParent(AvoGUI::View* p_container)
 {
 	if (p_container == m_parent)
