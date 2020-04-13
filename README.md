@@ -130,7 +130,7 @@ public:
   {
     // Override this if you want to react to mouse button press events. You first need to call 
     // enableMouseEvents(), in the constructor or something. Otherwise, no mouse events will be received.
-    // The mouse coordinates in the event are relative to the parent of this view.
+    // The mouse coordinates in the event are relative to the top left corner of this view.
   }
   
   // You can override the same listeners as your GUI can.
