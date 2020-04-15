@@ -71,7 +71,6 @@ using uint64 = uint64_t;
 
 namespace AvoGUI
 {
-#pragma region Helper methods and constants
 	constexpr double E =       2.71828182845904523;
 	constexpr double HALF_PI = 1.57079632679489661;
 	constexpr double PI =      3.14159265358979323;
@@ -611,11 +610,9 @@ namespace AvoGUI
 
 		return result;
 	}
-#pragma endregion
 
 	//------------------------------
 
-#pragma region Point
 	/*
 		A 2D point/vector where x is the horizontal component and y is the vertical component if you were to think of it graphically.
 		The coordinate system used throughout AvoGUI is one where the positive y-direction is downwards and the positive x-direction is to the right.
@@ -1316,11 +1313,8 @@ namespace AvoGUI
 	{
 		return p_start * (1.0 - p_progress) + p_end * p_progress;
 	}
-#pragma endregion
 
 	//------------------------------
-
-#pragma region Rectangle
 
 	class ProtectedRectangle;
 
@@ -2660,8 +2654,6 @@ namespace AvoGUI
 		}
 	};
 
-#pragma endregion
-
 	//------------------------------
 
 	/*
@@ -2800,7 +2792,6 @@ namespace AvoGUI
 	//------------------------------
 	// Color stuff
 
-#pragma region Color
 	/*
 		ARGB formatted 32-bit packed color, where every channel has 8 bits.
 	*/
@@ -3945,11 +3936,8 @@ namespace AvoGUI
 			}
 		}
 	};
-#pragma endregion
 
 	//------------------------------
-
-#pragma region Mouse, keyboard, clipboard, drag and drop
 
 	enum class Cursor
 	{
@@ -4243,11 +4231,8 @@ namespace AvoGUI
 		ClipboardData* data{ nullptr };
 	};
 
-#pragma endregion
-
 	//------------------------------
 
-#pragma region View
 	// forward declaration <3
 
 	class Gui;
@@ -5067,7 +5052,7 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			See setThemeEasing for names that have easings by default.
 		*/
-		Easing getThemeEasing(std::string const& p_name) const
+		Easing const& getThemeEasing(std::string const& p_name) const
 		{
 			return m_theme->easings[p_name];
 		}
@@ -6875,10 +6860,10 @@ namespace AvoGUI
 			return m_areMouseEventsEnabled;
 		}
 
-		using MouseListener = std::function<void(MouseEvent const&)>;
+		using MouseListener = void(View*, MouseEvent const&);
 
 	private:
-		EventListeners<void(MouseEvent const&)> m_mouseDownListeners;
+		EventListeners<MouseListener> m_mouseDownListeners;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -6892,14 +6877,14 @@ namespace AvoGUI
 		    LIBRARY IMPLEMENTED
 		    Adds a callback for mouse down events on this view.
 		*/
-		void addMouseDownListener(MouseListener p_listener)
+		void addMouseDownListener(std::function<MouseListener> p_listener)
         {
 			m_mouseDownListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
-        void removeMouseDownListener(MouseListener p_listener)
+        void removeMouseDownListener(std::function<MouseListener> p_listener)
         {
 			m_mouseDownListeners -= p_listener;
 		}
@@ -6911,7 +6896,7 @@ namespace AvoGUI
 		virtual void handleMouseDown(MouseEvent const& p_event) { }
 
 	private:
-		EventListeners<void(MouseEvent const&)> m_mouseUpListeners;
+		EventListeners<MouseListener> m_mouseUpListeners;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -6925,14 +6910,14 @@ namespace AvoGUI
             LIBRARY IMPLEMENTED
             Adds a callback for mouse up events on this view.
         */
-        void addMouseUpListener(MouseListener p_listener)
+        void addMouseUpListener(std::function<MouseListener> p_listener)
         {
         	m_mouseUpListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
-        void removeMouseUpListener(MouseListener p_listener)
+        void removeMouseUpListener(std::function<MouseListener> p_listener)
         {
         	m_mouseUpListeners -= p_listener;
         }
@@ -6945,7 +6930,7 @@ namespace AvoGUI
 		virtual void handleMouseUp(MouseEvent const& p_event) { }
 
 	private:
-		EventListeners<void(MouseEvent const&)> m_mouseDoubleClickListeners;
+		EventListeners<MouseListener> m_mouseDoubleClickListeners;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -6959,14 +6944,14 @@ namespace AvoGUI
             LIBRARY IMPLEMENTED
             Adds a callback for double click events on this view.
         */
-        void addMouseDoubleClickListener(MouseListener p_listener)
+        void addMouseDoubleClickListener(std::function<MouseListener> p_listener)
         {
         	m_mouseDoubleClickListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
-        void removeMouseDoubleClickListener(MouseListener p_listener)
+        void removeMouseDoubleClickListener(std::function<MouseListener> p_listener)
         {
         	m_mouseDoubleClickListeners -= p_listener;
         }
@@ -6982,7 +6967,7 @@ namespace AvoGUI
 		}
 
 	private:
-		EventListeners<void(MouseEvent const&)> m_mouseMoveListeners;
+		EventListeners<MouseListener> m_mouseMoveListeners;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -6996,14 +6981,14 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Adds a callback for mouse move events on this view.
 		*/
-		void addMouseMoveListener(MouseListener p_listener)
+		void addMouseMoveListener(std::function<MouseListener> p_listener)
 		{
 			m_mouseMoveListeners += p_listener;
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		void removeMouseMoveListener(MouseListener p_listener)
+		void removeMouseMoveListener(std::function<MouseListener> p_listener)
 		{
 			m_mouseMoveListeners -= p_listener;
 		}
@@ -7018,7 +7003,7 @@ namespace AvoGUI
 		virtual void handleMouseMove(MouseEvent const& p_event) { }
 
 	private:
-		EventListeners<void(MouseEvent const&)> m_mouseEnterListeners;
+		EventListeners<MouseListener> m_mouseEnterListeners;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -7032,14 +7017,14 @@ namespace AvoGUI
             LIBRARY IMPLEMENTED
             Adds a callback for mouse enter events on this view.
         */
-        void addMouseEnterListener(MouseListener p_listener)
+        void addMouseEnterListener(std::function<MouseListener> p_listener)
         {
         	m_mouseEnterListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
-        void removeMouseEnterListener(MouseListener p_listener)
+        void removeMouseEnterListener(std::function<MouseListener> p_listener)
         {
         	m_mouseEnterListeners -= p_listener;
         }
@@ -7053,7 +7038,7 @@ namespace AvoGUI
 		virtual void handleMouseEnter(MouseEvent const& p_event) { }
 
 	private:
-		EventListeners<void(MouseEvent const&)> m_mouseLeaveListeners;
+		EventListeners<MouseListener> m_mouseLeaveListeners;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -7067,14 +7052,14 @@ namespace AvoGUI
             LIBRARY IMPLEMENTED
             Adds a callback for mouse leave events on this view.
         */
-        void addMouseLeaveListener(MouseListener p_listener)
+        void addMouseLeaveListener(std::function<MouseListener> p_listener)
         {
         	m_mouseLeaveListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
-        void removeMouseLeaveListener(MouseListener p_listener)
+        void removeMouseLeaveListener(std::function<MouseListener> p_listener)
         {
         	m_mouseLeaveListeners -= p_listener;
         }
@@ -7088,7 +7073,7 @@ namespace AvoGUI
 		virtual void handleMouseLeave(MouseEvent const& p_event) { }
 
 	private:
-		EventListeners<void(MouseEvent const&)> m_mouseBackgroundEnterListeners;
+		EventListeners<MouseListener> m_mouseBackgroundEnterListeners;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -7102,14 +7087,14 @@ namespace AvoGUI
             LIBRARY IMPLEMENTED
             Adds a callback for mouse background enter events on this view.
         */
-        void addMouseBackgroundEnterListener(MouseListener p_listener)
+        void addMouseBackgroundEnterListener(std::function<MouseListener> p_listener)
         {
         	m_mouseBackgroundEnterListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
-        void removeMouseBackgroundEnterListener(MouseListener p_listener)
+        void removeMouseBackgroundEnterListener(std::function<MouseListener> p_listener)
         {
         	m_mouseBackgroundEnterListeners -= p_listener;
         }
@@ -7122,7 +7107,7 @@ namespace AvoGUI
 		virtual void handleMouseBackgroundEnter(MouseEvent const& p_event);
 
 	private:
-		EventListeners<void(MouseEvent const&)> m_mouseBackgroundLeaveListeners;
+		EventListeners<MouseListener> m_mouseBackgroundLeaveListeners;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -7136,14 +7121,14 @@ namespace AvoGUI
             LIBRARY IMPLEMENTED
             Adds a callback for mouse background leave events on this view.
         */
-        void addMouseBackgroundLeaveListener(MouseListener p_listener)
+        void addMouseBackgroundLeaveListener(std::function<MouseListener> p_listener)
         {
         	m_mouseBackgroundLeaveListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
-        void removeMouseBackgroundLeaveListener(MouseListener p_listener)
+        void removeMouseBackgroundLeaveListener(std::function<MouseListener> p_listener)
         {
         	m_mouseBackgroundLeaveListeners -= p_listener;
         }
@@ -7155,7 +7140,7 @@ namespace AvoGUI
 		virtual void handleMouseBackgroundLeave(MouseEvent const& p_event) { }
 
 	private:
-		EventListeners<void(MouseEvent const&)> m_mouseScrollListeners;
+		EventListeners<MouseListener> m_mouseScrollListeners;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -7169,14 +7154,14 @@ namespace AvoGUI
             LIBRARY IMPLEMENTED
             Adds a callback for mouse scroll events on this view.
         */
-        void addMouseScrollListener(MouseListener p_listener)
+        void addMouseScrollListener(std::function<MouseListener> p_listener)
         {
         	m_mouseScrollListeners += p_listener;
         }
         /*
             LIBRARY IMPLEMENTED
         */
-        void removeMouseScrollListener(MouseListener p_listener)
+        void removeMouseScrollListener(std::function<MouseListener> p_listener)
         {
         	m_mouseScrollListeners -= p_listener;
         }
@@ -7395,11 +7380,8 @@ namespace AvoGUI
 		}
 	};
 
-#pragma endregion
-
 	//------------------------------
 
-#pragma region Window
 	class Window;
 
 	class WindowEvent
@@ -8321,11 +8303,8 @@ namespace AvoGUI
 		}
 	};
 
-#pragma endregion
-
 	//------------------------------
 
-#pragma region Image
 	/*
 		This specifies what is done to fit the image within its bounds.
 	*/
@@ -8486,11 +8465,9 @@ namespace AvoGUI
 		*/
 		virtual void* getHandle() const = 0;
 	};
-#pragma endregion
 
 	//------------------------------
 
-#pragma region Text
 	enum class WordWrapping
 	{
 		Emergency, // Keeps words whole unless a word is wider than the maximum width.
@@ -8856,11 +8833,9 @@ namespace AvoGUI
 		*/
 		virtual void* getHandle() = 0;
 	};
-#pragma endregion
 
 	//------------------------------
 
-#pragma region Drawing context
 	enum class LineCap
 	{
 		Flat,
@@ -10123,7 +10098,6 @@ namespace AvoGUI
 		*/
 		virtual void drawText(char const* p_string, Point<float> const& p_position) = 0;
 	};
-#pragma endregion
 
 	//------------------------------
 
@@ -10140,46 +10114,7 @@ namespace AvoGUI
 		DrawingContext* m_drawingContext{ nullptr };
 		DrawingState* m_drawingContextState{ nullptr };
 
-		Point<float> m_lastUpdatedWindowSize;
-
 		//------------------------------
-
-		std::deque<View*> m_animationUpdateQueue;
-
-		std::mutex m_invalidRectanglesMutex;
-		std::vector<Rectangle<float>> m_invalidRectangles;
-
-		//------------------------------
-
-		/*
-			LIBRARY IMPLEMENTED
-			Returns the topmost non-overlay view which contains the coordinates given, as well as any overlay views which are above the non-overlay view.
-		*/
-		void getTopMouseListenersAt(Point<float> const& p_coordinates, std::vector<View*>& p_result);
-		/*
-			LIBRARY IMPLEMENTED
-			Returns the topmost non-overlay view which contains the coordinates given, as well as any overlay views which are above the non-overlay view.
-		*/
-		void getTopMouseListenersAt(float p_x, float p_y, std::vector<View*>& p_result);
-
-		//------------------------------
-
-		std::unordered_map<uint64, View*> m_viewsById;
-		friend class View;
-
-		//------------------------------
-
-		void sendBoundsChangeEvents(AvoGUI::Rectangle<float> const& p_previousBounds) override
-		{
-			if ((uint32)getWidth() != (uint32)m_window->getSize().x || (uint32)getHeight() != (uint32)m_window->getSize().y)
-			{
-				m_window->setSize(getSize());
-			}
-			else
-			{
-				View::sendBoundsChangeEvents(p_previousBounds);
-			}
-		}
 
 		void handleThemeColorChange(std::string const& p_name, Color const& p_newColor) override
 		{
@@ -10332,6 +10267,7 @@ namespace AvoGUI
 		}
 
 		/*
+			LIBRARY IMPLEMENTED
 			Returns the GUI that owns the parent window of the window of this GUI.
 			If the window does not have a parent, it returns 0.
 		*/
@@ -10352,6 +10288,11 @@ namespace AvoGUI
 			Returns the topmost non-overlay view which contains the coordinates given.
 		*/
 		View* getViewAt(float p_x, float p_y);
+
+	private:
+		friend class View;
+		std::unordered_map<uint64, View*> m_viewsById;
+	public:
 		/*
 			LIBRARY IMPLEMENTED
 			Finds the view that has a certain ID previously set by you.
@@ -10386,9 +10327,12 @@ namespace AvoGUI
 		//------------------------------
 
 	private:
+		std::deque<View*> m_animationUpdateQueue;
+
 		bool m_hasAnimationLoopStarted{ false };
 		std::recursive_mutex m_animationThreadMutex;
 		std::thread m_animationThread;
+
 		void thread_runAnimationLoop();
 	public:
 		/*
@@ -10413,7 +10357,21 @@ namespace AvoGUI
 	private:
 		void handleWindowCreate(WindowEvent const& p_event);
 		void handleWindowDestroy(WindowEvent const& p_event);
+
+		Point<float> m_lastUpdatedWindowSize;
 		void handleWindowSizeChange(WindowEvent const& p_event);
+
+		void sendBoundsChangeEvents(AvoGUI::Rectangle<float> const& p_previousBounds) override
+		{
+			if ((uint32)getWidth() != (uint32)m_window->getSize().x || (uint32)getHeight() != (uint32)m_window->getSize().y)
+			{
+				m_window->setSize(getSize());
+			}
+			else
+			{
+				View::sendBoundsChangeEvents(p_previousBounds);
+			}
+		}
 
 		//------------------------------
 
@@ -10451,12 +10409,24 @@ namespace AvoGUI
 			return result;
 		}
 
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		void handleGlobalDragDropEnter(DragDropEvent& p_event)
 		{
 			handleGlobalDragDropMove(p_event);
 		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		void handleGlobalDragDropMove(DragDropEvent& p_event);
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		void handleGlobalDragDropLeave(DragDropEvent& p_event);
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		void handleGlobalDragDropFinish(DragDropEvent& p_event)
 		{
 			if (m_areDragDropEventsEnabled)
@@ -10526,6 +10496,9 @@ namespace AvoGUI
 	private:
 		EventListeners<void(DragDropOperation)> m_dragDropOperationChangeListeners;
 	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		void handleGlobalDragDropOperationChange(DragDropOperation p_newOperation)
 		{
 			m_dragDropOperationChangeListeners.notifyAll(p_newOperation);
@@ -10551,9 +10524,21 @@ namespace AvoGUI
 		//------------------------------
 
 	private:
+		/*
+			Returns the topmost non-overlay view which contains the coordinates given, as well as any overlay views which are above the non-overlay view.
+		*/
+		void getTopMouseListenersAt(Point<float> const& p_coordinates, std::vector<View*>& p_result);
+		/*
+			Returns the topmost non-overlay view which contains the coordinates given, as well as any overlay views which are above the non-overlay view.
+		*/
+		void getTopMouseListenersAt(float p_x, float p_y, std::vector<View*>& p_result);
+
 		std::vector<View*> m_pressedMouseEventListeners;
 		Point<float> m_mouseDownPosition;
 	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		void handleGlobalMouseDown(MouseEvent& p_event)
 		{
 			std::vector<View*> targets;
@@ -10576,6 +10561,9 @@ namespace AvoGUI
 
 			m_mouseDownPosition.set(absoluteX, absoluteY);
 		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		void handleGlobalMouseUp(MouseEvent& p_event)
 		{
 			float absoluteX = p_event.x;
@@ -10604,6 +10592,9 @@ namespace AvoGUI
 				}
 			}
 		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		void handleGlobalMouseDoubleClick(MouseEvent& p_event)
 		{
 			std::vector<View*> targets;
@@ -10627,8 +10618,17 @@ namespace AvoGUI
 				}
 			}
 		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		void handleGlobalMouseMove(MouseEvent& p_event);
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		void handleGlobalMouseLeave(MouseEvent& p_event);
+		/*
+			LIBRARY IMPLEMENTED
+		*/
 		void handleGlobalMouseScroll(MouseEvent& p_event)
 		{
 			std::vector<View*> targets;
@@ -10845,6 +10845,10 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		std::mutex m_invalidRectanglesMutex;
+		std::vector<Rectangle<float>> m_invalidRectangles;
+	public:
 		/*
 			LIBRARY IMPLEMENTED
 			Invalidates a part of the GUI that has been changed, and therefore needs to be redrawn.
@@ -11131,27 +11135,27 @@ namespace AvoGUI
 	private:
 		Color m_color;
 
-		bool m_isEnabled{true};
+		bool m_isEnabled{ true };
 
 		//------------------------------
 
 		Point<float> m_position;
-		float m_maxSize{0.f};
-		float m_size{0.f};
-		float m_circleAnimationTime{1.f};
+		float m_maxSize{ 0.f };
+		float m_size{ 0.f };
+		float m_circleAnimationTime{ 1.f };
 
 		//------------------------------
 
-		float m_alphaFactor{0.f};
-		float m_alphaAnimationTime{0.f};
-		bool m_isMouseDown{false};
+		float m_alphaFactor{ 0.f };
+		float m_alphaAnimationTime{ 0.f };
+		bool m_isMouseDown{ false };
 
 		//------------------------------
 
-		float m_overlayAlphaFactor{0.f};
-		float m_overlayAnimationTime{0.f};
-		bool m_isMouseHovering{false};
-		bool m_hasHoverEffect{true};
+		float m_overlayAlphaFactor{ 0.f };
+		float m_overlayAnimationTime{ 0.f };
+		bool m_isMouseHovering{ false };
+		bool m_hasHoverEffect{ true };
 
 	public:
 		explicit Ripple(View* p_parent, Color const& p_color = Color(1.f, 0.45f)) :
@@ -11362,7 +11366,7 @@ namespace AvoGUI
 		};
 
 	private:
-		Text* m_text{nullptr};
+		Text* m_text{ nullptr };
 
 		Tooltip* m_tooltipView{nullptr};
 		std::string m_tooltipString;

@@ -723,7 +723,6 @@ void AvoGUI::View::drawShadow(DrawingContext* p_drawingContext)
 
 //------------------------------
 
-#pragma region Platform-specific window implementations
 #ifdef _WIN32
 
 #define IUnknownDefinition(p_interfaceName)\
@@ -5790,9 +5789,7 @@ public:
 	}
 };
 #endif
-#pragma endregion
 
-#pragma region Platform-specific drawing context implementations
 #ifdef _WIN32
 class Direct2DImage : public AvoGUI::Image
 {
@@ -12140,7 +12137,6 @@ bool OpenGlDrawingContext::s_areStaticVariablesInitialized = false;
 AvoGUI::Point<float> OpenGlDrawingContext::s_unitCirclePoints[OpenGlDrawingContext::CIRCLE_RESOLUTION + 1];
 
 #endif
-#pragma endregion
 
 //------------------------------
 // class GUI
