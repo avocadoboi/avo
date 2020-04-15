@@ -2,21 +2,36 @@
 #include <iostream>
 
 //------------------------------
-// Example of a view that draws an image
 
-class Sprite : public AvoGUI::View, public AvoGUI::ViewListener
+/*
+	Example of a view that draws an image that fills its parent.
+	Usage example:
+	auto sprite = new Sprite(this, "path/to/image.png");
+*/
+class Sprite : public AvoGUI::View
 {
 private:
 	AvoGUI::Image* m_image;
 
 public:
-	Sprite(AvoGUI::View* p_parent, char const* p_filePath) : View(p_parent)
+	Sprite(AvoGUI::View* p_parent, std::string const& p_filePath) : 
+		View(p_parent),
+		m_image(getGui()->getDrawingContext()->createImage(p_filePath))
 	{
-		p_parent->addViewListener(this);
-
-		m_image = getGui()->getDrawingContext()->createImage(p_filePath);
 		m_image->setBoundsPositioning(0.5f, 0.5f);
 		m_image->setBoundsSizing(AvoGUI::ImageBoundsSizing::Contain);
+
+		auto sizeChangeListener = [this](View*, float, float) {
+			m_image->setSize(getParent()->getSize());
+			setSize(getParent()->getSize());
+		};
+		p_parent->addSizeChangeListener(sizeChangeListener);
+		p_parent->addChildDetachmentListener([=](View*, View* p_child) {
+			if (p_child == this)
+			{
+				p_parent->removeSizeChangeListener(sizeChangeListener);
+			}
+		});
 	}
 	~Sprite()
 	{
@@ -24,12 +39,6 @@ public:
 	}
 
 	//------------------------------
-
-	void handleViewSizeChange(View* p_view, float p_previousWidth, float p_previousHeight) override
-	{
-		m_image->setSize(getParent()->getSize());
-		setSize(getParent()->getSize());
-	}
 
 	void draw(AvoGUI::DrawingContext* p_drawingContext) override
 	{
@@ -39,107 +48,91 @@ public:
 
 //------------------------------
 
-class MyGUI : 
-	public AvoGUI::Gui, 
-	public AvoGUI::ButtonListener,
-	public AvoGUI::KeyboardListener
+class MyGui : 
+	public AvoGUI::Gui
 {
-private:
-	AvoGUI::View* m_viewContainer;
-	AvoGUI::TextField* m_textField_firstName;
-	AvoGUI::TextField* m_textField_lastName;
-
-	AvoGUI::Tooltip* m_tooltip;
-
 public:
-	MyGUI() :
-		m_viewContainer(0)
+	MyGui()
 	{
 		create("My GUI", 450, 300, AvoGUI::WindowStyleFlags::Default);
-	}
-
-	//------------------------------
-
-	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
-	{
-		setKeyboardFocus(0);
-	}
-
-	void handleButtonClick(AvoGUI::Button* p_button)
-	{
-		std::cout << "A button saying '" << p_button->getString() << "' was pressed!\n";
-	}
-
-	void handleKeyboardKeyDown(AvoGUI::KeyboardEvent const& p_event) override
-	{
-		if (p_event.key == AvoGUI::KeyboardKey::F4)
-		{
-			getWindow()->switchFullscreen();
-		}
-		else if (p_event.key == AvoGUI::KeyboardKey::Escape)
-		{
-			getWindow()->setIsFullscreen(false);
-		}
-		else if (p_event.key == AvoGUI::KeyboardKey::Tab)
-		{
-			setKeyboardFocus(m_textField_firstName->getHasKeyboardFocus() ? m_textField_lastName : m_textField_firstName);
-		}
+		waitForFinish();
 	}
 
 	//------------------------------
 
 	void createContent() override
 	{
-		setThemeColor("background", AvoGUI::Color(0.1f));
-		setThemeColor("on background", AvoGUI::Color(0.98f));
+		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(0.1f));
+		setThemeColor(AvoGUI::ThemeColors::onBackground, AvoGUI::Color(0.98f));
 
-		setThemeColor("primary", AvoGUI::Color(31, 115, 230));
-		setThemeColor("primary on background", AvoGUI::Color(50, 130, 250));
-		setThemeColor("on primary", AvoGUI::Color(1.f));
-		setThemeColor("shadow", AvoGUI::Color(0.f, 0.9f));
+		setThemeColor(AvoGUI::ThemeColors::primary, AvoGUI::Color(31, 115, 230));
+		setThemeColor(AvoGUI::ThemeColors::primaryOnBackground, AvoGUI::Color(50, 130, 250));
+		setThemeColor(AvoGUI::ThemeColors::onPrimary, AvoGUI::Color(1.f));
+		setThemeColor(AvoGUI::ThemeColors::shadow, AvoGUI::Color(0.f, 0.9f));
 
-		setThemeValue("text field height", 2.4f);
-		setThemeValue("text field font size", 13.f);
-		setThemeValue("text field padding left", 15.f);
+		setThemeValue(AvoGUI::ThemeValues::textFieldHeight, 2.4f);
+		setThemeValue(AvoGUI::ThemeValues::textFieldFontSize, 13.f);
+		setThemeValue(AvoGUI::ThemeValues::textFieldPaddingLeft, 15.f);
 
 		//------------------------------
 
-		enableMouseEvents();
-		addGlobalKeyboardListener(this);
+		auto tooltip = new AvoGUI::Tooltip(this);
 
-		m_tooltip = new AvoGUI::Tooltip(this);
+		auto viewContainer = new AvoGUI::View(this);
+		viewContainer->enableMouseEvents();
 
-		m_viewContainer = new AvoGUI::View(this);
-		m_viewContainer->enableMouseEvents();
+		auto handleButtonClick = [](AvoGUI::Button* p_button) {
+			std::cout << "A button saying '" << p_button->getString() << "' was pressed!\n";
+		};
 
-		AvoGUI::Button* button_yes = new AvoGUI::Button(m_viewContainer, "YES");
-		button_yes->setTooltip(m_tooltip, "Tooltip 0");
-		button_yes->addButtonListener(this);
+		auto button_yes = new AvoGUI::Button(viewContainer, "YES");
+		button_yes->setTooltip(tooltip, "Tooltip 0");
+		button_yes->addButtonClickListener(handleButtonClick);
 
-		AvoGUI::Button* button_no = new AvoGUI::Button(m_viewContainer, "NO", AvoGUI::Button::Emphasis::Medium);
+		auto button_no = new AvoGUI::Button(viewContainer, "NO", AvoGUI::Button::Emphasis::Medium);
 		button_no->setLeft(button_yes->getRight() + 10.f);
-		button_no->setTooltip(m_tooltip, "Tooltip 1");
-		button_no->addButtonListener(this);
+		button_no->setTooltip(tooltip, "Tooltip 1");
+		button_no->addButtonClickListener(handleButtonClick);
 
-		AvoGUI::Button* button_readMore = new AvoGUI::Button(m_viewContainer, "READ MORE", AvoGUI::Button::Emphasis::Low);
+		auto button_readMore = new AvoGUI::Button(viewContainer, "READ MORE", AvoGUI::Button::Emphasis::Low);
 		button_readMore->setCenterX(button_no->getRight()*0.5f);
 		button_readMore->setTop(button_no->getBottom() + 15.f);
-		button_readMore->setTooltip(m_tooltip, "tooltip 2");
-		button_readMore->addButtonListener(this);
+		button_readMore->setTooltip(tooltip, "Tooltip 2");
+		button_readMore->addButtonClickListener(handleButtonClick);
 
-		m_textField_firstName = new AvoGUI::TextField(m_viewContainer, AvoGUI::TextField::Type::Outlined, "First name", 150.f);
-		m_textField_firstName->setLeft(button_no->getRight() + 15.f);
-		m_textField_firstName->setCenterY(button_readMore->getBottom()*0.5f - 22.f - AvoGUI::TEXT_FIELD_OUTLINED_PADDING_LABEL*0.5f);
+		auto textField_firstName = new AvoGUI::TextField(viewContainer, AvoGUI::TextField::Type::Outlined, "First name", 150.f);
+		textField_firstName->setLeft(button_no->getRight() + 15.f);
+		textField_firstName->setCenterY(button_readMore->getBottom()*0.5f - 22.f - AvoGUI::TEXT_FIELD_OUTLINED_PADDING_LABEL*0.5f);
 
-		m_textField_lastName = new AvoGUI::TextField(m_viewContainer, AvoGUI::TextField::Type::Outlined, "Last name", 150.f);
-		m_textField_lastName->setLeft(button_no->getRight() + 15.f);
-		m_textField_lastName->setCenterY(button_readMore->getBottom() * 0.5f + 22.f - AvoGUI::TEXT_FIELD_OUTLINED_PADDING_LABEL*0.5f);
+		auto textField_lastName = new AvoGUI::TextField(viewContainer, AvoGUI::TextField::Type::Outlined, "Last name", 150.f);
+		textField_lastName->setLeft(button_no->getRight() + 15.f);
+		textField_lastName->setCenterY(button_readMore->getBottom() * 0.5f + 22.f - AvoGUI::TEXT_FIELD_OUTLINED_PADDING_LABEL*0.5f);
 
-		m_viewContainer->setPadding(5.f);
-	}
-	void handleSizeChange() override
-	{
-		m_viewContainer->setCenter(getCenterX(), getCenterY());
+		viewContainer->setPadding(5.f);
+
+		addGlobalKeyboardKeyDownListener([=](AvoGUI::KeyboardEvent const& p_event) {
+			if (p_event.key == AvoGUI::KeyboardKey::F4)
+			{
+				getWindow()->switchFullscreen();
+			}
+			else if (p_event.key == AvoGUI::KeyboardKey::Escape)
+			{
+				getWindow()->setIsFullscreen(false);
+			}
+			else if (p_event.key == AvoGUI::KeyboardKey::Tab)
+			{
+				setKeyboardFocus(textField_firstName->getHasKeyboardFocus() ? textField_lastName : textField_firstName);
+			}
+		});
+
+		addSizeChangeListener([=](View*, float, float) {
+			viewContainer->setCenter(getCenterX(), getCenterY());
+		});
+
+		enableMouseEvents();
+		addMouseDownListener([this](auto) {
+			setKeyboardFocus(0);
+		});
 	}
 };
 
@@ -147,6 +140,5 @@ public:
 
 int main()
 {
-	MyGUI* gui = new MyGUI();
-	gui->waitForFinish();
+	new MyGui();
 }

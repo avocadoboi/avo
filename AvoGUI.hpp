@@ -6860,7 +6860,7 @@ namespace AvoGUI
 			return m_areMouseEventsEnabled;
 		}
 
-		using MouseListener = void(View*, MouseEvent const&);
+		using MouseListener = void(MouseEvent const&);
 
 	private:
 		EventListeners<MouseListener> m_mouseDownListeners;
@@ -9925,13 +9925,13 @@ namespace AvoGUI
 			Loads an image from the data of an image file.
 			p_imageData is a memory block which is p_size bytes in size.
 		*/
-		virtual Image* createImage(void const* p_imageData, uint32 p_size) = 0;
+		virtual Image* createImage(uint8 const* p_imageData, uint32 p_size) = 0;
 		/*
 			Loads an image from a file. Most standard image formats/codecs are supported.
 			p_filePath is the path, relative or absolute, to the image file to be loaded.
 			If this returns 0, then the file path is probably incorrect.
 		*/
-		virtual Image* createImage(char const* p_filePath) = 0;
+		virtual Image* createImage(std::string const& p_filePath) = 0;
 		/*
 			Creates an image from an OS-specific handle.
 
@@ -11368,24 +11368,24 @@ namespace AvoGUI
 	private:
 		Text* m_text{ nullptr };
 
-		Tooltip* m_tooltipView{nullptr};
+		Tooltip* m_tooltipView{ nullptr };
 		std::string m_tooltipString;
 
-		Image* m_icon{nullptr};
+		Image* m_icon{ nullptr };
 
-		float m_pressAnimationTime{1.f};
-		bool m_isPressed{false};
-		bool m_isRaising{false};
+		float m_pressAnimationTime{ 1.f };
+		bool m_isPressed{ false };
+		bool m_isRaising{ false };
 		Emphasis m_emphasis;
 
-		bool m_isEnabled{true};
+		bool m_isEnabled{ true };
 		Color m_currentColor;
-		float m_colorAnimationTime{1.f};
-		bool m_isAccent{false};
+		float m_colorAnimationTime{ 1.f };
+		bool m_isAccent{ false };
 
-		bool m_isMouseHovering{false};
+		bool m_isMouseHovering{ false };
 
-		Ripple* m_ripple{nullptr};
+		Ripple* m_ripple{ nullptr };
 
 	protected:
 		void handleThemeValueChange(std::string const& p_name, float p_newValue) override
@@ -11486,20 +11486,6 @@ namespace AvoGUI
 			{
 				m_icon->setCenter(getCenter() - getTopLeft());
 			}
-		}
-
-		//------------------------------
-
-	private:
-		EventListeners<void(Button*)> m_buttonListeners;
-	public:
-		void addButtonListener(std::function<void(Button*)> p_listener)
-		{
-			m_buttonListeners += p_listener;
-		}
-		void removeButtonListener(std::function<void(Button*)> p_listener)
-		{
-			m_buttonListeners -= p_listener;
 		}
 
 		//------------------------------
@@ -11688,6 +11674,20 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		EventListeners<void(Button*)> m_buttonClickListeners;
+	public:
+		void addButtonClickListener(std::function<void(Button*)> p_listener)
+		{
+			m_buttonClickListeners += p_listener;
+		}
+		void removeButtonClickListener(std::function<void(Button*)> p_listener)
+		{
+			m_buttonClickListeners -= p_listener;
+		}
+
+		//------------------------------
+
 		void handleMouseBackgroundEnter(MouseEvent const& p_event) override
 		{
 			if (m_tooltipView && !m_tooltipString.empty())
@@ -11728,7 +11728,7 @@ namespace AvoGUI
 				}
 				if (m_isEnabled && getIsContaining(p_event.x + getLeft(), p_event.y + getTop()))
 				{
-					m_buttonListeners.notifyAll(this);
+					m_buttonClickListeners.notifyAll(this);
 				}
 			}
 		}

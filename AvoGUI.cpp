@@ -1628,7 +1628,7 @@ public:
 		if (m_numberOfFiles)
 		{
 			std::string file = getFileContents(0);
-			return m_gui->getDrawingContext()->createImage(file.data(), file.size());
+			return m_gui->getDrawingContext()->createImage((uint8 const*)file.data(), file.size());
 		}
 		return 0;
 	}
@@ -9177,7 +9177,7 @@ public:
 		);
 		return new Direct2DImage(bitmap);
 	}
-	AvoGUI::Image* createImage(void const* p_imageData, uint32 p_size) override
+	AvoGUI::Image* createImage(uint8 const* p_imageData, uint32 p_size) override
 	{
 		IWICStream* stream = 0;
 		s_imagingFactory->CreateStream(&stream);
@@ -9214,7 +9214,7 @@ public:
 
 		return result;
 	}
-	AvoGUI::Image* createImage(char const* p_filePath) override
+	AvoGUI::Image* createImage(std::string const& p_filePath) override
 	{
 		wchar_t wideFilePath[MAX_PATH];
 		AvoGUI::convertUtf8ToUtf16(p_filePath, wideFilePath, MAX_PATH);
