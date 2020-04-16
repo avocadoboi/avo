@@ -2,25 +2,22 @@
 
 //------------------------------
 
-uint32 constexpr NUMBER_OF_ITERATIONS = 5;
-
-double constexpr TRIANGLE_HEIGHT = 0.2886751346; // sqrt(1/12)
-
-//------------------------------
-
-class App :
+class SnowflakeFractal :
 	public AvoGUI::Gui
 {
 private:
-	AvoGUI::Geometry* m_fractalGeometry;
+	static constexpr uint32 NUMBER_OF_ITERATIONS = 5;
+	static constexpr double TRIANGLE_HEIGHT = 0.2886751346; // sqrt(1/12)
+
+	AvoGUI::Geometry* m_fractalGeometry{ nullptr };
 
 public:
-	App()
+	SnowflakeFractal()
 	{
 		create("Snowflake", 800, 600);
 		waitForFinish();
 	}
-	~App()
+	~SnowflakeFractal()
 	{
 		m_fractalGeometry->forget();
 	}
@@ -63,5 +60,5 @@ public:
 
 int main()
 {
-	new App();
+	new SnowflakeFractal();
 }

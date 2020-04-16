@@ -3782,18 +3782,6 @@ namespace AvoGUI
 		char const* const hoverAnimationSpeed = "hover animation speed";
 
 		char const* const tooltipFontSize = "tooltip font size";
-
-		char const* const buttonFontSize = "button font size";
-		char const* const buttonCharacterSpacing = "button character spacing";
-
-		char const* const editableTextCaretBlinkRate = "editable text caret blink rate";
-
-		char const* const textFieldFontSize = "text field font size";
-		char const* const textFieldHeight = "text field height";
-		char const* const textFieldPaddingLeft = "text field padding left";
-		char const* const textFieldPaddingRight = "text field padding right";
-		char const* const textFieldFilledPaddingBottom = "text field filled padding bottom";
-
 	}
 
 	/*
@@ -6471,7 +6459,7 @@ namespace AvoGUI
 			Adds a callback for keyboard key down events on this view.
 			See View::handleKeyboardKeyDown for more info.
 		*/
-		void addkeyboardKeyDownListener(KeyboardListener p_listener)
+		void addKeyboardKeyDownListener(KeyboardListener p_listener)
 		{
 			m_keyboardKeyDownListeners += p_listener;
 		}
@@ -6505,7 +6493,7 @@ namespace AvoGUI
 			Adds a callback for keyboard key up events on this view.
 			See View::handleKeyboardKeyUp for more info.
 		*/
-		void addkeyboardKeyUpListener(KeyboardListener p_listener)
+		void addKeyboardKeyUpListener(KeyboardListener p_listener)
 		{
 			m_keyboardKeyUpListeners += p_listener;
 		}
@@ -6542,7 +6530,7 @@ namespace AvoGUI
 			target is a pointer to the view that lost keyboard focus.
 			See View::handleKeyboardFocusLose for more info.
 		*/
-		void addkeyboardFocusLoseListener(std::function<void(View*)> p_listener)
+		void addKeyboardFocusLoseListener(std::function<void(View*)> p_listener)
 		{
 			m_keyboardFocusLoseListeners += p_listener;
 		}
@@ -6578,7 +6566,7 @@ namespace AvoGUI
 			target is a pointer to the view that gained keyboard focus.
 			See View::handleKeyboardFocusGain for more info.
 		*/
-		void addkeyboardFocusGainListener(std::function<void(View*)> p_listener)
+		void addKeyboardFocusGainListener(std::function<void(View*)> p_listener)
 		{
 			m_keyboardFocusGainListeners += p_listener;
 		}
@@ -10919,9 +10907,9 @@ namespace AvoGUI
 					{
 						m_text->forget();
 					}
-					m_text = getGui()->getDrawingContext()->createText(p_string, getThemeValue("tooltip font size"));
+					m_text = getGui()->getDrawingContext()->createText(p_string, getThemeValue(ThemeValues::tooltipFontSize));
 					m_text->fitSizeToText();
-					setSize(m_text->getWidth() + 1.5f * getThemeValue("tooltip font size"), m_text->getHeight() + getThemeValue("tooltip font size") * 1.5f);
+					setSize(m_text->getWidth() + 1.5f * getThemeValue(ThemeValues::tooltipFontSize), m_text->getHeight() + getThemeValue(ThemeValues::tooltipFontSize) * 1.5f);
 					m_text->setCenter(getWidth() * 0.5f, getHeight() * 0.5f);
 				}
 
@@ -11291,13 +11279,13 @@ namespace AvoGUI
 				{
 					if (m_overlayAlphaFactor < 1.f)
 					{
-						m_overlayAnimationTime = min(m_overlayAnimationTime + getThemeValue("hover animation speed"), 1.f);
+						m_overlayAnimationTime = min(m_overlayAnimationTime + getThemeValue(ThemeValues::hoverAnimationSpeed), 1.f);
 						queueAnimationUpdate();
 					}
 				}
 				else if (m_overlayAlphaFactor > 0.f)
 				{
-					m_overlayAnimationTime = max(m_overlayAnimationTime - getThemeValue("hover animation speed"), 0.f);
+					m_overlayAnimationTime = max(m_overlayAnimationTime - getThemeValue(ThemeValues::hoverAnimationSpeed), 0.f);
 					queueAnimationUpdate();
 				}
 			}
@@ -11355,6 +11343,12 @@ namespace AvoGUI
 
 	//------------------------------
 
+	namespace ThemeValues
+	{
+		char const* const buttonFontSize = "button font size";
+		char const* const buttonCharacterSpacing = "button character spacing";
+	}
+
 	class Button : public View
 	{
 	public:
@@ -11390,16 +11384,16 @@ namespace AvoGUI
 	protected:
 		void handleThemeValueChange(std::string const& p_name, float p_newValue) override
 		{
-			if (p_name == "button font size")
+			if (p_name == ThemeValues::buttonFontSize)
 			{
 				m_text->setFontSize(p_newValue);
-				if (p_name == "button character spacing")
+				if (p_name == ThemeValues::buttonCharacterSpacing)
 				{
 					m_text->setCharacterSpacing(p_newValue);
 				}
 				updateSize();
 			}
-			else if (p_name == "button character spacing")
+			else if (p_name == ThemeValues::buttonCharacterSpacing)
 			{
 				m_text->setCharacterSpacing(p_newValue);
 				updateSize();
@@ -11460,7 +11454,7 @@ namespace AvoGUI
 		{
 			if (m_text)
 			{
-				float sizeFactor = getThemeValue("button font size") / 14.f;
+				float sizeFactor = getThemeValue(ThemeValues::buttonFontSize) / 14.f;
 				if (m_icon)
 				{
 					m_icon->setSize(16.f * sizeFactor, 16.f * sizeFactor);
@@ -11578,9 +11572,9 @@ namespace AvoGUI
 			}
 			if (p_string[0])
 			{
-				m_text = getGui()->getDrawingContext()->createText(p_string, getThemeValue("button font size"));
+				m_text = getGui()->getDrawingContext()->createText(p_string, getThemeValue(ThemeValues::buttonFontSize));
 				m_text->setWordWrapping(WordWrapping::Never);
-				m_text->setCharacterSpacing(getThemeValue("button character spacing"));
+				m_text->setCharacterSpacing(getThemeValue(ThemeValues::buttonCharacterSpacing));
 				m_text->setFontWeight(FontWeight::Medium);
 				//m_text->setIsTopTrimmed(true);
 				m_text->fitSizeToText();
@@ -11835,48 +11829,10 @@ namespace AvoGUI
 
 	//------------------------------
 
-	class EditableText;
-
-	class EditableTextListener
+	namespace ThemeValues
 	{
-	public:
-		/*
-			USER IMPLEMENTED
-			Gets called when an EditableText view has gained keyboard focus.
-		*/
-		virtual void handleEditableTextFocusGain(EditableText* p_editableText) { }
-		/*
-			USER IMPLEMENTED
-			Gets called when an EditableText view has lost keyboard focus.
-		*/
-		virtual void handleEditableTextFocusLose(EditableText* p_editableText) { }
-		/*
-			LIBRARY IMPLEMENTED (only default behavior)
-			Gets called when the text of an EditableText view is about to be changed, either by the user or programmatically.
-			All listeners of p_editableText need to return true for the string to be changed.
-			This is a simpler version of the handler, without p_newString and p_newCaretCharacterIndex and is called by the default implementation of the other overload.
-			The default implementation of this method only returns true.
-		*/
-		virtual bool handleEditableTextChange(EditableText* p_editableText) { return true; }
-		/*
-			LIBRARY IMPLEMENTED (only default behavior)
-			Gets called when the text of an EditableText view is about to be changed, either by the user or programmatically.
-			p_newString is the string that will be set if all listeners return true from this handler. Otherwise, the string is left unchanged.
-			p_newString can be modified, and the contents of the string after all listeners have handled the event is what will be set as the new text.
-			p_newCaretCharacterIndex works in a similar way, and it is the index of the cursor showing where new user input is inserted.
-			This index can be equal to the size of the new string, and in that case the cursor ends up at the end of the text.
-			The default implementation of this method calls the simpler version that only takes the p_editableText parameter.
-		*/
-		virtual bool handleEditableTextChange(EditableText* p_editableText, std::string& p_newString, int32& p_newCaretIndex)
-		{
-			return handleEditableTextChange(p_editableText);
-		}
-		/*
-			USER IMPLEMENTED
-			Gets called when the user has pressed the enter/return key while p_editableText has keyboard focus.
-		*/
-		virtual void handleEditableTextEnter(EditableText* p_editableText) { }
-	};
+		char const* const editableTextCaretBlinkRate = "editable text caret blink rate";
+	}
 
 	/*
 		A view that only consists of text that can be edited by the user.
@@ -11884,24 +11840,22 @@ namespace AvoGUI
 	class EditableText : public View
 	{
 	private:
-		Text* m_text{nullptr};
-		float m_textDrawingOffsetX{0.f};
+		Text* m_text{ nullptr };
+		float m_textDrawingOffsetX{ 0.f };
 		float m_fontSize;
-		TextAlign m_textAlign{TextAlign::Left};
+		TextAlign m_textAlign{ TextAlign::Left };
 
-		uint32 m_caretCharacterIndex{0};
-		uint32 m_caretByteIndex{0};
+		uint32 m_caretCharacterIndex{ 0 };
+		uint32 m_caretByteIndex{ 0 };
 		Point<float> m_caretPosition;
-		bool m_isCaretVisible{false};
-		uint32 m_caretFrameCount{0};
+		bool m_isCaretVisible{ false };
+		uint32 m_caretFrameCount{ 0 };
 
-		uint32 m_selectionEndCharacterIndex{0};
-		uint32 m_selectionEndByteIndex{0};
+		uint32 m_selectionEndCharacterIndex{ 0 };
+		uint32 m_selectionEndByteIndex{ 0 };
 		Point<float> m_selectionEndPosition;
-		bool m_isSelectingWithMouse{false};
-		bool m_isSelectionVisible{false};
-
-		std::vector<EditableTextListener*> m_listeners;
+		bool m_isSelectingWithMouse{ false };
+		bool m_isSelectionVisible{ false };
 
 		//------------------------------
 
@@ -11970,22 +11924,51 @@ namespace AvoGUI
 			setCursor(Cursor::Ibeam);
 			enableMouseEvents();
 		}
+		~EditableText()
+		{
+			if (m_text)
+			{
+				m_text->forget();
+			}
+		}
 
 		//------------------------------
 
+	private:
+		EventListeners<bool(EditableText*, std::string&, int32&)> m_editableTextChangeListeners;
+	public:
 		/*
-			Enables an EditableTextListener to receive events from this EditableText.
+			Adds a listener that gets called when the text is about to be changed, either by the user or programmatically.
+			
+			Listener signature:
+				bool (EditableText* target, std::string& newString, newCaretCharacterIndex)
+			newString is the string that will be set if all listeners return true from this handler. Otherwise, the string is left unchanged.
+			newString can be modified, and the contents of the string after all listeners have handled the event is what will be set as the new text.
+			newCaretCharacterIndex works in a similar way, and it is the index of the cursor showing where new user input is inserted.
+			This index can be equal to the size of the new string, and in that case the cursor ends up at the end of the text.
 		*/
-		void addEditableTextListener(EditableTextListener* p_listener)
+		void addEditableTextChangeListener(std::function<bool(EditableText*, std::string&, int32&)> p_listener)
 		{
-			m_listeners.push_back(p_listener);
+			m_editableTextChangeListeners += p_listener;
 		}
-		/*
-			Disables an EditableTextListener to receive events from this EditableText.
-		*/
-		void removeEditableTextListener(EditableTextListener* p_listener)
+		void removeEditableTextChangeListener(std::function<bool(EditableText*, std::string&, int32&)> p_listener)
 		{
-			removeVectorElementWithoutKeepingOrder(m_listeners, p_listener);
+			m_editableTextChangeListeners -= p_listener;
+		}
+
+	private:
+		EventListeners<void(EditableText*)> m_editableTextEnterListeners;
+	public:
+		/*
+			Adds a listener that gets called when the user has pressed the enter/return key while p_editableText has keyboard focus.
+		*/
+		void addEditableTextEnterListener(std::function<bool(EditableText*)> p_listener)
+		{
+			m_editableTextEnterListeners += p_listener;
+		}
+		void removeEditableTextEnterListener(std::function<bool(EditableText*)> p_listener)
+		{
+			m_editableTextEnterListeners -= p_listener;
 		}
 
 		//------------------------------
@@ -12100,11 +12083,6 @@ namespace AvoGUI
 			m_caretFrameCount = 1;
 			m_isCaretVisible = true;
 
-			for (auto listener : m_listeners)
-			{
-				listener->handleEditableTextFocusGain(this);
-			}
-
 			queueAnimationUpdate();
 			invalidate();
 		}
@@ -12113,11 +12091,6 @@ namespace AvoGUI
 			m_caretFrameCount = 1;
 			m_isCaretVisible = false;
 			m_isSelectionVisible = false;
-
-			for (auto listener : m_listeners)
-			{
-				listener->handleEditableTextFocusLose(this);
-			}
 
 			invalidate();
 		}
@@ -12594,10 +12567,7 @@ namespace AvoGUI
 				}
 				case KeyboardKey::Enter:
 				{
-					for (EditableTextListener* listener : m_listeners)
-					{
-						listener->handleEditableTextEnter(this);
-					}
+					m_editableTextEnterListeners.notifyAll(this);
 					break;
 				}
 			}
@@ -12684,9 +12654,10 @@ namespace AvoGUI
 			}
 
 			std::string newString = p_string;
-			for (auto listener : m_listeners)
+
+			for (auto listener : m_editableTextChangeListeners.listeners)
 			{
-				if (!listener->handleEditableTextChange(this, newString, p_newCaretCharacterIndex))
+				if (!listener(this, newString, p_newCaretCharacterIndex))
 				{
 					return;
 				}
@@ -12770,9 +12741,9 @@ namespace AvoGUI
 		/*
 			Sets the content of the editable text.
 		*/
-		void setString(std::string const& p_string, int32 p_caretIndex = -1)
+		void setString(std::string const& p_string, int32 p_newCaretCharacterIndex = -1)
 		{
-			setString(p_string.c_str(), p_caretIndex);
+			setString(p_string.c_str(), p_newCaretCharacterIndex);
 		}
 		/*
 			Sets the content of the editable text as a value.
@@ -12866,7 +12837,7 @@ namespace AvoGUI
 		{
 			if (getGui()->getKeyboardFocus() == this)
 			{
-				if (m_caretFrameCount % (uint32)getThemeValue("editable text caret blink rate") == 0 && !m_isSelectionVisible)
+				if (m_caretFrameCount % (uint32)getThemeValue(ThemeValues::editableTextCaretBlinkRate) == 0 && !m_isSelectionVisible)
 				{
 					m_isCaretVisible = !m_isCaretVisible;
 					invalidate();
@@ -12901,9 +12872,16 @@ namespace AvoGUI
 
 	//------------------------------
 
-	constexpr float TEXT_FIELD_OUTLINED_PADDING_LABEL = 5.f;
+	namespace ThemeValues
+	{
+		char const* const textFieldFontSize = "text field font size";
+		char const* const textFieldHeight = "text field height";
+		char const* const textFieldPaddingLeft = "text field padding left";
+		char const* const textFieldPaddingRight = "text field padding right";
+		char const* const textFieldFilledPaddingBottom = "text field filled padding bottom";
+	}
 
-	class TextField : public View, public EditableTextListener
+	class TextField : public View
 	{
 	public:
 		enum Type
@@ -12913,26 +12891,25 @@ namespace AvoGUI
 		};
 
 	private:
-		EditableText* m_editableText;
+		static constexpr float TEXT_FIELD_OUTLINED_PADDING_LABEL = 5.f;
 
-		Text* m_labelText;
-		Color m_labelColor;
-		float m_focusAnimationTime;
-		float m_focusAnimationValue;
+		//------------------------------
 
-		Text* m_prefixText;
-		Text* m_suffixText;
+		EditableText* m_editableText{ new EditableText(this) };
 
-		bool m_isMouseHovering;
-		float m_hoverAnimationTime;
-		float m_hoverAnimationValue;
+		float m_focusAnimationTime{ 0.f };
+		float m_focusAnimationValue{ 0.f };
+
+		bool m_isMouseHovering{ false };
+		float m_hoverAnimationTime{ 0.f };
+		float m_hoverAnimationValue{ 0.f };
 
 		Type m_type;
 
 	protected:
 		void handleThemeValueChange(std::string const& p_name, float p_newValue) override
 		{
-			if (p_name == "text field font size")
+			if (p_name == ThemeValues::textFieldFontSize)
 			{
 				if (m_labelText)
 				{
@@ -12951,12 +12928,12 @@ namespace AvoGUI
 				}
 				m_editableText->setFontSize(p_newValue);
 			}
-			if (p_name == "text field font size" || p_name == "text field height")
+			if (p_name == ThemeValues::textFieldFontSize || p_name == ThemeValues::textFieldHeight)
 			{
 				// Text positions will be updated in handleSizeChange()
-				setHeight(getThemeValue("text field font size") * 1.2f * getThemeValue("text field height") + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
+				setHeight(getThemeValue(ThemeValues::textFieldFontSize) * 1.2f * getThemeValue(ThemeValues::textFieldHeight) + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
 			}
-			if (p_name == "text field padding left")
+			if (p_name == ThemeValues::textFieldPaddingLeft)
 			{
 				if (m_labelText)
 				{
@@ -12972,7 +12949,7 @@ namespace AvoGUI
 					m_editableText->setLeft(p_newValue, false);
 				}
 			}
-			else if (p_name == "text field padding right")
+			else if (p_name == ThemeValues::textFieldPaddingRight)
 			{
 				if (m_suffixText)
 				{
@@ -12984,7 +12961,7 @@ namespace AvoGUI
 					m_editableText->setRight(getWidth() - p_newValue, false);
 				}
 			}
-			else if (p_name == "text field filled padding bottom")
+			else if (p_name == ThemeValues::textFieldFilledPaddingBottom)
 			{
 				if (m_prefixText)
 				{
@@ -13001,23 +12978,23 @@ namespace AvoGUI
 	public:
 		explicit TextField(View* p_parent, Type p_type = Type::Filled, char const* p_label = "", float p_width = 120.f) :
 			View(p_parent),
-			m_editableText(0),
-			m_labelText(0), m_focusAnimationTime(0.f), m_focusAnimationValue(0.f),
-			m_prefixText(0), m_suffixText(0),
-			m_isMouseHovering(false), m_hoverAnimationTime(0.f), m_hoverAnimationValue(0.f),
 			m_type(p_type)
 		{
 			setLabel(p_label);
 			setCursor(Cursor::Ibeam);
 			enableMouseEvents();
 
-			m_editableText = new EditableText(this);
-			m_editableText->setFontSize(getThemeValue("text field font size"));
-			m_editableText->setLeft(getThemeValue("text field padding left"));
-			m_editableText->setRight(p_width - getThemeValue("text field padding right"), false);
-			m_editableText->addEditableTextListener(this);
+			m_editableText->setFontSize(getThemeValue(ThemeValues::textFieldFontSize));
+			m_editableText->setLeft(getThemeValue(ThemeValues::textFieldPaddingLeft));
+			m_editableText->setRight(p_width - getThemeValue(ThemeValues::textFieldPaddingRight), false);
 
-			setSize(p_width, getThemeValue("text field font size") * 1.2f * getThemeValue("text field height") + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
+			auto handleEditableTextFocusChange = [this](View*) {
+				queueAnimationUpdate();
+			};
+			m_editableText->addKeyboardFocusGainListener(handleEditableTextFocusChange);
+			m_editableText->addKeyboardFocusLoseListener(handleEditableTextFocusChange);
+
+			setSize(p_width, getThemeValue(ThemeValues::textFieldFontSize) * 1.2f * getThemeValue(ThemeValues::textFieldHeight) + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
 
 			if (p_type == Type::Filled)
 			{
@@ -13050,20 +13027,18 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void addEditableTextListener(EditableTextListener* p_listener)
-		{
-			m_editableText->addEditableTextListener(p_listener);
-		}
-		void removeEditableTextListener(EditableTextListener* p_listener)
-		{
-			m_editableText->removeEditableTextListener(p_listener);
-		}
-
-		//------------------------------
-
 		EditableText* getEditableText()
 		{
 			return m_editableText;
+		}
+
+		void addEditableTextChangeListener(std::function<bool(EditableText*, std::string&, int32&)> p_listener)
+		{
+			m_editableText->addEditableTextChangeListener(p_listener);
+		}
+		void removeEditableTextChangeListener(std::function<bool(EditableText*, std::string&, int32&)> p_listener)
+		{
+			m_editableText->removeEditableTextChangeListener(p_listener);
 		}
 
 		//------------------------------
@@ -13072,17 +13047,17 @@ namespace AvoGUI
 		{
 			if (m_suffixText)
 			{
-				m_suffixText->setRight(getWidth() - getThemeValue("text field padding right"));
+				m_suffixText->setRight(getWidth() - getThemeValue(ThemeValues::textFieldPaddingRight));
 				m_editableText->setRight(m_suffixText->getLeft() - 1.f, false);
 			}
 			else
 			{
-				m_editableText->setRight(getWidth() - getThemeValue("text field padding right"), false);
+				m_editableText->setRight(getWidth() - getThemeValue(ThemeValues::textFieldPaddingRight), false);
 			}
 
 			if (m_type == Type::Filled)
 			{
-				float bottom = getHeight() - getThemeValue("text field filled padding bottom");
+				float bottom = getHeight() - getThemeValue(ThemeValues::textFieldFilledPaddingBottom);
 				if (m_labelText)
 				{
 					m_labelText->setCenterY(getHeight() * 0.5f);
@@ -13118,6 +13093,11 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		Text* m_labelText{ nullptr };
+		Color m_labelColor;
+
+	public:
 		void setLabel(char const* p_label)
 		{
 			if (m_labelText)
@@ -13134,7 +13114,7 @@ namespace AvoGUI
 			}
 			else
 			{
-				m_labelText = getGui()->getDrawingContext()->createText(p_label, getThemeValue("text field font size"));
+				m_labelText = getGui()->getDrawingContext()->createText(p_label, getThemeValue(ThemeValues::textFieldFontSize));
 				m_labelText->setFontWeight(AvoGUI::FontWeight::Regular);
 				m_labelText->fitSizeToText();
 				if (m_type == Type::Filled)
@@ -13148,97 +13128,87 @@ namespace AvoGUI
 				queueAnimationUpdate();
 			}
 		}
-		char const* getLabel()
+		std::string getLabel()
 		{
 			if (m_labelText)
 			{
-				return m_labelText->getString().c_str();
+				return m_labelText->getString();
 			}
 			return "";
 		}
 
 		//------------------------------
 
-		void setPrefixString(char const* p_string)
+	private:
+		Text* m_prefixText{ nullptr };
+		Text* m_suffixText{ nullptr };
+
+		bool setAffixString(std::string const& p_string, Text*& p_affixText)
 		{
-			if (m_prefixText)
+			if (p_affixText)
 			{
-				if (m_prefixText->getString() == p_string)
+				if (p_affixText->getString() == p_string)
 				{
-					return;
+					return false;
 				}
-				m_prefixText->forget();
+				p_affixText->forget();
 			}
 			if (p_string[0] == 0)
 			{
-				m_prefixText = 0;
-				return;
+				p_affixText = nullptr;
+				return false;
 			}
-			m_prefixText = getGui()->getDrawingContext()->createText(p_string, getThemeValue("text field font size"));
-			m_prefixText->setFontWeight(AvoGUI::FontWeight::Regular);
-			m_prefixText->setHeight(m_prefixText->getFontSize()*1.2f);
+			p_affixText = getDrawingContext()->createText(p_string, getThemeValue(ThemeValues::textFieldFontSize));
+			p_affixText->setFontWeight(AvoGUI::FontWeight::Regular);
+			p_affixText->setHeight(m_prefixText->getFontSize() * 1.2f);
 			if (m_type == Type::Filled)
 			{
-				m_prefixText->setBottom(getThemeValue("text field filled padding bottom"));
+				p_affixText->setBottom(getThemeValue(ThemeValues::textFieldFilledPaddingBottom));
 			}
 			else
 			{
-				m_prefixText->setTop(m_editableText->getTop() + 2.f);
+				p_affixText->setTop(m_editableText->getTop() + 2.f);
 			}
-			m_prefixText->setLeft(getThemeValue("text field padding left"));
-
-			m_editableText->setLeft(m_prefixText->getRight() + 1.f, false);
-			if (m_labelText)
+			return true;
+		}
+	public:
+		void setPrefixString(std::string const& p_string)
+		{
+			if (setAffixString(p_string, m_prefixText))
 			{
-				m_labelText->setLeft(m_prefixText->getRight() + 1.f);
+				m_prefixText->setLeft(getThemeValue(ThemeValues::textFieldPaddingLeft));
+				m_editableText->setLeft(m_prefixText->getRight() + 1.f, false);
+				if (m_labelText)
+				{
+					m_labelText->setLeft(m_prefixText->getRight() + 1.f);
+				}
 			}
 		}
-		char const* setPrefixString()
+		std::string getPrefixString()
 		{
 			if (m_suffixText)
 			{
-				return m_suffixText->getString().c_str();
+				return m_suffixText->getString();
 			}
 			return "";
 		}
 
 		//------------------------------
 
-		void setSuffixString(char const* p_string)
+	public:
+		void setSuffixString(std::string const& p_string)
 		{
-			if (m_suffixText)
+			if (setAffixString(p_string, m_suffixText))
 			{
-				if (m_suffixText->getString() == p_string)
-				{
-					return;
-				}
-				m_suffixText->forget();
+				m_suffixText->setRight(getWidth() - getThemeValue(ThemeValues::textFieldPaddingRight));
+				m_editableText->setRight(m_suffixText->getLeft() - 1.f, false);
 			}
-			if (p_string[0] == 0)
-			{
-				m_suffixText = 0;
-				return;
-			}
-			m_suffixText = getGui()->getDrawingContext()->createText(p_string, getThemeValue("text field font size"));
-			m_suffixText->setFontWeight(AvoGUI::FontWeight::Regular);
-			m_suffixText->setHeight(m_suffixText->getFontSize()*1.2f);
-			if (m_type == Type::Filled)
-			{
-				m_suffixText->setBottom(getThemeValue("text field filled padding bottom"));
-			}
-			else
-			{
-				m_suffixText->setTop(m_editableText->getTop() + 2.f);
-			}
-			m_suffixText->setRight(getWidth() - getThemeValue("text field padding right"));
-
-			m_editableText->setRight(m_suffixText->getLeft() - 1.f, false);
 		}
-		char const* getSuffixString()
+		std::string getSuffixString()
 		{
 			if (m_suffixText)
 			{
-				return m_suffixText->getString().c_str();
+				return m_suffixText->getString();
 			}
 			return "";
 		}
@@ -13250,7 +13220,7 @@ namespace AvoGUI
 			m_editableText->setString(p_string);
 			if (m_type == Type::Filled)
 			{
-				m_editableText->setBottom(getHeight() - getThemeValue("text field filled padding bottom"));
+				m_editableText->setBottom(getHeight() - getThemeValue(ThemeValues::textFieldFilledPaddingBottom));
 			}
 			else if (m_type == Type::Outlined)
 			{
@@ -13332,14 +13302,6 @@ namespace AvoGUI
 		{
 			getGui()->setKeyboardFocus(m_editableText);
 		}
-		void handleEditableTextFocusGain(EditableText* p_editableText) override
-		{
-			queueAnimationUpdate();
-		}
-		void handleEditableTextFocusLose(EditableText* p_editableText) override
-		{
-			queueAnimationUpdate();
-		}
 
 		//------------------------------
 
@@ -13377,7 +13339,7 @@ namespace AvoGUI
 				if (m_hoverAnimationValue < 1.f)
 				{
 					m_hoverAnimationValue = getThemeEasing(ThemeEasings::symmetricalInOut).easeValue(m_hoverAnimationTime);
-					m_hoverAnimationTime = min(1.f, m_hoverAnimationTime + getThemeValue("hover animation speed"));
+					m_hoverAnimationTime = min(1.f, m_hoverAnimationTime + getThemeValue(ThemeValues::hoverAnimationSpeed));
 					invalidate();
 					queueAnimationUpdate();
 				}
@@ -13385,7 +13347,7 @@ namespace AvoGUI
 			else if (m_hoverAnimationValue > 0.f)
 			{
 				m_hoverAnimationValue = 1.f - getThemeEasing(ThemeEasings::symmetricalInOut).easeValue(1.f - m_hoverAnimationTime);
-				m_hoverAnimationTime = max(0.f, m_hoverAnimationTime - getThemeValue("hover animation speed"));
+				m_hoverAnimationTime = max(0.f, m_hoverAnimationTime - getThemeValue(ThemeValues::hoverAnimationSpeed));
 				invalidate();
 				queueAnimationUpdate();
 			}
@@ -13408,7 +13370,7 @@ namespace AvoGUI
 				if (m_labelText)
 				{
 					float labelAnimationValue = m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f;
-					float leftPadding = getThemeValue("text field padding left");
+					float leftPadding = getThemeValue(ThemeValues::textFieldPaddingLeft);
 					p_context->moveOrigin(leftPadding + 2.f*labelAnimationValue, -0.17f*(getHeight() - m_labelText->getHeight() - leftPadding) * labelAnimationValue);
 					p_context->setScale(1.f - labelAnimationValue * 0.3f);
 					p_context->setColor(m_labelColor);
@@ -13425,7 +13387,7 @@ namespace AvoGUI
 				if (m_labelText)
 				{
 					float labelAnimationValue = m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f;
-					p_context->moveOrigin(getThemeValue("text field padding left") + 2.f * labelAnimationValue, -(getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.3f * labelAnimationValue);
+					p_context->moveOrigin(getThemeValue(ThemeValues::textFieldPaddingLeft) + 2.f * labelAnimationValue, -(getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.3f * labelAnimationValue);
 					p_context->setScale(1.f - labelAnimationValue * 0.3f);
 
 					p_context->setColor(getThemeColor(ThemeColors::background));
@@ -13441,12 +13403,12 @@ namespace AvoGUI
 
 			if (m_prefixText)
 			{
-				p_context->setColor(Color(getThemeColor(ThemeColors::onBackground), 0.5f/* * (m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f)*/));
+				p_context->setColor(Color(getThemeColor(ThemeColors::onBackground), 0.5f));
 				p_context->drawText(m_prefixText);
 			}
 			if (m_suffixText)
 			{
-				p_context->setColor(Color(getThemeColor(ThemeColors::onBackground), 0.5f/* * (m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f)*/));
+				p_context->setColor(Color(getThemeColor(ThemeColors::onBackground), 0.5f));
 				p_context->drawText(m_suffixText);
 			}
 		}
