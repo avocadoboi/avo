@@ -2864,7 +2864,7 @@ namespace AvoGUI
 		/*
 			Initializes the color with a grayscale value. The values are floats in the range [0, 1].
 		*/
-		explicit Color(float p_lightness, float p_alpha = 1.f)
+		Color(float p_lightness, float p_alpha = 1.f)
 		{
 			red = green = blue = constrain(p_lightness);
 			alpha = constrain(p_alpha);
@@ -2872,7 +2872,7 @@ namespace AvoGUI
 		/*
 			Initializes the color with a grayscale value. The values are doubles in the range [0, 1].
 		*/
-		explicit Color(double p_lightness, double p_alpha = 1.)
+		Color(double p_lightness, double p_alpha = 1.)
 		{
 			red = green = blue = constrain(p_lightness);
 			alpha = constrain(p_alpha);
@@ -2880,7 +2880,7 @@ namespace AvoGUI
 		/*
 			Initializes the color with a grayscale value. The values are bytes in the range [0, 255].
 		*/
-		explicit Color(uint8 p_lightness, uint8 p_alpha = (uint8)255)
+		Color(uint8 p_lightness, uint8 p_alpha = (uint8)255)
 		{
 			red = green = blue = float(p_lightness) / 255.f;
 			alpha = float(p_alpha) / 255.f;
@@ -2888,7 +2888,7 @@ namespace AvoGUI
 		/*
 			Initializes the color with a grayscale value. The values are in the range [0, 255].
 		*/
-		explicit Color(uint32 p_lightness, uint32 p_alpha)
+		Color(uint32 p_lightness, uint32 p_alpha)
 		{
 			red = green = blue = constrain(float(p_lightness) / 255.f);
 			alpha = constrain(float(p_alpha) / 255.f);
@@ -2896,7 +2896,7 @@ namespace AvoGUI
 		/*
 			Initializes the color with a grayscale value. The values are in the range [0, 255].
 		*/
-		explicit Color(int32 p_lightness, int32 p_alpha = 255)
+		Color(int32 p_lightness, int32 p_alpha = 255)
 		{
 			red = green = blue = constrain(float(p_lightness) / 255.f);
 			alpha = constrain(float(p_alpha) / 255.f);
@@ -2916,7 +2916,7 @@ namespace AvoGUI
 		/*
 			Initializes with a 4-byte packed RGBA color.
 		*/
-		explicit Color(colorInt p_color)
+		Color(colorInt p_color)
 		{
 			operator=(p_color);
 		}
@@ -9917,7 +9917,7 @@ namespace AvoGUI
 
 			On Windows, it is an HICON or HBITMAP.
 		*/
-		virtual Image* createImage(void* p_handle) = 0;
+		virtual Image* createImageFromHandle(void* p_handle) = 0;
 		/*
 			Draws an image, placed according to the image's bounds and positioning/scaling options.
 		*/

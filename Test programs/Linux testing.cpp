@@ -1,4 +1,4 @@
-#include <AvoGUI.hpp>
+#include "../AvoGUI.hpp"
 
 //------------------------------
 
@@ -15,6 +15,13 @@ public:
 		create(u8"Linux test! Unicode: åäöâñëV݉sZ㇡ه搶o7賍", 600, 500, AvoGUI::WindowStyleFlags::Default);
 		waitForFinish();
 	}
+	~App()
+	{
+		if (m_image)
+		{
+			m_image->forget();
+		}
+	}
 
 	void createContent() override
 	{
@@ -23,6 +30,7 @@ public:
 		queueAnimationUpdate();
 
 		m_image = getDrawingContext()->createImage("/home/bjorn/Pictures/test.png");
+		m_image->setBoundsSizing(AvoGUI::ImageBoundsSizing::Contain);
 		m_image->setBounds(getBounds());
 	}
 	void handleSizeChange() override
@@ -39,11 +47,9 @@ public:
 
 	void draw(AvoGUI::DrawingContext *p_context) override
 	{
-		p_context->setScale(1.5f, getCenter());
 		p_context->rotate(m_time*0.1, getCenter());
 		p_context->drawImage(m_image);
 		p_context->rotate(-m_time*0.1, getCenter());
-		p_context->setScale(1.f, getCenter());
 
 		p_context->setColor(AvoGUI::Color(1.f, 0.1f, 0.5f));
 		for (uint32 a = 0; a < 10; a++)

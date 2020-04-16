@@ -9251,7 +9251,7 @@ public:
 
 		return result;
 	}
-	AvoGUI::Image* createImage(void* p_handle) override
+	AvoGUI::Image* createImageFromHandle(void* p_handle) override
 	{
 		IWICBitmap* wicBitmap = 0;
 		HRESULT result = s_imagingFactory->CreateBitmapFromHICON((HICON)p_handle, &wicBitmap);

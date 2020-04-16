@@ -8,11 +8,11 @@ float const ANIMATION_SPEED = 0.2f;
 
 //------------------------------
 
-class ImageViewer : public AvoGUI::Gui, public AvoGUI::KeyboardListener
+class ImageViewer : public AvoGUI::Gui
 {
 private:
 	AvoGUI::Image* m_image;
-	char const* m_filePath;
+	std::string m_filePath;
 
 	AvoGUI::Rectangle<float> m_targetImageBounds;
 
@@ -143,11 +143,11 @@ public:
 
 //------------------------------
 
-class MessageBox : public AvoGUI::Gui, public AvoGUI::ButtonListener
+class MessageBox : public AvoGUI::Gui
 {
 private:
-	AvoGUI::Text* m_message;
-	AvoGUI::Button* m_button_ok;
+	AvoGUI::Text* m_message{ nullptr };
+	AvoGUI::Button* m_button_ok{ nullptr };
 
 public:
 	MessageBox()
@@ -161,6 +161,8 @@ public:
 
 	void createContent() override
 	{
+		enableMouseEvents();
+
 		m_message = getGui()->getDrawingContext()->createText("No image was given the image viewer. Please open an image using the viewer as the opener.", 16.f, AvoGUI::Rectangle<float>(25.f, 20.f, getWidth() - 25.f, 1000.f));
 		m_message->setFontWeight(AvoGUI::FontWeight::Regular);
 		m_message->setCharacterSpacing(0.3f);
@@ -170,18 +172,11 @@ public:
 		m_button_ok = new AvoGUI::Button(this, "OK");
 		m_button_ok->setCenter(m_message->getCenterX());
 		m_button_ok->setTop(m_message->getBottom() + 20.f, true);
-		m_button_ok->addButtonListener(this);
+		m_button_ok->addButtonClickListener([this](auto) { getWindow()->close(); });
 
 		setSize(m_message->getRight() + 25.f, m_button_ok->getBottom() + 15.f);
 	}
 
-	//------------------------------
-
-	void handleButtonClick(AvoGUI::Button*) override
-	{
-		getWindow()->close();
-	}
-	
 	//------------------------------
 
 	void draw(AvoGUI::DrawingContext* p_context) override
