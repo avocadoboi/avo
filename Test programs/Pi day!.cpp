@@ -14,14 +14,13 @@ float windowHeight = 350.f;
 class Block
 {
 public:
-	long double position;
-	long double velocity;
-	long double inverseMass;
-	long double width;
+	long double position{ 0.L };
+	long double velocity{ 0.L };
+	long double inverseMass{ 0.L };
+	long double width{ 0.L };
 	AvoGUI::Color color;
 
-	Block() :
-		position(0.), velocity(0.), inverseMass(0.), width(0.)
+	Block()
 	{
 		color.setHSBA(AvoGUI::random(), 0.95f, 0.8f);
 	}
@@ -68,7 +67,7 @@ private:
 		{
 			m_text_numberOfCollisions->forget();
 		}
-		m_text_numberOfCollisions = getGui()->getDrawingContext()->createText(std::to_string(m_numberOfCollisions), 35.f);
+		m_text_numberOfCollisions = getDrawingContext()->createText(std::to_string(m_numberOfCollisions), 35.f);
 		m_text_numberOfCollisions->setTopLeft(20.f, 10.f);
 	}
 
@@ -76,6 +75,7 @@ public:
 	PiDay()
 	{
 		create("Pi day!", (uint32_t)windowWidth, (uint32_t)windowHeight, AvoGUI::WindowStyleFlags::DefaultNoResize);
+		waitForFinish();
 	}
 	~PiDay()
 	{
@@ -95,8 +95,8 @@ public:
 		m_restartButton->setTopRight(getRight() - 10.f, 10.f);
 		m_restartButton->addButtonClickListener([this](auto) { startSimulation(); });
 
-		setThemeValue("text field height", 2.f);
-		setThemeValue("text field font size", 16.f);
+		setThemeValue(AvoGUI::ThemeValues::textFieldHeight, 2.f);
+		setThemeValue(AvoGUI::ThemeValues::textFieldFontSize, 16.f);
 		m_textField_numberOfDigits = new AvoGUI::TextField(this, AvoGUI::TextField::Type::Outlined);
 		m_textField_numberOfDigits->setTextAlign(AvoGUI::TextAlign::Center);
 		m_textField_numberOfDigits->setWidth(40.f);
@@ -120,7 +120,7 @@ public:
 		});
 		m_textField_numberOfDigits->setString(std::to_string((uint32_t)NUMBER_OF_DIGITS));
 
-		m_text_numberOfDigits = getGui()->getDrawingContext()->createText("PI digits:", 18.f);
+		m_text_numberOfDigits = getDrawingContext()->createText("PI digits:", 18.f);
 		m_text_numberOfDigits->setRight(m_textField_numberOfDigits->getLeft() - 7.f);
 		m_text_numberOfDigits->setCenterY(m_textField_numberOfDigits->getCenterY() + 2.f);
 		m_text_numberOfDigits->setFontWeight(AvoGUI::FontWeight::Regular);
@@ -196,6 +196,5 @@ public:
 
 int main()
 { 
-	PiDay* app = new PiDay();
-	app->waitForFinish();
+	new PiDay();
 }

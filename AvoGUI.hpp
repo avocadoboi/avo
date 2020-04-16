@@ -6383,14 +6383,6 @@ namespace AvoGUI
 
 	private:
 		bool m_isInAnimationUpdateQueue{ false };
-		/*
-			LIBRARY IMPLEMENTED
-			Don't do anything with this.
-		*/
-		void informAboutAnimationUpdateQueueRemoval()
-		{
-			m_isInAnimationUpdateQueue = false;
-		}
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -12655,7 +12647,7 @@ namespace AvoGUI
 
 			std::string newString = p_string;
 
-			for (auto listener : m_editableTextChangeListeners.listeners)
+			for (auto& listener : m_editableTextChangeListeners.listeners)
 			{
 				if (!listener(this, newString, p_newCaretCharacterIndex))
 				{
@@ -12976,7 +12968,7 @@ namespace AvoGUI
 		}
 
 	public:
-		explicit TextField(View* p_parent, Type p_type = Type::Filled, char const* p_label = "", float p_width = 120.f) :
+		explicit TextField(View* p_parent, Type p_type = Type::Filled, std::string const& p_label = "", float p_width = 120.f) :
 			View(p_parent),
 			m_type(p_type)
 		{
@@ -13098,7 +13090,7 @@ namespace AvoGUI
 		Color m_labelColor;
 
 	public:
-		void setLabel(char const* p_label)
+		void setLabel(std::string const& p_label)
 		{
 			if (m_labelText)
 			{

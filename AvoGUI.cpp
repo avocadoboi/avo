@@ -12246,7 +12246,7 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 		uint32 numberOfEventsToProcess = m_animationUpdateQueue.size();
 		for (uint32 a = 0; a < numberOfEventsToProcess; a++)
 		{
-			m_animationUpdateQueue.front()->informAboutAnimationUpdateQueueRemoval();
+			m_animationUpdateQueue.front()->m_isInAnimationUpdateQueue = false;
 			m_animationUpdateQueue.front()->updateAnimations();
 			m_animationUpdateQueue.front()->forget();
 			m_animationUpdateQueue.pop_front();
@@ -12281,6 +12281,15 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 		auto timeAfter = std::chrono::steady_clock::now();
 		syncInterval = max(1000000, int32(syncInterval + 0.5 * (16666667 - (timeAfter - timeBefore).count())));
 		timeBefore = timeAfter;
+	}
+	if (m_animationUpdateQueue.size())
+	{
+		while (m_animationUpdateQueue.size())
+		{
+			m_animationUpdateQueue.front()->m_isInAnimationUpdateQueue = false;
+			m_animationUpdateQueue.front()->forget();
+			m_animationUpdateQueue.pop_front();
+		}
 	}
 
 	// This will cause the window to be destroyed, because getWillClose() is true.
