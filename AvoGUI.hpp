@@ -3522,12 +3522,12 @@ namespace AvoGUI
 			colors[ThemeColors::background] = 0xfffefefe;
 			colors[ThemeColors::onBackground] = 0xff070707;
 
-			colors[ThemeColors::primary] = 0xff6200ea; // MaterialColors::deepPurple_A700
-			colors[ThemeColors::primaryOnBackground] = 0xff512da8; // MaterialColors::deepPurple_700
+			colors[ThemeColors::primary] = 0xff6200ea; // MaterialColors::DEEP_PURPLE_A700
+			colors[ThemeColors::primaryOnBackground] = 0xff512da8; // MaterialColors::DEEP_PURPLE_700
 			colors[ThemeColors::onPrimary] = ~0U;
 
-			colors[ThemeColors::secondary] = 0xff1de9b6; // MaterialColors::teal_A400
-			colors[ThemeColors::secondaryOnBackground] = 0xff00bfa5; // MaterialColors::teal_A700
+			colors[ThemeColors::secondary] = 0xff1de9b6; // MaterialColors::TEAL_A400
+			colors[ThemeColors::secondaryOnBackground] = 0xff00bfa5; // MaterialColors::TEAL_A700
 			colors[ThemeColors::onSecondary] = 0xff070707;
 
 			colors[ThemeColors::selection] = 0x90488db5;
@@ -3926,10 +3926,7 @@ namespace AvoGUI
 	class Window;
 	class Gui;
 	class DrawingContext;
-	class Image;
 	class Geometry;
-	class MouseEvent;
-	enum class Cursor;
 
 	/*
 		A rectangle that can draw itself and receive events. Used for GUI components and stuff.
@@ -7127,65 +7124,6 @@ namespace AvoGUI
 		float height{0.f};
 	};
 
-/*	class WindowListener
-	{
-	public:
-		*//*
-			USER IMPLEMENTED
-			Gets called when a window has been created.
-			p_event is an object that contains information about the event.
-		*//*
-		virtual void handleWindowCreate(WindowEvent const& p_event) { }
-		*//*
-			LIBRARY IMPLEMENTED (only default behavior)
-			Gets called when a window has been requested to be closed.
-			If the handler returns true, the window will close and get destroyed. This is the default behavior.
-			p_event is an object containing information about the event.
-		*//*
-		virtual bool handleWindowClose(WindowEvent const& p_event) { return true; }
-
-		*//*
-			USER IMPLEMENTED
-			Gets called when a window has been minimized in the taskbar.
-			p_event is an object containing information about the event.
-		*//*
-		virtual void handleWindowMinimize(WindowEvent const& p_event) { }
-		*//*
-			USER IMPLEMENTED
-			Gets called when a window has been maximized so that it is as big as possible while still showing the border.
-			The width and height properties of p_event tell you the new size of the window.
-		*//*
-		virtual void handleWindowMaximize(WindowEvent const& p_event) { }
-
-		*//*
-			USER IMPLEMENTED
-			Gets called when a window has been restored after being in a minimized or maximized state.
-			The width and height properties of p_event tell you the new size of the window.
-		*//*
-		virtual void handleWindowRestore(WindowEvent const& p_event) { }
-
-		*//*
-			USER IMPLEMENTED
-			Gets called when the size of a window has changed.
-			This includes if it has been maximized, or if the border has been dragged to resize it.
-			The width and height properties of p_event tell you the new size of the window.
-		*//*
-		virtual void handleWindowSizeChange(WindowEvent const& p_event) { }
-
-		*//*
-			USER IMPLEMENTED
-			Gets called when a window has been focused, meaning it has been interacted with so that another window loses focus.
-			p_event is an object containing information about the event.
-		*//*
-		virtual void handleWindowFocus(WindowEvent const& p_event) { }
-		*//*
-			USER IMPLEMENTED
-			Gets called when a window has been unfocused, meaning another window is interacted with.
-			p_event is an object containing information about the event.
-		*//*
-		virtual void handleWindowUnfocus(WindowEvent const& p_event) { }
-	};*/
-
 	//------------------------------
 
 	enum class WindowStyleFlags
@@ -7238,8 +7176,6 @@ namespace AvoGUI
 		Maximized,
 		Restored
 	};
-
-	class Gui;
 
 	/*
 		An abstract window, which has an OS-specific implementation.
