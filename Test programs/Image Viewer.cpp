@@ -172,7 +172,7 @@ public:
 		m_button_ok = new AvoGUI::Button(this, "OK");
 		m_button_ok->setCenter(m_message->getCenterX());
 		m_button_ok->setTop(m_message->getBottom() + 20.f, true);
-		m_button_ok->addButtonClickListener([this](auto) { getWindow()->close(); });
+		m_button_ok->buttonClickListeners += [this](auto) { getWindow()->close(); };
 
 		setSize(m_message->getRight() + 25.f, m_button_ok->getBottom() + 15.f);
 	}

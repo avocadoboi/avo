@@ -120,7 +120,7 @@ MainScreen::MainScreen(View* p_app) :
 
 	//------------------------------
 
-	getGui()->addGlobalKeyboardKeyDownListener([this](AvoGUI::KeyboardEvent const& p_event) {
+	getGui()->globalKeyboardKeyDownListeners += [this](AvoGUI::KeyboardEvent const& p_event) {
 		if (p_event.key == AvoGUI::KeyboardKey::Tab)
 		{
 			if (m_textField_hours->getHasKeyboardFocus())
@@ -137,7 +137,7 @@ MainScreen::MainScreen(View* p_app) :
 			}
 			((AvoGUI::EditableText*)getGui()->getKeyboardFocus())->selectAll();
 		}
-		});
+	};
 
 	//------------------------------
 	// Generate spiral!
@@ -171,7 +171,7 @@ MainScreen::MainScreen(View* p_app) :
 	button_restart->setLeft(m_text_timeLeft->getRight() + 5.f);
 	button_restart->setCenterY(m_text_timeLeft->getCenterY());
 	button_restart->setTooltip(getGui<TimerApp>()->getTooltip(), "Restart timer");
-	button_restart->addButtonClickListener([this](auto) { m_willRestart = true; });
+	button_restart->buttonClickListeners += [this](auto) { m_willRestart = true; };
 }
 
 void MainScreen::updateAnimations() 

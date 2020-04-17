@@ -383,10 +383,6 @@ void AvoGUI::View::updateShadow()
 	}
 }
 
-//
-// Protected
-//
-
 void AvoGUI::View::sendBoundsChangeEvents(AvoGUI::Rectangle<float> const& p_previousBounds)
 {
 	if (p_previousBounds.left != m_bounds.left || p_previousBounds.right != m_bounds.right ||
@@ -413,9 +409,13 @@ void AvoGUI::View::sendBoundsChangeEvents(AvoGUI::Rectangle<float> const& p_prev
 			}
 		}
 
-		m_boundsChangeListeners.notifyAll(this, p_previousBounds);
+		boundsChangeListeners(this, p_previousBounds);
 	}
 }
+
+//
+// Protected
+//
 
 void AvoGUI::View::updateClipGeometry()
 {
@@ -441,6 +441,27 @@ void AvoGUI::View::updateClipGeometry()
 AvoGUI::View::View(AvoGUI::View* p_parent, AvoGUI::Rectangle<float> const& p_bounds) :
 	ProtectedRectangle(p_bounds), m_shadowBounds(p_bounds)
 {
+	mouseDownListeners += AvoGUI::bind(&View::handleMouseDown, this);
+	mouseUpListeners += AvoGUI::bind(&View::handleMouseUp, this);
+	mouseDoubleClickListeners += AvoGUI::bind(&View::handleMouseDoubleClick, this);
+	mouseScrollListeners += AvoGUI::bind(&View::handleMouseScroll, this);
+	mouseMoveListeners += AvoGUI::bind(&View::handleMouseMove, this);
+	mouseEnterListeners += AvoGUI::bind(&View::handleMouseEnter, this);
+	mouseLeaveListeners += AvoGUI::bind(&View::handleMouseLeave, this);
+	mouseBackgroundEnterListeners += AvoGUI::bind(&View::handleMouseBackgroundEnter, this);
+	mouseBackgroundLeaveListeners += AvoGUI::bind(&View::handleMouseBackgroundLeave, this);
+
+	dragDropEnterListeners += AvoGUI::bind(&View::handleDragDropEnter, this);
+	dragDropLeaveListeners += AvoGUI::bind(&View::handleDragDropLeave, this);
+	dragDropBackgroundEnterListeners += AvoGUI::bind(&View::handleDragDropBackgroundEnter, this);
+	dragDropBackgroundLeaveListeners += AvoGUI::bind(&View::handleDragDropBackgroundLeave, this);
+	dragDropMoveListeners += AvoGUI::bind(&View::handleDragDropMove, this);
+	dragDropFinishListeners += AvoGUI::bind(&View::handleDragDropFinish, this);
+
+	characterInputListeners += AvoGUI::bind(&View::handleCharacterInput, this);
+	keyboardKeyDownListeners += AvoGUI::bind(&View::handleKeyboardKeyDown, this);
+	keyboardKeyUpListeners += AvoGUI::bind(&View::handleKeyboardKeyUp, this);
+
 	if (p_parent && p_parent != this)
 	{
 		setParent(p_parent);
@@ -1123,7 +1144,7 @@ public:
 			case DROPEFFECT_LINK:
 				operation = AvoGUI::DragDropOperation::Link;
 		}
-		m_gui->handleGlobalDragDropOperationChange(operation);
+		m_gui->dragDropOperationChangeListeners(operation);
 		return DRAGDROP_S_USEDEFAULTCURSORS;
 	}
 };
@@ -3915,7 +3936,7 @@ public:
 
 				m_isOpen = true;
 
-				sendWindowCreateEvents({ this, m_size.x / m_dipToPixelFactor, m_size.y / m_dipToPixelFactor });
+				windowCreateListeners(AvoGUI::WindowEvent{ this, m_size.x / m_dipToPixelFactor, m_size.y / m_dipToPixelFactor });
 
 				return 0;
 			}
@@ -3934,7 +3955,7 @@ public:
 				windowEvent.window = this;
 				if (p_data_a == SIZE_MINIMIZED)
 				{
-					sendWindowMinimizeEvents(windowEvent);
+					windowMinimizeListeners(windowEvent);
 					m_state = AvoGUI::WindowState::Minimized;
 				}
 				else if (m_hasGottenInitialSizeMessageForCustomBorderWindows || !getHasCustomBorder())
@@ -3946,15 +3967,15 @@ public:
 
 					if (p_data_a == SIZE_MAXIMIZED)
 					{
-						sendWindowMaximizeEvents(windowEvent);
+						windowMaximizeListeners(windowEvent);
 						m_state = AvoGUI::WindowState::Maximized;
 					}
 					else if (p_data_a == SIZE_RESTORED && m_state != AvoGUI::WindowState::Restored)
 					{
-						sendWindowRestoreEvents(windowEvent);
+						windowRestoreListeners(windowEvent);
 						m_state = AvoGUI::WindowState::Restored;
 					}
-					sendWindowSizeChangeEvents(windowEvent);
+					windowSizeChangeListeners(windowEvent);
 				}
 				m_hasGottenInitialSizeMessageForCustomBorderWindows = true;
 
@@ -4418,7 +4439,7 @@ public:
 				keyboardEvent.key = key;
 				keyboardEvent.isRepeated = isRepeated;
 				m_gui->excludeAnimationThread();
-				m_gui->handleGlobalKeyboardKeyDown(keyboardEvent);
+				m_gui->sendGlobalKeyboardKeyDownEvents(keyboardEvent);
 				m_gui->includeAnimationThread();
 
 				return 0;
@@ -4431,7 +4452,7 @@ public:
 				AvoGUI::KeyboardEvent keyboardEvent;
 				keyboardEvent.key = key;
 				m_gui->excludeAnimationThread();
-				m_gui->handleGlobalKeyboardKeyUp(keyboardEvent);
+				m_gui->sendGlobalKeyboardKeyUpEvents(keyboardEvent);
 				m_gui->includeAnimationThread();
 
 				return 0;
@@ -4448,7 +4469,7 @@ public:
 				keyboardEvent.character = character;
 				keyboardEvent.isRepeated = isRepeated;
 				m_gui->excludeAnimationThread();
-				m_gui->handleGlobalCharacterInput(keyboardEvent);
+				m_gui->sendGlobalCharacterInputEvents(keyboardEvent);
 				m_gui->includeAnimationThread();
 				return 0;
 			}
@@ -12322,9 +12343,9 @@ AvoGUI::Gui::Gui() :
 	m_window = new LinuxWindow(this);
 #endif
 
-	m_window->addWindowCreateListener(AvoGUI::bind(&Gui::handleWindowCreate, this));
-	m_window->addWindowDestroyListener(AvoGUI::bind(&Gui::handleWindowDestroy, this));
-	m_window->addWindowSizeChangeListener(AvoGUI::bind(&Gui::handleWindowSizeChange, this));
+	m_window->windowCreateListeners += AvoGUI::bind(&Gui::handleWindowCreate, this);
+	m_window->windowDestroyListeners += AvoGUI::bind(&Gui::handleWindowDestroy, this);
+	m_window->windowSizeChangeListeners += AvoGUI::bind(&Gui::handleWindowSizeChange, this);
 
 	m_gui = this;
 }

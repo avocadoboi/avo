@@ -168,20 +168,20 @@ An event is something that happens. You often want your GUI components (views) t
 
 Example with a lambda:
 ```cpp
-child->addSizeChangeListener([this](View*, float, float) { /* Do anything! */ });
+child->sizeChangeListeners += [this](View*, float, float) { /* Do anything! */ };
 ```
 Example with a member function:
 ```cpp
-child->addSizeChangeListener(AvoGUI::bind(&MyView::doSomething, this));
+child->sizeChangeListeners += AvoGUI::bind(&MyView::doSomething, this);
 ```
 
 To receive keyboard events:
 1. Override the keyboard event handler methods you want to use.
 2. Call getGui()->setKeyboardFocus(view) when you want your view to be the target of keyboard events. This is because only 1 view can receive keyboard events at a time. 
 
-To respond to all keyboard events independent of being the keyboard focus, you can add global keyboard event callbacks using the Gui::addGlobalKeyboardKeyDownListener method as an example.
+To respond to all keyboard events independent of being the keyboard focus, you can add global keyboard event callbacks using Gui::globalKeyboardKeyDownListeners as an example.
 
-To make a view receive mouse events, all you need to do is call enableMouseEvents() and override your handlers. To add an additional listener to a view, do as usual and call View::addMouseDownListener for example.
+To make a view receive mouse events, all you need to do is call enableMouseEvents() and override your handlers. To add an additional listener to a view, do as usual and use View::mouseDownListeners for example.
 
 ### Unicode characters
 AvoGUI supports non-ASCII UTF-8 unicode characters. To create a UTF-8 encoded string literal, simply prepend the "u8" prefix. Example: u8"Göran matar bläckfiskarna med blått bläck.". 

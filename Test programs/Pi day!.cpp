@@ -93,7 +93,7 @@ public:
 	{
 		m_restartButton = new AvoGUI::Button(this, "RESTART", AvoGUI::Button::Emphasis::High);
 		m_restartButton->setTopRight(getRight() - 10.f, 10.f);
-		m_restartButton->addButtonClickListener([this](auto) { startSimulation(); });
+		m_restartButton->buttonClickListeners += [this](auto) { startSimulation(); };
 
 		setThemeValue(AvoGUI::ThemeValues::textFieldHeight, 2.f);
 		setThemeValue(AvoGUI::ThemeValues::textFieldFontSize, 16.f);

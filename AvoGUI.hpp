@@ -3458,27 +3458,27 @@ namespace AvoGUI
 	// Font family names
 	//
 
-	char const* const FONT_FAMILY_ROBOTO{ "Roboto" };
-	char const* const FONT_FAMILY_MATERIAL_ICONS{ "Material Icons" };
+	inline char const* const FONT_FAMILY_ROBOTO{ "Roboto" };
+	inline char const* const FONT_FAMILY_MATERIAL_ICONS{ "Material Icons" };
 
 	/*
 		Default theme color names.
 	*/
 	namespace ThemeColors
 	{
-		char const* const background{ "background" };
-		char const* const onBackground{ "on background" };
+		inline char const* const background{ "background" };
+		inline char const* const onBackground{ "on background" };
 
-		char const* const primary{ "primary" };
-		char const* const primaryOnBackground{ "primary on background" };
-		char const* const onPrimary{ "on primary" };
+		inline char const* const primary{ "primary" };
+		inline char const* const primaryOnBackground{ "primary on background" };
+		inline char const* const onPrimary{ "on primary" };
 
-		char const* const secondary{ "secondary" };
-		char const* const secondaryOnBackground{ "secondary on background" };
-		char const* const onSecondary{ "on secondary" };
+		inline char const* const secondary{ "secondary" };
+		inline char const* const secondaryOnBackground{ "secondary on background" };
+		inline char const* const onSecondary{ "on secondary" };
 
-		char const* const selection{ "selection" };
-		char const* const shadow{ "shadow" };
+		inline char const* const selection{ "selection" };
+		inline char const* const shadow{ "shadow" };
 	};
 
 	/*
@@ -3486,10 +3486,10 @@ namespace AvoGUI
 	*/
 	namespace ThemeEasings
 	{
-		char const* const in = "in";
-		char const* const out = "out";
-		char const* const inOut = "inOut";
-		char const* const symmetricalInOut = "symmetrical in out";
+		inline char const* const in{ "in" };
+		inline char const* const out{ "out" };
+		inline char const* const inOut{ "in out" };
+		inline char const* const symmetricalInOut{ "symmetrical in out" };
 	}
 
 	/*
@@ -3497,7 +3497,7 @@ namespace AvoGUI
 	*/
 	namespace ThemeValues
 	{
-		char const* const hoverAnimationSpeed = "hover animation speed";
+		inline char const* const hoverAnimationSpeed{ "hover animation speed" };
 	}
 
 	/*
@@ -3612,6 +3612,11 @@ namespace AvoGUI
 			{
 				listener(std::forward<T>(p_eventArguments)...);
 			}
+		}
+		template<typename ... T>
+		void operator()(T&& ... p_eventArguments)
+		{
+			notifyAll(std::forward<T>(p_eventArguments)...);
 		}
 	};
 
@@ -4546,33 +4551,18 @@ namespace AvoGUI
 		//------------------------------
 
 	private:
-		using ThemeColorChangeListener = void(View*, std::string const&, Color const&);
-		EventListeners<ThemeColorChangeListener> m_themeColorChangeListeners;
-
 		void sendThemeColorChangeEvents(std::string const& p_name, Color const& p_color)
 		{
-			m_themeColorChangeListeners.notifyAll(this, p_name, p_color);
+			themeColorChangeListeners(this, p_name, p_color);
 			handleThemeColorChange(p_name, p_color);
 		}
 	public:
 		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for theme color change events on the view.
 			Listener signature:
 				void (View* target, std::string const& name, Color const& color)
 			See View::handleThemeColorChange for more information.
 		*/
-		void addThemeColorChangeListener(std::function<ThemeColorChangeListener> p_listener)
-		{
-			m_themeColorChangeListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeThemeColorChangeListener(std::function<ThemeColorChangeListener> p_listener)
-		{
-			m_themeColorChangeListeners -= p_listener;
-		}
+		EventListeners<void(View*, std::string const&, Color const&)> themeColorChangeListeners;
 		/*
 			USER IMPLEMENTED
 			This gets called whenever a theme color has changed, not including initialization.
@@ -4580,33 +4570,18 @@ namespace AvoGUI
 		virtual void handleThemeColorChange(std::string const& p_name, Color const& p_newColor) { }
 
 	private:
-		using ThemeEasingChangeListener = void(View*, std::string const&, Easing const&);
-		EventListeners<ThemeEasingChangeListener> m_themeEasingChangeListeners;
-
 		void sendThemeEasingChangeEvents(std::string const& p_name, Easing const& p_easing)
 		{
-			m_themeEasingChangeListeners.notifyAll(this, p_name, p_easing);
+			themeEasingChangeListeners(this, p_name, p_easing);
 			handleThemeEasingChange(p_name, p_easing);
 		}
 	public:
 		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for theme easing change events on the view.
 			Listener signature:
 				void (View* target, std::string const& name, Easing const& easing)
 			See View::handleThemeEasingChange for more information.
 		*/
-		void addThemeEasingChangeListener(std::function<ThemeEasingChangeListener> p_listener)
-		{
-			m_themeEasingChangeListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeThemeEasingChangeListener(std::function<ThemeEasingChangeListener> p_listener)
-		{
-			m_themeEasingChangeListeners -= p_listener;
-		}
+		EventListeners<void(View*, std::string const&, Easing const&)> themeEasingChangeListeners;
 		/*
 			USER IMPLEMENTED
 			This gets called whenever a theme easing has changed, not including initialization.
@@ -4614,33 +4589,18 @@ namespace AvoGUI
 		virtual void handleThemeEasingChange(std::string const& p_name, Easing const& p_newEasing) { };
 
 	private:
-		using ThemeValueChangeListener = void(View*, std::string const&, float);
-		EventListeners<ThemeValueChangeListener> m_themeValueChangeListeners;
-
 		void sendThemeValueChangeEvents(std::string const& p_name, float p_value)
 		{
-			m_themeValueChangeListeners.notifyAll(this, p_name, p_value);
+			themeValueChangeListeners(this, p_name, p_value);
 			handleThemeValueChange(p_name, p_value);
 		}
 	public:
 		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for theme value change events on the view.
 			Listener signature:
 				void (View* target, std::string const& name, float value)
 			See View::handleThemeValueChange for more information.
 		*/
-		void addThemeValueChangeListener(std::function<ThemeValueChangeListener> p_listener)
-		{
-			m_themeValueChangeListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeThemeValueChangeListener(std::function<ThemeValueChangeListener> p_listener)
-		{
-			m_themeValueChangeListeners -= p_listener;
-		}
+		EventListeners<void(View*, std::string const&, float)> themeValueChangeListeners;
 		/*
 			USER IMPLEMENTED
 			This gets called whenever a theme value has changed, not including initialization.
@@ -6141,35 +6101,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		using KeyboardListener = std::function<void(KeyboardEvent const&)>;
-
-	private:
-		EventListeners<void(KeyboardEvent const&)> m_characterInputListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendCharacterInputEvents(KeyboardEvent const& p_event)
-		{
-			m_characterInputListeners.notifyAll(p_event);
-			handleCharacterInput(p_event);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for character input events on this view.
-			See View::handleCharacterInput for more info.
-		*/
-		void addCharacterInputListener(KeyboardListener p_listener)
-		{
-			m_characterInputListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeCharacterInputListener(KeyboardListener p_listener)
-		{
-			m_characterInputListeners -= p_listener;
-		}
+		EventListeners<void(KeyboardEvent const&)> characterInputListeners;
 		/*
 			USER IMPLEMENTED
 			This method is called when a character key has been pressed.
@@ -6177,33 +6109,7 @@ namespace AvoGUI
 		*/
 		virtual void handleCharacterInput(KeyboardEvent const& p_event) { }
 
-	private:
-		EventListeners<void(KeyboardEvent const&)> m_keyboardKeyDownListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendKeyboardKeyDownEvents(KeyboardEvent const& p_event)
-		{
-			m_keyboardKeyDownListeners.notifyAll(p_event);
-			handleKeyboardKeyDown(p_event);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for keyboard key down events on this view.
-			See View::handleKeyboardKeyDown for more info.
-		*/
-		void addKeyboardKeyDownListener(KeyboardListener p_listener)
-		{
-			m_keyboardKeyDownListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeKeyboardKeyDownListener(KeyboardListener p_listener)
-		{
-			m_keyboardKeyDownListeners -= p_listener;
-		}
+		EventListeners<void(KeyboardEvent const&)> keyboardKeyDownListeners;
 		/*
 			USER IMPLEMENTED
 			This method is called when a keyboard key has been pressed.
@@ -6211,33 +6117,7 @@ namespace AvoGUI
 		*/
 		virtual void handleKeyboardKeyDown(KeyboardEvent const& p_event) { }
 
-	private:
-		EventListeners<void(KeyboardEvent const&)> m_keyboardKeyUpListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendKeyboardKeyUpEvents(KeyboardEvent const& p_event)
-		{
-			m_keyboardKeyUpListeners.notifyAll(p_event);
-			handleKeyboardKeyUp(p_event);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for keyboard key up events on this view.
-			See View::handleKeyboardKeyUp for more info.
-		*/
-		void addKeyboardKeyUpListener(KeyboardListener p_listener)
-		{
-			m_keyboardKeyUpListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeKeyboardKeyUpListener(KeyboardListener p_listener)
-		{
-			m_keyboardKeyUpListeners -= p_listener;
-		}
+		EventListeners<void(KeyboardEvent const&)> keyboardKeyUpListeners;
 		/*
 			USER IMPLEMENTED
 			This method is called when a keyboard key has been released.
@@ -6246,35 +6126,19 @@ namespace AvoGUI
 		virtual void handleKeyboardKeyUp(KeyboardEvent const& p_event) { }
 
 	private:
-		EventListeners<void(View*)> m_keyboardFocusLoseListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
 		void sendKeyboardFocusLoseEvents()
 		{
-			m_keyboardFocusLoseListeners.notifyAll(this);
+			keyboardFocusLoseListeners(this);
 			handleKeyboardFocusLose();
 		}
+	public:
 		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for keyboard focus lose events on this view.
 			Listener signature:
 				void (View* target)
 			target is a pointer to the view that lost keyboard focus.
 			See View::handleKeyboardFocusLose for more info.
 		*/
-		void addKeyboardFocusLoseListener(std::function<void(View*)> p_listener)
-		{
-			m_keyboardFocusLoseListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeKeyboardFocusLoseListener(std::function<void(View*)> p_listener)
-		{
-			m_keyboardFocusLoseListeners -= p_listener;
-		}
+		EventListeners<void(View*)> keyboardFocusLoseListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when another keyboard event listener becomes the target of keyboard events.
@@ -6282,35 +6146,19 @@ namespace AvoGUI
 		virtual void handleKeyboardFocusLose() { }
 
 	private:
-		EventListeners<void(View*)> m_keyboardFocusGainListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
 		void sendKeyboardFocusGainEvents()
 		{
-			m_keyboardFocusGainListeners.notifyAll(this);
+			keyboardFocusGainListeners(this);
 			handleKeyboardFocusGain();
 		}
+	public:
 		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for keyboard focus gain events on this view.
 			Listener signature:
 				void (View* target)
 			target is a pointer to the view that gained keyboard focus.
 			See View::handleKeyboardFocusGain for more info.
 		*/
-		void addKeyboardFocusGainListener(std::function<void(View*)> p_listener)
-		{
-			m_keyboardFocusGainListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeKeyboardFocusGainListener(std::function<void(View*)> p_listener)
-		{
-			m_keyboardFocusGainListeners -= p_listener;
-		}
+		EventListeners<void(View*)> keyboardFocusGainListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when this keyboard event listener becomes the target of keyboard events.
@@ -6358,33 +6206,7 @@ namespace AvoGUI
 			return DragDropOperation::None;
 		}
 
-		using DragDropListener = std::function<void(DragDropEvent const&)>;
-
-	private:
-		EventListeners<void(DragDropEvent const&)> m_dragDropEnterListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendDragDropEnterEvents(DragDropEvent const& p_event)
-		{
-			m_dragDropEnterListeners.notifyAll(p_event);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for drag drop enter events on this view.
-		*/
-		void addDragDropEnterListener(DragDropListener p_listener)
-		{
-			m_dragDropEnterListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeDragDropEnterListener(DragDropListener p_listener)
-		{
-			m_dragDropEnterListeners -= p_listener;
-		}
+		EventListeners<void(DragDropEvent const&)> dragDropEnterListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when the cursor enters the bounds of the view during a drag and drop operation.
@@ -6392,31 +6214,7 @@ namespace AvoGUI
 		*/
 		virtual void handleDragDropEnter(DragDropEvent const& p_event) { }
 
-	private:
-		EventListeners<void(DragDropEvent const&)> m_dragDropBackgroundEnterListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendDragDropBackgroundEnterEvents(DragDropEvent const& p_event)
-		{
-			m_dragDropBackgroundEnterListeners.notifyAll(p_event);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for drag drop background enter events on this view.
-		*/
-		void addDragDropBackgroundEnterListener(DragDropListener p_listener)
-		{
-			m_dragDropBackgroundEnterListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeDragDropBackgroundEnterListener(DragDropListener p_listener)
-		{
-			m_dragDropBackgroundEnterListeners -= p_listener;
-		}
+		EventListeners<void(DragDropEvent const&)> dragDropBackgroundEnterListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when the cursor enters the parts of the view that are not occupied by children, during a drag and drop operation.
@@ -6424,62 +6222,14 @@ namespace AvoGUI
 		*/
 		virtual void handleDragDropBackgroundEnter(DragDropEvent const& p_event) { }
 
-	private:
-		EventListeners<void(DragDropEvent const&)> m_dragDropMoveListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendDragDropMoveEvents(DragDropEvent const& p_event)
-		{
-			m_dragDropMoveListeners.notifyAll(p_event);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for drag drop move events on this view.
-		*/
-		void addDragDropMoveListener(DragDropListener p_listener)
-		{
-			m_dragDropMoveListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeDragDropMoveListener(DragDropListener p_listener)
-		{
-			m_dragDropMoveListeners -= p_listener;
-		}
+		EventListeners<void(DragDropEvent const&)> dragDropMoveListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when the cursor moves over the view during a drag and drop operation.
 		*/
 		virtual void handleDragDropMove(DragDropEvent const& p_event) { }
 
-	private:
-		EventListeners<void(DragDropEvent const&)> m_dragDropLeaveListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendDragDropLeaveEvents(DragDropEvent const& p_event)
-		{
-			m_dragDropLeaveListeners.notifyAll(p_event);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for drag drop leave events on this view.
-		*/
-		void addDragDropLeaveListener(DragDropListener p_listener)
-		{
-			m_dragDropLeaveListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeDragDropLeaveListener(DragDropListener p_listener)
-		{
-			m_dragDropLeaveListeners -= p_listener;
-		}
+		EventListeners<void(DragDropEvent const&)> dragDropLeaveListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when the cursor leaves the bounds of the view during a drag and drop operation.
@@ -6487,31 +6237,7 @@ namespace AvoGUI
 		*/
 		virtual void handleDragDropLeave(DragDropEvent const& p_event) { }
 
-	private:
-		EventListeners<void(DragDropEvent const&)> m_dragDropBackgroundLeaveListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendDragDropBackgroundLeaveEvents(DragDropEvent const& p_event)
-		{
-			m_dragDropBackgroundLeaveListeners.notifyAll(p_event);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for drag drop background leave events on this view.
-		*/
-		void addDragDropBackgroundLeaveListener(DragDropListener p_listener)
-		{
-			m_dragDropBackgroundLeaveListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeDragDropBackgroundLeaveListener(DragDropListener p_listener)
-		{
-			m_dragDropBackgroundLeaveListeners -= p_listener;
-		}
+		EventListeners<void(DragDropEvent const&)> dragDropBackgroundLeaveListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when the cursor leaves the parts of the view that are not occupied by children, during a drag and drop operation.
@@ -6519,31 +6245,7 @@ namespace AvoGUI
 		*/
 		virtual void handleDragDropBackgroundLeave(DragDropEvent const& p_event) { }
 
-	private:
-		EventListeners<void(DragDropEvent const&)> m_dragDropFinishListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendDragDropFinishEvents(DragDropEvent const& p_event)
-		{
-			m_dragDropFinishListeners.notifyAll(p_event);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for drag drop finish events on this view.
-		*/
-		void addDragDropFinishListener(DragDropListener p_listener)
-		{
-			m_dragDropFinishListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeDragDropFinishListener(DragDropListener p_listener)
-		{
-			m_dragDropFinishListeners -= p_listener;
-		}
+		EventListeners<void(DragDropEvent const&)> dragDropFinishListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when the user drops data above the view, finishing a drag and drop operation.
@@ -6584,32 +6286,7 @@ namespace AvoGUI
 
 		using MouseListener = void(MouseEvent const&);
 
-	private:
-		EventListeners<MouseListener> m_mouseDownListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendMouseDownEvents(MouseEvent const& p_event)
-		{
-			m_mouseDownListeners.notifyAll(p_event);
-			handleMouseDown(p_event);
-		}
-		/*
-		    LIBRARY IMPLEMENTED
-		    Adds a callback for mouse down events on this view.
-		*/
-		void addMouseDownListener(std::function<MouseListener> p_listener)
-        {
-			m_mouseDownListeners += p_listener;
-        }
-        /*
-            LIBRARY IMPLEMENTED
-        */
-        void removeMouseDownListener(std::function<MouseListener> p_listener)
-        {
-			m_mouseDownListeners -= p_listener;
-		}
+		EventListeners<MouseListener> mouseDownListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when a mouse button has been pressed down while the pointer is above the view.
@@ -6617,32 +6294,7 @@ namespace AvoGUI
 		*/
 		virtual void handleMouseDown(MouseEvent const& p_event) { }
 
-	private:
-		EventListeners<MouseListener> m_mouseUpListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendMouseUpEvents(MouseEvent const& p_event)
-		{
-			m_mouseUpListeners.notifyAll(p_event);
-			handleMouseUp(p_event);
-		}
-        /*
-            LIBRARY IMPLEMENTED
-            Adds a callback for mouse up events on this view.
-        */
-        void addMouseUpListener(std::function<MouseListener> p_listener)
-        {
-        	m_mouseUpListeners += p_listener;
-        }
-        /*
-            LIBRARY IMPLEMENTED
-        */
-        void removeMouseUpListener(std::function<MouseListener> p_listener)
-        {
-        	m_mouseUpListeners -= p_listener;
-        }
+		EventListeners<MouseListener> mouseUpListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when a mouse button has been released after having been pressed down when the mouse pointer was above the view.
@@ -6651,32 +6303,7 @@ namespace AvoGUI
 		*/
 		virtual void handleMouseUp(MouseEvent const& p_event) { }
 
-	private:
-		EventListeners<MouseListener> m_mouseDoubleClickListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendMouseDoubleClickEvents(MouseEvent const& p_event)
-		{
-			m_mouseDoubleClickListeners.notifyAll(p_event);
-			handleMouseDoubleClick(p_event);
-		}
-		/*
-            LIBRARY IMPLEMENTED
-            Adds a callback for double click events on this view.
-        */
-        void addMouseDoubleClickListener(std::function<MouseListener> p_listener)
-        {
-        	m_mouseDoubleClickListeners += p_listener;
-        }
-        /*
-            LIBRARY IMPLEMENTED
-        */
-        void removeMouseDoubleClickListener(std::function<MouseListener> p_listener)
-        {
-        	m_mouseDoubleClickListeners -= p_listener;
-        }
+		EventListeners<MouseListener> mouseDoubleClickListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when a mouse button has been double clicked while the mouse pointer is above the view.
@@ -6688,32 +6315,7 @@ namespace AvoGUI
 			handleMouseUp(p_event);
 		}
 
-	private:
-		EventListeners<MouseListener> m_mouseMoveListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendMouseMoveEvents(MouseEvent const& p_event)
-		{
-			m_mouseMoveListeners.notifyAll(p_event);
-			handleMouseMove(p_event);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for mouse move events on this view.
-		*/
-		void addMouseMoveListener(std::function<MouseListener> p_listener)
-		{
-			m_mouseMoveListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeMouseMoveListener(std::function<MouseListener> p_listener)
-		{
-			m_mouseMoveListeners -= p_listener;
-		}
+		EventListeners<MouseListener> mouseMoveListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse pointer has been moved within the bounds of the view.
@@ -6724,32 +6326,7 @@ namespace AvoGUI
 		*/
 		virtual void handleMouseMove(MouseEvent const& p_event) { }
 
-	private:
-		EventListeners<MouseListener> m_mouseEnterListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendMouseEnterEvents(MouseEvent const& p_event)
-		{
-			m_mouseEnterListeners.notifyAll(p_event);
-			handleMouseEnter(p_event);
-		}
-        /*
-            LIBRARY IMPLEMENTED
-            Adds a callback for mouse enter events on this view.
-        */
-        void addMouseEnterListener(std::function<MouseListener> p_listener)
-        {
-        	m_mouseEnterListeners += p_listener;
-        }
-        /*
-            LIBRARY IMPLEMENTED
-        */
-        void removeMouseEnterListener(std::function<MouseListener> p_listener)
-        {
-        	m_mouseEnterListeners -= p_listener;
-        }
+		EventListeners<MouseListener> mouseEnterListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse pointer has entered the bounds of the view.
@@ -6759,32 +6336,7 @@ namespace AvoGUI
 		*/
 		virtual void handleMouseEnter(MouseEvent const& p_event) { }
 
-	private:
-		EventListeners<MouseListener> m_mouseLeaveListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendMouseLeaveEvents(MouseEvent const& p_event)
-		{
-			m_mouseLeaveListeners.notifyAll(p_event);
-			handleMouseLeave(p_event);
-		}
-        /*
-            LIBRARY IMPLEMENTED
-            Adds a callback for mouse leave events on this view.
-        */
-        void addMouseLeaveListener(std::function<MouseListener> p_listener)
-        {
-        	m_mouseLeaveListeners += p_listener;
-        }
-        /*
-            LIBRARY IMPLEMENTED
-        */
-        void removeMouseLeaveListener(std::function<MouseListener> p_listener)
-        {
-        	m_mouseLeaveListeners -= p_listener;
-        }
+		EventListeners<MouseListener> mouseLeaveListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse cursor has left the bounds of the view.
@@ -6794,32 +6346,7 @@ namespace AvoGUI
 		*/
 		virtual void handleMouseLeave(MouseEvent const& p_event) { }
 
-	private:
-		EventListeners<MouseListener> m_mouseBackgroundEnterListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendMouseBackgroundEnterEvents(MouseEvent const& p_event)
-		{
-			m_mouseBackgroundEnterListeners.notifyAll(p_event);
-			handleMouseBackgroundEnter(p_event);
-		}
-		/*
-            LIBRARY IMPLEMENTED
-            Adds a callback for mouse background enter events on this view.
-        */
-        void addMouseBackgroundEnterListener(std::function<MouseListener> p_listener)
-        {
-        	m_mouseBackgroundEnterListeners += p_listener;
-        }
-        /*
-            LIBRARY IMPLEMENTED
-        */
-        void removeMouseBackgroundEnterListener(std::function<MouseListener> p_listener)
-        {
-        	m_mouseBackgroundEnterListeners -= p_listener;
-        }
+		EventListeners<MouseListener> mouseBackgroundEnterListeners;
 		/*
 			LIBRARY IMPLEMENTED (only default behavior)
 			Gets called when the mouse pointer has entered any part of the view that is not occupied by children of this view.
@@ -6828,32 +6355,7 @@ namespace AvoGUI
 		*/
 		virtual void handleMouseBackgroundEnter(MouseEvent const& p_event);
 
-	private:
-		EventListeners<MouseListener> m_mouseBackgroundLeaveListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendMouseBackgroundLeaveEvents(MouseEvent const& p_event)
-		{
-			m_mouseBackgroundLeaveListeners.notifyAll(p_event);
-			handleMouseBackgroundLeave(p_event);
-		}
-        /*
-            LIBRARY IMPLEMENTED
-            Adds a callback for mouse background leave events on this view.
-        */
-        void addMouseBackgroundLeaveListener(std::function<MouseListener> p_listener)
-        {
-        	m_mouseBackgroundLeaveListeners += p_listener;
-        }
-        /*
-            LIBRARY IMPLEMENTED
-        */
-        void removeMouseBackgroundLeaveListener(std::function<MouseListener> p_listener)
-        {
-        	m_mouseBackgroundLeaveListeners -= p_listener;
-        }
+		EventListeners<MouseListener> mouseBackgroundLeaveListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse pointer has left any part of the view that is not occupied by children of this view.
@@ -6861,33 +6363,7 @@ namespace AvoGUI
 		*/
 		virtual void handleMouseBackgroundLeave(MouseEvent const& p_event) { }
 
-	private:
-		EventListeners<MouseListener> m_mouseScrollListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void sendMouseScrollEvents(MouseEvent const& p_event)
-		{
-			m_mouseScrollListeners.notifyAll(p_event);
-			handleMouseScroll(p_event);
-		}
-        /*
-            LIBRARY IMPLEMENTED
-            Adds a callback for mouse scroll events on this view.
-        */
-        void addMouseScrollListener(std::function<MouseListener> p_listener)
-        {
-        	m_mouseScrollListeners += p_listener;
-        }
-        /*
-            LIBRARY IMPLEMENTED
-        */
-        void removeMouseScrollListener(std::function<MouseListener> p_listener)
-        {
-        	m_mouseScrollListeners -= p_listener;
-        }
-
+		EventListeners<MouseListener> mouseScrollListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when the mouse wheel has been moved/scrolled while the mouse pointer is above the view.
@@ -6899,31 +6375,9 @@ namespace AvoGUI
 		// Size change events
 
 	private:
-		EventListeners<void(View*, Rectangle<float> const&)> m_boundsChangeListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
 		virtual void sendBoundsChangeEvents(Rectangle<float> const& p_previousBounds);
-		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for bounds change events on this view.
-			Listener signature:
-				void (View* target, Rectangle<float> const& previousBounds)
-			target is a pointer to the view that changed size.
-			See View::handleBoundsChange for more info.
-		*/
-		void addBoundsChangeListener(std::function<void(View*, Rectangle<float> const&)> p_listener)
-		{
-			m_boundsChangeListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeBoundsChangeListener(std::function<void(View*, Rectangle<float> const&)> p_listener)
-		{
-			m_boundsChangeListeners -= p_listener;
-		}
+	public:
+		EventListeners<void(View*, Rectangle<float> const&)> boundsChangeListeners;
 		/*
 			USER IMPLEMENTED
 			Implement this method in your view if you want to update things when the bounds of the view have been changed.
@@ -6931,35 +6385,19 @@ namespace AvoGUI
 		virtual void handleBoundsChange(Rectangle<float> const& p_previousBounds) { }
 
 	private:
-		EventListeners<void(View*, float, float)> m_sizeChangeListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
 		void sendSizeChangeEvents(float p_previousWidth, float p_previousHeight)
 		{
-			m_sizeChangeListeners.notifyAll(this, p_previousWidth, p_previousHeight);
+			sizeChangeListeners(this, p_previousWidth, p_previousHeight);
 			handleSizeChange(p_previousWidth, p_previousHeight);
 		}
-        /*
-		    LIBRARY IMPLEMENTED
-            Adds a callback for size change events on this view.
-            Listener signature:
-                void (View* target, float previousWidth, float previousHeight)
-            target is a pointer to the view that changed size.
-            See View::handleSizeChange for more info.
-        */
-        void addSizeChangeListener(std::function<void(View*, float, float)> p_listener)
-        {
-        	m_sizeChangeListeners += p_listener;
-        }
-        /*
-            LIBRARY IMPLEMENTED
-        */
-        void removeSizeChangeListener(std::function<void(View*, float, float)> p_listener)
-        {
-        	m_sizeChangeListeners -= p_listener;
-        }
+	public:
+		/*
+			Listener signature:
+				void (View* target, float previousWidth, float previousHeight)
+			target is a pointer to the view that changed size.
+			See View::handleSizeChange for more info.
+		*/
+		EventListeners<void(View*, float, float)> sizeChangeListeners;
 		/*
 			LIBRARY IMPLEMENTED
 			This calls handleSizeChange() by default. Override this method if you need to know the previous size of the view.
@@ -6977,34 +6415,18 @@ namespace AvoGUI
 		//------------------------------
 
 	private:
-		EventListeners<void(View*, View*)> m_childAttachmentListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
 		void sendChildAttachmentEvents(View* p_child)
 		{
-			m_childAttachmentListeners.notifyAll(this, p_child);
+			childAttachmentListeners(this, p_child);
 			handleChildAttachment(p_child);
 		}
+	public:
 		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for child attachment events on this view.
 			Listener signature:
 				void (View* target, View* attachedChild)
 			See View::handleChildAttachment for more info.
 		*/
-		void addChildAttachmentListener(std::function<void(View*, View*)> p_listener)
-		{
-			m_childAttachmentListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeChildAttachmentListener(std::function<void(View*, View*)> p_listener)
-		{
-			m_childAttachmentListeners -= p_listener;
-		}
+		EventListeners<void(View*, View*)> childAttachmentListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when a child view has been added to this view.
@@ -7012,34 +6434,18 @@ namespace AvoGUI
 		virtual void handleChildAttachment(View* p_attachedChild) { }
 
 	private:
-		EventListeners<void(View*, View*)> m_childDetachmentListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
 		void sendChildDetachmentEvents(View* p_child)
 		{
-			m_childDetachmentListeners.notifyAll(this, p_child);
+			childDetachmentListeners(this, p_child);
 			handleChildDetachment(p_child);
 		}
+	public:
 		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for child detachment events on this view.
 			Listener signature:
 				void (View* target, View* attachedChild)
 			See View::handleChildDetachment for more info.
 		*/
-		void addChildDetachmentListener(std::function<void(View*, View*)> p_listener)
-		{
-			m_childDetachmentListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeChildDetachmentListener(std::function<void(View*, View*)> p_listener)
-		{
-			m_childDetachmentListeners -= p_listener;
-		}
+		EventListeners<void(View*, View*)> childDetachmentListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when a child view has been removed from this view.
@@ -7103,7 +6509,6 @@ namespace AvoGUI
 	};
 
 	//------------------------------
-
 
 	class WindowEvent
 	{
@@ -7808,31 +7213,11 @@ namespace AvoGUI
 		//------------------------------
 		// Window events
 
-		using WindowListener = std::function<void(WindowEvent const&)>;
-
-	private:
-		EventListeners<void(WindowEvent const&)> m_windowCreateListeners;
-	public:
-		void sendWindowCreateEvents(WindowEvent const& p_event)
-		{
-			m_windowCreateListeners.notifyAll(p_event);
-		}
-		void addWindowCreateListener(WindowListener p_listener)
-		{
-			m_windowCreateListeners += p_listener;
-		}
-		void removeWindowCreateListener(WindowListener p_listener)
-		{
-			m_windowCreateListeners -= p_listener;
-		}
-
-	private:
-		EventListeners<bool(WindowEvent const&)> m_windowCloseListeners;
-	public:
+	protected:
 		bool sendWindowCloseEvents(WindowEvent const& p_event)
 		{
 			bool willClose = true;
-			for (auto& listener : m_windowCloseListeners.listeners)
+			for (auto& listener : windowCloseListeners.listeners)
 			{
 				if (!listener(p_event))
 				{
@@ -7841,126 +7226,17 @@ namespace AvoGUI
 			}
 			return willClose;
 		}
-		void addWindowCloseListener(std::function<bool(WindowEvent const&)> p_listener)
-		{
-			m_windowCloseListeners += p_listener;
-		}
-		void removeWindowCloseListener(std::function<bool(WindowEvent const&)> p_listener)
-		{
-			m_windowCloseListeners -= p_listener;
-		}
 
-	private:
-		EventListeners<void(WindowEvent const&)> m_windowDestroyListeners;
 	public:
-		void sendWindowDestroyEvents(WindowEvent const& p_event)
-		{
-			m_windowDestroyListeners.notifyAll(p_event);
-		}
-		void addWindowDestroyListener(WindowListener p_listener)
-		{
-			m_windowDestroyListeners += p_listener;
-		}
-		void removeWindowDestroyListener(WindowListener p_listener)
-		{
-			m_windowDestroyListeners -= p_listener;
-		}
-
-	private:
-		EventListeners<void(WindowEvent const&)> m_windowMinimizeListeners;
-	public:
-		void sendWindowMinimizeEvents(WindowEvent const& p_event)
-		{
-			m_windowMinimizeListeners.notifyAll(p_event);
-		}
-		void addWindowMinimizeListener(WindowListener p_listener)
-		{
-			m_windowMinimizeListeners += p_listener;
-		}
-		void removeWindowMinimizeListener(WindowListener p_listener)
-		{
-			m_windowMinimizeListeners -= p_listener;
-		}
-
-	private:
-		EventListeners<void(WindowEvent const&)> m_windowMaximizeListeners;
-	public:
-		void sendWindowMaximizeEvents(WindowEvent const& p_event)
-		{
-			m_windowMaximizeListeners.notifyAll(p_event);
-		}
-		void addWindowMaximizeListener(WindowListener p_listener)
-		{
-			m_windowMaximizeListeners += p_listener;
-		}
-		void removeWindowMaximizeListener(WindowListener p_listener)
-		{
-			m_windowMaximizeListeners -= p_listener;
-		}
-
-	private:
-		EventListeners<void(WindowEvent const&)> m_windowRestoreListeners;
-	public:
-		void sendWindowRestoreEvents(WindowEvent const& p_event)
-		{
-			m_windowRestoreListeners.notifyAll(p_event);
-		}
-		void addWindowRestoreListener(WindowListener p_listener)
-		{
-			m_windowRestoreListeners += p_listener;
-		}
-		void removeWindowRestoreListener(WindowListener p_listener)
-		{
-			m_windowRestoreListeners -= p_listener;
-		}
-
-	private:
-		EventListeners<void(WindowEvent const&)> m_windowSizeChangeListeners;
-	public:
-		void sendWindowSizeChangeEvents(WindowEvent const& p_event)
-		{
-			m_windowSizeChangeListeners.notifyAll(p_event);
-		}
-		void addWindowSizeChangeListener(WindowListener p_listener)
-		{
-			m_windowSizeChangeListeners += p_listener;
-		}
-		void removeWindowSizeChangeListener(WindowListener p_listener)
-		{
-			m_windowSizeChangeListeners -= p_listener;
-		}
-
-	private:
-		EventListeners<void(WindowEvent const&)> m_windowFocusGainListeners;
-	public:
-		void sendWindowFocusGainEvents(WindowEvent const& p_event)
-		{
-			m_windowFocusGainListeners.notifyAll(p_event);
-		}
-		void addWindowFocusGainListener(WindowListener p_listener)
-		{
-			m_windowFocusGainListeners += p_listener;
-		}
-		void removeWindowFocusGainListener(WindowListener p_listener)
-		{
-			m_windowFocusGainListeners -= p_listener;
-		}
-
-	private:
-		EventListeners<void(WindowEvent const&)> m_windowFocusLoseListeners;
-	public:
-		void sendWindowFocusLoseEvents(WindowEvent const& p_event)
-		{
-			m_windowFocusLoseListeners.notifyAll(p_event);
-		}
-		void addWindowFocusLoseListener(WindowListener p_listener)
-		{
-			m_windowFocusLoseListeners += p_listener;
-		}
-		void removeWindowFocusLoseListener(WindowListener p_listener)
-		{
-			m_windowFocusLoseListeners -= p_listener;
-		}
+		EventListeners<bool(WindowEvent const&)> windowCloseListeners;
+		EventListeners<void(WindowEvent const&)> windowCreateListeners;
+		EventListeners<void(WindowEvent const&)> windowDestroyListeners;
+		EventListeners<void(WindowEvent const&)> windowMinimizeListeners;
+		EventListeners<void(WindowEvent const&)> windowMaximizeListeners;
+		EventListeners<void(WindowEvent const&)> windowRestoreListeners;
+		EventListeners<void(WindowEvent const&)> windowSizeChangeListeners;
+		EventListeners<void(WindowEvent const&)> windowFocusGainListeners;
+		EventListeners<void(WindowEvent const&)> windowFocusLoseListeners;
 	};
 
 	//------------------------------
@@ -8524,17 +7800,17 @@ namespace AvoGUI
 	class TextProperties
 	{
 	public:
-		std::string fontFamilyName{"Roboto"};
+		std::string fontFamilyName{ "Roboto" };
 
-		FontWeight fontWeight{FontWeight::Medium};
-		FontStyle fontStyle{FontStyle::Normal};
-		FontStretch fontStretch{FontStretch::Medium};
-		TextAlign textAlign{TextAlign::Left};
-		ReadingDirection readingDirection{ReadingDirection::LeftToRight};
+		FontWeight fontWeight{ FontWeight::Medium };
+		FontStyle fontStyle{ FontStyle::Normal };
+		FontStretch fontStretch{ FontStretch::Medium };
+		TextAlign textAlign{ TextAlign::Left };
+		ReadingDirection readingDirection{ ReadingDirection::LeftToRight };
 
-		float characterSpacing = {0.f}; // Only supported for text objects.
-		float lineHeight = {1.f};
-		float fontSize = {22.f};
+		float characterSpacing{ 0.f }; // Only supported for text objects.
+		float lineHeight{ 1.f };
+		float fontSize{ 22.f };
 	};
 
 	class LinearGradient : public ReferenceCounted
@@ -10118,7 +9394,7 @@ namespace AvoGUI
 							{
 								p_event.x = absoluteX - child->getAbsoluteLeft();
 								p_event.y = absoluteY - child->getAbsoluteTop();
-								child->sendDragDropFinishEvents(p_event);
+								child->dragDropFinishListeners(p_event);
 							}
 							container = child;
 							startIndex = container->getNumberOfChildren() - 1;
@@ -10130,7 +9406,7 @@ namespace AvoGUI
 							{
 								p_event.x = absoluteX - child->getAbsoluteLeft();
 								p_event.y = absoluteY - child->getAbsoluteTop();
-								child->sendDragDropFinishEvents(p_event);
+								child->dragDropFinishListeners(p_event);
 							}
 
 							if (!child->getIsOverlay())
@@ -10153,33 +9429,7 @@ namespace AvoGUI
 			}
 		}
 
-	private:
-		EventListeners<void(DragDropOperation)> m_dragDropOperationChangeListeners;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void handleGlobalDragDropOperationChange(DragDropOperation p_newOperation)
-		{
-			m_dragDropOperationChangeListeners.notifyAll(p_newOperation);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Adds a callback for drag drop operation change events on the GUI.
-			Listener signature:
-				void (DragDropOperation newOperation)
-		*/
-		void addDragDropOperationChangeListener(std::function<void(DragDropOperation)> p_listener)
-		{
-			m_dragDropOperationChangeListeners += p_listener;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		void removeDragDropOperationChangeListener(std::function<void(DragDropOperation)> p_listener)
-		{
-			m_dragDropOperationChangeListeners -= p_listener;
-		}
+		EventListeners<void(DragDropOperation)> dragDropOperationChangeListeners;
 
 		//------------------------------
 
@@ -10214,7 +9464,7 @@ namespace AvoGUI
 					p_event.x = absoluteX - view->getAbsoluteLeft();
 					p_event.y = absoluteY - view->getAbsoluteTop();
 
-					view->sendMouseDownEvents(p_event);
+					view->mouseDownListeners(p_event);
 					m_pressedMouseEventListeners.push_back(view);
 				}
 			}
@@ -10234,7 +9484,7 @@ namespace AvoGUI
 				{
 					p_event.x = absoluteX - view->getAbsoluteLeft();
 					p_event.y = absoluteY - view->getAbsoluteTop();
-					view->sendMouseUpEvents(p_event);
+					view->mouseUpListeners(p_event);
 				}
 				for (View* view : m_pressedMouseEventListeners)
 				{
@@ -10270,7 +9520,7 @@ namespace AvoGUI
 					p_event.x = absoluteX - view->getAbsoluteLeft();
 					p_event.y = absoluteY - view->getAbsoluteTop();
 
-					view->sendMouseDoubleClickEvents(p_event);
+					view->mouseDoubleClickListeners(p_event);
 				}
 				for (View* view : targets)
 				{
@@ -10304,7 +9554,7 @@ namespace AvoGUI
 					p_event.x = absoluteX - view->getAbsoluteLeft();
 					p_event.y = absoluteY - view->getAbsoluteTop();
 
-					view->sendMouseScrollEvents(p_event);
+					view->mouseScrollListeners(p_event);
 				}
 				for (View* view : targets)
 				{
@@ -10413,67 +9663,35 @@ namespace AvoGUI
 			return m_keyboardFocus;
 		}
 
-		using GlobalKeyboardListener = std::function<void(KeyboardEvent const&)>;
-
-	private:
-		EventListeners<void(KeyboardEvent const&)> m_globalCharacterInputListeners;
-	public:
-		void handleGlobalCharacterInput(KeyboardEvent const& p_event)
+		void sendGlobalCharacterInputEvents(KeyboardEvent const& p_event)
 		{
 			if (m_keyboardFocus)
 			{
-				m_keyboardFocus->sendCharacterInputEvents(p_event);
+				m_keyboardFocus->characterInputListeners(p_event);
 			}
-			m_globalCharacterInputListeners.notifyAll(p_event);
+			globalCharacterInputListeners(p_event);
 		}
-		void addGlobalCharacterInputListener(GlobalKeyboardListener p_listener)
-		{
-			m_globalCharacterInputListeners += p_listener;
-		}
-		void removeGlobalCharacterInputListener(GlobalKeyboardListener p_listener)
-		{
-			m_globalCharacterInputListeners -= p_listener;
-		}
+		EventListeners<void(KeyboardEvent const&)> globalCharacterInputListeners;
 
-	private:
-		EventListeners<void(KeyboardEvent const&)> m_globalKeyboardKeyDownListeners;
-	public:
-		void handleGlobalKeyboardKeyDown(KeyboardEvent const& p_event)
+		void sendGlobalKeyboardKeyDownEvents(KeyboardEvent const& p_event)
 		{
 			if (m_keyboardFocus)
 			{
-				m_keyboardFocus->sendKeyboardKeyDownEvents(p_event);
+				m_keyboardFocus->keyboardKeyDownListeners(p_event);
 			}
-			m_globalKeyboardKeyDownListeners.notifyAll(p_event);
+			globalKeyboardKeyDownListeners(p_event);
 		}
-		void addGlobalKeyboardKeyDownListener(GlobalKeyboardListener p_listener)
-		{
-			m_globalKeyboardKeyDownListeners += p_listener;
-		}
-		void removeGlobalKeyboardKeyDownListener(GlobalKeyboardListener p_listener)
-		{
-			m_globalKeyboardKeyDownListeners -= p_listener;
-		}
+		EventListeners<void(KeyboardEvent const&)> globalKeyboardKeyDownListeners;
 
-	private:
-		EventListeners<void(KeyboardEvent const&)> m_globalKeyboardKeyUpListeners;
-	public:
-		void handleGlobalKeyboardKeyUp(KeyboardEvent const& p_event)
+		void sendGlobalKeyboardKeyUpEvents(KeyboardEvent const& p_event)
 		{
 			if (m_keyboardFocus)
 			{
-				m_keyboardFocus->sendKeyboardKeyUpEvents(p_event);
+				m_keyboardFocus->keyboardKeyUpListeners(p_event);
 			}
-			m_globalKeyboardKeyUpListeners.notifyAll(p_event);
+			globalKeyboardKeyUpListeners(p_event);
 		}
-		void addGlobalKeyboardKeyUpListener(GlobalKeyboardListener p_listener)
-		{
-			m_globalKeyboardKeyUpListeners += p_listener;
-		}
-		void removeGlobalKeyboardKeyUpListener(GlobalKeyboardListener p_listener)
-		{
-			m_globalKeyboardKeyUpListeners -= p_listener;
-		}
+		EventListeners<void(KeyboardEvent const&)> globalKeyboardKeyUpListeners;
 
 		//------------------------------
 
@@ -10535,12 +9753,12 @@ namespace AvoGUI
 
 	namespace ThemeColors
 	{
-		char const* const tooltipBackground{ "tooltip background" };
-		char const* const tooltipOnBackground{ "tooltip on background" };
+		inline char const* const tooltipBackground{ "tooltip background" };
+		inline char const* const tooltipOnBackground{ "tooltip on background" };
 	}
 	namespace ThemeValues
 	{
-		char const* const tooltipFontSize = "tooltip font size";
+		inline char const* const tooltipFontSize{ "tooltip font size" };
 	}
 
 	/*
@@ -10802,7 +10020,7 @@ namespace AvoGUI
 
 	namespace ThemeEasings
 	{
-		char const* const ripple = "ripple";
+		inline char const* const ripple{ "ripple" };
 	}
 
 	/*
@@ -10848,7 +10066,7 @@ namespace AvoGUI
 			setElevation(FLT_MAX); // Nothing can be above a ripple...
 			enableMouseEvents();
 
-			p_parent->addSizeChangeListener(bind(&Ripple::handleParentSizeChange, this));
+			p_parent->sizeChangeListeners += bind(&Ripple::handleParentSizeChange, this);
 		}
 		~Ripple() override
 		{
@@ -11038,8 +10256,8 @@ namespace AvoGUI
 
 	namespace ThemeValues
 	{
-		char const* const buttonFontSize = "button font size";
-		char const* const buttonCharacterSpacing = "button character spacing";
+		inline char const* const buttonFontSize{ "button font size" };
+		inline char const* const buttonCharacterSpacing{ "button character spacing" };
 	}
 
 	class Button : public View
@@ -11364,17 +10582,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-	private:
-		EventListeners<void(Button*)> m_buttonClickListeners;
-	public:
-		void addButtonClickListener(std::function<void(Button*)> p_listener)
-		{
-			m_buttonClickListeners += p_listener;
-		}
-		void removeButtonClickListener(std::function<void(Button*)> p_listener)
-		{
-			m_buttonClickListeners -= p_listener;
-		}
+		EventListeners<void(Button*)> buttonClickListeners;
 
 		//------------------------------
 
@@ -11418,7 +10626,7 @@ namespace AvoGUI
 				}
 				if (m_isEnabled && getIsContaining(p_event.x + getLeft(), p_event.y + getTop()))
 				{
-					m_buttonClickListeners.notifyAll(this);
+					buttonClickListeners(this);
 				}
 			}
 		}
@@ -11527,7 +10735,7 @@ namespace AvoGUI
 
 	namespace ThemeValues
 	{
-		char const* const editableTextCaretBlinkRate = "editable text caret blink rate";
+		inline char const* const editableTextCaretBlinkRate{ "editable text caret blink rate" };
 	}
 
 	/*
@@ -11632,11 +10840,8 @@ namespace AvoGUI
 
 		//------------------------------
 
-	private:
-		EventListeners<bool(EditableText*, std::string&, int32&)> m_editableTextChangeListeners;
-	public:
 		/*
-			Adds a listener that gets called when the text is about to be changed, either by the user or programmatically.
+			Listeners that get called when the text is about to be changed, either by the user or programmatically.
 			
 			Listener signature:
 				bool (EditableText* target, std::string& newString, newCaretCharacterIndex)
@@ -11645,29 +10850,12 @@ namespace AvoGUI
 			newCaretCharacterIndex works in a similar way, and it is the index of the cursor showing where new user input is inserted.
 			This index can be equal to the size of the new string, and in that case the cursor ends up at the end of the text.
 		*/
-		void addEditableTextChangeListener(std::function<bool(EditableText*, std::string&, int32&)> p_listener)
-		{
-			m_editableTextChangeListeners += p_listener;
-		}
-		void removeEditableTextChangeListener(std::function<bool(EditableText*, std::string&, int32&)> p_listener)
-		{
-			m_editableTextChangeListeners -= p_listener;
-		}
+		EventListeners<bool(EditableText*, std::string&, int32&)> editableTextChangeListeners;
 
-	private:
-		EventListeners<void(EditableText*)> m_editableTextEnterListeners;
-	public:
 		/*
-			Adds a listener that gets called when the user has pressed the enter/return key while p_editableText has keyboard focus.
+			Listeners that get called when the user has pressed the enter/return key while p_editableText has keyboard focus.
 		*/
-		void addEditableTextEnterListener(std::function<bool(EditableText*)> p_listener)
-		{
-			m_editableTextEnterListeners += p_listener;
-		}
-		void removeEditableTextEnterListener(std::function<bool(EditableText*)> p_listener)
-		{
-			m_editableTextEnterListeners -= p_listener;
-		}
+		EventListeners<void(EditableText*)> editableTextEnterListeners;
 
 		//------------------------------
 
@@ -12265,7 +11453,7 @@ namespace AvoGUI
 				}
 				case KeyboardKey::Enter:
 				{
-					m_editableTextEnterListeners.notifyAll(this);
+					editableTextEnterListeners(this);
 					break;
 				}
 			}
@@ -12353,7 +11541,7 @@ namespace AvoGUI
 
 			std::string newString = p_string;
 
-			for (auto& listener : m_editableTextChangeListeners.listeners)
+			for (auto& listener : editableTextChangeListeners.listeners)
 			{
 				if (!listener(this, newString, p_newCaretCharacterIndex))
 				{
@@ -12572,11 +11760,11 @@ namespace AvoGUI
 
 	namespace ThemeValues
 	{
-		char const* const textFieldFontSize = "text field font size";
-		char const* const textFieldHeight = "text field height";
-		char const* const textFieldPaddingLeft = "text field padding left";
-		char const* const textFieldPaddingRight = "text field padding right";
-		char const* const textFieldFilledPaddingBottom = "text field filled padding bottom";
+		inline char const* const textFieldFontSize{ "text field font size" };
+		inline char const* const textFieldHeight{ "text field height" };
+		inline char const* const textFieldPaddingLeft{ "text field padding left" };
+		inline char const* const textFieldPaddingRight{ "text field padding right" };
+		inline char const* const textFieldFilledPaddingBottom{ "text field filled padding bottom" };
 	}
 
 	class TextField : public View
@@ -12693,8 +11881,8 @@ namespace AvoGUI
 			auto handleEditableTextFocusChange = [this](View*) {
 				queueAnimationUpdate();
 			};
-			m_editableText->addKeyboardFocusGainListener(handleEditableTextFocusChange);
-			m_editableText->addKeyboardFocusLoseListener(handleEditableTextFocusChange);
+			m_editableText->keyboardFocusGainListeners += handleEditableTextFocusChange;
+			m_editableText->keyboardFocusLoseListeners += handleEditableTextFocusChange;
 
 			setSize(p_width, getThemeValue(ThemeValues::textFieldFontSize) * 1.2f * getThemeValue(ThemeValues::textFieldHeight) + OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
 
@@ -12736,11 +11924,11 @@ namespace AvoGUI
 
 		void addEditableTextChangeListener(std::function<bool(EditableText*, std::string&, int32&)> p_listener)
 		{
-			m_editableText->addEditableTextChangeListener(p_listener);
+			m_editableText->editableTextChangeListeners += p_listener;
 		}
 		void removeEditableTextChangeListener(std::function<bool(EditableText*, std::string&, int32&)> p_listener)
 		{
-			m_editableText->removeEditableTextChangeListener(p_listener);
+			m_editableText->editableTextChangeListeners -= p_listener;
 		}
 
 		//------------------------------

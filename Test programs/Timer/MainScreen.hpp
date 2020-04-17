@@ -64,7 +64,7 @@ public:
 		m_text_currentSoundFileName->setFontWeight(AvoGUI::FontWeight::Regular);
 
 		m_button_open->setLeft(m_text_currentSoundFileName->getRight() + 8.f);
-		m_button_open->addButtonClickListener([this](auto) {
+		m_button_open->buttonClickListeners += [this](auto) {
 			std::vector<std::string> filenames;
 			m_openFileDialog.open(filenames);
 			if (filenames.size())
@@ -79,7 +79,7 @@ public:
 				updateCurrentSoundFileNameText();
 				invalidate();
 			}
-		});
+		};
 
 		m_text_sound->setCenterY(m_button_open->getCenterY() - 0.5f);
 

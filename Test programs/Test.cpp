@@ -25,13 +25,13 @@ public:
 			m_image->setSize(getParent()->getSize());
 			setSize(getParent()->getSize());
 		};
-		p_parent->addSizeChangeListener(sizeChangeListener);
-		p_parent->addChildDetachmentListener([=](View*, View* p_child) {
+		p_parent->sizeChangeListeners += sizeChangeListener;
+		p_parent->childDetachmentListeners += [=](View*, View* p_child) {
 			if (p_child == this)
 			{
-				p_parent->removeSizeChangeListener(sizeChangeListener);
+				p_parent->sizeChangeListeners -= sizeChangeListener;
 			}
-		});
+		};
 	}
 	~Sprite()
 	{
@@ -87,18 +87,18 @@ public:
 
 		auto button_yes = new AvoGUI::Button(viewContainer, "YES");
 		button_yes->setTooltip(tooltip, "Tooltip 0");
-		button_yes->addButtonClickListener(handleButtonClick);
+		button_yes->buttonClickListeners += handleButtonClick;
 
 		auto button_no = new AvoGUI::Button(viewContainer, "NO", AvoGUI::Button::Emphasis::Medium);
 		button_no->setLeft(button_yes->getRight() + 10.f);
 		button_no->setTooltip(tooltip, "Tooltip 1");
-		button_no->addButtonClickListener(handleButtonClick);
+		button_no->buttonClickListeners += handleButtonClick;
 
 		auto button_readMore = new AvoGUI::Button(viewContainer, "READ MORE", AvoGUI::Button::Emphasis::Low);
 		button_readMore->setCenterX(button_no->getRight()*0.5f);
 		button_readMore->setTop(button_no->getBottom() + 15.f);
 		button_readMore->setTooltip(tooltip, "Tooltip 2");
-		button_readMore->addButtonClickListener(handleButtonClick);
+		button_readMore->buttonClickListeners += handleButtonClick;
 
 		auto textField_firstName = new AvoGUI::TextField(viewContainer, AvoGUI::TextField::Type::Outlined, "First name", 150.f);
 		textField_firstName->setLeft(button_no->getRight() + 15.f);
@@ -110,7 +110,7 @@ public:
 
 		viewContainer->setPadding(5.f);
 
-		addGlobalKeyboardKeyDownListener([=](AvoGUI::KeyboardEvent const& p_event) {
+		globalKeyboardKeyDownListeners += [=](AvoGUI::KeyboardEvent const& p_event) {
 			if (p_event.key == AvoGUI::KeyboardKey::F4)
 			{
 				getWindow()->switchFullscreen();
@@ -123,16 +123,16 @@ public:
 			{
 				setKeyboardFocus(textField_firstName->getHasKeyboardFocus() ? textField_lastName : textField_firstName);
 			}
-		});
+		};
 
-		addSizeChangeListener([=](View*, float, float) {
+		sizeChangeListeners += [=](View*, float, float) {
 			viewContainer->setCenter(getCenterX(), getCenterY());
-		});
+		};
 
 		enableMouseEvents();
-		addMouseDownListener([this](auto) {
+		mouseDownListeners += [this](auto) {
 			setKeyboardFocus(0);
-		});
+		};
 	}
 };
 
