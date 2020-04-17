@@ -3903,9 +3903,8 @@ namespace AvoGUI
 	{
 	private:
 		static uint64 s_counter;
-		uint64 m_count;
+		uint64 m_count{ ++s_counter };
 	public:
-		Id();
 
 		operator uint64()
 		{
@@ -12931,11 +12930,9 @@ namespace AvoGUI
 			Filled
 		};
 
+		static constexpr float OUTLINED_PADDING_LABEL = 5.f;
+
 	private:
-		static constexpr float TEXT_FIELD_OUTLINED_PADDING_LABEL = 5.f;
-
-		//------------------------------
-
 		EditableText* m_editableText{ new EditableText(this) };
 
 		float m_focusAnimationTime{ 0.f };
@@ -12972,7 +12969,7 @@ namespace AvoGUI
 			if (p_name == ThemeValues::textFieldFontSize || p_name == ThemeValues::textFieldHeight)
 			{
 				// Text positions will be updated in handleSizeChange()
-				setHeight(getThemeValue(ThemeValues::textFieldFontSize) * 1.2f * getThemeValue(ThemeValues::textFieldHeight) + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
+				setHeight(getThemeValue(ThemeValues::textFieldFontSize) * 1.2f * getThemeValue(ThemeValues::textFieldHeight) + OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
 			}
 			if (p_name == ThemeValues::textFieldPaddingLeft)
 			{
@@ -13041,7 +13038,7 @@ namespace AvoGUI
 			m_editableText->addKeyboardFocusGainListener(handleEditableTextFocusChange);
 			m_editableText->addKeyboardFocusLoseListener(handleEditableTextFocusChange);
 
-			setSize(p_width, getThemeValue(ThemeValues::textFieldFontSize) * 1.2f * getThemeValue(ThemeValues::textFieldHeight) + TEXT_FIELD_OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
+			setSize(p_width, getThemeValue(ThemeValues::textFieldFontSize) * 1.2f * getThemeValue(ThemeValues::textFieldHeight) + OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
 
 			if (p_type == Type::Filled)
 			{
@@ -13121,7 +13118,7 @@ namespace AvoGUI
 			}
 			else
 			{
-				float centerY = TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f;
+				float centerY = OUTLINED_PADDING_LABEL + (getHeight() - OUTLINED_PADDING_LABEL) * 0.5f;
 				if (m_labelText)
 				{
 					m_labelText->setCenterY(centerY);
@@ -13170,7 +13167,7 @@ namespace AvoGUI
 				}
 				else if (m_type == Type::Outlined)
 				{
-					m_labelText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f);
+					m_labelText->setCenterY(OUTLINED_PADDING_LABEL + (getHeight() - OUTLINED_PADDING_LABEL) * 0.5f);
 				}
 				queueAnimationUpdate();
 			}
@@ -13271,7 +13268,7 @@ namespace AvoGUI
 			}
 			else if (m_type == Type::Outlined)
 			{
-				m_editableText->setCenterY(TEXT_FIELD_OUTLINED_PADDING_LABEL + (getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.5f);
+				m_editableText->setCenterY(OUTLINED_PADDING_LABEL + (getHeight() - OUTLINED_PADDING_LABEL) * 0.5f);
 			}
 		}
 		void setString(std::string const& p_string)
@@ -13429,12 +13426,12 @@ namespace AvoGUI
 			else if (m_type == Type::Outlined)
 			{
 				p_context->setColor(m_labelColor);
-				p_context->strokeRectangle(Rectangle<float>(1.f, 1.f + TEXT_FIELD_OUTLINED_PADDING_LABEL, getWidth() - 1.f, getHeight() - 1.f), getCorners(), m_focusAnimationValue + 1.f);
+				p_context->strokeRectangle(Rectangle<float>(1.f, 1.f + OUTLINED_PADDING_LABEL, getWidth() - 1.f, getHeight() - 1.f), getCorners(), m_focusAnimationValue + 1.f);
 
 				if (m_labelText)
 				{
 					float labelAnimationValue = m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f;
-					p_context->moveOrigin(getThemeValue(ThemeValues::textFieldPaddingLeft) + 2.f * labelAnimationValue, -(getHeight() - TEXT_FIELD_OUTLINED_PADDING_LABEL) * 0.3f * labelAnimationValue);
+					p_context->moveOrigin(getThemeValue(ThemeValues::textFieldPaddingLeft) + 2.f * labelAnimationValue, -(getHeight() - OUTLINED_PADDING_LABEL) * 0.3f * labelAnimationValue);
 					p_context->setScale(1.f - labelAnimationValue * 0.3f);
 
 					p_context->setColor(getThemeColor(ThemeColors::background));

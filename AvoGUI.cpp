@@ -278,9 +278,6 @@ bool AvoGUI::Rectangle<RectangleType>::getIsIntersecting(ProtectedRectangle* p_p
 //------------------------------
 
 uint64 AvoGUI::Id::s_counter = 0ull;
-AvoGUI::Id::Id() :
-	m_count(++s_counter)
-{ }
 
 //------------------------------
 // class AvoGUI::View
@@ -6144,7 +6141,7 @@ public:
 		int isInside;
 		DWRITE_HIT_TEST_METRICS metrics = { 0 };
 		m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * getLeft(), p_pointY - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
-		return AvoGUI::getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition + isTrailingHit * isInside);
+		return AvoGUI::getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition) + isTrailingHit;// *isInside;
 	}
 	void getNearestCharacterIndexAndPosition(AvoGUI::Point<float> const& p_point, uint32* p_outCharacterIndex, AvoGUI::Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) override
 	{
@@ -6156,7 +6153,7 @@ public:
 		int isInside;
 		DWRITE_HIT_TEST_METRICS metrics = { 0 };
 		m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * getLeft(), p_pointY - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
-		*p_outCharacterIndex = AvoGUI::getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition + isTrailingHit * isInside);
+		*p_outCharacterIndex = AvoGUI::getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition) + isTrailingHit;// *isInside;
 		p_outCharacterPosition->set(metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * getLeft(), metrics.top + p_isRelativeToOrigin * getTop());
 	}
 	void getNearestCharacterIndexAndBounds(AvoGUI::Point<float> const& p_point, uint32* p_outCharacterIndex, AvoGUI::Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) override
@@ -6169,7 +6166,7 @@ public:
 		int isInside;
 		DWRITE_HIT_TEST_METRICS metrics = { 0 };
 		m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * getLeft(), p_pointY - p_isRelativeToOrigin * getTop(), &isTrailingHit, &isInside, &metrics);
-		*p_outCharacterIndex = AvoGUI::getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition + isTrailingHit * isInside);
+		*p_outCharacterIndex = AvoGUI::getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition) + isTrailingHit;// *isInside;
 		p_outCharacterBounds->left = metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * getLeft();
 		p_outCharacterBounds->top = metrics.top + p_isRelativeToOrigin * getTop();
 		p_outCharacterBounds->right = p_outCharacterBounds->left + metrics.width;
