@@ -53,7 +53,7 @@ private:
 	AvoGUI::Rectangle<double> m_wallBottom;
 
 	std::chrono::time_point<std::chrono::steady_clock> m_lastTimeMeasurementPoint;
-	float m_frameCount;
+	uint32 m_frameCount{ 0u };
 
 public:
 	Application()
@@ -89,7 +89,7 @@ public:
 
 	void createContent()
 	{
-		m_theme->colors["background"] = AvoGUI::Color(1.f, 1.f, 1.f);
+		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(1.f, 1.f, 1.f));
 
 		m_ball.radius = BALL_RADIUS;
 		m_ball.position = getCenter();
@@ -164,19 +164,19 @@ public:
 	void draw(AvoGUI::DrawingContext* p_context) override
 	{
 		m_frameCount++;
-		if (m_frameCount == 5.f*60.f)
+		if (m_frameCount == 5*60)
 		{
 			std::chrono::time_point<std::chrono::steady_clock> now = std::chrono::steady_clock::now();
 			std::chrono::milliseconds duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastTimeMeasurementPoint);
 			std::cout << "FPS: " << (m_frameCount * 1000.f / (float)duration.count()) << std::endl;
 			m_lastTimeMeasurementPoint = now;
-			m_frameCount = 0;
+			m_frameCount = 0u;
 		}
 
 		p_context->setColor(WALL_COLOR);
-		p_context->fillRectangle(m_wallLeft);
-		p_context->fillRectangle(m_wallRight);
-		p_context->fillRectangle(m_wallBottom);
+		p_context->fillRectangle(AvoGUI::Rectangle<float>(m_wallLeft));
+		p_context->fillRectangle(AvoGUI::Rectangle<float>(m_wallRight));
+		p_context->fillRectangle(AvoGUI::Rectangle<float>(m_wallBottom));
 		m_ball.draw(p_context);
 	}
 };

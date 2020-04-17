@@ -7,12 +7,12 @@
 
 //------------------------------
 
-class SoundOpener : public AvoGUI::View, public AvoGUI::ButtonListener
+class SoundOpener : public AvoGUI::View
 {
 private:
-	AvoGUI::Text* m_text_sound = 0;
-	AvoGUI::Text* m_text_currentSoundFileName = 0;
-	AvoGUI::Button* m_button_open = 0;
+	AvoGUI::Text* m_text_sound{ getDrawingContext()->createText("Sound: ", 12.f) };
+	AvoGUI::Text* m_text_currentSoundFileName{ getDrawingContext()->createText("(none)", 12.f) };
+	AvoGUI::Button* m_button_open{ new AvoGUI::Button(this, "OPEN", AvoGUI::Button::Emphasis::Medium) };
 
 	std::string m_soundFilePath;
 
@@ -35,11 +35,11 @@ private:
 			{
 				fileName = fileName.substr(0, 10) + "...";
 			}
-			m_text_currentSoundFileName = getGui()->getDrawingContext()->createText(fileName.c_str(), 12.f);
+			m_text_currentSoundFileName = getDrawingContext()->createText(fileName.c_str(), 12.f);
 		}
 		else
 		{
-			m_text_currentSoundFileName = getGui()->getDrawingContext()->createText("(none)", 12.f);
+			m_text_currentSoundFileName = getDrawingContext()->createText("(none)", 12.f);
 		}
 		m_text_currentSoundFileName->setLeft(m_text_sound->getRight() + 2.f);
 		m_text_currentSoundFileName->setFontWeight(AvoGUI::FontWeight::Regular);
@@ -54,23 +54,36 @@ private:
 
 public:
 	SoundOpener(AvoGUI::View* p_parent) :
-		View(p_parent)
+		View(p_parent, Ids::soundOpener)
 	{
 		enableMouseEvents();
 
 		m_openFileDialog.setFileExtensions({ { "Audio files", "*.mp3;*.wav" } });
 
-		m_text_sound = getGui()->getDrawingContext()->createText("Sound: ", 12.f);
-
-		m_text_currentSoundFileName = getGui()->getDrawingContext()->createText("(none)", 12.f);
 		m_text_currentSoundFileName->setLeft(m_text_sound->getRight() + 2.f);
 		m_text_currentSoundFileName->setFontWeight(AvoGUI::FontWeight::Regular);
 
-		m_button_open = new AvoGUI::Button(this, "OPEN", AvoGUI::Button::Emphasis::Medium);
 		m_button_open->setLeft(m_text_currentSoundFileName->getRight() + 8.f);
-		m_button_open->addButtonListener(this);
+		m_button_open->addButtonClickListener([this](auto) {
+			std::vector<std::string> filenames;
+			m_openFileDialog.open(filenames);
+			if (filenames.size())
+			{
+				m_soundFilePath = filenames[0];
+
+				std::ofstream file;
+				file.open("soundpath", std::ios::binary);
+				file.write(m_soundFilePath.data(), m_soundFilePath.size());
+				file.close();
+
+				updateCurrentSoundFileNameText();
+				invalidate();
+			}
+		});
 
 		m_text_sound->setCenterY(m_button_open->getCenterY() - 0.5f);
+
+		//------------------------------
 
 		std::ifstream file;
 		file.open("soundpath", std::ios::binary | std::ios::ate);
@@ -93,24 +106,6 @@ public:
 		if (m_text_sound)
 		{
 			m_text_sound->forget();
-		}
-	}
-
-	void handleButtonClick(AvoGUI::Button* p_button) override
-	{
-		std::vector<std::string> filenames;
-		m_openFileDialog.open(filenames);
-		if (filenames.size())
-		{
-			m_soundFilePath = filenames[0];
-
-			std::ofstream file;
-			file.open("soundpath", std::ios::binary);
-			file.write(m_soundFilePath.data(), m_soundFilePath.size());
-			file.close();
-
-			updateCurrentSoundFileNameText();
-			invalidate();
 		}
 	}
 
@@ -140,31 +135,26 @@ public:
 
 class TimerApp;
 
-class MainScreen : 
-	public AvoGUI::View, 
-	public AvoGUI::KeyboardListener, 
-	public AvoGUI::EditableTextListener, 
-	public AvoGUI::ButtonListener
+class MainScreen : public AvoGUI::View
 {
 private:
 	std::chrono::time_point<std::chrono::steady_clock> m_timeStart;
-	bool m_willRestart;
+	bool m_willRestart{ false };
 
-	AvoGUI::Point<float>* m_spiralVertices = 0;
-	uint32 m_numberOfSpiralVerticesInTotal;
-	float m_startAngle;
-	float m_currentAngle;
-	bool m_isDraggingSpiral;
-	bool m_hasDraggedSpiral;
+	AvoGUI::Point<float>* m_spiralVertices{ nullptr };
+	uint32 m_numberOfSpiralVerticesInTotal{ 0 };
+	float m_startAngle{ 0.f };
+	float m_currentAngle{ 0.f };
+	bool m_isDraggingSpiral{ false };
+	bool m_hasDraggedSpiral{ false };
 
-	AvoGUI::Text* m_text_timeLeft = 0;
-	AvoGUI::Button* m_button_restart = 0;
+	AvoGUI::Text* m_text_timeLeft{ nullptr };
 
-	AvoGUI::TextField* m_textField_hours = 0;
-	AvoGUI::TextField* m_textField_minutes = 0;
-	AvoGUI::TextField* m_textField_seconds = 0;
+	AvoGUI::TextField* m_textField_hours{ nullptr };
+	AvoGUI::TextField* m_textField_minutes{ nullptr };
+	AvoGUI::TextField* m_textField_seconds{ nullptr };
 
-	SoundOpener* m_soundOpener = 0;
+	SoundOpener* m_soundOpener{ nullptr };
 
 	//------------------------------
 
@@ -191,7 +181,7 @@ private:
 	}
 
 public:
-	MainScreen(TimerApp* p_app);
+	MainScreen(View* p_app);
 
 	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
 	{
@@ -258,62 +248,13 @@ public:
 			invalidate();
 		}
 	}
-	void handleKeyboardKeyDown(AvoGUI::KeyboardEvent const& p_event) override
-	{
-		if (p_event.key == AvoGUI::KeyboardKey::Tab)
-		{
-			if (m_textField_hours->getHasKeyboardFocus())
-			{
-				getGui()->setKeyboardFocus(m_textField_minutes);
-			}
-			else if (m_textField_minutes->getHasKeyboardFocus())
-			{
-				getGui()->setKeyboardFocus(m_textField_seconds);
-			}
-			else
-			{
-				getGui()->setKeyboardFocus(m_textField_hours);
-			}
-			((AvoGUI::EditableText*)getGui()->getKeyboardFocus())->selectAll();
-		}
-	}
 
 	//------------------------------
 
-	bool handleEditableTextChange(AvoGUI::EditableText* p_editableText, std::string& p_newString, int32& p_newCaretIndex) override
-	{
-		for (uint32 a = 0; a < p_newString.size(); a++)
-		{
-			if (p_newString[a] < 48 || p_newString[a] > 57)
-			{
-				return false;
-			}
-		}
-
-		if (p_newString == "0")
-		{
-			p_newString = "";
-			p_newCaretIndex = 0;
-		}
-
-		m_willRestart = true;
-
-		return true;
-	}
-
-	//------------------------------
-
-	void handleButtonClick(AvoGUI::Button* p_button) override
-	{
-		m_willRestart = true;
-	}
-
-	//------------------------------
-
-	void stopTimerSound()
-	{
-		m_soundOpener->stopSound();
-	}
+	//void stopTimerSound()
+	//{
+	//	m_soundOpener->stopSound();
+	//}
 
 	//------------------------------
 
@@ -321,7 +262,7 @@ public:
 
 	void draw(AvoGUI::DrawingContext* p_context, AvoGUI::Rectangle<float> const& p_targetRectangle) override
 	{
-		p_context->clear(getThemeColor("background"));
+		p_context->clear(getThemeColor(AvoGUI::ThemeColors::background));
 		if (p_targetRectangle == getBounds())
 		{
 			p_context->setColor(AvoGUI::Color(1.f, 0.5f, 0.7f, 0.9f));
@@ -337,5 +278,4 @@ public:
 			p_context->drawText(m_text_timeLeft);
 		}
 	}
-
 };

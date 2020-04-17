@@ -21,10 +21,10 @@ class MandelbrotRenderer
 private:
 	MandelbrotViewer* m_viewer;
 	uint32 m_partIndex;
-	AvoGUI::Image* m_image;
+	AvoGUI::Image* m_image{ nullptr };
 	std::mutex m_imageMutex;
 
-	bool m_needsRendering;
+	bool m_needsRendering{ false };
 	std::condition_variable m_needsRenderingConditionVariable;
 	std::mutex m_needsRenderingMutex;
 	std::thread m_renderingThread;
@@ -33,7 +33,7 @@ private:
 
 public:
 	MandelbrotRenderer(MandelbrotViewer* p_app, uint32 p_partIndex) :
-		m_viewer(p_app), m_partIndex(p_partIndex), m_image(0), m_needsRendering(false)
+		m_viewer(p_app), m_partIndex(p_partIndex)
 	{
 		m_renderingThread = std::thread(&MandelbrotRenderer::render, this);
 	}
@@ -73,22 +73,22 @@ class MandelbrotViewer :
 {
 private:
 	std::vector<MandelbrotRenderer*> m_renderers;
-	char* m_pixels;
-	bool m_isRunning;
+	uint8 m_pixels[WIDTH * HEIGHT_PER_THREAD * NUMBER_OF_DRAWING_THREADS * 4];
+	bool m_isRunning{ true };
 
-	uint32 m_maxNumberOfIterations;
-	double m_scale;
-	double m_newScale;
-	double m_offsetX;
-	double m_offsetY;
-	double m_newOffsetX;
-	double m_newOffsetY;
+	uint32 m_maxNumberOfIterations{ MAX_NUMBER_OF_ITERATIONS_START };
+	double m_scale{ 1. };
+	double m_newScale{ 1. };
+	double m_offsetX{ -2.2 };
+	double m_offsetY{ -1.25 };
+	double m_newOffsetX{ -2.2 };
+	double m_newOffsetY{ -1.25 };
 
-	bool m_isDragging;
+	bool m_isDragging{ false };
 
 	//------------------------------
 
-	AvoGUI::Text* m_infoText;
+	AvoGUI::Text* m_infoText{ nullptr };
 
 	void updateInfoText()
 	{
@@ -101,12 +101,10 @@ private:
 	}
 
 public:
-	MandelbrotViewer() :
-		m_pixels(0), m_isRunning(true),
-		m_maxNumberOfIterations(MAX_NUMBER_OF_ITERATIONS_START), m_scale(1.), m_newScale(1.), m_offsetX(-2.2), m_offsetY(-1.25), m_newOffsetX(-2.2), m_newOffsetY(-1.25), m_isDragging(false),
-		m_infoText(0)
+	MandelbrotViewer()
 	{
 		create("Mandelbrot set", WIDTH, HEIGHT_PER_THREAD * NUMBER_OF_DRAWING_THREADS, AvoGUI::WindowStyleFlags::DefaultNoResize);
+		waitForFinish();
 	}
 	~MandelbrotViewer()
 	{
@@ -115,11 +113,9 @@ public:
 		{
 			delete renderer;
 		}
-		delete[] m_pixels;
-		m_pixels = 0;
 	}
 
-	char* getPixels()
+	uint8* getPixels()
 	{
 		return m_pixels;
 	}
@@ -157,8 +153,6 @@ public:
 	{
 		enableMouseEvents();
 
-		m_pixels = new char[getWidth() * getHeight() * 4];
-
 		m_renderers.resize(NUMBER_OF_DRAWING_THREADS);
 		for (uint32 a = 0; a < NUMBER_OF_DRAWING_THREADS; a++)
 		{
@@ -166,10 +160,6 @@ public:
 		}
 
 		updateInfoText();
-	}
-	void handleSizeChange() override
-	{
-
 	}
 
 	void handleMouseScroll(AvoGUI::MouseEvent const& p_event) override

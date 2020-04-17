@@ -8,7 +8,7 @@ class DragAndDrop :
 	public AvoGUI::Gui
 {
 private:
-	AvoGUI::Text* m_text_dropItems = 0;
+	AvoGUI::Text* m_text_dropItems{ nullptr };
 
 	std::vector<AvoGUI::Text*> m_droppedTexts;
 	std::vector<AvoGUI::Image*> m_droppedImages;
@@ -56,8 +56,8 @@ public:
 		enableDragDropEvents();
 		enableMouseEvents();
 
-		setThemeColor("background", AvoGUI::Color(0.1f, 0.f, 0.1f));
-		setThemeColor("on background", AvoGUI::Color(1.f));
+		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(0.1f, 0.f, 0.1f));
+		setThemeColor(AvoGUI::ThemeColors::onBackground, AvoGUI::Color(1.f));
 
 		m_text_dropItems = getDrawingContext()->createText("Drop something here!", 50.f);
 	}

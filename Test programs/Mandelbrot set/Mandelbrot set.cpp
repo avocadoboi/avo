@@ -15,7 +15,7 @@ void MandelbrotRenderer::render()
 				{
 					return;
 				}
-				char* pixel = m_viewer->getPixels() + 4 * (x + (uint32)WIDTH * y);
+				uint8* pixel = m_viewer->getPixels() + 4 * (x + (uint32)WIDTH * y);
 
 				double translatedX = x / m_viewer->getWidth() * GLOBAL_SCALE_X * m_viewer->getScale() + m_viewer->getOffsetX();
 				double translatedY = y / m_viewer->getHeight() * GLOBAL_SCALE_Y * m_viewer->getScale() + m_viewer->getOffsetY();
@@ -68,7 +68,7 @@ void MandelbrotRenderer::render()
 		if (!m_needsRendering)
 		{
 			std::unique_lock<std::mutex> lock(m_needsRenderingMutex);
-			m_needsRenderingConditionVariable.wait(lock, [=]() { return m_needsRendering; });
+			m_needsRenderingConditionVariable.wait(lock, [this]() { return m_needsRendering; });
 		}
 	}
 
@@ -78,6 +78,5 @@ void MandelbrotRenderer::render()
 
 int main()
 {
-	MandelbrotViewer* app = new MandelbrotViewer();
-	app->waitForFinish();
+	new MandelbrotViewer();
 }

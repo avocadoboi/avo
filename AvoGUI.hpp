@@ -110,12 +110,12 @@ namespace AvoGUI
 		Returns a random double between 0 and 1 from a uniform distribution.
 		It just uses the standard library random header. Convenient function.
 	*/
-	double random();
+	long double random();
 	/*
 		Returns a random double between 0 and 1 from a normal distribution with standard deviation 1 and mean 0.
 		It just uses the standard library random header. Convenient function.
 	*/
-	double randomNormal();
+	long double randomNormal();
 
 	/*
 		Returns the biggest of two numbers.
@@ -3755,9 +3755,6 @@ namespace AvoGUI
 		char const* const secondaryOnBackground{ "secondary on background" };
 		char const* const onSecondary{ "on secondary" };
 
-		char const* const tooltipBackground{ "tooltip background" };
-		char const* const tooltipOnBackground{ "tooltip on background" };
-
 		char const* const selection{ "selection" };
 		char const* const shadow{ "shadow" };
 	};
@@ -3771,7 +3768,6 @@ namespace AvoGUI
 		char const* const out = "out";
 		char const* const inOut = "inOut";
 		char const* const symmetricalInOut = "symmetrical in out";
-		char const* const ripple = "ripple";
 	}
 
 	/*
@@ -3780,14 +3776,12 @@ namespace AvoGUI
 	namespace ThemeValues
 	{
 		char const* const hoverAnimationSpeed = "hover animation speed";
-
-		char const* const tooltipFontSize = "tooltip font size";
 	}
 
 	/*
 		A theme consists of different variables that change the look and feel of the parts of the GUI that are using the theme.
 		Can be used for changing and accessing any values, colors and easings.
-		All the default names are in AvoGUI::ThemeColors, AvoGUI::ThemeEasings and AvoGUI::ThemeValues
+		All the default names are in AvoGUI::ThemeColors, AvoGUI::ThemeEasings and AvoGUI::ThemeValues.
 	*/
 	class Theme : public ReferenceCounted
 	{
@@ -3797,10 +3791,7 @@ namespace AvoGUI
 		std::unordered_map<std::string, float> values;
 
 		/*
-			This initializes the default theme.
-			If you want to know the default values you can look at the definition in AvoGUI.hpp.
-			In Visual Studio and Visual Studio Code, you can go to the definition of Theme (ctrl + T, "Theme") to find
-			it quickly. In CLion, you can use ctrl + N, "Theme" to go to its definition (by default).
+			This initializes the default global theme.
 		*/
 		Theme()
 		{
@@ -3817,9 +3808,6 @@ namespace AvoGUI
 			colors[ThemeColors::secondaryOnBackground] = COLOR_TEAL_A700;
 			colors[ThemeColors::onSecondary] = 0xff070707;
 
-			colors[ThemeColors::tooltipBackground] = Color(0.2f, 0.8f);
-			colors[ThemeColors::tooltipOnBackground] = Color(1.f, 0.95f);
-
 			colors[ThemeColors::selection] = 0x90488db5;
 
 			colors[ThemeColors::shadow] = 0x68000000;
@@ -3832,30 +3820,10 @@ namespace AvoGUI
 			easings[ThemeEasings::inOut] = Easing(0.4, 0.0, 0.0, 1.0);
 			easings[ThemeEasings::symmetricalInOut] = Easing(0.6, 0.0, 0.4, 1.0);
 
-			easings[ThemeEasings::ripple] = Easing(0.1, 0.8, 0.2, 0.95);
-
 			//------------------------------
 			// Values
 
-			// Global values
-			values["hover animation speed"] = 1.f/6.f; // 1/frames where frames is the number of frames the animation takes to finish. If it's 0.5, it finishes in 2 frames.
-
-			// Tooltip styles
-			values["tooltip font size"] = 12.f;
-
-			// Button styles
-			values["button font size"] = 14.f;
-			values["button character spacing"] = 1.f;
-
-			// Editable text styles
-			values["editable text caret blink rate"] = 20; // This is in frames
-
-			// Text field styles
-			values["text field font size"] = 15.f;
-			values["text field height"] = 3.f; // This is a factor of the font size
-			values["text field padding left"] = 14.f;
-			values["text field padding right"] = 14.f;
-			values["text field filled padding bottom"] = 9.f;
+			values[ThemeValues::hoverAnimationSpeed] = 1.f/6.f; // 1/frames where frames is the number of frames the animation takes to finish. If it's 0.5, it finishes in 2 frames.
 		}
 		~Theme() override = default;
 	};
@@ -3927,6 +3895,26 @@ namespace AvoGUI
 
 	//------------------------------
 
+	/*
+		Generates an unique ID that can be used for views.
+		Just use it like this: Id id;
+	*/
+	class Id
+	{
+	private:
+		static uint64 s_counter;
+		uint64 m_count;
+	public:
+		Id();
+
+		operator uint64()
+		{
+			return m_count;
+		}
+	};
+
+	//------------------------------
+
 	enum class Cursor
 	{
 		Arrow,
@@ -3986,45 +3974,40 @@ namespace AvoGUI
 	    /*
             The view that the mouse interacted with.
         */
-	    View* target;
+		View* target{ nullptr };
 
 		/*
 			X coordinate of the mouse pointer.
 		*/
-		float x;
+		float x{ 0.f };
 		/*
 			Y coordinate of the mouse pointer.
 		*/
-		float y;
+		float y{ 0.f };
 		/*
 			The movement of the mouse pointer in the x-axis.
 			If it is positive it has moved to the right and if it is negative it has moved to the left.
 		*/
-		float movementX;
+		float movementX{ 0.f };
 		/*
 			The movement of the mouse pointer in the y-axis.
 			If it is positive it has moved down and if it is negative it has moved up.
 		*/
-		float movementY;
+		float movementY{ 0.f };
 		/*
 			How much the mouse wheel has been moved.
 			If it is positive, the wheel has been moved away from the user, if it negative it has moved towards the user.
 			It represents the number of ticks the wheel has been moved, but can be a fraction if the mouse has smooth scrolling.
 		*/
-		float scrollDelta;
+		float scrollDelta{ 0.f };
 		/*
 			The mouse button that has been pressed, released or double clicked (depending on the mouse event).
 		*/
-		MouseButton mouseButton;
+		MouseButton mouseButton{ MouseButton::None };
 		/*
 			The modifier keys and mouse buttons that were down when the event occurred.
 		*/
-		ModifierKeyFlags modifierKeys;
-
-		MouseEvent() :
-			x(0.f), y(0.f), movementX(0.f), movementY(0.f), scrollDelta(0.f),
-			mouseButton(MouseButton::None), modifierKeys(ModifierKeyFlags::None)
-		{ }
+		ModifierKeyFlags modifierKeys{ ModifierKeyFlags::None };
 	};
 
 	//------------------------------
@@ -4069,7 +4052,7 @@ namespace AvoGUI
 		/*
 			A pointer to the view that the event is directed towards.
 		*/
-		View* target;
+		View* target{ nullptr };
 		/*
 			The character that was pressed. This is only valid for character press events.
 			Since the multibyte UTF-8 encoding is used, this is a string that could be up to 4 8-bit chars.
@@ -4078,15 +4061,11 @@ namespace AvoGUI
 		/*
 			The keyboard key that was pressed or released. This is not valid for character press events.
 		*/
-		KeyboardKey key;
+		KeyboardKey key{ KeyboardKey::None };
 		/*
 			If this is true, this character/key press event is generated after the initial attack because the key is being held down.
 		*/
-		bool isRepeated;
-
-		KeyboardEvent() :
-			key(KeyboardKey::None), isRepeated(false)
-		{ }
+		bool isRepeated{ false };
 	};
 
 	//------------------------------
@@ -4223,6 +4202,7 @@ namespace AvoGUI
 
 	// forward declaration <3
 
+	class Window;
 	class Gui;
 	class DrawingContext;
 	class Image;
@@ -4238,11 +4218,8 @@ namespace AvoGUI
     private:
         friend class Gui;
 
-		RectangleCorners m_corners;
-
 		//------------------------------
 
-		Point<float> m_absolutePosition;
 		Rectangle<float> m_lastInvalidatedShadowBounds;
 		Rectangle<float> m_shadowBounds;
 		Image* m_shadowImage{ nullptr };
@@ -4430,6 +4407,11 @@ namespace AvoGUI
 			The same as calling getGui()->getDrawingContext(), but more convenient.
 		*/
 		DrawingContext* getDrawingContext();
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the window that is attached to the GUI.
+		*/
+		Window* getWindow();
 
 	private:
 		View* m_parent{ nullptr };
@@ -4550,6 +4532,17 @@ namespace AvoGUI
 		uint64 getId() const
 		{
 			return m_id;
+		}
+
+		template<typename T, typename U>
+		T* getViewById(U p_id)
+		{
+			return m_gui->getViewById<T>(p_id);
+		}
+		template<typename T>
+		View* getViewById(T p_id)
+		{
+			return m_gui->getViewById(p_id);
 		}
 
 		//------------------------------
@@ -5016,6 +5009,15 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
+			p_color is inserted into the theme with the name p_name if it doesn't already have a value.
+		*/
+		void initializeThemeColor(std::string const& p_name, Color const& p_color)
+		{
+			m_theme->colors.insert({ p_name, p_color });
+		}
+
+		/*
+			LIBRARY IMPLEMENTED
 
 			Some values of p_name have a default easing that can be changed.
 			These easings may be used by views that come with the library, but you could use them yourself too.
@@ -5043,6 +5045,14 @@ namespace AvoGUI
 		Easing const& getThemeEasing(std::string const& p_name) const
 		{
 			return m_theme->easings[p_name];
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			p_easing is inserted into the theme with the name p_name if it doesn't already have a value.
+		*/
+		void initializeThemeEasing(std::string const& p_name, Easing const& p_easing)
+		{
+			m_theme->easings.insert({ p_name, p_easing });
 		}
 
 		/*
@@ -5075,6 +5085,14 @@ namespace AvoGUI
 		{
 			return m_theme->values[p_name];
 		}
+		/*
+			LIBRARY IMPLEMENTED
+			p_value is inserted into the theme with the name p_name if it doesn't already have a value.
+		*/
+		void initializeThemeValue(std::string const& p_name, float p_value)
+		{
+			m_theme->values.insert({ p_name, p_value });
+		}
 
 		/*
 			LIBRARY IMPLEMENTED
@@ -5088,6 +5106,8 @@ namespace AvoGUI
 		//------------------------------
 
 	private:
+		Point<float> m_absolutePosition;
+
 		/*
 			Moves the point(s) representing the absolute position(s) of this view and/or all children of this view (recursively).
 			The absolute positions of views are used often for mouse event targeting, among other things.
@@ -6233,6 +6253,10 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		RectangleCorners m_corners;
+
+	public:
 		/*
 			LIBRARY IMPLEMENTED
 			Sets the roundness of the corners of the view. p_radius is the radius of the corner circles.
@@ -7362,7 +7386,6 @@ namespace AvoGUI
 
 	//------------------------------
 
-	class Window;
 
 	class WindowEvent
 	{
@@ -10853,6 +10876,16 @@ namespace AvoGUI
 
 	//------------------------------
 
+	namespace ThemeColors
+	{
+		char const* const tooltipBackground{ "tooltip background" };
+		char const* const tooltipOnBackground{ "tooltip on background" };
+	}
+	namespace ThemeValues
+	{
+		char const* const tooltipFontSize = "tooltip font size";
+	}
+
 	/*
 		Shows a short info message about a view.
 		The parent of a tooltip is the GUI.
@@ -10869,6 +10902,10 @@ namespace AvoGUI
 	public:
 		explicit Tooltip(View* p_parent) : View(p_parent)
 		{
+			initializeThemeColor(ThemeColors::tooltipBackground, Color(0.2f, 0.8f));
+			initializeThemeColor(ThemeColors::tooltipOnBackground, Color(1.f, 0.95f));
+			initializeThemeValue(ThemeValues::tooltipFontSize, 12.f);
+
 			setHasShadow(false);
 			setElevation(-1.f);
 			setCornerRadius(2.f);
@@ -11006,15 +11043,15 @@ namespace AvoGUI
 	private:
 		Gui* m_gui;
 
-		bool m_canSelectMultipleFiles{false};
+		bool m_canSelectMultipleFiles{ false };
 		std::vector<FileExtensionFilter> m_fileExtensions;
-		std::string m_title{"Open file..."};
+		std::string m_title{ "Open file..." };
 
 	public:
 		OpenFileDialog() :
 			m_gui(nullptr)
 		{ }
-		explicit OpenFileDialog(Gui* p_gui) :
+		OpenFileDialog(Gui* p_gui) :
 			m_gui(p_gui)
 		{ }
 
@@ -11106,6 +11143,11 @@ namespace AvoGUI
 
 	//------------------------------
 
+	namespace ThemeEasings
+	{
+		char const* const ripple = "ripple";
+	}
+
 	/*
 		A view that shows a ripple effect when you click it and optionally shows a hover effect when the mouse hovers over it.
 		It is a mouse event overlay which means views behind this view are targeted as if this view didn't exist.
@@ -11142,6 +11184,8 @@ namespace AvoGUI
 			View(p_parent, p_parent->getBounds().createCopyAtOrigin()),
 			m_color(p_color)
 		{
+			initializeThemeEasing(ThemeEasings::ripple, Easing(0.1, 0.8, 0.2, 0.95));
+
 			setIsOverlay(true); // Mouse events should be sent through
 			setHasShadow(false);
 			setElevation(FLT_MAX); // Nothing can be above a ripple...
@@ -11413,6 +11457,9 @@ namespace AvoGUI
 			View(p_parent),
 			m_emphasis(p_emphasis)
 		{
+			initializeThemeValue(ThemeValues::buttonFontSize, 14.f);
+			initializeThemeValue(ThemeValues::buttonCharacterSpacing, 1.f);
+
 			setString(p_text);
 
 			setCornerRadius(4.f);
@@ -11913,6 +11960,8 @@ namespace AvoGUI
 			View(p_parent, Rectangle<float>(0.f, 0.f, p_width, p_fontSize*1.2f)),
 			m_fontSize(p_fontSize)
 		{
+			initializeThemeValue(ThemeValues::editableTextCaretBlinkRate, 20);
+
 			setCursor(Cursor::Ibeam);
 			enableMouseEvents();
 		}
@@ -12972,6 +13021,12 @@ namespace AvoGUI
 			View(p_parent),
 			m_type(p_type)
 		{
+			initializeThemeValue(ThemeValues::textFieldFontSize, 15.f);
+			initializeThemeValue(ThemeValues::textFieldHeight, 3.f);
+			initializeThemeValue(ThemeValues::textFieldPaddingLeft, 14.f);
+			initializeThemeValue(ThemeValues::textFieldPaddingRight, 14.f);
+			initializeThemeValue(ThemeValues::textFieldFilledPaddingBottom, 9.f);
+
 			setLabel(p_label);
 			setCursor(Cursor::Ibeam);
 			enableMouseEvents();
@@ -13152,7 +13207,7 @@ namespace AvoGUI
 			}
 			p_affixText = getDrawingContext()->createText(p_string, getThemeValue(ThemeValues::textFieldFontSize));
 			p_affixText->setFontWeight(AvoGUI::FontWeight::Regular);
-			p_affixText->setHeight(m_prefixText->getFontSize() * 1.2f);
+			p_affixText->setHeight(p_affixText->getFontSize() * 1.2f);
 			if (m_type == Type::Filled)
 			{
 				p_affixText->setBottom(getThemeValue(ThemeValues::textFieldFilledPaddingBottom));

@@ -80,15 +80,15 @@ namespace filesystem = std::experimental::filesystem;
 
 //------------------------------
 
-std::default_random_engine randomEngine(time(nullptr));
-std::uniform_real_distribution<double> uniformDistribution(0.0, 1.0);
-std::normal_distribution<double> normalDistribution(0.0, 1.0);
+std::mt19937_64 randomEngine(time(nullptr));
+std::uniform_real_distribution<long double> uniformDistribution(0.L, 1.L);
+std::normal_distribution<long double> normalDistribution(0.L, 1.L);
 
-double AvoGUI::random()
+long double AvoGUI::random()
 {
 	return uniformDistribution(randomEngine);
 }
-double AvoGUI::randomNormal()
+long double AvoGUI::randomNormal()
 {
 	return normalDistribution(randomEngine);
 }
@@ -272,6 +272,15 @@ bool AvoGUI::Rectangle<RectangleType>::getIsIntersecting(ProtectedRectangle* p_p
 	return p_protectedRectangle->getRight() >= left && p_protectedRectangle->getBottom() >= top
 		&& p_protectedRectangle->getLeft() <= right && p_protectedRectangle->getTop() <= bottom;
 }
+
+//------------------------------
+// class Id
+//------------------------------
+
+uint64 AvoGUI::Id::s_counter = 0ull;
+AvoGUI::Id::Id() :
+	m_count(++s_counter)
+{ }
 
 //------------------------------
 // class AvoGUI::View
@@ -496,6 +505,10 @@ void AvoGUI::View::setClipGeometry(Geometry* p_geometry)
 AvoGUI::DrawingContext* AvoGUI::View::getDrawingContext()
 {
 	return m_gui->getDrawingContext();
+}
+AvoGUI::Window* AvoGUI::View::getWindow()
+{
+	return m_gui->getWindow();
 }
 
 //------------------------------

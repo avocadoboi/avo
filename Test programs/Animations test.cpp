@@ -12,14 +12,14 @@ public:
 		m_animationTime(0.f)
 	{
 		create("Animations test", 600, 500);
+		waitForFinish();
 	}
 
 	void createContent() override
 	{
 		enableMouseEvents();
 
-		setThemeColor("background", AvoGUI::Color(0.9f, 0.f, 0.4f));
-		getDrawingContext()->setBackgroundColor(getThemeColor("background"));
+		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(0.9f, 0.f, 0.4f));
 	}
 
 	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
@@ -45,6 +45,5 @@ public:
 
 int main()
 {
-	AnimationsTest* test = new AnimationsTest();
-	test->waitForFinish();
+	new AnimationsTest();
 }
