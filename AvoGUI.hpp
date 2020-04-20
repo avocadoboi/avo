@@ -613,6 +613,427 @@ namespace AvoGUI
 
 	//------------------------------
 
+	template<typename ReturnType, typename Class, typename ... Arguments>
+	std::function<ReturnType(Arguments...)> bind(ReturnType(Class::* p_function)(Arguments...), Class* p_instance)
+	{
+		return [p_instance, p_function](Arguments... arguments) { return (p_instance->*p_function)(arguments...); };
+	}
+
+	/*
+		This is a class used to easily manage event listeners. Any type of functional can be a listener.
+		The return type and arguments have to be the same for all listeners added to one instance of EventListeners.
+	*/
+	template<typename FunctionalType>
+	class EventListeners
+	{
+	public:
+		std::vector<std::function<FunctionalType>> listeners;
+
+		void add(std::function<FunctionalType> const& p_listener)
+		{
+			listeners.push_back(p_listener);
+		}
+		EventListeners& operator+=(std::function<FunctionalType> const& p_listener)
+		{
+			add(p_listener);
+			return *this;
+		}
+
+		void remove(std::function<FunctionalType> const& p_listener)
+		{
+			auto const& listenerType = p_listener.target_type();
+			for (auto& listener : listeners)
+			{
+				if (listenerType == listener.target_type())
+				{
+					// template keyword is used to expicitly tell the compiler that target is a template method for
+					// std::function<FunctionalType> and < shouldn't be parsed as the less-than operator
+					if (*(p_listener.template target<FunctionalType>()) == *(listener.template target<FunctionalType>()))
+					{
+						listener = listeners.back();
+						listeners.pop_back();
+						break;
+					}
+				}
+			}
+		}
+		EventListeners& operator-=(std::function<FunctionalType> const& p_listener)
+		{
+			remove(p_listener);
+			return *this;
+		}
+
+		/*
+			Calls all of the listeners with p_eventArguments as the arguments.
+		*/
+		template<typename ... T>
+		void notifyAll(T&& ... p_eventArguments)
+		{
+			for (auto listener : listeners)
+			{
+				listener(std::forward<T>(p_eventArguments)...);
+			}
+		}
+		template<typename ... T>
+		void operator()(T&& ... p_eventArguments)
+		{
+			notifyAll(std::forward<T>(p_eventArguments)...);
+		}
+	};
+
+	//------------------------------
+
+	/*
+		This is very useful when storing pointers to dynamically allocated objects in multiple places.
+		The object doesn't get deleted until every remember() has a forget().
+		The constructor is the first remember(), meaning m_referenceCount is initialized with 1.
+		Don't use the delete operator with objects that are ReferenceCounted, use forget() instead.
+	*/
+	class ReferenceCounted
+	{
+	private:
+		uint32 m_referenceCount;
+
+	public:
+		ReferenceCounted() : m_referenceCount(1U) { }
+		virtual ~ReferenceCounted() = default;
+
+		/*
+			Increments the reference count and returns the new reference count. Remembers a pointer reference.
+		*/
+		uint32 remember()
+		{
+			return ++m_referenceCount;
+		}
+
+		/*
+			Decrements the reference count, returns the new reference count and deletes the object if the reference
+			count has reached 0. Forgets a pointer reference.
+		*/
+		uint32 forget()
+		{
+			m_referenceCount--;
+			if (!m_referenceCount)
+			{
+				delete this;
+				return 0;
+			}
+			return m_referenceCount;
+		}
+
+		/*
+			Returns the number of pointer references to the dynamically allocated object that have been remembered.
+		*/
+		uint32 getReferenceCount()
+		{
+			return m_referenceCount;
+		}
+	};
+
+	//------------------------------
+
+	/*
+		Generates an unique ID.
+		Just use it like this: 
+			Id id;
+		An ID which converts to 0 is invalid, and can be created like this: 
+			Id id{ 0 };
+	*/
+	class Id
+	{
+	private:
+		static uint64 s_counter;
+		uint64 m_count;
+
+	public:
+		operator uint64() const
+		{
+			return m_count;
+		}
+		bool operator==(Id const& p_id) const
+		{
+			return (uint64)p_id == m_count;
+		}
+
+		Id(uint64 p_id)
+		{
+			m_count = p_id;
+		}
+		Id(Id const& p_id)
+		{
+			m_count = (uint64)p_id;
+		}
+		Id()
+		{
+			m_count = ++s_counter;
+		}
+	};
+
+	//------------------------------
+
+	/*
+		A component is an essential building block in an application.
+		An application consists of a hierarchy of components.
+		These components can be Views, however they don't need to be.
+		Every component has its own responsibility, and using non-view components as well as view 
+		components can help separate the concerns of an application.
+		See AvoGUI::View and AvoGUI::Gui for more information.
+	*/
+	class Component : public ReferenceCounted
+	{
+	private:
+		Component* m_root;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		auto getRoot() const
+		{
+			return m_root;
+		}
+
+	private:
+		Component* m_parent;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void setParent(Component* p_parent)
+		{
+			if (m_parent == p_parent)
+			{
+				return;
+			}
+
+			if (m_parent)
+			{
+				remember();
+				m_parent->removeChild(this);
+			}
+
+			m_parent = p_parent;
+			if (p_parent)
+			{
+				m_root = m_parent->getRoot();
+				m_parent->m_children.push_back(this);
+			}
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		auto getParent() const
+		{
+			return m_parent;
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		template<typename T>
+		T* getParent() const
+		{
+			return (T*)m_parent;
+		}
+
+	private:
+		std::vector<Component*> m_children;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		auto const& getChildren() const
+		{
+			return m_children;
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		auto getNumberOfChildren() const
+		{
+			return m_children.size();
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		template<typename T>
+		T* getChild(uint32 p_index) const
+		{
+			return (T*)m_children[p_index];
+		}
+
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void addChild(Component* p_child)
+		{
+			p_child->setParent(this);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeChild(uint32 p_index)
+		{
+			m_children[p_index]->m_parent = nullptr;
+			m_children[p_index]->forget();
+
+			m_children[p_index] = m_children.back();
+			m_children.pop_back();
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeChild(Component* p_child)
+		{
+			auto position = std::find(m_children.begin(), m_children.end(), p_child);
+			if (position != m_children.end())
+			{
+				removeChild(position - m_children.begin());
+			}
+		}
+		/*
+			LIBRARY IMPLEMENTED
+		*/
+		void removeAllChildren()
+		{
+			while (!m_children.empty())
+			{
+				Component* child = m_children.back();
+				child->m_parent = nullptr;
+				child->forget();
+				m_children.pop_back();
+			}
+		}
+
+		/*
+			Listener signature:
+				void (Component* attachedChild)
+			See Component::handleChildAttachment for more info.
+		*/
+		EventListeners<void(Component*)> childAttachmentListeners;
+		/*
+			USER IMPLEMENTED
+			Gets called when a child component has been added to this component.
+		*/
+		virtual void handleChildAttachment(Component* p_attachedChild) { }
+
+		/*
+			Listener signature:
+				void (Component* attachedChild)
+			See Component::handleChildDetachment for more info.
+		*/
+		EventListeners<void(Component*)> childDetachmentListeners;
+		/*
+			USER IMPLEMENTED
+			Gets called when a child component has been removed from this component.
+		*/
+		virtual void handleChildDetachment(Component* p_detachedChild) { }
+
+		/*
+			Listener signature:
+				void (Component* oldParent)
+			See Component::handleParentChange for more info.
+		*/
+		EventListeners<void(Component*)> parentChangeListeners;
+		/*
+			USER IMPLEMENTED
+			Gets called when this component has been attached to a new component.
+		*/
+		virtual void handleParentChange(Component* p_oldParent) { }
+
+	private:
+		std::unordered_map<uint64, Component*> m_componentsById;
+		Component* m_idScope{ nullptr };
+		Id m_id{ 0 };
+	public:
+		/*
+			Sets an ID that can be used to retrieve the component from the hierarchy.
+			If p_id is 0, it is only removed from the scope.
+			p_scope is the component that manages the ID of this component and is the topmost component 
+			from which the ID of this component can be retrieved.
+		*/
+		void setId(Id const& p_id, Component* p_scope)
+		{
+			if (m_idScope)
+			{
+				auto componentIterator = m_idScope->m_componentsById.find(m_id);
+				if (componentIterator != m_idScope->m_componentsById.end())
+				{
+					m_idScope->m_componentsById.erase(m_id);
+				}
+			}
+			p_scope->m_componentsById[p_id] = this;
+			m_idScope = p_scope;
+		}
+		void setId(Id const& p_id)
+		{
+			setId(p_id, getRoot());
+		}
+		/*
+			Returns the ID that can be used to retrieve the component from the component hierarchy.
+			The ID is invalid by default and converts to 0.
+		*/
+		Id getId() const
+		{
+			return m_id;
+		}
+
+		Component* getComponentById(Id const& p_id)
+		{
+			Component* parent = this;
+			while (parent)
+			{
+				auto componentIterator = parent->m_componentsById.find(p_id);
+				if (componentIterator == parent->m_componentsById.end())
+				{
+					parent = parent->m_parent;
+				}
+				else
+				{
+					return componentIterator->second;
+				}
+			}
+			return nullptr;
+		}
+		template<typename T>
+		T* getComponentById(Id const& p_id)
+		{
+			return (T*)getComponentById(p_id);
+		}
+
+	public:
+		Component() :
+			m_parent(nullptr),
+			m_root(this)
+		{
+		}
+		Component(Component* p_parent) :
+			m_root(p_parent->getRoot())
+		{
+			if (p_parent && p_parent != this)
+			{
+				setParent(p_parent);
+			}
+		}
+
+		~Component()
+		{
+			setId(0);
+			for (auto pair : m_componentsById)
+			{
+				pair.second->m_id = 0;
+				pair.second->m_idScope = nullptr;
+			}
+
+			removeAllChildren();
+			if (m_parent)
+			{
+				remember();
+				m_parent->removeChild(this);
+			}
+		}
+	};
+
+	//------------------------------
+
 	/*
 		A 2D point/vector where x is the horizontal component and y is the vertical component if you were to think of it graphically.
 		The coordinate system used throughout AvoGUI is one where the positive y-direction is downwards and the positive x-direction is to the right.
@@ -2741,55 +3162,6 @@ namespace AvoGUI
 	};
 
 	//------------------------------
-
-	/*
-		This is very useful when storing pointers to dynamically allocated objects in multiple places.
-		The object doesn't get deleted until every remember() has a forget().
-		The constructor is the first remember(), meaning m_referenceCount is initialized with 1.
-		Don't use the delete operator with objects that are ReferenceCounted, use forget() instead.
-	*/
-	class ReferenceCounted
-	{
-	private:
-		uint32 m_referenceCount;
-
-	public:
-		ReferenceCounted() : m_referenceCount(1U) { }
-		virtual ~ReferenceCounted() = default;
-
-		/*
-			Increments the reference count and returns the new reference count. Remembers a pointer reference.
-		*/
-		uint32 remember()
-		{
-			return ++m_referenceCount;
-		}
-
-		/*
-			Decrements the reference count, returns the new reference count and deletes the object if the reference
-			count has reached 0. Forgets a pointer reference.
-		*/
-		uint32 forget()
-		{
-			m_referenceCount--;
-			if (!m_referenceCount)
-			{
-				delete this;
-				return 0;
-			}
-			return m_referenceCount;
-		}
-
-		/*
-			Returns the number of pointer references to the dynamically allocated object that have been remembered.
-		*/
-		uint32 getReferenceCount()
-		{
-			return m_referenceCount;
-		}
-	};
-
-	//------------------------------
 	// Color stuff
 
 	/*
@@ -3458,27 +3830,29 @@ namespace AvoGUI
 	// Font family names
 	//
 
-	inline char const* const FONT_FAMILY_ROBOTO{ "Roboto" };
-	inline char const* const FONT_FAMILY_MATERIAL_ICONS{ "Material Icons" };
+	inline std::string const FONT_FAMILY_ROBOTO{ "Roboto" };
+	inline std::string const FONT_FAMILY_MATERIAL_ICONS{ "Material Icons" };
+
+	//------------------------------
 
 	/*
 		Default theme color names.
 	*/
 	namespace ThemeColors
 	{
-		inline char const* const background{ "background" };
-		inline char const* const onBackground{ "on background" };
+		inline Id const background;
+		inline Id const onBackground;
 
-		inline char const* const primary{ "primary" };
-		inline char const* const primaryOnBackground{ "primary on background" };
-		inline char const* const onPrimary{ "on primary" };
+		inline Id const primary;
+		inline Id const primaryOnBackground;
+		inline Id const onPrimary;
 
-		inline char const* const secondary{ "secondary" };
-		inline char const* const secondaryOnBackground{ "secondary on background" };
-		inline char const* const onSecondary{ "on secondary" };
+		inline Id const secondary;
+		inline Id const secondaryOnBackground;
+		inline Id const onSecondary;
 
-		inline char const* const selection{ "selection" };
-		inline char const* const shadow{ "shadow" };
+		inline Id const selection;
+		inline Id const shadow;
 	};
 
 	/*
@@ -3486,10 +3860,10 @@ namespace AvoGUI
 	*/
 	namespace ThemeEasings
 	{
-		inline char const* const in{ "in" };
-		inline char const* const out{ "out" };
-		inline char const* const inOut{ "in out" };
-		inline char const* const symmetricalInOut{ "symmetrical in out" };
+		inline Id const in;
+		inline Id const out;
+		inline Id const inOut;
+		inline Id const symmetricalInOut;
 	}
 
 	/*
@@ -3497,20 +3871,20 @@ namespace AvoGUI
 	*/
 	namespace ThemeValues
 	{
-		inline char const* const hoverAnimationSpeed{ "hover animation speed" };
+		inline Id const hoverAnimationSpeed;
 	}
 
 	/*
 		A theme consists of different variables that change the look and feel of the parts of the GUI that are using the theme.
 		Can be used for changing and accessing any values, colors and easings.
-		All the default names are in AvoGUI::ThemeColors, AvoGUI::ThemeEasings and AvoGUI::ThemeValues.
+		All the default IDs are in AvoGUI::ThemeColors, AvoGUI::ThemeEasings and AvoGUI::ThemeValues.
 	*/
 	class Theme : public ReferenceCounted
 	{
 	public:
-		std::unordered_map<std::string, Color> colors;
-		std::unordered_map<std::string, Easing> easings;
-		std::unordered_map<std::string, float> values;
+		std::unordered_map<uint64, Color> colors;
+		std::unordered_map<uint64, Easing> easings;
+		std::unordered_map<uint64, float> values;
 
 		/*
 			This initializes the default global theme.
@@ -3548,95 +3922,6 @@ namespace AvoGUI
 			values[ThemeValues::hoverAnimationSpeed] = 1.f/6.f; // 1/frames where frames is the number of frames the animation takes to finish. If it's 0.5, it finishes in 2 frames.
 		}
 		~Theme() override = default;
-	};
-
-	//------------------------------
-
-	template<typename ReturnType, typename Class, typename ... Arguments>
-	std::function<ReturnType(Arguments...)> bind(ReturnType(Class::*p_function)(Arguments...), Class* p_instance)
-	{
-		return [p_instance, p_function](Arguments... arguments) { return (p_instance->*p_function)(arguments...); };
-	}
-
-	/*
-		This is a class used to easily manage event listeners. Any type of functional can be a listener.
-		The return type and arguments have to be the same for all listeners added to one instance of EventListeners.
-	*/
-	template<typename FunctionalType>
-	class EventListeners
-	{
-	public:
-		std::vector<std::function<FunctionalType>> listeners;
-
-		void add(std::function<FunctionalType> const& p_listener)
-		{
-			listeners.push_back(p_listener);
-		}
-		EventListeners& operator+=(std::function<FunctionalType> const& p_listener)
-		{
-			add(p_listener);
-			return *this;
-		}
-
-		void remove(std::function<FunctionalType> const& p_listener)
-		{
-			auto const& listenerType = p_listener.target_type();
-			for (auto& listener : listeners)
-			{
-				if (listenerType == listener.target_type())
-				{
-					// template keyword is used to expicitly tell the compiler that target is a template method for
-					// std::function<FunctionalType> and < shouldn't be parsed as the less-than operator
-					if (*(p_listener.template target<FunctionalType>()) == *(listener.template target<FunctionalType>()))
-					{
-						listener = listeners.back();
-						listeners.pop_back();
-						break;
-					}
-				}
-			}
-		}
-		EventListeners& operator-=(std::function<FunctionalType> const& p_listener)
-		{
-			remove(p_listener);
-			return *this;
-		}
-
-		/*
-			Calls all of the listeners with p_eventArguments as the arguments.
-		*/
-		template<typename ... T>
-		void notifyAll(T&& ... p_eventArguments)
-		{
-			for (auto listener : listeners)
-			{
-				listener(std::forward<T>(p_eventArguments)...);
-			}
-		}
-		template<typename ... T>
-		void operator()(T&& ... p_eventArguments)
-		{
-			notifyAll(std::forward<T>(p_eventArguments)...);
-		}
-	};
-
-	//------------------------------
-
-	/*
-		Generates an unique ID that can be used for views.
-		Just use it like this: Id id;
-	*/
-	class Id
-	{
-	private:
-		static uint64 s_counter;
-		uint64 m_count{ ++s_counter };
-
-	public:
-		operator uint64()
-		{
-			return m_count;
-		}
 	};
 
 	//------------------------------
@@ -3807,7 +4092,7 @@ namespace AvoGUI
 	class DragDropFormatData
 	{
 	public:
-		const char* buffer;
+		char const* buffer;
 		uint32 size;
 	};
 
@@ -3936,48 +4221,10 @@ namespace AvoGUI
 	/*
 		A rectangle that can draw itself and receive events. Used for GUI components and stuff.
 	*/
-	class View : public ReferenceCounted, public ProtectedRectangle
+	class View : public Component, public ProtectedRectangle
 	{
     private:
         friend class Gui;
-
-		//------------------------------
-
-		Rectangle<float> m_lastInvalidatedShadowBounds;
-		Rectangle<float> m_shadowBounds;
-		Image* m_shadowImage{ nullptr };
-		bool m_hasShadow{ true };
-
-		float m_elevation{ 0.f };
-
-		//------------------------------
-
-		uint32 m_layerIndex{ 0 };
-		uint32 m_index{ 0 };
-		uint64 m_id{ 0 };
-
-		//------------------------------
-
-		/*
-			LIBRARY IMPLEMENTED
-			Only adds a child view to the child list of this view.
-		*/
-		void addChild(View* p_view);
-		/*
-			LIBRARY IMPLEMENTED
-			Makes sure the view is drawn at the correct time, according to elevation.
-		*/
-		void updateViewDrawingIndex(View* p_view);
-		/*
-			LIBRARY IMPLEMENTED
-			Updates the shadow bounds and the shadow image.
-		*/
-		void updateShadow();
-		/*
-			LIBRARY IMPLEMENTED
-			Draws the shadow of the view.
-		*/
-		void drawShadow(DrawingContext* p_drawingContext);
 
 	public:
 		explicit View(View* p_parent, Rectangle<float> const& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
@@ -3985,11 +4232,9 @@ namespace AvoGUI
 		View(View* p_parent, T p_id, Rectangle<float> const& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f)) :
 			View(p_parent, p_bounds)
 		{
-			setId(p_id);
+			setId(p_id, getGui());
 		}
 		~View() override;
-
-		//------------------------------
 
 	protected:
 		Geometry* m_clipGeometry{ nullptr };
@@ -4048,7 +4293,13 @@ namespace AvoGUI
 			LIBRARY IMPLEMENTED
 			Sets whether the view is visible and can receive events.
 		*/
-		void setIsVisible(bool p_isVisible);
+		void setIsVisible(bool p_isVisible)
+		{
+			if (p_isVisible != m_isVisible)
+			{
+				m_isVisible = p_isVisible;
+			}
+		}
 		/*
 			LIBRARY IMPLEMENTED
 			Returns whether the view is visible and can receive events.
@@ -4104,7 +4355,6 @@ namespace AvoGUI
 
 	private:
 		Gui* m_gui{ nullptr };
-
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -4137,135 +4387,321 @@ namespace AvoGUI
 		Window* getWindow();
 
 	private:
-		View* m_parent{ nullptr };
+		/*
+			LIBRARY IMPLEMENTED
+			Makes sure the view is drawn at the correct time, according to elevation.
+		*/
+		void updateViewDrawingIndex(View* p_view);
 
+		uint32 m_index{ 0 };
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the index of this view relative to its siblings.
+		*/
+		uint32 getIndex() const
+		{
+			return m_index;
+		}
+
+	private:
+		uint32 m_layerIndex{ 0 };
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the layer index of the view, how deep down the view hierarchy it is.
+			The GUI view has a layer index of 0.
+		*/
+		uint32 getLayerIndex() const
+		{
+			return m_layerIndex;
+		}
+
+	private:
+		View* m_parent{ nullptr };
 	public:
 		/*
 			LIBRARY IMPLEMENTED
 			Attaches this view to a new parent, which will manage the lifetime of the view unless you've called remember() on it.
 			If the parameter is 0, the view is only detached from its old parent, and is left alone with no parents :^(.
 		*/
-		void setParent(View* p_container);
-		/*
-			LIBRARY IMPLEMENTED
-			Returns a pointer to the parent of this view.
-		*/
-		View* getParent() const
+		void setParent(View* p_container)
 		{
-			return m_parent;
-		}
-		/*
-			Returns a pointer to the parent of this view, casted to a pointer of another type.
-		*/
-		template<typename T>
-		T* getParent() const
-		{
-			return (T*)m_parent;
+			if (p_container == m_parent)
+			{
+				return;
+			}
+
+			Component::setParent(p_container);
+
+			if (m_parent)
+			{
+				m_parent->removeChildView(this);
+			}
+
+			m_parent = p_container;
+			if (p_container)
+			{
+				m_gui = m_parent->getGui();
+
+				m_index = m_parent->getNumberOfChildViews();
+				if ((View*)getGui() == this)
+				{
+					m_layerIndex = 0;
+				}
+				else
+				{
+					m_layerIndex = m_parent->getLayerIndex() + 1U;
+				}
+				m_absolutePosition.x = m_parent->getAbsoluteLeft() + m_bounds.left;
+				m_absolutePosition.y = m_parent->getAbsoluteTop() + m_bounds.top;
+
+				m_parent->m_childViews.push_back(this);
+
+				m_parent->childViewAttachmentListeners(this);
+				m_parent->updateViewDrawingIndex(this);
+			}
+			else
+			{
+				m_layerIndex = 0;
+				m_index = 0;
+			}
 		}
 
 	private:
-		std::vector<View*> m_children;
-
+		std::vector<View*> m_childViews;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
 			Removes a child view from this view. This forgets the view being removed.
 			If you haven't remembered it yourself, it will get deleted.
 		*/
-		void removeChild(View* p_view);
+		void removeChildView(View* p_view)
+		{
+			if (p_view && p_view->getParent() == this)
+			{
+				removeChildView(p_view->getIndex());
+			}
+		}
 		/*
 			LIBRARY IMPLEMENTED
 			Removes a child view from this view. This forgets the view being removed.
 			If you haven't remembered it yourself, it will get deleted.
 		*/
-		void removeChild(uint32 p_viewIndex);
+		void removeChildView(uint32 p_viewIndex)
+		{
+			AvoGUI::View* childToRemove = m_childViews[p_viewIndex];
+			childViewDetachmentListeners(childToRemove);
+
+			childToRemove->m_parent = nullptr;
+
+			for (uint32 a = p_viewIndex; a < m_childViews.size() - 1; a++)
+			{
+				m_childViews[a] = m_childViews[a + 1];
+				m_childViews[a]->m_index = a;
+			}
+			m_childViews.pop_back();
+
+			removeChild(childToRemove);
+		}
 		/*
 			LIBRARY IMPLEMENTED
 			Forgets the children views and empties this view from children.
 		*/
-		void removeAllChildren();
+		void removeAllChildViews()
+		{
+			while (!m_childViews.empty()) // That function naming, ew... Why didn't they call it getIsEmpty? empty() should be emptying something >:^(
+			{
+				AvoGUI::View* child = m_childViews.back();
+				childViewDetachmentListeners(child);
+				child->m_parent = nullptr;
+				m_childViews.pop_back();
+
+				removeChild(child);
+			}
+		}
 
 		/*
 			LIBRARY IMPLEMENTED
 			Returns the child view at an index.
 		*/
-		View* getChild(uint32 p_viewIndex) const
+		View* getChildView(uint32 p_viewIndex) const
 		{
-			return m_children[p_viewIndex];
+			return m_childViews[p_viewIndex];
 		}
 		/*
 			LIBRARY IMPLEMENTED
 			Returns the child view at an index, casted to a pointer of another type.
 		*/
 		template<typename T>
-		T* getChild(uint32 p_viewIndex) const
+		T* getChildView(uint32 p_viewIndex) const
 		{
-			return (T*)m_children[p_viewIndex];
+			return (T*)m_childViews[p_viewIndex];
 		}
 		/*
 			LIBRARY IMPLEMENTED
 			Returns the number of child views that are attached to this view.
 		*/
-		uint32 getNumberOfChildren() const
+		uint32 getNumberOfChildViews() const
 		{
-			return m_children.size();
+			return m_childViews.size();
 		}
 		/*
 			LIBRARY IMPLEMENTED
 			Returns a vector containing the child views that are attached to this view.
 		*/
-		std::vector<View*> const& getChildren() const
+		auto const& getChildViews() const
 		{
-			return m_children;
+			return m_childViews;
+		}
+
+		//------------------------------
+
+	private:
+		Image* m_shadowImage{ nullptr };
+		float m_elevation{ 0.f };
+
+		/*
+			Updates the shadow bounds and the shadow image.
+		*/
+		void updateShadow();
+
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Sets the elevation of the view. This both changes its shadow (if the view has shadow) and drawing order.
+			The higher the elevation is, the later it will get drawn.
+			If p_elevation is negative, it is set from the top of the elevation space.
+		*/
+		void setElevation(float p_elevation)
+		{
+			p_elevation = float(p_elevation < 0.f) * FLT_MAX + p_elevation;
+
+			if (m_elevation != p_elevation)
+			{
+				m_elevation = p_elevation;
+				updateShadow();
+				m_parent->updateViewDrawingIndex(this);
+			}
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the elevation of the view. See the setElevation method.
+		*/
+		float getElevation() const
+		{
+			return m_elevation;
+		}
+
+	private:
+		bool m_hasShadow{ true };
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Sets whether the elevation is shown with a shadow.
+		*/
+		void setHasShadow(bool p_hasShadow);
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether the elevation is shown with a shadow.
+		*/
+		bool getHasShadow() const
+		{
+			return m_hasShadow;
+		}
+
+	private:
+		Rectangle<float> m_shadowBounds;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the rectangle that represents the area where the shadow is drawn, relative to the view position.
+			The view is always contained within the shadow bounds.
+		*/
+		Rectangle<float> getShadowBounds() const
+		{
+			return m_shadowBounds;
+		}
+
+		//------------------------------
+
+	private:
+		bool m_isInAnimationUpdateQueue{ false };
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Queues an animation update for the next frame.
+		*/
+		void queueAnimationUpdate();
+		/*
+			USER IMPLEMENTED
+			Updates things like animations and does anything that you never want to happen more than once every frame.
+			Call queueAnimationUpdate() when you want this method to be called in the next interval.
+			This system allows for animations to only get updated when they have to.
+		*/
+		virtual void updateAnimations() { }
+
+		//------------------------------
+
+	private:
+		Rectangle<float> m_lastInvalidatedShadowBounds;
+		/*
+			Draws the shadow of the view.
+		*/
+		void drawShadow(DrawingContext* p_drawingContext);
+
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Call this if you want the view to get redrawn. Adds an invalid rectangle to the window or two if the view has been moved.
+		*/
+		void invalidate();
+
+		/*
+			USER IMPLEMENTED
+			Draws the contents of the view.
+			This method is called by default from the other draw method that also takes the target rectangle as input.
+			You often don't need to use that parameter.
+
+			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
+		*/
+		virtual void draw(DrawingContext* p_drawingContext) { }
+		/*
+			USER IMPLEMENTED
+			Draws the content of the view. Override this method if you want the target rectangle, override the overloaded
+			method that only takes the drawing context otherwise.
+
+			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
+			p_targetRectangle is the rectangle that needs to be drawn, relative to the top-left corner of the GUI.
+			To optimize your application, you can make sure to only draw stuff in this region.
+		*/
+		virtual void draw(DrawingContext* p_drawingContext, Rectangle<float> const& p_targetRectangle)
+		{
+			draw(p_drawingContext);
 		}
 
 		/*
-			LIBRARY IMPLEMENTED
-			Sets an ID that can be used to retrieve the view from the view hierarchy.
-			The type is cast to uint64 and could be for example a string literal or any pointer.
-			p_id cannot be 0.
-		*/
-		template<typename T>
-		void setId(T p_id)
-		{
-			setId((uint64)p_id);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Sets an ID that can be used to retrieve the view from the view hierarchy.
-			p_id cannot be 0.
-		*/
-		void setId(uint64 p_id);
-		/*
-			LIBRARY IMPLEMENTED
-			Returns the ID that can be used to retrieve the view from the view hierarchy.
-			The ID is 0 by default.
-			The type is cast from uint64 to T and could be for example a string literal or any pointer.
-		*/
-		template<typename T>
-		T getId() const
-		{
-			return m_id;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Returns the ID that can be used to retrieve the view from the view hierarchy.
-			The ID is 0 by default.
-		*/
-		uint64 getId() const
-		{
-			return m_id;
-		}
+			USER IMPLEMENTED
+			Draws on top of child views.
+			This method is called by default from the other drawOverlay method that also takes the target rectangle as input.
+			You do not often care about that parameter.
 
-		template<typename T, typename U>
-		T* getViewById(U p_id)
+			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
+		*/
+		virtual void drawOverlay(DrawingContext* p_drawingContext) { }
+
+		/*
+			USER IMPLEMENTED
+			Draws on top of child views. Override this method if you want the target rectangle, override the overloaded
+			method that only takes the drawing context otherwise.
+
+			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
+			p_targetRectangle is the rectangle that needs to be drawn, relative to the top-left corner of the GUI.
+			To optimize your application, you can make sure to only draw stuff in this region.
+		*/
+		virtual void drawOverlay(DrawingContext* p_drawingContext, Rectangle<float> const& p_targetRectangle)
 		{
-			return m_gui->getViewById<T>(p_id);
-		}
-		template<typename T>
-		View* getViewById(T p_id)
-		{
-			return m_gui->getViewById(p_id);
+			drawOverlay(p_drawingContext);
 		}
 
 		//------------------------------
@@ -4277,32 +4713,32 @@ namespace AvoGUI
 		*/
 		Rectangle<float> calculateContentBounds() const
 		{
-			if (m_children.empty())
+			if (m_childViews.empty())
 			{
 				return Rectangle<float>();
 			}
 
-			float left = m_children[0]->getLeft();
-			float right = m_children[0]->getRight();
-			float top = m_children[0]->getTop();
-			float bottom = m_children[0]->getBottom();
-			for (uint32 a = 1; a < m_children.size(); a++)
+			float left = m_childViews[0]->getLeft();
+			float right = m_childViews[0]->getRight();
+			float top = m_childViews[0]->getTop();
+			float bottom = m_childViews[0]->getBottom();
+			for (uint32 a = 1; a < m_childViews.size(); a++)
 			{
-				if (m_children[a]->getLeft() < left)
+				if (m_childViews[a]->getLeft() < left)
 				{
-					left = m_children[a]->getLeft();
+					left = m_childViews[a]->getLeft();
 				}
-				if (m_children[a]->getTop() < top)
+				if (m_childViews[a]->getTop() < top)
 				{
-					top = m_children[a]->getTop();
+					top = m_childViews[a]->getTop();
 				}
-				if (m_children[a]->getRight() > right)
+				if (m_childViews[a]->getRight() > right)
 				{
-					right = m_children[a]->getRight();
+					right = m_childViews[a]->getRight();
 				}
-				if (m_children[a]->getBottom() > bottom)
+				if (m_childViews[a]->getBottom() > bottom)
 				{
-					bottom = m_children[a]->getBottom();
+					bottom = m_childViews[a]->getBottom();
 				}
 			}
 
@@ -4315,22 +4751,22 @@ namespace AvoGUI
 		*/
 		float calculateContentWidth() const
 		{
-			if (m_children.empty())
+			if (m_childViews.empty())
 			{
 				return 0.f;
 			}
 
-			float left = m_children[0]->getLeft();
-			float right = m_children[0]->getRight();
-			for (uint32 a = 1; a < m_children.size(); a++)
+			float left = m_childViews[0]->getLeft();
+			float right = m_childViews[0]->getRight();
+			for (uint32 a = 1; a < m_childViews.size(); a++)
 			{
-				if (m_children[a]->getLeft() < left)
+				if (m_childViews[a]->getLeft() < left)
 				{
-					left = m_children[a]->getLeft();
+					left = m_childViews[a]->getLeft();
 				}
-				if (m_children[a]->getRight() > right)
+				if (m_childViews[a]->getRight() > right)
 				{
-					right = m_children[a]->getRight();
+					right = m_childViews[a]->getRight();
 				}
 			}
 			return right - left;
@@ -4341,22 +4777,22 @@ namespace AvoGUI
 		*/
 		float calculateContentHeight() const
 		{
-			if (m_children.empty())
+			if (m_childViews.empty())
 			{
 				return 0.f;
 			}
 
-			float top = m_children[0]->getTop();
-			float bottom = m_children[0]->getBottom();
-			for (uint32 a = 1; a < m_children.size(); a++)
+			float top = m_childViews[0]->getTop();
+			float bottom = m_childViews[0]->getBottom();
+			for (uint32 a = 1; a < m_childViews.size(); a++)
 			{
-				if (m_children[a]->getTop() < top)
+				if (m_childViews[a]->getTop() < top)
 				{
-					top = m_children[a]->getTop();
+					top = m_childViews[a]->getTop();
 				}
-				if (m_children[a]->getBottom() > bottom)
+				if (m_childViews[a]->getBottom() > bottom)
 				{
-					bottom = m_children[a]->getBottom();
+					bottom = m_childViews[a]->getBottom();
 				}
 			}
 			return bottom - top;
@@ -4377,17 +4813,17 @@ namespace AvoGUI
 		*/
 		float calculateContentLeft() const
 		{
-			if (m_children.empty())
+			if (m_childViews.empty())
 			{
 				return 0.f;
 			}
 
-			float left = m_children[0]->getLeft();
-			for (uint32 a = 1; a < m_children.size(); a++)
+			float left = m_childViews[0]->getLeft();
+			for (uint32 a = 1; a < m_childViews.size(); a++)
 			{
-				if (m_children[a]->getLeft() < left)
+				if (m_childViews[a]->getLeft() < left)
 				{
-					left = m_children[a]->getLeft();
+					left = m_childViews[a]->getLeft();
 				}
 			}
 			return left;
@@ -4399,17 +4835,17 @@ namespace AvoGUI
 		*/
 		float calculateContentRight() const
 		{
-			if (m_children.empty())
+			if (m_childViews.empty())
 			{
 				return 0.f;
 			}
 
-			float right = m_children[0]->getRight();
-			for (uint32 a = 1; a < m_children.size(); a++)
+			float right = m_childViews[0]->getRight();
+			for (uint32 a = 1; a < m_childViews.size(); a++)
 			{
-				if (m_children[a]->getRight() > right)
+				if (m_childViews[a]->getRight() > right)
 				{
-					right = m_children[a]->getRight();
+					right = m_childViews[a]->getRight();
 				}
 			}
 			return right;
@@ -4421,17 +4857,17 @@ namespace AvoGUI
 		*/
 		float calculateContentTop() const
 		{
-			if (m_children.empty())
+			if (m_childViews.empty())
 			{
 				return 0.f;
 			}
 
-			float top = m_children[0]->getTop();
-			for (uint32 a = 1; a < m_children.size(); a++)
+			float top = m_childViews[0]->getTop();
+			for (uint32 a = 1; a < m_childViews.size(); a++)
 			{
-				if (m_children[a]->getTop() < top)
+				if (m_childViews[a]->getTop() < top)
 				{
-					top = m_children[a]->getTop();
+					top = m_childViews[a]->getTop();
 				}
 			}
 			return top;
@@ -4443,17 +4879,17 @@ namespace AvoGUI
 		*/
 		float calculateContentBottom() const
 		{
-			if (m_children.empty())
+			if (m_childViews.empty())
 			{
 				return 0.f;
 			}
 
-			float bottom = m_children[0]->getBottom();
-			for (uint32 a = 1; a < m_children.size(); a++)
+			float bottom = m_childViews[0]->getBottom();
+			for (uint32 a = 1; a < m_childViews.size(); a++)
 			{
-				if (m_children[a]->getBottom() > bottom)
+				if (m_childViews[a]->getBottom() > bottom)
 				{
-					bottom = m_children[a]->getBottom();
+					bottom = m_childViews[a]->getBottom();
 				}
 			}
 			return bottom;
@@ -4492,7 +4928,7 @@ namespace AvoGUI
 			Rectangle<float> contentBounds(calculateContentBounds());
 			float offsetX = p_leftPadding - contentBounds.left;
 			float offsetY = p_topPadding - contentBounds.top;
-			for (auto& child : m_children)
+			for (auto& child : m_childViews)
 			{
 				child->move(offsetX, offsetY);
 			}
@@ -4508,7 +4944,7 @@ namespace AvoGUI
 		{
 			float left = calculateContentLeft();
 			float offset = p_leftPadding - left;
-			for (auto& child : m_children)
+			for (auto& child : m_childViews)
 			{
 				child->move(offset, 0.f);
 			}
@@ -4532,7 +4968,7 @@ namespace AvoGUI
 		{
 			float top = calculateContentTop();
 			float offset = p_topPadding - top;
-			for (auto& child : m_children)
+			for (auto& child : m_childViews)
 			{
 				child->move(offset, 0.f);
 			}
@@ -4550,70 +4986,59 @@ namespace AvoGUI
 
 		//------------------------------
 
-	private:
-		void sendThemeColorChangeEvents(std::string const& p_name, Color const& p_color)
-		{
-			themeColorChangeListeners(this, p_name, p_color);
-			handleThemeColorChange(p_name, p_color);
-		}
-	public:
 		/*
 			Listener signature:
-				void (View* target, std::string const& name, Color const& color)
+				void (Id const& id, Color const& color)
 			See View::handleThemeColorChange for more information.
 		*/
-		EventListeners<void(View*, std::string const&, Color const&)> themeColorChangeListeners;
+		EventListeners<void(Id const&, Color const&)> themeColorChangeListeners;
 		/*
 			USER IMPLEMENTED
 			This gets called whenever a theme color has changed, not including initialization.
 		*/
-		virtual void handleThemeColorChange(std::string const& p_name, Color const& p_newColor) { }
+		virtual void handleThemeColorChange(Id const& p_id, Color const& p_newColor) { }
 
-	private:
-		void sendThemeEasingChangeEvents(std::string const& p_name, Easing const& p_easing)
-		{
-			themeEasingChangeListeners(this, p_name, p_easing);
-			handleThemeEasingChange(p_name, p_easing);
-		}
-	public:
 		/*
 			Listener signature:
-				void (View* target, std::string const& name, Easing const& easing)
+				void (Id const& id, Easing const& easing)
 			See View::handleThemeEasingChange for more information.
 		*/
-		EventListeners<void(View*, std::string const&, Easing const&)> themeEasingChangeListeners;
+		EventListeners<void(Id const&, Easing const&)> themeEasingChangeListeners;
 		/*
 			USER IMPLEMENTED
 			This gets called whenever a theme easing has changed, not including initialization.
 		*/
-		virtual void handleThemeEasingChange(std::string const& p_name, Easing const& p_newEasing) { };
+		virtual void handleThemeEasingChange(Id const& p_id, Easing const& p_newEasing) { };
 
-	private:
-		void sendThemeValueChangeEvents(std::string const& p_name, float p_value)
-		{
-			themeValueChangeListeners(this, p_name, p_value);
-			handleThemeValueChange(p_name, p_value);
-		}
-	public:
 		/*
 			Listener signature:
-				void (View* target, std::string const& name, float value)
+				void (Id const& id, float value)
 			See View::handleThemeValueChange for more information.
 		*/
-		EventListeners<void(View*, std::string const&, float)> themeValueChangeListeners;
+		EventListeners<void(Id const&, float)> themeValueChangeListeners;
 		/*
 			USER IMPLEMENTED
 			This gets called whenever a theme value has changed, not including initialization.
 		*/
-		virtual void handleThemeValueChange(std::string const& p_name, float p_newValue) { };
+		virtual void handleThemeValueChange(Id const& p_id, float p_newValue) { };
 
 		//------------------------------
 
 	private:
 		Theme* m_theme{ nullptr };
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Returns a pointer to the theme that is used by this view.
+		*/
+		Theme const* getTheme() const
+		{
+			return m_theme;
+		}
 
+	private:
 		template<typename T, typename U>
-		void propagateThemePropertyChange(void(View::* p_function)(std::string const&, T, bool), std::string const& p_name, U&& p_property, bool p_willAffectChildren)
+		void propagateThemePropertyChange(void(View::* p_function)(Id const&, T, bool), Id const& p_id, U&& p_property, bool p_willAffectChildren)
 		{
 			if (p_willAffectChildren)
 			{
@@ -4622,12 +5047,12 @@ namespace AvoGUI
 				while (true)
 				{
 				loopStart:
-					for (uint32 a = startIndex; a < view->m_children.size(); a++)
+					for (uint32 a = startIndex; a < view->m_childViews.size(); a++)
 					{
-						(view->m_children[a]->*p_function)(p_name, std::forward<U>(p_property), false);
-						if (view->m_children[a]->m_children.size())
+						(view->m_childViews[a]->*p_function)(p_id, std::forward<U>(p_property), false);
+						if (view->m_childViews[a]->m_childViews.size())
 						{
-							view = view->m_children[a];
+							view = view->m_childViews[a];
 							startIndex = 0;
 							goto loopStart;
 						}
@@ -4658,127 +5083,109 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 
-			Some values of p_name have a default color that can be changed.
-			These colors may be used by views that come with the library, but you could use them yourself too.
-			If it is anything else, the color is kept in the theme and you can use it yourself.
+			Some IDs have a default color that can be changed.
+			These colors may be used by views that come with the library, but you can use them yourself too.
+			The default color IDs are in the AvoGUI::ThemeColors namespace.
+			If p_id is anything else, the color is kept in the theme and you can use it yourself.
 
-			if p_willAffectChildren is true, all children and views below those too will change this color in their themes.
-
-			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default colors and more details.
-			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
+			If p_willAffectChildren is true, all children and views below those too will change this color in their themes.
 		*/
-		void setThemeColor(std::string const& p_name, Color const& p_color, bool p_willAffectChildren = true)
+		void setThemeColor(Id const& p_id, Color const& p_color, bool p_willAffectChildren = true)
 		{
-			propagateThemePropertyChange(&View::setThemeColor, p_name, p_color, p_willAffectChildren);
+			propagateThemePropertyChange(&View::setThemeColor, p_id, p_color, p_willAffectChildren);
 
-			if (m_theme->colors[p_name] != p_color)
+			if (m_theme->colors[p_id] != p_color)
 			{
-				m_theme->colors[p_name] = p_color;
-				sendThemeColorChangeEvents(p_name, p_color);
+				m_theme->colors[p_id] = p_color;
+				themeColorChangeListeners(p_id, p_color);
 			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			See setThemeColor for names that have colors by default.
 		*/
-		Color getThemeColor(std::string const& p_name) const
+		Color getThemeColor(Id const& p_id) const
 		{
-			return m_theme->colors[p_name];
+			return m_theme->colors[p_id];
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			p_color is inserted into the theme with the name p_name if it doesn't already have a value.
+			p_color is inserted into the theme with the id p_id if it doesn't already have a value.
 		*/
-		void initializeThemeColor(std::string const& p_name, Color const& p_color)
+		void initializeThemeColor(Id const& p_id, Color const& p_color)
 		{
-			m_theme->colors.insert({ p_name, p_color });
+			m_theme->colors.insert({ p_id, p_color });
 		}
 
 		/*
 			LIBRARY IMPLEMENTED
 
-			Some values of p_name have a default easing that can be changed.
-			These easings may be used by views that come with the library, but you could use them yourself too.
-			If it is anything else, the easing is kept in the theme and you can use it yourself.
+			Some IDs have a default easing that can be changed.
+			These easings may be used by views that come with the library, but you can use them yourself too.
+			The default easing IDs are in the AvoGUI::ThemeEasings namespace.
+			If p_id is anything else, the easing is kept in the theme and you can use it yourself.
 
 			if p_willAffectChildren is true, all children and views below those too will change this easing in their themes.
-
-			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default easings and more details.
-			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
-		void setThemeEasing(std::string const& p_name, Easing const& p_easing, bool p_willAffectChildren = true)
+		void setThemeEasing(Id const& p_id, Easing const& p_easing, bool p_willAffectChildren = true)
 		{
-			propagateThemePropertyChange(&View::setThemeEasing, p_name, p_easing, p_willAffectChildren);
+			propagateThemePropertyChange(&View::setThemeEasing, p_id, p_easing, p_willAffectChildren);
 
-			if (m_theme->easings[p_name] != p_easing)
+			if (m_theme->easings[p_id] != p_easing)
 			{
-				m_theme->easings[p_name] = p_easing;
-				sendThemeEasingChangeEvents(p_name, p_easing);
+				m_theme->easings[p_id] = p_easing;
+				themeEasingChangeListeners(p_id, p_easing);
 			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			See setThemeEasing for names that have easings by default.
 		*/
-		Easing const& getThemeEasing(std::string const& p_name) const
+		Easing const& getThemeEasing(Id const& p_id) const
 		{
-			return m_theme->easings[p_name];
+			return m_theme->easings[p_id];
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			p_easing is inserted into the theme with the name p_name if it doesn't already have a value.
+			p_easing is inserted into the theme with the ID p_id if it doesn't already have a value.
 		*/
-		void initializeThemeEasing(std::string const& p_name, Easing const& p_easing)
+		void initializeThemeEasing(Id const& p_id, Easing const& p_easing)
 		{
-			m_theme->easings.insert({ p_name, p_easing });
+			m_theme->easings.insert({ p_id, p_easing });
 		}
 
 		/*
 			LIBRARY IMPLEMENTED
 
-			Some values of p_name have a default value that can be changed.
-			These values may be used by views that come with the library, but you could use them yourself too.
-			If p_name is anything else, the value is kept in the theme and you can use it yourself.
+			Some IDs have a default value that can be changed.
+			These values may be used by views that come with the library, but you can use them yourself too.
+			The default value IDs are in the AvoGUI::ThemeValues namespace.
+			If p_id is anything else, the value is kept in the theme and you can use it yourself.
 
 			if p_willAffectChildren is true, all children and views below those too will change this value in their themes.
-
-			Check out the constructor AvoGUI::Theme::Theme() in AvoGUI.hpp for the default values and more details.
-			In Visual Studio, you can go to the definition of Theme (ctrl + T, "Theme") to find it quickly.
 		*/
-		void setThemeValue(std::string const& p_name, float p_value, bool p_willAffectChildren = true)
+		void setThemeValue(Id const& p_id, float p_value, bool p_willAffectChildren = true)
 		{
-			propagateThemePropertyChange(&View::setThemeValue, p_name, p_value, p_willAffectChildren);
+			propagateThemePropertyChange(&View::setThemeValue, p_id, p_value, p_willAffectChildren);
 
-			if (m_theme->values[p_name] != p_value)
+			if (m_theme->values[p_id] != p_value)
 			{
-				m_theme->values[p_name] = p_value;
-				sendThemeValueChangeEvents(p_name, p_value);
+				m_theme->values[p_id] = p_value;
+				themeValueChangeListeners(p_id, p_value);
 			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			See setThemeValue for names that have values by default.
 		*/
-		float getThemeValue(std::string const& p_name) const
+		float getThemeValue(Id const& p_id) const
 		{
-			return m_theme->values[p_name];
+			return m_theme->values[p_id];
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			p_value is inserted into the theme with the name p_name if it doesn't already have a value.
+			p_value is inserted into the theme with the ID p_id if it doesn't already have a value.
 		*/
-		void initializeThemeValue(std::string const& p_name, float p_value)
+		void initializeThemeValue(Id const& p_id, float p_value)
 		{
-			m_theme->values.insert({ p_name, p_value });
-		}
-
-		/*
-			LIBRARY IMPLEMENTED
-			Returns a pointer to the theme that is used by this view.
-		*/
-		Theme const* getTheme() const
-		{
-			return m_theme;
+			m_theme->values.insert({ p_id, p_value });
 		}
 
 		//------------------------------
@@ -4795,7 +5202,7 @@ namespace AvoGUI
 		{
 			m_absolutePosition.move(p_offsetX, p_offsetY);
 
-			if (p_willUpdateChildren && !m_children.empty())
+			if (p_willUpdateChildren && !m_childViews.empty())
 			{
 				View* currentContainer = this;
 				View* child = nullptr;
@@ -4803,11 +5210,11 @@ namespace AvoGUI
 				while (true)
 				{
 					loopBody:
-					for (uint32 a = startIndex; a < currentContainer->getNumberOfChildren(); a++)
+					for (uint32 a = startIndex; a < currentContainer->getNumberOfChildViews(); a++)
 					{
-						child = currentContainer->getChild(a);
+						auto child = currentContainer->getChildView(a);
 						child->moveAbsolutePositions(p_offsetX, p_offsetY, false);
-						if (child->getNumberOfChildren())
+						if (child->getNumberOfChildViews())
 						{
 							currentContainer = child;
 							startIndex = 0;
@@ -4819,7 +5226,7 @@ namespace AvoGUI
 						return;
 					}
 					startIndex = currentContainer->getIndex() + 1;
-					currentContainer = currentContainer->getParent();
+					currentContainer = currentContainer->getParent<View>();
 				}
 			}
 		}
@@ -6023,84 +6430,6 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/*
-			LIBRARY IMPLEMENTED
-			Sets the elevation of the view. This both changes its shadow (if the view has shadow) and drawing order.
-			The higher the elevation is, the later it will get drawn.
-			If p_elevation is negative, it is set from the top of the elevation space.
-		*/
-		void setElevation(float p_elevation);
-		/*
-			LIBRARY IMPLEMENTED
-			Returns the elevation of the view. See the setElevation method.
-		*/
-		float getElevation() const
-		{
-			return m_elevation;
-		}
-
-		/*
-			LIBRARY IMPLEMENTED
-			Sets whether the elevation is shown with a shadow.
-		*/
-		void setHasShadow(bool p_hasShadow);
-		/*
-			LIBRARY IMPLEMENTED
-			Returns whether the elevation is shown with a shadow.
-		*/
-		bool getHasShadow() const
-		{
-			return m_hasShadow;
-		}
-
-		/*
-			LIBRARY IMPLEMENTED
-			Returns the rectangle that represents the area where the shadow is drawn, relative to the view position.
-			The view is always contained within the shadow bounds.
-		*/
-		Rectangle<float> getShadowBounds() const
-		{
-			return m_shadowBounds;
-		}
-
-		/*
-			LIBRARY IMPLEMENTED
-			Returns the index of this view relative to its siblings.
-		*/
-		uint32 getIndex() const
-		{
-			return m_index;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Returns the layer index of the view, how deep down the view hierarchy it is.
-			The GUI view has a layer index of 0.
-		*/
-		uint32 getLayerIndex() const
-		{
-			return m_layerIndex;
-		}
-
-		//------------------------------
-
-	private:
-		bool m_isInAnimationUpdateQueue{ false };
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-			Queues an animation update for the next frame.
-		*/
-		void queueAnimationUpdate();
-		/*
-			USER IMPLEMENTED
-			Updates things like animations and does anything that you never want to happen more than once every frame.
-			Call queueAnimationUpdate() when you want this method to be called in the next interval.
-			This system allows for animations to only get updated when they have to.
-		*/
-		virtual void updateAnimations() { }
-
-		//------------------------------
-
 		EventListeners<void(KeyboardEvent const&)> characterInputListeners;
 		/*
 			USER IMPLEMENTED
@@ -6125,40 +6454,14 @@ namespace AvoGUI
 		*/
 		virtual void handleKeyboardKeyUp(KeyboardEvent const& p_event) { }
 
-	private:
-		void sendKeyboardFocusLoseEvents()
-		{
-			keyboardFocusLoseListeners(this);
-			handleKeyboardFocusLose();
-		}
-	public:
-		/*
-			Listener signature:
-				void (View* target)
-			target is a pointer to the view that lost keyboard focus.
-			See View::handleKeyboardFocusLose for more info.
-		*/
-		EventListeners<void(View*)> keyboardFocusLoseListeners;
+		EventListeners<void()> keyboardFocusLoseListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when another keyboard event listener becomes the target of keyboard events.
 		*/
 		virtual void handleKeyboardFocusLose() { }
 
-	private:
-		void sendKeyboardFocusGainEvents()
-		{
-			keyboardFocusGainListeners(this);
-			handleKeyboardFocusGain();
-		}
-	public:
-		/*
-			Listener signature:
-				void (View* target)
-			target is a pointer to the view that gained keyboard focus.
-			See View::handleKeyboardFocusGain for more info.
-		*/
-		EventListeners<void(View*)> keyboardFocusGainListeners;
+		EventListeners<void()> keyboardFocusGainListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when this keyboard event listener becomes the target of keyboard events.
@@ -6377,19 +6680,13 @@ namespace AvoGUI
 	private:
 		virtual void sendBoundsChangeEvents(Rectangle<float> const& p_previousBounds);
 	public:
-		EventListeners<void(View*, Rectangle<float> const&)> boundsChangeListeners;
+		EventListeners<void(Rectangle<float> const&)> boundsChangeListeners;
 		/*
 			USER IMPLEMENTED
 			Implement this method in your view if you want to update things when the bounds of the view have been changed.
 		*/
 		virtual void handleBoundsChange(Rectangle<float> const& p_previousBounds) { }
 
-	private:
-		void sendSizeChangeEvents(float p_previousWidth, float p_previousHeight)
-		{
-			sizeChangeListeners(this, p_previousWidth, p_previousHeight);
-			handleSizeChange(p_previousWidth, p_previousHeight);
-		}
 	public:
 		/*
 			Listener signature:
@@ -6397,7 +6694,7 @@ namespace AvoGUI
 			target is a pointer to the view that changed size.
 			See View::handleSizeChange for more info.
 		*/
-		EventListeners<void(View*, float, float)> sizeChangeListeners;
+		EventListeners<void(float, float)> sizeChangeListeners;
 		/*
 			LIBRARY IMPLEMENTED
 			This calls handleSizeChange() by default. Override this method if you need to know the previous size of the view.
@@ -6414,98 +6711,29 @@ namespace AvoGUI
 
 		//------------------------------
 
-	private:
-		void sendChildAttachmentEvents(View* p_child)
-		{
-			childAttachmentListeners(this, p_child);
-			handleChildAttachment(p_child);
-		}
-	public:
 		/*
 			Listener signature:
-				void (View* target, View* attachedChild)
-			See View::handleChildAttachment for more info.
+				void (View* attachedChild)
+			See View::handleChildViewAttachment for more info.
 		*/
-		EventListeners<void(View*, View*)> childAttachmentListeners;
+		EventListeners<void(View*)> childViewAttachmentListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when a child view has been added to this view.
 		*/
-		virtual void handleChildAttachment(View* p_attachedChild) { }
+		virtual void handleChildViewAttachment(View* p_attachedChild) { }
 
-	private:
-		void sendChildDetachmentEvents(View* p_child)
-		{
-			childDetachmentListeners(this, p_child);
-			handleChildDetachment(p_child);
-		}
-	public:
 		/*
 			Listener signature:
-				void (View* target, View* attachedChild)
-			See View::handleChildDetachment for more info.
+				void (View* attachedChild)
+			See View::handleChildViewDetachment for more info.
 		*/
-		EventListeners<void(View*, View*)> childDetachmentListeners;
+		EventListeners<void(View*)> childViewDetachmentListeners;
 		/*
 			USER IMPLEMENTED
 			Gets called when a child view has been removed from this view.
 		*/
-		virtual void handleChildDetachment(View* p_detachedChild) { }
-
-		//------------------------------
-
-		/*
-			LIBRARY IMPLEMENTED
-			Call this if you want the view to get redrawn. Adds an invalid rectangle to the window or two if the view has been moved.
-		*/
-		void invalidate();
-
-		/*
-			USER IMPLEMENTED
-			Draws the contents of the view.
-			This method is called by default from the other draw method that also takes the target rectangle as input.
-			You often don't need to use that parameter.
-
-			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
-		*/
-		virtual void draw(DrawingContext* p_drawingContext) { }
-		/*
-			USER IMPLEMENTED
-			Draws the content of the view. Override this method if you want the target rectangle, override the overloaded
-			method that only takes the drawing context otherwise.
-
-			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
-			p_targetRectangle is the rectangle that needs to be drawn, relative to the top-left corner of the GUI.
-			To optimize your application, you can make sure to only draw stuff in this region.
-		*/
-		virtual void draw(DrawingContext* p_drawingContext, Rectangle<float> const& p_targetRectangle)
-		{
-			draw(p_drawingContext);
-		}
-
-		/*
-			USER IMPLEMENTED
-			Draws on top of child views.
-			This method is called by default from the other drawOverlay method that also takes the target rectangle as input.
-			You do not often care about that parameter.
-
-			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
-		*/
-		virtual void drawOverlay(DrawingContext* p_drawingContext) { }
-
-		/*
-			USER IMPLEMENTED
-			Draws on top of child views. Override this method if you want the target rectangle, override the overloaded
-			method that only takes the drawing context otherwise.
-
-			p_drawingContext is an object used to draw graphics to the window and create graphics objects like text and images.
-			p_targetRectangle is the rectangle that needs to be drawn, relative to the top-left corner of the GUI.
-			To optimize your application, you can make sure to only draw stuff in this region.
-		*/
-		virtual void drawOverlay(DrawingContext* p_drawingContext, Rectangle<float> const& p_targetRectangle)
-		{
-			drawOverlay(p_drawingContext);
-		}
+		virtual void handleChildViewDetachment(View* p_detachedChild) { }
 	};
 
 	//------------------------------
@@ -8009,18 +8237,18 @@ namespace AvoGUI
 			Returns the image format of the given image file.
 			Only the first 8 bytes of the file is needed.
 		*/
-		static AvoGUI::ImageFormat getImageFormatOfFile(uint8 const* p_fileData)
+		static auto getImageFormatOfFile(uint64 p_fileData)
 		{
-			if (!std::strncmp((const char*)p_fileData, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8))
+			if (!std::strncmp((char const*)&p_fileData, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8))
 			{
 				return AvoGUI::ImageFormat::Png;
 			}
-			else if (!std::strncmp((const char*)p_fileData, "\xFF\xD8\xFF", 3))
+			else if (!std::strncmp((char const*)&p_fileData, "\xFF\xD8\xFF", 3))
 			{
 				return AvoGUI::ImageFormat::Jpeg;
 			}
-			else if (!std::strncmp((const char*)p_fileData, "\x00\x00\x01\x00", 4) ||
-			         !std::strncmp((const char*)p_fileData, "\x00\x00\x02\x00", 4))
+			else if (!std::strncmp((char const*)&p_fileData, "\x00\x00\x01\x00", 4) ||
+			         !std::strncmp((char const*)&p_fileData, "\x00\x00\x02\x00", 4))
 			{
 				return AvoGUI::ImageFormat::Ico;
 			}
@@ -8037,7 +8265,7 @@ namespace AvoGUI
 			fileStream.read(signatureBytes, 8);
 			fileStream.close();
 
-			return getImageFormatOfFile((uint8 const*)signatureBytes);
+			return getImageFormatOfFile(*(uint64*)signatureBytes);
 		}
 		/*
 			Returns the image format of the given image file.
@@ -8050,7 +8278,7 @@ namespace AvoGUI
 			fileStream.read(signatureBytes, 8);
 			fileStream.close();
 
-			return getImageFormatOfFile((uint8 const*)signatureBytes);
+			return getImageFormatOfFile(*(uint64*)signatureBytes);
 		}
 
 		//------------------------------
@@ -8997,11 +9225,6 @@ namespace AvoGUI
 			Creates a new Text object which represents a pre-calculated text layout, using the current text properties.
 			p_bounds is the maximum bounds of the text. If it's (0, 0, 0, 0) then the bounds will be calculated to fit the text.
 		*/
-		virtual Text* createText(char const* p_string, float p_fontSize, Rectangle<float> p_bounds = Rectangle<float>()) = 0;
-		/*
-			Creates a new Text object which represents a pre-calculated text layout, using the current text properties.
-			p_bounds is the maximum bounds of the text. If it's (0, 0, 0, 0) then the bounds will be calculated to fit the text.
-		*/
 		virtual Text* createText(std::string const& p_string, float p_fontSize, Rectangle<float> p_bounds = Rectangle<float>()) = 0;
 		/*
 			Draws pre-calculated text created with the createText method.
@@ -9012,27 +9235,27 @@ namespace AvoGUI
 			Lays out and draws a string in a rectangle.
 			If you're drawing the same text repeatedly, use a Text object (created with method createText).
 		*/
-		virtual void drawText(char const* p_string, Rectangle<float> const& p_rectangle) = 0;
+		virtual void drawText(std::string const& p_string, Rectangle<float> const& p_rectangle) = 0;
 		/*
 			Lays out and draws a string in a rectangle.
 			If you're drawing the same text repeatedly, use a Text object (created with method createText()).
 		*/
-		virtual void drawText(char const* p_string, float p_left, float p_top, float p_right, float p_bottom) = 0;
+		virtual void drawText(std::string const& p_string, float p_left, float p_top, float p_right, float p_bottom) = 0;
 		/*
 			Lays out and draws a string in a rectangle.
 			If you're drawing the same text repeatedly, use a Text object (created with method createText()).
 		*/
-		virtual void drawText(char const* p_string, Point<float> const& p_position, Point<float> const& p_size) = 0;
+		virtual void drawText(std::string const& p_string, Point<float> const& p_position, Point<float> const& p_size) = 0;
 		/*
 			Lays out and draws a string at a position.
 			If you're drawing the same text repeatedly, use a Text object (created with createText()).
 		*/
-		virtual void drawText(char const* p_string, float p_x, float p_y) = 0;
+		virtual void drawText(std::string const& p_string, float p_x, float p_y) = 0;
 		/*
 			Lays out and draws a string at a position.
 			If you're drawing the same text repeatedly, use a Text object (created with createText()).
 		*/
-		virtual void drawText(char const* p_string, Point<float> const& p_position) = 0;
+		virtual void drawText(std::string const& p_string, Point<float> const& p_position) = 0;
 	};
 
 	//------------------------------
@@ -9045,6 +9268,8 @@ namespace AvoGUI
 	class Gui : public View
 	{
 	private:
+		friend View;
+
 		Gui* m_parent{ nullptr };
 		Window* m_window{ nullptr };
 		DrawingContext* m_drawingContext{ nullptr };
@@ -9052,9 +9277,9 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void handleThemeColorChange(std::string const& p_name, Color const& p_newColor) override
+		void handleThemeColorChange(Id const& p_id, Color const& p_newColor) override
 		{
-			if (p_name == ThemeColors::background)
+			if (p_id == ThemeColors::background)
 			{
 				getDrawingContext()->setBackgroundColor(p_newColor);
 			}
@@ -9062,6 +9287,7 @@ namespace AvoGUI
 
 	public:
 		Gui();
+		Gui(Component* p_parent);
 		~Gui() override;
 
 		/*
@@ -9225,41 +9451,6 @@ namespace AvoGUI
 		*/
 		View* getViewAt(float p_x, float p_y);
 
-	private:
-		friend class View;
-		std::unordered_map<uint64, View*> m_viewsById;
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-			Finds the view that has a certain ID previously set by you.
-			Returns 0 if no view has that ID.
-		*/
-		template<typename T>
-		View* getViewById(T p_id)
-		{
-			auto iterator = m_viewsById.find((uint64)p_id);
-			if (iterator == m_viewsById.end())
-			{
-				return 0;
-			}
-			return (*iterator).second;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Finds the view that has a certain ID previously set by you.
-			Returns 0 if no view has that ID.
-		*/
-		template<typename T, typename U>
-		T* getViewById(U p_id)
-		{
-			auto iterator = m_viewsById.find((uint64)p_id);
-			if (iterator == m_viewsById.end())
-			{
-				return 0;
-			}
-			return (T*)(*iterator).second;
-		}
-
 		//------------------------------
 
 	private:
@@ -9374,7 +9565,7 @@ namespace AvoGUI
 			float absoluteY = p_event.y;
 
 			View* container = this;
-			int32 startIndex = getNumberOfChildren() - 1;
+			int32 startIndex = getNumberOfChildViews() - 1;
 
 			bool hasFoundTopView = false;
 
@@ -9383,10 +9574,10 @@ namespace AvoGUI
 			loopStart:
 				for (int32 a = startIndex; a >= 0; a--)
 				{
-					View* child = container->getChild(a);
+					View* child = container->getChildView(a);
 					if (child->getIsVisible() && child->getIsContainingAbsolute(absoluteX, absoluteY))
 					{
-						bool hasChildren = child->getNumberOfChildren();
+						bool hasChildren = child->getNumberOfChildViews();
 
 						if (hasChildren)
 						{
@@ -9397,7 +9588,7 @@ namespace AvoGUI
 								child->dragDropFinishListeners(p_event);
 							}
 							container = child;
-							startIndex = container->getNumberOfChildren() - 1;
+							startIndex = container->getNumberOfChildViews() - 1;
 							goto loopStart;
 						}
 						else
@@ -9425,7 +9616,7 @@ namespace AvoGUI
 				}
 
 				startIndex = container->getIndex() - 1;
-				container = container->getParent();
+				container = container->getParent<View>();
 			}
 		}
 
@@ -9646,12 +9837,12 @@ namespace AvoGUI
 
 			if (focusBefore)
 			{
-				focusBefore->sendKeyboardFocusLoseEvents();
+				focusBefore->keyboardFocusLoseListeners();
 			}
 
 			if (p_view)
 			{
-				p_view->sendKeyboardFocusGainEvents();
+				p_view->keyboardFocusGainListeners();
 			}
 		}
 		/*
@@ -9753,12 +9944,12 @@ namespace AvoGUI
 
 	namespace ThemeColors
 	{
-		inline char const* const tooltipBackground{ "tooltip background" };
-		inline char const* const tooltipOnBackground{ "tooltip on background" };
+		inline Id const tooltipBackground;
+		inline Id const tooltipOnBackground;
 	}
 	namespace ThemeValues
 	{
-		inline char const* const tooltipFontSize{ "tooltip font size" };
+		inline Id const tooltipFontSize;
 	}
 
 	/*
@@ -10020,7 +10211,7 @@ namespace AvoGUI
 
 	namespace ThemeEasings
 	{
-		inline char const* const ripple{ "ripple" };
+		inline Id const ripple;
 	}
 
 	/*
@@ -10133,9 +10324,9 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void handleParentSizeChange(View* p_view, float p_previousWidth, float p_previousHeight)
+		void handleParentSizeChange(float p_previousWidth, float p_previousHeight)
 		{
-			setSize(p_view->getSize());
+			setSize(getParent<View>()->getSize());
 			m_maxSize = 2.f * Point<>::getDistanceFast(m_position, Point<float>(m_position.x < getWidth() * 0.5 ? getWidth() : 0, m_position.y < getHeight() * 0.5 ? getHeight() : 0));
 		}
 
@@ -10256,8 +10447,8 @@ namespace AvoGUI
 
 	namespace ThemeValues
 	{
-		inline char const* const buttonFontSize{ "button font size" };
-		inline char const* const buttonCharacterSpacing{ "button character spacing" };
+		inline Id const buttonFontSize;
+		inline Id const buttonCharacterSpacing;
 	}
 
 	class Button : public View
@@ -10293,34 +10484,34 @@ namespace AvoGUI
 		Ripple* m_ripple{ nullptr };
 
 	protected:
-		void handleThemeValueChange(std::string const& p_name, float p_newValue) override
+		void handleThemeValueChange(Id const& p_id, float p_newValue) override
 		{
-			if (p_name == ThemeValues::buttonFontSize)
+			if (p_id == ThemeValues::buttonFontSize)
 			{
 				m_text->setFontSize(p_newValue);
-				if (p_name == ThemeValues::buttonCharacterSpacing)
+				if (p_id == ThemeValues::buttonCharacterSpacing)
 				{
 					m_text->setCharacterSpacing(p_newValue);
 				}
 				updateSize();
 			}
-			else if (p_name == ThemeValues::buttonCharacterSpacing)
+			else if (p_id == ThemeValues::buttonCharacterSpacing)
 			{
 				m_text->setCharacterSpacing(p_newValue);
 				updateSize();
 			}
 		}
-		void handleThemeColorChange(std::string const& p_name, Color const& p_newColor) override
+		void handleThemeColorChange(Id const& p_id, Color const& p_newColor) override
 		{
 			if (m_emphasis == Emphasis::High)
 			{
-				if (p_name == (m_isAccent ? ThemeColors::secondary : ThemeColors::primary) ||
-					p_name == (m_isAccent ? ThemeColors::onSecondary : ThemeColors::onPrimary))
+				if (p_id == (m_isAccent ? ThemeColors::secondary : ThemeColors::primary) ||
+					p_id == (m_isAccent ? ThemeColors::onSecondary : ThemeColors::onPrimary))
 				{
 					m_currentColor = p_newColor;
 				}
 			}
-			else if (p_name == (m_isAccent ? ThemeColors::secondaryOnBackground : ThemeColors::primaryOnBackground))
+			else if (p_id == (m_isAccent ? ThemeColors::secondaryOnBackground : ThemeColors::primaryOnBackground))
 			{
 				m_currentColor = p_newColor;
 				m_ripple->setColor(AvoGUI::Color(p_newColor, 0.3f));
@@ -10328,7 +10519,7 @@ namespace AvoGUI
 		}
 
 	public:
-		explicit Button(View* p_parent, char const* p_text = "", Emphasis p_emphasis = Emphasis::High, bool p_isAccent = false) :
+		explicit Button(View* p_parent, std::string const& p_text = "", Emphasis p_emphasis = Emphasis::High, bool p_isAccent = false) :
 			View(p_parent),
 			m_emphasis(p_emphasis)
 		{
@@ -10478,7 +10669,7 @@ namespace AvoGUI
 		/*
 			Sets the string that the button displays.
 		*/
-		void setString(char const* p_string)
+		void setString(std::string const& p_string)
 		{
 			if (m_text)
 			{
@@ -10559,16 +10750,6 @@ namespace AvoGUI
 
 		//------------------------------
 
-		/*
-			Sets a string to be shown as a tooltip when the mouse hovers over the button.
-			Should give the user additional information about the button's purpose.
-			An empty string disables the tooltip.
-		*/
-		void setTooltip(Tooltip* p_tooltipView, char const* p_info)
-		{
-			m_tooltipView = p_tooltipView;
-			m_tooltipString = p_info;
-		}
 		/*
 			Sets a string to be shown as a tooltip when the mouse hovers over the button.
 			Should give the user additional information about the button's purpose.
@@ -10735,7 +10916,7 @@ namespace AvoGUI
 
 	namespace ThemeValues
 	{
-		inline char const* const editableTextCaretBlinkRate{ "editable text caret blink rate" };
+		inline Id const editableTextCaretBlinkRate;
 	}
 
 	/*
@@ -11528,7 +11709,7 @@ namespace AvoGUI
 			This is needed because the old caret index will be kept in case any event listener returns false.
 			Note that it is a character index and not a byte index, the string is utf-8 encoded.
 		*/
-		void setString(char const* p_string, int32 p_newCaretCharacterIndex = -1)
+		void setString(std::string const& p_string, int32 p_newCaretCharacterIndex = -1)
 		{
 			if (m_text && m_text->getString() == p_string)
 			{
@@ -11625,13 +11806,6 @@ namespace AvoGUI
 			invalidate();
 		}
 		/*
-			Sets the content of the editable text.
-		*/
-		void setString(std::string const& p_string, int32 p_newCaretCharacterIndex = -1)
-		{
-			setString(p_string.c_str(), p_newCaretCharacterIndex);
-		}
-		/*
 			Sets the content of the editable text as a value.
 		*/
 		template<typename T>
@@ -11650,11 +11824,11 @@ namespace AvoGUI
 		/*
 			Returns the content of the editable text.
 		*/
-		char const* getString()
+		std::string getString()
 		{
 			if (m_text)
 			{
-				return m_text->getString().c_str();
+				return m_text->getString();
 			}
 			return "";
 		}
@@ -11760,11 +11934,11 @@ namespace AvoGUI
 
 	namespace ThemeValues
 	{
-		inline char const* const textFieldFontSize{ "text field font size" };
-		inline char const* const textFieldHeight{ "text field height" };
-		inline char const* const textFieldPaddingLeft{ "text field padding left" };
-		inline char const* const textFieldPaddingRight{ "text field padding right" };
-		inline char const* const textFieldFilledPaddingBottom{ "text field filled padding bottom" };
+		inline Id const textFieldFontSize;
+		inline Id const textFieldHeight;
+		inline Id const textFieldPaddingLeft;
+		inline Id const textFieldPaddingRight;
+		inline Id const textFieldFilledPaddingBottom;
 	}
 
 	class TextField : public View
@@ -11778,86 +11952,7 @@ namespace AvoGUI
 
 		static constexpr float OUTLINED_PADDING_LABEL = 5.f;
 
-	private:
-		EditableText* m_editableText{ new EditableText(this) };
-
-		float m_focusAnimationTime{ 0.f };
-		float m_focusAnimationValue{ 0.f };
-
-		bool m_isMouseHovering{ false };
-		float m_hoverAnimationTime{ 0.f };
-		float m_hoverAnimationValue{ 0.f };
-
 		Type m_type;
-
-	protected:
-		void handleThemeValueChange(std::string const& p_name, float p_newValue) override
-		{
-			if (p_name == ThemeValues::textFieldFontSize)
-			{
-				if (m_labelText)
-				{
-					m_labelText->setFontSize(p_newValue);
-					m_labelText->fitSizeToText();
-				}
-				if (m_prefixText)
-				{
-					m_prefixText->setFontSize(p_newValue);
-					m_prefixText->fitSizeToText();
-				}
-				if (m_suffixText)
-				{
-					m_suffixText->setFontSize(p_newValue);
-					m_suffixText->fitSizeToText();
-				}
-				m_editableText->setFontSize(p_newValue);
-			}
-			if (p_name == ThemeValues::textFieldFontSize || p_name == ThemeValues::textFieldHeight)
-			{
-				// Text positions will be updated in handleSizeChange()
-				setHeight(getThemeValue(ThemeValues::textFieldFontSize) * 1.2f * getThemeValue(ThemeValues::textFieldHeight) + OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
-			}
-			if (p_name == ThemeValues::textFieldPaddingLeft)
-			{
-				if (m_labelText)
-				{
-					m_labelText->setLeft(p_newValue);
-				}
-				if (m_prefixText)
-				{
-					m_prefixText->setLeft(p_newValue);
-					m_editableText->setLeft(m_prefixText->getRight() + 1.f, false);
-				}
-				else
-				{
-					m_editableText->setLeft(p_newValue, false);
-				}
-			}
-			else if (p_name == ThemeValues::textFieldPaddingRight)
-			{
-				if (m_suffixText)
-				{
-					m_suffixText->setRight(getWidth() - p_newValue);
-					m_editableText->setRight(m_suffixText->getLeft() - 1.f, false);
-				}
-				else
-				{
-					m_editableText->setRight(getWidth() - p_newValue, false);
-				}
-			}
-			else if (p_name == ThemeValues::textFieldFilledPaddingBottom)
-			{
-				if (m_prefixText)
-				{
-					m_prefixText->setBottom(getHeight() - p_newValue);
-				}
-				if (m_suffixText)
-				{
-					m_suffixText->setBottom(getHeight() - p_newValue);
-				}
-				m_editableText->setBottom(getHeight() - p_newValue);
-			}
-		}
 
 	public:
 		explicit TextField(View* p_parent, Type p_type = Type::Filled, std::string const& p_label = "", float p_width = 120.f) :
@@ -11878,7 +11973,7 @@ namespace AvoGUI
 			m_editableText->setLeft(getThemeValue(ThemeValues::textFieldPaddingLeft));
 			m_editableText->setRight(p_width - getThemeValue(ThemeValues::textFieldPaddingRight), false);
 
-			auto handleEditableTextFocusChange = [this](View*) {
+			auto handleEditableTextFocusChange = [this]() {
 				queueAnimationUpdate();
 			};
 			m_editableText->keyboardFocusGainListeners += handleEditableTextFocusChange;
@@ -11917,22 +12012,85 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		EditableText* m_editableText{ new EditableText(this) };
+
+	public:
 		EditableText* getEditableText()
 		{
 			return m_editableText;
 		}
 
-		void addEditableTextChangeListener(std::function<bool(EditableText*, std::string&, int32&)> p_listener)
+	protected:
+		void handleThemeValueChange(Id const& p_id, float p_newValue) override
 		{
-			m_editableText->editableTextChangeListeners += p_listener;
-		}
-		void removeEditableTextChangeListener(std::function<bool(EditableText*, std::string&, int32&)> p_listener)
-		{
-			m_editableText->editableTextChangeListeners -= p_listener;
+			if (p_id == ThemeValues::textFieldFontSize)
+			{
+				if (m_labelText)
+				{
+					m_labelText->setFontSize(p_newValue);
+					m_labelText->fitSizeToText();
+				}
+				if (m_prefixText)
+				{
+					m_prefixText->setFontSize(p_newValue);
+					m_prefixText->fitSizeToText();
+				}
+				if (m_suffixText)
+				{
+					m_suffixText->setFontSize(p_newValue);
+					m_suffixText->fitSizeToText();
+				}
+				m_editableText->setFontSize(p_newValue);
+			}
+			if (p_id == ThemeValues::textFieldFontSize || p_id == ThemeValues::textFieldHeight)
+			{
+				// Text positions will be updated in handleSizeChange()
+				setHeight(getThemeValue(ThemeValues::textFieldFontSize) * 1.2f * getThemeValue(ThemeValues::textFieldHeight) + OUTLINED_PADDING_LABEL * (m_type == Type::Outlined));
+			}
+			if (p_id == ThemeValues::textFieldPaddingLeft)
+			{
+				if (m_labelText)
+				{
+					m_labelText->setLeft(p_newValue);
+				}
+				if (m_prefixText)
+				{
+					m_prefixText->setLeft(p_newValue);
+					m_editableText->setLeft(m_prefixText->getRight() + 1.f, false);
+				}
+				else
+				{
+					m_editableText->setLeft(p_newValue, false);
+				}
+			}
+			else if (p_id == ThemeValues::textFieldPaddingRight)
+			{
+				if (m_suffixText)
+				{
+					m_suffixText->setRight(getWidth() - p_newValue);
+					m_editableText->setRight(m_suffixText->getLeft() - 1.f, false);
+				}
+				else
+				{
+					m_editableText->setRight(getWidth() - p_newValue, false);
+				}
+			}
+			else if (p_id == ThemeValues::textFieldFilledPaddingBottom)
+			{
+				if (m_prefixText)
+				{
+					m_prefixText->setBottom(getHeight() - p_newValue);
+				}
+				if (m_suffixText)
+				{
+					m_suffixText->setBottom(getHeight() - p_newValue);
+				}
+				m_editableText->setBottom(getHeight() - p_newValue);
+			}
 		}
 
-		//------------------------------
-
+	public:
 		void handleSizeChange() override
 		{
 			if (m_suffixText)
@@ -11980,8 +12138,6 @@ namespace AvoGUI
 				m_editableText->setCenterY(centerY);
 			}
 		}
-
-		//------------------------------
 
 	private:
 		Text* m_labelText{ nullptr };
@@ -12105,7 +12261,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void setString(char const* p_string)
+		void setString(std::string const& p_string)
 		{
 			m_editableText->setString(p_string);
 			if (m_type == Type::Filled)
@@ -12116,10 +12272,6 @@ namespace AvoGUI
 			{
 				m_editableText->setCenterY(OUTLINED_PADDING_LABEL + (getHeight() - OUTLINED_PADDING_LABEL) * 0.5f);
 			}
-		}
-		void setString(std::string const& p_string)
-		{
-			setString(p_string.c_str());
 		}
 		/*
 			Sets the content of the text field as a value.
@@ -12137,7 +12289,7 @@ namespace AvoGUI
 		{
 			setString(convertNumberToString(p_value, p_roundingDigit, p_roundingType));
 		}
-		char const* getString()
+		std::string getString()
 		{
 			return m_editableText->getString();
 		}
@@ -12205,6 +12357,15 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		float m_focusAnimationTime{ 0.f };
+		float m_focusAnimationValue{ 0.f };
+
+		bool m_isMouseHovering{ false };
+		float m_hoverAnimationTime{ 0.f };
+		float m_hoverAnimationValue{ 0.f };
+
+	public:
 		void updateAnimations() override
 		{
 			if (getGui()->getKeyboardFocus() == m_editableText)
@@ -12590,939 +12751,939 @@ namespace MaterialColors
 */
 namespace MaterialIcons
 {
-	constexpr char const* THREED_ROTATION = u8"\ue84d";
-	constexpr char const* AC_UNIT = u8"\ueb3b";
-	constexpr char const* ACCESS_ALARM = u8"\ue190";
-	constexpr char const* ACCESS_ALARMS = u8"\ue191";
-	constexpr char const* ACCESS_TIME = u8"\ue192";
-	constexpr char const* ACCESSIBILITY = u8"\ue84e";
-	constexpr char const* ACCESSIBLE = u8"\ue914";
-	constexpr char const* ACCOUNT_BALANCE = u8"\ue84f";
-	constexpr char const* ACCOUNT_BALANCE_WALLET = u8"\ue850";
-	constexpr char const* ACCOUNT_BOX = u8"\ue851";
-	constexpr char const* ACCOUNT_CIRCLE = u8"\ue853";
-	constexpr char const* ADB = u8"\ue60e";
-	constexpr char const* ADD = u8"\ue145";
-	constexpr char const* ADD_A_PHOTO = u8"\ue439";
-	constexpr char const* ADD_ALARM = u8"\ue193";
-	constexpr char const* ADD_ALERT = u8"\ue003";
-	constexpr char const* ADD_BOX = u8"\ue146";
-	constexpr char const* ADD_CIRCLE = u8"\ue147";
-	constexpr char const* ADD_CIRCLE_OUTLINE = u8"\ue148";
-	constexpr char const* ADD_LOCATION = u8"\ue567";
-	constexpr char const* ADD_SHOPPING_CART = u8"\ue854";
-	constexpr char const* ADD_TO_PHOTOS = u8"\ue39d";
-	constexpr char const* ADD_TO_QUEUE = u8"\ue05c";
-	constexpr char const* ADJUST = u8"\ue39e";
-	constexpr char const* AIRLINE_SEAT_FLAT = u8"\ue630";
-	constexpr char const* AIRLINE_SEAT_FLAT_ANGLED = u8"\ue631";
-	constexpr char const* AIRLINE_SEAT_INDIVIDUAL_SUITE = u8"\ue632";
-	constexpr char const* AIRLINE_SEAT_LEGROOM_EXTRA = u8"\ue633";
-	constexpr char const* AIRLINE_SEAT_LEGROOM_NORMAL = u8"\ue634";
-	constexpr char const* AIRLINE_SEAT_LEGROOM_REDUCED = u8"\ue635";
-	constexpr char const* AIRLINE_SEAT_RECLINE_EXTRA = u8"\ue636";
-	constexpr char const* AIRLINE_SEAT_RECLINE_NORMAL = u8"\ue637";
-	constexpr char const* AIRPLANEMODE_ACTIVE = u8"\ue195";
-	constexpr char const* AIRPLANEMODE_INACTIVE = u8"\ue194";
-	constexpr char const* AIRPLAY = u8"\ue055";
-	constexpr char const* AIRPORT_SHUTTLE = u8"\ueb3c";
-	constexpr char const* ALARM = u8"\ue855";
-	constexpr char const* ALARM_ADD = u8"\ue856";
-	constexpr char const* ALARM_OFF = u8"\ue857";
-	constexpr char const* ALARM_ON = u8"\ue858";
-	constexpr char const* ALBUM = u8"\ue019";
-	constexpr char const* ALL_INCLUSIVE = u8"\ueb3d";
-	constexpr char const* ALL_OUT = u8"\ue90b";
-	constexpr char const* ANDROID = u8"\ue859";
-	constexpr char const* ANNOUNCEMENT = u8"\ue85a";
-	constexpr char const* APPS = u8"\ue5c3";
-	constexpr char const* ARCHIVE = u8"\ue149";
-	constexpr char const* ARROW_BACK = u8"\ue5c4";
-	constexpr char const* ARROW_DOWNWARD = u8"\ue5db";
-	constexpr char const* ARROW_DROP_DOWN = u8"\ue5c5";
-	constexpr char const* ARROW_DROP_DOWN_CIRCLE = u8"\ue5c6";
-	constexpr char const* ARROW_DROP_UP = u8"\ue5c7";
-	constexpr char const* ARROW_FORWARD = u8"\ue5c8";
-	constexpr char const* ARROW_UPWARD = u8"\ue5d8";
-	constexpr char const* ART_TRACK = u8"\ue060";
-	constexpr char const* ASPECT_RATIO = u8"\ue85b";
-	constexpr char const* ASSESSMENT = u8"\ue85c";
-	constexpr char const* ASSIGNMENT = u8"\ue85d";
-	constexpr char const* ASSIGNMENT_IND = u8"\ue85e";
-	constexpr char const* ASSIGNMENT_LATE = u8"\ue85f";
-	constexpr char const* ASSIGNMENT_RETURN = u8"\ue860";
-	constexpr char const* ASSIGNMENT_RETURNED = u8"\ue861";
-	constexpr char const* ASSIGNMENT_TURNED_IN = u8"\ue862";
-	constexpr char const* ASSISTANT = u8"\ue39f";
-	constexpr char const* ASSISTANT_PHOTO = u8"\ue3a0";
-	constexpr char const* ATTACH_FILE = u8"\ue226";
-	constexpr char const* ATTACH_MONEY = u8"\ue227";
-	constexpr char const* ATTACHMENT = u8"\ue2bc";
-	constexpr char const* AUDIOTRACK = u8"\ue3a1";
-	constexpr char const* AUTORENEW = u8"\ue863";
-	constexpr char const* AV_TIMER = u8"\ue01b";
-	constexpr char const* BACKSPACE = u8"\ue14a";
-	constexpr char const* BACKUP = u8"\ue864";
-	constexpr char const* BATTERY_ALERT = u8"\ue19c";
-	constexpr char const* BATTERY_CHARGING_FULL = u8"\ue1a3";
-	constexpr char const* BATTERY_FULL = u8"\ue1a4";
-	constexpr char const* BATTERY_STD = u8"\ue1a5";
-	constexpr char const* BATTERY_UNKNOWN = u8"\ue1a6";
-	constexpr char const* BEACH_ACCESS = u8"\ueb3e";
-	constexpr char const* BEENHERE = u8"\ue52d";
-	constexpr char const* BLOCK = u8"\ue14b";
-	constexpr char const* BLUETOOTH = u8"\ue1a7";
-	constexpr char const* BLUETOOTH_AUDIO = u8"\ue60f";
-	constexpr char const* BLUETOOTH_CONNECTED = u8"\ue1a8";
-	constexpr char const* BLUETOOTH_DISABLED = u8"\ue1a9";
-	constexpr char const* BLUETOOTH_SEARCHING = u8"\ue1aa";
-	constexpr char const* BLUR_CIRCULAR = u8"\ue3a2";
-	constexpr char const* BLUR_LINEAR = u8"\ue3a3";
-	constexpr char const* BLUR_OFF = u8"\ue3a4";
-	constexpr char const* BLUR_ON = u8"\ue3a5";
-	constexpr char const* BOOK = u8"\ue865";
-	constexpr char const* BOOKMARK = u8"\ue866";
-	constexpr char const* BOOKMARK_BORDER = u8"\ue867";
-	constexpr char const* BORDER_ALL = u8"\ue228";
-	constexpr char const* BORDER_BOTTOM = u8"\ue229";
-	constexpr char const* BORDER_CLEAR = u8"\ue22a";
-	constexpr char const* BORDER_COLOR = u8"\ue22b";
-	constexpr char const* BORDER_HORIZONTAL = u8"\ue22c";
-	constexpr char const* BORDER_INNER = u8"\ue22d";
-	constexpr char const* BORDER_LEFT = u8"\ue22e";
-	constexpr char const* BORDER_OUTER = u8"\ue22f";
-	constexpr char const* BORDER_RIGHT = u8"\ue230";
-	constexpr char const* BORDER_STYLE = u8"\ue231";
-	constexpr char const* BORDER_TOP = u8"\ue232";
-	constexpr char const* BORDER_VERTICAL = u8"\ue233";
-	constexpr char const* BRANDING_WATERMARK = u8"\ue06b";
-	constexpr char const* BRIGHTNESS_1 = u8"\ue3a6";
-	constexpr char const* BRIGHTNESS_2 = u8"\ue3a7";
-	constexpr char const* BRIGHTNESS_3 = u8"\ue3a8";
-	constexpr char const* BRIGHTNESS_4 = u8"\ue3a9";
-	constexpr char const* BRIGHTNESS_5 = u8"\ue3aa";
-	constexpr char const* BRIGHTNESS_6 = u8"\ue3ab";
-	constexpr char const* BRIGHTNESS_7 = u8"\ue3ac";
-	constexpr char const* BRIGHTNESS_AUTO = u8"\ue1ab";
-	constexpr char const* BRIGHTNESS_HIGH = u8"\ue1ac";
-	constexpr char const* BRIGHTNESS_LOW = u8"\ue1ad";
-	constexpr char const* BRIGHTNESS_MEDIUM = u8"\ue1ae";
-	constexpr char const* BROKEN_IMAGE = u8"\ue3ad";
-	constexpr char const* BRUSH = u8"\ue3ae";
-	constexpr char const* BUBBLE_CHART = u8"\ue6dd";
-	constexpr char const* BUG_REPORT = u8"\ue868";
-	constexpr char const* BUILD = u8"\ue869";
-	constexpr char const* BURST_MODE = u8"\ue43c";
-	constexpr char const* BUSINESS = u8"\ue0af";
-	constexpr char const* BUSINESS_CENTER = u8"\ueb3f";
-	constexpr char const* CACHED = u8"\ue86a";
-	constexpr char const* CAKE = u8"\ue7e9";
-	constexpr char const* CALL = u8"\ue0b0";
-	constexpr char const* CALL_END = u8"\ue0b1";
-	constexpr char const* CALL_MADE = u8"\ue0b2";
-	constexpr char const* CALL_MERGE = u8"\ue0b3";
-	constexpr char const* CALL_MISSED = u8"\ue0b4";
-	constexpr char const* CALL_MISSED_OUTGOING = u8"\ue0e4";
-	constexpr char const* CALL_RECEIVED = u8"\ue0b5";
-	constexpr char const* CALL_SPLIT = u8"\ue0b6";
-	constexpr char const* CALL_TO_ACTION = u8"\ue06c";
-	constexpr char const* CAMERA = u8"\ue3af";
-	constexpr char const* CAMERA_ALT = u8"\ue3b0";
-	constexpr char const* CAMERA_ENHANCE = u8"\ue8fc";
-	constexpr char const* CAMERA_FRONT = u8"\ue3b1";
-	constexpr char const* CAMERA_REAR = u8"\ue3b2";
-	constexpr char const* CAMERA_ROLL = u8"\ue3b3";
-	constexpr char const* CANCEL = u8"\ue5c9";
-	constexpr char const* CARD_GIFTCARD = u8"\ue8f6";
-	constexpr char const* CARD_MEMBERSHIP = u8"\ue8f7";
-	constexpr char const* CARD_TRAVEL = u8"\ue8f8";
-	constexpr char const* CASINO = u8"\ueb40";
-	constexpr char const* CAST = u8"\ue307";
-	constexpr char const* CAST_CONNECTED = u8"\ue308";
-	constexpr char const* CENTER_FOCUS_STRONG = u8"\ue3b4";
-	constexpr char const* CENTER_FOCUS_WEAK = u8"\ue3b5";
-	constexpr char const* CHANGE_HISTORY = u8"\ue86b";
-	constexpr char const* CHAT = u8"\ue0b7";
-	constexpr char const* CHAT_BUBBLE = u8"\ue0ca";
-	constexpr char const* CHAT_BUBBLE_OUTLINE = u8"\ue0cb";
-	constexpr char const* CHECK = u8"\ue5ca";
-	constexpr char const* CHECK_BOX = u8"\ue834";
-	constexpr char const* CHECK_BOX_OUTLINE_BLANK = u8"\ue835";
-	constexpr char const* CHECK_CIRCLE = u8"\ue86c";
-	constexpr char const* CHEVRON_LEFT = u8"\ue5cb";
-	constexpr char const* CHEVRON_RIGHT = u8"\ue5cc";
-	constexpr char const* CHILD_CARE = u8"\ueb41";
-	constexpr char const* CHILD_FRIENDLY = u8"\ueb42";
-	constexpr char const* CHROME_READER_MODE = u8"\ue86d";
-	constexpr char const* CLASS = u8"\ue86e";
-	constexpr char const* CLEAR = u8"\ue14c";
-	constexpr char const* CLEAR_ALL = u8"\ue0b8";
-	constexpr char const* CLOSE = u8"\ue5cd";
-	constexpr char const* CLOSED_CAPTION = u8"\ue01c";
-	constexpr char const* CLOUD = u8"\ue2bd";
-	constexpr char const* CLOUD_CIRCLE = u8"\ue2be";
-	constexpr char const* CLOUD_DONE = u8"\ue2bf";
-	constexpr char const* CLOUD_DOWNLOAD = u8"\ue2c0";
-	constexpr char const* CLOUD_OFF = u8"\ue2c1";
-	constexpr char const* CLOUD_QUEUE = u8"\ue2c2";
-	constexpr char const* CLOUD_UPLOAD = u8"\ue2c3";
-	constexpr char const* CODE = u8"\ue86f";
-	constexpr char const* COLLECTIONS = u8"\ue3b6";
-	constexpr char const* COLLECTIONS_BOOKMARK = u8"\ue431";
-	constexpr char const* COLOR_LENS = u8"\ue3b7";
-	constexpr char const* COLORIZE = u8"\ue3b8";
-	constexpr char const* COMMENT = u8"\ue0b9";
-	constexpr char const* COMPARE = u8"\ue3b9";
-	constexpr char const* COMPARE_ARROWS = u8"\ue915";
-	constexpr char const* COMPUTER = u8"\ue30a";
-	constexpr char const* CONFIRMATION_NUMBER = u8"\ue638";
-	constexpr char const* CONTACT_MAIL = u8"\ue0d0";
-	constexpr char const* CONTACT_PHONE = u8"\ue0cf";
-	constexpr char const* CONTACTS = u8"\ue0ba";
-	constexpr char const* CONTENT_COPY = u8"\ue14d";
-	constexpr char const* CONTENT_CUT = u8"\ue14e";
-	constexpr char const* CONTENT_PASTE = u8"\ue14f";
-	constexpr char const* CONTROL_POINT = u8"\ue3ba";
-	constexpr char const* CONTROL_POINT_DUPLICATE = u8"\ue3bb";
-	constexpr char const* COPYRIGHT = u8"\ue90c";
-	constexpr char const* CREATE = u8"\ue150";
-	constexpr char const* CREATE_NEW_FOLDER = u8"\ue2cc";
-	constexpr char const* CREDIT_CARD = u8"\ue870";
-	constexpr char const* CROP = u8"\ue3be";
-	constexpr char const* CROP_16_9 = u8"\ue3bc";
-	constexpr char const* CROP_3_2 = u8"\ue3bd";
-	constexpr char const* CROP_5_4 = u8"\ue3bf";
-	constexpr char const* CROP_7_5 = u8"\ue3c0";
-	constexpr char const* CROP_DIN = u8"\ue3c1";
-	constexpr char const* CROP_FREE = u8"\ue3c2";
-	constexpr char const* CROP_LANDSCAPE = u8"\ue3c3";
-	constexpr char const* CROP_ORIGINAL = u8"\ue3c4";
-	constexpr char const* CROP_PORTRAIT = u8"\ue3c5";
-	constexpr char const* CROP_ROTATE = u8"\ue437";
-	constexpr char const* CROP_SQUARE = u8"\ue3c6";
-	constexpr char const* DASHBOARD = u8"\ue871";
-	constexpr char const* DATA_USAGE = u8"\ue1af";
-	constexpr char const* DATE_RANGE = u8"\ue916";
-	constexpr char const* DEHAZE = u8"\ue3c7";
-	constexpr char const* DELETE = u8"\ue872";
-	constexpr char const* DELETE_FOREVER = u8"\ue92b";
-	constexpr char const* DELETE_SWEEP = u8"\ue16c";
-	constexpr char const* DESCRIPTION = u8"\ue873";
-	constexpr char const* DESKTOP_MAC = u8"\ue30b";
-	constexpr char const* DESKTOP_WINDOWS = u8"\ue30c";
-	constexpr char const* DETAILS = u8"\ue3c8";
-	constexpr char const* DEVELOPER_BOARD = u8"\ue30d";
-	constexpr char const* DEVELOPER_MODE = u8"\ue1b0";
-	constexpr char const* DEVICE_HUB = u8"\ue335";
-	constexpr char const* DEVICES = u8"\ue1b1";
-	constexpr char const* DEVICES_OTHER = u8"\ue337";
-	constexpr char const* DIALER_SIP = u8"\ue0bb";
-	constexpr char const* DIALPAD = u8"\ue0bc";
-	constexpr char const* DIRECTIONS = u8"\ue52e";
-	constexpr char const* DIRECTIONS_BIKE = u8"\ue52f";
-	constexpr char const* DIRECTIONS_BOAT = u8"\ue532";
-	constexpr char const* DIRECTIONS_BUS = u8"\ue530";
-	constexpr char const* DIRECTIONS_CAR = u8"\ue531";
-	constexpr char const* DIRECTIONS_RAILWAY = u8"\ue534";
-	constexpr char const* DIRECTIONS_RUN = u8"\ue566";
-	constexpr char const* DIRECTIONS_SUBWAY = u8"\ue533";
-	constexpr char const* DIRECTIONS_TRANSIT = u8"\ue535";
-	constexpr char const* DIRECTIONS_WALK = u8"\ue536";
-	constexpr char const* DISC_FULL = u8"\ue610";
-	constexpr char const* DNS = u8"\ue875";
-	constexpr char const* DO_NOT_DISTURB = u8"\ue612";
-	constexpr char const* DO_NOT_DISTURB_ALT = u8"\ue611";
-	constexpr char const* DO_NOT_DISTURB_OFF = u8"\ue643";
-	constexpr char const* DO_NOT_DISTURB_ON = u8"\ue644";
-	constexpr char const* DOCK = u8"\ue30e";
+	constexpr auto THREED_ROTATION{ u8"\ue84d" };
+	constexpr auto AC_UNIT{ u8"\ueb3b" };
+	constexpr auto ACCESS_ALARM{ u8"\ue190" };
+	constexpr auto ACCESS_ALARMS{ u8"\ue191" };
+	constexpr auto ACCESS_TIME{ u8"\ue192" };
+	constexpr auto ACCESSIBILITY{ u8"\ue84e" };
+	constexpr auto ACCESSIBLE{ u8"\ue914" };
+	constexpr auto ACCOUNT_BALANCE{ u8"\ue84f" };
+	constexpr auto ACCOUNT_BALANCE_WALLET{ u8"\ue850" };
+	constexpr auto ACCOUNT_BOX{ u8"\ue851" };
+	constexpr auto ACCOUNT_CIRCLE{ u8"\ue853" };
+	constexpr auto ADB{ u8"\ue60e" };
+	constexpr auto ADD{ u8"\ue145" };
+	constexpr auto ADD_A_PHOTO{ u8"\ue439" };
+	constexpr auto ADD_ALARM{ u8"\ue193" };
+	constexpr auto ADD_ALERT{ u8"\ue003" };
+	constexpr auto ADD_BOX{ u8"\ue146" };
+	constexpr auto ADD_CIRCLE{ u8"\ue147" };
+	constexpr auto ADD_CIRCLE_OUTLINE{ u8"\ue148" };
+	constexpr auto ADD_LOCATION{ u8"\ue567" };
+	constexpr auto ADD_SHOPPING_CART{ u8"\ue854" };
+	constexpr auto ADD_TO_PHOTOS{ u8"\ue39d" };
+	constexpr auto ADD_TO_QUEUE{ u8"\ue05c" };
+	constexpr auto ADJUST{ u8"\ue39e" };
+	constexpr auto AIRLINE_SEAT_FLAT{ u8"\ue630" };
+	constexpr auto AIRLINE_SEAT_FLAT_ANGLED{ u8"\ue631" };
+	constexpr auto AIRLINE_SEAT_INDIVIDUAL_SUITE{ u8"\ue632" };
+	constexpr auto AIRLINE_SEAT_LEGROOM_EXTRA{ u8"\ue633" };
+	constexpr auto AIRLINE_SEAT_LEGROOM_NORMAL{ u8"\ue634" };
+	constexpr auto AIRLINE_SEAT_LEGROOM_REDUCED{ u8"\ue635" };
+	constexpr auto AIRLINE_SEAT_RECLINE_EXTRA{ u8"\ue636" };
+	constexpr auto AIRLINE_SEAT_RECLINE_NORMAL{ u8"\ue637" };
+	constexpr auto AIRPLANEMODE_ACTIVE{ u8"\ue195" };
+	constexpr auto AIRPLANEMODE_INACTIVE{ u8"\ue194" };
+	constexpr auto AIRPLAY{ u8"\ue055" };
+	constexpr auto AIRPORT_SHUTTLE{ u8"\ueb3c" };
+	constexpr auto ALARM{ u8"\ue855" };
+	constexpr auto ALARM_ADD{ u8"\ue856" };
+	constexpr auto ALARM_OFF{ u8"\ue857" };
+	constexpr auto ALARM_ON{ u8"\ue858" };
+	constexpr auto ALBUM{ u8"\ue019" };
+	constexpr auto ALL_INCLUSIVE{ u8"\ueb3d" };
+	constexpr auto ALL_OUT{ u8"\ue90b" };
+	constexpr auto ANDROID{ u8"\ue859" };
+	constexpr auto ANNOUNCEMENT{ u8"\ue85a" };
+	constexpr auto APPS{ u8"\ue5c3" };
+	constexpr auto ARCHIVE{ u8"\ue149" };
+	constexpr auto ARROW_BACK{ u8"\ue5c4" };
+	constexpr auto ARROW_DOWNWARD{ u8"\ue5db" };
+	constexpr auto ARROW_DROP_DOWN{ u8"\ue5c5" };
+	constexpr auto ARROW_DROP_DOWN_CIRCLE{ u8"\ue5c6" };
+	constexpr auto ARROW_DROP_UP{ u8"\ue5c7" };
+	constexpr auto ARROW_FORWARD{ u8"\ue5c8" };
+	constexpr auto ARROW_UPWARD{ u8"\ue5d8" };
+	constexpr auto ART_TRACK{ u8"\ue060" };
+	constexpr auto ASPECT_RATIO{ u8"\ue85b" };
+	constexpr auto ASSESSMENT{ u8"\ue85c" };
+	constexpr auto ASSIGNMENT{ u8"\ue85d" };
+	constexpr auto ASSIGNMENT_IND{ u8"\ue85e" };
+	constexpr auto ASSIGNMENT_LATE{ u8"\ue85f" };
+	constexpr auto ASSIGNMENT_RETURN{ u8"\ue860" };
+	constexpr auto ASSIGNMENT_RETURNED{ u8"\ue861" };
+	constexpr auto ASSIGNMENT_TURNED_IN{ u8"\ue862" };
+	constexpr auto ASSISTANT{ u8"\ue39f" };
+	constexpr auto ASSISTANT_PHOTO{ u8"\ue3a0" };
+	constexpr auto ATTACH_FILE{ u8"\ue226" };
+	constexpr auto ATTACH_MONEY{ u8"\ue227" };
+	constexpr auto ATTACHMENT{ u8"\ue2bc" };
+	constexpr auto AUDIOTRACK{ u8"\ue3a1" };
+	constexpr auto AUTORENEW{ u8"\ue863" };
+	constexpr auto AV_TIMER{ u8"\ue01b" };
+	constexpr auto BACKSPACE{ u8"\ue14a" };
+	constexpr auto BACKUP{ u8"\ue864" };
+	constexpr auto BATTERY_ALERT{ u8"\ue19c" };
+	constexpr auto BATTERY_CHARGING_FULL{ u8"\ue1a3" };
+	constexpr auto BATTERY_FULL{ u8"\ue1a4" };
+	constexpr auto BATTERY_STD{ u8"\ue1a5" };
+	constexpr auto BATTERY_UNKNOWN{ u8"\ue1a6" };
+	constexpr auto BEACH_ACCESS{ u8"\ueb3e" };
+	constexpr auto BEENHERE{ u8"\ue52d" };
+	constexpr auto BLOCK{ u8"\ue14b" };
+	constexpr auto BLUETOOTH{ u8"\ue1a7" };
+	constexpr auto BLUETOOTH_AUDIO{ u8"\ue60f" };
+	constexpr auto BLUETOOTH_CONNECTED{ u8"\ue1a8" };
+	constexpr auto BLUETOOTH_DISABLED{ u8"\ue1a9" };
+	constexpr auto BLUETOOTH_SEARCHING{ u8"\ue1aa" };
+	constexpr auto BLUR_CIRCULAR{ u8"\ue3a2" };
+	constexpr auto BLUR_LINEAR{ u8"\ue3a3" };
+	constexpr auto BLUR_OFF{ u8"\ue3a4" };
+	constexpr auto BLUR_ON{ u8"\ue3a5" };
+	constexpr auto BOOK{ u8"\ue865" };
+	constexpr auto BOOKMARK{ u8"\ue866" };
+	constexpr auto BOOKMARK_BORDER{ u8"\ue867" };
+	constexpr auto BORDER_ALL{ u8"\ue228" };
+	constexpr auto BORDER_BOTTOM{ u8"\ue229" };
+	constexpr auto BORDER_CLEAR{ u8"\ue22a" };
+	constexpr auto BORDER_COLOR{ u8"\ue22b" };
+	constexpr auto BORDER_HORIZONTAL{ u8"\ue22c" };
+	constexpr auto BORDER_INNER{ u8"\ue22d" };
+	constexpr auto BORDER_LEFT{ u8"\ue22e" };
+	constexpr auto BORDER_OUTER{ u8"\ue22f" };
+	constexpr auto BORDER_RIGHT{ u8"\ue230" };
+	constexpr auto BORDER_STYLE{ u8"\ue231" };
+	constexpr auto BORDER_TOP{ u8"\ue232" };
+	constexpr auto BORDER_VERTICAL{ u8"\ue233" };
+	constexpr auto BRANDING_WATERMARK{ u8"\ue06b" };
+	constexpr auto BRIGHTNESS_1{ u8"\ue3a6" };
+	constexpr auto BRIGHTNESS_2{ u8"\ue3a7" };
+	constexpr auto BRIGHTNESS_3{ u8"\ue3a8" };
+	constexpr auto BRIGHTNESS_4{ u8"\ue3a9" };
+	constexpr auto BRIGHTNESS_5{ u8"\ue3aa" };
+	constexpr auto BRIGHTNESS_6{ u8"\ue3ab" };
+	constexpr auto BRIGHTNESS_7{ u8"\ue3ac" };
+	constexpr auto BRIGHTNESS_AUTO{ u8"\ue1ab" };
+	constexpr auto BRIGHTNESS_HIGH{ u8"\ue1ac" };
+	constexpr auto BRIGHTNESS_LOW{ u8"\ue1ad" };
+	constexpr auto BRIGHTNESS_MEDIUM{ u8"\ue1ae" };
+	constexpr auto BROKEN_IMAGE{ u8"\ue3ad" };
+	constexpr auto BRUSH{ u8"\ue3ae" };
+	constexpr auto BUBBLE_CHART{ u8"\ue6dd" };
+	constexpr auto BUG_REPORT{ u8"\ue868" };
+	constexpr auto BUILD{ u8"\ue869" };
+	constexpr auto BURST_MODE{ u8"\ue43c" };
+	constexpr auto BUSINESS{ u8"\ue0af" };
+	constexpr auto BUSINESS_CENTER{ u8"\ueb3f" };
+	constexpr auto CACHED{ u8"\ue86a" };
+	constexpr auto CAKE{ u8"\ue7e9" };
+	constexpr auto CALL{ u8"\ue0b0" };
+	constexpr auto CALL_END{ u8"\ue0b1" };
+	constexpr auto CALL_MADE{ u8"\ue0b2" };
+	constexpr auto CALL_MERGE{ u8"\ue0b3" };
+	constexpr auto CALL_MISSED{ u8"\ue0b4" };
+	constexpr auto CALL_MISSED_OUTGOING{ u8"\ue0e4" };
+	constexpr auto CALL_RECEIVED{ u8"\ue0b5" };
+	constexpr auto CALL_SPLIT{ u8"\ue0b6" };
+	constexpr auto CALL_TO_ACTION{ u8"\ue06c" };
+	constexpr auto CAMERA{ u8"\ue3af" };
+	constexpr auto CAMERA_ALT{ u8"\ue3b0" };
+	constexpr auto CAMERA_ENHANCE{ u8"\ue8fc" };
+	constexpr auto CAMERA_FRONT{ u8"\ue3b1" };
+	constexpr auto CAMERA_REAR{ u8"\ue3b2" };
+	constexpr auto CAMERA_ROLL{ u8"\ue3b3" };
+	constexpr auto CANCEL{ u8"\ue5c9" };
+	constexpr auto CARD_GIFTCARD{ u8"\ue8f6" };
+	constexpr auto CARD_MEMBERSHIP{ u8"\ue8f7" };
+	constexpr auto CARD_TRAVEL{ u8"\ue8f8" };
+	constexpr auto CASINO{ u8"\ueb40" };
+	constexpr auto CAST{ u8"\ue307" };
+	constexpr auto CAST_CONNECTED{ u8"\ue308" };
+	constexpr auto CENTER_FOCUS_STRONG{ u8"\ue3b4" };
+	constexpr auto CENTER_FOCUS_WEAK{ u8"\ue3b5" };
+	constexpr auto CHANGE_HISTORY{ u8"\ue86b" };
+	constexpr auto CHAT{ u8"\ue0b7" };
+	constexpr auto CHAT_BUBBLE{ u8"\ue0ca" };
+	constexpr auto CHAT_BUBBLE_OUTLINE{ u8"\ue0cb" };
+	constexpr auto CHECK{ u8"\ue5ca" };
+	constexpr auto CHECK_BOX{ u8"\ue834" };
+	constexpr auto CHECK_BOX_OUTLINE_BLANK{ u8"\ue835" };
+	constexpr auto CHECK_CIRCLE{ u8"\ue86c" };
+	constexpr auto CHEVRON_LEFT{ u8"\ue5cb" };
+	constexpr auto CHEVRON_RIGHT{ u8"\ue5cc" };
+	constexpr auto CHILD_CARE{ u8"\ueb41" };
+	constexpr auto CHILD_FRIENDLY{ u8"\ueb42" };
+	constexpr auto CHROME_READER_MODE{ u8"\ue86d" };
+	constexpr auto CLASS{ u8"\ue86e" };
+	constexpr auto CLEAR{ u8"\ue14c" };
+	constexpr auto CLEAR_ALL{ u8"\ue0b8" };
+	constexpr auto CLOSE{ u8"\ue5cd" };
+	constexpr auto CLOSED_CAPTION{ u8"\ue01c" };
+	constexpr auto CLOUD{ u8"\ue2bd" };
+	constexpr auto CLOUD_CIRCLE{ u8"\ue2be" };
+	constexpr auto CLOUD_DONE{ u8"\ue2bf" };
+	constexpr auto CLOUD_DOWNLOAD{ u8"\ue2c0" };
+	constexpr auto CLOUD_OFF{ u8"\ue2c1" };
+	constexpr auto CLOUD_QUEUE{ u8"\ue2c2" };
+	constexpr auto CLOUD_UPLOAD{ u8"\ue2c3" };
+	constexpr auto CODE{ u8"\ue86f" };
+	constexpr auto COLLECTIONS{ u8"\ue3b6" };
+	constexpr auto COLLECTIONS_BOOKMARK{ u8"\ue431" };
+	constexpr auto COLOR_LENS{ u8"\ue3b7" };
+	constexpr auto COLORIZE{ u8"\ue3b8" };
+	constexpr auto COMMENT{ u8"\ue0b9" };
+	constexpr auto COMPARE{ u8"\ue3b9" };
+	constexpr auto COMPARE_ARROWS{ u8"\ue915" };
+	constexpr auto COMPUTER{ u8"\ue30a" };
+	constexpr auto CONFIRMATION_NUMBER{ u8"\ue638" };
+	constexpr auto CONTACT_MAIL{ u8"\ue0d0" };
+	constexpr auto CONTACT_PHONE{ u8"\ue0cf" };
+	constexpr auto CONTACTS{ u8"\ue0ba" };
+	constexpr auto CONTENT_COPY{ u8"\ue14d" };
+	constexpr auto CONTENT_CUT{ u8"\ue14e" };
+	constexpr auto CONTENT_PASTE{ u8"\ue14f" };
+	constexpr auto CONTROL_POINT{ u8"\ue3ba" };
+	constexpr auto CONTROL_POINT_DUPLICATE{ u8"\ue3bb" };
+	constexpr auto COPYRIGHT{ u8"\ue90c" };
+	constexpr auto CREATE{ u8"\ue150" };
+	constexpr auto CREATE_NEW_FOLDER{ u8"\ue2cc" };
+	constexpr auto CREDIT_CARD{ u8"\ue870" };
+	constexpr auto CROP{ u8"\ue3be" };
+	constexpr auto CROP_16_9{ u8"\ue3bc" };
+	constexpr auto CROP_3_2{ u8"\ue3bd" };
+	constexpr auto CROP_5_4{ u8"\ue3bf" };
+	constexpr auto CROP_7_5{ u8"\ue3c0" };
+	constexpr auto CROP_DIN{ u8"\ue3c1" };
+	constexpr auto CROP_FREE{ u8"\ue3c2" };
+	constexpr auto CROP_LANDSCAPE{ u8"\ue3c3" };
+	constexpr auto CROP_ORIGINAL{ u8"\ue3c4" };
+	constexpr auto CROP_PORTRAIT{ u8"\ue3c5" };
+	constexpr auto CROP_ROTATE{ u8"\ue437" };
+	constexpr auto CROP_SQUARE{ u8"\ue3c6" };
+	constexpr auto DASHBOARD{ u8"\ue871" };
+	constexpr auto DATA_USAGE{ u8"\ue1af" };
+	constexpr auto DATE_RANGE{ u8"\ue916" };
+	constexpr auto DEHAZE{ u8"\ue3c7" };
+	constexpr auto DELETE{ u8"\ue872" };
+	constexpr auto DELETE_FOREVER{ u8"\ue92b" };
+	constexpr auto DELETE_SWEEP{ u8"\ue16c" };
+	constexpr auto DESCRIPTION{ u8"\ue873" };
+	constexpr auto DESKTOP_MAC{ u8"\ue30b" };
+	constexpr auto DESKTOP_WINDOWS{ u8"\ue30c" };
+	constexpr auto DETAILS{ u8"\ue3c8" };
+	constexpr auto DEVELOPER_BOARD{ u8"\ue30d" };
+	constexpr auto DEVELOPER_MODE{ u8"\ue1b0" };
+	constexpr auto DEVICE_HUB{ u8"\ue335" };
+	constexpr auto DEVICES{ u8"\ue1b1" };
+	constexpr auto DEVICES_OTHER{ u8"\ue337" };
+	constexpr auto DIALER_SIP{ u8"\ue0bb" };
+	constexpr auto DIALPAD{ u8"\ue0bc" };
+	constexpr auto DIRECTIONS{ u8"\ue52e" };
+	constexpr auto DIRECTIONS_BIKE{ u8"\ue52f" };
+	constexpr auto DIRECTIONS_BOAT{ u8"\ue532" };
+	constexpr auto DIRECTIONS_BUS{ u8"\ue530" };
+	constexpr auto DIRECTIONS_CAR{ u8"\ue531" };
+	constexpr auto DIRECTIONS_RAILWAY{ u8"\ue534" };
+	constexpr auto DIRECTIONS_RUN{ u8"\ue566" };
+	constexpr auto DIRECTIONS_SUBWAY{ u8"\ue533" };
+	constexpr auto DIRECTIONS_TRANSIT{ u8"\ue535" };
+	constexpr auto DIRECTIONS_WALK{ u8"\ue536" };
+	constexpr auto DISC_FULL{ u8"\ue610" };
+	constexpr auto DNS{ u8"\ue875" };
+	constexpr auto DO_NOT_DISTURB{ u8"\ue612" };
+	constexpr auto DO_NOT_DISTURB_ALT{ u8"\ue611" };
+	constexpr auto DO_NOT_DISTURB_OFF{ u8"\ue643" };
+	constexpr auto DO_NOT_DISTURB_ON{ u8"\ue644" };
+	constexpr auto DOCK{ u8"\ue30e" };
 #ifdef DOMAIN
 #undef DOMAIN
 #endif
-	constexpr char const* DOMAIN = u8"\ue7ee";
-	constexpr char const* DONE = u8"\ue876";
-	constexpr char const* DONE_ALL = u8"\ue877";
-	constexpr char const* DONUT_LARGE = u8"\ue917";
-	constexpr char const* DONUT_SMALL = u8"\ue918";
-	constexpr char const* DRAFTS = u8"\ue151";
-	constexpr char const* DRAG_HANDLE = u8"\ue25d";
-	constexpr char const* DRIVE_ETA = u8"\ue613";
-	constexpr char const* DVR = u8"\ue1b2";
-	constexpr char const* EDIT = u8"\ue3c9";
-	constexpr char const* EDIT_LOCATION = u8"\ue568";
-	constexpr char const* EJECT = u8"\ue8fb";
-	constexpr char const* EMAIL = u8"\ue0be";
-	constexpr char const* ENHANCED_ENCRYPTION = u8"\ue63f";
-	constexpr char const* EQUALIZER = u8"\ue01d";
-	constexpr char const* ERROR = u8"\ue000";
-	constexpr char const* ERROR_OUTLINE = u8"\ue001";
-	constexpr char const* EURO_SYMBOL = u8"\ue926";
-	constexpr char const* EV_STATION = u8"\ue56d";
-	constexpr char const* EVENT = u8"\ue878";
-	constexpr char const* EVENT_AVAILABLE = u8"\ue614";
-	constexpr char const* EVENT_BUSY = u8"\ue615";
-	constexpr char const* EVENT_NOTE = u8"\ue616";
-	constexpr char const* EVENT_SEAT = u8"\ue903";
-	constexpr char const* EXIT_TO_APP = u8"\ue879";
-	constexpr char const* EXPAND_LESS = u8"\ue5ce";
-	constexpr char const* EXPAND_MORE = u8"\ue5cf";
-	constexpr char const* EXPLICIT = u8"\ue01e";
-	constexpr char const* EXPLORE = u8"\ue87a";
-	constexpr char const* EXPOSURE = u8"\ue3ca";
-	constexpr char const* EXPOSURE_NEG_1 = u8"\ue3cb";
-	constexpr char const* EXPOSURE_NEG_2 = u8"\ue3cc";
-	constexpr char const* EXPOSURE_PLUS_1 = u8"\ue3cd";
-	constexpr char const* EXPOSURE_PLUS_2 = u8"\ue3ce";
-	constexpr char const* EXPOSURE_ZERO = u8"\ue3cf";
-	constexpr char const* EXTENSION = u8"\ue87b";
-	constexpr char const* FACE = u8"\ue87c";
-	constexpr char const* FAST_FORWARD = u8"\ue01f";
-	constexpr char const* FAST_REWIND = u8"\ue020";
-	constexpr char const* FAVORITE = u8"\ue87d";
-	constexpr char const* FAVORITE_BORDER = u8"\ue87e";
-	constexpr char const* FEATURED_PLAY_LIST = u8"\ue06d";
-	constexpr char const* FEATURED_VIDEO = u8"\ue06e";
-	constexpr char const* FEEDBACK = u8"\ue87f";
-	constexpr char const* FIBER_DVR = u8"\ue05d";
-	constexpr char const* FIBER_MANUAL_RECORD = u8"\ue061";
-	constexpr char const* FIBER_NEW = u8"\ue05e";
-	constexpr char const* FIBER_PIN = u8"\ue06a";
-	constexpr char const* FIBER_SMART_RECORD = u8"\ue062";
-	constexpr char const* FILE_DOWNLOAD = u8"\ue2c4";
-	constexpr char const* FILE_UPLOAD = u8"\ue2c6";
-	constexpr char const* FILTER = u8"\ue3d3";
-	constexpr char const* FILTER_1 = u8"\ue3d0";
-	constexpr char const* FILTER_2 = u8"\ue3d1";
-	constexpr char const* FILTER_3 = u8"\ue3d2";
-	constexpr char const* FILTER_4 = u8"\ue3d4";
-	constexpr char const* FILTER_5 = u8"\ue3d5";
-	constexpr char const* FILTER_6 = u8"\ue3d6";
-	constexpr char const* FILTER_7 = u8"\ue3d7";
-	constexpr char const* FILTER_8 = u8"\ue3d8";
-	constexpr char const* FILTER_9 = u8"\ue3d9";
-	constexpr char const* FILTER_9_PLUS = u8"\ue3da";
-	constexpr char const* FILTER_B_AND_W = u8"\ue3db";
-	constexpr char const* FILTER_CENTER_FOCUS = u8"\ue3dc";
-	constexpr char const* FILTER_DRAMA = u8"\ue3dd";
-	constexpr char const* FILTER_FRAMES = u8"\ue3de";
-	constexpr char const* FILTER_HDR = u8"\ue3df";
-	constexpr char const* FILTER_LIST = u8"\ue152";
-	constexpr char const* FILTER_NONE = u8"\ue3e0";
-	constexpr char const* FILTER_TILT_SHIFT = u8"\ue3e2";
-	constexpr char const* FILTER_VINTAGE = u8"\ue3e3";
-	constexpr char const* FIND_IN_PAGE = u8"\ue880";
-	constexpr char const* FIND_REPLACE = u8"\ue881";
-	constexpr char const* FINGERPRINT = u8"\ue90d";
-	constexpr char const* FIRST_PAGE = u8"\ue5dc";
-	constexpr char const* FITNESS_CENTER = u8"\ueb43";
-	constexpr char const* FLAG = u8"\ue153";
-	constexpr char const* FLARE = u8"\ue3e4";
-	constexpr char const* FLASH_AUTO = u8"\ue3e5";
-	constexpr char const* FLASH_OFF = u8"\ue3e6";
-	constexpr char const* FLASH_ON = u8"\ue3e7";
-	constexpr char const* FLIGHT = u8"\ue539";
-	constexpr char const* FLIGHT_LAND = u8"\ue904";
-	constexpr char const* FLIGHT_TAKEOFF = u8"\ue905";
-	constexpr char const* FLIP = u8"\ue3e8";
-	constexpr char const* FLIP_TO_BACK = u8"\ue882";
-	constexpr char const* FLIP_TO_FRONT = u8"\ue883";
-	constexpr char const* FOLDER = u8"\ue2c7";
-	constexpr char const* FOLDER_OPEN = u8"\ue2c8";
-	constexpr char const* FOLDER_SHARED = u8"\ue2c9";
-	constexpr char const* FOLDER_SPECIAL = u8"\ue617";
-	constexpr char const* FONT_DOWNLOAD = u8"\ue167";
-	constexpr char const* FORMAT_ALIGN_CENTER = u8"\ue234";
-	constexpr char const* FORMAT_ALIGN_JUSTIFY = u8"\ue235";
-	constexpr char const* FORMAT_ALIGN_LEFT = u8"\ue236";
-	constexpr char const* FORMAT_ALIGN_RIGHT = u8"\ue237";
-	constexpr char const* FORMAT_BOLD = u8"\ue238";
-	constexpr char const* FORMAT_CLEAR = u8"\ue239";
-	constexpr char const* FORMAT_COLOR_FILL = u8"\ue23a";
-	constexpr char const* FORMAT_COLOR_RESET = u8"\ue23b";
-	constexpr char const* FORMAT_COLOR_TEXT = u8"\ue23c";
-	constexpr char const* FORMAT_INDENT_DECREASE = u8"\ue23d";
-	constexpr char const* FORMAT_INDENT_INCREASE = u8"\ue23e";
-	constexpr char const* FORMAT_ITALIC = u8"\ue23f";
-	constexpr char const* FORMAT_LINE_SPACING = u8"\ue240";
-	constexpr char const* FORMAT_LIST_BULLETED = u8"\ue241";
-	constexpr char const* FORMAT_LIST_NUMBERED = u8"\ue242";
-	constexpr char const* FORMAT_PAINT = u8"\ue243";
-	constexpr char const* FORMAT_QUOTE = u8"\ue244";
-	constexpr char const* FORMAT_SHAPES = u8"\ue25e";
-	constexpr char const* FORMAT_SIZE = u8"\ue245";
-	constexpr char const* FORMAT_STRIKETHROUGH = u8"\ue246";
-	constexpr char const* FORMAT_TEXTDIRECTION_L_TO_R = u8"\ue247";
-	constexpr char const* FORMAT_TEXTDIRECTION_R_TO_L = u8"\ue248";
-	constexpr char const* FORMAT_UNDERLINED = u8"\ue249";
-	constexpr char const* FORUM = u8"\ue0bf";
-	constexpr char const* FORWARD = u8"\ue154";
-	constexpr char const* FORWARD_10 = u8"\ue056";
-	constexpr char const* FORWARD_30 = u8"\ue057";
-	constexpr char const* FORWARD_5 = u8"\ue058";
-	constexpr char const* FREE_BREAKFAST = u8"\ueb44";
-	constexpr char const* FULLSCREEN = u8"\ue5d0";
-	constexpr char const* FULLSCREEN_EXIT = u8"\ue5d1";
-	constexpr char const* FUNCTIONS = u8"\ue24a";
-	constexpr char const* G_TRANSLATE = u8"\ue927";
-	constexpr char const* GAMEPAD = u8"\ue30f";
-	constexpr char const* GAMES = u8"\ue021";
-	constexpr char const* GAVEL = u8"\ue90e";
-	constexpr char const* GESTURE = u8"\ue155";
-	constexpr char const* GET_APP = u8"\ue884";
-	constexpr char const* GIF = u8"\ue908";
-	constexpr char const* GOLF_COURSE = u8"\ueb45";
-	constexpr char const* GPS_FIXED = u8"\ue1b3";
-	constexpr char const* GPS_NOT_FIXED = u8"\ue1b4";
-	constexpr char const* GPS_OFF = u8"\ue1b5";
-	constexpr char const* GRADE = u8"\ue885";
-	constexpr char const* GRADIENT = u8"\ue3e9";
-	constexpr char const* GRAIN = u8"\ue3ea";
-	constexpr char const* GRAPHIC_EQ = u8"\ue1b8";
-	constexpr char const* GRID_OFF = u8"\ue3eb";
-	constexpr char const* GRID_ON = u8"\ue3ec";
-	constexpr char const* GROUP = u8"\ue7ef";
-	constexpr char const* GROUP_ADD = u8"\ue7f0";
-	constexpr char const* GROUP_WORK = u8"\ue886";
-	constexpr char const* HD = u8"\ue052";
-	constexpr char const* HDR_OFF = u8"\ue3ed";
-	constexpr char const* HDR_ON = u8"\ue3ee";
-	constexpr char const* HDR_STRONG = u8"\ue3f1";
-	constexpr char const* HDR_WEAK = u8"\ue3f2";
-	constexpr char const* HEADSET = u8"\ue310";
-	constexpr char const* HEADSET_MIC = u8"\ue311";
-	constexpr char const* HEALING = u8"\ue3f3";
-	constexpr char const* HEARING = u8"\ue023";
-	constexpr char const* HELP = u8"\ue887";
-	constexpr char const* HELP_OUTLINE = u8"\ue8fd";
-	constexpr char const* HIGH_QUALITY = u8"\ue024";
-	constexpr char const* HIGHLIGHT = u8"\ue25f";
-	constexpr char const* HIGHLIGHT_OFF = u8"\ue888";
-	constexpr char const* HISTORY = u8"\ue889";
-	constexpr char const* HOME = u8"\ue88a";
-	constexpr char const* HOT_TUB = u8"\ueb46";
-	constexpr char const* HOTEL = u8"\ue53a";
-	constexpr char const* HOURGLASS_EMPTY = u8"\ue88b";
-	constexpr char const* HOURGLASS_FULL = u8"\ue88c";
-	constexpr char const* HTTP = u8"\ue902";
-	constexpr char const* HTTPS = u8"\ue88d";
-	constexpr char const* IMAGE = u8"\ue3f4";
-	constexpr char const* IMAGE_ASPECT_RATIO = u8"\ue3f5";
-	constexpr char const* IMPORT_CONTACTS = u8"\ue0e0";
-	constexpr char const* IMPORT_EXPORT = u8"\ue0c3";
-	constexpr char const* IMPORTANT_DEVICES = u8"\ue912";
-	constexpr char const* INBOX = u8"\ue156";
-	constexpr char const* INDETERMINATE_CHECK_BOX = u8"\ue909";
-	constexpr char const* INFO = u8"\ue88e";
-	constexpr char const* INFO_OUTLINE = u8"\ue88f";
-	constexpr char const* INPUT = u8"\ue890";
-	constexpr char const* INSERT_CHART = u8"\ue24b";
-	constexpr char const* INSERT_COMMENT = u8"\ue24c";
-	constexpr char const* INSERT_DRIVE_FILE = u8"\ue24d";
-	constexpr char const* INSERT_EMOTICON = u8"\ue24e";
-	constexpr char const* INSERT_INVITATION = u8"\ue24f";
-	constexpr char const* INSERT_LINK = u8"\ue250";
-	constexpr char const* INSERT_PHOTO = u8"\ue251";
-	constexpr char const* INVERT_COLORS = u8"\ue891";
-	constexpr char const* INVERT_COLORS_OFF = u8"\ue0c4";
-	constexpr char const* ISO = u8"\ue3f6";
-	constexpr char const* KEYBOARD = u8"\ue312";
-	constexpr char const* KEYBOARD_ARROW_DOWN = u8"\ue313";
-	constexpr char const* KEYBOARD_ARROW_LEFT = u8"\ue314";
-	constexpr char const* KEYBOARD_ARROW_RIGHT = u8"\ue315";
-	constexpr char const* KEYBOARD_ARROW_UP = u8"\ue316";
-	constexpr char const* KEYBOARD_BACKSPACE = u8"\ue317";
-	constexpr char const* KEYBOARD_CAPSLOCK = u8"\ue318";
-	constexpr char const* KEYBOARD_HIDE = u8"\ue31a";
-	constexpr char const* KEYBOARD_RETURN = u8"\ue31b";
-	constexpr char const* KEYBOARD_TAB = u8"\ue31c";
-	constexpr char const* KEYBOARD_VOICE = u8"\ue31d";
-	constexpr char const* KITCHEN = u8"\ueb47";
-	constexpr char const* LABEL = u8"\ue892";
-	constexpr char const* LABEL_OUTLINE = u8"\ue893";
-	constexpr char const* LANDSCAPE = u8"\ue3f7";
-	constexpr char const* LANGUAGE = u8"\ue894";
-	constexpr char const* LAPTOP = u8"\ue31e";
-	constexpr char const* LAPTOP_CHROMEBOOK = u8"\ue31f";
-	constexpr char const* LAPTOP_MAC = u8"\ue320";
-	constexpr char const* LAPTOP_WINDOWS = u8"\ue321";
-	constexpr char const* LAST_PAGE = u8"\ue5dd";
-	constexpr char const* LAUNCH = u8"\ue895";
-	constexpr char const* LAYERS = u8"\ue53b";
-	constexpr char const* LAYERS_CLEAR = u8"\ue53c";
-	constexpr char const* LEAK_ADD = u8"\ue3f8";
-	constexpr char const* LEAK_REMOVE = u8"\ue3f9";
-	constexpr char const* LENS = u8"\ue3fa";
-	constexpr char const* LIBRARY_ADD = u8"\ue02e";
-	constexpr char const* LIBRARY_BOOKS = u8"\ue02f";
-	constexpr char const* LIBRARY_MUSIC = u8"\ue030";
-	constexpr char const* LIGHTBULB_OUTLINE = u8"\ue90f";
-	constexpr char const* LINE_STYLE = u8"\ue919";
-	constexpr char const* LINE_WEIGHT = u8"\ue91a";
-	constexpr char const* LINEAR_SCALE = u8"\ue260";
-	constexpr char const* LINK = u8"\ue157";
-	constexpr char const* LINKED_CAMERA = u8"\ue438";
-	constexpr char const* LIST = u8"\ue896";
-	constexpr char const* LIVE_HELP = u8"\ue0c6";
-	constexpr char const* LIVE_TV = u8"\ue639";
-	constexpr char const* LOCAL_ACTIVITY = u8"\ue53f";
-	constexpr char const* LOCAL_AIRPORT = u8"\ue53d";
-	constexpr char const* LOCAL_ATM = u8"\ue53e";
-	constexpr char const* LOCAL_BAR = u8"\ue540";
-	constexpr char const* LOCAL_CAFE = u8"\ue541";
-	constexpr char const* LOCAL_CAR_WASH = u8"\ue542";
-	constexpr char const* LOCAL_CONVENIENCE_STORE = u8"\ue543";
-	constexpr char const* LOCAL_DINING = u8"\ue556";
-	constexpr char const* LOCAL_DRINK = u8"\ue544";
-	constexpr char const* LOCAL_FLORIST = u8"\ue545";
-	constexpr char const* LOCAL_GAS_STATION = u8"\ue546";
-	constexpr char const* LOCAL_GROCERY_STORE = u8"\ue547";
-	constexpr char const* LOCAL_HOSPITAL = u8"\ue548";
-	constexpr char const* LOCAL_HOTEL = u8"\ue549";
-	constexpr char const* LOCAL_LAUNDRY_SERVICE = u8"\ue54a";
-	constexpr char const* LOCAL_LIBRARY = u8"\ue54b";
-	constexpr char const* LOCAL_MALL = u8"\ue54c";
-	constexpr char const* LOCAL_MOVIES = u8"\ue54d";
-	constexpr char const* LOCAL_OFFER = u8"\ue54e";
-	constexpr char const* LOCAL_PARKING = u8"\ue54f";
-	constexpr char const* LOCAL_PHARMACY = u8"\ue550";
-	constexpr char const* LOCAL_PHONE = u8"\ue551";
-	constexpr char const* LOCAL_PIZZA = u8"\ue552";
-	constexpr char const* LOCAL_PLAY = u8"\ue553";
-	constexpr char const* LOCAL_POST_OFFICE = u8"\ue554";
-	constexpr char const* LOCAL_PRINTSHOP = u8"\ue555";
-	constexpr char const* LOCAL_SEE = u8"\ue557";
-	constexpr char const* LOCAL_SHIPPING = u8"\ue558";
-	constexpr char const* LOCAL_TAXI = u8"\ue559";
-	constexpr char const* LOCATION_CITY = u8"\ue7f1";
-	constexpr char const* LOCATION_DISABLED = u8"\ue1b6";
-	constexpr char const* LOCATION_OFF = u8"\ue0c7";
-	constexpr char const* LOCATION_ON = u8"\ue0c8";
-	constexpr char const* LOCATION_SEARCHING = u8"\ue1b7";
-	constexpr char const* LOCK = u8"\ue897";
-	constexpr char const* LOCK_OPEN = u8"\ue898";
-	constexpr char const* LOCK_OUTLINE = u8"\ue899";
-	constexpr char const* LOOKS = u8"\ue3fc";
-	constexpr char const* LOOKS_3 = u8"\ue3fb";
-	constexpr char const* LOOKS_4 = u8"\ue3fd";
-	constexpr char const* LOOKS_5 = u8"\ue3fe";
-	constexpr char const* LOOKS_6 = u8"\ue3ff";
-	constexpr char const* LOOKS_ONE = u8"\ue400";
-	constexpr char const* LOOKS_TWO = u8"\ue401";
-	constexpr char const* LOOP = u8"\ue028";
-	constexpr char const* LOUPE = u8"\ue402";
-	constexpr char const* LOW_PRIORITY = u8"\ue16d";
-	constexpr char const* LOYALTY = u8"\ue89a";
-	constexpr char const* MAIL = u8"\ue158";
-	constexpr char const* MAIL_OUTLINE = u8"\ue0e1";
-	constexpr char const* MAP = u8"\ue55b";
-	constexpr char const* MARKUNREAD = u8"\ue159";
-	constexpr char const* MARKUNREAD_MAILBOX = u8"\ue89b";
-	constexpr char const* MEMORY = u8"\ue322";
-	constexpr char const* MENU = u8"\ue5d2";
-	constexpr char const* MERGE_TYPE = u8"\ue252";
-	constexpr char const* MESSAGE = u8"\ue0c9";
-	constexpr char const* MIC = u8"\ue029";
-	constexpr char const* MIC_NONE = u8"\ue02a";
-	constexpr char const* MIC_OFF = u8"\ue02b";
-	constexpr char const* MMS = u8"\ue618";
-	constexpr char const* MODE_COMMENT = u8"\ue253";
-	constexpr char const* MODE_EDIT = u8"\ue254";
-	constexpr char const* MONETIZATION_ON = u8"\ue263";
-	constexpr char const* MONEY_OFF = u8"\ue25c";
-	constexpr char const* MONOCHROME_PHOTOS = u8"\ue403";
-	constexpr char const* MOOD = u8"\ue7f2";
-	constexpr char const* MOOD_BAD = u8"\ue7f3";
-	constexpr char const* MORE = u8"\ue619";
-	constexpr char const* MORE_HORIZ = u8"\ue5d3";
-	constexpr char const* MORE_VERT = u8"\ue5d4";
-	constexpr char const* MOTORCYCLE = u8"\ue91b";
-	constexpr char const* MOUSE = u8"\ue323";
-	constexpr char const* MOVE_TO_INBOX = u8"\ue168";
-	constexpr char const* MOVIE = u8"\ue02c";
-	constexpr char const* MOVIE_CREATION = u8"\ue404";
-	constexpr char const* MOVIE_FILTER = u8"\ue43a";
-	constexpr char const* MULTILINE_CHART = u8"\ue6df";
-	constexpr char const* MUSIC_NOTE = u8"\ue405";
-	constexpr char const* MUSIC_VIDEO = u8"\ue063";
-	constexpr char const* MY_LOCATION = u8"\ue55c";
-	constexpr char const* NATURE = u8"\ue406";
-	constexpr char const* NATURE_PEOPLE = u8"\ue407";
-	constexpr char const* NAVIGATE_BEFORE = u8"\ue408";
-	constexpr char const* NAVIGATE_NEXT = u8"\ue409";
-	constexpr char const* NAVIGATION = u8"\ue55d";
-	constexpr char const* NEAR_ME = u8"\ue569";
-	constexpr char const* NETWORK_CELL = u8"\ue1b9";
-	constexpr char const* NETWORK_CHECK = u8"\ue640";
-	constexpr char const* NETWORK_LOCKED = u8"\ue61a";
-	constexpr char const* NETWORK_WIFI = u8"\ue1ba";
-	constexpr char const* NEW_RELEASES = u8"\ue031";
-	constexpr char const* NEXT_WEEK = u8"\ue16a";
-	constexpr char const* NFC = u8"\ue1bb";
-	constexpr char const* NO_ENCRYPTION = u8"\ue641";
-	constexpr char const* NO_SIM = u8"\ue0cc";
-	constexpr char const* NOT_INTERESTED = u8"\ue033";
-	constexpr char const* NOTE = u8"\ue06f";
-	constexpr char const* NOTE_ADD = u8"\ue89c";
-	constexpr char const* NOTIFICATIONS = u8"\ue7f4";
-	constexpr char const* NOTIFICATIONS_ACTIVE = u8"\ue7f7";
-	constexpr char const* NOTIFICATIONS_NONE = u8"\ue7f5";
-	constexpr char const* NOTIFICATIONS_OFF = u8"\ue7f6";
-	constexpr char const* NOTIFICATIONS_PAUSED = u8"\ue7f8";
-	constexpr char const* OFFLINE_PIN = u8"\ue90a";
-	constexpr char const* ONDEMAND_VIDEO = u8"\ue63a";
-	constexpr char const* OPACITY = u8"\ue91c";
-	constexpr char const* OPEN_IN_BROWSER = u8"\ue89d";
-	constexpr char const* OPEN_IN_NEW = u8"\ue89e";
-	constexpr char const* OPEN_WITH = u8"\ue89f";
-	constexpr char const* PAGES = u8"\ue7f9";
-	constexpr char const* PAGEVIEW = u8"\ue8a0";
-	constexpr char const* PALETTE = u8"\ue40a";
-	constexpr char const* PAN_TOOL = u8"\ue925";
-	constexpr char const* PANORAMA = u8"\ue40b";
-	constexpr char const* PANORAMA_FISH_EYE = u8"\ue40c";
-	constexpr char const* PANORAMA_HORIZONTAL = u8"\ue40d";
-	constexpr char const* PANORAMA_VERTICAL = u8"\ue40e";
-	constexpr char const* PANORAMA_WIDE_ANGLE = u8"\ue40f";
-	constexpr char const* PARTY_MODE = u8"\ue7fa";
-	constexpr char const* PAUSE = u8"\ue034";
-	constexpr char const* PAUSE_CIRCLE_FILLED = u8"\ue035";
-	constexpr char const* PAUSE_CIRCLE_OUTLINE = u8"\ue036";
-	constexpr char const* PAYMENT = u8"\ue8a1";
-	constexpr char const* PEOPLE = u8"\ue7fb";
-	constexpr char const* PEOPLE_OUTLINE = u8"\ue7fc";
-	constexpr char const* PERM_CAMERA_MIC = u8"\ue8a2";
-	constexpr char const* PERM_CONTACT_CALENDAR = u8"\ue8a3";
-	constexpr char const* PERM_DATA_SETTING = u8"\ue8a4";
-	constexpr char const* PERM_DEVICE_INFORMATION = u8"\ue8a5";
-	constexpr char const* PERM_IDENTITY = u8"\ue8a6";
-	constexpr char const* PERM_MEDIA = u8"\ue8a7";
-	constexpr char const* PERM_PHONE_MSG = u8"\ue8a8";
-	constexpr char const* PERM_SCAN_WIFI = u8"\ue8a9";
-	constexpr char const* PERSON = u8"\ue7fd";
-	constexpr char const* PERSON_ADD = u8"\ue7fe";
-	constexpr char const* PERSON_OUTLINE = u8"\ue7ff";
-	constexpr char const* PERSON_PIN = u8"\ue55a";
-	constexpr char const* PERSON_PIN_CIRCLE = u8"\ue56a";
-	constexpr char const* PERSONAL_VIDEO = u8"\ue63b";
-	constexpr char const* PETS = u8"\ue91d";
-	constexpr char const* PHONE = u8"\ue0cd";
-	constexpr char const* PHONE_ANDROID = u8"\ue324";
-	constexpr char const* PHONE_BLUETOOTH_SPEAKER = u8"\ue61b";
-	constexpr char const* PHONE_FORWARDED = u8"\ue61c";
-	constexpr char const* PHONE_IN_TALK = u8"\ue61d";
-	constexpr char const* PHONE_IPHONE = u8"\ue325";
-	constexpr char const* PHONE_LOCKED = u8"\ue61e";
-	constexpr char const* PHONE_MISSED = u8"\ue61f";
-	constexpr char const* PHONE_PAUSED = u8"\ue620";
-	constexpr char const* PHONELINK = u8"\ue326";
-	constexpr char const* PHONELINK_ERASE = u8"\ue0db";
-	constexpr char const* PHONELINK_LOCK = u8"\ue0dc";
-	constexpr char const* PHONELINK_OFF = u8"\ue327";
-	constexpr char const* PHONELINK_RING = u8"\ue0dd";
-	constexpr char const* PHONELINK_SETUP = u8"\ue0de";
-	constexpr char const* PHOTO = u8"\ue410";
-	constexpr char const* PHOTO_ALBUM = u8"\ue411";
-	constexpr char const* PHOTO_CAMERA = u8"\ue412";
-	constexpr char const* PHOTO_FILTER = u8"\ue43b";
-	constexpr char const* PHOTO_LIBRARY = u8"\ue413";
-	constexpr char const* PHOTO_SIZE_SELECT_ACTUAL = u8"\ue432";
-	constexpr char const* PHOTO_SIZE_SELECT_LARGE = u8"\ue433";
-	constexpr char const* PHOTO_SIZE_SELECT_SMALL = u8"\ue434";
-	constexpr char const* PICTURE_AS_PDF = u8"\ue415";
-	constexpr char const* PICTURE_IN_PICTURE = u8"\ue8aa";
-	constexpr char const* PICTURE_IN_PICTURE_ALT = u8"\ue911";
-	constexpr char const* PIE_CHART = u8"\ue6c4";
-	constexpr char const* PIE_CHART_OUTLINED = u8"\ue6c5";
-	constexpr char const* PIN_DROP = u8"\ue55e";
-	constexpr char const* PLACE = u8"\ue55f";
-	constexpr char const* PLAY_ARROW = u8"\ue037";
-	constexpr char const* PLAY_CIRCLE_FILLED = u8"\ue038";
-	constexpr char const* PLAY_CIRCLE_OUTLINE = u8"\ue039";
-	constexpr char const* PLAY_FOR_WORK = u8"\ue906";
-	constexpr char const* PLAYLIST_ADD = u8"\ue03b";
-	constexpr char const* PLAYLIST_ADD_CHECK = u8"\ue065";
-	constexpr char const* PLAYLIST_PLAY = u8"\ue05f";
-	constexpr char const* PLUS_ONE = u8"\ue800";
-	constexpr char const* POLL = u8"\ue801";
-	constexpr char const* POLYMER = u8"\ue8ab";
-	constexpr char const* POOL = u8"\ueb48";
-	constexpr char const* PORTABLE_WIFI_OFF = u8"\ue0ce";
-	constexpr char const* PORTRAIT = u8"\ue416";
-	constexpr char const* POWER = u8"\ue63c";
-	constexpr char const* POWER_INPUT = u8"\ue336";
-	constexpr char const* POWER_SETTINGS_NEW = u8"\ue8ac";
-	constexpr char const* PREGNANT_WOMAN = u8"\ue91e";
-	constexpr char const* PRESENT_TO_ALL = u8"\ue0df";
-	constexpr char const* PRINT = u8"\ue8ad";
-	constexpr char const* PRIORITY_HIGH = u8"\ue645";
-	constexpr char const* PUBLIC = u8"\ue80b";
-	constexpr char const* PUBLISH = u8"\ue255";
-	constexpr char const* QUERY_BUILDER = u8"\ue8ae";
-	constexpr char const* QUESTION_ANSWER = u8"\ue8af";
-	constexpr char const* QUEUE = u8"\ue03c";
-	constexpr char const* QUEUE_MUSIC = u8"\ue03d";
-	constexpr char const* QUEUE_PLAY_NEXT = u8"\ue066";
-	constexpr char const* RADIO = u8"\ue03e";
-	constexpr char const* RADIO_BUTTON_CHECKED = u8"\ue837";
-	constexpr char const* RADIO_BUTTON_UNCHECKED = u8"\ue836";
-	constexpr char const* RATE_REVIEW = u8"\ue560";
-	constexpr char const* RECEIPT = u8"\ue8b0";
-	constexpr char const* RECENT_ACTORS = u8"\ue03f";
-	constexpr char const* RECORD_VOICE_OVER = u8"\ue91f";
-	constexpr char const* REDEEM = u8"\ue8b1";
-	constexpr char const* REDO = u8"\ue15a";
-	constexpr char const* REFRESH = u8"\ue5d5";
-	constexpr char const* REMOVE = u8"\ue15b";
-	constexpr char const* REMOVE_CIRCLE = u8"\ue15c";
-	constexpr char const* REMOVE_CIRCLE_OUTLINE = u8"\ue15d";
-	constexpr char const* REMOVE_FROM_QUEUE = u8"\ue067";
-	constexpr char const* REMOVE_RED_EYE = u8"\ue417";
-	constexpr char const* REMOVE_SHOPPING_CART = u8"\ue928";
-	constexpr char const* REORDER = u8"\ue8fe";
-	constexpr char const* REPEAT = u8"\ue040";
-	constexpr char const* REPEAT_ONE = u8"\ue041";
-	constexpr char const* REPLAY = u8"\ue042";
-	constexpr char const* REPLAY_10 = u8"\ue059";
-	constexpr char const* REPLAY_30 = u8"\ue05a";
-	constexpr char const* REPLAY_5 = u8"\ue05b";
-	constexpr char const* REPLY = u8"\ue15e";
-	constexpr char const* REPLY_ALL = u8"\ue15f";
-	constexpr char const* REPORT = u8"\ue160";
-	constexpr char const* REPORT_PROBLEM = u8"\ue8b2";
-	constexpr char const* RESTAURANT = u8"\ue56c";
-	constexpr char const* RESTAURANT_MENU = u8"\ue561";
-	constexpr char const* RESTORE = u8"\ue8b3";
-	constexpr char const* RESTORE_PAGE = u8"\ue929";
-	constexpr char const* RING_VOLUME = u8"\ue0d1";
-	constexpr char const* ROOM = u8"\ue8b4";
-	constexpr char const* ROOM_SERVICE = u8"\ueb49";
-	constexpr char const* ROTATE_90_DEGREES_CCW = u8"\ue418";
-	constexpr char const* ROTATE_LEFT = u8"\ue419";
-	constexpr char const* ROTATE_RIGHT = u8"\ue41a";
-	constexpr char const* ROUNDED_CORNER = u8"\ue920";
-	constexpr char const* ROUTER = u8"\ue328";
-	constexpr char const* ROWING = u8"\ue921";
-	constexpr char const* RSS_FEED = u8"\ue0e5";
-	constexpr char const* RV_HOOKUP = u8"\ue642";
-	constexpr char const* SATELLITE = u8"\ue562";
-	constexpr char const* SAVE = u8"\ue161";
-	constexpr char const* SCANNER = u8"\ue329";
-	constexpr char const* SCHEDULE = u8"\ue8b5";
-	constexpr char const* SCHOOL = u8"\ue80c";
-	constexpr char const* SCREEN_LOCK_LANDSCAPE = u8"\ue1be";
-	constexpr char const* SCREEN_LOCK_PORTRAIT = u8"\ue1bf";
-	constexpr char const* SCREEN_LOCK_ROTATION = u8"\ue1c0";
-	constexpr char const* SCREEN_ROTATION = u8"\ue1c1";
-	constexpr char const* SCREEN_SHARE = u8"\ue0e2";
-	constexpr char const* SD_CARD = u8"\ue623";
-	constexpr char const* SD_STORAGE = u8"\ue1c2";
-	constexpr char const* SEARCH = u8"\ue8b6";
-	constexpr char const* SECURITY = u8"\ue32a";
-	constexpr char const* SELECT_ALL = u8"\ue162";
-	constexpr char const* SEND = u8"\ue163";
-	constexpr char const* SENTIMENT_DISSATISFIED = u8"\ue811";
-	constexpr char const* SENTIMENT_NEUTRAL = u8"\ue812";
-	constexpr char const* SENTIMENT_SATISFIED = u8"\ue813";
-	constexpr char const* SENTIMENT_VERY_DISSATISFIED = u8"\ue814";
-	constexpr char const* SENTIMENT_VERY_SATISFIED = u8"\ue815";
-	constexpr char const* SETTINGS = u8"\ue8b8";
-	constexpr char const* SETTINGS_APPLICATIONS = u8"\ue8b9";
-	constexpr char const* SETTINGS_BACKUP_RESTORE = u8"\ue8ba";
-	constexpr char const* SETTINGS_BLUETOOTH = u8"\ue8bb";
-	constexpr char const* SETTINGS_BRIGHTNESS = u8"\ue8bd";
-	constexpr char const* SETTINGS_CELL = u8"\ue8bc";
-	constexpr char const* SETTINGS_ETHERNET = u8"\ue8be";
-	constexpr char const* SETTINGS_INPUT_ANTENNA = u8"\ue8bf";
-	constexpr char const* SETTINGS_INPUT_COMPONENT = u8"\ue8c0";
-	constexpr char const* SETTINGS_INPUT_COMPOSITE = u8"\ue8c1";
-	constexpr char const* SETTINGS_INPUT_HDMI = u8"\ue8c2";
-	constexpr char const* SETTINGS_INPUT_SVIDEO = u8"\ue8c3";
-	constexpr char const* SETTINGS_OVERSCAN = u8"\ue8c4";
-	constexpr char const* SETTINGS_PHONE = u8"\ue8c5";
-	constexpr char const* SETTINGS_POWER = u8"\ue8c6";
-	constexpr char const* SETTINGS_REMOTE = u8"\ue8c7";
-	constexpr char const* SETTINGS_SYSTEM_DAYDREAM = u8"\ue1c3";
-	constexpr char const* SETTINGS_VOICE = u8"\ue8c8";
-	constexpr char const* SHARE = u8"\ue80d";
-	constexpr char const* SHOP = u8"\ue8c9";
-	constexpr char const* SHOP_TWO = u8"\ue8ca";
-	constexpr char const* SHOPPING_BASKET = u8"\ue8cb";
-	constexpr char const* SHOPPING_CART = u8"\ue8cc";
-	constexpr char const* SHORT_TEXT = u8"\ue261";
-	constexpr char const* SHOW_CHART = u8"\ue6e1";
-	constexpr char const* SHUFFLE = u8"\ue043";
-	constexpr char const* SIGNAL_CELLULAR_4_BAR = u8"\ue1c8";
-	constexpr char const* SIGNAL_CELLULAR_CONNECTED_NO_INTERNET_4_BAR = u8"\ue1cd";
-	constexpr char const* SIGNAL_CELLULAR_NO_SIM = u8"\ue1ce";
-	constexpr char const* SIGNAL_CELLULAR_NULL = u8"\ue1cf";
-	constexpr char const* SIGNAL_CELLULAR_OFF = u8"\ue1d0";
-	constexpr char const* SIGNAL_WIFI_4_BAR = u8"\ue1d8";
-	constexpr char const* SIGNAL_WIFI_4_BAR_LOCK = u8"\ue1d9";
-	constexpr char const* SIGNAL_WIFI_OFF = u8"\ue1da";
-	constexpr char const* SIM_CARD = u8"\ue32b";
-	constexpr char const* SIM_CARD_ALERT = u8"\ue624";
-	constexpr char const* SKIP_NEXT = u8"\ue044";
-	constexpr char const* SKIP_PREVIOUS = u8"\ue045";
-	constexpr char const* SLIDESHOW = u8"\ue41b";
-	constexpr char const* SLOW_MOTION_VIDEO = u8"\ue068";
-	constexpr char const* SMARTPHONE = u8"\ue32c";
-	constexpr char const* SMOKE_FREE = u8"\ueb4a";
-	constexpr char const* SMOKING_ROOMS = u8"\ueb4b";
-	constexpr char const* SMS = u8"\ue625";
-	constexpr char const* SMS_FAILED = u8"\ue626";
-	constexpr char const* SNOOZE = u8"\ue046";
-	constexpr char const* SORT = u8"\ue164";
-	constexpr char const* SORT_BY_ALPHA = u8"\ue053";
-	constexpr char const* SPA = u8"\ueb4c";
-	constexpr char const* SPACE_BAR = u8"\ue256";
-	constexpr char const* SPEAKER = u8"\ue32d";
-	constexpr char const* SPEAKER_GROUP = u8"\ue32e";
-	constexpr char const* SPEAKER_NOTES = u8"\ue8cd";
-	constexpr char const* SPEAKER_NOTES_OFF = u8"\ue92a";
-	constexpr char const* SPEAKER_PHONE = u8"\ue0d2";
-	constexpr char const* SPELLCHECK = u8"\ue8ce";
-	constexpr char const* STAR = u8"\ue838";
-	constexpr char const* STAR_BORDER = u8"\ue83a";
-	constexpr char const* STAR_HALF = u8"\ue839";
-	constexpr char const* STARS = u8"\ue8d0";
-	constexpr char const* STAY_CURRENT_LANDSCAPE = u8"\ue0d3";
-	constexpr char const* STAY_CURRENT_PORTRAIT = u8"\ue0d4";
-	constexpr char const* STAY_PRIMARY_LANDSCAPE = u8"\ue0d5";
-	constexpr char const* STAY_PRIMARY_PORTRAIT = u8"\ue0d6";
-	constexpr char const* STOP = u8"\ue047";
-	constexpr char const* STOP_SCREEN_SHARE = u8"\ue0e3";
-	constexpr char const* STORAGE = u8"\ue1db";
-	constexpr char const* STORE = u8"\ue8d1";
-	constexpr char const* STORE_MALL_DIRECTORY = u8"\ue563";
-	constexpr char const* STRAIGHTEN = u8"\ue41c";
-	constexpr char const* STREETVIEW = u8"\ue56e";
-	constexpr char const* STRIKETHROUGH_S = u8"\ue257";
-	constexpr char const* STYLE = u8"\ue41d";
-	constexpr char const* SUBDIRECTORY_ARROW_LEFT = u8"\ue5d9";
-	constexpr char const* SUBDIRECTORY_ARROW_RIGHT = u8"\ue5da";
-	constexpr char const* SUBJECT = u8"\ue8d2";
-	constexpr char const* SUBSCRIPTIONS = u8"\ue064";
-	constexpr char const* SUBTITLES = u8"\ue048";
-	constexpr char const* SUBWAY = u8"\ue56f";
-	constexpr char const* SUPERVISOR_ACCOUNT = u8"\ue8d3";
-	constexpr char const* SURROUND_SOUND = u8"\ue049";
-	constexpr char const* SWAP_CALLS = u8"\ue0d7";
-	constexpr char const* SWAP_HORIZ = u8"\ue8d4";
-	constexpr char const* SWAP_VERT = u8"\ue8d5";
-	constexpr char const* SWAP_VERTICAL_CIRCLE = u8"\ue8d6";
-	constexpr char const* SWITCH_CAMERA = u8"\ue41e";
-	constexpr char const* SWITCH_VIDEO = u8"\ue41f";
-	constexpr char const* SYNC = u8"\ue627";
-	constexpr char const* SYNC_DISABLED = u8"\ue628";
-	constexpr char const* SYNC_PROBLEM = u8"\ue629";
-	constexpr char const* SYSTEM_UPDATE = u8"\ue62a";
-	constexpr char const* SYSTEM_UPDATE_ALT = u8"\ue8d7";
-	constexpr char const* TAB = u8"\ue8d8";
-	constexpr char const* TAB_UNSELECTED = u8"\ue8d9";
-	constexpr char const* TABLET = u8"\ue32f";
-	constexpr char const* TABLET_ANDROID = u8"\ue330";
-	constexpr char const* TABLET_MAC = u8"\ue331";
-	constexpr char const* TAG_FACES = u8"\ue420";
-	constexpr char const* TAP_AND_PLAY = u8"\ue62b";
-	constexpr char const* TERRAIN = u8"\ue564";
-	constexpr char const* TEXT_FIELDS = u8"\ue262";
-	constexpr char const* TEXT_FORMAT = u8"\ue165";
-	constexpr char const* TEXTSMS = u8"\ue0d8";
-	constexpr char const* TEXTURE = u8"\ue421";
-	constexpr char const* THEATERS = u8"\ue8da";
-	constexpr char const* THUMB_DOWN = u8"\ue8db";
-	constexpr char const* THUMB_UP = u8"\ue8dc";
-	constexpr char const* THUMBS_UP_DOWN = u8"\ue8dd";
-	constexpr char const* TIME_TO_LEAVE = u8"\ue62c";
-	constexpr char const* TIMELAPSE = u8"\ue422";
-	constexpr char const* TIMELINE = u8"\ue922";
-	constexpr char const* TIMER = u8"\ue425";
-	constexpr char const* TIMER_10 = u8"\ue423";
-	constexpr char const* TIMER_3 = u8"\ue424";
-	constexpr char const* TIMER_OFF = u8"\ue426";
-	constexpr char const* TITLE = u8"\ue264";
-	constexpr char const* TOC = u8"\ue8de";
-	constexpr char const* TODAY = u8"\ue8df";
-	constexpr char const* TOLL = u8"\ue8e0";
-	constexpr char const* TONALITY = u8"\ue427";
-	constexpr char const* TOUCH_APP = u8"\ue913";
-	constexpr char const* TOYS = u8"\ue332";
-	constexpr char const* TRACK_CHANGES = u8"\ue8e1";
-	constexpr char const* TRAFFIC = u8"\ue565";
-	constexpr char const* TRAIN = u8"\ue570";
-	constexpr char const* TRAM = u8"\ue571";
-	constexpr char const* TRANSFER_WITHIN_A_STATION = u8"\ue572";
-	constexpr char const* TRANSFORM = u8"\ue428";
-	constexpr char const* TRANSLATE = u8"\ue8e2";
-	constexpr char const* TRENDING_DOWN = u8"\ue8e3";
-	constexpr char const* TRENDING_FLAT = u8"\ue8e4";
-	constexpr char const* TRENDING_UP = u8"\ue8e5";
-	constexpr char const* TUNE = u8"\ue429";
-	constexpr char const* TURNED_IN = u8"\ue8e6";
-	constexpr char const* TURNED_IN_NOT = u8"\ue8e7";
-	constexpr char const* TV = u8"\ue333";
-	constexpr char const* UNARCHIVE = u8"\ue169";
-	constexpr char const* UNDO = u8"\ue166";
-	constexpr char const* UNFOLD_LESS = u8"\ue5d6";
-	constexpr char const* UNFOLD_MORE = u8"\ue5d7";
-	constexpr char const* UPDATE = u8"\ue923";
-	constexpr char const* USB = u8"\ue1e0";
-	constexpr char const* VERIFIED_USER = u8"\ue8e8";
-	constexpr char const* VERTICAL_ALIGN_BOTTOM = u8"\ue258";
-	constexpr char const* VERTICAL_ALIGN_CENTER = u8"\ue259";
-	constexpr char const* VERTICAL_ALIGN_TOP = u8"\ue25a";
-	constexpr char const* VIBRATION = u8"\ue62d";
-	constexpr char const* VIDEO_CALL = u8"\ue070";
-	constexpr char const* VIDEO_LABEL = u8"\ue071";
-	constexpr char const* VIDEO_LIBRARY = u8"\ue04a";
-	constexpr char const* VIDEOCAM = u8"\ue04b";
-	constexpr char const* VIDEOCAM_OFF = u8"\ue04c";
-	constexpr char const* VIDEOGAME_ASSET = u8"\ue338";
-	constexpr char const* VIEW_AGENDA = u8"\ue8e9";
-	constexpr char const* VIEW_ARRAY = u8"\ue8ea";
-	constexpr char const* VIEW_CAROUSEL = u8"\ue8eb";
-	constexpr char const* VIEW_COLUMN = u8"\ue8ec";
-	constexpr char const* VIEW_COMFY = u8"\ue42a";
-	constexpr char const* VIEW_COMPACT = u8"\ue42b";
-	constexpr char const* VIEW_DAY = u8"\ue8ed";
-	constexpr char const* VIEW_HEADLINE = u8"\ue8ee";
-	constexpr char const* VIEW_LIST = u8"\ue8ef";
-	constexpr char const* VIEW_MODULE = u8"\ue8f0";
-	constexpr char const* VIEW_QUILT = u8"\ue8f1";
-	constexpr char const* VIEW_STREAM = u8"\ue8f2";
-	constexpr char const* VIEW_WEEK = u8"\ue8f3";
-	constexpr char const* VIGNETTE = u8"\ue435";
-	constexpr char const* VISIBILITY = u8"\ue8f4";
-	constexpr char const* VISIBILITY_OFF = u8"\ue8f5";
-	constexpr char const* VOICE_CHAT = u8"\ue62e";
-	constexpr char const* VOICEMAIL = u8"\ue0d9";
-	constexpr char const* VOLUME_DOWN = u8"\ue04d";
-	constexpr char const* VOLUME_MUTE = u8"\ue04e";
-	constexpr char const* VOLUME_OFF = u8"\ue04f";
-	constexpr char const* VOLUME_UP = u8"\ue050";
-	constexpr char const* VPN_KEY = u8"\ue0da";
-	constexpr char const* VPN_LOCK = u8"\ue62f";
-	constexpr char const* WALLPAPER = u8"\ue1bc";
-	constexpr char const* WARNING = u8"\ue002";
-	constexpr char const* WATCH = u8"\ue334";
-	constexpr char const* WATCH_LATER = u8"\ue924";
-	constexpr char const* WB_AUTO = u8"\ue42c";
-	constexpr char const* WB_CLOUDY = u8"\ue42d";
-	constexpr char const* WB_INCANDESCENT = u8"\ue42e";
-	constexpr char const* WB_IRIDESCENT = u8"\ue436";
-	constexpr char const* WB_SUNNY = u8"\ue430";
-	constexpr char const* WC = u8"\ue63d";
-	constexpr char const* WEB = u8"\ue051";
-	constexpr char const* WEB_ASSET = u8"\ue069";
-	constexpr char const* WEEKEND = u8"\ue16b";
-	constexpr char const* WHATSHOT = u8"\ue80e";
-	constexpr char const* WIDGETS = u8"\ue1bd";
-	constexpr char const* WIFI = u8"\ue63e";
-	constexpr char const* WIFI_LOCK = u8"\ue1e1";
-	constexpr char const* WIFI_TETHERING = u8"\ue1e2";
-	constexpr char const* WORK = u8"\ue8f9";
-	constexpr char const* WRAP_TEXT = u8"\ue25b";
-	constexpr char const* YOUTUBE_SEARCHED_FOR = u8"\ue8fa";
-	constexpr char const* ZOOM_IN = u8"\ue8ff";
-	constexpr char const* ZOOM_OUT = u8"\ue900";
-	constexpr char const* ZOOM_OUT_MAP = u8"\ue56b";
+	constexpr auto DOMAIN{ u8"\ue7ee" };
+	constexpr auto DONE{ u8"\ue876" };
+	constexpr auto DONE_ALL{ u8"\ue877" };
+	constexpr auto DONUT_LARGE{ u8"\ue917" };
+	constexpr auto DONUT_SMALL{ u8"\ue918" };
+	constexpr auto DRAFTS{ u8"\ue151" };
+	constexpr auto DRAG_HANDLE{ u8"\ue25d" };
+	constexpr auto DRIVE_ETA{ u8"\ue613" };
+	constexpr auto DVR{ u8"\ue1b2" };
+	constexpr auto EDIT{ u8"\ue3c9" };
+	constexpr auto EDIT_LOCATION{ u8"\ue568" };
+	constexpr auto EJECT{ u8"\ue8fb" };
+	constexpr auto EMAIL{ u8"\ue0be" };
+	constexpr auto ENHANCED_ENCRYPTION{ u8"\ue63f" };
+	constexpr auto EQUALIZER{ u8"\ue01d" };
+	constexpr auto ERROR{ u8"\ue000" };
+	constexpr auto ERROR_OUTLINE{ u8"\ue001" };
+	constexpr auto EURO_SYMBOL{ u8"\ue926" };
+	constexpr auto EV_STATION{ u8"\ue56d" };
+	constexpr auto EVENT{ u8"\ue878" };
+	constexpr auto EVENT_AVAILABLE{ u8"\ue614" };
+	constexpr auto EVENT_BUSY{ u8"\ue615" };
+	constexpr auto EVENT_NOTE{ u8"\ue616" };
+	constexpr auto EVENT_SEAT{ u8"\ue903" };
+	constexpr auto EXIT_TO_APP{ u8"\ue879" };
+	constexpr auto EXPAND_LESS{ u8"\ue5ce" };
+	constexpr auto EXPAND_MORE{ u8"\ue5cf" };
+	constexpr auto EXPLICIT{ u8"\ue01e" };
+	constexpr auto EXPLORE{ u8"\ue87a" };
+	constexpr auto EXPOSURE{ u8"\ue3ca" };
+	constexpr auto EXPOSURE_NEG_1{ u8"\ue3cb" };
+	constexpr auto EXPOSURE_NEG_2{ u8"\ue3cc" };
+	constexpr auto EXPOSURE_PLUS_1{ u8"\ue3cd" };
+	constexpr auto EXPOSURE_PLUS_2{ u8"\ue3ce" };
+	constexpr auto EXPOSURE_ZERO{ u8"\ue3cf" };
+	constexpr auto EXTENSION{ u8"\ue87b" };
+	constexpr auto FACE{ u8"\ue87c" };
+	constexpr auto FAST_FORWARD{ u8"\ue01f" };
+	constexpr auto FAST_REWIND{ u8"\ue020" };
+	constexpr auto FAVORITE{ u8"\ue87d" };
+	constexpr auto FAVORITE_BORDER{ u8"\ue87e" };
+	constexpr auto FEATURED_PLAY_LIST{ u8"\ue06d" };
+	constexpr auto FEATURED_VIDEO{ u8"\ue06e" };
+	constexpr auto FEEDBACK{ u8"\ue87f" };
+	constexpr auto FIBER_DVR{ u8"\ue05d" };
+	constexpr auto FIBER_MANUAL_RECORD{ u8"\ue061" };
+	constexpr auto FIBER_NEW{ u8"\ue05e" };
+	constexpr auto FIBER_PIN{ u8"\ue06a" };
+	constexpr auto FIBER_SMART_RECORD{ u8"\ue062" };
+	constexpr auto FILE_DOWNLOAD{ u8"\ue2c4" };
+	constexpr auto FILE_UPLOAD{ u8"\ue2c6" };
+	constexpr auto FILTER{ u8"\ue3d3" };
+	constexpr auto FILTER_1{ u8"\ue3d0" };
+	constexpr auto FILTER_2{ u8"\ue3d1" };
+	constexpr auto FILTER_3{ u8"\ue3d2" };
+	constexpr auto FILTER_4{ u8"\ue3d4" };
+	constexpr auto FILTER_5{ u8"\ue3d5" };
+	constexpr auto FILTER_6{ u8"\ue3d6" };
+	constexpr auto FILTER_7{ u8"\ue3d7" };
+	constexpr auto FILTER_8{ u8"\ue3d8" };
+	constexpr auto FILTER_9{ u8"\ue3d9" };
+	constexpr auto FILTER_9_PLUS{ u8"\ue3da" };
+	constexpr auto FILTER_B_AND_W{ u8"\ue3db" };
+	constexpr auto FILTER_CENTER_FOCUS{ u8"\ue3dc" };
+	constexpr auto FILTER_DRAMA{ u8"\ue3dd" };
+	constexpr auto FILTER_FRAMES{ u8"\ue3de" };
+	constexpr auto FILTER_HDR{ u8"\ue3df" };
+	constexpr auto FILTER_LIST{ u8"\ue152" };
+	constexpr auto FILTER_NONE{ u8"\ue3e0" };
+	constexpr auto FILTER_TILT_SHIFT{ u8"\ue3e2" };
+	constexpr auto FILTER_VINTAGE{ u8"\ue3e3" };
+	constexpr auto FIND_IN_PAGE{ u8"\ue880" };
+	constexpr auto FIND_REPLACE{ u8"\ue881" };
+	constexpr auto FINGERPRINT{ u8"\ue90d" };
+	constexpr auto FIRST_PAGE{ u8"\ue5dc" };
+	constexpr auto FITNESS_CENTER{ u8"\ueb43" };
+	constexpr auto FLAG{ u8"\ue153" };
+	constexpr auto FLARE{ u8"\ue3e4" };
+	constexpr auto FLASH_AUTO{ u8"\ue3e5" };
+	constexpr auto FLASH_OFF{ u8"\ue3e6" };
+	constexpr auto FLASH_ON{ u8"\ue3e7" };
+	constexpr auto FLIGHT{ u8"\ue539" };
+	constexpr auto FLIGHT_LAND{ u8"\ue904" };
+	constexpr auto FLIGHT_TAKEOFF{ u8"\ue905" };
+	constexpr auto FLIP{ u8"\ue3e8" };
+	constexpr auto FLIP_TO_BACK{ u8"\ue882" };
+	constexpr auto FLIP_TO_FRONT{ u8"\ue883" };
+	constexpr auto FOLDER{ u8"\ue2c7" };
+	constexpr auto FOLDER_OPEN{ u8"\ue2c8" };
+	constexpr auto FOLDER_SHARED{ u8"\ue2c9" };
+	constexpr auto FOLDER_SPECIAL{ u8"\ue617" };
+	constexpr auto FONT_DOWNLOAD{ u8"\ue167" };
+	constexpr auto FORMAT_ALIGN_CENTER{ u8"\ue234" };
+	constexpr auto FORMAT_ALIGN_JUSTIFY{ u8"\ue235" };
+	constexpr auto FORMAT_ALIGN_LEFT{ u8"\ue236" };
+	constexpr auto FORMAT_ALIGN_RIGHT{ u8"\ue237" };
+	constexpr auto FORMAT_BOLD{ u8"\ue238" };
+	constexpr auto FORMAT_CLEAR{ u8"\ue239" };
+	constexpr auto FORMAT_COLOR_FILL{ u8"\ue23a" };
+	constexpr auto FORMAT_COLOR_RESET{ u8"\ue23b" };
+	constexpr auto FORMAT_COLOR_TEXT{ u8"\ue23c" };
+	constexpr auto FORMAT_INDENT_DECREASE{ u8"\ue23d" };
+	constexpr auto FORMAT_INDENT_INCREASE{ u8"\ue23e" };
+	constexpr auto FORMAT_ITALIC{ u8"\ue23f" };
+	constexpr auto FORMAT_LINE_SPACING{ u8"\ue240" };
+	constexpr auto FORMAT_LIST_BULLETED{ u8"\ue241" };
+	constexpr auto FORMAT_LIST_NUMBERED{ u8"\ue242" };
+	constexpr auto FORMAT_PAINT{ u8"\ue243" };
+	constexpr auto FORMAT_QUOTE{ u8"\ue244" };
+	constexpr auto FORMAT_SHAPES{ u8"\ue25e" };
+	constexpr auto FORMAT_SIZE{ u8"\ue245" };
+	constexpr auto FORMAT_STRIKETHROUGH{ u8"\ue246" };
+	constexpr auto FORMAT_TEXTDIRECTION_L_TO_R{ u8"\ue247" };
+	constexpr auto FORMAT_TEXTDIRECTION_R_TO_L{ u8"\ue248" };
+	constexpr auto FORMAT_UNDERLINED{ u8"\ue249" };
+	constexpr auto FORUM{ u8"\ue0bf" };
+	constexpr auto FORWARD{ u8"\ue154" };
+	constexpr auto FORWARD_10{ u8"\ue056" };
+	constexpr auto FORWARD_30{ u8"\ue057" };
+	constexpr auto FORWARD_5{ u8"\ue058" };
+	constexpr auto FREE_BREAKFAST{ u8"\ueb44" };
+	constexpr auto FULLSCREEN{ u8"\ue5d0" };
+	constexpr auto FULLSCREEN_EXIT{ u8"\ue5d1" };
+	constexpr auto FUNCTIONS{ u8"\ue24a" };
+	constexpr auto G_TRANSLATE{ u8"\ue927" };
+	constexpr auto GAMEPAD{ u8"\ue30f" };
+	constexpr auto GAMES{ u8"\ue021" };
+	constexpr auto GAVEL{ u8"\ue90e" };
+	constexpr auto GESTURE{ u8"\ue155" };
+	constexpr auto GET_APP{ u8"\ue884" };
+	constexpr auto GIF{ u8"\ue908" };
+	constexpr auto GOLF_COURSE{ u8"\ueb45" };
+	constexpr auto GPS_FIXED{ u8"\ue1b3" };
+	constexpr auto GPS_NOT_FIXED{ u8"\ue1b4" };
+	constexpr auto GPS_OFF{ u8"\ue1b5" };
+	constexpr auto GRADE{ u8"\ue885" };
+	constexpr auto GRADIENT{ u8"\ue3e9" };
+	constexpr auto GRAIN{ u8"\ue3ea" };
+	constexpr auto GRAPHIC_EQ{ u8"\ue1b8" };
+	constexpr auto GRID_OFF{ u8"\ue3eb" };
+	constexpr auto GRID_ON{ u8"\ue3ec" };
+	constexpr auto GROUP{ u8"\ue7ef" };
+	constexpr auto GROUP_ADD{ u8"\ue7f0" };
+	constexpr auto GROUP_WORK{ u8"\ue886" };
+	constexpr auto HD{ u8"\ue052" };
+	constexpr auto HDR_OFF{ u8"\ue3ed" };
+	constexpr auto HDR_ON{ u8"\ue3ee" };
+	constexpr auto HDR_STRONG{ u8"\ue3f1" };
+	constexpr auto HDR_WEAK{ u8"\ue3f2" };
+	constexpr auto HEADSET{ u8"\ue310" };
+	constexpr auto HEADSET_MIC{ u8"\ue311" };
+	constexpr auto HEALING{ u8"\ue3f3" };
+	constexpr auto HEARING{ u8"\ue023" };
+	constexpr auto HELP{ u8"\ue887" };
+	constexpr auto HELP_OUTLINE{ u8"\ue8fd" };
+	constexpr auto HIGH_QUALITY{ u8"\ue024" };
+	constexpr auto HIGHLIGHT{ u8"\ue25f" };
+	constexpr auto HIGHLIGHT_OFF{ u8"\ue888" };
+	constexpr auto HISTORY{ u8"\ue889" };
+	constexpr auto HOME{ u8"\ue88a" };
+	constexpr auto HOT_TUB{ u8"\ueb46" };
+	constexpr auto HOTEL{ u8"\ue53a" };
+	constexpr auto HOURGLASS_EMPTY{ u8"\ue88b" };
+	constexpr auto HOURGLASS_FULL{ u8"\ue88c" };
+	constexpr auto HTTP{ u8"\ue902" };
+	constexpr auto HTTPS{ u8"\ue88d" };
+	constexpr auto IMAGE{ u8"\ue3f4" };
+	constexpr auto IMAGE_ASPECT_RATIO{ u8"\ue3f5" };
+	constexpr auto IMPORT_CONTACTS{ u8"\ue0e0" };
+	constexpr auto IMPORT_EXPORT{ u8"\ue0c3" };
+	constexpr auto IMPORTANT_DEVICES{ u8"\ue912" };
+	constexpr auto INBOX{ u8"\ue156" };
+	constexpr auto INDETERMINATE_CHECK_BOX{ u8"\ue909" };
+	constexpr auto INFO{ u8"\ue88e" };
+	constexpr auto INFO_OUTLINE{ u8"\ue88f" };
+	constexpr auto INPUT{ u8"\ue890" };
+	constexpr auto INSERT_CHART{ u8"\ue24b" };
+	constexpr auto INSERT_COMMENT{ u8"\ue24c" };
+	constexpr auto INSERT_DRIVE_FILE{ u8"\ue24d" };
+	constexpr auto INSERT_EMOTICON{ u8"\ue24e" };
+	constexpr auto INSERT_INVITATION{ u8"\ue24f" };
+	constexpr auto INSERT_LINK{ u8"\ue250" };
+	constexpr auto INSERT_PHOTO{ u8"\ue251" };
+	constexpr auto INVERT_COLORS{ u8"\ue891" };
+	constexpr auto INVERT_COLORS_OFF{ u8"\ue0c4" };
+	constexpr auto ISO{ u8"\ue3f6" };
+	constexpr auto KEYBOARD{ u8"\ue312" };
+	constexpr auto KEYBOARD_ARROW_DOWN{ u8"\ue313" };
+	constexpr auto KEYBOARD_ARROW_LEFT{ u8"\ue314" };
+	constexpr auto KEYBOARD_ARROW_RIGHT{ u8"\ue315" };
+	constexpr auto KEYBOARD_ARROW_UP{ u8"\ue316" };
+	constexpr auto KEYBOARD_BACKSPACE{ u8"\ue317" };
+	constexpr auto KEYBOARD_CAPSLOCK{ u8"\ue318" };
+	constexpr auto KEYBOARD_HIDE{ u8"\ue31a" };
+	constexpr auto KEYBOARD_RETURN{ u8"\ue31b" };
+	constexpr auto KEYBOARD_TAB{ u8"\ue31c" };
+	constexpr auto KEYBOARD_VOICE{ u8"\ue31d" };
+	constexpr auto KITCHEN{ u8"\ueb47" };
+	constexpr auto LABEL{ u8"\ue892" };
+	constexpr auto LABEL_OUTLINE{ u8"\ue893" };
+	constexpr auto LANDSCAPE{ u8"\ue3f7" };
+	constexpr auto LANGUAGE{ u8"\ue894" };
+	constexpr auto LAPTOP{ u8"\ue31e" };
+	constexpr auto LAPTOP_CHROMEBOOK{ u8"\ue31f" };
+	constexpr auto LAPTOP_MAC{ u8"\ue320" };
+	constexpr auto LAPTOP_WINDOWS{ u8"\ue321" };
+	constexpr auto LAST_PAGE{ u8"\ue5dd" };
+	constexpr auto LAUNCH{ u8"\ue895" };
+	constexpr auto LAYERS{ u8"\ue53b" };
+	constexpr auto LAYERS_CLEAR{ u8"\ue53c" };
+	constexpr auto LEAK_ADD{ u8"\ue3f8" };
+	constexpr auto LEAK_REMOVE{ u8"\ue3f9" };
+	constexpr auto LENS{ u8"\ue3fa" };
+	constexpr auto LIBRARY_ADD{ u8"\ue02e" };
+	constexpr auto LIBRARY_BOOKS{ u8"\ue02f" };
+	constexpr auto LIBRARY_MUSIC{ u8"\ue030" };
+	constexpr auto LIGHTBULB_OUTLINE{ u8"\ue90f" };
+	constexpr auto LINE_STYLE{ u8"\ue919" };
+	constexpr auto LINE_WEIGHT{ u8"\ue91a" };
+	constexpr auto LINEAR_SCALE{ u8"\ue260" };
+	constexpr auto LINK{ u8"\ue157" };
+	constexpr auto LINKED_CAMERA{ u8"\ue438" };
+	constexpr auto LIST{ u8"\ue896" };
+	constexpr auto LIVE_HELP{ u8"\ue0c6" };
+	constexpr auto LIVE_TV{ u8"\ue639" };
+	constexpr auto LOCAL_ACTIVITY{ u8"\ue53f" };
+	constexpr auto LOCAL_AIRPORT{ u8"\ue53d" };
+	constexpr auto LOCAL_ATM{ u8"\ue53e" };
+	constexpr auto LOCAL_BAR{ u8"\ue540" };
+	constexpr auto LOCAL_CAFE{ u8"\ue541" };
+	constexpr auto LOCAL_CAR_WASH{ u8"\ue542" };
+	constexpr auto LOCAL_CONVENIENCE_STORE{ u8"\ue543" };
+	constexpr auto LOCAL_DINING{ u8"\ue556" };
+	constexpr auto LOCAL_DRINK{ u8"\ue544" };
+	constexpr auto LOCAL_FLORIST{ u8"\ue545" };
+	constexpr auto LOCAL_GAS_STATION{ u8"\ue546" };
+	constexpr auto LOCAL_GROCERY_STORE{ u8"\ue547" };
+	constexpr auto LOCAL_HOSPITAL{ u8"\ue548" };
+	constexpr auto LOCAL_HOTEL{ u8"\ue549" };
+	constexpr auto LOCAL_LAUNDRY_SERVICE{ u8"\ue54a" };
+	constexpr auto LOCAL_LIBRARY{ u8"\ue54b" };
+	constexpr auto LOCAL_MALL{ u8"\ue54c" };
+	constexpr auto LOCAL_MOVIES{ u8"\ue54d" };
+	constexpr auto LOCAL_OFFER{ u8"\ue54e" };
+	constexpr auto LOCAL_PARKING{ u8"\ue54f" };
+	constexpr auto LOCAL_PHARMACY{ u8"\ue550" };
+	constexpr auto LOCAL_PHONE{ u8"\ue551" };
+	constexpr auto LOCAL_PIZZA{ u8"\ue552" };
+	constexpr auto LOCAL_PLAY{ u8"\ue553" };
+	constexpr auto LOCAL_POST_OFFICE{ u8"\ue554" };
+	constexpr auto LOCAL_PRINTSHOP{ u8"\ue555" };
+	constexpr auto LOCAL_SEE{ u8"\ue557" };
+	constexpr auto LOCAL_SHIPPING{ u8"\ue558" };
+	constexpr auto LOCAL_TAXI{ u8"\ue559" };
+	constexpr auto LOCATION_CITY{ u8"\ue7f1" };
+	constexpr auto LOCATION_DISABLED{ u8"\ue1b6" };
+	constexpr auto LOCATION_OFF{ u8"\ue0c7" };
+	constexpr auto LOCATION_ON{ u8"\ue0c8" };
+	constexpr auto LOCATION_SEARCHING{ u8"\ue1b7" };
+	constexpr auto LOCK{ u8"\ue897" };
+	constexpr auto LOCK_OPEN{ u8"\ue898" };
+	constexpr auto LOCK_OUTLINE{ u8"\ue899" };
+	constexpr auto LOOKS{ u8"\ue3fc" };
+	constexpr auto LOOKS_3{ u8"\ue3fb" };
+	constexpr auto LOOKS_4{ u8"\ue3fd" };
+	constexpr auto LOOKS_5{ u8"\ue3fe" };
+	constexpr auto LOOKS_6{ u8"\ue3ff" };
+	constexpr auto LOOKS_ONE{ u8"\ue400" };
+	constexpr auto LOOKS_TWO{ u8"\ue401" };
+	constexpr auto LOOP{ u8"\ue028" };
+	constexpr auto LOUPE{ u8"\ue402" };
+	constexpr auto LOW_PRIORITY{ u8"\ue16d" };
+	constexpr auto LOYALTY{ u8"\ue89a" };
+	constexpr auto MAIL{ u8"\ue158" };
+	constexpr auto MAIL_OUTLINE{ u8"\ue0e1" };
+	constexpr auto MAP{ u8"\ue55b" };
+	constexpr auto MARKUNREAD{ u8"\ue159" };
+	constexpr auto MARKUNREAD_MAILBOX{ u8"\ue89b" };
+	constexpr auto MEMORY{ u8"\ue322" };
+	constexpr auto MENU{ u8"\ue5d2" };
+	constexpr auto MERGE_TYPE{ u8"\ue252" };
+	constexpr auto MESSAGE{ u8"\ue0c9" };
+	constexpr auto MIC{ u8"\ue029" };
+	constexpr auto MIC_NONE{ u8"\ue02a" };
+	constexpr auto MIC_OFF{ u8"\ue02b" };
+	constexpr auto MMS{ u8"\ue618" };
+	constexpr auto MODE_COMMENT{ u8"\ue253" };
+	constexpr auto MODE_EDIT{ u8"\ue254" };
+	constexpr auto MONETIZATION_ON{ u8"\ue263" };
+	constexpr auto MONEY_OFF{ u8"\ue25c" };
+	constexpr auto MONOCHROME_PHOTOS{ u8"\ue403" };
+	constexpr auto MOOD{ u8"\ue7f2" };
+	constexpr auto MOOD_BAD{ u8"\ue7f3" };
+	constexpr auto MORE{ u8"\ue619" };
+	constexpr auto MORE_HORIZ{ u8"\ue5d3" };
+	constexpr auto MORE_VERT{ u8"\ue5d4" };
+	constexpr auto MOTORCYCLE{ u8"\ue91b" };
+	constexpr auto MOUSE{ u8"\ue323" };
+	constexpr auto MOVE_TO_INBOX{ u8"\ue168" };
+	constexpr auto MOVIE{ u8"\ue02c" };
+	constexpr auto MOVIE_CREATION{ u8"\ue404" };
+	constexpr auto MOVIE_FILTER{ u8"\ue43a" };
+	constexpr auto MULTILINE_CHART{ u8"\ue6df" };
+	constexpr auto MUSIC_NOTE{ u8"\ue405" };
+	constexpr auto MUSIC_VIDEO{ u8"\ue063" };
+	constexpr auto MY_LOCATION{ u8"\ue55c" };
+	constexpr auto NATURE{ u8"\ue406" };
+	constexpr auto NATURE_PEOPLE{ u8"\ue407" };
+	constexpr auto NAVIGATE_BEFORE{ u8"\ue408" };
+	constexpr auto NAVIGATE_NEXT{ u8"\ue409" };
+	constexpr auto NAVIGATION{ u8"\ue55d" };
+	constexpr auto NEAR_ME{ u8"\ue569" };
+	constexpr auto NETWORK_CELL{ u8"\ue1b9" };
+	constexpr auto NETWORK_CHECK{ u8"\ue640" };
+	constexpr auto NETWORK_LOCKED{ u8"\ue61a" };
+	constexpr auto NETWORK_WIFI{ u8"\ue1ba" };
+	constexpr auto NEW_RELEASES{ u8"\ue031" };
+	constexpr auto NEXT_WEEK{ u8"\ue16a" };
+	constexpr auto NFC{ u8"\ue1bb" };
+	constexpr auto NO_ENCRYPTION{ u8"\ue641" };
+	constexpr auto NO_SIM{ u8"\ue0cc" };
+	constexpr auto NOT_INTERESTED{ u8"\ue033" };
+	constexpr auto NOTE{ u8"\ue06f" };
+	constexpr auto NOTE_ADD{ u8"\ue89c" };
+	constexpr auto NOTIFICATIONS{ u8"\ue7f4" };
+	constexpr auto NOTIFICATIONS_ACTIVE{ u8"\ue7f7" };
+	constexpr auto NOTIFICATIONS_NONE{ u8"\ue7f5" };
+	constexpr auto NOTIFICATIONS_OFF{ u8"\ue7f6" };
+	constexpr auto NOTIFICATIONS_PAUSED{ u8"\ue7f8" };
+	constexpr auto OFFLINE_PIN{ u8"\ue90a" };
+	constexpr auto ONDEMAND_VIDEO{ u8"\ue63a" };
+	constexpr auto OPACITY{ u8"\ue91c" };
+	constexpr auto OPEN_IN_BROWSER{ u8"\ue89d" };
+	constexpr auto OPEN_IN_NEW{ u8"\ue89e" };
+	constexpr auto OPEN_WITH{ u8"\ue89f" };
+	constexpr auto PAGES{ u8"\ue7f9" };
+	constexpr auto PAGEVIEW{ u8"\ue8a0" };
+	constexpr auto PALETTE{ u8"\ue40a" };
+	constexpr auto PAN_TOOL{ u8"\ue925" };
+	constexpr auto PANORAMA{ u8"\ue40b" };
+	constexpr auto PANORAMA_FISH_EYE{ u8"\ue40c" };
+	constexpr auto PANORAMA_HORIZONTAL{ u8"\ue40d" };
+	constexpr auto PANORAMA_VERTICAL{ u8"\ue40e" };
+	constexpr auto PANORAMA_WIDE_ANGLE{ u8"\ue40f" };
+	constexpr auto PARTY_MODE{ u8"\ue7fa" };
+	constexpr auto PAUSE{ u8"\ue034" };
+	constexpr auto PAUSE_CIRCLE_FILLED{ u8"\ue035" };
+	constexpr auto PAUSE_CIRCLE_OUTLINE{ u8"\ue036" };
+	constexpr auto PAYMENT{ u8"\ue8a1" };
+	constexpr auto PEOPLE{ u8"\ue7fb" };
+	constexpr auto PEOPLE_OUTLINE{ u8"\ue7fc" };
+	constexpr auto PERM_CAMERA_MIC{ u8"\ue8a2" };
+	constexpr auto PERM_CONTACT_CALENDAR{ u8"\ue8a3" };
+	constexpr auto PERM_DATA_SETTING{ u8"\ue8a4" };
+	constexpr auto PERM_DEVICE_INFORMATION{ u8"\ue8a5" };
+	constexpr auto PERM_IDENTITY{ u8"\ue8a6" };
+	constexpr auto PERM_MEDIA{ u8"\ue8a7" };
+	constexpr auto PERM_PHONE_MSG{ u8"\ue8a8" };
+	constexpr auto PERM_SCAN_WIFI{ u8"\ue8a9" };
+	constexpr auto PERSON{ u8"\ue7fd" };
+	constexpr auto PERSON_ADD{ u8"\ue7fe" };
+	constexpr auto PERSON_OUTLINE{ u8"\ue7ff" };
+	constexpr auto PERSON_PIN{ u8"\ue55a" };
+	constexpr auto PERSON_PIN_CIRCLE{ u8"\ue56a" };
+	constexpr auto PERSONAL_VIDEO{ u8"\ue63b" };
+	constexpr auto PETS{ u8"\ue91d" };
+	constexpr auto PHONE{ u8"\ue0cd" };
+	constexpr auto PHONE_ANDROID{ u8"\ue324" };
+	constexpr auto PHONE_BLUETOOTH_SPEAKER{ u8"\ue61b" };
+	constexpr auto PHONE_FORWARDED{ u8"\ue61c" };
+	constexpr auto PHONE_IN_TALK{ u8"\ue61d" };
+	constexpr auto PHONE_IPHONE{ u8"\ue325" };
+	constexpr auto PHONE_LOCKED{ u8"\ue61e" };
+	constexpr auto PHONE_MISSED{ u8"\ue61f" };
+	constexpr auto PHONE_PAUSED{ u8"\ue620" };
+	constexpr auto PHONELINK{ u8"\ue326" };
+	constexpr auto PHONELINK_ERASE{ u8"\ue0db" };
+	constexpr auto PHONELINK_LOCK{ u8"\ue0dc" };
+	constexpr auto PHONELINK_OFF{ u8"\ue327" };
+	constexpr auto PHONELINK_RING{ u8"\ue0dd" };
+	constexpr auto PHONELINK_SETUP{ u8"\ue0de" };
+	constexpr auto PHOTO{ u8"\ue410" };
+	constexpr auto PHOTO_ALBUM{ u8"\ue411" };
+	constexpr auto PHOTO_CAMERA{ u8"\ue412" };
+	constexpr auto PHOTO_FILTER{ u8"\ue43b" };
+	constexpr auto PHOTO_LIBRARY{ u8"\ue413" };
+	constexpr auto PHOTO_SIZE_SELECT_ACTUAL{ u8"\ue432" };
+	constexpr auto PHOTO_SIZE_SELECT_LARGE{ u8"\ue433" };
+	constexpr auto PHOTO_SIZE_SELECT_SMALL{ u8"\ue434" };
+	constexpr auto PICTURE_AS_PDF{ u8"\ue415" };
+	constexpr auto PICTURE_IN_PICTURE{ u8"\ue8aa" };
+	constexpr auto PICTURE_IN_PICTURE_ALT{ u8"\ue911" };
+	constexpr auto PIE_CHART{ u8"\ue6c4" };
+	constexpr auto PIE_CHART_OUTLINED{ u8"\ue6c5" };
+	constexpr auto PIN_DROP{ u8"\ue55e" };
+	constexpr auto PLACE{ u8"\ue55f" };
+	constexpr auto PLAY_ARROW{ u8"\ue037" };
+	constexpr auto PLAY_CIRCLE_FILLED{ u8"\ue038" };
+	constexpr auto PLAY_CIRCLE_OUTLINE{ u8"\ue039" };
+	constexpr auto PLAY_FOR_WORK{ u8"\ue906" };
+	constexpr auto PLAYLIST_ADD{ u8"\ue03b" };
+	constexpr auto PLAYLIST_ADD_CHECK{ u8"\ue065" };
+	constexpr auto PLAYLIST_PLAY{ u8"\ue05f" };
+	constexpr auto PLUS_ONE{ u8"\ue800" };
+	constexpr auto POLL{ u8"\ue801" };
+	constexpr auto POLYMER{ u8"\ue8ab" };
+	constexpr auto POOL{ u8"\ueb48" };
+	constexpr auto PORTABLE_WIFI_OFF{ u8"\ue0ce" };
+	constexpr auto PORTRAIT{ u8"\ue416" };
+	constexpr auto POWER{ u8"\ue63c" };
+	constexpr auto POWER_INPUT{ u8"\ue336" };
+	constexpr auto POWER_SETTINGS_NEW{ u8"\ue8ac" };
+	constexpr auto PREGNANT_WOMAN{ u8"\ue91e" };
+	constexpr auto PRESENT_TO_ALL{ u8"\ue0df" };
+	constexpr auto PRINT{ u8"\ue8ad" };
+	constexpr auto PRIORITY_HIGH{ u8"\ue645" };
+	constexpr auto PUBLIC{ u8"\ue80b" };
+	constexpr auto PUBLISH{ u8"\ue255" };
+	constexpr auto QUERY_BUILDER{ u8"\ue8ae" };
+	constexpr auto QUESTION_ANSWER{ u8"\ue8af" };
+	constexpr auto QUEUE{ u8"\ue03c" };
+	constexpr auto QUEUE_MUSIC{ u8"\ue03d" };
+	constexpr auto QUEUE_PLAY_NEXT{ u8"\ue066" };
+	constexpr auto RADIO{ u8"\ue03e" };
+	constexpr auto RADIO_BUTTON_CHECKED{ u8"\ue837" };
+	constexpr auto RADIO_BUTTON_UNCHECKED{ u8"\ue836" };
+	constexpr auto RATE_REVIEW{ u8"\ue560" };
+	constexpr auto RECEIPT{ u8"\ue8b0" };
+	constexpr auto RECENT_ACTORS{ u8"\ue03f" };
+	constexpr auto RECORD_VOICE_OVER{ u8"\ue91f" };
+	constexpr auto REDEEM{ u8"\ue8b1" };
+	constexpr auto REDO{ u8"\ue15a" };
+	constexpr auto REFRESH{ u8"\ue5d5" };
+	constexpr auto REMOVE{ u8"\ue15b" };
+	constexpr auto REMOVE_CIRCLE{ u8"\ue15c" };
+	constexpr auto REMOVE_CIRCLE_OUTLINE{ u8"\ue15d" };
+	constexpr auto REMOVE_FROM_QUEUE{ u8"\ue067" };
+	constexpr auto REMOVE_RED_EYE{ u8"\ue417" };
+	constexpr auto REMOVE_SHOPPING_CART{ u8"\ue928" };
+	constexpr auto REORDER{ u8"\ue8fe" };
+	constexpr auto REPEAT{ u8"\ue040" };
+	constexpr auto REPEAT_ONE{ u8"\ue041" };
+	constexpr auto REPLAY{ u8"\ue042" };
+	constexpr auto REPLAY_10{ u8"\ue059" };
+	constexpr auto REPLAY_30{ u8"\ue05a" };
+	constexpr auto REPLAY_5{ u8"\ue05b" };
+	constexpr auto REPLY{ u8"\ue15e" };
+	constexpr auto REPLY_ALL{ u8"\ue15f" };
+	constexpr auto REPORT{ u8"\ue160" };
+	constexpr auto REPORT_PROBLEM{ u8"\ue8b2" };
+	constexpr auto RESTAURANT{ u8"\ue56c" };
+	constexpr auto RESTAURANT_MENU{ u8"\ue561" };
+	constexpr auto RESTORE{ u8"\ue8b3" };
+	constexpr auto RESTORE_PAGE{ u8"\ue929" };
+	constexpr auto RING_VOLUME{ u8"\ue0d1" };
+	constexpr auto ROOM{ u8"\ue8b4" };
+	constexpr auto ROOM_SERVICE{ u8"\ueb49" };
+	constexpr auto ROTATE_90_DEGREES_CCW{ u8"\ue418" };
+	constexpr auto ROTATE_LEFT{ u8"\ue419" };
+	constexpr auto ROTATE_RIGHT{ u8"\ue41a" };
+	constexpr auto ROUNDED_CORNER{ u8"\ue920" };
+	constexpr auto ROUTER{ u8"\ue328" };
+	constexpr auto ROWING{ u8"\ue921" };
+	constexpr auto RSS_FEED{ u8"\ue0e5" };
+	constexpr auto RV_HOOKUP{ u8"\ue642" };
+	constexpr auto SATELLITE{ u8"\ue562" };
+	constexpr auto SAVE{ u8"\ue161" };
+	constexpr auto SCANNER{ u8"\ue329" };
+	constexpr auto SCHEDULE{ u8"\ue8b5" };
+	constexpr auto SCHOOL{ u8"\ue80c" };
+	constexpr auto SCREEN_LOCK_LANDSCAPE{ u8"\ue1be" };
+	constexpr auto SCREEN_LOCK_PORTRAIT{ u8"\ue1bf" };
+	constexpr auto SCREEN_LOCK_ROTATION{ u8"\ue1c0" };
+	constexpr auto SCREEN_ROTATION{ u8"\ue1c1" };
+	constexpr auto SCREEN_SHARE{ u8"\ue0e2" };
+	constexpr auto SD_CARD{ u8"\ue623" };
+	constexpr auto SD_STORAGE{ u8"\ue1c2" };
+	constexpr auto SEARCH{ u8"\ue8b6" };
+	constexpr auto SECURITY{ u8"\ue32a" };
+	constexpr auto SELECT_ALL{ u8"\ue162" };
+	constexpr auto SEND{ u8"\ue163" };
+	constexpr auto SENTIMENT_DISSATISFIED{ u8"\ue811" };
+	constexpr auto SENTIMENT_NEUTRAL{ u8"\ue812" };
+	constexpr auto SENTIMENT_SATISFIED{ u8"\ue813" };
+	constexpr auto SENTIMENT_VERY_DISSATISFIED{ u8"\ue814" };
+	constexpr auto SENTIMENT_VERY_SATISFIED{ u8"\ue815" };
+	constexpr auto SETTINGS{ u8"\ue8b8" };
+	constexpr auto SETTINGS_APPLICATIONS{ u8"\ue8b9" };
+	constexpr auto SETTINGS_BACKUP_RESTORE{ u8"\ue8ba" };
+	constexpr auto SETTINGS_BLUETOOTH{ u8"\ue8bb" };
+	constexpr auto SETTINGS_BRIGHTNESS{ u8"\ue8bd" };
+	constexpr auto SETTINGS_CELL{ u8"\ue8bc" };
+	constexpr auto SETTINGS_ETHERNET{ u8"\ue8be" };
+	constexpr auto SETTINGS_INPUT_ANTENNA{ u8"\ue8bf" };
+	constexpr auto SETTINGS_INPUT_COMPONENT{ u8"\ue8c0" };
+	constexpr auto SETTINGS_INPUT_COMPOSITE{ u8"\ue8c1" };
+	constexpr auto SETTINGS_INPUT_HDMI{ u8"\ue8c2" };
+	constexpr auto SETTINGS_INPUT_SVIDEO{ u8"\ue8c3" };
+	constexpr auto SETTINGS_OVERSCAN{ u8"\ue8c4" };
+	constexpr auto SETTINGS_PHONE{ u8"\ue8c5" };
+	constexpr auto SETTINGS_POWER{ u8"\ue8c6" };
+	constexpr auto SETTINGS_REMOTE{ u8"\ue8c7" };
+	constexpr auto SETTINGS_SYSTEM_DAYDREAM{ u8"\ue1c3" };
+	constexpr auto SETTINGS_VOICE{ u8"\ue8c8" };
+	constexpr auto SHARE{ u8"\ue80d" };
+	constexpr auto SHOP{ u8"\ue8c9" };
+	constexpr auto SHOP_TWO{ u8"\ue8ca" };
+	constexpr auto SHOPPING_BASKET{ u8"\ue8cb" };
+	constexpr auto SHOPPING_CART{ u8"\ue8cc" };
+	constexpr auto SHORT_TEXT{ u8"\ue261" };
+	constexpr auto SHOW_CHART{ u8"\ue6e1" };
+	constexpr auto SHUFFLE{ u8"\ue043" };
+	constexpr auto SIGNAL_CELLULAR_4_BAR{ u8"\ue1c8" };
+	constexpr auto SIGNAL_CELLULAR_CONNECTED_NO_INTERNET_4_BAR{ u8"\ue1cd" };
+	constexpr auto SIGNAL_CELLULAR_NO_SIM{ u8"\ue1ce" };
+	constexpr auto SIGNAL_CELLULAR_NULL{ u8"\ue1cf" };
+	constexpr auto SIGNAL_CELLULAR_OFF{ u8"\ue1d0" };
+	constexpr auto SIGNAL_WIFI_4_BAR{ u8"\ue1d8" };
+	constexpr auto SIGNAL_WIFI_4_BAR_LOCK{ u8"\ue1d9" };
+	constexpr auto SIGNAL_WIFI_OFF{ u8"\ue1da" };
+	constexpr auto SIM_CARD{ u8"\ue32b" };
+	constexpr auto SIM_CARD_ALERT{ u8"\ue624" };
+	constexpr auto SKIP_NEXT{ u8"\ue044" };
+	constexpr auto SKIP_PREVIOUS{ u8"\ue045" };
+	constexpr auto SLIDESHOW{ u8"\ue41b" };
+	constexpr auto SLOW_MOTION_VIDEO{ u8"\ue068" };
+	constexpr auto SMARTPHONE{ u8"\ue32c" };
+	constexpr auto SMOKE_FREE{ u8"\ueb4a" };
+	constexpr auto SMOKING_ROOMS{ u8"\ueb4b" };
+	constexpr auto SMS{ u8"\ue625" };
+	constexpr auto SMS_FAILED{ u8"\ue626" };
+	constexpr auto SNOOZE{ u8"\ue046" };
+	constexpr auto SORT{ u8"\ue164" };
+	constexpr auto SORT_BY_ALPHA{ u8"\ue053" };
+	constexpr auto SPA{ u8"\ueb4c" };
+	constexpr auto SPACE_BAR{ u8"\ue256" };
+	constexpr auto SPEAKER{ u8"\ue32d" };
+	constexpr auto SPEAKER_GROUP{ u8"\ue32e" };
+	constexpr auto SPEAKER_NOTES{ u8"\ue8cd" };
+	constexpr auto SPEAKER_NOTES_OFF{ u8"\ue92a" };
+	constexpr auto SPEAKER_PHONE{ u8"\ue0d2" };
+	constexpr auto SPELLCHECK{ u8"\ue8ce" };
+	constexpr auto STAR{ u8"\ue838" };
+	constexpr auto STAR_BORDER{ u8"\ue83a" };
+	constexpr auto STAR_HALF{ u8"\ue839" };
+	constexpr auto STARS{ u8"\ue8d0" };
+	constexpr auto STAY_CURRENT_LANDSCAPE{ u8"\ue0d3" };
+	constexpr auto STAY_CURRENT_PORTRAIT{ u8"\ue0d4" };
+	constexpr auto STAY_PRIMARY_LANDSCAPE{ u8"\ue0d5" };
+	constexpr auto STAY_PRIMARY_PORTRAIT{ u8"\ue0d6" };
+	constexpr auto STOP{ u8"\ue047" };
+	constexpr auto STOP_SCREEN_SHARE{ u8"\ue0e3" };
+	constexpr auto STORAGE{ u8"\ue1db" };
+	constexpr auto STORE{ u8"\ue8d1" };
+	constexpr auto STORE_MALL_DIRECTORY{ u8"\ue563" };
+	constexpr auto STRAIGHTEN{ u8"\ue41c" };
+	constexpr auto STREETVIEW{ u8"\ue56e" };
+	constexpr auto STRIKETHROUGH_S{ u8"\ue257" };
+	constexpr auto STYLE{ u8"\ue41d" };
+	constexpr auto SUBDIRECTORY_ARROW_LEFT{ u8"\ue5d9" };
+	constexpr auto SUBDIRECTORY_ARROW_RIGHT{ u8"\ue5da" };
+	constexpr auto SUBJECT{ u8"\ue8d2" };
+	constexpr auto SUBSCRIPTIONS{ u8"\ue064" };
+	constexpr auto SUBTITLES{ u8"\ue048" };
+	constexpr auto SUBWAY{ u8"\ue56f" };
+	constexpr auto SUPERVISOR_ACCOUNT{ u8"\ue8d3" };
+	constexpr auto SURROUND_SOUND{ u8"\ue049" };
+	constexpr auto SWAP_CALLS{ u8"\ue0d7" };
+	constexpr auto SWAP_HORIZ{ u8"\ue8d4" };
+	constexpr auto SWAP_VERT{ u8"\ue8d5" };
+	constexpr auto SWAP_VERTICAL_CIRCLE{ u8"\ue8d6" };
+	constexpr auto SWITCH_CAMERA{ u8"\ue41e" };
+	constexpr auto SWITCH_VIDEO{ u8"\ue41f" };
+	constexpr auto SYNC{ u8"\ue627" };
+	constexpr auto SYNC_DISABLED{ u8"\ue628" };
+	constexpr auto SYNC_PROBLEM{ u8"\ue629" };
+	constexpr auto SYSTEM_UPDATE{ u8"\ue62a" };
+	constexpr auto SYSTEM_UPDATE_ALT{ u8"\ue8d7" };
+	constexpr auto TAB{ u8"\ue8d8" };
+	constexpr auto TAB_UNSELECTED{ u8"\ue8d9" };
+	constexpr auto TABLET{ u8"\ue32f" };
+	constexpr auto TABLET_ANDROID{ u8"\ue330" };
+	constexpr auto TABLET_MAC{ u8"\ue331" };
+	constexpr auto TAG_FACES{ u8"\ue420" };
+	constexpr auto TAP_AND_PLAY{ u8"\ue62b" };
+	constexpr auto TERRAIN{ u8"\ue564" };
+	constexpr auto TEXT_FIELDS{ u8"\ue262" };
+	constexpr auto TEXT_FORMAT{ u8"\ue165" };
+	constexpr auto TEXTSMS{ u8"\ue0d8" };
+	constexpr auto TEXTURE{ u8"\ue421" };
+	constexpr auto THEATERS{ u8"\ue8da" };
+	constexpr auto THUMB_DOWN{ u8"\ue8db" };
+	constexpr auto THUMB_UP{ u8"\ue8dc" };
+	constexpr auto THUMBS_UP_DOWN{ u8"\ue8dd" };
+	constexpr auto TIME_TO_LEAVE{ u8"\ue62c" };
+	constexpr auto TIMELAPSE{ u8"\ue422" };
+	constexpr auto TIMELINE{ u8"\ue922" };
+	constexpr auto TIMER{ u8"\ue425" };
+	constexpr auto TIMER_10{ u8"\ue423" };
+	constexpr auto TIMER_3{ u8"\ue424" };
+	constexpr auto TIMER_OFF{ u8"\ue426" };
+	constexpr auto TITLE{ u8"\ue264" };
+	constexpr auto TOC{ u8"\ue8de" };
+	constexpr auto TODAY{ u8"\ue8df" };
+	constexpr auto TOLL{ u8"\ue8e0" };
+	constexpr auto TONALITY{ u8"\ue427" };
+	constexpr auto TOUCH_APP{ u8"\ue913" };
+	constexpr auto TOYS{ u8"\ue332" };
+	constexpr auto TRACK_CHANGES{ u8"\ue8e1" };
+	constexpr auto TRAFFIC{ u8"\ue565" };
+	constexpr auto TRAIN{ u8"\ue570" };
+	constexpr auto TRAM{ u8"\ue571" };
+	constexpr auto TRANSFER_WITHIN_A_STATION{ u8"\ue572" };
+	constexpr auto TRANSFORM{ u8"\ue428" };
+	constexpr auto TRANSLATE{ u8"\ue8e2" };
+	constexpr auto TRENDING_DOWN{ u8"\ue8e3" };
+	constexpr auto TRENDING_FLAT{ u8"\ue8e4" };
+	constexpr auto TRENDING_UP{ u8"\ue8e5" };
+	constexpr auto TUNE{ u8"\ue429" };
+	constexpr auto TURNED_IN{ u8"\ue8e6" };
+	constexpr auto TURNED_IN_NOT{ u8"\ue8e7" };
+	constexpr auto TV{ u8"\ue333" };
+	constexpr auto UNARCHIVE{ u8"\ue169" };
+	constexpr auto UNDO{ u8"\ue166" };
+	constexpr auto UNFOLD_LESS{ u8"\ue5d6" };
+	constexpr auto UNFOLD_MORE{ u8"\ue5d7" };
+	constexpr auto UPDATE{ u8"\ue923" };
+	constexpr auto USB{ u8"\ue1e0" };
+	constexpr auto VERIFIED_USER{ u8"\ue8e8" };
+	constexpr auto VERTICAL_ALIGN_BOTTOM{ u8"\ue258" };
+	constexpr auto VERTICAL_ALIGN_CENTER{ u8"\ue259" };
+	constexpr auto VERTICAL_ALIGN_TOP{ u8"\ue25a" };
+	constexpr auto VIBRATION{ u8"\ue62d" };
+	constexpr auto VIDEO_CALL{ u8"\ue070" };
+	constexpr auto VIDEO_LABEL{ u8"\ue071" };
+	constexpr auto VIDEO_LIBRARY{ u8"\ue04a" };
+	constexpr auto VIDEOCAM{ u8"\ue04b" };
+	constexpr auto VIDEOCAM_OFF{ u8"\ue04c" };
+	constexpr auto VIDEOGAME_ASSET{ u8"\ue338" };
+	constexpr auto VIEW_AGENDA{ u8"\ue8e9" };
+	constexpr auto VIEW_ARRAY{ u8"\ue8ea" };
+	constexpr auto VIEW_CAROUSEL{ u8"\ue8eb" };
+	constexpr auto VIEW_COLUMN{ u8"\ue8ec" };
+	constexpr auto VIEW_COMFY{ u8"\ue42a" };
+	constexpr auto VIEW_COMPACT{ u8"\ue42b" };
+	constexpr auto VIEW_DAY{ u8"\ue8ed" };
+	constexpr auto VIEW_HEADLINE{ u8"\ue8ee" };
+	constexpr auto VIEW_LIST{ u8"\ue8ef" };
+	constexpr auto VIEW_MODULE{ u8"\ue8f0" };
+	constexpr auto VIEW_QUILT{ u8"\ue8f1" };
+	constexpr auto VIEW_STREAM{ u8"\ue8f2" };
+	constexpr auto VIEW_WEEK{ u8"\ue8f3" };
+	constexpr auto VIGNETTE{ u8"\ue435" };
+	constexpr auto VISIBILITY{ u8"\ue8f4" };
+	constexpr auto VISIBILITY_OFF{ u8"\ue8f5" };
+	constexpr auto VOICE_CHAT{ u8"\ue62e" };
+	constexpr auto VOICEMAIL{ u8"\ue0d9" };
+	constexpr auto VOLUME_DOWN{ u8"\ue04d" };
+	constexpr auto VOLUME_MUTE{ u8"\ue04e" };
+	constexpr auto VOLUME_OFF{ u8"\ue04f" };
+	constexpr auto VOLUME_UP{ u8"\ue050" };
+	constexpr auto VPN_KEY{ u8"\ue0da" };
+	constexpr auto VPN_LOCK{ u8"\ue62f" };
+	constexpr auto WALLPAPER{ u8"\ue1bc" };
+	constexpr auto WARNING{ u8"\ue002" };
+	constexpr auto WATCH{ u8"\ue334" };
+	constexpr auto WATCH_LATER{ u8"\ue924" };
+	constexpr auto WB_AUTO{ u8"\ue42c" };
+	constexpr auto WB_CLOUDY{ u8"\ue42d" };
+	constexpr auto WB_INCANDESCENT{ u8"\ue42e" };
+	constexpr auto WB_IRIDESCENT{ u8"\ue436" };
+	constexpr auto WB_SUNNY{ u8"\ue430" };
+	constexpr auto WC{ u8"\ue63d" };
+	constexpr auto WEB{ u8"\ue051" };
+	constexpr auto WEB_ASSET{ u8"\ue069" };
+	constexpr auto WEEKEND{ u8"\ue16b" };
+	constexpr auto WHATSHOT{ u8"\ue80e" };
+	constexpr auto WIDGETS{ u8"\ue1bd" };
+	constexpr auto WIFI{ u8"\ue63e" };
+	constexpr auto WIFI_LOCK{ u8"\ue1e1" };
+	constexpr auto WIFI_TETHERING{ u8"\ue1e2" };
+	constexpr auto WORK{ u8"\ue8f9" };
+	constexpr auto WRAP_TEXT{ u8"\ue25b" };
+	constexpr auto YOUTUBE_SEARCHED_FOR{ u8"\ue8fa" };
+	constexpr auto ZOOM_IN{ u8"\ue8ff" };
+	constexpr auto ZOOM_OUT{ u8"\ue900" };
+	constexpr auto ZOOM_OUT_MAP{ u8"\ue56b" };
 }

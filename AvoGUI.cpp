@@ -289,50 +289,39 @@ uint64 AvoGUI::Id::s_counter = 0ull;
 
 AvoGUI::Point<float> AvoGUI::View::calculateAbsolutePositionRelativeTo(AvoGUI::Point<float> p_position) const
 {
-	AvoGUI::View* container = getParent();
+	AvoGUI::View* container = getParent<View>();
 	while (container && container != getGui())
 	{
 		p_position += container->getTopLeft();
-		container = container->getParent();
+		container = container->getParent<View>();
 	}
 
 	return p_position;
 }
-void AvoGUI::View::addChild(AvoGUI::View* p_view)
-{
-	if (p_view)
-	{
-		p_view->m_index = m_children.size();
-		m_children.push_back(p_view);
-		updateViewDrawingIndex(p_view);
-
-		sendChildAttachmentEvents(p_view);
-	}
-}
 
 void AvoGUI::View::updateViewDrawingIndex(AvoGUI::View* p_view)
 {
-	uint32 numberOfViews = (uint32)m_children.size();
-	if (numberOfViews <= 1 || p_view->getParent() != this)
+	uint32 numberOfViews = (uint32)m_childViews.size();
+	if (numberOfViews <= 1 || p_view->getParent<View>() != this)
 	{
 		return;
 	}
 
 	float elevation = p_view->getElevation();
-	if (!p_view->getIndex() || (p_view->getIndex() < numberOfViews - 1U && m_children[p_view->getIndex() + 1U]->getElevation() < elevation))
+	if (!p_view->getIndex() || (p_view->getIndex() < numberOfViews - 1U && m_childViews[p_view->getIndex() + 1U]->getElevation() < elevation))
 	{
 		for (uint32 a = p_view->getIndex(); a < numberOfViews; a++)
 		{
-			if (a == numberOfViews - 1U || m_children[a + 1U]->getElevation() >= elevation)
+			if (a == numberOfViews - 1U || m_childViews[a + 1U]->getElevation() >= elevation)
 			{
-				m_children[a] = p_view;
+				m_childViews[a] = p_view;
 				p_view->m_index = a;
 				return;
 			}
 			else
 			{
-				m_children[a] = m_children[a + 1U];
-				m_children[a]->m_index = a;
+				m_childViews[a] = m_childViews[a + 1U];
+				m_childViews[a]->m_index = a;
 			}
 		}
 	}
@@ -340,16 +329,16 @@ void AvoGUI::View::updateViewDrawingIndex(AvoGUI::View* p_view)
 	{
 		for (int32 a = p_view->getIndex(); a >= 0; a--)
 		{
-			if (!a || m_children[a - 1]->getElevation() <= elevation)
+			if (!a || m_childViews[a - 1]->getElevation() <= elevation)
 			{
-				m_children[a] = p_view;
+				m_childViews[a] = p_view;
 				p_view->m_index = a;
 				return;
 			}
 			else
 			{
-				m_children[a] = m_children[a - 1];
-				m_children[a]->m_index = a;
+				m_childViews[a] = m_childViews[a - 1];
+				m_childViews[a]->m_index = a;
 			}
 		}
 	}
@@ -392,24 +381,24 @@ void AvoGUI::View::sendBoundsChangeEvents(AvoGUI::Rectangle<float> const& p_prev
 		{
 			updateShadow(); // This is to update the shadow bounds and image.
 
-			sendSizeChangeEvents(p_previousBounds.getWidth(), p_previousBounds.getHeight());
+			sizeChangeListeners(p_previousBounds.getWidth(), p_previousBounds.getHeight());
 
 			updateClipGeometry();
 		}
 
-		if (getParent())
+		if (getParent<View>())
 		{
-			AvoGUI::Point<float> const& mousePosition = getGui()->getWindow()->getMousePosition() - getParent()->getAbsoluteTopLeft();
+			AvoGUI::Point<float> const& mousePosition = getGui()->getWindow()->getMousePosition() - getParent<View>()->getAbsoluteTopLeft();
 			if (getIsContaining(mousePosition) != p_previousBounds.getIsContaining(mousePosition))
 			{
 				MouseEvent event;
-				event.x = mousePosition.x + getParent()->getAbsoluteLeft();
-				event.y = mousePosition.y + getParent()->getAbsoluteTop();
+				event.x = mousePosition.x + getParent<View>()->getAbsoluteLeft();
+				event.y = mousePosition.y + getParent<View>()->getAbsoluteTop();
 				getGui()->handleGlobalMouseMove(event);
 			}
 		}
 
-		boundsChangeListeners(this, p_previousBounds);
+		boundsChangeListeners(p_previousBounds);
 	}
 }
 
@@ -461,6 +450,17 @@ AvoGUI::View::View(AvoGUI::View* p_parent, AvoGUI::Rectangle<float> const& p_bou
 	characterInputListeners += AvoGUI::bind(&View::handleCharacterInput, this);
 	keyboardKeyDownListeners += AvoGUI::bind(&View::handleKeyboardKeyDown, this);
 	keyboardKeyUpListeners += AvoGUI::bind(&View::handleKeyboardKeyUp, this);
+	keyboardFocusLoseListeners += AvoGUI::bind(&View::handleKeyboardFocusLose, this);
+	keyboardFocusGainListeners += AvoGUI::bind(&View::handleKeyboardFocusGain, this);
+
+	themeColorChangeListeners += AvoGUI::bind(&View::handleThemeColorChange, this);
+	themeEasingChangeListeners += AvoGUI::bind(&View::handleThemeEasingChange, this);
+	themeValueChangeListeners += AvoGUI::bind(&View::handleThemeValueChange, this);
+
+	boundsChangeListeners += AvoGUI::bind(&View::handleBoundsChange, this);
+	sizeChangeListeners += AvoGUI::bind((void (View::*)(float, float))&View::handleSizeChange, this);
+	childViewAttachmentListeners += AvoGUI::bind(&View::handleChildViewAttachment, this);
+	childViewDetachmentListeners += AvoGUI::bind(&View::handleChildViewDetachment, this);
 
 	if (p_parent && p_parent != this)
 	{
@@ -478,17 +478,6 @@ AvoGUI::View::View(AvoGUI::View* p_parent, AvoGUI::Rectangle<float> const& p_bou
 }
 AvoGUI::View::~View()
 {
-	if (m_id)
-	{
-		if (m_gui == this)
-		{
-			((AvoGUI::Gui*)this)->getParent()->m_viewsById.erase(m_id);
-		}
-		else
-		{
-			m_gui->m_viewsById.erase(m_id);
-		}
-	}
 	m_theme->forget();
 	if (m_shadowImage)
 	{
@@ -498,11 +487,11 @@ AvoGUI::View::~View()
 	{
 		m_clipGeometry->forget();
 	}
-	removeAllChildren();
+	removeAllChildViews();
 	if (m_parent)
 	{
 		remember();
-		m_parent->removeChild(m_index);
+		m_parent->removeChildView(m_index);
 	}
 }
 
@@ -530,148 +519,6 @@ AvoGUI::Window* AvoGUI::View::getWindow()
 }
 
 //------------------------------
-
-void AvoGUI::View::setParent(AvoGUI::View* p_container)
-{
-	if (p_container == m_parent)
-	{
-		return;
-	}
-
-	if (m_parent)
-	{
-		remember();
-		m_parent->removeChild(this); // This forgets this view
-	}
-
-	if (p_container)
-	{
-		m_parent = p_container;
-		m_gui = m_parent->getGui();
-
-		m_index = m_parent->getNumberOfChildren();
-		if (m_parent == this)
-		{
-			m_layerIndex = 0;
-		}
-		else
-		{
-			m_layerIndex = m_parent->getLayerIndex() + 1U;
-		}
-		m_absolutePosition.x = m_parent->getAbsoluteLeft() + m_bounds.left;
-		m_absolutePosition.y = m_parent->getAbsoluteTop() + m_bounds.top;
-		m_parent->addChild(this);
-		m_parent->updateViewDrawingIndex(this);
-	}
-	else
-	{
-		m_parent = 0;
-		m_layerIndex = 0;
-		m_index = 0;
-	}
-}
-
-void AvoGUI::View::removeChild(AvoGUI::View* p_view)
-{
-	if (p_view && p_view->getParent() == this)
-	{
-		removeChild(p_view->getIndex());
-	}
-}
-void AvoGUI::View::removeChild(uint32 p_viewIndex)
-{
-	AvoGUI::View* childToRemove = m_children[p_viewIndex];
-	sendChildDetachmentEvents(childToRemove);
-
-	childToRemove->m_parent = nullptr;
-	childToRemove->forget();
-
-	for (uint32 a = p_viewIndex; a < m_children.size() - 1; a++)
-	{
-		m_children[a] = m_children[a + 1];
-		m_children[a]->m_index = a;
-	}
-	m_children.pop_back();
-}
-void AvoGUI::View::removeAllChildren()
-{
-	while (!m_children.empty()) // That function naming, ew... Why didn't they call it getIsEmpty? empty() should be emptying something >:^(
-	{
-		AvoGUI::View* child = m_children.back();
-
-		sendChildDetachmentEvents(child);
-
-		child->m_parent = nullptr;
-		child->forget();
-
-		m_children.pop_back();
-	}
-}
-void AvoGUI::View::setId(uint64 p_id)
-{
-	if (m_id != p_id)
-	{
-		if (m_gui == this && m_gui->getParent())
-		{
-			if (m_id)
-			{
-				m_gui->getParent()->m_viewsById.erase(m_id);
-			}
-			m_id = p_id;
-			if (p_id)
-			{
-				m_gui->getParent()->m_viewsById[p_id] = this;
-			}
-		}
-		else
-		{
-			if (m_id)
-			{
-				m_gui->m_viewsById.erase(m_id);
-			}
-			m_id = p_id;
-			if (p_id)
-			{
-				m_gui->m_viewsById[p_id] = this;
-			}
-		}
-	}
-}
-
-//------------------------------
-
-void AvoGUI::View::setIsVisible(bool p_isVisible)
-{
-	if (p_isVisible != m_isVisible)
-	{
-		m_isVisible = p_isVisible;
-
-		//AvoGUI::Point<float> const& mousePosition = getGUI()->getWindow()->getMousePosition();
-		//if (getGUI()->getIsContaining(mousePosition))
-		//{
-		//	MouseEvent mouseEvent;
-		//	mouseEvent.x = mousePosition.x;
-		//	mouseEvent.y = mousePosition.y;
-		//	mouseEvent.movementX = 0;
-		//	mouseEvent.movementY = 0;
-		//	getGUI()->handleGlobalMouseMove(mouseEvent);
-		//}
-	}
-}
-
-//------------------------------
-
-void AvoGUI::View::setElevation(float p_elevation)
-{
-	p_elevation = float(p_elevation < 0.f) * FLT_MAX + p_elevation;
-
-	if (m_elevation != p_elevation)
-	{
-		m_elevation = p_elevation;
-		updateShadow();
-		m_parent->updateViewDrawingIndex(this);
-	}
-}
 
 void AvoGUI::View::setHasShadow(bool p_hasShadow)
 {
@@ -9709,7 +9556,7 @@ public:
 
 	//------------------------------
 
-	AvoGUI::Text* createText(char const* p_string, float p_fontSize, AvoGUI::Rectangle<float> p_bounds = AvoGUI::Rectangle<float>()) override
+	AvoGUI::Text* createText(std::string const& p_string, float p_fontSize, AvoGUI::Rectangle<float> p_bounds = AvoGUI::Rectangle<float>()) override
 	{
 		p_bounds.clipNegativeSpace();
 
@@ -9722,30 +9569,9 @@ public:
 		textRange.startPosition = 0;
 		textRange.length = wideString.size();
 		textLayout->SetFontSize(p_fontSize, textRange);
-		textLayout->SetCharacterSpacing(m_textProperties.characterSpacing*0.5f, m_textProperties.characterSpacing*0.5f, 0.f, textRange);
-
-		return new DirectWriteText(textLayout, wideString, p_string, p_bounds);
-	}
-	AvoGUI::Text* createText(std::string const& p_string, float p_fontSize, AvoGUI::Rectangle<float> p_bounds = AvoGUI::Rectangle<float>()) override
-	{
-		p_bounds.clipNegativeSpace();
-
-		int32 numberOfCharacters = MultiByteToWideChar(CP_UTF8, 0, p_string.c_str(), p_string.size(), 0, 0);
-		wchar_t* wideString = new wchar_t[numberOfCharacters];
-		MultiByteToWideChar(CP_UTF8, 0, p_string.c_str(), p_string.size(), wideString, numberOfCharacters);
-
-		IDWriteTextLayout1* textLayout;
-		s_directWriteFactory->CreateTextLayout(wideString, numberOfCharacters, m_textFormat, p_bounds.getWidth(), p_bounds.getHeight(), (IDWriteTextLayout**)&textLayout);
-		DWRITE_TEXT_RANGE textRange;
-		textRange.startPosition = 0;
-		textRange.length = numberOfCharacters;
-		textLayout->SetFontSize(p_fontSize, textRange);
 		textLayout->SetCharacterSpacing(m_textProperties.characterSpacing * 0.5f, m_textProperties.characterSpacing * 0.5f, 0.f, textRange);
 
-		std::wstring wideStringObject = wideString;
-		delete[] wideString;
-
-		return new DirectWriteText(textLayout, wideStringObject, p_string, p_bounds);
+		return new DirectWriteText(textLayout, wideString, p_string, p_bounds);
 	}
 	void drawText(AvoGUI::Text* p_text) override
 	{
@@ -9765,35 +9591,32 @@ public:
 			textLayout, m_currentBrush, D2D1_DRAW_TEXT_OPTIONS::D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT
 		);
 	}
-	void drawText(char const* p_string, AvoGUI::Rectangle<float> const& p_rectangle) override
+	void drawText(std::string const& p_string, AvoGUI::Rectangle<float> const& p_rectangle) override
 	{
 		if (p_string == "") return;
 
-		int32 numberOfCharacters = MultiByteToWideChar(CP_UTF8, 0, p_string, -1, 0, 0);
-		wchar_t* wideString = new wchar_t[numberOfCharacters];
-		MultiByteToWideChar(CP_UTF8, 0, p_string, -1, wideString, numberOfCharacters);
+		std::wstring wideString = AvoGUI::convertUtf8ToUtf16(p_string);
 
 		m_currentBrush->SetOpacity(m_brushOpacity);
 		m_context->DrawTextW(
-			wideString, numberOfCharacters, m_textFormat,
+			wideString.data(), wideString.size(), m_textFormat,
 			D2D1::RectF(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom),
 			m_currentBrush, D2D1_DRAW_TEXT_OPTIONS::D2D1_DRAW_TEXT_OPTIONS_NONE
 		);
-		delete[] wideString;
 	}
-	void drawText(char const* p_string, float p_left, float p_top, float p_right, float p_bottom) override
+	void drawText(std::string const& p_string, float p_left, float p_top, float p_right, float p_bottom) override
 	{
 		drawText(p_string, AvoGUI::Rectangle<float>(p_left, p_top, p_right, p_bottom));
 	}
-	void drawText(char const* p_string, AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size) override
+	void drawText(std::string const& p_string, AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size) override
 	{
 		drawText(p_string, AvoGUI::Rectangle<float>(p_position, p_size));
 	}
-	void drawText(char const* p_string, float p_x, float p_y) override
+	void drawText(std::string const& p_string, float p_x, float p_y) override
 	{
 		drawText(p_string, AvoGUI::Rectangle<float>(p_x, p_y, m_context->GetSize().width, m_context->GetSize().height));
 	}
-	void drawText(char const* p_string, AvoGUI::Point<float> const& p_position) override
+	void drawText(std::string const& p_string, AvoGUI::Point<float> const& p_position) override
 	{
 		drawText(p_string, AvoGUI::Rectangle<float>(p_position.x, p_position.y, m_context->GetSize().width * 2, m_context->GetSize().height * 2));
 	}
@@ -12191,7 +12014,7 @@ void AvoGUI::Gui::getTopMouseListenersAt(AvoGUI::Point<float> const& p_coordinat
 	p_result.reserve(10);
 
 	AvoGUI::View* container = this;
-	int32 startIndex = getNumberOfChildren() - 1;
+	int32 startIndex = getNumberOfChildViews() - 1;
 
 	bool hasFoundTopView = false;
 
@@ -12200,11 +12023,11 @@ void AvoGUI::Gui::getTopMouseListenersAt(AvoGUI::Point<float> const& p_coordinat
 	loopStart:
 		for (int32 a = startIndex; a >= 0; a--)
 		{
-			AvoGUI::View* child = container->getChild(a);
+			AvoGUI::View* child = container->getChildView(a);
 			// Invisible views and their children do not receive mouse events.
 			if (child->getIsVisible() && child->getIsContainingAbsolute(p_coordinates.x, p_coordinates.y))
 			{
-				bool hasChildren = child->getNumberOfChildren();
+				bool hasChildren = child->getNumberOfChildViews();
 
 				if (child->getAreMouseEventsEnabled())
 				{
@@ -12214,7 +12037,7 @@ void AvoGUI::Gui::getTopMouseListenersAt(AvoGUI::Point<float> const& p_coordinat
 				if (hasChildren)
 				{
 					container = child;
-					startIndex = container->getNumberOfChildren() - 1;
+					startIndex = container->getNumberOfChildViews() - 1;
 					goto loopStart; // I have determined this is the least messy way to do it pls don't kill me
 				}
 				else
@@ -12238,7 +12061,7 @@ void AvoGUI::Gui::getTopMouseListenersAt(AvoGUI::Point<float> const& p_coordinat
 		}
 
 		startIndex = container->getIndex() - 1;
-		container = container->getParent();
+		container = container->getParent<View>();
 	}
 }
 void AvoGUI::Gui::getTopMouseListenersAt(float p_x, float p_y, std::vector<AvoGUI::View*>& p_result)
@@ -12349,6 +12172,11 @@ AvoGUI::Gui::Gui() :
 
 	m_gui = this;
 }
+AvoGUI::Gui::Gui(Component* p_parent) :
+	Gui()
+{
+	((Component*)this)->setParent(p_parent);
+}
 AvoGUI::Gui::~Gui()
 {
 	if (m_window)
@@ -12365,10 +12193,6 @@ AvoGUI::Gui::~Gui()
 	{
 		m_drawingContext->forget();
 		m_drawingContext = nullptr;
-	}
-	for (auto pair : m_viewsById)
-	{
-		pair.second->m_id = 0;
 	}
 }
 
@@ -12421,12 +12245,12 @@ AvoGUI::View* AvoGUI::Gui::getViewAt(AvoGUI::Point<float> const& p_coordinates)
 
 	while (true)
 	{
-		for (int32 a = currentContainer->getNumberOfChildren() - 1; a >= 0; a--)
+		for (int32 a = currentContainer->getNumberOfChildViews() - 1; a >= 0; a--)
 		{
-			AvoGUI::View* view = currentContainer->getChild(a);
+			AvoGUI::View* view = currentContainer->getChildView(a);
 			if (view->getIsVisible() && !view->getIsOverlay() && view->getIsContainingAbsolute(p_coordinates))
 			{
-				if (view->getNumberOfChildren())
+				if (view->getNumberOfChildViews())
 				{
 					currentContainer = view;
 					break;
@@ -12525,7 +12349,7 @@ void AvoGUI::Gui::handleWindowSizeChange(WindowEvent const& p_event)
 void AvoGUI::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 {
 	AvoGUI::View* container = this;
-	int32 startIndex = m_children.size() - 1;
+	int32 startIndex = m_childViews.size() - 1;
 
 	std::stack<bool> wasHoveringStack;
 	wasHoveringStack.push(((AvoGUI::View*)this)->m_isDraggingOver);
@@ -12577,7 +12401,7 @@ void AvoGUI::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 		loopStart:
 			for (int32 a = startIndex; a >= 0; a--)
 			{
-				AvoGUI::View* child = container->m_children[a];
+				AvoGUI::View* child = container->m_childViews[a];
 
 				if (container->m_isDraggingOver && child->getIsContainingAbsolute(absoluteX, absoluteY) && child->getIsVisible() && !hasInvisibleParent && !hasFoundEnterViews)
 				{
@@ -12587,7 +12411,7 @@ void AvoGUI::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 						p_event.y = absoluteY - child->getAbsoluteTop();
 					}
 
-					bool isContainer = !child->m_children.empty();
+					bool isContainer = !child->m_childViews.empty();
 
 					if (child->m_isDraggingOver)
 					{
@@ -12617,7 +12441,7 @@ void AvoGUI::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 							hasOverlayParent = true;
 						}
 						container = child;
-						startIndex = child->getNumberOfChildren() - 1;
+						startIndex = child->getNumberOfChildViews() - 1;
 						goto loopStart;
 					}
 					else
@@ -12641,7 +12465,7 @@ void AvoGUI::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 				}
 				else if (child->m_isDraggingOver && !hasFoundLeaveViews)
 				{
-					bool isContainer = child->getNumberOfChildren();
+					bool isContainer = child->getNumberOfChildViews();
 
 					if (child->m_areDragDropEventsEnabled)
 					{
@@ -12668,7 +12492,7 @@ void AvoGUI::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 							hasInvisibleParent = true;
 						}
 						container = child;
-						startIndex = child->getNumberOfChildren() - 1;
+						startIndex = child->getNumberOfChildViews() - 1;
 						goto loopStart;
 					}
 					else
@@ -12724,7 +12548,7 @@ void AvoGUI::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 				wasHoveringStack.pop();
 				hasOverlayParent = false;
 				startIndex = container->getIndex() - 1;
-				container = container->getParent();
+				container = container->getParent<View>();
 			}
 			else
 			{
@@ -12732,7 +12556,7 @@ void AvoGUI::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 				{
 					wasHoveringStack.pop();
 					startIndex = (int32)container->getIndex() - 1;
-					container = container->getParent();
+					container = container->getParent<View>();
 					if (container->getIsOverlay())
 					{
 						hasOverlayParent = false;
@@ -12769,14 +12593,14 @@ void AvoGUI::Gui::handleGlobalDragDropLeave(DragDropEvent& p_event)
 	float absoluteY = p_event.y;
 
 	AvoGUI::View* container = this;
-	int32 startIndex = m_children.size() - 1;
+	int32 startIndex = m_childViews.size() - 1;
 	int32 numberOfOverlayParents = 0;
 	while (true)
 	{
 	loopStart:
 		for (int32 a = startIndex; a >= 0; a--)
 		{
-			AvoGUI::View* child = container->m_children[a];
+			AvoGUI::View* child = container->m_childViews[a];
 
 			if (child->m_isDraggingOver)
 			{
@@ -12789,9 +12613,9 @@ void AvoGUI::Gui::handleGlobalDragDropLeave(DragDropEvent& p_event)
 				}
 				child->m_isDraggingOver = false;
 
-				if (!child->m_children.empty())
+				if (!child->m_childViews.empty())
 				{
-					startIndex = child->m_children.size() - 1;
+					startIndex = child->m_childViews.size() - 1;
 					container = child;
 					if (container->m_isOverlay)
 					{
@@ -12862,7 +12686,7 @@ void AvoGUI::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 	else
 	{
 		AvoGUI::View* container = this;
-		int32 startIndex = m_children.size() - 1;
+		int32 startIndex = m_childViews.size() - 1;
 
 		std::stack<bool> wasHoveringStack;
 		wasHoveringStack.push(((AvoGUI::View*)this)->m_isMouseHovering);
@@ -12915,7 +12739,7 @@ void AvoGUI::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 			loopStart:
 				for (int32 a = startIndex; a >= 0; a--)
 				{
-					AvoGUI::View* child = container->m_children[a];
+					AvoGUI::View* child = container->m_childViews[a];
 
 					if (container->m_isMouseHovering && child->getIsContainingAbsolute(absoluteX, absoluteY) && child->m_isVisible && !hasInvisibleParent && !hasFoundEnterViews)
 					{
@@ -12925,7 +12749,7 @@ void AvoGUI::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 							p_event.y = absoluteY - child->getAbsoluteTop();
 						}
 
-						bool isContainer = !child->m_children.empty();
+						bool isContainer = !child->m_childViews.empty();
 
 						if (child->m_isMouseHovering)
 						{
@@ -12955,7 +12779,7 @@ void AvoGUI::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 								hasOverlayParent = true;
 							}
 							container = child;
-							startIndex = child->getNumberOfChildren() - 1;
+							startIndex = child->getNumberOfChildViews() - 1;
 							goto loopStart;
 						}
 						else
@@ -12979,7 +12803,7 @@ void AvoGUI::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 					}
 					else if (child->m_isMouseHovering && !hasFoundLeaveViews)
 					{
-						bool isContainer = child->getNumberOfChildren();
+						bool isContainer = child->getNumberOfChildViews();
 
 						if (child->m_areMouseEventsEnabled)
 						{
@@ -13006,7 +12830,7 @@ void AvoGUI::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 								hasInvisibleParent = true;
 							}
 							container = child;
-							startIndex = child->getNumberOfChildren() - 1;
+							startIndex = child->getNumberOfChildViews() - 1;
 							goto loopStart;
 						}
 						else
@@ -13062,7 +12886,7 @@ void AvoGUI::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 					wasHoveringStack.pop();
 					hasOverlayParent = false;
 					startIndex = container->getIndex() - 1;
-					container = container->getParent();
+					container = container->getParent<View>();
 				}
 				else
 				{
@@ -13070,7 +12894,7 @@ void AvoGUI::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 					{
 						wasHoveringStack.pop();
 						startIndex = (int32)container->getIndex() - 1;
-						container = container->getParent();
+						container = container->getParent<View>();
 						if (container->m_isOverlay)
 						{
 							hasOverlayParent = false;
@@ -13111,14 +12935,14 @@ void AvoGUI::Gui::handleGlobalMouseLeave(MouseEvent& p_event)
 	float absoluteY = p_event.y;
 
 	AvoGUI::View* container = this;
-	int32 startIndex = m_children.size() - 1;
+	int32 startIndex = m_childViews.size() - 1;
 	int32 numberOfOverlayParents = 0;
 	while (true)
 	{
 		loopStart:
 		for (int32 a = startIndex; a >= 0; a--)
 		{
-			AvoGUI::View* child = container->m_children[a];
+			AvoGUI::View* child = container->m_childViews[a];
 
 			if (child->m_isMouseHovering)
 			{
@@ -13131,9 +12955,9 @@ void AvoGUI::Gui::handleGlobalMouseLeave(MouseEvent& p_event)
 				}
 				child->m_isMouseHovering = false;
 
-				if (child->m_children.size())
+				if (child->m_childViews.size())
 				{
-					startIndex = child->m_children.size() - 1;
+					startIndex = child->m_childViews.size() - 1;
 					container = child;
 					if (container->m_isOverlay)
 					{
@@ -13287,9 +13111,9 @@ void AvoGUI::Gui::drawViews()
 			while (true)
 			{
 				bool isDoneWithContainer = true;
-				for (uint32 a = startPosition; a < currentContainer->getNumberOfChildren(); a++)
+				for (uint32 a = startPosition; a < currentContainer->getNumberOfChildViews(); a++)
 				{
-					AvoGUI::View* view = currentContainer->getChild(a);
+					AvoGUI::View* view = currentContainer->getChildView(a);
 
 					if (view->getWidth() > 0.f && view->getHeight() > 0.f && view->getIsVisible())
 					{
@@ -13314,7 +13138,7 @@ void AvoGUI::Gui::drawViews()
 
 							view->draw(m_drawingContext, targetRectangle);
 
-							if (view->getNumberOfChildren())
+							if (view->getNumberOfChildViews())
 							{
 								currentContainer = view;
 								startPosition = 0;
@@ -13355,7 +13179,7 @@ void AvoGUI::Gui::drawViews()
 					m_drawingContext->popClipShape();
 
 					startPosition = currentContainer->getIndex() + 1U;
-					currentContainer = currentContainer->getParent();
+					currentContainer = currentContainer->getParent<View>();
 				}
 			}
 

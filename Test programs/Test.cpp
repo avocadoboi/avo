@@ -21,12 +21,12 @@ public:
 		m_image->setBoundsPositioning(0.5f, 0.5f);
 		m_image->setBoundsSizing(AvoGUI::ImageBoundsSizing::Contain);
 
-		auto sizeChangeListener = [this](View*, float, float) {
-			m_image->setSize(getParent()->getSize());
-			setSize(getParent()->getSize());
+		auto sizeChangeListener = [this](float, float) {
+			m_image->setSize(getParent<View>()->getSize());
+			setSize(getParent<View>()->getSize());
 		};
 		p_parent->sizeChangeListeners += sizeChangeListener;
-		p_parent->childDetachmentListeners += [=](View*, View* p_child) {
+		p_parent->childDetachmentListeners += [=](Component* p_child) {
 			if (p_child == this)
 			{
 				p_parent->sizeChangeListeners -= sizeChangeListener;
@@ -125,7 +125,7 @@ public:
 			}
 		};
 
-		sizeChangeListeners += [=](View*, float, float) {
+		sizeChangeListeners += [=](float, float) {
 			viewContainer->setCenter(getCenterX(), getCenterY());
 		};
 
