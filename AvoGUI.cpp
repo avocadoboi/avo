@@ -428,7 +428,9 @@ void AvoGUI::View::updateClipGeometry()
 //
 
 AvoGUI::View::View(AvoGUI::View* p_parent, AvoGUI::Rectangle<float> const& p_bounds) :
-	ProtectedRectangle(p_bounds), m_shadowBounds(p_bounds)
+	Component(p_parent), 
+	ProtectedRectangle(p_bounds), 
+	m_shadowBounds(p_bounds)
 {
 	mouseDownListeners += AvoGUI::bind(&View::handleMouseDown, this);
 	mouseUpListeners += AvoGUI::bind(&View::handleMouseUp, this);

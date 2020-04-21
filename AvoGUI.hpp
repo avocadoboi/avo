@@ -793,7 +793,7 @@ namespace AvoGUI
 		}
 
 	private:
-		Component* m_parent;
+		Component* m_parent{ nullptr };
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -872,10 +872,12 @@ namespace AvoGUI
 		*/
 		void removeChild(uint32 p_index)
 		{
-			m_children[p_index]->m_parent = nullptr;
-			m_children[p_index]->forget();
+			auto& child = m_children[p_index];
+			child->m_parent = nullptr;
+			child->parentChangeListeners(this);
+			child->forget();
 
-			m_children[p_index] = m_children.back();
+			child = m_children.back();
 			m_children.pop_back();
 		}
 		/*
@@ -898,6 +900,7 @@ namespace AvoGUI
 			{
 				Component* child = m_children.back();
 				child->m_parent = nullptr;
+				child->parentChangeListeners(this);
 				child->forget();
 				m_children.pop_back();
 			}
@@ -957,11 +960,14 @@ namespace AvoGUI
 				auto componentIterator = m_idScope->m_componentsById.find(m_id);
 				if (componentIterator != m_idScope->m_componentsById.end())
 				{
-					m_idScope->m_componentsById.erase(m_id);
+					m_idScope->m_componentsById.erase(componentIterator);
 				}
 			}
-			p_scope->m_componentsById[p_id] = this;
-			m_idScope = p_scope;
+			if (p_id)
+			{
+				p_scope->m_componentsById[p_id] = this;
+				m_idScope = p_scope;
+			}
 		}
 		void setId(Id const& p_id)
 		{
@@ -1001,33 +1007,27 @@ namespace AvoGUI
 
 	public:
 		Component() :
-			m_parent(nullptr),
 			m_root(this)
 		{
 		}
 		Component(Component* p_parent) :
-			m_root(p_parent->getRoot())
+			m_root(p_parent ? p_parent->getRoot() : this)
 		{
 			if (p_parent && p_parent != this)
 			{
 				setParent(p_parent);
 			}
 		}
-
 		~Component()
 		{
-			setId(0);
-			for (auto pair : m_componentsById)
-			{
-				pair.second->m_id = 0;
-				pair.second->m_idScope = nullptr;
-			}
-
 			removeAllChildren();
+
+			setId(0);
+
 			if (m_parent)
 			{
 				remember();
-				m_parent->removeChild(this);
+				setParent(nullptr);
 			}
 		}
 	};
@@ -4436,6 +4436,7 @@ namespace AvoGUI
 
 			if (m_parent)
 			{
+				remember();
 				m_parent->removeChildView(this);
 			}
 
