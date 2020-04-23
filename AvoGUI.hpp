@@ -4443,16 +4443,16 @@ namespace AvoGUI
 			m_parent = p_container;
 			if (p_container)
 			{
-				m_gui = m_parent->getGui();
+				m_gui = m_parent->m_gui;
 
-				m_index = m_parent->getNumberOfChildViews();
-				if ((View*)getGui() == this)
+				m_index = m_parent->m_childViews.size();
+				if ((View*)m_gui == this)
 				{
 					m_layerIndex = 0;
 				}
 				else
 				{
-					m_layerIndex = m_parent->getLayerIndex() + 1U;
+					m_layerIndex = m_parent->m_layerIndex + 1U;
 				}
 				m_absolutePosition.x = m_parent->getAbsoluteLeft() + m_bounds.left;
 				m_absolutePosition.y = m_parent->getAbsoluteTop() + m_bounds.top;
@@ -4479,9 +4479,9 @@ namespace AvoGUI
 		*/
 		void removeChildView(View* p_view)
 		{
-			if (p_view && p_view->getParent() == this)
+			if (p_view && p_view->m_parent == this)
 			{
-				removeChildView(p_view->getIndex());
+				removeChildView(p_view->m_index);
 			}
 		}
 		/*
