@@ -593,7 +593,7 @@ namespace AvoGUI
 				lastPlaceholderEndIndex = a += 2;
 			}
 		}
-		stream.write(p_format.data() + lastPlaceholderEndIndex, p_format.size() - 1 - lastPlaceholderEndIndex);
+		stream.write(p_format.data() + lastPlaceholderEndIndex, p_format.size() - lastPlaceholderEndIndex);
 
 		return stream.str();
 	}
@@ -10196,16 +10196,10 @@ namespace AvoGUI
 
 		/*
 			Opens the dialog and returns when the user has selected the files or closed the window.
-			p_openedFilePaths is a vector which will be filled with file paths in UTF-8 format of the files the user has selected to open.
+			Returns a vector which contains the file paths in UTF-8 format of the files the user has selected to open.
 			It can be empty if the user closed the window without selecting any files.
 		*/
-		void open(std::vector<std::string>& p_openedFilePaths);
-		/*
-			Opens the dialog and returns when the user has selected the files or closed the window.
-			p_openedFilePaths is a vector which will be filled with file paths in UTF-16 format of the files the user has selected to open.
-			It can be empty if the user closed the window without selecting any files.
-		*/
-		void open(std::vector<std::wstring>& p_openedFilePaths);
+		std::vector<std::string> open();
 	};
 
 	//------------------------------

@@ -2574,7 +2574,7 @@ private:
 		}
 		else if (!s_numberOfWindows)
 		{
-			WNDCLASSW windowClass = { };
+			WNDCLASSW windowClass{ };
 			windowClass.lpszClassName = WINDOW_CLASS_NAME;
 			windowClass.hInstance = GetModuleHandle(0);
 			windowClass.lpfnWndProc = handleGlobalEvents;
@@ -2601,11 +2601,11 @@ private:
 
 		//------------------------------
 
-		POINT cursorPosition = { 0 };
+		POINT cursorPosition{ 0 };
 		GetCursorPos(&cursorPosition);
 		m_mousePosition.set(cursorPosition.x, cursorPosition.y);
 
-		RECT parentRect = { 0 };
+		RECT parentRect{ 0 };
 
 		if (p_parent)
 		{
@@ -2673,11 +2673,11 @@ private:
 		}
 		s_numberOfWindows++;
 
-		MSG message = { };
-		while (GetMessage(&message, 0, 0, 0))
+		MSG message{ };
+		while (GetMessageW(&message, 0, 0, 0))
 		{
 			TranslateMessage(&message);
-			DispatchMessage(&message);
+			DispatchMessageW(&message);
 		}
 	}
 
@@ -13200,83 +13200,7 @@ void AvoGUI::Gui::drawViews()
 // class AvoGUI::OpenFileDialog
 //------------------------------
 
-void AvoGUI::OpenFileDialog::open(std::vector<std::wstring>& p_openedFilePaths)
-{
-#ifdef _WIN32
-	IFileOpenDialog* dialog;
-	CoCreateInstance(CLSID_FileOpenDialog, 0, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&dialog));
-
-	wchar_t wideTitle[200];
-	convertUtf8ToUtf16(m_title.data(), m_title.size(), wideTitle, 200);
-	dialog->SetTitle(wideTitle);
-
-	COMDLG_FILTERSPEC* filters = new COMDLG_FILTERSPEC[m_fileExtensions.size()];
-	// I made 1 big string buffer to decrease the number of allocations.
-	wchar_t* filterStringBuffer = new wchar_t[100 * m_fileExtensions.size()];
-	for (uint32 a = 0; a < m_fileExtensions.size(); a++)
-	{
-		filters[a].pszName = filterStringBuffer + a * 100;
-		convertUtf8ToUtf16(m_fileExtensions[a].name, (wchar_t*)filters[a].pszName, 50);
-
-		filters[a].pszSpec = filterStringBuffer + a * 100 + 50;
-		convertUtf8ToUtf16(m_fileExtensions[a].extensions, (wchar_t*)filters[a].pszSpec, 50);
-
-	}
-	dialog->SetFileTypes(m_fileExtensions.size(), filters);
-
-	if (m_canSelectMultipleFiles)
-	{
-		FILEOPENDIALOGOPTIONS options;
-		dialog->GetOptions(&options);
-		dialog->SetOptions(options | FOS_ALLOWMULTISELECT);
-	}
-
-	HRESULT result = dialog->Show(HWND(m_gui ? m_gui->getWindow()->getNativeHandle() : 0));
-
-	if (SUCCEEDED(result))
-	{
-		if (m_canSelectMultipleFiles)
-		{
-			IShellItemArray* items;
-			dialog->GetResults(&items);
-
-			DWORD numberOfResults = 0;
-			items->GetCount(&numberOfResults);
-			p_openedFilePaths.resize(numberOfResults);
-
-			for (uint32 a = 0; a < numberOfResults; a++)
-			{
-				IShellItem* item;
-				items->GetItemAt(a, &item);
-
-				LPWSTR name;
-				item->GetDisplayName(SIGDN::SIGDN_FILESYSPATH, &name);
-				p_openedFilePaths[a] = name;
-
-				item->Release();
-			}
-			items->Release();
-		}
-		else
-		{
-			IShellItem* item;
-			dialog->GetResult(&item);
-
-			LPWSTR name;
-			item->GetDisplayName(SIGDN::SIGDN_FILESYSPATH, &name);
-			p_openedFilePaths.resize(1);
-			p_openedFilePaths[0] = name;
-
-			item->Release();
-		}
-	}
-	delete[] filterStringBuffer;
-	delete[] filters;
-
-	dialog->Release();
-#endif
-}
-void AvoGUI::OpenFileDialog::open(std::vector<std::string>& p_openedFilePaths)
+std::vector<std::string> AvoGUI::OpenFileDialog::open()
 {
 #ifdef _WIN32
 	IFileOpenDialog* dialog;
@@ -13286,18 +13210,24 @@ void AvoGUI::OpenFileDialog::open(std::vector<std::string>& p_openedFilePaths)
 	convertUtf8ToUtf16(m_title, wideTitle, 200);
 	dialog->SetTitle(wideTitle);
 
-	COMDLG_FILTERSPEC* filters = new COMDLG_FILTERSPEC[m_fileExtensions.size()];
+	//------------------------------
+	// Create the extension filters that the user will choose from.
+
+	std::vector<COMDLG_FILTERSPEC> filters(m_fileExtensions.size());
+
 	// I made 1 big string buffer to decrease the number of allocations.
-	wchar_t* filterStringBuffer = new wchar_t[100 * m_fileExtensions.size()];
+	std::vector<wchar_t> filterStringBuffer(100 * m_fileExtensions.size());
 	for (uint32 a = 0; a < m_fileExtensions.size(); a++)
 	{
-		filters[a].pszName = filterStringBuffer + a * 100LL;
+		filters[a].pszName = filterStringBuffer.data() + a * 100;
 		convertUtf8ToUtf16(m_fileExtensions[a].name, (wchar_t*)filters[a].pszName, 50);
 
-		filters[a].pszSpec = filterStringBuffer + a * 100LL + 50;
+		filters[a].pszSpec = filterStringBuffer.data() + a * 100 + 50;
 		convertUtf8ToUtf16(m_fileExtensions[a].extensions, (wchar_t*)filters[a].pszSpec, 50);
 	}
-	dialog->SetFileTypes(m_fileExtensions.size(), filters);
+	dialog->SetFileTypes(m_fileExtensions.size(), filters.data());
+
+	//------------------------------
 
 	if (m_canSelectMultipleFiles)
 	{
@@ -13306,9 +13236,12 @@ void AvoGUI::OpenFileDialog::open(std::vector<std::string>& p_openedFilePaths)
 		dialog->SetOptions(options | FOS_ALLOWMULTISELECT);
 	}
 
-	HRESULT result = dialog->Show(HWND(m_gui ? m_gui->getWindow()->getNativeHandle() : 0));
+	//------------------------------
 
-	if (SUCCEEDED(result))
+	HRESULT errorCode = dialog->Show(HWND(m_gui ? m_gui->getWindow()->getNativeHandle() : 0));
+
+	std::vector<std::string> result;
+	if (SUCCEEDED(errorCode))
 	{
 		if (m_canSelectMultipleFiles)
 		{
@@ -13317,7 +13250,7 @@ void AvoGUI::OpenFileDialog::open(std::vector<std::string>& p_openedFilePaths)
 
 			DWORD numberOfResults = 0;
 			items->GetCount(&numberOfResults);
-			p_openedFilePaths.resize(numberOfResults);
+			result.resize(numberOfResults);
 
 			for (uint32 a = 0; a < numberOfResults; a++)
 			{
@@ -13326,8 +13259,7 @@ void AvoGUI::OpenFileDialog::open(std::vector<std::string>& p_openedFilePaths)
 
 				LPWSTR name;
 				item->GetDisplayName(SIGDN::SIGDN_FILESYSPATH, &name);
-				p_openedFilePaths[a].resize(getNumberOfUnitsInUtfConvertedString(name) - 1);
-				convertUtf16ToUtf8(name, (char*)p_openedFilePaths[a].data(), p_openedFilePaths[a].size() + 1);
+				result[a] = AvoGUI::convertUtf16ToUtf8(name);
 
 				item->Release();
 			}
@@ -13340,15 +13272,12 @@ void AvoGUI::OpenFileDialog::open(std::vector<std::string>& p_openedFilePaths)
 
 			LPWSTR name;
 			item->GetDisplayName(SIGDN::SIGDN_FILESYSPATH, &name);
-			p_openedFilePaths.resize(1);
-			p_openedFilePaths[0].resize(getNumberOfUnitsInUtfConvertedString(name) - 1);
-			convertUtf16ToUtf8(name, (char*)p_openedFilePaths[0].data(), p_openedFilePaths[0].size() + 1);
+			result.resize(1);
+			result[0] = AvoGUI::convertUtf16ToUtf8(name);
 
 			item->Release();
 		}
 	}
-	delete[] filterStringBuffer;
-	delete[] filters;
 
 	dialog->Release();
 #endif
