@@ -16,7 +16,7 @@ private:
 
 public:
 	MouseView(View* p_parent, AvoGUI::Rectangle<float> const& p_bounds) :
-		View(p_parent, p_bounds), m_name("")
+		View(p_parent, p_bounds)
 	{
 		enableMouseEvents();
 	}
@@ -78,6 +78,7 @@ public:
 	MouseEventsTest()
 	{
 		create("Mouse events test", 800, 600, AvoGUI::WindowStyleFlags::DefaultNoResize);
+		waitForFinish();
 	}
 
 	//------------------------------
@@ -161,6 +162,5 @@ public:
 
 int main()
 {
-	MouseEventsTest* application = new MouseEventsTest();
-	application->waitForFinish();
+	new MouseEventsTest();
 }

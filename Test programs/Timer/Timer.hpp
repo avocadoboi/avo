@@ -1,19 +1,19 @@
 #pragma once
-#include <chrono>
-#include <math.h>
 
-#include "../../AvoGUI.hpp"
 #include "MainScreen.hpp"
 #include "TimeoutScreen.hpp"
+
+#include <chrono>
+#include <math.h>
 
 //------------------------------
 
 class TimerApp : public AvoGUI::Gui
 {
 private:
-	MainScreen* m_mainScreen = 0;
-	TimeoutScreen* m_timeoutScreen = 0;
-	AvoGUI::Tooltip* m_tooltip = 0;
+	MainScreen* m_mainScreen{ nullptr };
+	TimeoutScreen* m_timeoutScreen{ nullptr };
+	AvoGUI::Tooltip* m_tooltip{ nullptr };
 
 public:
 	TimerApp()
@@ -53,9 +53,5 @@ public:
 		m_mainScreen->setIsVisible(true);
 		m_mainScreen->queueAnimationUpdate();
 		invalidate();
-	}
-	void stopTimerSound()
-	{
-		m_mainScreen->stopTimerSound();
 	}
 };

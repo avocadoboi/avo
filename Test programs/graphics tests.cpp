@@ -3,8 +3,8 @@
 class Card : public AvoGUI::View
 {
 private:
-	AvoGUI::Text* m_text;
-	AvoGUI::LinearGradient* m_gradient;
+	AvoGUI::Text* m_text{ nullptr };
+	AvoGUI::LinearGradient* m_gradient{ nullptr };
 
 public:
 	Card(View* p_parent) :
@@ -51,12 +51,13 @@ public:
 class GUI : public AvoGUI::Gui
 {
 private:
-	Card* m_card;
+	Card* m_card{ nullptr };
 
 public:
 	GUI()
 	{
 		create("Graphics test", 800, 700);
+		waitForFinish();
 	}
 
 	void createContent()
@@ -80,6 +81,5 @@ public:
 
 int main()
 {
-	GUI* gui = new GUI();
-	gui->waitForFinish();
+	new GUI();
 }

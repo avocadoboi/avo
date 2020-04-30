@@ -36,7 +36,7 @@ class Boids :
 {
 private:
 	std::vector<Boid> m_boids;
-	AvoGUI::Geometry* m_boidGeometry;
+	AvoGUI::Geometry* m_boidGeometry{ nullptr };
 
 public:
 	Boids()
@@ -53,16 +53,16 @@ public:
 
 	void createContent() override
 	{
-		setThemeColor("background", AvoGUI::Color(0.05f));
+		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(0.05f));
 
 		//------------------------------
 
 		std::vector<AvoGUI::Point<float>> triangle =
 		{
-			AvoGUI::Point<float>(0.f, -0.5f),
-			AvoGUI::Point<float>(0.4f, 0.5f),
-			AvoGUI::Point<float>(0.f, 0.4f),
-			AvoGUI::Point<float>(-0.4f, 0.5f)
+			{ 0.f, -0.5f },
+			{ 0.4f, 0.5f },
+			{ 0.f, 0.4f },
+			{ -0.4f, 0.5f }
 		};
 		m_boidGeometry = getDrawingContext()->createPolygonGeometry(triangle);
 

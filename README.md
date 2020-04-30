@@ -23,7 +23,8 @@ public:
   }
   ~MyApplication()
   {
-    // Do not forget() views yourself; they are cleaned up automatically if they have a parent.
+    // Do not forget() views yourself unless you have called remember() on them. 
+    // forget is called automatically on views when they are detached from their parent or when their parent destructs.
   }
   
   //------------------------------
@@ -32,28 +33,15 @@ public:
   void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
   {
     // If you want to react to mouse down events from your GUI, you can do it here.
-    // This is called from handleGlobalMouseDown, which is explained below. 
     // You need to call enableMouseEvents() for this handler to be called, since mouse events are disabled
     // by default. The mouse coordinates in the event are relative to the top-left corner of the GUI. 
     // This method is inherited from AvoGUI::View.
   }
-  void handleGlobalMouseDown(AvoGUI::MouseEvent const& p_event) override
-  {
-    // This method sends a mouse down event to all targeted children - as well as the GUI.
-    // It also sends out the global mouse events.
-    // You could override this if you'd want your own algorithm for targeting the mouse events.
-    // The most complicated method is handleGlobalMouseMove(), which sends enter, leave and move events.
-    
-    // Note that this method is called to the GUI directly from the window no matter what, so don't call 
-    // addGlobalMouseEventListener() with a GUI as the parameter...
-    // This method is inherited from AvoGUI::GlobalMouseEventListener.
-  }
   
   // Other event listeners that you can override in your GUI are: handleMouseUp, handleMouseDoubleClick, 
   // handleMouseMove, handleMouseScroll, handleMouseEnter, handleMouseLeave, handleMouseBackgroundEnter,
-  // handleMouseBackgroundLeave, handleCharacterInput, handleKeyboardKeyDown and handleKeyboardKeyUp - 
-  // as well as the global versions of mouse events. Mouse events and keyboard events are explained more 
-  // later in this readme.
+  // handleMouseBackgroundLeave, handleCharacterInput, handleKeyboardKeyDown, handleKeyboardKeyUp. 
+  // Mouse events and keyboard events are explained more later in this readme.
 
   //------------------------------
   
@@ -96,7 +84,7 @@ public:
   }
 }
 ```
-Don't forget that you might want to create a Gui object too! Views and GUIs have to be dynamically allocated (as with all other classes that inherit ReferenceCounted).
+Don't forget that you might want to create a Gui object too, quite possibly in your entry point function! Views and GUIs have to be dynamically allocated (as with all other classes that inherit ReferenceCounted).
 
 ### Creating a view
 A view is a rectangle that can draw itself and react to different events. Views are used to create components and build up the GUI. They are also used as containers for other views, by setting them as the parent of the views that should be contained within it, using setParent() or the View constructor. Child views can only ever be drawn within their parent.
@@ -116,7 +104,7 @@ public:
   }
   ~MyView()
   {
-    // Do not forget() child views yourself. They are released automatically.
+    // Release resources like drawable images and text by calling forget on them.
   }
   
   //------------------------------
@@ -141,13 +129,11 @@ public:
   void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
   {
     // Override this if you want to react to mouse button press events. You first need to call 
-    // enableMouseEvents(), in the constructor or something. Otherwise, no mouse events will be recieved.
-    // The mouse coordinates in the event are relative to the parent of this view.
+    // enableMouseEvents(), in the constructor or something. Otherwise, no mouse events will be received.
+    // The mouse coordinates in the event are relative to the top left corner of this view.
   }
   
-  // Other mouse events that you can override by default in your view are: handleMouseUp, handleDoubleClick, 
-  // handleMouseMove, handleMouseScroll, handleMouseLeave, handleMouseEnter, handleMouseBackgroundLeave and
-  // handleMouseBackgroundEnter.
+  // You can override the same listeners as your GUI can.
   
   //------------------------------
   
@@ -178,22 +164,24 @@ public:
 ```
 
 ### Events
-An event is something that happens. You often want your GUI components (views) to react to things that happen outside of their reach, for example a mouse click or when a child has resized itself. Views can inherit abstract classes which have *event handlers* you can override. The names of these abstract classes end with *Listener*, since they are objects that listen for events. The view also needs to be registered to the sender to recieve any events. The registering methods begin with "add" and end with the name of the event listener class. There are also unregistering methods which begin with "remove". You need to call that whenever a registered view is destroyed.
+An event is something that happens. You often want your GUI components (views) to react to things that happen outside of their reach, for example a mouse click or when a child has resized itself. Views have a couple of built-in event listeners and some of these need to be activated in different ways. For all events in the framework, additional listener callbacks can be attached in the form of any callable type.
 
-However, this is a bit different for a couple of event listeners.
-To recieve keyboard events:
-1. Let your class inherit AvoGUI::KeyboardListener.
-2. Override the keyboard event handler methods you want to use.
-3. Call getGUI()->setKeyboardFocus(view) when you want your view to be the target of keyboard events. This is because only 1 view can recieve keyboard events at a time. 
+Example with a lambda:
+```cpp
+child->sizeChangeListeners += [this](View*, float, float) { /* Do anything! */ };
+```
+Example with a member function:
+```cpp
+child->sizeChangeListeners += AvoGUI::bind(&MyView::doSomething, this);
+```
 
-To respond to all keyboard events independent of being the keyboard focus:
-1. Let your class inherit AvoGUI::KeyboardListener. There is no GlobalKeyboardListener class since that would be unnecessary.
-2. Override the keyboard event handler methods you want to use.
-3. Call getGUI()->addGlobalKeyboardListener(view) to register it to the GUI.
+To receive keyboard events:
+1. Override the keyboard event handler methods you want to use.
+2. Call getGui()->setKeyboardFocus(view) when you want your view to be the target of keyboard events. This is because only 1 view can receive keyboard events at a time. 
 
-To make a view recieve mouse events, all you need to do is call enableMouseEvents() and override your handlers. This is because regular mouse events are targeted towards different views based on the view tree, and only views can be targeted this way.
+To respond to all keyboard events independent of being the keyboard focus, you can add global keyboard event callbacks using Gui::globalKeyboardKeyDownListeners as an example.
 
-To make an object recieve all mouse events that the window recieves from the OS, implement AvoGUI::GlobalMouseListener and register it with getGUI()->addGlobalMouseListener().
+To make a view receive mouse events, all you need to do is call enableMouseEvents() and override your handlers. To add an additional listener to a view, do as usual and use View::mouseDownListeners for example.
 
 ### Unicode characters
 AvoGUI supports non-ASCII UTF-8 unicode characters. To create a UTF-8 encoded string literal, simply prepend the "u8" prefix. Example: u8"Göran matar bläckfiskarna med blått bläck.". 
@@ -203,10 +191,10 @@ To support right-to-left languages, set the reading direction of the text to Rea
 Look around in the documentation in AvoGUI.hpp for more information about anything!
 
 ## Compatible platforms
-The goal is to support Windows, Linux and MacOS. Currently, only Windows is supported.
+The goal is to support Windows, Linux and MacOS. Currently, only Windows is fully supported and Linux development is in progress.
 
 ## Development state
-The project is constantly morphing and taking shape to become the ideal GUI library, which means big changes can happen anytime as long as they improve for example workflow, consistency or efficiency. 
+The project is constantly morphing and taking shape to become the ideal GUI library, which means big changes can happen anytime as long as they improve for example workflow, consistency or efficiency. However, the latest version on the master branch should be pretty stable at this point.
 
 ## Contributing
 Don't be afraid to submit issues about the little things! All issues are very welcome, and they help the development of the library a lot. Pull requests are also welcome.

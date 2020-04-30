@@ -7,7 +7,6 @@ int32 const NUMBER_OF_ROWS = 6;
 
 float const CELL_WIDTH = 100.f;
 
-
 AvoGUI::Color const COLOR_PLAYER_1(1.f, 0.f, 0.f);
 AvoGUI::Color const COLOR_PLAYER_2(0.f, 0.f, 1.f);
 
@@ -17,25 +16,23 @@ class YouWon :
 	public AvoGUI::View
 {
 private:
-	bool m_isOpen;
-	float m_openAnimationTime;
-	float m_openAnimationValue;
+	bool m_isOpen{ false };
+	float m_openAnimationTime{ 0.f };
+	float m_openAnimationValue{ 0.f };
 
 	AvoGUI::Color m_winningColor;
 
-	AvoGUI::Text* m_text;
+	AvoGUI::Text* m_text{ getDrawingContext()->createText("won!", 20.f) };
 
 public:
 	YouWon(AvoGUI::View* p_parent) :
-		View(p_parent), 
-		m_isOpen(false), m_openAnimationTime(0.f), m_openAnimationValue(0.f)
+		View(p_parent)
 	{
 		setElevation(5.f);
 		setCornerRadius(5.f);
 		setSize(250, 150);
 		setIsVisible(false);
 
-		m_text = getGui()->getDrawingContext()->createText("won!", 20.f);
 		m_text->setCenter(getWidth() * 0.65f, getHeight()*0.5f);
 	}
 
@@ -99,28 +96,24 @@ class FourInARow :
 	public AvoGUI::Gui
 {
 private:
-	YouWon* m_youWon;
+	YouWon* m_youWon{ nullptr };
 
-	uint32** m_cells;
-	uint32 m_playerNumber;
+	uint32 m_cells[NUMBER_OF_COLUMNS][NUMBER_OF_ROWS];
+	uint32 m_playerNumber{ 1 };
 
 public:
-	FourInARow() :
-		m_cells(0)
+	FourInARow()
 	{
 		create("Four in a row", NUMBER_OF_COLUMNS*CELL_WIDTH, NUMBER_OF_ROWS*CELL_WIDTH, AvoGUI::WindowStyleFlags::DefaultNoResize);
+		waitForFinish();
 	}
 
 	//------------------------------
 
 	void createContent() override
 	{
-		m_playerNumber = 1;
-
-		m_cells = new uint32*[NUMBER_OF_COLUMNS];
 		for (uint32 x = 0; x < NUMBER_OF_COLUMNS; x++)
 		{
-			m_cells[x] = new uint32[NUMBER_OF_ROWS];
 			for (uint32 y = 0; y < NUMBER_OF_ROWS; y++)
 			{
 				m_cells[x][y] = 0;
@@ -219,6 +212,5 @@ public:
 
 int main()
 {
-	FourInARow* gui = new FourInARow();
-	gui->waitForFinish();
+	new FourInARow();
 }
