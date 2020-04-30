@@ -1,10 +1,10 @@
 #pragma once
-#include <chrono>
-#include <math.h>
 
-#include "../../AvoGUI.hpp"
 #include "MainScreen.hpp"
 #include "TimeoutScreen.hpp"
+
+#include <chrono>
+#include <math.h>
 
 //------------------------------
 

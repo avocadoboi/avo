@@ -1000,8 +1000,9 @@ public:
 
 //------------------------------
 
-class OleClipboardData :
-	public AvoGUI::ClipboardData
+constexpr auto CLIPBOARD_FORMAT_ADDITIONAL_DATA = L"AvoGUI additional data";
+
+class OleClipboardData : public AvoGUI::ClipboardData
 {
 private:
 	IDataObject* m_dataObject{ nullptr };
@@ -1012,12 +1013,14 @@ private:
 	FORMATETC* m_fileDescriptorFormat{ nullptr };
 	FORMATETC* m_itemNamesFormat{ nullptr };
 	FORMATETC* m_textFormat{ nullptr };
+	FORMATETC* m_additionalDataFormat{ nullptr };
 
 	std::vector<STGMEDIUM> m_globalDataToRelease;
 	std::vector<char const*> m_streamBuffersToRelease;
 
 	uint32 m_clipboardFormat_fileContents;
 	uint32 m_clipboardFormat_fileGroupDescriptor;
+	uint32 m_clipboardFormat_additionalData;
 
 	AvoGUI::Gui* m_gui;
 
@@ -1026,14 +1029,16 @@ private:
 		if (m_dataObject)
 		{
 			m_dataObject->Release();
-			m_dataObject = 0;
+			m_dataObject = nullptr;
 			delete[] m_oleFormats;
-			m_oleFormats = 0;
+			m_oleFormats = nullptr;
 			m_numberOfFormats = 0;
 			m_numberOfFiles = 0;
-			m_fileDescriptorFormat = 0;
-			m_itemNamesFormat = 0;
-			m_textFormat = 0;
+
+			m_fileDescriptorFormat = nullptr;
+			m_itemNamesFormat = nullptr;
+			m_textFormat = nullptr;
+			m_additionalDataFormat = nullptr;
 		}
 		for (STGMEDIUM& medium : m_globalDataToRelease)
 		{
@@ -1055,6 +1060,7 @@ public:
 	{
 		m_clipboardFormat_fileContents = RegisterClipboardFormatW(CFSTR_FILECONTENTS);
 		m_clipboardFormat_fileGroupDescriptor = RegisterClipboardFormatW(CFSTR_FILEDESCRIPTORW);
+		m_clipboardFormat_additionalData = RegisterClipboardFormatW(CLIPBOARD_FORMAT_ADDITIONAL_DATA);
 	}
 	~OleClipboardData()
 	{
@@ -1213,10 +1219,10 @@ public:
 		if (m_textFormat)
 		{
 			STGMEDIUM medium;
-			HRESULT result = m_dataObject->GetData(m_textFormat, &medium);
+			auto result = m_dataObject->GetData(m_textFormat, &medium);
 			if (result == S_OK)
 			{
-				std::string string = AvoGUI::convertUtf16ToUtf8((wchar_t*)GlobalLock(medium.hGlobal));
+				auto string = AvoGUI::convertUtf16ToUtf8((wchar_t*)GlobalLock(medium.hGlobal));
 				GlobalUnlock(medium.hGlobal);
 				ReleaseStgMedium(&medium);
 				return string;
@@ -1229,7 +1235,7 @@ public:
 		if (m_textFormat)
 		{
 			STGMEDIUM medium;
-			HRESULT result = m_dataObject->GetData(m_textFormat, &medium);
+			auto result = m_dataObject->GetData(m_textFormat, &medium);
 			if (result == S_OK)
 			{
 				std::wstring string = (wchar_t*)GlobalLock(medium.hGlobal);
@@ -1240,7 +1246,7 @@ public:
 		}
 		return L"";
 	}
-	bool getHasString() const
+	bool getHasString() const override
 	{
 		return m_textFormat;
 	}
@@ -1356,7 +1362,7 @@ public:
 		return getNumberOfFiles();
 	}
 
-	std::vector<std::string> getFileNames() const
+	std::vector<std::string> getFileNames() const override
 	{
 		if (m_fileDescriptorFormat)
 		{
@@ -1382,7 +1388,7 @@ public:
 		}
 		return { };
 	}
-	std::vector<std::wstring> getUtf16FileNames() const
+	std::vector<std::wstring> getUtf16FileNames() const override
 	{
 		if (m_fileDescriptorFormat)
 		{
@@ -1408,7 +1414,7 @@ public:
 		}
 		return { };
 	}
-	std::vector<std::string> getFileContents() const
+	std::vector<std::string> getFileContents() const override
 	{
 		if (m_fileDescriptorFormat)
 		{
@@ -1452,7 +1458,7 @@ public:
 		}
 		return { };
 	}
-	std::string getFileContents(uint32 p_index) const 
+	std::string getFileContents(uint32 p_index) const override
 	{
 		if (m_fileDescriptorFormat)
 		{
@@ -1498,9 +1504,22 @@ public:
 
 		return "";
 	}
-	uint32 getNumberOfFiles() const 
+	uint32 getNumberOfFiles() const override
 	{
 		return m_numberOfFiles;
+	}
+
+	uint64 getAdditionalData() const override
+	{
+		STGMEDIUM medium;
+		auto result = m_dataObject->GetData(m_additionalDataFormat, &medium);
+		if (result == S_OK)
+		{
+			uint64 additionalData = *(uint64*)GlobalLock(medium.hGlobal);
+			GlobalUnlock(medium.hGlobal);
+			return additionalData;
+		}
+		return 0u;
 	}
 
 	AvoGUI::Image* getImage() const override
@@ -1516,8 +1535,7 @@ public:
 
 //------------------------------
 
-class OleDropTarget :
-	public IDropTarget
+class OleDropTarget : public IDropTarget
 {
 private:
 	uint32 m_referenceCount;
@@ -1535,7 +1553,7 @@ public:
 		m_referenceCount(1), m_gui(p_gui), m_dropData(p_gui)
 	{
 		m_dropData.formats.reserve(15);
-		m_dragDropEvent.data = &m_dropData;
+		m_dragDropEvent.data = std::unique_ptr<AvoGUI::ClipboardData>((AvoGUI::ClipboardData*)&m_dropData);
 
 		CoCreateInstance(CLSID_DragDropHelper, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_dropImageViewer));
 	}
@@ -1691,8 +1709,9 @@ private:
 	OleDropSource* m_oleDropSource{ nullptr };
 	OleDropTarget* m_oleDropTarget{ nullptr };
 
-	uint32 m_clipboardFormat_fileContents{ 0 };
-	uint32 m_clipboardFormat_fileGroupDescriptor{ 0 };
+	uint32 m_clipboardFormat_fileContents{ 0u };
+	uint32 m_clipboardFormat_fileGroupDescriptor{ 0u };
+	uint32 m_clipboardFormat_additionalData{ 0u };
 
 	//------------------------------
 
@@ -1986,50 +2005,50 @@ private:
 		return AvoGUI::KeyboardKey::None;
 	}
 
-	OleDataObject* createStringOleDataObject(char const* p_string, uint32 p_length) const
+	void createAdditionalData(FORMATETC& p_format, STGMEDIUM& p_medium, uint64 p_data) const
 	{
-		FORMATETC format;
-		format.cfFormat = CF_UNICODETEXT;
-		format.tymed = TYMED_HGLOBAL;
-		format.dwAspect = DVASPECT_CONTENT;
-		format.lindex = -1;
-		format.ptd = 0;
+		p_format.cfFormat = m_clipboardFormat_additionalData;
+		p_format.ptd = nullptr;
+		p_format.lindex = -1;
+		p_format.dwAspect = DVASPECT_CONTENT;
+		p_format.tymed = TYMED_HGLOBAL;
 
-		STGMEDIUM medium;
-		medium.tymed = TYMED_HGLOBAL;
-		medium.pUnkForRelease = 0;
-
-		uint32 wideStringLength = AvoGUI::getNumberOfUnitsInUtfConvertedString(p_string);
-		medium.hGlobal = GlobalAlloc(GMEM_FIXED, wideStringLength * sizeof(wchar_t));
-		AvoGUI::convertUtf8ToUtf16(p_string, p_length == -1 ? -1 : p_length + 1, (wchar_t*)medium.hGlobal, wideStringLength);
-
-		return new OleDataObject(&format, &medium, 1);
+		p_medium.tymed = TYMED_HGLOBAL;
+		p_medium.pUnkForRelease = nullptr;
+		p_medium.hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(p_data));
+		*(uint64*)p_medium.hGlobal = p_data;
 	}
-	OleDataObject* createStringOleDataObject(wchar_t const* p_string, uint32 p_length) const
+	OleDataObject* createStringOleDataObject(std::wstring const& p_string, uint64 p_additionalData) const
 	{
-		FORMATETC format;
-		format.cfFormat = CF_UNICODETEXT;
-		format.tymed = TYMED_HGLOBAL;
-		format.dwAspect = DVASPECT_CONTENT;
-		format.lindex = -1;
-		format.ptd = 0;
+		FORMATETC format[2];
+		format[0].cfFormat = CF_UNICODETEXT;
+		format[0].tymed = TYMED_HGLOBAL;
+		format[0].dwAspect = DVASPECT_CONTENT;
+		format[0].lindex = -1;
+		format[0].ptd = 0;
 
-		STGMEDIUM medium;
-		medium.tymed = TYMED_HGLOBAL;
-		medium.pUnkForRelease = 0;
+		STGMEDIUM medium[2];
+		medium[0].tymed = TYMED_HGLOBAL;
+		medium[0].pUnkForRelease = 0;
 
-		medium.hGlobal = GlobalAlloc(GMEM_FIXED, (p_length + 1) * sizeof(wchar_t));
-		memcpy(medium.hGlobal, p_string, p_length * sizeof(wchar_t));
-		*((wchar_t*)medium.hGlobal + p_length) = 0;
+		//------------------------------
 
-		return new OleDataObject(&format, &medium, 1);
+		auto const stringSize = (p_string.size() + 1) * sizeof(wchar_t);
+		medium[0].hGlobal = GlobalAlloc(GMEM_FIXED, stringSize);
+		memcpy(medium[0].hGlobal, p_string.data(), stringSize);
+
+		//------------------------------
+
+		createAdditionalData(format[1], medium[1], p_additionalData);
+
+		return new OleDataObject(format, medium, 2);
 	}
-	OleDataObject* createImageOleDataObject(AvoGUI::Image* p_image) const
+	OleDataObject* createImageOleDataObject(AvoGUI::Image* p_image, uint64 p_additionalData) const
 	{
-		FORMATETC formats[2];
-		STGMEDIUM mediums[2];
+		FORMATETC formats[3];
+		STGMEDIUM mediums[3];
 
-		ID2D1Bitmap1* bitmap = (ID2D1Bitmap1*)p_image->getHandle();
+		auto bitmap = (ID2D1Bitmap1*)p_image->getHandle();
 
 		formats[0].cfFormat = m_clipboardFormat_fileContents;
 		formats[0].tymed = TYMED_ISTREAM;
@@ -2053,117 +2072,19 @@ private:
 		mediums[1].pUnkForRelease = 0;
 		mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
 
-		FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[1].hGlobal;
+		auto groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[1].hGlobal;
 		groupDescriptor->cItems = 1;
 		groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
 		wcscpy_s(groupDescriptor->fgd[0].cFileName, L"image.png");
 
-		return new OleDataObject(formats, mediums, 2);
-	}
-	OleDataObject* createFileOleDataObject(char const* p_data, uint32 p_dataSize, std::string const& p_name) const
-	{
-		FORMATETC formats[3];
-		STGMEDIUM mediums[3];
-
-		formats[0].cfFormat = CF_UNICODETEXT;
-		formats[0].tymed = TYMED_HGLOBAL;
-		formats[0].dwAspect = DVASPECT_CONTENT;
-		formats[0].lindex = -1;
-		formats[0].ptd = 0;
-
-		mediums[0].tymed = TYMED_HGLOBAL;
-		mediums[0].pUnkForRelease = 0;
-
-		uint32 wideStringLength = AvoGUI::getNumberOfUnitsInUtfConvertedString(p_name);
-		mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, wideStringLength * sizeof(wchar_t));
-		AvoGUI::convertUtf8ToUtf16(p_name.data(), p_name.size() + 1, (wchar_t*)mediums[0].hGlobal, wideStringLength);
-
 		//------------------------------
 
-		formats[1].cfFormat = m_clipboardFormat_fileContents;
-		formats[1].tymed = TYMED_ISTREAM;
-		formats[1].dwAspect = DVASPECT_CONTENT;
-		formats[1].lindex = -1;
-		formats[1].ptd = 0;
-
-		mediums[1].pUnkForRelease = 0;
-		mediums[1].tymed = TYMED_ISTREAM;
-		mediums[1].pstm = SHCreateMemStream((BYTE const*)p_data, p_dataSize);
-
-		//------------------------------
-
-		formats[2].cfFormat = m_clipboardFormat_fileGroupDescriptor;
-		formats[2].tymed = TYMED_HGLOBAL;
-		formats[2].dwAspect = DVASPECT_CONTENT;
-		formats[2].lindex = -1;
-		formats[2].ptd = 0;
-
-		mediums[2].tymed = TYMED_HGLOBAL;
-		mediums[2].pUnkForRelease = 0;
-		mediums[2].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
-
-		FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[2].hGlobal;
-		groupDescriptor->cItems = 1;
-		groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
-		wcsncpy_s(groupDescriptor->fgd[0].cFileName, (wchar_t*)mediums[0].hGlobal, wideStringLength);
+		createAdditionalData(formats[2], mediums[2], p_additionalData);
 
 		return new OleDataObject(formats, mediums, 3);
 	}
-	OleDataObject* createFileOleDataObject(char const* p_data, uint32 p_dataSize, std::wstring const& p_name) const
+	OleDataObject* createFileOleDataObject(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, uint64 p_additionalData) const
 	{
-		FORMATETC formats[3];
-		STGMEDIUM mediums[3];
-
-		formats[0].cfFormat = CF_UNICODETEXT;
-		formats[0].tymed = TYMED_HGLOBAL;
-		formats[0].dwAspect = DVASPECT_CONTENT;
-		formats[0].lindex = -1;
-		formats[0].ptd = 0;
-
-		mediums[0].tymed = TYMED_HGLOBAL;
-		mediums[0].pUnkForRelease = 0;
-
-		uint32 wideStringLength = AvoGUI::getNumberOfUnitsInUtfConvertedString(p_name);
-		mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, wideStringLength * sizeof(wchar_t));
-		memcpy(mediums[0].hGlobal, p_name.data(), sizeof(wchar_t)*(p_name.size() + 1));
-
-		//------------------------------
-
-		formats[1].cfFormat = m_clipboardFormat_fileContents;
-		formats[1].tymed = TYMED_ISTREAM;
-		formats[1].dwAspect = DVASPECT_CONTENT;
-		formats[1].lindex = -1;
-		formats[1].ptd = 0;
-
-		mediums[1].pUnkForRelease = 0;
-		mediums[1].tymed = TYMED_ISTREAM;
-		mediums[1].pstm = SHCreateMemStream((BYTE const*)p_data, p_dataSize);
-
-		//------------------------------
-
-		formats[2].cfFormat = m_clipboardFormat_fileGroupDescriptor;
-		formats[2].tymed = TYMED_HGLOBAL;
-		formats[2].dwAspect = DVASPECT_CONTENT;
-		formats[2].lindex = -1;
-		formats[2].ptd = 0;
-
-		mediums[2].tymed = TYMED_HGLOBAL;
-		mediums[2].pUnkForRelease = 0;
-		mediums[2].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
-
-		FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[2].hGlobal;
-		groupDescriptor->cItems = 1;
-		groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
-		wcsncpy_s(groupDescriptor->fgd[0].cFileName, (wchar_t*)mediums[0].hGlobal, wideStringLength);
-
-		return new OleDataObject(formats, mediums, 3);
-	}
-	OleDataObject* createFileOleDataObject(std::string const& p_path) const
-	{
-		std::filesystem::path path(std::filesystem::u8path(p_path));
-		std::wstring widePathString = path.wstring();
-		uint32 widePathStringSize = (widePathString.size() + 1) * sizeof(wchar_t);
-
 		FORMATETC formats[4];
 		STGMEDIUM mediums[4];
 
@@ -2175,76 +2096,53 @@ private:
 
 		mediums[0].tymed = TYMED_HGLOBAL;
 		mediums[0].pUnkForRelease = 0;
-		mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, widePathStringSize);
-		memcpy(mediums[0].hGlobal, widePathString.data(), widePathStringSize);
+
+		auto const stringSize = (p_name.size() + 1)*sizeof(wchar_t);
+		mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, stringSize);
+		memcpy(mediums[0].hGlobal, p_name.data(), stringSize);
 
 		//------------------------------
 
-		formats[1].cfFormat = CF_HDROP;
-		formats[1].tymed = TYMED_HGLOBAL;
+		formats[1].cfFormat = m_clipboardFormat_fileContents;
+		formats[1].tymed = TYMED_ISTREAM;
 		formats[1].dwAspect = DVASPECT_CONTENT;
 		formats[1].lindex = -1;
 		formats[1].ptd = 0;
 
-		mediums[1].tymed = TYMED_HGLOBAL;
 		mediums[1].pUnkForRelease = 0;
-		mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + widePathStringSize + sizeof(wchar_t));
-
-		DROPFILES* filenameStructure = (DROPFILES*)mediums[1].hGlobal;
-		filenameStructure->fNC = true;
-		filenameStructure->fWide = true;
-		filenameStructure->pt.x = 0;
-		filenameStructure->pt.y = 0;
-		filenameStructure->pFiles = sizeof(DROPFILES);
-
-		memcpy((char*)mediums[1].hGlobal + sizeof(DROPFILES), widePathString.data(), widePathStringSize);
-		*(wchar_t*)((char*)mediums[1].hGlobal + sizeof(DROPFILES) + widePathStringSize) = 0;
+		mediums[1].tymed = TYMED_ISTREAM;
+		mediums[1].pstm = SHCreateMemStream((BYTE const*)p_data, p_dataSize);
 
 		//------------------------------
 
-		OleDataObject* dataObject = 0;
-		if (filesystem::is_regular_file(path))
-		{
-			formats[2].cfFormat = m_clipboardFormat_fileContents;
-			formats[2].tymed = TYMED_ISTREAM;
-			formats[2].dwAspect = DVASPECT_CONTENT;
-			formats[2].lindex = -1;
-			formats[2].ptd = 0;
+		formats[2].cfFormat = m_clipboardFormat_fileGroupDescriptor;
+		formats[2].tymed = TYMED_HGLOBAL;
+		formats[2].dwAspect = DVASPECT_CONTENT;
+		formats[2].lindex = -1;
+		formats[2].ptd = 0;
 
-			mediums[2].tymed = TYMED_ISTREAM;
-			mediums[2].pUnkForRelease = 0;
-			SHCreateStreamOnFileEx(widePathString.data(), STGM_READ | STGM_SHARE_DENY_WRITE, 0, false, 0, &mediums[2].pstm);
+		mediums[2].tymed = TYMED_HGLOBAL;
+		mediums[2].pUnkForRelease = 0;
+		mediums[2].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
 
-			//------------------------------
+		FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[2].hGlobal;
+		groupDescriptor->cItems = 1;
+		groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
+		memcpy(groupDescriptor->fgd[0].cFileName, p_name.data(), stringSize);
 
-			formats[3].cfFormat = m_clipboardFormat_fileGroupDescriptor;
-			formats[3].tymed = TYMED_HGLOBAL;
-			formats[3].dwAspect = DVASPECT_CONTENT;
-			formats[3].lindex = -1;
-			formats[3].ptd = 0;
+		//------------------------------
 
-			mediums[3].tymed = TYMED_HGLOBAL;
-			mediums[3].pUnkForRelease = 0;
-			mediums[3].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
+		createAdditionalData(formats[3], mediums[3], p_additionalData);
 
-			FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[3].hGlobal;
-			groupDescriptor->cItems = 1;
-			groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
-
-			std::wstring filename = path.filename().wstring();
-			memcpy(groupDescriptor->fgd[0].cFileName, filename.data(), (filename.size() + 1) * sizeof(wchar_t));
-
-			return new OleDataObject(formats, mediums, 4);
-		}
-		return new OleDataObject(formats, mediums, 2);
+		return new OleDataObject(formats, mediums, 4);
 	}
-	OleDataObject* createFileOleDataObject(std::wstring const& p_path) const
+	OleDataObject* createFileOleDataObject(std::wstring const& p_path, uint64 p_additionalData) const
 	{
 		filesystem::path path(p_path);
 		uint32 widePathStringSize = (p_path.size() + 1) * sizeof(wchar_t);
 
-		FORMATETC formats[4];
-		STGMEDIUM mediums[4];
+		FORMATETC formats[5];
+		STGMEDIUM mediums[5];
 
 		formats[0].cfFormat = CF_UNICODETEXT;
 		formats[0].tymed = TYMED_HGLOBAL;
@@ -2281,173 +2179,80 @@ private:
 
 		//------------------------------
 
+		createAdditionalData(formats[2], mediums[2], p_additionalData);
+
+		//------------------------------
+
 		OleDataObject* dataObject = 0;
 		if (filesystem::is_regular_file(path))
 		{
-			formats[2].cfFormat = m_clipboardFormat_fileContents;
-			formats[2].tymed = TYMED_ISTREAM;
-			formats[2].dwAspect = DVASPECT_CONTENT;
-			formats[2].lindex = -1;
-			formats[2].ptd = 0;
-
-			mediums[2].tymed = TYMED_ISTREAM;
-			mediums[2].pUnkForRelease = 0;
-			SHCreateStreamOnFileEx(p_path.data(), STGM_READ | STGM_SHARE_DENY_WRITE, 0, false, 0, &mediums[2].pstm);
-
-			//------------------------------
-
-			formats[3].cfFormat = m_clipboardFormat_fileGroupDescriptor;
-			formats[3].tymed = TYMED_HGLOBAL;
+			formats[3].cfFormat = m_clipboardFormat_fileContents;
+			formats[3].tymed = TYMED_ISTREAM;
 			formats[3].dwAspect = DVASPECT_CONTENT;
 			formats[3].lindex = -1;
 			formats[3].ptd = 0;
 
-			mediums[3].tymed = TYMED_HGLOBAL;
+			mediums[3].tymed = TYMED_ISTREAM;
 			mediums[3].pUnkForRelease = 0;
-			mediums[3].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
+			SHCreateStreamOnFileEx(p_path.data(), STGM_READ | STGM_SHARE_DENY_WRITE, 0, false, 0, &mediums[3].pstm);
 
-			FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[3].hGlobal;
+			//------------------------------
+
+			formats[4].cfFormat = m_clipboardFormat_fileGroupDescriptor;
+			formats[4].tymed = TYMED_HGLOBAL;
+			formats[4].dwAspect = DVASPECT_CONTENT;
+			formats[4].lindex = -1;
+			formats[4].ptd = 0;
+
+			mediums[4].tymed = TYMED_HGLOBAL;
+			mediums[4].pUnkForRelease = 0;
+			mediums[4].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
+
+			FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[4].hGlobal;
 			groupDescriptor->cItems = 1;
 			groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
 
-			std::wstring filename = path.filename().wstring();
-			memcpy(groupDescriptor->fgd[0].cFileName, filename.data(), (filename.size() + 1) * sizeof(wchar_t));
+			memcpy(groupDescriptor->fgd[0].cFileName, p_path.data(), widePathStringSize);
 
-			return new OleDataObject(formats, mediums, 4);
+			return new OleDataObject(formats, mediums, 5);
 		}
-		return new OleDataObject(formats, mediums, 2);
+		return new OleDataObject(formats, mediums, 3);
 	}
-	OleDataObject* createFilesOleDataObject(std::string* p_pathStrings, uint32 p_numberOfPaths) const
+	OleDataObject* createFilesOleDataObject(std::vector<std::wstring> const& p_pathStrings, uint64 p_additionalData) const
 	{
-		FORMATETC format;
-		STGMEDIUM medium;
+		FORMATETC format[2];
+		STGMEDIUM medium[2];
 
 		//------------------------------
 		// Create an HDROP format, which is just the paths of all items.
 
-		format.cfFormat = CF_HDROP;
-		format.tymed = TYMED_HGLOBAL;
-		format.dwAspect = DVASPECT_CONTENT;
-		format.lindex = -1;
-		format.ptd = 0;
-
-		std::vector<std::wstring> widePathStrings(p_numberOfPaths);
+		format[0].cfFormat = CF_HDROP;
+		format[0].tymed = TYMED_HGLOBAL;
+		format[0].dwAspect = DVASPECT_CONTENT;
+		format[0].lindex = -1;
+		format[0].ptd = 0;
 
 		uint32 pathsStringSize = 0;
-		for (uint32 a = 0; a < p_numberOfPaths; a++)
-		{
-			widePathStrings[a] = AvoGUI::convertUtf8ToUtf16(p_pathStrings[a]);
-			pathsStringSize += widePathStrings[a].size() + 1;
-		}
-		pathsStringSize++;
-
-		medium.tymed = TYMED_HGLOBAL;
-		medium.pUnkForRelease = 0;
-		medium.hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + pathsStringSize * sizeof(wchar_t));
-
-		DROPFILES* filenameStructure = (DROPFILES*)medium.hGlobal;
-		filenameStructure->fNC = true;
-		filenameStructure->fWide = true;
-		filenameStructure->pt.x = 0;
-		filenameStructure->pt.y = 0;
-		filenameStructure->pFiles = sizeof(DROPFILES);
-
-		wchar_t* pathsString = (wchar_t*)((char*)medium.hGlobal + sizeof(DROPFILES));
-		wchar_t* pathsStringPosition = pathsString;
-		for (uint32 a = 0; a < p_numberOfPaths; a++)
-		{
-			memcpy(pathsStringPosition, widePathStrings[a].data(), (widePathStrings[a].size() + 1) * sizeof(wchar_t));
-			pathsStringPosition += widePathStrings[a].size() + 1;
-		}
-		pathsString[pathsStringSize - 1] = 0;
-
-		//------------------------------
-
-		return new OleDataObject(&format, &medium, 1);
-	}
-	OleDataObject* createFilesOleDataObject(char const* const* p_pathStrings, uint32 p_numberOfPaths) const
-	{
-		FORMATETC format;
-		STGMEDIUM medium;
-
-		//------------------------------
-		// Create an HDROP format, which is just the paths of all items.
-
-		format.cfFormat = CF_HDROP;
-		format.tymed = TYMED_HGLOBAL;
-		format.dwAspect = DVASPECT_CONTENT;
-		format.lindex = -1;
-		format.ptd = 0;
-
-		std::vector<std::wstring> widePathStrings(p_numberOfPaths);
-
-		uint32 pathsStringSize = 0;
-		for (uint32 a = 0; a < p_numberOfPaths; a++)
-		{
-			widePathStrings[a] = AvoGUI::convertUtf8ToUtf16(p_pathStrings[a]);
-			pathsStringSize += widePathStrings[a].size() + 1;
-		}
-		pathsStringSize++;
-
-		medium.tymed = TYMED_HGLOBAL;
-		medium.pUnkForRelease = 0;
-		medium.hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + pathsStringSize * sizeof(wchar_t));
-
-		DROPFILES* filenameStructure = (DROPFILES*)medium.hGlobal;
-		filenameStructure->fNC = true;
-		filenameStructure->fWide = true;
-		filenameStructure->pt.x = 0;
-		filenameStructure->pt.y = 0;
-		filenameStructure->pFiles = sizeof(DROPFILES);
-
-		wchar_t* pathsString = (wchar_t*)((char*)medium.hGlobal + sizeof(DROPFILES));
-		wchar_t* pathsStringPosition = pathsString;
-		for (uint32 a = 0; a < p_numberOfPaths; a++)
-		{
-			memcpy(pathsStringPosition, widePathStrings[a].data(), (widePathStrings[a].size() + 1) * sizeof(wchar_t));
-			pathsStringPosition += widePathStrings[a].size() + 1;
-		}
-		pathsString[pathsStringSize - 1] = 0;
-
-		//------------------------------
-
-		return new OleDataObject(&format, &medium, 1);
-	}
-	OleDataObject* createFilesOleDataObject(std::wstring* p_pathStrings, uint32 p_numberOfPaths) const
-	{
-		FORMATETC format;
-		STGMEDIUM medium;
-
-		//------------------------------
-		// Create an HDROP format, which is just the paths of all items.
-
-		format.cfFormat = CF_HDROP;
-		format.tymed = TYMED_HGLOBAL;
-		format.dwAspect = DVASPECT_CONTENT;
-		format.lindex = -1;
-		format.ptd = 0;
-
-		uint32 pathsStringSize = 0;
-		for (uint32 a = 0; a < p_numberOfPaths; a++)
+		for (uint32 a = 0; a < p_pathStrings.size(); a++)
 		{
 			pathsStringSize += p_pathStrings[a].size() + 1;
 		}
 		pathsStringSize++;
 
-		medium.tymed = TYMED_HGLOBAL;
-		medium.pUnkForRelease = 0;
-		medium.hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + pathsStringSize * sizeof(wchar_t));
+		medium[0].tymed = TYMED_HGLOBAL;
+		medium[0].pUnkForRelease = 0;
+		medium[0].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + pathsStringSize * sizeof(wchar_t));
 
-		DROPFILES* filenameStructure = (DROPFILES*)medium.hGlobal;
+		DROPFILES* filenameStructure = (DROPFILES*)medium[0].hGlobal;
 		filenameStructure->fNC = true;
 		filenameStructure->fWide = true;
 		filenameStructure->pt.x = 0;
 		filenameStructure->pt.y = 0;
 		filenameStructure->pFiles = sizeof(DROPFILES);
 
-		wchar_t* pathsString = (wchar_t*)((char*)medium.hGlobal + sizeof(DROPFILES));
+		wchar_t* pathsString = (wchar_t*)((char*)medium[0].hGlobal + sizeof(DROPFILES));
 		wchar_t* pathsStringPosition = pathsString;
-		for (uint32 a = 0; a < p_numberOfPaths; a++)
+		for (uint32 a = 0; a < p_pathStrings.size(); a++)
 		{
 			memcpy(pathsStringPosition, p_pathStrings[a].data(), (p_pathStrings[a].size() + 1) * sizeof(wchar_t));
 			pathsStringPosition += p_pathStrings[a].size() + 1;
@@ -2456,55 +2261,11 @@ private:
 
 		//------------------------------
 
-		return new OleDataObject(&format, &medium, 1);
-	}
-	OleDataObject* createFilesOleDataObject(wchar_t const* const* p_pathStrings, uint32 p_numberOfPaths) const
-	{
-		FORMATETC format;
-		STGMEDIUM medium;
-
-		//------------------------------
-		// Create an HDROP format, which is just the paths of all items.
-
-		format.cfFormat = CF_HDROP;
-		format.tymed = TYMED_HGLOBAL;
-		format.dwAspect = DVASPECT_CONTENT;
-		format.lindex = -1;
-		format.ptd = 0;
-
-		std::vector<std::wstring> widePathStrings(p_numberOfPaths);
-
-		uint32 pathsStringSize = 0;
-		for (uint32 a = 0; a < p_numberOfPaths; a++)
-		{
-			widePathStrings[a] = p_pathStrings[a];
-			pathsStringSize += widePathStrings[a].size() + 1;
-		}
-		pathsStringSize++;
-
-		medium.tymed = TYMED_HGLOBAL;
-		medium.pUnkForRelease = 0;
-		medium.hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + pathsStringSize * sizeof(wchar_t));
-
-		DROPFILES* filenameStructure = (DROPFILES*)medium.hGlobal;
-		filenameStructure->fNC = true;
-		filenameStructure->fWide = true;
-		filenameStructure->pt.x = 0;
-		filenameStructure->pt.y = 0;
-		filenameStructure->pFiles = sizeof(DROPFILES);
-
-		wchar_t* pathsString = (wchar_t*)((char*)medium.hGlobal + sizeof(DROPFILES));
-		wchar_t* pathsStringPosition = pathsString;
-		for (uint32 a = 0; a < p_numberOfPaths; a++)
-		{
-			memcpy(pathsStringPosition, widePathStrings[a].data(), (widePathStrings[a].size() + 1) * sizeof(wchar_t));
-			pathsStringPosition += widePathStrings[a].size() + 1;
-		}
-		pathsString[pathsStringSize - 1] = 0;
+		createAdditionalData(format[1], medium[1], p_additionalData);
 
 		//------------------------------
 
-		return new OleDataObject(&format, &medium, 1);
+		return new OleDataObject(format, medium, 2);
 	}
 
 	uint32 doDragDrop(OleDataObject* p_dataObject, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition)
@@ -3416,18 +3177,83 @@ public:
 
 	//------------------------------
 
-	AvoGUI::DragDropOperation dragAndDropString(std::string const& p_string, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition) override
+	AvoGUI::DragDropOperation dragAndDropString(std::string const& p_string, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
 	{
-		return dragAndDropString(p_string.data(), p_string.size(), p_dragImage, p_dragImageCursorPosition);
+		return dragAndDropString(AvoGUI::convertUtf8ToUtf16(p_string), p_dragImage, p_dragImageCursorPosition, p_additionalData);
 	}
-	AvoGUI::DragDropOperation dragAndDropString(char const* p_string, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition) override
+
+	AvoGUI::DragDropOperation dragAndDropString(std::wstring const& p_string, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
 	{
-		return dragAndDropString(p_string, strlen(p_string), p_dragImage, p_dragImageCursorPosition);
+		auto dataObject = createStringOleDataObject(p_string, p_additionalData);
+		auto dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
+		dataObject->Release();
+
+		switch (dropOperation)
+		{
+		case DROPEFFECT_COPY:
+			return AvoGUI::DragDropOperation::Copy;
+		case DROPEFFECT_MOVE:
+			return AvoGUI::DragDropOperation::Move;
+		case DROPEFFECT_LINK:
+			return AvoGUI::DragDropOperation::Link;
+		}
+		return AvoGUI::DragDropOperation::None;
 	}
-	AvoGUI::DragDropOperation dragAndDropString(char const* p_string, uint32 p_length, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition) override
+
+	AvoGUI::DragDropOperation dragAndDropImage(AvoGUI::Image* p_image, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
 	{
-		OleDataObject* dataObject = createStringOleDataObject(p_string, p_length);
-		uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
+		auto dataObject = createImageOleDataObject(p_image, p_additionalData);
+		auto dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
+		dataObject->Release();
+
+		switch (dropOperation)
+		{
+			case DROPEFFECT_COPY:
+				return AvoGUI::DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return AvoGUI::DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return AvoGUI::DragDropOperation::Link;
+		}
+		return AvoGUI::DragDropOperation::None;
+	}
+	AvoGUI::DragDropOperation dragAndDropFile(uint8 const* p_data, uint32 p_dataSize, std::string const& p_name, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
+	{
+		return dragAndDropFile(p_data, p_dataSize, AvoGUI::convertUtf8ToUtf16(p_name), p_dragImage, p_dragImageCursorPosition, p_additionalData);
+	}
+	AvoGUI::DragDropOperation dragAndDropFile(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
+	{
+		auto dataObject = createFileOleDataObject(p_data, p_dataSize, p_name, p_additionalData);
+		auto dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
+		dataObject->Release();
+
+		switch (dropOperation)
+		{
+			case DROPEFFECT_COPY:
+				return AvoGUI::DragDropOperation::Copy;
+			case DROPEFFECT_MOVE:
+				return AvoGUI::DragDropOperation::Move;
+			case DROPEFFECT_LINK:
+				return AvoGUI::DragDropOperation::Link;
+		}
+		return AvoGUI::DragDropOperation::None;
+	}
+	AvoGUI::DragDropOperation dragAndDropFile(std::vector<uint8> const& p_data, std::string const& p_name, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
+	{
+		return dragAndDropFile(p_data.data(), p_data.size(), AvoGUI::convertUtf8ToUtf16(p_name), p_dragImage, p_dragImageCursorPosition, p_additionalData);
+	}
+	AvoGUI::DragDropOperation dragAndDropFile(std::vector<uint8> const& p_data, std::wstring const& p_name, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
+	{
+		return dragAndDropFile(p_data.data(), p_data.size(), p_name, p_dragImage, p_dragImageCursorPosition, p_additionalData);
+	}
+	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_path, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData)
+	{
+		return dragAndDropFile(AvoGUI::convertUtf8ToUtf16(p_path), p_dragImage, p_dragImageCursorPosition, p_additionalData);
+	}
+	AvoGUI::DragDropOperation dragAndDropFile(std::wstring const& p_path, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData)
+	{
+		auto dataObject = createFileOleDataObject(p_path, p_additionalData);
+		auto dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
 		dataObject->Release();
 
 		switch (dropOperation)
@@ -3442,308 +3268,94 @@ public:
 		return AvoGUI::DragDropOperation::None;
 	}
 
-	AvoGUI::DragDropOperation dragAndDropString(std::wstring const& p_string, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition) override
+	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_pathStrings, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData)
 	{
-		return dragAndDropString(p_string.data(), p_string.size(), p_dragImage, p_dragImageCursorPosition);
-	}
-	AvoGUI::DragDropOperation dragAndDropString(wchar_t const* p_string, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition) override
-	{
-		return dragAndDropString(p_string, wcslen(p_string), p_dragImage, p_dragImageCursorPosition);
-	}
-	AvoGUI::DragDropOperation dragAndDropString(wchar_t const* p_string, uint32 p_length, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition) override
-	{
-		OleDataObject* dataObject = createStringOleDataObject(p_string, p_length);
-		uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
-
-		switch (dropOperation)
+		std::vector<std::wstring> widePathStrings(p_pathStrings.size());
+		for (auto a = 0u; a < p_pathStrings.size(); a++)
 		{
-			case DROPEFFECT_COPY:
-				return AvoGUI::DragDropOperation::Copy;
-			case DROPEFFECT_MOVE:
-				return AvoGUI::DragDropOperation::Move;
-			case DROPEFFECT_LINK:
-				return AvoGUI::DragDropOperation::Link;
+			widePathStrings[a] = AvoGUI::convertUtf8ToUtf16(p_pathStrings[a]);
 		}
-		return AvoGUI::DragDropOperation::None;
-	}
 
-	AvoGUI::DragDropOperation dragAndDropImage(AvoGUI::Image* p_image, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition) override
-	{
-		OleDataObject* dataObject = createImageOleDataObject(p_image);
-		uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
-
-		switch (dropOperation)
-		{
-			case DROPEFFECT_COPY:
-				return AvoGUI::DragDropOperation::Copy;
-			case DROPEFFECT_MOVE:
-				return AvoGUI::DragDropOperation::Move;
-			case DROPEFFECT_LINK:
-				return AvoGUI::DragDropOperation::Link;
-		}
-		return AvoGUI::DragDropOperation::None;
+		return dragAndDropFiles(widePathStrings, p_dragImage, p_dragImageCursorPosition, p_additionalData);
 	}
-	AvoGUI::DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::string const& p_name, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition) override
+	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_pathStrings, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData)
 	{
-		OleDataObject* dataObject = createFileOleDataObject(p_data, p_dataSize, p_name);
-		uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
-
-		switch (dropOperation)
-		{
-			case DROPEFFECT_COPY:
-				return AvoGUI::DragDropOperation::Copy;
-			case DROPEFFECT_MOVE:
-				return AvoGUI::DragDropOperation::Move;
-			case DROPEFFECT_LINK:
-				return AvoGUI::DragDropOperation::Link;
-		}
-		return AvoGUI::DragDropOperation::None;
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition) override
-	{
-		OleDataObject* dataObject = createFileOleDataObject(p_data, p_dataSize, p_name);
-		uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
-
-		switch (dropOperation)
-		{
-			case DROPEFFECT_COPY:
-				return AvoGUI::DragDropOperation::Copy;
-			case DROPEFFECT_MOVE:
-				return AvoGUI::DragDropOperation::Move;
-			case DROPEFFECT_LINK:
-				return AvoGUI::DragDropOperation::Link;
-		}
-		return AvoGUI::DragDropOperation::None;
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition)
-	{
-		return dragAndDropFile(p_data.data(), p_data.size(), p_name, p_dragImage, p_dragImageCursorPosition);
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_data, std::wstring const& p_name, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition)
-	{
-		return dragAndDropFile(p_data.data(), p_data.size(), p_name, p_dragImage, p_dragImageCursorPosition);
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_path, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition)
-	{
-		OleDataObject* dataObject = createFileOleDataObject(p_path);
-		uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
-
-		switch (dropOperation)
-		{
-			case DROPEFFECT_COPY:
-				return AvoGUI::DragDropOperation::Copy;
-			case DROPEFFECT_MOVE:
-				return AvoGUI::DragDropOperation::Move;
-			case DROPEFFECT_LINK:
-				return AvoGUI::DragDropOperation::Link;
-		}
-		return AvoGUI::DragDropOperation::None;
-	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::wstring const& p_path, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition)
-	{
-		OleDataObject* dataObject = createFileOleDataObject(p_path);
-		uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
-
-		switch (dropOperation)
-		{
-			case DROPEFFECT_COPY:
-				return AvoGUI::DragDropOperation::Copy;
-			case DROPEFFECT_MOVE:
-				return AvoGUI::DragDropOperation::Move;
-			case DROPEFFECT_LINK:
-				return AvoGUI::DragDropOperation::Link;
-		}
-		return AvoGUI::DragDropOperation::None;
-	}
-
-	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_pathStrings, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition)
-	{
-		return dragAndDropFiles((std::string*)p_pathStrings.data(), p_pathStrings.size(), p_dragImage, p_dragImageCursorPosition);
-	}
-	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_pathStrings, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition)
-	{
-		return dragAndDropFiles((std::wstring*)p_pathStrings.data(), p_pathStrings.size(), p_dragImage, p_dragImageCursorPosition);
-	}
-	AvoGUI::DragDropOperation dragAndDropFiles(std::string* p_pathStrings, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition)
-	{
-		OleDataObject* dataObject = createFilesOleDataObject(p_pathStrings, p_numberOfPaths);
-		uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
-
-		switch (dropOperation)
-		{
-			case DROPEFFECT_COPY:
-				return AvoGUI::DragDropOperation::Copy;
-			case DROPEFFECT_MOVE:
-				return AvoGUI::DragDropOperation::Move;
-			case DROPEFFECT_LINK:
-				return AvoGUI::DragDropOperation::Link;
-		}
-		return AvoGUI::DragDropOperation::None;
-	}
-	AvoGUI::DragDropOperation dragAndDropFiles(std::wstring* p_pathStrings, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition)
-	{
-		OleDataObject* dataObject = createFilesOleDataObject(p_pathStrings, p_numberOfPaths);
-		uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
-
-		switch (dropOperation)
-		{
-			case DROPEFFECT_COPY:
-				return AvoGUI::DragDropOperation::Copy;
-			case DROPEFFECT_MOVE:
-				return AvoGUI::DragDropOperation::Move;
-			case DROPEFFECT_LINK:
-				return AvoGUI::DragDropOperation::Link;
-		}
-		return AvoGUI::DragDropOperation::None;
-	}
-	AvoGUI::DragDropOperation dragAndDropFiles(char const* const* p_pathStrings, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition)
-	{
-		OleDataObject* dataObject = createFilesOleDataObject(p_pathStrings, p_numberOfPaths);
-		uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
-
-		switch (dropOperation)
-		{
-			case DROPEFFECT_COPY:
-				return AvoGUI::DragDropOperation::Copy;
-			case DROPEFFECT_MOVE:
-				return AvoGUI::DragDropOperation::Move;
-			case DROPEFFECT_LINK:
-				return AvoGUI::DragDropOperation::Link;
-		}
-		return AvoGUI::DragDropOperation::None;
-	}
-	AvoGUI::DragDropOperation dragAndDropFiles(wchar_t const* const* p_pathStrings, uint32 p_numberOfPaths, AvoGUI::Image* p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition)
-	{
-		OleDataObject* dataObject = createFilesOleDataObject(p_pathStrings, p_numberOfPaths);
-		uint32 dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
-
-		switch (dropOperation)
-		{
-			case DROPEFFECT_COPY:
-				return AvoGUI::DragDropOperation::Copy;
-			case DROPEFFECT_MOVE:
-				return AvoGUI::DragDropOperation::Move;
-			case DROPEFFECT_LINK:
-				return AvoGUI::DragDropOperation::Link;
-		}
-		return AvoGUI::DragDropOperation::None;
+		return dragAndDropFiles(p_pathStrings, p_dragImage, p_dragImageCursorPosition, p_additionalData);
 	}
 
 	//------------------------------
 
-	void setClipboardString(std::wstring const& p_string) const override
+	void setClipboardString(std::wstring const& p_string, uint64 p_additionalData) const override
 	{
-		setClipboardString(p_string.data(), p_string.size());
-	}
-	void setClipboardString(wchar_t const* p_string) const override
-	{
-		setClipboardString(p_string, wcslen(p_string));
-	}
-	void setClipboardString(wchar_t const* p_string, uint32 p_length) const override
-	{
-		OleDataObject* dataObject = createStringOleDataObject(p_string, p_length);
+		auto dataObject = createStringOleDataObject(p_string, p_additionalData);
 		OleSetClipboard(dataObject);
 	}
 
-	void setClipboardString(std::string const& p_string) const override
+	void setClipboardString(std::string const& p_string, uint64 p_additionalData) const override
 	{
-		setClipboardString(p_string.data(), p_string.size());
+		setClipboardString(AvoGUI::convertUtf8ToUtf16(p_string), p_additionalData);
 	}
-	void setClipboardString(char const* p_string) const override
+
+	void setClipboardImage(AvoGUI::Image* p_image, uint64 p_additionalData) const override
 	{
-		setClipboardString(p_string, strlen(p_string));
-	}
-	void setClipboardString(char const* p_string, uint32 p_length) const override
-	{
-		OleDataObject* dataObject = createStringOleDataObject(p_string, p_length);
+		auto dataObject = createImageOleDataObject(p_image, p_additionalData);
 		OleSetClipboard(dataObject);
 	}
 
-	void setClipboardImage(AvoGUI::Image* p_image) const override
+	void setClipboardFile(uint8 const* p_data, uint32 p_dataSize, std::string const& p_name, uint64 p_additionalData) const override
 	{
-		OleDataObject* dataObject = createImageOleDataObject(p_image);
+		auto dataObject = createFileOleDataObject(p_data, p_dataSize, AvoGUI::convertUtf8ToUtf16(p_name), p_additionalData);
+		OleSetClipboard(dataObject);
+	}
+	void setClipboardFile(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, uint64 p_additionalData) const override
+	{
+		auto dataObject = createFileOleDataObject(p_data, p_dataSize, p_name, p_additionalData);
+		OleSetClipboard(dataObject);
+	}
+	void setClipboardFile(std::vector<uint8> const& p_data, std::string const& p_name, uint64 p_additionalData) const override
+	{
+		auto dataObject = createFileOleDataObject(p_data.data(), p_data.size(), AvoGUI::convertUtf8ToUtf16(p_name), p_additionalData);
+		OleSetClipboard(dataObject);
+	}
+	void setClipboardFile(std::vector<uint8> const& p_data, std::wstring const& p_name, uint64 p_additionalData) const override
+	{
+		auto dataObject = createFileOleDataObject(p_data.data(), p_data.size(), p_name, p_additionalData);
+		OleSetClipboard(dataObject);
+	}
+	void setClipboardFile(std::string const& p_path, uint64 p_additionalData) const override
+	{
+		auto dataObject = createFileOleDataObject(AvoGUI::convertUtf8ToUtf16(p_path), p_additionalData);
+		OleSetClipboard(dataObject);
+	}
+	void setClipboardFile(std::wstring const& p_path, uint64 p_additionalData) const override
+	{
+		auto dataObject = createFileOleDataObject(p_path, p_additionalData);
 		OleSetClipboard(dataObject);
 	}
 
-	void setClipboardFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) const override
+	void setClipboardFiles(std::vector<std::string> const& p_paths, uint64 p_additionalData) const override
 	{
-		OleDataObject* dataObject = createFileOleDataObject(p_data, p_dataSize, p_name);
+		std::vector<std::wstring> widePathStrings(p_paths.size());
+		for (uint32 a = 0; a < p_paths.size(); a++)
+		{
+			widePathStrings[a] = AvoGUI::convertUtf8ToUtf16(p_paths[a]);
+		}
+		auto dataObject = createFilesOleDataObject(widePathStrings, p_additionalData);
 		OleSetClipboard(dataObject);
 	}
-	void setClipboardFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name) const override
+	void setClipboardFiles(std::vector<std::wstring> const& p_paths, uint64 p_additionalData) const override
 	{
-		OleDataObject* dataObject = createFileOleDataObject(p_data, p_dataSize, p_name);
-		OleSetClipboard(dataObject);
-	}
-	void setClipboardFile(std::string const& p_data, std::string const& p_name) const override
-	{
-		OleDataObject* dataObject = createFileOleDataObject(p_data.data(), p_data.size(), p_name);
-		OleSetClipboard(dataObject);
-	}
-	void setClipboardFile(std::string const& p_data, std::wstring const& p_name) const override
-	{
-		OleDataObject* dataObject = createFileOleDataObject(p_data.data(), p_data.size(), p_name);
-		OleSetClipboard(dataObject);
-	}
-	void setClipboardFile(std::string const& p_path) const override
-	{
-		OleDataObject* dataObject = createFileOleDataObject(p_path);
-		OleSetClipboard(dataObject);
-	}
-	void setClipboardFile(std::wstring const& p_path) const override
-	{
-		OleDataObject* dataObject = createFileOleDataObject(p_path);
+		auto dataObject = createFilesOleDataObject(p_paths, p_additionalData);
 		OleSetClipboard(dataObject);
 	}
 
-	void setClipboardFiles(std::vector<std::string> const& p_paths) const override
+	std::unique_ptr<AvoGUI::ClipboardData> getClipboardData() const override
 	{
-		OleDataObject* dataObject = createFilesOleDataObject((std::string*)p_paths.data(), p_paths.size());
-		OleSetClipboard(dataObject);
-	}
-	void setClipboardFiles(std::vector<std::wstring> const& p_paths) const override
-	{
-		OleDataObject* dataObject = createFilesOleDataObject((std::wstring*)p_paths.data(), p_paths.size());
-		OleSetClipboard(dataObject);
-	}
-	void setClipboardFiles(std::string* p_paths, uint32 p_numberOfPaths) const override
-	{
-		OleDataObject* dataObject = createFilesOleDataObject(p_paths, p_numberOfPaths);
-		OleSetClipboard(dataObject);
-	}
-	void setClipboardFiles(std::wstring* p_paths, uint32 p_numberOfPaths) const override
-	{
-		OleDataObject* dataObject = createFilesOleDataObject(p_paths, p_numberOfPaths);
-		OleSetClipboard(dataObject);
-	}
-	void setClipboardFiles(char const* const* p_paths, uint32 p_numberOfPaths) const override
-	{
-		OleDataObject* dataObject = createFilesOleDataObject(p_paths, p_numberOfPaths);
-		OleSetClipboard(dataObject);
-	}
-	void setClipboardFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths) const override
-	{
-		OleDataObject* dataObject = createFilesOleDataObject(p_paths, p_numberOfPaths);
-		OleSetClipboard(dataObject);
-	}
-
-	AvoGUI::ClipboardData* getClipboardData() const
-	{
-		IDataObject* dataObject = 0;
+		IDataObject* dataObject = nullptr;
 		OleGetClipboard(&dataObject);
-		OleClipboardData* clipboardData = new OleClipboardData(m_gui);
+		auto clipboardData = new OleClipboardData(m_gui);
 		clipboardData->setOleDataObject(dataObject);
-		return clipboardData;
+		return std::unique_ptr<AvoGUI::ClipboardData>((AvoGUI::ClipboardData*)clipboardData);
 	}
 
 	//------------------------------
@@ -3763,6 +3375,7 @@ public:
 
 				m_clipboardFormat_fileContents = RegisterClipboardFormatW(CFSTR_FILECONTENTS);
 				m_clipboardFormat_fileGroupDescriptor = RegisterClipboardFormatW(CFSTR_FILEDESCRIPTORW);
+				m_clipboardFormat_additionalData = RegisterClipboardFormatW(CLIPBOARD_FORMAT_ADDITIONAL_DATA);
 
 				//------------------------------
 
@@ -3780,7 +3393,7 @@ public:
 				colorSpaceSettings.lcsCSType = LCS_sRGB;
 				colorSpaceSettings.lcsIntent = LCS_GM_ABS_COLORIMETRIC;
 
-				HCOLORSPACE colorSpace = CreateColorSpaceW(&colorSpaceSettings);
+				auto colorSpace = CreateColorSpaceW(&colorSpaceSettings);
 				SetColorSpace(GetDC(m_windowHandle), colorSpace);
 
 				m_isOpen = true;
@@ -3845,7 +3458,7 @@ public:
 				}
 				else
 				{
-					HWND child = GetWindow(m_windowHandle, GW_HWNDFIRST);
+					auto child = GetWindow(m_windowHandle, GW_HWNDFIRST);
 					if (child)
 					{
 						SetForegroundWindow(child);
@@ -3860,11 +3473,11 @@ public:
 			}
 			case WM_ERASEBKGND:
 			{
-				HDC deviceContext = (HDC)p_data_a;
+				auto deviceContext = (HDC)p_data_a;
 
 				RECT rectangle;
 				GetUpdateRect(m_windowHandle, &rectangle, false);
-				AvoGUI::Color color = m_gui->getDrawingContext()->getBackgroundColor(); // Thread safe I think?
+				auto color = m_gui->getDrawingContext()->getBackgroundColor(); // Thread safe I think?
 				FillRect(deviceContext, &rectangle, CreateSolidBrush(RGB(color.red * 255, color.green * 255, color.blue * 255)));
 
 				return 1; // We erased it.
@@ -3875,8 +3488,8 @@ public:
 				{
 					if (IsMaximized(m_windowHandle))
 					{
-						NCCALCSIZE_PARAMS* parameters = (NCCALCSIZE_PARAMS*)p_data_b;
-						MONITORINFO info = { };
+						auto parameters = (NCCALCSIZE_PARAMS*)p_data_b;
+						MONITORINFO info{ };
 						info.cbSize = sizeof(MONITORINFO);
 						GetMonitorInfo(MonitorFromRect(parameters->rgrc, MONITOR_DEFAULTTONEAREST), &info);
 
@@ -13280,5 +12893,6 @@ std::vector<std::string> AvoGUI::OpenFileDialog::open()
 	}
 
 	dialog->Release();
+	return result;
 #endif
 }

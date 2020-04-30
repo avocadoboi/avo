@@ -104,13 +104,13 @@ MainScreen::MainScreen(View* p_app) :
 			p_newCaretIndex = 0;
 		}
 
-		m_willRestart = true;
+		m_timePlayer->willRestart = true;
 
 		return true;
 	};
-	m_textField_hours->addEditableTextChangeListener(handleEditableTextChange);
-	m_textField_minutes->addEditableTextChangeListener(handleEditableTextChange);
-	m_textField_seconds->addEditableTextChangeListener(handleEditableTextChange);
+	m_textField_hours->getEditableText()->editableTextChangeListeners += handleEditableTextChange;
+	m_textField_minutes->getEditableText()->editableTextChangeListeners += handleEditableTextChange;
+	m_textField_seconds->getEditableText()->editableTextChangeListeners += handleEditableTextChange;
 
 	textFieldContainer->setPadding(1.f);
 	textFieldContainer->setCenter(getCenterX(), getCenterY());
@@ -151,40 +151,28 @@ MainScreen::MainScreen(View* p_app) :
 		m_spiralVertices[a] = AvoGUI::Point<float>(getWidth() * 0.5f + std::cos(angle) * magnitude, getHeight() * 0.5f + std::sin(angle) * magnitude);
 	}
 	m_startAngle = 1.f; // One hour, 360 degrees, TAU radians
-	m_timeStart = std::chrono::steady_clock::now();
+	m_currentAngle = m_startAngle;
 
 	queueAnimationUpdate();
 
 	//------------------------------
 
-	updateTimeLeftText();
-
-	auto button_restart = new AvoGUI::Button(this, MaterialIcons::REPLAY, AvoGUI::Button::Emphasis::Medium);
-	button_restart->getText()->setFontFamily(AvoGUI::FONT_FAMILY_MATERIAL_ICONS);
-	button_restart->getText()->setFontSize(18.f);
-	button_restart->getText()->setIsTopTrimmed(true);
-	button_restart->getText()->setSize(17.5f);
-	button_restart->getText()->setCenter(27.f * 0.5f);
-	button_restart->setWidth(27.f);
-	button_restart->setHeight(27.f);
-	button_restart->setCornerRadius(button_restart->getWidth() * 0.5f);
-	button_restart->setLeft(m_text_timeLeft->getRight() + 5.f);
-	button_restart->setCenterY(m_text_timeLeft->getCenterY());
-	button_restart->setTooltip(getGui<TimerApp>()->getTooltip(), "Restart timer");
-	button_restart->buttonClickListeners += [this](auto) { m_willRestart = true; };
+	m_timePlayer = new TimePlayer(this);
+	m_timePlayer->setTimeLeft(m_currentAngle);
+	m_timePlayer->setBottom(textFieldContainer->getTop() - 20.f);
 }
 
 void MainScreen::updateAnimations() 
 {
 	if (!m_hasDraggedSpiral)
 	{
-		float angleBefore = m_currentAngle;
-		if (m_willRestart)
+		auto angleBefore = m_currentAngle;
+		if (m_timePlayer->willRestart)
 		{
 			uint32 hours = m_textField_hours->getString()[0] ? std::stoi(m_textField_hours->getString()) : 0;
 			uint32 minutes = m_textField_minutes->getString()[0] ? std::stoi(m_textField_minutes->getString()) : 0;
 			uint32 seconds = m_textField_seconds->getString()[0] ? std::stoi(m_textField_seconds->getString()) : 0;
-			if ((float)hours + minutes / 60.f + seconds / 3600.f > TIMER_MAX_NUMBER_OF_HOURS)
+			if ((double)hours + minutes / 60. + seconds / 3600. > TIMER_MAX_NUMBER_OF_HOURS)
 			{
 				hours = (uint32)TIMER_MAX_NUMBER_OF_HOURS;
 				minutes = 0u;
@@ -207,29 +195,29 @@ void MainScreen::updateAnimations()
 				}
 			}
 
-			m_timeStart = std::chrono::steady_clock::now();
-			m_startAngle = (float)hours + minutes / 60.f + seconds / 3600.f;
+			m_timePlayer->reset();
+			m_startAngle = (double)hours + minutes / 60. + seconds / 3600.;
 			m_currentAngle = m_startAngle;
 
 			angleBefore = -1;
 
-			m_willRestart = false;
+			m_timePlayer->willRestart = false;
 		}
-		else
+		else if (m_timePlayer->isPlaying)
 		{
-			m_currentAngle = AvoGUI::max(0.f, m_startAngle - std::chrono::duration<float>(std::chrono::steady_clock::now() - m_timeStart).count() / 3600.f);
+			m_currentAngle = AvoGUI::max(0., m_startAngle - (std::chrono::steady_clock::now() - m_timePlayer->getTimeStart()).count() / 3600'000'000'000.);
 		}
 
-		if (getGui()->getWindow()->getState() != AvoGUI::WindowState::Minimized && std::ceil(angleBefore * 3600) != std::ceil(m_currentAngle * 3600))
+		if (getGui()->getWindow()->getState() != AvoGUI::WindowState::Minimized && std::ceil(angleBefore * 3600.) != std::ceil(m_currentAngle * 3600.))
 		{
-			updateTimeLeftText();
+			m_timePlayer->setTimeLeft(m_currentAngle);
 			invalidate();
 		}
 		if (angleBefore > 0.f && angleBefore <= 1.f / 3600.f && !m_currentAngle)
 		{
 			if (getGui()->getWindow()->getState() == AvoGUI::WindowState::Minimized)
 			{
-				updateTimeLeftText();
+				m_timePlayer->setTimeLeft(m_currentAngle);
 			}
 			m_soundOpener->playSound();
 			getGui<TimerApp>()->showTimeoutScreen();

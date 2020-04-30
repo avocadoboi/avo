@@ -1,23 +1,16 @@
 #pragma once
 
-#include <fstream>
+#include "Parameters.hpp"
+#include "IconButton.hpp"
 
 #include "../../AvoGUI.hpp"
-#include "Parameters.hpp"
+#include <fstream>
 
 //------------------------------
 
 class SoundOpener : public AvoGUI::View
 {
 private:
-	AvoGUI::Text* m_text_sound{ getDrawingContext()->createText("Sound: ", 12.f) };
-	AvoGUI::Text* m_text_currentSoundFileName{ getDrawingContext()->createText("(none)", 12.f) };
-	AvoGUI::Button* m_button_open{ new AvoGUI::Button(this, "OPEN", AvoGUI::Button::Emphasis::Medium) };
-
-	std::string m_soundFilePath;
-
-	AvoGUI::OpenFileDialog m_openFileDialog;
-
 	void updateCurrentSoundFileNameText()
 	{
 		if (m_soundFilePath.size())
@@ -46,12 +39,43 @@ private:
 		m_button_open->setLeft(m_text_currentSoundFileName->getRight() + 8.f);
 		m_text_currentSoundFileName->setCenterY(m_button_open->getCenterY() - 0.5f);
 		setSize(m_button_open->getBottomRight());
-	}
+	}	
 	bool getIsSoundFileMp3()
 	{
 		return m_soundFilePath.substr(m_soundFilePath.size() - 3, 3) == "mp3";
 	}
 
+public:
+	void playSound();
+	void stopSound();
+
+	//------------------------------
+
+	void handleSizeChange() override
+	{
+		setCenterX(getParent<View>()->getWidth() * 0.5f);
+	}
+
+	//------------------------------
+
+private:
+	AvoGUI::Text* m_text_sound{ getDrawingContext()->createText("Sound: ", 12.f) };
+	AvoGUI::Text* m_text_currentSoundFileName{ getDrawingContext()->createText("(none)", 12.f) };
+public:
+	void draw(AvoGUI::DrawingContext* p_drawingContext) override
+	{
+		p_drawingContext->setColor(AvoGUI::Color(0.9f));
+		p_drawingContext->drawText(m_text_sound);
+		p_drawingContext->setColor(AvoGUI::Color(0.8f));
+		p_drawingContext->drawText(m_text_currentSoundFileName);
+	}
+
+	//------------------------------
+
+private:
+	AvoGUI::Button* m_button_open{ new AvoGUI::Button(this, "OPEN", AvoGUI::Button::Emphasis::Medium) };
+	AvoGUI::OpenFileDialog m_openFileDialog;
+	std::string m_soundFilePath;
 public:
 	SoundOpener(AvoGUI::View* p_parent) :
 		View(p_parent, Ids::soundOpener)
@@ -65,8 +89,7 @@ public:
 
 		m_button_open->setLeft(m_text_currentSoundFileName->getRight() + 8.f);
 		m_button_open->buttonClickListeners += [this](auto) {
-			std::vector<std::string> filenames;
-			m_openFileDialog.open(filenames);
+			std::vector<std::string> filenames = m_openFileDialog.open();
 			if (filenames.size())
 			{
 				m_soundFilePath = filenames[0];
@@ -108,26 +131,97 @@ public:
 			m_text_sound->forget();
 		}
 	}
+};
 
-	void playSound();
+class TimePlayer : public AvoGUI::View
+{
+public:
+	bool willRestart{ false };
+	bool isPlaying{ false };
 
-	void stopSound();
-
-	//------------------------------
-
-	void handleSizeChange() override
+private:
+	AvoGUI::TextView* m_text_timeLeft{ new AvoGUI::TextView(this, 23.f) };
+	IconButton* m_button_restart;
+	IconButton* m_button_playPause;
+public:
+	void setTimeLeft(double p_angle)
 	{
-		setCenterX(getParent()->getWidth() * 0.5f);
+		if (p_angle)
+		{
+			double totalSeconds = std::ceil(p_angle * 3600.);
+			uint32 hours = totalSeconds/3600.;
+			uint32 minutes = totalSeconds/60. - hours*60.;
+			uint32 seconds = totalSeconds - hours*3600. - minutes*60.;
+			m_text_timeLeft->setString((hours < 10 ? "0" : "") + AvoGUI::convertNumberToString(hours)
+				                     + (minutes < 10 ? ":0" : ":") + AvoGUI::convertNumberToString(minutes) 
+				                     + (seconds < 10u ? ":0" : ":") + AvoGUI::convertNumberToString(seconds));
+		}
+		else
+		{
+			m_text_timeLeft->setString("00:00:00");
+		}
+
+		m_text_timeLeft->getText()->setFontWeight(AvoGUI::FontWeight::Regular);
+		m_text_timeLeft->fitSizeToText();
+		m_text_timeLeft->setCenterY(getHeight() * 0.5f);
+
+		m_button_playPause->setLeft(m_text_timeLeft->getRight() + 10.f);
+		m_button_restart->setLeft(m_button_playPause->getRight() + 5.f);
+		setWidth(m_button_restart->getRight());
+		setCenterX(getParent<View>()->getCenterX());
 	}
 
-	//------------------------------
-
-	void draw(AvoGUI::DrawingContext* p_drawingContext) override
+private:
+	std::chrono::time_point<std::chrono::steady_clock> m_timeStart{ std::chrono::steady_clock::now() };
+	std::chrono::time_point<std::chrono::steady_clock> m_lastPauseTime{ std::chrono::steady_clock::now() };
+public:
+	void reset()
 	{
-		p_drawingContext->setColor(AvoGUI::Color(0.9f));
-		p_drawingContext->drawText(m_text_sound);
-		p_drawingContext->setColor(AvoGUI::Color(0.8f));
-		p_drawingContext->drawText(m_text_currentSoundFileName);
+		m_timeStart = std::chrono::steady_clock::now();
+		m_lastPauseTime = m_timeStart;
+	}
+	auto getTimeStart()
+	{
+		return m_timeStart;
+	}
+
+	TimePlayer(AvoGUI::View* p_parent) :
+		View(p_parent)
+	{
+		setHeight(35.f);
+
+		auto const ICON_BUTTON_SIZE = 14.f;
+
+		m_button_playPause = new IconButton(this, ICON_BUTTON_SIZE);
+		m_button_playPause->setIcon(MaterialIcons::PLAY_ARROW);
+		m_button_playPause->setCenterY(getHeight()*0.5f);
+		m_button_playPause->setTooltip("Play timer");
+		m_button_playPause->buttonClickListeners += [&]() {
+			isPlaying = !isPlaying;
+			if (isPlaying)
+			{
+				m_button_playPause->setIcon(MaterialIcons::PAUSE);
+				m_timeStart += std::chrono::steady_clock::now() - m_lastPauseTime;
+			}
+			else
+			{
+				m_button_playPause->setIcon(MaterialIcons::PLAY_ARROW);
+				m_lastPauseTime = std::chrono::steady_clock::now();
+			}
+		};
+
+		m_button_restart = new IconButton(this, ICON_BUTTON_SIZE);
+		m_button_restart->setIcon(MaterialIcons::REPLAY);
+		m_button_restart->setCenterY(getHeight()*0.5f);
+		m_button_restart->setTooltip("Restart timer");
+		m_button_restart->buttonClickListeners += [&]() { willRestart = true; };
+
+		getGui()->globalKeyboardKeyUpListeners += [&](AvoGUI::KeyboardEvent p_event) { 
+			if (p_event.key == AvoGUI::KeyboardKey::Spacebar)
+			{
+				m_button_playPause->buttonClickListeners(); 
+			}
+		};
 	}
 };
 
@@ -138,47 +232,19 @@ class TimerApp;
 class MainScreen : public AvoGUI::View
 {
 private:
-	std::chrono::time_point<std::chrono::steady_clock> m_timeStart;
-	bool m_willRestart{ false };
-
 	AvoGUI::Point<float>* m_spiralVertices{ nullptr };
 	uint32 m_numberOfSpiralVerticesInTotal{ 0 };
-	float m_startAngle{ 0.f };
-	float m_currentAngle{ 0.f };
+	double m_startAngle{ 0.f };
+	double m_currentAngle{ 0.f };
 	bool m_isDraggingSpiral{ false };
 	bool m_hasDraggedSpiral{ false };
-
-	AvoGUI::Text* m_text_timeLeft{ nullptr };
 
 	AvoGUI::TextField* m_textField_hours{ nullptr };
 	AvoGUI::TextField* m_textField_minutes{ nullptr };
 	AvoGUI::TextField* m_textField_seconds{ nullptr };
 
+	TimePlayer* m_timePlayer{ nullptr };
 	SoundOpener* m_soundOpener{ nullptr };
-
-	//------------------------------
-
-	void updateTimeLeftText()
-	{
-		if (m_text_timeLeft)
-		{
-			m_text_timeLeft->forget();
-		}
-		if (m_currentAngle)
-		{
-			float angle = std::ceil(m_currentAngle * 3600.f) / 3600.f;
-			float minutes = (angle - (uint32)angle) * 60.f;
-			uint32 seconds = std::round((minutes - (uint32)minutes) * 60.f);
-			m_text_timeLeft = getGui()->getDrawingContext()->createText(((angle < 10 ? "0" + AvoGUI::convertNumberToString((uint32)angle) : AvoGUI::convertNumberToString((uint32)angle)) + (minutes < 10 ? ":0" : ":") + AvoGUI::convertNumberToString((uint32)minutes) + (seconds < 10u ? ":0" : ":") + AvoGUI::convertNumberToString(seconds)).c_str(), 23.f);
-		}
-		else
-		{
-			m_text_timeLeft = getGui()->getDrawingContext()->createText("00:00:00", 23.f);
-		}
-
-		m_text_timeLeft->setFontWeight(AvoGUI::FontWeight::Regular);
-		m_text_timeLeft->setCenter(getWidth() * 0.5f - 16.f, getHeight() * 0.5f - 50.f);
-	}
 
 public:
 	MainScreen(View* p_app);
@@ -198,7 +264,7 @@ public:
 		if (m_hasDraggedSpiral)
 		{
 			m_hasDraggedSpiral = false;
-			m_willRestart = true;
+			m_timePlayer->willRestart = true;
 		}
 		m_isDraggingSpiral = false;
 	}
@@ -251,13 +317,6 @@ public:
 
 	//------------------------------
 
-	//void stopTimerSound()
-	//{
-	//	m_soundOpener->stopSound();
-	//}
-
-	//------------------------------
-
 	void updateAnimations() override;
 
 	void draw(AvoGUI::DrawingContext* p_context, AvoGUI::Rectangle<float> const& p_targetRectangle) override
@@ -273,9 +332,6 @@ public:
 			p_context->fillCircle(point, 5);
 			p_context->setColor(AvoGUI::Color(0.f));
 			p_context->strokeCircle(point, 5, 2.f);
-
-			p_context->setColor(~0U);
-			p_context->drawText(m_text_timeLeft);
 		}
 	}
 };

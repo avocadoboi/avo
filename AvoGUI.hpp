@@ -669,7 +669,8 @@ namespace AvoGUI
 		template<typename ... T>
 		void notifyAll(T&& ... p_eventArguments)
 		{
-			for (auto listener : listeners)
+			auto listenersCopy = listeners;
+			for (auto listener : listenersCopy)
 			{
 				listener(std::forward<T>(p_eventArguments)...);
 			}
@@ -4098,8 +4099,7 @@ namespace AvoGUI
 
 	class Image;
 
-	class ClipboardData :
-		public ReferenceCounted
+	class ClipboardData
 	{
 	public:
 		/*
@@ -4168,6 +4168,11 @@ namespace AvoGUI
 		virtual uint32 getNumberOfFiles() const = 0;
 
 		/*
+			Returns the additional data that has been assigned by an AvoGUI application.
+		*/
+		virtual uint64 getAdditionalData() const = 0;
+
+		/*
 			If an image is being dragged, this creates and returns an Image object representing the image that was dragged.
 			If no image is being dragged, it returns 0.
 		*/
@@ -4206,7 +4211,7 @@ namespace AvoGUI
 		/*
 			Contains the data that is being dragged.
 		*/
-		ClipboardData* data{ nullptr };
+		std::unique_ptr<ClipboardData> data;
 	};
 
 	//------------------------------
@@ -7210,122 +7215,71 @@ namespace AvoGUI
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropString(std::string const& p_string, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-			p_string is assumed to be null terminated.
-		*/
-		virtual DragDropOperation dragAndDropString(char const* p_string, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-			p_length is the number of code units in the string.
-		*/
-		virtual DragDropOperation dragAndDropString(char const* p_string, uint32 p_length, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropString(std::string const& p_string, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
 
 		/*
 			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropString(std::wstring const& p_string, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-			p_string is assumed to be null terminated.
-		*/
-		virtual DragDropOperation dragAndDropString(wchar_t const* p_string, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-			p_length is the number of code units in the string.
-		*/
-		virtual DragDropOperation dragAndDropString(wchar_t const* p_string, uint32 p_length, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropString(std::wstring const& p_string, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
+
 
 		/*
 			Runs a blocking loop that allows the user to drag image data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropImage(Image* p_image, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropImage(Image* p_image, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::string const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFile(uint8 const* p_data, uint32 p_dataSize, std::string const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFile(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(std::string const& p_data, std::string const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFile(std::vector<uint8> const& p_data, std::string const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(std::string const& p_data, std::wstring const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFile(std::vector<uint8> const& p_data, std::wstring const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data or a directory from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(std::string const& p_path, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFile(std::string const& p_path, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data or a directory from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(std::wstring const& p_path, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFile(std::wstring const& p_path, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
 
 		/*
 			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_paths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_paths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_paths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropFiles(std::string* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropFiles(std::wstring* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropFiles(char const* const* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>()) = 0;
+		virtual DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_paths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
 
 		//------------------------------
 
@@ -7333,111 +7287,66 @@ namespace AvoGUI
 			Gives a UTF-16 encoded string for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this string.
 		*/
-		virtual void setClipboardString(std::wstring const& p_string) const = 0;
-		/*
-			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
-			The data currently stored on the clipboard is freed and replaced by this string.
-			p_string is assumed to be null terminated.
-		*/
-		virtual void setClipboardString(wchar_t const* p_string) const = 0;
-		/*
-			Gives a UTF-16 encoded string for the OS to store globally. Other programs, or this one, can then access it.
-			The data currently stored on the clipboard is freed and replaced by this string.
-			p_length is the number of code units in the string.
-		*/
-		virtual void setClipboardString(wchar_t const* p_string, uint32 p_length) const = 0;
+		virtual void setClipboardString(std::wstring const& p_string, uint64 p_additionalData = 0u) const = 0;
 
 		/*
 			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this string.
 		*/
-		virtual void setClipboardString(std::string const& p_string) const = 0;
-		/*
-			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
-			The data currently stored on the clipboard is freed and replaced by this string.
-			p_string is assumed to be null terminated.
-		*/
-		virtual void setClipboardString(char const* p_string) const = 0;
-		/*
-			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
-			The data currently stored on the clipboard is freed and replaced by this string.
-			p_length is the number of bytes (code units) in the string.
-		*/
-		virtual void setClipboardString(char const* p_string, uint32 p_length) const = 0;
+		virtual void setClipboardString(std::string const& p_string, uint64 p_additionalData = 0u) const = 0;
 
 		/*
 			Gives an image for the OS to store globally. Other programs, or this one, can then access it.
 		    The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardImage(Image* p_image) const = 0;
+		virtual void setClipboardImage(Image* p_image, uint64 p_additionalData = 0u) const = 0;
 
 		/*
 			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
 		    The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardFile(char const* p_data, uint32 p_dataSize, std::string const& p_name) const = 0;
+		virtual void setClipboardFile(uint8 const* p_data, uint32 p_dataSize, std::string const& p_name, uint64 p_additionalData = 0u) const = 0;
 		/*
 			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
 		    The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardFile(char const* p_data, uint32 p_dataSize, std::wstring const& p_name) const = 0;
+		virtual void setClipboardFile(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, uint64 p_additionalData = 0u) const = 0;
 		/*
 			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
 		    The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardFile(std::string const& p_data, std::string const& p_name) const = 0;
+		virtual void setClipboardFile(std::vector<uint8> const& p_data, std::string const& p_name, uint64 p_additionalData = 0u) const = 0;
 		/*
 			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
 		    The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardFile(std::string const& p_data, std::wstring const& p_name) const = 0;
+		virtual void setClipboardFile(std::vector<uint8> const& p_data, std::wstring const& p_name, uint64 p_additionalData = 0u) const = 0;
 		/*
 			Gives a UTF-8 file path for the OS to store globally. Other programs, or this one, can then access it.
 		    The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardFile(std::string const& p_path) const = 0;
+		virtual void setClipboardFile(std::string const& p_path, uint64 p_additionalData = 0u) const = 0;
 		/*
 			Gives a UTF-16 file path for the OS to store globally. Other programs, or this one, can then access it.
 		    The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardFile(std::wstring const& p_path) const = 0;
+		virtual void setClipboardFile(std::wstring const& p_path, uint64 p_additionalData = 0u) const = 0;
 
 		/*
 			Gives UTF-8 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
 		    The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardFiles(std::vector<std::string> const& p_paths) const = 0;
+		virtual void setClipboardFiles(std::vector<std::string> const& p_paths, uint64 p_additionalData = 0u) const = 0;
 		/*
 			Gives UTF-16 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
 		    The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardFiles(std::vector<std::wstring> const& p_paths) const = 0;
-		/*
-			Gives UTF-8 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
-		    The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardFiles(std::string* p_paths, uint32 p_numberOfPaths) const = 0;
-		/*
-			Gives UTF-16 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
-		    The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardFiles(std::wstring* p_paths, uint32 p_numberOfPaths) const = 0;
-		/*
-			Gives UTF-8 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
-		    The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardFiles(char const* const* p_paths, uint32 p_numberOfPaths) const = 0;
-		/*
-			Gives UTF-16 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
-		    The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardFiles(wchar_t const* const* p_paths, uint32 p_numberOfPaths) const = 0;
+		virtual void setClipboardFiles(std::vector<std::wstring> const& p_paths, uint64 p_additionalData = 0u) const = 0;
 
 		/*
 			Returns the data that is currently stored on the clipboard.
-			It must be forgotten by the caller.
 		*/
-		[[nodiscard]] virtual ClipboardData* getClipboardData() const = 0;
+		[[nodiscard]] virtual std::unique_ptr<ClipboardData> getClipboardData() const = 0;
 
 		//------------------------------
 		// Window events
@@ -10204,6 +10113,129 @@ namespace AvoGUI
 
 	//------------------------------
 
+	/*
+		A view that displays text.
+	*/
+	class TextView : public View
+	{
+	private:
+		AvoGUI::Color m_color{ getThemeColor(ThemeColors::onBackground) };
+	public:
+		void setColor(AvoGUI::Color const& p_color)
+		{
+			m_color = p_color;
+		}
+		AvoGUI::Color getColor()
+		{
+			return m_color;
+		}
+
+	private:
+		float m_fontSize;
+	public:
+		void setFontSize(float p_fontSize)
+		{
+			m_fontSize = p_fontSize;
+			if (m_text)
+			{
+				m_text->setFontSize(p_fontSize);
+			}
+		}
+		float getFontSize()
+		{
+			return m_fontSize;
+		}
+
+	private:
+		Text* m_text{ nullptr };
+	public:
+		void setString(std::string const& p_string)
+		{
+			if (p_string.empty())
+			{
+				return;
+			}
+			if (m_text)
+			{
+				m_text->forget();
+			}
+			m_text = getDrawingContext()->createText(p_string, m_fontSize);
+			m_text->setSize(getSize());
+		}
+		void setText(Text* p_text)
+		{
+			if (m_text)
+			{
+				m_text->forget();
+			}
+			m_text = p_text;
+		}
+		Text* getText()
+		{
+			return m_text;
+		}
+
+		void fitSizeToText()
+		{
+			if (m_text)
+			{
+				m_text->fitSizeToText();
+				setSize(m_text->getSize());
+			}
+		}
+		void fitWidthToText()
+		{
+			if (m_text)
+			{
+				m_text->fitWidthToText();
+				setWidth(m_text->getWidth());
+			}
+		}
+		void fitHeightToText()
+		{
+			if (m_text)
+			{
+				m_text->fitHeightToText();
+				setHeight(m_text->getHeight());
+			}
+		}
+
+		void handleSizeChange() override
+		{
+			if (m_text)
+			{
+				m_text->setSize(getSize());
+			}
+		}
+
+		void draw(AvoGUI::DrawingContext* p_context) override
+		{
+			if (m_text)
+			{
+				p_context->setColor(m_color);
+				p_context->drawText(m_text);
+			}
+		}
+
+		//------------------------------
+
+		TextView(View* p_parent, float p_fontSize, std::string const& p_string = "") :
+			View(p_parent),
+			m_fontSize(p_fontSize)
+		{
+			setString(p_string);
+		}
+		~TextView()
+		{
+			if (m_text)
+			{
+				m_text->forget();
+			}
+		}
+	};
+
+	//------------------------------
+
 	namespace ThemeEasings
 	{
 		inline Id const ripple;
@@ -11178,7 +11210,7 @@ namespace AvoGUI
 
 				string.insert(m_caretByteIndex, p_event.character);
 
-				setString(string.c_str(), m_caretCharacterIndex + 1);
+				setString(string, m_caretCharacterIndex + 1);
 
 				updateCaretTracking();
 
@@ -11603,9 +11635,8 @@ namespace AvoGUI
 							}
 							m_isSelectionVisible = false;
 						}
-						ClipboardData* clipboardData = window->getClipboardData();
+						auto clipboardData = window->getClipboardData();
 						std::string clipboardString = clipboardData->getString();
-						clipboardData->forget();
 						string.insert(caretByteIndex, clipboardString);
 						setString(string, caretCharacterIndex + getCharacterIndexFromUtf8UnitIndex(clipboardString, clipboardString.size()));
 
@@ -11715,7 +11746,7 @@ namespace AvoGUI
 				p_newCaretCharacterIndex = m_caretCharacterIndex;
 			}
 
-			std::string newString = p_string;
+			auto newString = p_string;
 
 			for (auto& listener : editableTextChangeListeners.listeners)
 			{
@@ -11753,18 +11784,18 @@ namespace AvoGUI
 				return;
 			}
 
-			m_text = getGui()->getDrawingContext()->createText(newString.c_str(), m_fontSize);
+			m_text = getGui()->getDrawingContext()->createText(newString, m_fontSize);
 			m_text->setFontWeight(FontWeight::Regular);
 			m_text->setTextAlign(m_textAlign);
 			m_text->setWidth(getWidth());
 			m_text->setTop(2.f);
 			m_text->setBottom(getHeight(), false);
 
-			uint32 newCaretByteIndex = getUtf8UnitIndexFromCharacterIndex(newString, p_newCaretCharacterIndex);
-			if (newCaretByteIndex > newString.size())
+			auto characterCount = getNumberOfCharactersInUtf8String(newString);
+			if (p_newCaretCharacterIndex > characterCount)
 			{
 				m_caretByteIndex = newString.size();
-				m_caretCharacterIndex = getCharacterIndexFromUtf8UnitIndex(newString, m_caretByteIndex);
+				m_caretCharacterIndex = characterCount;
 			}
 			else if (p_newCaretCharacterIndex != m_caretCharacterIndex)
 			{
@@ -11776,7 +11807,7 @@ namespace AvoGUI
 				else
 				{
 					m_caretCharacterIndex = p_newCaretCharacterIndex;
-					m_caretByteIndex = newCaretByteIndex;
+					m_caretByteIndex = getUtf8UnitIndexFromCharacterIndex(newString, p_newCaretCharacterIndex);
 				}
 			}
 			m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
@@ -11787,7 +11818,7 @@ namespace AvoGUI
 				if (m_selectionEndByteIndex > newString.size())
 				{
 					m_selectionEndByteIndex = newString.size();
-					m_selectionEndCharacterIndex = getCharacterIndexFromUtf8UnitIndex(newString, newString.size());
+					m_selectionEndCharacterIndex = characterCount;
 					if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
 					{
 						m_isSelectionVisible = false;

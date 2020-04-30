@@ -5,7 +5,7 @@ void TimeoutScreen::updateAnimations()
 {
 	if (m_willStopSound)
 	{
-		getViewById<SoundOpener>(Ids::soundOpener)->stopSound();
+		getComponentById<SoundOpener>(Ids::soundOpener)->stopSound();
 		getGui<TimerApp>()->showMainScreen();
 		m_willStopSound = false;
 	}

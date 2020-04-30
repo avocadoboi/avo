@@ -8,6 +8,8 @@ float const TIMER_TEXT_FIELD_PADDING = 10.f;
 float const TIMER_TEXT_FIELD_WIDTH = 61.f;
 float const TIMER_MAX_NUMBER_OF_HOURS = 12.f;
 
+#include "../../AvoGUI.hpp"
+
 namespace Ids
 {
 	inline AvoGUI::Id const soundOpener;
