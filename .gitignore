@@ -2,3 +2,5 @@
 !*.hpp
 !*.cpp
 !*/
+cmake-build-debug/**
+build/**
