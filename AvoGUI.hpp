@@ -9913,9 +9913,10 @@ namespace AvoGUI
 					{
 						m_text->forget();
 					}
-					m_text = getGui()->getDrawingContext()->createText(p_string, getThemeValue(ThemeValues::tooltipFontSize));
+					auto fontSize = getThemeValue(ThemeValues::tooltipFontSize);
+					m_text = getGui()->getDrawingContext()->createText(p_string, fontSize);
 					m_text->fitSizeToText();
-					setSize(m_text->getWidth() + 1.5f * getThemeValue(ThemeValues::tooltipFontSize), m_text->getHeight() + getThemeValue(ThemeValues::tooltipFontSize) * 1.5f);
+					setSize(m_text->getWidth() + 2.2f * fontSize, m_text->getHeight() + fontSize*1.8f);
 					m_text->setCenter(getWidth() * 0.5f, getHeight() * 0.5f);
 				}
 

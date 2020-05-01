@@ -48,8 +48,7 @@ public:
 
 //------------------------------
 
-class MyGui : 
-	public AvoGUI::Gui
+class MyGui : public AvoGUI::Gui
 {
 public:
 	MyGui()
