@@ -188,6 +188,7 @@ public:
 	TimePlayer(AvoGUI::View* p_parent) :
 		View(p_parent)
 	{
+		enableMouseEvents();
 		setHeight(35.f);
 
 		auto const ICON_BUTTON_SIZE = 14.f;

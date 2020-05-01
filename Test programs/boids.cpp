@@ -176,7 +176,7 @@ public:
 
 	void draw(AvoGUI::DrawingContext* p_context) override
 	{
-		for (Boid const& boid : m_boids)
+		for (auto& boid : m_boids)
 		{
 			p_context->setColor(AvoGUI::Color().setHSB(boid.hue, 0.7f, 0.8f));
 			p_context->scale(BOID_SCALE);

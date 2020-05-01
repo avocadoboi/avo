@@ -24,7 +24,7 @@ public:
 
 	void createContent() override
 	{
-		setThemeColor("background", AvoGUI::Color(0.f));
+		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(0.f));
 
 		std::vector<AvoGUI::Point<float>> points;
 		points.push_back(AvoGUI::Point<float>(0.f, 0.f));

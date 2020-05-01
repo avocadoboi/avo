@@ -101,7 +101,7 @@ public:
 		m_textField_numberOfDigits->setTextAlign(AvoGUI::TextAlign::Center);
 		m_textField_numberOfDigits->setWidth(40.f);
 		m_textField_numberOfDigits->setTopRight(m_restartButton->getLeft() - 20.f, 5.f);
-		m_textField_numberOfDigits->addEditableTextChangeListener([this](AvoGUI::EditableText* p_editableText, std::string& p_string, int32_t& p_caretIndex) -> bool {
+		m_textField_numberOfDigits->getEditableText()->editableTextChangeListeners += [this](AvoGUI::EditableText* p_editableText, std::string& p_string, int32_t& p_caretIndex) -> bool {
 			if (std::any_of(p_string.begin(), p_string.end(), [](char character) { return character < 48 || character > 57; }))
 				return false;
 
@@ -117,7 +117,7 @@ public:
 			}
 			startSimulation();
 			return true;
-		});
+		};
 		m_textField_numberOfDigits->setString(std::to_string((uint32_t)NUMBER_OF_DIGITS));
 
 		m_text_numberOfDigits = getDrawingContext()->createText("PI digits:", 18.f);

@@ -152,10 +152,10 @@ public:
 
 	void draw(AvoGUI::DrawingContext* p_context, AvoGUI::Rectangle<float> const& p_target) override
 	{
-		p_context->setColor(AvoGUI::Color(getThemeColor("on background"), 0.4f));
+		p_context->setColor(AvoGUI::Color(getThemeColor(AvoGUI::ThemeColors::onBackground), 0.4f));
 		p_context->drawText(m_text_dropItems);
 
-		p_context->setColor(getThemeColor("on background"));
+		p_context->setColor(getThemeColor(AvoGUI::ThemeColors::onBackground));
 		for (AvoGUI::Text* text : m_droppedTexts)
 		{
 			p_context->drawText(text);

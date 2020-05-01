@@ -25,7 +25,7 @@ public:
 
 	void createContent() override
 	{
-		setThemeColor("background", AvoGUI::Color(0));
+		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(0));
 
 		queueAnimationUpdate();
 

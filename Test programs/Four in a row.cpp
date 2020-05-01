@@ -57,7 +57,7 @@ public:
 		{
 			if (m_openAnimationTime < 1.f)
 			{
-				m_openAnimationValue = getThemeEasing("out").easeValue(m_openAnimationTime += 0.1f);
+				m_openAnimationValue = getThemeEasing(AvoGUI::ThemeEasings::out).easeValue(m_openAnimationTime += 0.1f);
 				queueAnimationUpdate();
 			}
 		}
@@ -65,7 +65,7 @@ public:
 		{
 			if (m_openAnimationTime < 1.f)
 			{
-				m_openAnimationValue = 1.f - getThemeEasing("in").easeValue(m_openAnimationTime += 0.1f);
+				m_openAnimationValue = 1.f - getThemeEasing(AvoGUI::ThemeEasings::in).easeValue(m_openAnimationTime += 0.1f);
 				queueAnimationUpdate();
 			}
 			else
@@ -74,7 +74,7 @@ public:
 			}
 		}
 
-		setCenter(getParent()->getWidth()*0.5f, getParent()->getHeight() * 0.5f * m_openAnimationValue);
+		setCenter(getParent<View>()->getWidth()*0.5f, getParent<View>()->getHeight() * 0.5f * m_openAnimationValue);
 
 		invalidate();
 	}

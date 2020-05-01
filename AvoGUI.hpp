@@ -4303,6 +4303,7 @@ namespace AvoGUI
 			if (p_isVisible != m_isVisible)
 			{
 				m_isVisible = p_isVisible;
+				invalidate();
 			}
 		}
 		/*

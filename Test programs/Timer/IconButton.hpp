@@ -37,8 +37,8 @@ public:
 	}
 	void drawOverlay(AvoGUI::DrawingContext* p_context) override
 	{
-		p_context->setColor(AvoGUI::Color(getThemeColor(AvoGUI::ThemeColors::onBackground), 0.5f));
-		p_context->strokeRectangle(getSize(), getCorners());
+		p_context->setColor(AvoGUI::Color(getThemeColor(AvoGUI::ThemeColors::onBackground), 0.2f));
+		p_context->strokeRectangle(getSize(), getCorners(), 2.f);
 	}
 
 	//------------------------------

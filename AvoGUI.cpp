@@ -12728,7 +12728,7 @@ void AvoGUI::Gui::drawViews()
 				bool isDoneWithContainer = true;
 				for (uint32 a = startPosition; a < currentContainer->getNumberOfChildViews(); a++)
 				{
-					AvoGUI::View* view = currentContainer->getChildView(a);
+					auto view = currentContainer->getChildView(a);
 
 					if (view->getWidth() > 0.f && view->getHeight() > 0.f && view->getIsVisible())
 					{
@@ -12741,7 +12741,7 @@ void AvoGUI::Gui::drawViews()
 
 							view->drawShadow(m_drawingContext);
 
-							RectangleCorners& corners = view->getCorners();
+							auto& corners = view->getCorners();
 							if (view->getHasCornerStyles())
 							{
 								m_drawingContext->pushClipGeometry(view->m_clipGeometry, view->m_opacity);

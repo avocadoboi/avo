@@ -62,7 +62,7 @@ public:
 
 	void createContent()
 	{
-		setThemeColor("shadow", AvoGUI::Color(0.f, 0.5f));
+		setThemeColor(AvoGUI::ThemeColors::shadow, AvoGUI::Color(0.f, 0.5f));
 
 		m_card = new Card(this);
 		m_card->setSize(400, 300);

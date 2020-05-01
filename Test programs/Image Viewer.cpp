@@ -38,7 +38,7 @@ public:
 		enableMouseEvents();
 		setKeyboardFocus(this);
 
-		setThemeColor("background", AvoGUI::Color(0.3f));
+		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(0.3f));
 
 		m_image = getDrawingContext()->createImage(m_filePath);
 		m_image->setCenter(getCenter());
