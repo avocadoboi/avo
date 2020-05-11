@@ -11857,7 +11857,7 @@ void AvoGUI::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 			loopStart:
 				for (int32 a = startIndex; a >= 0; a--)
 				{
-					AvoGUI::View* child = container->m_childViews[a];
+					auto child = container->m_childViews[a];
 
 					if (container->m_isMouseHovering && child->getIsContainingAbsolute(absoluteX, absoluteY) && child->m_isVisible && !hasInvisibleParent && !hasFoundEnterViews)
 					{

@@ -4555,6 +4555,10 @@ namespace AvoGUI
 		Image(Image* p_implementation) :
 			m_implementation(p_implementation)
 		{
+			if (m_implementation)
+			{
+				m_bounds = m_implementation->m_bounds;
+			}
 		}
 
 	protected:
@@ -13155,7 +13159,7 @@ namespace AvoGUI
 		Type m_type;
 
 	public:
-		explicit TextField(View* p_parent, Type p_type = Type::Filled, std::string const& p_label = "", float p_width = 120.f) :
+		TextField(View* p_parent, Type p_type = Type::Filled, std::string const& p_label = "", float p_width = 120.f) :
 			View(p_parent),
 			m_type(p_type)
 		{
