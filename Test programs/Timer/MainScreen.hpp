@@ -34,10 +34,10 @@ private:
 		{
 			m_text_currentSoundFileName = getDrawingContext()->createText("(none)", 12.f);
 		}
-		m_text_currentSoundFileName->setLeft(m_text_sound->getRight() + 2.f);
-		m_text_currentSoundFileName->setFontWeight(AvoGUI::FontWeight::Regular);
-		m_button_open->setLeft(m_text_currentSoundFileName->getRight() + 8.f);
-		m_text_currentSoundFileName->setCenterY(m_button_open->getCenterY() - 0.5f);
+		m_text_currentSoundFileName.setLeft(m_text_sound.getRight() + 2.f);
+		m_text_currentSoundFileName.setFontWeight(AvoGUI::FontWeight::Regular);
+		m_button_open->setLeft(m_text_currentSoundFileName.getRight() + 8.f);
+		m_text_currentSoundFileName.setCenterY(m_button_open->getCenterY() - 0.5f);
 		setSize(m_button_open->getBottomRight());
 	}	
 	bool getIsSoundFileMp3()
@@ -59,8 +59,8 @@ public:
 	//------------------------------
 
 private:
-	AvoGUI::Text* m_text_sound{ getDrawingContext()->createText("Sound: ", 12.f) };
-	AvoGUI::Text* m_text_currentSoundFileName{ getDrawingContext()->createText("(none)", 12.f) };
+	AvoGUI::Text m_text_sound{ getDrawingContext()->createText("Sound: ", 12.f) };
+	AvoGUI::Text m_text_currentSoundFileName{ getDrawingContext()->createText("(none)", 12.f) };
 public:
 	void draw(AvoGUI::DrawingContext* p_drawingContext) override
 	{
@@ -84,10 +84,10 @@ public:
 
 		m_openFileDialog.setFileExtensions({ { "Audio files", "*.mp3;*.wav" } });
 
-		m_text_currentSoundFileName->setLeft(m_text_sound->getRight() + 2.f);
-		m_text_currentSoundFileName->setFontWeight(AvoGUI::FontWeight::Regular);
+		m_text_currentSoundFileName.setLeft(m_text_sound.getRight() + 2.f);
+		m_text_currentSoundFileName.setFontWeight(AvoGUI::FontWeight::Regular);
 
-		m_button_open->setLeft(m_text_currentSoundFileName->getRight() + 8.f);
+		m_button_open->setLeft(m_text_currentSoundFileName.getRight() + 8.f);
 		m_button_open->buttonClickListeners += [this](auto) {
 			std::vector<std::string> filenames = m_openFileDialog.open();
 			if (filenames.size())
@@ -104,7 +104,7 @@ public:
 			}
 		};
 
-		m_text_sound->setCenterY(m_button_open->getCenterY() - 0.5f);
+		m_text_sound.setCenterY(m_button_open->getCenterY() - 0.5f);
 
 		//------------------------------
 
@@ -119,17 +119,6 @@ public:
 		file.close();
 
 		updateCurrentSoundFileNameText();
-	}
-	~SoundOpener()
-	{
-		if (m_text_currentSoundFileName)
-		{
-			m_text_currentSoundFileName->forget();
-		}
-		if (m_text_sound)
-		{
-			m_text_sound->forget();
-		}
 	}
 };
 
@@ -161,7 +150,7 @@ public:
 			m_text_timeLeft->setString("00:00:00");
 		}
 
-		m_text_timeLeft->getText()->setFontWeight(AvoGUI::FontWeight::Regular);
+		m_text_timeLeft->getText().setFontWeight(AvoGUI::FontWeight::Regular);
 		m_text_timeLeft->fitSizeToText();
 		m_text_timeLeft->setCenterY(getHeight() * 0.5f);
 

@@ -78,7 +78,37 @@ public:
 	MouseEventsTest()
 	{
 		create("Mouse events test", 800, 600, AvoGUI::WindowStyleFlags::DefaultNoResize);
-		waitForFinish();
+
+		enableMouseEvents();
+
+		MouseView* container_0 = new MouseView(this, { 100, 100, 400, 300 });
+		container_0->setName("Red");
+		container_0->setThemeColor(AvoGUI::ThemeColors::background, 0xffff0000);
+
+		MouseView* child = new MouseView(container_0, { 10, 10, container_0->getWidth() - 10, container_0->getHeight() - 10 });
+		child->setName("Green");
+		child->setThemeColor(AvoGUI::ThemeColors::background, 0xff00ff00);
+
+		MouseView* container_1 = new MouseView(this, { 300, 200, 500, 400 });
+		container_1->setName("Yellow");
+		container_1->setThemeColor(AvoGUI::ThemeColors::background, 0xffffff00);
+
+		child = new MouseView(container_1, { 70, 50, 150, 120 });
+		child->setName("Cyan");
+		child->setThemeColor(AvoGUI::ThemeColors::background, 0xff00ffff);
+
+		child = new MouseView(container_1, { 100, 100, 180, 180 });
+		child->setName("Blue");
+		child->setThemeColor(AvoGUI::ThemeColors::background, 0xff0000ff);
+
+		MouseView* overlay = new MouseView(this, { 0, 0, getWidth(), getHeight() });
+		overlay->setName("Overlay");
+		overlay->setThemeColor(AvoGUI::ThemeColors::background, 0U);
+		overlay->setIsOverlay(true);
+
+		queueAnimationUpdate();
+
+		run();
 	}
 
 	//------------------------------
@@ -122,38 +152,6 @@ public:
 			std::system("cls");
 		}
 		frameCount++;
-		queueAnimationUpdate();
-	}
-
-	void createContent() override
-	{
-		enableMouseEvents();
-
-		MouseView* container_0 = new MouseView(this, { 100, 100, 400, 300 });
-		container_0->setName("Red");
-		container_0->setThemeColor(AvoGUI::ThemeColors::background, 0xffff0000);
-
-		MouseView* child = new MouseView(container_0, { 10, 10, container_0->getWidth() - 10, container_0->getHeight() - 10 });
-		child->setName("Green");
-		child->setThemeColor(AvoGUI::ThemeColors::background, 0xff00ff00);
-
-		MouseView* container_1 = new MouseView(this, { 300, 200, 500, 400 });
-		container_1->setName("Yellow");
-		container_1->setThemeColor(AvoGUI::ThemeColors::background, 0xffffff00);
-
-		child = new MouseView(container_1, { 70, 50, 150, 120 });
-		child->setName("Cyan");
-		child->setThemeColor(AvoGUI::ThemeColors::background, 0xff00ffff);
-
-		child = new MouseView(container_1, { 100, 100, 180, 180 });
-		child->setName("Blue");
-		child->setThemeColor(AvoGUI::ThemeColors::background, 0xff0000ff);
-
-		MouseView* overlay = new MouseView(this, { 0, 0, getWidth(), getHeight() });
-		overlay->setName("Overlay");
-		overlay->setThemeColor(AvoGUI::ThemeColors::background, 0U);
-		overlay->setIsOverlay(true);
-
 		queueAnimationUpdate();
 	}
 };

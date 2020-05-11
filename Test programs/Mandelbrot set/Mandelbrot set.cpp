@@ -48,15 +48,11 @@ void MandelbrotRenderer::render()
 		}
 
 		m_imageMutex.lock();
-		if (m_image)
-		{
-			m_image->forget();
-		}
 		m_image = m_viewer->getDrawingContext()->createImage(m_viewer->getPixels() + m_partIndex * HEIGHT_PER_THREAD * WIDTH * 4, m_viewer->getWidth(), HEIGHT_PER_THREAD);
-		m_image->setTop(m_partIndex * HEIGHT_PER_THREAD);
+		m_image.setTop(m_partIndex * HEIGHT_PER_THREAD);
 		m_imageMutex.unlock();
 
-		m_viewer->invalidateRectangle(m_image->getBounds());
+		m_viewer->invalidateRectangle(m_image.getBounds());
 
 		//invalidate();
 

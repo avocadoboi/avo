@@ -21,7 +21,7 @@ class MandelbrotRenderer
 private:
 	MandelbrotViewer* m_viewer;
 	uint32 m_partIndex;
-	AvoGUI::Image* m_image{ nullptr };
+	AvoGUI::Image m_image;
 	std::mutex m_imageMutex;
 
 	bool m_needsRendering{ false };
@@ -41,10 +41,6 @@ public:
 	{
 		startRender();
 		m_renderingThread.join();
-		if (m_image)
-		{
-			m_image->forget();
-		}
 	}
 
 	void startRender()
@@ -58,7 +54,7 @@ public:
 	void draw(AvoGUI::DrawingContext* p_context, AvoGUI::Rectangle<float> const& p_targetRectangle)
 	{
 		m_imageMutex.lock();
-		if (m_image && m_image->getIsIntersecting(p_targetRectangle))
+		if (m_image && m_image.getIsIntersecting(p_targetRectangle))
 		{
 			p_context->drawImage(m_image);
 		}
@@ -72,7 +68,7 @@ class MandelbrotViewer :
 	public AvoGUI::Gui
 {
 private:
-	std::vector<MandelbrotRenderer*> m_renderers;
+	std::vector<std::unique_ptr<MandelbrotRenderer>> m_renderers;
 	uint8 m_pixels[WIDTH * HEIGHT_PER_THREAD * NUMBER_OF_DRAWING_THREADS * 4];
 	bool m_isRunning{ true };
 
@@ -88,31 +84,34 @@ private:
 
 	//------------------------------
 
-	AvoGUI::Text* m_infoText{ nullptr };
+	AvoGUI::Text m_infoText;
 
 	void updateInfoText()
 	{
-		if (m_infoText)
-		{
-			m_infoText->forget();
-		}
-		m_infoText = getDrawingContext()->createText(("Max iterations: " + AvoGUI::convertNumberToString(m_maxNumberOfIterations) + " Scale: " + AvoGUI::convertNumberToString(m_scale)).c_str(), 13.f);
-		m_infoText->setTopLeft(10.f, 10.f);
+		m_infoText = getDrawingContext()->createText("Max iterations: " + AvoGUI::convertNumberToString(m_maxNumberOfIterations) + " Scale: " + AvoGUI::convertNumberToString(m_scale), 13.f);
+		m_infoText.setTopLeft(10.f, 10.f);
 	}
 
 public:
 	MandelbrotViewer()
 	{
 		create("Mandelbrot set", WIDTH, HEIGHT_PER_THREAD * NUMBER_OF_DRAWING_THREADS, AvoGUI::WindowStyleFlags::DefaultNoResize);
-		waitForFinish();
+
+		enableMouseEvents();
+
+		m_renderers.resize(NUMBER_OF_DRAWING_THREADS);
+		for (uint32 a = 0; a < NUMBER_OF_DRAWING_THREADS; a++)
+		{
+			m_renderers[a] = std::make_unique<MandelbrotRenderer>(this, a);
+		}
+
+		updateInfoText();
+
+		run();
 	}
 	~MandelbrotViewer()
 	{
 		m_isRunning = false;
-		for (MandelbrotRenderer* renderer : m_renderers)
-		{
-			delete renderer;
-		}
 	}
 
 	uint8* getPixels()
@@ -147,19 +146,6 @@ public:
 	uint32 getMaxNumberOfIterations()
 	{
 		return m_maxNumberOfIterations;
-	}
-
-	void createContent() override
-	{
-		enableMouseEvents();
-
-		m_renderers.resize(NUMBER_OF_DRAWING_THREADS);
-		for (uint32 a = 0; a < NUMBER_OF_DRAWING_THREADS; a++)
-		{
-			m_renderers[a] = new MandelbrotRenderer(this, a);
-		}
-
-		updateInfoText();
 	}
 
 	void handleMouseScroll(AvoGUI::MouseEvent const& p_event) override
@@ -214,7 +200,7 @@ public:
 			m_renderers[a]->draw(p_context, p_targetRectangle);
 		}
 
-		if (m_infoText && m_infoText->getIsIntersecting(p_targetRectangle))
+		if (m_infoText && m_infoText.getIsIntersecting(p_targetRectangle))
 		{
 			p_context->setColor(AvoGUI::Color(1.f));
 			p_context->drawText(m_infoText);

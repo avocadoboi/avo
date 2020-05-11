@@ -22,7 +22,7 @@ private:
 
 	AvoGUI::Color m_winningColor;
 
-	AvoGUI::Text* m_text{ getDrawingContext()->createText("won!", 20.f) };
+	AvoGUI::Text m_text{ getDrawingContext()->createText("won!", 20.f) };
 
 public:
 	YouWon(AvoGUI::View* p_parent) :
@@ -33,7 +33,7 @@ public:
 		setSize(250, 150);
 		setIsVisible(false);
 
-		m_text->setCenter(getWidth() * 0.65f, getHeight()*0.5f);
+		m_text.setCenter(getWidth() * 0.65f, getHeight()*0.5f);
 	}
 
 	void open(AvoGUI::Color const& p_winningColor)
@@ -85,7 +85,7 @@ public:
 		p_context->fillRectangle(getSize());
 
 		p_context->setColor(m_winningColor);
-		p_context->fillCircle(m_text->getLeft() - 50.f, m_text->getCenterY(), 35.f);
+		p_context->fillCircle(m_text.getLeft() - 50.f, m_text.getCenterY(), 35.f);
 		p_context->drawText(m_text);
 	}
 };
@@ -105,13 +105,6 @@ public:
 	FourInARow()
 	{
 		create("Four in a row", NUMBER_OF_COLUMNS*CELL_WIDTH, NUMBER_OF_ROWS*CELL_WIDTH, AvoGUI::WindowStyleFlags::DefaultNoResize);
-		waitForFinish();
-	}
-
-	//------------------------------
-
-	void createContent() override
-	{
 		for (uint32 x = 0; x < NUMBER_OF_COLUMNS; x++)
 		{
 			for (uint32 y = 0; y < NUMBER_OF_ROWS; y++)
@@ -123,7 +116,10 @@ public:
 		m_youWon = new YouWon(this);
 
 		enableMouseEvents();
+		run();
 	}
+
+	//------------------------------
 
 	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
 	{

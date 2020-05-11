@@ -59,6 +59,19 @@ public:
 	Application()
 	{
 		create("Bouncing ball!", 800, 700);
+
+		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(1.f, 1.f, 1.f));
+
+		m_ball.radius = BALL_RADIUS;
+		m_ball.position = getCenter();
+		m_ball.acceleration = GRAVITATIONAL_ACCELERATION * PIXELS_PER_METER / 3600.0;
+		getWindow()->setMinSize(m_ball.radius * 2 + 101.0, 0);
+		enableMouseEvents();
+
+		m_lastTimeMeasurementPoint = std::chrono::steady_clock::now();
+		queueAnimationUpdate();
+
+		run();
 	}
 
 	//------------------------------
@@ -86,20 +99,6 @@ public:
 	}
 
 	//------------------------------
-
-	void createContent()
-	{
-		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(1.f, 1.f, 1.f));
-
-		m_ball.radius = BALL_RADIUS;
-		m_ball.position = getCenter();
-		m_ball.acceleration = GRAVITATIONAL_ACCELERATION * PIXELS_PER_METER / 3600.0;
-		getWindow()->setMinSize(m_ball.radius * 2 + 101.0, 0);
-		enableMouseEvents();
-
-		m_lastTimeMeasurementPoint = std::chrono::steady_clock::now();
-		queueAnimationUpdate();
-	}
 
 	void handleSizeChange() override
 	{
@@ -185,6 +184,5 @@ public:
 
 int main()
 {
-	Application* application = new Application();
-	application->waitForFinish();
+	new Application();
 }

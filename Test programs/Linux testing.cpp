@@ -7,35 +7,26 @@ class App :
 {
 private:
 	float m_time{ 0.f };
-	AvoGUI::Image* m_image{ nullptr };
+	AvoGUI::Image m_image;
 
 public:
 	App()
 	{
 		create(u8"Linux test! Unicode: åäöâñëV݉sZ㇡ه搶o7賍", 600, 500, AvoGUI::WindowStyleFlags::Default);
-		waitForFinish();
-	}
-	~App()
-	{
-		if (m_image)
-		{
-			m_image->forget();
-		}
-	}
-
-	void createContent() override
-	{
+		
 		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(0));
 
 		queueAnimationUpdate();
 
 		m_image = getDrawingContext()->createImage("/home/bjorn/Pictures/test.png");
-		m_image->setBoundsSizing(AvoGUI::ImageBoundsSizing::Contain);
-		m_image->setBounds(getBounds());
+		m_image.setBoundsSizing(AvoGUI::ImageBoundsSizing::Contain);
+
+		run();
 	}
+
 	void handleSizeChange() override
 	{
-		m_image->setBounds(getBounds());
+		m_image.setBounds(getBounds());
 	}
 	void updateAnimations() override
 	{

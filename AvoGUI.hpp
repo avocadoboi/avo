@@ -693,7 +693,7 @@ namespace AvoGUI
 	class ReferenceCounted
 	{
 	private:
-		uint32 m_referenceCount;
+		std::atomic<uint32> m_referenceCount;
 
 	public:
 		ReferenceCounted() : m_referenceCount(1U) { }
@@ -728,6 +728,82 @@ namespace AvoGUI
 		uint32 getReferenceCount()
 		{
 			return m_referenceCount;
+		}
+	};
+
+	/*
+		Only used in the framework.
+	*/
+	template<typename T>
+	class ProtectedReferenceCounted : protected ReferenceCounted
+	{
+	protected:
+		T* m_implementation;
+
+		ProtectedReferenceCounted(T* p_implementation) :
+			m_implementation(p_implementation)
+		{
+		}
+
+	public:
+		ProtectedReferenceCounted() :
+			m_implementation(nullptr)
+		{
+		}
+		ProtectedReferenceCounted(T const& p_other) :
+			m_implementation(p_other.m_implementation)
+		{
+			if (m_implementation)
+			{
+				m_implementation->remember();
+			}
+		}
+		~ProtectedReferenceCounted()
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
+		}
+
+		virtual ProtectedReferenceCounted<T>& operator=(ProtectedReferenceCounted<T> const& p_other)
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
+			m_implementation = p_other.m_implementation;
+			if (m_implementation)
+			{
+				m_implementation->remember();
+			}
+			return *this;
+		}
+
+		bool operator==(T const& p_other)
+		{
+			return m_implementation == p_other.m_implementation;
+		}
+		bool operator!=(ProtectedReferenceCounted<T> const& p_other)
+		{
+			return m_implementation != p_other.m_implementation;
+		}
+
+		bool getIsValid()
+		{
+			return m_implementation;
+		}
+		operator bool()
+		{
+			return m_implementation;
+		}
+
+		void destroy()
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
 		}
 	};
 
@@ -778,6 +854,11 @@ namespace AvoGUI
 		These components can be Views, however they don't need to be.
 		Every component has its own responsibility, and using non-view components as well as view 
 		components can help separate the concerns of an application.
+		
+		All components which have a parent require being dynamically allocated with the new keyword,
+		and their memory is automatically managed by their parent so there is no need to call forget.
+		The root component, however, doesn't have a parent and could be allocated on the stack.
+
 		See AvoGUI::View and AvoGUI::Gui for more information.
 	*/
 	class Component : public ReferenceCounted
@@ -1735,6 +1816,188 @@ namespace AvoGUI
 	{
 		return p_start * (1.0 - p_progress) + p_end * p_progress;
 	}
+
+	//------------------------------
+
+	class Transform
+	{
+	public:
+		/*
+			These are the transform coefficients.
+		*/
+		float xToX{ 1.f }, yToX{ 0.f }, offsetX{ 0.f },
+			  xToY{ 0.f }, yToY{ 1.f }, offsetY{ 0.f };
+
+		//------------------------------
+
+		/*
+			Applies the transform to a point.
+		*/
+		Point<float> operator*(Point<float> const& p_point) const
+		{
+			return { 
+				xToX*p_point.x + yToX*p_point.y + offsetX, 
+				yToY*p_point.y + xToY*p_point.x + offsetY
+			};
+		}
+		/*
+			Returns p_transform applied to this transform.
+			Note that the order of multiplication matters. 
+			The right hand side is applied afterwards, meaning that the multiplication a*b is actually mathematically b*a.
+		*/
+		Transform operator*(Transform const& p_transform) const
+		{
+			return {
+				p_transform.xToX * xToX + p_transform.yToX * xToY,
+				p_transform.xToX * yToX + p_transform.yToX * yToY,
+				p_transform.xToX * offsetX + p_transform.yToX * offsetY,
+				p_transform.xToY * xToX + p_transform.yToY * xToY,
+				p_transform.xToY * yToX + p_transform.yToY * yToY,
+				p_transform.xToY * offsetX + p_transform.yToY * offsetY
+			};
+		}
+		/*
+			Applies another transform to this one.
+			Note that the order of multiplication matters.
+			The right hand side is applied afterwards, meaning that the multiplication a *= b is actually mathematically a2 = b*a.
+		*/
+		Transform& operator*=(Transform const& p_transform)
+		{
+			xToX = xToX * p_transform.xToX + p_transform.yToX * xToY;
+			yToX = p_transform.xToX * yToX + p_transform.yToX * yToY;
+			offsetX = p_transform.xToX * offsetX + p_transform.yToX * offsetY;
+			xToY = p_transform.xToY * xToX + p_transform.yToY * xToY;
+			yToY = p_transform.xToY * yToX + p_transform.yToY * yToY;
+			offsetY = p_transform.xToY * offsetX + p_transform.yToY * offsetY;
+			return *this;
+		}
+
+		//------------------------------
+
+		/*
+			Rotates transformed points around the origin by an angle expressed in radians.
+		*/
+		Transform rotate(float p_radians)
+		{
+			/*
+				[cos -sin  0]   [xToX yToX offsetX]
+				[sin  cos  0] * [xToY yToY offsetY]
+				[0    0    1]   [0    0    0      ]
+			*/
+			float cos = std::cos(p_radians);
+			float sin = std::sin(p_radians);
+
+			// Previous transformation
+			Transform p(*this);
+
+			xToX = cos * p.xToX - sin * p.xToY;
+			yToX = cos * p.yToX - sin * p.yToY;
+			offsetX = cos * p.offsetX - sin * p.offsetY;
+			xToY = sin * p.xToX + cos * p.xToY;
+			yToY = sin * p.yToX + cos * p.yToY;
+			offsetY = sin * p.offsetX + cos * p.offsetY;
+
+			return *this;
+		}
+		/*
+			Rotates transformed points around (p_originX, p_originY) by an angle expressed in radians.
+		*/
+		Transform& rotate(float p_radians, float p_originX, float p_originY)
+		{
+			offsetX -= p_originX;
+			offsetY -= p_originY;
+			rotate(p_radians);
+			offsetX += p_originX;
+			offsetY += p_originY;
+			return *this;
+		}
+		/*
+			Rotates transformed points around p_origin by an angle expressed in radians.
+		*/
+		Transform& rotate(float p_radians, AvoGUI::Point<float> const& p_origin)
+		{
+			return rotate(p_radians, p_origin.x, p_origin.y);
+		}
+
+		/*
+			Moves the translation by (p_dx, p_dy).
+		*/
+		Transform& translate(float p_dx, float p_dy)
+		{
+			offsetX += p_dx, offsetY += p_dy;
+			return *this;
+		}
+		/*
+			Moves the translation by (p_dx, p_dy).
+		*/
+		Transform& translate(Point<float> const& p_offset)
+		{
+			offsetX += p_offset.x, offsetY += p_offset.y;
+			return *this;
+		}
+		/*
+			Sets the absolute offset in coordinates caused by the transform.
+		*/
+		Transform& setTranslation(float p_x, float p_y)
+		{
+			offsetX = p_x, offsetY = p_y;
+			return *this;
+		}
+		/*
+			Sets the absolute offset in coordinates caused by the transform.
+		*/
+		Transform& setTranslation(Point<float> const& p_point)
+		{
+			offsetX = p_point.x, offsetY = p_point.y;
+			return *this;
+		}
+
+		/*
+			Scales the transform by a factor.
+		*/
+		Transform& scale(float p_scaleFactor)
+		{
+			xToX *= p_scaleFactor;
+			xToY *= p_scaleFactor;
+			yToY *= p_scaleFactor;
+			yToX *= p_scaleFactor;
+			return *this;
+		}
+		/*
+			Scales the transform by a horizontal and vertical factor.
+		*/
+		Transform& scale(float p_scaleFactorX, float p_scaleFactorY)
+		{
+			xToX *= p_scaleFactorX;
+			yToX *= p_scaleFactorX;
+			yToY *= p_scaleFactorY;
+			xToY *= p_scaleFactorY;
+			return *this;
+		}
+		/*
+			Scales the transform by a horizontal and vertical factor.
+		*/
+		Transform& scale(Point<float> const& p_scaleFactor)
+		{
+			xToX *= p_scaleFactor.x;
+			yToX *= p_scaleFactor.x;
+			yToY *= p_scaleFactor.y;
+			xToY *= p_scaleFactor.y;
+			return *this;
+		}
+		Transform& scaleX(float p_scaleFactor)
+		{
+			xToX *= p_scaleFactor;
+			yToX *= p_scaleFactor;
+			return *this;
+		}
+		Transform& scaleY(float p_scaleFactor)
+		{
+			yToY *= p_scaleFactor;
+			xToY *= p_scaleFactor;
+			return *this;
+		}
+	};
 
 	//------------------------------
 
@@ -2756,22 +3019,26 @@ namespace AvoGUI
 	protected:
 		Rectangle<float> m_bounds;
 
+		virtual void handleProtectedRectangleChange(Rectangle<float> const& p_oldRectangle) { }
+
 	public:
 		ProtectedRectangle() = default;
 		explicit ProtectedRectangle(Rectangle<float> const& p_bounds) : m_bounds(p_bounds) { }
 		explicit ProtectedRectangle(Rectangle<float>&& p_bounds) : m_bounds(p_bounds) { }
 
-		virtual void setBounds(Rectangle<float> const& p_rectangle)
-		{
-			m_bounds = p_rectangle;
-		}
 		virtual void setBounds(float p_left, float p_top, float p_right, float p_bottom)
 		{
+			Rectangle<float> oldRectangle(m_bounds);
 			m_bounds.set(p_left, p_top, p_right, p_bottom);
+			handleProtectedRectangleChange(oldRectangle);
+		}
+		virtual void setBounds(Rectangle<float> const& p_rectangle)
+		{
+			setBounds(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
 		virtual void setBounds(Point<float> const& p_position, Point<float> const& p_size)
 		{
-			m_bounds.set(p_position, p_size);
+			setBounds(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y);
 		}
 		virtual Rectangle<float> const& getBounds() const
 		{
@@ -2780,87 +3047,101 @@ namespace AvoGUI
 
 		//------------------------------
 
-		virtual void move(Point<float> const& p_offset)
-		{
-			m_bounds.move(p_offset);
-		}
 		virtual void move(float p_offsetX, float p_offsetY)
 		{
+			Rectangle<float> oldRectangle(m_bounds);
 			m_bounds.move(p_offsetX, p_offsetY);
+			handleProtectedRectangleChange(oldRectangle);
+		}
+		virtual void move(Point<float> const& p_offset)
+		{
+			move(p_offset.x, p_offset.y);
 		}
 		virtual void moveX(float p_offsetX)
 		{
+			Rectangle<float> oldRectangle(m_bounds);
 			m_bounds.moveX(p_offsetX);
+			handleProtectedRectangleChange(oldRectangle);
 		}
 		virtual void moveY(float p_offsetY)
 		{
+			Rectangle<float> oldRectangle(m_bounds);
 			m_bounds.moveY(p_offsetY);
+			handleProtectedRectangleChange(oldRectangle);
 		}
 
 		//------------------------------
 
+		virtual void setTopLeft(float p_left, float p_top, bool p_willKeepSize = true)
+		{
+			Rectangle<float> oldRectangle(m_bounds);
+			m_bounds.setTopLeft(p_left, p_top, p_willKeepSize);
+			handleProtectedRectangleChange(oldRectangle);
+		}
 		virtual void setTopLeft(float p_topAndLeft, bool p_willKeepSize = true)
 		{
-			m_bounds.setTopLeft(p_topAndLeft, p_willKeepSize);
+			setTopLeft(p_topAndLeft, p_topAndLeft, p_willKeepSize);
 		}
 		virtual void setTopLeft(Point<float> const& p_position, bool p_willKeepSize = true)
 		{
-			m_bounds.setTopLeft(p_position, p_willKeepSize);
-		}
-		virtual void setTopLeft(float p_left, float p_top, bool p_willKeepSize = true)
-		{
-			m_bounds.setTopLeft(p_left, p_top, p_willKeepSize);
+			setTopLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
 		virtual Point<float> getTopLeft() const
 		{
 			return m_bounds.getTopLeft();
 		}
 
+		virtual void setTopRight(float p_right, float p_top, bool p_willKeepSize = true)
+		{
+			Rectangle<float> oldRectangle(m_bounds);
+			m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
+			handleProtectedRectangleChange(oldRectangle);
+		}
 		virtual void setTopRight(float p_topAndRight, bool p_willKeepSize = true)
 		{
-			m_bounds.setTopRight(p_topAndRight, p_willKeepSize);
+			setTopRight(p_topAndRight, p_topAndRight, p_willKeepSize);
 		}
 		virtual void setTopRight(Point<float> const& p_topRight, bool p_willKeepSize = true)
 		{
-			m_bounds.setTopRight(p_topRight, p_willKeepSize);
-		}
-		virtual void setTopRight(float p_right, float p_top, bool p_willKeepSize = true)
-		{
-			m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
+			setTopRight(p_topRight.x, p_topRight.y, p_willKeepSize);
 		}
 		virtual Point<float> getTopRight() const
 		{
 			return m_bounds.getTopRight();
 		}
 
+		virtual void setBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true)
+		{
+			Rectangle<float> oldRectangle(m_bounds);
+			m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
+			handleProtectedRectangleChange(oldRectangle);
+		}
 		virtual void setBottomLeft(float p_bottomAndLeft, bool p_willKeepSize = true)
 		{
-			m_bounds.setBottomLeft(p_bottomAndLeft, p_willKeepSize);
+			setBottomLeft(p_bottomAndLeft, p_bottomAndLeft, p_willKeepSize);
 		}
 		virtual void setBottomLeft(Point<float> const& p_bottomLeft, bool p_willKeepSize = true)
 		{
-			m_bounds.setBottomLeft(p_bottomLeft, p_willKeepSize);
-		}
-		virtual void setBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true)
-		{
-			m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
+			setBottomLeft(p_bottomLeft.x, p_bottomLeft.y, p_willKeepSize);
 		}
 		virtual Point<float> getBottomLeft() const
 		{
 			return m_bounds.getBottomLeft();
 		}
 
+		virtual void setBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true)
+		{
+			Rectangle<float> oldRectangle(m_bounds);
+			m_bounds.setBottomRight(p_right, p_bottom, p_willKeepSize);
+			handleProtectedRectangleChange(oldRectangle);
+		}
 		virtual void setBottomRight(float p_bottomAndRight, bool p_willKeepSize = true)
 		{
-			m_bounds.setBottomRight(p_bottomAndRight, p_willKeepSize);
+			setBottomRight(p_bottomAndRight, p_bottomAndRight, p_willKeepSize);
 		}
 		virtual void setBottomRight(Point<float> const& p_bottomRight, bool p_willKeepSize = true)
 		{
-			m_bounds.setBottomRight(p_bottomRight, p_willKeepSize);
-		}
-		virtual void setBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true)
-		{
-			m_bounds.setBottomRight(p_right, p_bottom, p_willKeepSize);
+			setBottomRight(p_bottomRight.x, p_bottomRight.y, p_willKeepSize);
 		}
 		virtual Point<float> getBottomRight() const
 		{
@@ -2869,25 +3150,31 @@ namespace AvoGUI
 
 		//------------------------------
 
+		virtual void setCenter(float p_x, float p_y)
+		{
+			Rectangle<float> oldRectangle(m_bounds);
+			m_bounds.setCenter(p_x, p_y);
+			handleProtectedRectangleChange(oldRectangle);
+		}
 		virtual void setCenter(float p_centerXY)
 		{
-			m_bounds.setCenter(p_centerXY);
+			setCenter(p_centerXY, p_centerXY);
 		}
 		virtual void setCenter(Point<float> const& p_position)
 		{
-			m_bounds.setCenter(p_position);
-		}
-		virtual void setCenter(float p_x, float p_y)
-		{
-			m_bounds.setCenter(p_x, p_y);
+			setCenter(p_position.x, p_position.y);
 		}
 		virtual void setCenterX(float p_x)
 		{
+			Rectangle<float> oldRectangle(m_bounds);
 			m_bounds.setCenterX(p_x);
+			handleProtectedRectangleChange(oldRectangle);
 		}
 		virtual void setCenterY(float p_y)
 		{
+			Rectangle<float> oldRectangle(m_bounds);
 			m_bounds.setCenterY(p_y);
+			handleProtectedRectangleChange(oldRectangle);
 		}
 
 		virtual Point<float> getCenter() const
@@ -2907,7 +3194,9 @@ namespace AvoGUI
 
 		virtual void setLeft(float p_left, bool p_willKeepWidth = true)
 		{
+			Rectangle<float> oldRectangle(m_bounds);
 			m_bounds.setLeft(p_left, p_willKeepWidth);
+			handleProtectedRectangleChange(oldRectangle);
 		}
 		virtual float getLeft() const
 		{
@@ -2916,7 +3205,9 @@ namespace AvoGUI
 
 		virtual void setTop(float p_top, bool p_willKeepHeight = true)
 		{
+			Rectangle<float> oldRectangle(m_bounds);
 			m_bounds.setTop(p_top, p_willKeepHeight);
+			handleProtectedRectangleChange(oldRectangle);
 		}
 		virtual float getTop() const
 		{
@@ -2925,7 +3216,9 @@ namespace AvoGUI
 
 		virtual void setRight(float p_right, bool p_willKeepWidth = true)
 		{
+			Rectangle<float> oldRectangle(m_bounds);
 			m_bounds.setRight(p_right, p_willKeepWidth);
+			handleProtectedRectangleChange(oldRectangle);
 		}
 		virtual float getRight() const
 		{
@@ -2934,7 +3227,9 @@ namespace AvoGUI
 
 		virtual void setBottom(float p_bottom, bool p_willKeepHeight = true)
 		{
+			Rectangle<float> oldRectangle(m_bounds);
 			m_bounds.setBottom(p_bottom, p_willKeepHeight);
+			handleProtectedRectangleChange(oldRectangle);
 		}
 		virtual float getBottom() const
 		{
@@ -2945,7 +3240,9 @@ namespace AvoGUI
 
 		virtual void setWidth(float p_width)
 		{
+			Rectangle<float> oldRectangle(m_bounds);
 			m_bounds.setWidth(p_width);
+			handleProtectedRectangleChange(oldRectangle);
 		}
 		virtual float getWidth() const
 		{
@@ -2954,20 +3251,24 @@ namespace AvoGUI
 
 		virtual void setHeight(float p_height)
 		{
+			Rectangle<float> oldRectangle(m_bounds);
 			m_bounds.setHeight(p_height);
+			handleProtectedRectangleChange(oldRectangle);
 		}
 		virtual float getHeight() const
 		{
 			return m_bounds.getHeight();
 		}
 
-		virtual void setSize(Point<float> const& p_size)
-		{
-			m_bounds.setSize(p_size);
-		}
 		virtual void setSize(float p_width, float p_height)
 		{
+			Rectangle<float> oldRectangle(m_bounds);
 			m_bounds.setSize(p_width, p_height);
+			handleProtectedRectangleChange(oldRectangle);
+		}
+		virtual void setSize(Point<float> const& p_size)
+		{
+			setSize(p_size.x, p_size.y);
 		}
 		virtual Point<float> getSize() const
 		{
@@ -2982,11 +3283,11 @@ namespace AvoGUI
 		}
 		virtual bool getIsIntersecting(Rectangle<float> const& p_rectangle) const
 		{
-			return m_bounds.getIsIntersecting(p_rectangle);
+			return getIsIntersecting(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
-		virtual bool getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const
+		virtual bool getIsIntersecting(ProtectedRectangle* p_rectangle) const
 		{
-			return m_bounds.getIsIntersecting(p_protectedRectangle->getBounds());
+			return getIsIntersecting(p_rectangle->getLeft(), p_rectangle->getTop(), p_rectangle->getRight(), p_rectangle->getBottom());
 		}
 
 		virtual bool getIsContaining(float p_left, float p_top, float p_right, float p_bottom) const
@@ -2995,11 +3296,11 @@ namespace AvoGUI
 		}
 		virtual bool getIsContaining(Rectangle<float> const& p_rectangle) const
 		{
-			return m_bounds.getIsContaining(p_rectangle);
+			return getIsContaining(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
 		virtual bool getIsContaining(ProtectedRectangle* p_rectangle) const
 		{
-			return m_bounds.getIsContaining(p_rectangle);
+			return getIsContaining(p_rectangle->getLeft(), p_rectangle->getTop(), p_rectangle->getRight(), p_rectangle->getBottom());
 		}
 
 		virtual bool getIsContaining(float p_x, float p_y) const
@@ -3008,7 +3309,7 @@ namespace AvoGUI
 		}
 		virtual bool getIsContaining(Point<float> const& p_point) const
 		{
-			return m_bounds.getIsContaining(p_point);
+			return getIsContaining(p_point.x, p_point.y);
 		}
 	};
 
@@ -3154,12 +3455,234 @@ namespace AvoGUI
 
 		/*
 			Transforms a normalized value according to a cubic bezier curve.
+			(p_x0, p_y0) is the first control point and (p_x1, p_y1) is the second one.
 			p_precision is the maximum amount of error in the output value.
 
 			It calculates a quick newton's method estimation since the cubic bezier curve is defined as a calculation of points;
 			f(t) = (x, y) where 0 <= t <= 1, and we want to ease over x (p_value is x) and not t. This why we have a precision parameter.
 		*/
-		float easeValue(float p_value, float p_precision = 0.005f) const;
+		static float easeValue(float p_x0, float p_y0, float p_x1, float p_y1, float p_value, float p_precision = 0.005f)
+		{
+			/*
+				f(x) = 3*t*(1-t)*(1-t)*x0 + 3*t*t*(1-t)*x1 + t*t*t
+
+				f'(x) = x0*(3 - 12*t + 9*t*t) + x1*(6*t - 9*t*t) + 3*t*t
+			*/
+
+			if (p_value <= 0.00001f)
+			{
+				return 0.f;
+			}
+			if (p_value >= 0.99999f)
+			{
+				return 1.f;
+			}
+
+			float t = p_value < 0.5f ? 0.25f : 0.75f;
+
+			float error = 1;
+			while (abs(error) > p_precision)
+			{
+				error = p_value - t * ((1.f - t) * (3.f * (1.f - t) * p_x0 + 3.f * t * p_x1) + t * t);
+				t += error / (p_x0 * (3.f - 12.f * t + 9.f * t * t) + p_x1 * (6.f * t - 9.f * t * t) + 3.f * t * t);
+			}
+
+			return t * ((1.f - t) * (3.f * (1.f - t) * p_y0 + 3.f * t * p_y1) + t * t);
+		}
+		/*
+			Transforms a normalized value according to a cubic bezier curve.
+			p_precision is the maximum amount of error in the output value.
+
+			It calculates a quick newton's method estimation since the cubic bezier curve is defined as a calculation of points;
+			f(t) = (x, y) where 0 <= t <= 1, and we want to ease over x (p_value is x) and not t. This why we have a precision parameter.
+		*/
+		float easeValue(float p_value, float p_precision = 0.005f) const
+		{
+			return easeValue(x0, y0, x1, y1, p_value, p_precision);
+		}
+		/*
+			Transforms a normalized value according to the inverse of this cubic bezier curve,
+			so that easeValueInverse(easeValue(x)) = x (approximately)
+			p_precision is the maximum amount of error in the output value.
+		*/
+		float easeValueInverse(float p_value, float p_precision = 0.005f) const
+		{
+			return easeValue(y0, x0, y1, x1, p_value, p_precision);
+		}
+	};
+
+	class View;
+
+	/*
+		Class used for making animations.
+		To make an animation, call View::createAnimation from a view.
+		It is then cleaned up when the view destroys.
+	*/
+	class Animation : public ReferenceCounted
+	{
+	private:
+		bool m_isReversed{ false };
+	public:
+		void setIsReversed(bool p_isReversed)
+		{
+			if (p_isReversed != m_isReversed)
+			{
+				float value = m_easing.easeValue(std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - m_startTime).count() / m_milliseconds, m_easingPrecision);
+				m_startTime = std::chrono::steady_clock::now() - std::chrono::steady_clock::duration(uint64((m_easing.easeValueInverse(1.f - value))*m_milliseconds*1'000'000));
+			}
+			m_isReversed = p_isReversed;
+		}
+		bool getIsReversed()
+		{
+			return m_isReversed;
+		}
+
+	private:
+		bool m_isDone{ true };
+	public:
+		bool getIsDone()
+		{
+			return m_isDone;
+		}
+
+	private:
+		float m_milliseconds;
+	public:
+		void setDuration(float p_milliseconds)
+		{
+			m_milliseconds = p_milliseconds;
+		}
+		/*
+			Returns the duration of the animation in milliseconds.
+		*/
+		float getDuration()
+		{
+			return m_milliseconds;
+		}
+
+	private:
+		Easing m_easing;
+	public:
+		void setEasing(Easing const& p_easing)
+		{
+			m_easing = p_easing;
+		}
+		Easing getEasing()
+		{
+			return m_easing;
+		}
+
+	private:
+		float m_easingPrecision{ 0.005f };
+	public:
+		void setEasingPrecision(float p_easingPrecision)
+		{
+			m_easingPrecision = p_easingPrecision;
+		}
+		float getEasingPrecision()
+		{
+			return m_easingPrecision;
+		}
+
+	private:
+		View* m_view;
+		bool m_isInUpdateQueue{ false };
+		void queueUpdate();
+
+		void update()
+		{
+			float value = m_easing.easeValue(std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - m_startTime).count() / m_milliseconds, m_easingPrecision);
+			if (value >= 1.f)
+			{
+				m_isDone = true;
+				value = 1.f;
+			}
+			if (m_isReversed)
+			{
+				value = 1.f - value;
+			}
+			updateListeners(value);
+
+			m_isInUpdateQueue = false;
+			if (!m_isDone)
+			{
+				queueUpdate();
+			}
+		}
+
+	public:
+		/*
+			Listener signature:
+				void(float p_value)
+			p_value is between 0 and 1.
+			At first the animation goes forward, but if you call reverse() the direction is switched.
+		*/
+		EventListeners<void(float)> updateListeners;
+
+	private:
+		bool m_isPaused{ false };
+		std::chrono::steady_clock::time_point m_startTime;
+		std::chrono::steady_clock::time_point m_pauseTime;
+	public:
+		void play(bool p_isReversed)
+		{
+			setIsReversed(p_isReversed);
+			if (m_isPaused)
+			{
+				m_startTime += std::chrono::steady_clock::now() - m_pauseTime;
+			}
+			else if (m_isDone)
+			{
+				m_startTime = std::chrono::steady_clock::now();
+			}
+			m_isDone = false;
+			queueUpdate();
+		}
+		void play()
+		{
+			play(m_isReversed);
+		}
+		/*
+			If the animation is reversed then the animation value will start at 1 if p_startProgress is 0.
+		*/
+		void play(float p_startProgress)
+		{
+			m_isDone = false;
+			if (m_isReversed)
+			{
+				m_startTime = std::chrono::steady_clock::now() - std::chrono::steady_clock::duration(uint64((1.f - p_startProgress) * m_milliseconds*1'000'000));
+			}
+			else
+			{
+				m_startTime = std::chrono::steady_clock::now() - std::chrono::steady_clock::duration(uint64(p_startProgress * m_milliseconds * 1'000'000));
+			}
+		}
+		void pause()
+		{
+			m_isPaused = true;
+			m_isDone = true;
+		}
+		void stop()
+		{
+			m_isPaused = false;
+			m_isDone = true;
+		}
+		void replay()
+		{
+			stop();
+			play();
+		}
+
+	private:
+		friend class Gui;
+		friend class View;
+
+		Animation(View* p_view, Easing const& p_easing, float p_milliseconds) :
+			m_view(p_view),
+			m_easing(p_easing),
+			m_milliseconds(p_milliseconds)
+		{
+		}
 	};
 
 	//------------------------------
@@ -3300,6 +3823,53 @@ namespace AvoGUI
 			red = float(p_color >> 16u & 0xffu) / 255.f;
 			green = float(p_color >> 8u & 0xffu) / 255.f;
 			blue = float(p_color & 0xffu) / 255.f;
+			return *this;
+		}
+
+		Color operator*(float p_factor)
+		{
+			return { red * p_factor, green * p_factor, blue * p_factor };
+		}
+		Color& operator*=(float p_factor)
+		{
+			red *= p_factor;
+			green *= p_factor;
+			blue *= p_factor;
+			return *this;
+		}
+		Color operator/(float p_divisor)
+		{
+			return { red / p_divisor, green / p_divisor, blue / p_divisor };
+		}
+		Color& operator/=(float p_divisor)
+		{
+			red /= p_divisor;
+			green /= p_divisor;
+			blue /= p_divisor;
+			return *this;
+		}
+
+		Color operator+(float p_delta)
+		{
+			return { red + p_delta, green + p_delta, blue + p_delta };
+		}
+		Color& operator+=(float p_delta)
+		{
+			red += p_delta;
+			green += p_delta;
+			blue += p_delta;
+			return *this;
+		}
+
+		Color operator-(float p_delta)
+		{
+			return { red - p_delta, green - p_delta, blue - p_delta };
+		}
+		Color& operator-=(float p_delta)
+		{
+			red -= p_delta;
+			green -= p_delta;
+			blue -= p_delta;
 			return *this;
 		}
 
@@ -3887,6 +4457,13 @@ namespace AvoGUI
 		std::unordered_map<uint64, Easing> easings;
 		std::unordered_map<uint64, float> values;
 
+		Theme(Theme const& p_theme)
+		{
+			colors = p_theme.colors;
+			easings = p_theme.easings;
+			values = p_theme.values;
+		}
+
 		/*
 			This initializes the default global theme.
 		*/
@@ -3926,6 +4503,2522 @@ namespace AvoGUI
 	};
 
 	//------------------------------
+
+	/*
+		This specifies what is done to fit the image within its bounds.
+	*/
+	enum class ImageBoundsSizing
+	{
+		Stretch, // This stretches the image so that it fills its bounds.
+		Contain, // This makes sure the image is as big as possible while still keeping the image within its bounds. Aspect ratio is kept.
+		Fill // This makes sure the image is so big that it fills its bounds while keeping aspect ratio. Edges may be clipped.
+	};
+
+	/*
+		This specifies how the pixels of an image are interpolated when it is scaled.
+	*/
+	enum class ImageScalingMethod
+	{
+		Pixelated, // Uses nearest neighbor interpolation
+		Smooth // Uses linear interpolation
+	};
+
+	/*
+		The formats that an image can be encoded to and decoded from.
+	*/
+	enum class ImageFormat
+	{
+		Png,
+		Jpeg,
+		Bmp, // Only on Windows.
+		Ico, // Only on Windows.
+		Unknown
+	};
+
+	/*
+		Represents an image on the GPU which can be created and drawn by a DrawingContext.
+		Notice that this is not a view but should be treated as a drawable object.
+		The memory of an image is automatically managed and reference counted.
+		Here:
+			Image image_0 = getDrawingContext()->createImage("image.png");
+			Image image_1 = image_0;
+		image_1 and image_0 are referring to the same image, and the internal image object
+		is released once all references have been destroyed.
+	*/
+	class Image : public ProtectedRectangle, protected ReferenceCounted
+	{
+	private:
+		friend class DrawingContext;
+
+		Image* m_implementation;
+
+		Image(Image* p_implementation) :
+			m_implementation(p_implementation)
+		{
+		}
+
+	protected:
+		void handleProtectedRectangleChange(Rectangle<float> const& p_old) override
+		{
+			if (m_implementation)
+			{
+				m_implementation->setBounds(m_bounds);
+			}
+		}
+
+	public:
+		Image() :
+			m_implementation(nullptr)
+		{
+		}
+		Image(Image const& p_image) :
+			m_implementation(p_image.m_implementation)
+		{
+			if (m_implementation)
+			{
+				m_implementation->remember();
+				m_bounds = m_implementation->m_bounds;
+			}
+		}
+		~Image()
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
+		}
+
+		Image& operator=(Image const& p_image)
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
+			m_implementation = p_image.m_implementation;
+			if (m_implementation)
+			{
+				m_implementation->remember();
+				m_bounds = m_implementation->m_bounds;
+			}
+			return *this;
+		}
+		bool operator==(Image const& p_image) const
+		{
+			return p_image.m_implementation == m_implementation;
+		}
+		bool operator!=(Image const& p_image) const
+		{
+			return p_image.m_implementation != m_implementation;
+		}
+
+		/*
+			Returns whether the image has been created.
+			For example, an image created with Image() is invalid while one that has been created using a DrawingContext is valid.
+		*/
+		bool getIsValid() const
+		{
+			return m_implementation;
+		}
+		/*
+			Same as getIsValid.
+		*/
+		operator bool() const
+		{
+			return m_implementation;
+		}
+
+		/*
+			Makes the image invalid and releases the image if it isn't used anywhere else.
+		*/
+		void destroy()
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
+			m_implementation = nullptr;
+		}
+
+		/*
+			Sets a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
+			This is in original image DIP coordinates, meaning sizing is not taken into account.
+		*/
+		virtual void setCropRectangle(Rectangle<float> const& p_rectangle)
+		{
+			m_implementation->setCropRectangle(p_rectangle);
+		}
+		/*
+			Returns a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
+			This is in original image DIP coordinates, meaning sizing is not taken into account.
+		*/
+		virtual Rectangle<float> const& getCropRectangle() const
+		{
+			return m_implementation->getCropRectangle();
+		}
+
+		/*
+			Returns the DIP size of the actual image.
+		*/
+		virtual Point<uint32> getOriginalSize() const
+		{
+			return m_implementation->getOriginalSize();
+		}
+		/*
+			Returns the DIP width of the actual image.
+		*/
+		virtual uint32 getOriginalWidth() const
+		{
+			return m_implementation->getOriginalWidth();
+		}
+		/*
+			Returns the DIP height of the actual image.
+		*/
+		virtual uint32 getOriginalHeight() const
+		{
+			return m_implementation->getOriginalHeight();
+		}
+
+		//------------------------------
+
+		/*
+			Sets the way the image is fit within its bounds.
+		*/
+		virtual void setBoundsSizing(ImageBoundsSizing p_sizeMode)
+		{
+			m_implementation->setBoundsSizing(p_sizeMode);
+		}
+		/*
+			Returns the way the image is fit within its bounds.
+		*/
+		virtual ImageBoundsSizing getBoundsSizing() const
+		{
+			return m_implementation->getBoundsSizing();
+		}
+
+		/*
+			Sets the way the image is positioned within its bounds.
+
+			p_factor represents the coordinates of the point on the image that aligns with the same point but relative to the bounds.
+			It is expressed as a factor of the size of the image. For example, if p_factor is (1, 1), the bottom right corner of the image will be
+			aligned with the bottom right corner of the bounds. 0.5 means the centers will be aligned.
+		*/
+		virtual void setBoundsPositioning(Point<float> const& p_factor)
+		{
+			setBoundsPositioning(p_factor.x, p_factor.y);
+		}
+		/*
+			Sets the way the image is positioned within its bounds.
+
+			p_x represents the x coordinate of the point on the image that aligns with the same point but relative to the bounds.
+			p_x is expressed as a factor of the width of the image. For example, if p_x is 1, the right edge of the image will be
+			aligned with the right edge of the bounds. 0.5 means the centers will be aligned.
+			Same for p_y but vertical coordinates.
+		*/
+		virtual void setBoundsPositioning(float p_x, float p_y)
+		{
+			m_implementation->setBoundsPositioning(p_x, p_y);
+		}
+		/*
+			Sets the way the image is positioned within its bounds on the x-axis.
+
+			p_x represents the x coordinate of the point on the image that aligns with the same point but relative to the bounds.
+			p_x is expressed as a factor of the width of the image. For example, if p_x is 1, the right edge of the image will be
+			aligned with the right edge of the bounds. 0.5 means the centers will be aligned.
+		*/
+		virtual void setBoundsPositioningX(float p_x)
+		{
+			m_implementation->setBoundsPositioningX(p_x);
+		}
+		/*
+			Sets the way the image is positioned within its bounds on the y-axis.
+
+			p_y represents the y coordinate of the point on the image that aligns with the same point but relative to the bounds.
+			p_y is expressed as a factor of the height of the image. For example, if p_y is 1, the bottom edge of the image will be
+			aligned with the bottom edge of the bounds. 0.5 means the centers will be aligned.
+		*/
+		virtual void setBoundsPositioningY(float p_y)
+		{
+			m_implementation->setBoundsPositioningY(p_y);
+		}
+		/*
+			Returns the way the image is positioned within its bounds. See setBoundsPositioning for more info.
+		*/
+		virtual Point<float> const& getBoundsPositioning() const
+		{
+			return m_implementation->getBoundsPositioning();
+		}
+		/*
+			Returns the way the image is positioned within its bounds on the x-axis. See setBoundsPositioningX for more info.
+		*/
+		virtual float getBoundsPositioningX() const
+		{
+			return m_implementation->getBoundsPositioningX();
+		}
+		/*
+			Returns the way the image is positioned within its bounds on the y-axis. See setBoundsPositioningY for more info.
+		*/
+		virtual float getBoundsPositioningY() const
+		{
+			return m_implementation->getBoundsPositioningY();
+		}
+
+		//------------------------------
+
+		/*
+			Sets how the pixels of the image are interpolated when the image is scaled.
+		*/
+		virtual void setScalingMethod(ImageScalingMethod p_scalingMethod)
+		{
+			m_implementation->setScalingMethod(p_scalingMethod);
+		}
+		/*
+			Returns how the pixels of the image are interpolated when the image is scaled.
+		*/
+		virtual ImageScalingMethod getScalingMethod() const
+		{
+			return m_implementation->getScalingMethod();
+		}
+
+		//------------------------------
+
+		/*
+			Sets how opaque the image is being drawn.
+		*/
+		virtual void setOpacity(float p_opacity)
+		{
+			m_implementation->setOpacity(p_opacity);
+		}
+		/*
+			Returns how opaque the image is being drawn.
+		*/
+		virtual float getOpacity() const
+		{
+			return m_implementation->getOpacity();
+		}
+
+		//------------------------------
+
+		/*
+			Returns the drawn width of the image within the bounds, calculated using the sizing options and the crop rectangle.
+		*/
+		virtual float getInnerWidth() const
+		{
+			return m_implementation->getInnerWidth();
+		}
+		/*
+			Returns the drawn height of the image within the bounds, calculated using the sizing options and the crop rectangle.
+		*/
+		virtual float getInnerHeight() const
+		{
+			return m_implementation->getInnerHeight();
+		}
+		/*
+			Returns the drawn size of the image within the bounds, calculated using the sizing options and the crop rectangle.
+		*/
+		virtual Point<float> getInnerSize() const
+		{
+			return m_implementation->getInnerSize();
+		}
+		/*
+			Returns the drawn inner bounds of the image within the outer bounds, calculated using the positioning options, sizing options and the crop rectangle.
+		*/
+		virtual Rectangle<float> getInnerBounds() const
+		{
+			return m_implementation->getInnerBounds();
+		}
+
+		//------------------------------
+
+		/*
+			Returns a pointer to the os-specific image object.
+		*/
+		virtual void* getHandle() const
+		{
+			return m_implementation->getHandle();
+		}
+	};
+
+	//------------------------------
+
+	enum class WordWrapping
+	{
+		Emergency, // Keeps words whole unless a word is wider than the maximum width.
+		WholeWord, // Only wraps between words to prevent overflow.
+		Always, // Always wraps to the next line to prevent overflow.
+		Never // Allows overflow, never wraps.
+	};
+
+	enum class FontWeight
+	{
+		Thin = 100, // Thinnest option
+		UltraLight = 200,
+		Light = 300,
+		SemiLight = 350,
+		Regular = 400, // Normal thickness
+		Medium = 500, // A bit thicker than regular
+		SemiBold = 600,
+		Bold = 700,
+		UltraBold = 800,
+		Black = 900, // Second most thick option
+		UltraBlack = 950 // Most thick option
+	};
+
+	enum class FontStyle
+	{
+		Normal,
+		Oblique,
+		Italic
+	};
+
+	/*
+		The horizontal stretch of the font.
+		Only some fonts have different horizontal stretch options.
+	*/
+	enum class FontStretch
+	{
+		Undefined = 0,
+		UltraCondensed = 1, // Most condensed
+		ExtraCondensed = 2, // Second most condensed
+		Condensed = 3,
+		SemiCondensed = 4,
+		Medium = 5,
+		SemiStretched = 6,
+		Stretched = 7,
+		ExtraStretched = 8, // Second most stretched
+		UltraStretched = 9 // Most stretched
+	};
+
+	enum class TextAlign
+	{
+		Left,
+		Center,
+		Right,
+		Fill // Stretches the spaces of the text to make the left and right edges of the text line up with the bounds of the text.
+	};
+	enum class ReadingDirection
+	{
+		LeftToRight,
+		RightToLeft,
+		TopToBottom,
+		BottomToTop
+	};
+
+	/*
+		Represents a text block which can be calculated once and drawn any number of times by a DrawingContext.
+		Notice that this is not a view, but should be treated as a drawable object created by a DrawingContext.
+		The memory of a text object is automatically managed and reference counted.
+		Here:
+			Text text_0 = getDrawingContext()->createText("some text", 12.f);
+			Text text_1 = text_0;
+		text_1 and text_0 are referring to the same text, and the internal text object
+		is released once all references have been destroyed.
+	*/
+	class Text : public ProtectedRectangle, protected ReferenceCounted
+	{
+	private:
+		friend class DrawingContext;
+
+		Text* m_implementation;
+
+		Text(Text* p_implementation) :
+			m_implementation(p_implementation)
+		{
+		}
+
+	public:
+		Text() :
+			m_implementation(nullptr)
+		{
+		}
+		Text(Text const& p_text) :
+			m_implementation(p_text.m_implementation)
+		{
+			if (m_implementation)
+			{
+				m_implementation->remember();
+			}
+		}
+		~Text()
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
+		}
+
+		Text& operator=(Text const& p_text)
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
+			m_implementation = p_text.m_implementation;
+			if (m_implementation)
+			{
+				m_implementation->remember();
+			}
+			return *this;
+		}
+		bool operator==(Text const& p_text) const
+		{
+			return m_implementation == p_text.m_implementation;
+		}
+		bool operator!=(Text const& p_text) const
+		{
+			return m_implementation != p_text.m_implementation;
+		}
+
+		bool getIsValid() const
+		{
+			return m_implementation;
+		}
+		operator bool() const
+		{
+			return m_implementation;
+		}
+		/*
+			Returns whether the text has been created and can be used.
+			For example, an image created with Image() is invalid while one that has been created using a DrawingContext is valid.
+		*/
+		void destroy()
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
+			m_implementation = nullptr;
+		}
+
+		/*
+			Sets the rules for inserting line breaks in the text to avoid overflow.
+		*/
+		virtual void setWordWrapping(WordWrapping p_wordWrapping)
+		{
+			m_implementation->setWordWrapping(p_wordWrapping);
+		}
+		/*
+			Returns the type of rules used for inserting line breaks in the text to avoid overflow.
+		*/
+		virtual WordWrapping getWordWrapping()
+		{
+			return m_implementation->getWordWrapping();
+		}
+
+		/*
+			Sets the size of the bounding box to fit the text.
+			There may still be space between the tallest character in the text and the top edge of the bounds.
+			If you want the text to be positioned without any space on the top, call setIsTopTrimmed(true) before this.
+		*/
+		virtual void fitSizeToText()
+		{
+			m_implementation->fitSizeToText();
+		}
+		/*
+			Sets the width of the bounding box to fit the text.
+		*/
+		virtual void fitWidthToText()
+		{
+			m_implementation->fitWidthToText();
+		}
+		/*
+			Sets the height of the bounding box to fit the text.
+			There may still be space between the tallest character in the text and the top edge of the bounds.
+			If you want the text to be positioned without any space on the top, call setIsTopTrimmed(true) before this.
+		*/
+		virtual void fitHeightToText()
+		{
+			m_implementation->fitHeightToText();
+		}
+		/*
+			Returns the smallest size to contain the actual text.
+			If getIsTopTrimmed() == false, the height includes the space between the top of the tallest character
+			and the top edge of the bounds.
+		*/
+		virtual Point<float> getMinimumSize()
+		{
+			return m_implementation->getMinimumSize();
+		}
+		/*
+			Returns the smallest width to contain the actual text.
+		*/
+		virtual float getMinimumWidth()
+		{
+			return m_implementation->getMinimumWidth();
+		}
+		/*
+			Returns the smallest height to contain the actual text.
+			If getIsTopTrimmed() == false, this includes the space between the top of the tallest character
+			and the top edge of the bounds.
+		*/
+		virtual float getMinimumHeight()
+		{
+			return m_implementation->getMinimumHeight();
+		}
+
+		//------------------------------
+
+		/*
+			Sets whether the top of the text is trimmed so that there is no space between the top of the tallest
+			character of the text and the top edge of the bounds.
+
+			If this is false, the text is positioned within the bounds so that the baseline is at a fixed position,
+			and there may be space above the characters in the text to allow this. This is the default.
+
+			Setting this to true can be useful when you want to perfectly center text vertically.
+		*/
+		virtual void setIsTopTrimmed(bool p_isTopTrimmed)
+		{
+			m_implementation->setIsTopTrimmed(p_isTopTrimmed);
+		}
+		/*
+			Returns whether the top of the text is trimmed so that there is no space between the top of the tallest
+			character of the text and the top edge of the bounds. This is false by default.
+		*/
+		virtual bool getIsTopTrimmed()
+		{
+			return m_implementation->getIsTopTrimmed();
+		}
+
+		//------------------------------
+
+		/*
+			Returns the 2d position of a character in the text, specified by its index in the string.
+			p_isRelativeToOrigin is whether the position returned is relative to the origin of the drawing context.
+			If not, it is relative to the bounds of the text.
+		*/
+		virtual Point<float> getCharacterPosition(uint32 p_characterIndex, bool p_isRelativeToOrigin = false)
+		{
+			return m_implementation->getCharacterPosition(p_characterIndex, p_isRelativeToOrigin);
+		}
+		/*
+			Returns the width and height of a character in the text, specified by its index in the string.
+		*/
+		virtual Point<float> getCharacterSize(uint32 p_characterIndex)
+		{
+			return m_implementation->getCharacterSize(p_characterIndex);
+		}
+		/*
+			Returns a rectangle enclosing a character in the text, specified by its index in the string.
+			p_isRelativeToOrigin is whether the position of the bounds returned is relative to the origin of the drawing context.
+			If not, it is relative to the bounds of the text.
+		*/
+		virtual Rectangle<float> getCharacterBounds(uint32 p_characterIndex, bool p_isRelativeToOrigin = false)
+		{
+			return m_implementation->getCharacterBounds(p_characterIndex, p_isRelativeToOrigin);
+		}
+
+		/*
+			Returns the index of the character which is nearest to a point.
+			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context.
+			If not, it is relative to the bounds of the text.
+		*/
+		virtual uint32 getNearestCharacterIndex(Point<float> const& p_point, bool p_isRelativeToOrigin = false)
+		{
+			return m_implementation->getNearestCharacterIndex(p_point, p_isRelativeToOrigin);
+		}
+		/*
+			Returns the index of the character which is nearest to a point.
+
+			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context.
+			If not, it is relative to the bounds of the text.
+		*/
+		virtual uint32 getNearestCharacterIndex(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false)
+		{
+			return m_implementation->getNearestCharacterIndex(p_pointX, p_pointY, p_isRelativeToOrigin);
+		}
+		/*
+			Returns the index and position of the character which is nearest to a point.
+
+			p_outCharacterIndex is a pointer to the character index to be returned.
+			p_outCharacterPosition is a pointer to the 2d position to be returned.
+			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context.
+			If not, they are relative to the bounds of the text.
+		*/
+		virtual void getNearestCharacterIndexAndPosition(Point<float> const& p_point, uint32* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false)
+		{
+			return getNearestCharacterIndexAndPosition(p_point, p_outCharacterIndex, p_outCharacterPosition, p_isRelativeToOrigin);
+		}
+		/*
+			Returns the index and position of the character which is nearest to a point.
+
+			p_outCharacterIndex is a pointer to the character index to be returned.
+			p_outCharacterPosition is a pointer to the 2d position to be returned.
+			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context.
+			If not, they are relative to the bounds of the text.
+		*/
+		virtual void getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, uint32* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false)
+		{
+			m_implementation->getNearestCharacterIndexAndPosition(p_pointX, p_pointY, p_outCharacterIndex, p_outCharacterPosition, p_isRelativeToOrigin);
+		}
+		/*
+			Returns the index and bounds of the character which is nearest to a point.
+
+			p_outCharacterIndex is a pointer to the character index to be returned.
+			p_outCharacterBounds is a pointer to the bounding rectangle to be returned.
+			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.
+		*/
+		virtual void getNearestCharacterIndexAndBounds(Point<float> const& p_point, uint32* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false)
+		{
+			getNearestCharacterIndexAndBounds(p_point, p_outCharacterIndex, p_outCharacterBounds, p_isRelativeToOrigin);
+		}
+		/*
+			Returns the index and bounds of the character which is nearest to a point.
+
+			p_outCharacterIndex is a pointer to the character index to be returned.
+			p_outCharacterBounds is a pointer to the bounding rectangle to be returned.
+			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.
+		*/
+		virtual void getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, uint32* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false)
+		{
+			m_implementation->getNearestCharacterIndexAndBounds(p_pointX, p_pointY, p_outCharacterIndex, p_outCharacterBounds, p_isRelativeToOrigin);
+		}
+
+		//------------------------------
+
+		/*
+			Sets how the text is placed within the bounds.
+		*/
+		virtual void setTextAlign(TextAlign p_textAlign)
+		{
+			m_implementation->setTextAlign(p_textAlign);
+		}
+		/*
+			Returns how the text is placed within the bounds.
+		*/
+		virtual TextAlign getTextAlign()
+		{
+			return m_implementation->getTextAlign();
+		}
+
+		//------------------------------
+
+		/*
+			Sets the layout direction of the text.
+		*/
+		virtual void setReadingDirection(ReadingDirection p_readingDirection)
+		{
+			m_implementation->setReadingDirection(p_readingDirection);
+		}
+		/*
+			Returns the layout direction of the text.
+		*/
+		virtual ReadingDirection getReadingDirection()
+		{
+			return m_implementation->getReadingDirection();
+		}
+
+		//------------------------------
+
+		/*
+			Sets the font family to be used in a section of the text.
+
+			p_name is the name of the font family.
+
+			p_startPosition is the position of the first character to use this font.
+			If this is negative, it is relative to the end of the text.
+
+			p_length is the number of characters to use this font.
+			If this is negative, it goes to the left of the start position.
+			If it is 0, everything after the starting position will be affected.
+		*/
+		virtual void setFontFamily(std::string const& p_name, int32 p_startPosition = 0, int32 p_length = 0)
+		{
+			m_implementation->setFontFamily(p_name, p_startPosition, p_length);
+		}
+
+		//------------------------------
+
+		/*
+			Sets the spacing between characters in a section of the text.
+
+			p_startPosition is the position of the first character to use this spacing.
+			If this is negative, it is relative to the end of the text.
+
+			p_length is the number of characters to use this spacing.
+			If this is negative, it goes to the left of the start position.
+			If it is 0, everything after the starting position will be affected.
+		*/
+		virtual void setCharacterSpacing(float p_characterSpacing, int32 p_startPosition = 0, int32 p_length = 0)
+		{
+			m_implementation->setCharacterSpacing(p_characterSpacing, p_startPosition, p_length);
+		}
+		/*
+			Sets the leading and trailing spacing of the characters in a section of the text.
+
+			p_leading is the spacing before the characters of the text.
+			p_trailing is the spacing after the characters of the text.
+			p_startPosition is the position of the first character to use this spacing.
+			If this is negative, it is relative to the end of the text.
+
+			p_length is the number of characters to use this spacing.
+			If this is negative, it goes to the left of the start position.
+			If it is 0, everything after the starting position will be affected.
+		*/
+		virtual void setCharacterSpacing(float p_leading, float p_trailing, int32 p_startPosition = 0, int32 p_length = 0)
+		{
+			m_implementation->setCharacterSpacing(p_leading, p_trailing, p_startPosition, p_length);
+		}
+		/*
+			Returns the spacing before one of the characters.
+		*/
+		virtual float getLeadingCharacterSpacing(int32 p_characterIndex = 0)
+		{
+			return m_implementation->getLeadingCharacterSpacing(p_characterIndex);
+		}
+		/*
+			Returns the spacing after one of the characters.
+		*/
+		virtual float getTrailingCharacterSpacing(int32 p_characterIndex = 0)
+		{
+			return m_implementation->getTrailingCharacterSpacing(p_characterIndex);
+		}
+
+		//------------------------------
+
+		/*
+			Sets the distance between the baseline of lines in the text, as a factor of the default.
+		*/
+		virtual void setLineHeight(float p_lineHeight)
+		{
+			m_implementation->setLineHeight(p_lineHeight);
+		}
+		/*
+			Returns the distance between the baseline of lines in the text, as a factor of the default.
+		*/
+		virtual float getLineHeight()
+		{
+			return m_implementation->getLineHeight();
+		}
+
+		//------------------------------
+
+		/*
+			Sets the thickness of characters in a section of the text.
+
+			p_startPosition is the position of the first character to use this font weight.
+			If this is negative, it is relative to the end of the text.
+
+			p_length is the number of characters to use this font weight.
+			If this is negative, it goes to the left of the start position.
+			If it is 0, everything after the starting position will be affected.
+		*/
+		virtual void setFontWeight(FontWeight p_fontWeight, int32 p_startPosition = 0, int32 p_length = 0)
+		{
+			m_implementation->setFontWeight(p_fontWeight, p_startPosition, p_length);
+		}
+		/*
+			Returns the weight/thickness of a character in the text.
+		*/
+		virtual FontWeight getFontWeight(uint32 p_characterPosition = 0)
+		{
+			return m_implementation->getFontWeight(p_characterPosition);
+		}
+
+		//------------------------------
+
+		/*
+			Sets the font style in a section of the text.
+
+			p_startPosition is the position of the first character to use this font style.
+			If this is negative, it is relative to the end of the text.
+
+			p_length is the number of characters to use this font style.
+			If this is negative, it goes to the left of the start position.
+			If it is 0, everything after the starting position will be affected.
+		*/
+		virtual void setFontStyle(FontStyle p_fontStyle, int32 p_startPosition = 0, int32 p_length = 0)
+		{
+			m_implementation->setFontStyle(p_fontStyle, p_startPosition, p_length);
+		}
+		/*
+			Returns the style of a character in the text.
+		*/
+		virtual FontStyle getFontStyle(uint32 p_characterPosition = 0)
+		{
+			return m_implementation->getFontStyle(p_characterPosition);
+		}
+
+		//------------------------------
+
+		/*
+			Sets the font stretch in a section of the text. Not all fonts support this.
+
+			p_startPosition is the position of the first character to use this font stretch.
+			If this is negative, it is relative to the end of the text.
+
+			p_length is the number of characters to use this font stretch.
+			If this is negative, it goes to the left of the start position.
+			If it is 0, everything after the starting position will be affected.
+		*/
+		virtual void setFontStretch(FontStretch p_fontStretch, int32 p_startPosition = 0, int32 p_length = 0)
+		{
+			m_implementation->setFontStretch(p_fontStretch, p_startPosition, p_length);
+		}
+		/*
+			Returns the font stretch of a character in the text.
+		*/
+		virtual FontStretch getFontStretch(uint32 p_characterPosition = 0)
+		{
+			return m_implementation->getFontStretch(p_characterPosition);
+		}
+
+		//------------------------------
+
+		/*
+			Sets the font size in a section of the text.
+
+			p_startPosition is the position of the first character to use this font size.
+			If this is negative, it is relative to the end of the text.
+
+			p_length is the number of characters to use this font size.
+			If this is negative, it goes to the left of the start position.
+			If it is 0, everything after the starting position will be affected.
+		*/
+		virtual void setFontSize(float p_fontSize, int32 p_startPosition = 0, int32 p_length = 0)
+		{
+			m_implementation->setFontSize(p_fontSize, p_startPosition, p_length);
+		}
+		/*
+			Returns the size (height) of a character in the text.
+		*/
+		virtual float getFontSize(uint32 p_characterPosition = 0)
+		{
+			return m_implementation->getFontSize(p_characterPosition);
+		}
+
+		//------------------------------
+
+		virtual std::string const& getString()
+		{
+			return m_implementation->getString();
+		}
+
+		//------------------------------
+
+		/*
+			Returns a pointer to an OS-specific text object.
+		*/
+		virtual void* getHandle()
+		{
+			return m_implementation->getHandle();
+		}
+
+		//------------------------------
+
+		using ProtectedRectangle::setBounds;
+		void setBounds(float p_left, float p_top, float p_right, float p_bottom) override
+		{
+			m_implementation->ProtectedRectangle::setBounds(p_left, p_top, p_right, p_bottom);
+		}
+		Rectangle<float> const& getBounds() const override
+		{
+			return m_implementation->ProtectedRectangle::getBounds();
+		}
+
+		using ProtectedRectangle::move;
+		void move(float p_offsetX, float p_offsetY) override
+		{
+			m_implementation->ProtectedRectangle::move(p_offsetX, p_offsetY);
+		}
+		void moveX(float p_offsetX) override
+		{
+			m_implementation->ProtectedRectangle::moveX(p_offsetX);
+		}
+		void moveY(float p_offsetY) override
+		{
+			m_implementation->ProtectedRectangle::moveY(p_offsetY);
+		}
+
+		using ProtectedRectangle::setTopLeft;
+		void setTopLeft(float p_left, float p_top, bool p_willKeepSize = true) override
+		{
+			m_implementation->ProtectedRectangle::setTopLeft(p_left, p_top, p_willKeepSize);
+		}
+		Point<float> getTopLeft() const override
+		{
+			return m_implementation->ProtectedRectangle::getTopLeft();
+		}
+
+		using ProtectedRectangle::setTopRight;
+		void setTopRight(float p_right, float p_top, bool p_willKeepSize = true) override
+		{
+			m_implementation->ProtectedRectangle::setTopRight(p_right, p_top, p_willKeepSize);
+		}
+		Point<float> getTopRight() const override
+		{
+			return m_implementation->ProtectedRectangle::getTopRight();
+		}
+
+		using ProtectedRectangle::setBottomLeft;
+		void setBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true) override
+		{
+			m_implementation->ProtectedRectangle::setBottomLeft(p_left, p_bottom, p_willKeepSize);
+		}
+		Point<float> getBottomLeft() const override
+		{
+			return m_implementation->ProtectedRectangle::getBottomLeft();
+		}
+
+		using ProtectedRectangle::setBottomRight;
+		void setBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true) override
+		{
+			m_implementation->ProtectedRectangle::setBottomRight(p_right, p_bottom, p_willKeepSize);
+		}
+		Point<float> getBottomRight() const override
+		{
+			return m_implementation->ProtectedRectangle::getBottomRight();
+		}
+
+		using ProtectedRectangle::setCenter;
+		void setCenter(float p_x, float p_y) override
+		{
+			m_implementation->ProtectedRectangle::setCenter(p_x, p_y);
+		}
+		Point<float> getCenter() const override
+		{
+			return m_implementation->ProtectedRectangle::getCenter();
+		}
+		void setCenterX(float p_x) override
+		{
+			m_implementation->ProtectedRectangle::setCenterX(p_x);
+		}
+		float getCenterX() const override
+		{
+			return m_implementation->ProtectedRectangle::getCenterX();
+		}
+		void setCenterY(float p_y) override
+		{
+			m_implementation->ProtectedRectangle::setCenterY(p_y);
+		}
+		float getCenterY() const override
+		{
+			return m_implementation->ProtectedRectangle::getCenterY();
+		}
+		void setLeft(float p_left, bool p_willKeepWidth = true) override
+		{
+			m_implementation->ProtectedRectangle::setLeft(p_left, p_willKeepWidth);
+		}
+		float getLeft() const override
+		{
+			return m_implementation->ProtectedRectangle::getLeft();
+		}
+		void setTop(float p_top, bool p_willKeepHeight = true) override
+		{
+			m_implementation->ProtectedRectangle::setTop(p_top, p_willKeepHeight);
+		}
+		float getTop() const override
+		{
+			return m_implementation->ProtectedRectangle::getTop();
+		}
+		void setRight(float p_right, bool p_willKeepWidth = true) override
+		{
+			m_implementation->ProtectedRectangle::setRight(p_right, p_willKeepWidth);
+		}
+		float getRight() const override
+		{
+			return m_implementation->ProtectedRectangle::getRight();
+		}
+		void setBottom(float p_bottom, bool p_willKeepHeight = true) override
+		{
+			m_implementation->ProtectedRectangle::setBottom(p_bottom, p_willKeepHeight);
+		}
+		float getBottom() const override
+		{
+			return m_implementation->ProtectedRectangle::getBottom();
+		}
+		void setWidth(float p_width) override
+		{
+			m_implementation->ProtectedRectangle::setWidth(p_width);
+		}
+		float getWidth() const override
+		{
+			return m_implementation->ProtectedRectangle::getWidth();
+		}
+		void setHeight(float p_height) override
+		{
+			m_implementation->ProtectedRectangle::setHeight(p_height);
+		}
+		float getHeight() const override
+		{
+			return m_implementation->ProtectedRectangle::getHeight();
+		}
+
+		using ProtectedRectangle::setSize;
+		void setSize(float p_width, float p_height) override
+		{
+			m_implementation->ProtectedRectangle::setSize(p_width, p_height);
+		}
+		Point<float> getSize() const override
+		{
+			return m_implementation->ProtectedRectangle::getSize();
+		}
+
+		using ProtectedRectangle::getIsIntersecting;
+		bool getIsIntersecting(float p_left, float p_top, float p_right, float p_bottom) const override
+		{
+			return m_implementation->ProtectedRectangle::getIsIntersecting(p_left, p_top, p_right, p_bottom);
+		}
+		bool getIsContaining(float p_left, float p_top, float p_right, float p_bottom) const override
+		{
+			return m_implementation->ProtectedRectangle::getIsContaining(p_left, p_top, p_right, p_bottom);
+		}
+
+		using ProtectedRectangle::getIsContaining;
+		bool getIsContaining(float p_x, float p_y) const override
+		{
+			return m_implementation->ProtectedRectangle::getIsContaining(p_x, p_y);
+		}
+	};
+
+	class LinearGradient : public ProtectedReferenceCounted<LinearGradient>
+	{
+	private:
+		friend class DrawingContext;
+
+		LinearGradient(LinearGradient* p_implementation) :
+			ProtectedReferenceCounted(p_implementation)
+		{
+		}
+
+	public:
+		LinearGradient()
+		{
+		}
+		LinearGradient(LinearGradient const& p_gradient) :
+			ProtectedReferenceCounted(p_gradient)
+		{
+		}
+
+		virtual void* getHandle() const
+		{
+			return m_implementation->getHandle();
+		}
+
+		/*
+			Sets an offset in the start and end positions.
+		*/
+		virtual void setOffset(Point<float> const& p_offset)
+		{
+			setOffset(p_offset.x, p_offset.y);
+		}
+		/*
+			Sets an offset in the start and end positions.
+		*/
+		virtual void setOffset(float p_x, float p_y)
+		{
+			m_implementation->setOffset(p_x, p_y);
+		}
+		/*
+			Sets the horizontal offset in the start position.
+		*/
+		virtual void setOffsetX(float p_x)
+		{
+			m_implementation->setOffsetX(p_x);
+		}
+		/*
+			Sets the vertical offset in the start position.
+		*/
+		virtual void setOffsetY(float p_y)
+		{
+			m_implementation->setOffsetY(p_y);
+		}
+
+		/*
+			Returns the offset in the start and end positions.
+		*/
+		virtual Point<float> const& getOffset() const
+		{
+			return m_implementation->getOffset();
+		}
+		/*
+			Returns the horizontal offset in the start and end positions.
+		*/
+		virtual float getOffsetX() const
+		{
+			return m_implementation->getOffsetX();
+		}
+		/*
+			Returns the vertical offset in the start and end positions.
+		*/
+		virtual float getOffsetY() const
+		{
+			return m_implementation->getOffsetY();
+		}
+
+		/*
+			Sets the coordinates where the gradient will start, relative to the origin.
+		*/
+		virtual void setStartPosition(Point<float> const& p_startPosition)
+		{
+			setStartPosition(p_startPosition.x, p_startPosition.y);
+		}
+		/*
+			Sets the coordinates relative to the origin where the gradient will start.
+		*/
+		virtual void setStartPosition(float p_x, float p_y)
+		{
+			m_implementation->setStartPosition(p_x, p_y);
+		}
+		/*
+			Returns the coordinates relative to the origin where the gradient will start.
+		*/
+		virtual Point<float> const& getStartPosition() const
+		{
+			return m_implementation->getStartPosition();
+		}
+		/*
+			Returns the X coordinate relative to the origin where the gradient will start.
+		*/
+		virtual float getStartPositionX() const
+		{
+			return m_implementation->getStartPositionX();
+		}
+		/*
+			Returns the Y coordinate relative to the origin where the gradient will start.
+		*/
+		virtual float getStartPositionY() const
+		{
+			return m_implementation->getStartPositionY();
+		}
+
+		/*
+			Sets the coordinates relative to the origin where the gradient will end.
+		*/
+		virtual void setEndPosition(Point<float> const& p_endPosition)
+		{
+			setEndPosition(p_endPosition.x, p_endPosition.y);
+		}
+		/*
+			Sets the coordinates relative to the origin where the gradient will end.
+		*/
+		virtual void setEndPosition(float p_x, float p_y)
+		{
+			m_implementation->setEndPosition(p_x, p_y);
+		}
+		/*
+			Returns the coordinates relative to the origin where the gradient will end.
+		*/
+		virtual Point<float> const& getEndPosition() const
+		{
+			return m_implementation->getEndPosition();
+		}
+		/*
+			Returns the X coordinate relative to the origin where the gradient will end.
+		*/
+		virtual float getEndPositionX() const
+		{
+			return m_implementation->getEndPositionX();
+		}
+		/*
+			Returns the Y coordinate relative to the origin where the gradient will end.
+		*/
+		virtual float getEndPositionY() const
+		{
+			return m_implementation->getEndPositionY();
+		}
+	};
+
+	class RadialGradient : public ProtectedReferenceCounted<RadialGradient>
+	{
+	private:
+		friend class DrawingContext;
+
+		RadialGradient(RadialGradient* p_implementation) :
+			ProtectedReferenceCounted(p_implementation)
+		{
+		}
+
+	public:
+		RadialGradient()
+		{
+		}
+		RadialGradient(RadialGradient const& p_gradient) :
+			ProtectedReferenceCounted(p_gradient)
+		{
+		}
+
+		virtual void* getHandle() const
+		{
+			return m_implementation->getHandle();
+		}
+
+		/*
+			Sets an offset in the start position.
+		*/
+		virtual void setOffset(float p_x, float p_y)
+		{
+			m_implementation->setOffset(p_x, p_y);
+		}
+		/*
+			Sets an offset in the start position.
+		*/
+		virtual void setOffset(Point<float> const& p_offset)
+		{
+			setOffset(p_offset.x, p_offset.y);
+		}
+		/*
+			Sets the horizontal offset in the start position.
+		*/
+		virtual void setOffsetX(float p_x)
+		{
+			m_implementation->setOffsetX(p_x);
+		}
+		/*
+			Sets the vertical offset in the start position.
+		*/
+		virtual void setOffsetY(float p_y)
+		{
+			m_implementation->setOffsetY(p_y);
+		}
+		/*
+			Returns the offset in the start position.
+		*/
+		virtual Point<float> const& getOffset() const
+		{
+			return m_implementation->getOffset();
+		}
+		/*
+			Returns the horizontal offset in the start position.
+		*/
+		virtual float getOffsetX() const
+		{
+			return m_implementation->getOffsetX();
+		}
+		/*
+			Returns the vertical offset in the start position.
+		*/
+		virtual float getOffsetY() const
+		{
+			return m_implementation->getOffsetY();
+		}
+
+		/*
+			Sets the coordinates relative to the origin where the gradient will start.
+		*/
+		virtual void setStartPosition(float p_x, float p_y)
+		{
+			m_implementation->setStartPosition(p_x, p_y);
+		}
+		/*
+			Sets the coordinates where the gradient will start, relative to the origin.
+		*/
+		virtual void setStartPosition(Point<float> const& p_startPosition)
+		{
+			setStartPosition(p_startPosition.x, p_startPosition.y);
+		}
+		/*
+			Returns the coordinates relative to the origin where the gradient will start.
+		*/
+		virtual Point<float> const& getStartPosition() const
+		{
+			return m_implementation->getStartPosition();
+		}
+		/*
+			Returns the X coordinate relative to the origin where the gradient will start.
+		*/
+		virtual float getStartPositionX() const
+		{
+			return m_implementation->getStartPositionX();
+		}
+		/*
+			Returns the Y coordinate relative to the origin where the gradient will start.
+		*/
+		virtual float getStartPositionY() const
+		{
+			return m_implementation->getStartPositionY();
+		}
+
+		/*
+			Sets the horizontal and vertical size of the gradient.
+		*/
+		virtual void setRadius(float p_radiusX, float p_radiusY)
+		{
+			m_implementation->setRadius(p_radiusX, p_radiusY);
+		}
+		/*
+			Sets the horizontal and vertical size of the gradient.
+		*/
+		virtual void setRadius(float p_radius)
+		{
+			setRadius(p_radius, p_radius);
+		}
+		/*
+			Sets the horizontal and vertical size of the gradient.
+		*/
+		virtual void setRadius(Point<float> const& p_radius)
+		{
+			setRadius(p_radius.x, p_radius.y);
+		}
+		/*
+			Returns the horizontal and vertical size of the gradient.
+		*/
+		virtual Point<float> const& getRadius() const
+		{
+			return m_implementation->getRadius();
+		}
+		/*
+			Returns the horizontal size of the gradient.
+		*/
+		virtual float getRadiusX() const
+		{
+			return m_implementation->getRadiusX();
+		}
+		/*
+			Returns the vertical size of the gradient.
+		*/
+		virtual float getRadiusY() const
+		{
+			return m_implementation->getRadiusY();
+		}
+	};
+
+	/*
+		A class representing a position and a color, used to make a gradient.
+		The position between 0 and 1 and is relative to the start and end positions if it's linear,
+		and relative to the start position and radius if it's radial.
+	*/
+	class GradientStop
+	{
+	public:
+		AvoGUI::Color color;
+		float position;
+
+		GradientStop(AvoGUI::Color const& p_color, float p_position) :
+			color(p_color), position(p_position)
+		{
+		}
+	};
+
+	/*
+		Platform-specific interface for cached geometry that can be created and drawn by a DrawingContext.
+		Used to draw more efficiently.
+	*/
+	class Geometry : public ProtectedReferenceCounted<Geometry> 
+	{ 
+	private:
+		friend class DrawingContext;
+
+		Geometry(Geometry* p_implementation) :
+			ProtectedReferenceCounted(p_implementation)
+		{
+		}
+
+	public:
+		Geometry()
+		{
+		}
+		Geometry(Geometry const& p_geometry) :
+			ProtectedReferenceCounted(p_geometry)
+		{
+		}
+	};
+
+	/*
+		Used to store the drawing state of a DrawingContext, which includes the current transformations.
+		Create one with DrawingContext::createDrawingState().
+	*/
+	class DrawingState : public ReferenceCounted { };
+
+	class TextProperties
+	{
+	public:
+		std::string fontFamilyName{ "Roboto" };
+
+		FontWeight fontWeight{ FontWeight::Medium };
+		FontStyle fontStyle{ FontStyle::Normal };
+		FontStretch fontStretch{ FontStretch::Medium };
+		TextAlign textAlign{ TextAlign::Left };
+		ReadingDirection readingDirection{ ReadingDirection::LeftToRight };
+
+		float characterSpacing{ 0.f }; // Only supported for text objects.
+		float lineHeight{ 1.f };
+		float fontSize{ 22.f };
+	};
+
+	enum class LineCap
+	{
+		Flat,
+		Round,
+		Square,
+		Triangle
+	};
+
+	enum class LineJoin
+	{
+		Bevel,
+		Miter,
+		Round
+	};
+
+	enum class LineDashStyle
+	{
+		Solid,
+		Dash,
+		Dot,
+		DashDot,
+		DashDotDot,
+		Custom
+	};
+
+	/*
+		A drawing context interface, created by a GUI to be used to create objects
+		like text and images (and more) as well as to draw graphics in views.
+	*/
+	class DrawingContext : public ReferenceCounted
+	{
+	protected:
+		TextProperties m_textProperties;
+
+		static Image createImageFromImplementation(Image* p_implementation)
+		{
+			return Image(p_implementation);
+		}
+		static Text createTextFromImplementation(Text* p_implementation)
+		{
+			return Text(p_implementation);
+		}
+		static LinearGradient createLinearGradientFromImplementation(LinearGradient* p_implementation)
+		{
+			return LinearGradient(p_implementation);
+		}
+		static RadialGradient createRadialGradientFromImplementation(RadialGradient* p_implementation)
+		{
+			return RadialGradient(p_implementation);
+		}
+		static Geometry createGeometryFromImplementation(Geometry* p_geometry)
+		{
+			return Geometry(p_geometry);
+		}
+		static Geometry* getGeometryImplementation(Geometry const& p_geometry)
+		{
+			return p_geometry.m_implementation;
+		}
+
+	public:
+		/*
+			Returns the image format of the given image file.
+			Only the first 8 bytes of the file is needed.
+		*/
+		static auto getImageFormatOfFile(uint64 p_fileData)
+		{
+			if (!std::strncmp((char const*)&p_fileData, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8))
+			{
+				return AvoGUI::ImageFormat::Png;
+			}
+			else if (!std::strncmp((char const*)&p_fileData, "\xFF\xD8\xFF", 3))
+			{
+				return AvoGUI::ImageFormat::Jpeg;
+			}
+			else if (!std::strncmp((char const*)&p_fileData, "\x00\x00\x01\x00", 4) ||
+			         !std::strncmp((char const*)&p_fileData, "\x00\x00\x02\x00", 4))
+			{
+				return AvoGUI::ImageFormat::Ico;
+			}
+			return AvoGUI::ImageFormat::Unknown;
+		}
+		/*
+			Returns the image format of the given image file.
+		*/
+		static AvoGUI::ImageFormat getImageFormatOfFile(std::string const& p_filePath)
+		{
+			char signatureBytes[8];
+
+			std::ifstream fileStream(p_filePath);
+			fileStream.read(signatureBytes, 8);
+			fileStream.close();
+
+			return getImageFormatOfFile(*(uint64*)signatureBytes);
+		}
+		/*
+			Returns the image format of the given image file.
+		*/
+		static AvoGUI::ImageFormat getImageFormatOfFile(char const* p_filePath)
+		{
+			char signatureBytes[8];
+
+			std::ifstream fileStream(p_filePath);
+			fileStream.read(signatureBytes, 8);
+			fileStream.close();
+
+			return getImageFormatOfFile(*(uint64*)signatureBytes);
+		}
+
+		//------------------------------
+
+		/*
+			Initializes drawing. The GUI calls this for you.
+		*/
+		virtual void beginDrawing() = 0;
+		/*
+			Finishes the drawing and shows it. The GUI calls this for you.
+		*/
+		virtual void finishDrawing(std::vector<Rectangle<float>> const& p_updatedRectangles) = 0;
+
+		//------------------------------
+
+		/*
+			Creates a drawing state object.
+			It can be re-used and you can call saveDrawingState and restoreDrawingState as many times as you want.
+		*/
+		virtual DrawingState* createDrawingState() = 0;
+		/*
+			Saves the internal drawing state of the drawing context in a DrawingState object.
+		*/
+		virtual void saveDrawingState(DrawingState* p_drawingState) = 0;
+		/*
+			Loads the internal drawing state of the drawing context from a DrawingState object.
+		*/
+		virtual void restoreDrawingState(DrawingState* p_drawingState) = 0;
+
+		//------------------------------
+
+		/*
+			Sets whether the target is fullscreen or windowed.
+		*/
+		virtual void setIsFullscreen(bool p_isFullscreen) = 0;
+		/*
+			Switches between windowed and fullscreen mode.
+			If it is currently windowed, it switches to fullscreen, and the other way around.
+		*/
+		virtual void switchFullscreen() = 0;
+		/*
+			Returns whether the target is fullscreen or windowed.
+		*/
+		virtual bool getIsFullscreen() = 0;
+
+		//------------------------------
+
+		/*
+			Enables synchronization with the monitor.
+		*/
+		virtual void enableVsync() = 0;
+		/*
+			Disables synchronization with the monitor.
+		*/
+		virtual void disableVsync() = 0;
+		/*
+			Returns whether presentation is synchronized with the monitor.
+		*/
+		virtual bool getIsVsyncEnabled() = 0;
+
+		//------------------------------
+
+		/*
+			Sets the color that the target is filled with before any drawing.
+		*/
+		virtual void setBackgroundColor(Color const& p_color) = 0;
+		/*
+			Returns the color that the target is filled with before any drawing.
+		*/
+		virtual Color getBackgroundColor() = 0;
+
+		//------------------------------
+
+		/*
+			Returns the DPI that the DrawingContext is scaling all DIP units to.
+			All coordinates that the DrawingContext works with are in DIPs.
+		*/
+		virtual float getDpi() = 0;
+		/*
+			Sets the DPI that the DrawingContext is scaling all DIP units to.
+			It is not recommended to call this manually, since any DPI changes are updated with this method automatically from the corresponding window.
+			All coordinates that the DrawingContext works with are in DIPs.
+		*/
+		virtual void setDpi(float p_dpi) = 0;
+
+		//------------------------------
+
+		/*
+			Moves the screen position of the coordinate (0, 0).
+		*/
+		virtual void moveOrigin(Point<float> const& p_offset) = 0;
+		/*
+			Moves the screen position of the coordinate (0, 0).
+		*/
+		virtual void moveOrigin(float p_offsetX, float p_offsetY) = 0;
+		/*
+			Sets the screen position of the coordinate (0, 0).
+		*/
+		virtual void setOrigin(Point<float> const& p_origin) = 0;
+		/*
+			Sets the screen position of the coordinate (0, 0).
+		*/
+		virtual void setOrigin(float p_x, float p_y) = 0;
+		/*
+			Returns the screen position of the coordinate (0, 0).
+		*/
+		virtual Point<float> getOrigin() = 0;
+
+		//------------------------------
+
+		/*
+			Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.
+			Everything will be scaled towards the origin.
+		*/
+		virtual void scale(float p_scale) = 0;
+		/*
+			Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics
+			drawing so that it is bigger or smaller. Everything will be scaled towards the origin.
+		*/
+		virtual void scale(float p_scaleX, float p_scaleY) = 0;
+		/*
+			Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.
+			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
+		*/
+		virtual void scale(float p_scale, Point<float> const& p_origin) = 0;
+		/*
+			Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics
+			drawing so that it is bigger or smaller. Everything will be scaled towards the origin parameter, which is relative
+			to the top-left corner of the window.
+		*/
+		virtual void scale(float p_scaleX, float p_scaleY, Point<float> const& p_origin) = 0;
+		/*
+			Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.
+			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
+		*/
+		virtual void scale(float p_scale, float p_originX, float p_originY) = 0;
+		/*
+			Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics
+			drawing so that it is bigger or smaller. The origin is shifted so that everything is scaled towards the origin
+			parameter, which is relative to the top-left corner of the window.
+		*/
+		virtual void scale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) = 0;
+		/*
+			sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.
+			Everything will be scaled towards the origin.
+		*/
+		virtual void setScale(float p_scale) = 0;
+		/*
+			Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics
+			drawing so that it is bigger or smaller than normal. Everything will be scaled towards the origin.
+		*/
+		virtual void setScale(float p_scaleX, float p_scaleY) = 0;
+		/*
+			Sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.
+			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
+		*/
+		virtual void setScale(float p_scale, Point<float> const& p_origin) = 0;
+		/*
+			Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics drawing so that
+			it is bigger or smaller than normal. Everything will be scaled towards the origin parameter, which is relative
+			to the top-left corner of the window.
+		*/
+		virtual void setScale(float p_scaleX, float p_scaleY, Point<float> const& p_origin) = 0;
+		/*
+			Sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.
+			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
+		*/
+		virtual void setScale(float p_scale, float p_originX, float p_originY) = 0;
+		/*
+			Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics
+			drawing so that it is bigger or smaller. The origin is shifted so that everything is scaled towards the origin
+			parameter, which is relative to the top-left corner of the window.
+		*/
+		virtual void setScale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) = 0;
+		/*
+			Returns the sizing factor which is transforming graphics drawing so that it is bigger or smaller.
+			If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.
+		*/
+		virtual Point<float> const& getScale() = 0;
+		/*
+			Returns the sizing factor for the x-axis which is transforming graphics drawing so that it is bigger or smaller.
+			If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.
+		*/
+		virtual float getScaleX() = 0;
+		/*
+			Returns the sizing factor for the y-axis which is transforming graphics drawing so that it is bigger or smaller.
+			If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.
+		*/
+		virtual float getScaleY() = 0;
+
+		//------------------------------
+
+		/*
+			Rotates all future graphics drawing, with an angle in radians. Graphics will be rotated relative to the origin.
+			p_radians is the angle to rotate, in radians.
+			Positive angle is clockwise and negative is anticlockwise (in our coordinate system).
+		*/
+		virtual void rotate(float p_radians) = 0;
+		/*
+			Rotates all future graphics drawing, with an angle in radians.
+			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
+			p_radians is the angle to rotate, in radians.
+			Positive angle is clockwise and negative is anticlockwise (in our coordinate system).
+		*/
+		virtual void rotate(float p_radians, Point<float> const& p_origin) = 0;
+		/*
+			Rotates all future graphics drawing, with an angle in radians.
+			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
+			p_radians is the angle to rotate, in radians.
+			Positive angle is clockwise and negative is anticlockwise (in our coordinate system).
+		*/
+		virtual void rotate(float p_radians, float p_originX, float p_originY) = 0;
+
+		//------------------------------
+
+		/*
+			Resets all graphics drawing transformations, so that every coordinate used in any drawing operation is unaltered, and relative to the top-left corner of the target.
+		*/
+		virtual void resetTransformations() = 0;
+
+		//------------------------------
+
+		/*
+			Resizes the drawing buffers for the window. The GUI calls this for you when it is being resized.
+			The size is expressed in dips.
+		*/
+		virtual void setSize(Point<float> const& p_size) = 0;
+		/*
+			Resizes the drawing buffers for the window. The GUI calls this for you when it is being resized.
+			The size is expressed in dips.
+		*/
+		virtual void setSize(float p_width, float p_height) = 0;
+		/*
+			Returns the size of the drawing buffers for the window, in dips.
+		*/
+		virtual Point<float> getSize() = 0;
+
+		//------------------------------
+
+		/*
+			Clears the whole buffer with the specified color.
+		*/
+		virtual void clear(Color const& p_color) = 0;
+		/*
+			Clears the whole buffer with a transparent background.
+		*/
+		virtual void clear() = 0;
+
+		//------------------------------
+
+		/*
+			Draws a filled rectangle using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRectangle(Rectangle<float> const& p_rectangle) = 0;
+		/*
+			Draws a filled rectangle using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRectangle(Point<float> const& p_position, Point<float> const& p_size) = 0;
+		/*
+			Draws a filled rectangle using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRectangle(float p_left, float p_top, float p_right, float p_bottom) = 0;
+		/*
+			Draws a filled rectangle at the origin using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRectangle(Point<float> const& p_size) = 0;
+		/*
+			Draws a filled rectangle at the origin using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRectangle(float p_width, float p_height) = 0;
+
+		/*
+			Draws a filled rectangle with custom corners using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_rectangleCorners) = 0;
+		/*
+			Draws a filled rectangle with custom corners using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRectangle(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_rectangleCorners) = 0;
+		/*
+			Draws a filled rectangle with custom corners using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_rectangleCorners) = 0;
+
+		/*
+			Draws a filled rectangle with custom corners at the origin using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRectangle(Point<float> const& p_size, RectangleCorners const& p_rectangleCorners) = 0;
+		/*
+			Draws a filled rectangle with custom corners at the origin using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRectangle(float p_width, float p_height, RectangleCorners const& p_rectangleCorners) = 0;
+
+		/*
+			Draws a filled rounded rectangle using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius) = 0;
+		/*
+			Draws a filled rounded rectangle using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRoundedRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_radius) = 0;
+		/*
+			Draws a filled rounded rectangle using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) = 0;
+		/*
+			Draws a filled rounded rectangle at the origin using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRoundedRectangle(Point<float> const& p_size, float p_radius) = 0;
+		/*
+			Draws a filled rounded rectangle at the origin using the current color or gradient.
+			Change color being used with method setColor or gradient with setGradientBrush.
+		*/
+		virtual void fillRoundedRectangle(float p_width, float p_height, float p_radius) = 0;
+
+		//------------------------------
+
+		/*
+			Draws a rectangle outline using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRectangle(Rectangle<float> const& p_rectangle, float p_strokeWidth = 1.f) = 0;
+		/*
+			Draws a rectangle outline using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_strokeWidth = 1.f) = 0;
+		/*
+			Draws a rectangle outline using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth = 1.f) = 0;
+		/*
+			Draws a rectangle outline at the origin using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRectangle(Point<float> const& p_size, float p_strokeWidth = 1.f) = 0;
+		/*
+			Draws a rectangle outline at the origin using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRectangle(float p_width, float p_height, float p_strokeWidth = 1.f) = 0;
+
+		/*
+			Draws a rectangle outline with custom corners using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
+		/*
+			Draws a rectangle outline with custom corners using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRectangle(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
+		/*
+			Draws a rectangle outline with custom corners using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
+		/*
+			Draws a rectangle outline at the origin with custom corners using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRectangle(Point<float> const& p_size, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
+		/*
+			Draws a rectangle outline at the origin with custom corners using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRectangle(float p_width, float p_height, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
+
+		/*
+			Draws a rounded rectangle outline using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius, float p_strokeWidth = 1.f) = 0;
+		/*
+			Draws a rounded rectangle outline using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRoundedRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
+		/*
+			Draws a rounded rectangle outline using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_strokeWidth = 1.f) = 0;
+
+		/*
+			Draws a rounded rectangle outline at the origin using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRoundedRectangle(Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
+		/*
+			Draws a rounded rectangle outline at the origin using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void strokeRoundedRectangle(float p_width, float p_height, float p_radius, float p_strokeWidth = 1.f) = 0;
+
+		//------------------------------
+
+		/*
+			Draws a filled circle using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+
+			p_position is the center position of the circle.
+		*/
+		virtual void fillCircle(Point<float> const& p_position, float p_radius) = 0;
+		/*
+			Draws a filled circle using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+
+			p_x is the horizontal center position of the circle.
+			p_y is the vertical center position of the circle.
+		*/
+		virtual void fillCircle(float p_x, float p_y, float p_radius) = 0;
+
+		/*
+			Draws a circle outline using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+
+			p_position is the center position of the circle.
+		*/
+		virtual void strokeCircle(Point<float> const& p_position, float p_radius, float p_strokeWidth = 1.f) = 0;
+		/*
+			Draws a circle outline using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+
+			p_position is the center position of the circle.
+		*/
+		virtual void strokeCircle(float p_x, float p_y, float p_radius, float p_strokeWidth = 1.f) = 0;
+
+		//------------------------------
+
+		/*
+			Draws a straight line between two points using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void drawLine(Point<float> const& p_point_0, Point<float> const& p_point_1, float p_thickness = 1.f) = 0;
+		/*
+			Draws a straight line between two points using the current color or gradient.
+			Change the color being used with the method setColor or the gradient with setGradientBrush.
+		*/
+		virtual void drawLine(float p_x0, float p_y0, float p_x1, float p_y1, float p_thickness = 1.f) = 0;
+
+		//------------------------------
+
+		/*
+			Draws the edge of a custom shape.
+
+			p_vertices is a vector of the points that make up the shape.
+			p_lineThickness is how thicc the edges of the shape are.
+			p_isClosed is whether the last vertex will be connected to the first one to close the shape.
+		*/
+		virtual void strokeShape(std::vector<Point<float>> const& p_vertices, float p_lineThickness, bool p_isClosed = false) = 0;
+		/*
+			Draws the edge of a custom shape.
+
+			p_vertices is an array of points that make up the shape.
+			p_numberOfVertices is the number of points that make up the shape.
+			p_lineThickness is how thicc the edges of the shape are.
+			p_isClosed is whether the last vertex will be connected to the first one to close the shape.
+		*/
+		virtual void strokeShape(Point<float> const* p_vertices, uint32 p_numberOfVertices, float p_lineThickness, bool p_isClosed = false) = 0;
+		/*
+			Fills a custom shape with the current color or gradient.
+
+			p_shape is a vector of points that make up the shape.
+		*/
+		virtual void fillShape(std::vector<Point<float>> const& p_vertices) = 0;
+		/*
+			Fills a custom shape with the current color or gradient.
+
+			p_vertices is an array of points that make up the shape.
+			p_numberOfVertices is he number of points that make up the shape.
+		*/
+		virtual void fillShape(Point<float> const* p_vertices, uint32 p_numberOfVertices) = 0;
+
+		//------------------------------
+
+		/*
+			Draws a stroked cached geometry with its coordinates relative to the origin.
+			If you want to move the geometry, use moveOrigin().
+			If you want to scale the geometry, use scale().
+			You can also change the stroke color with setColor().
+		*/
+		virtual void strokeGeometry(Geometry const& p_geometry, float p_strokeWidth = 1.f) = 0;
+		/*
+			Draws a filled cached geometry with its coordinates relative to the origin.
+			If you want to move the geometry, use moveOrigin().
+			If you want to scale the geometry, use scale().
+			You can also change the fill color with setColor().
+		*/
+		virtual void fillGeometry(Geometry const& p_geometry) = 0;
+
+		//------------------------------
+
+		/*
+			Creates a Geometry object which represents a rounded rectangle.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry createRoundedRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, float p_radius, bool p_isStroked = false) = 0;
+		/*
+			Creates a Geometry object which represents a rounded rectangle.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry createRoundedRectangleGeometry(Point<float> const& p_position, Point<float> const& p_size, float p_radius, bool p_isStroked = false) = 0;
+		/*
+			Creates a Geometry object which represents a rounded rectangle.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry createRoundedRectangleGeometry(Rectangle<float> const& p_rectangle, float p_radius, bool p_isStroked = false) = 0;
+		/*
+			Creates a Geometry object which represents a rounded rectangle at the origin.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry createRoundedRectangleGeometry(float p_width, float p_height, float p_radius, bool p_isStroked = false) = 0;
+		/*
+			Creates a Geometry object which represents a rounded rectangle at the origin.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry createRoundedRectangleGeometry(Point<float> const& p_size, float p_radius, bool p_isStroked = false) = 0;
+
+		/*
+			Creates a Geometry object which represents a rectangle with custom corners.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry createCornerRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
+		/*
+			Creates a Geometry object which represents a rectangle with custom corners.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry createCornerRectangleGeometry(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
+		/*
+			Creates a Geometry object which represents a rectangle with custom corners.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry createCornerRectangleGeometry(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
+		/*
+			Creates a Geometry object which represents a rectangle with custom corners at the origin.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry createCornerRectangleGeometry(float p_width, float p_height, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
+		/*
+			Creates a Geometry object which represents a rectangle with custom corners at the origin.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry createCornerRectangleGeometry(Point<float> const& p_size, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
+
+		//------------------------------
+
+		/*
+			Creates a geometry object which represents a polygon.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry createPolygonGeometry(std::vector<Point<float>> const& p_vertices, bool p_isStroked = false, bool p_isClosed = true) = 0;
+		/*
+			Creates a geometry object which represents a polygon.
+			The Geometry object can be cached and allows for faster drawing.
+		*/
+		virtual Geometry createPolygonGeometry(Point<float> const* p_vertices, uint32 p_numberOfVertices, bool p_isStroked = false, bool p_isClosed = true) = 0;
+
+		//------------------------------
+
+		/*
+			Changes the way both start- and endpoints of lines are drawn.
+		*/
+		virtual void setLineCap(LineCap p_lineCap) = 0;
+		/*
+			Changes the way startpoints of lines are drawn.
+		*/
+		virtual void setStartLineCap(LineCap p_lineCap) = 0;
+		/*
+			Changes the way endpoints of lines are drawn.
+		*/
+		virtual void setEndLineCap(LineCap p_lineCap) = 0;
+		/*
+			Returns the way startpoints of lines are drawn.
+		*/
+		virtual LineCap getStartLineCap() = 0;
+		/*
+			Returns the way endpoints of lines are drawn.
+		*/
+		virtual LineCap getEndLineCap() = 0;
+
+		//------------------------------
+
+		/*
+			Sets how and if lines are dashed/dotted.
+		*/
+		virtual void setLineDashStyle(LineDashStyle p_dashStyle) = 0;
+		/*
+			Returns how and if lines are dashed/dotted.
+		*/
+		virtual LineDashStyle getLineDashStyle() = 0;
+
+		/*
+			Sets the offset of line dashing/dotting.
+		*/
+		virtual void setLineDashOffset(float p_dashOffset) = 0;
+		/*
+			Returns the offset of line dashing/dotting.
+		*/
+		virtual float getLineDashOffset() = 0;
+
+		/*
+			This changes the way the endpoints of dots and dashes on lines are drawn.
+		*/
+		virtual void setLineDashCap(LineCap p_dashCap) = 0;
+		/*
+			Returns the way the endpoints of dots and dashes on lines are drawn.
+		*/
+		virtual LineCap getLineDashCap() = 0;
+
+		//------------------------------
+
+		/*
+			Sets the way line joints are drawn.
+		*/
+		virtual void setLineJoin(LineJoin p_lineJoin) = 0;
+		/*
+			Returns the way line joints are drawn.
+		*/
+		virtual LineJoin getLineJoin() = 0;
+
+		/*
+			Sets the lower limit of the thickness of pointy "mitered" joints.
+		*/
+		virtual void setLineJoinMiterLimit(float p_miterLimit) = 0;
+		/*
+			Returns the lower limit of the thickness of pointy "mitered" joints.
+		*/
+		virtual float getLineJoinMiterLimit() = 0;
+
+		//------------------------------
+
+		/*
+			After calling this, all graphics drawn outside the cached geometry will be invisible, on pixel level.
+			Call popClipShape to remove the last pushed clip geometry.
+			The alpha of the clipped content will be multiplied by p_opacity.
+		*/
+		virtual void pushClipGeometry(Geometry const& p_geometry, float p_opacity = 1.f) = 0;
+
+		//------------------------------
+
+		/*
+			After calling this, all graphics drawn outside the polygon will be invisible, on pixel level.
+			Call popClipShape to remove the last pushed clip shape.
+			The alpha of the clipped content will be multiplied by p_opacity.
+		*/
+		virtual void pushClipShape(std::vector<Point<float>> const& p_points, float p_opacity = 1.f) = 0;
+		/*
+			After calling this, all graphics drawn outside the polygon will be invisible, on pixel level.
+			Call popClipShape to remove the last pushed clip shape.
+			The alpha of the clipped content will be multiplied by p_opacity.
+		*/
+		virtual void pushClipShape(Point<float> const* p_points, uint32 p_numberOfPoints, float p_opacity = 1.f) = 0;
+
+		/*
+			This removes the last added clipping shape.
+		*/
+		virtual void popClipShape() = 0;
+
+		//------------------------------
+
+		/*
+			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
+			Call popClipShape to remove the last pushed clip rectangle.
+		*/
+		virtual void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_opacity = 1.f) = 0;
+		/*
+			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
+			Call popClipShape to remove the last pushed clip rectangle.
+		*/
+		virtual void pushClipRectangle(Rectangle<float> const& p_rectangle, float p_opacity = 1.f) = 0;
+		/*
+			After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
+			p_size is the size of the clip rectangle positioned at the origin.
+			Call popClipShape to remove the last pushed clip rectangle.
+		*/
+		virtual void pushClipRectangle(Point<float> const& p_size, float p_opacity = 1.f) = 0;
+
+		/*
+			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
+			Call popClipShape to remove the last pushed clip corner rectangle.
+			The alpha of the clipped content will be multiplied by p_opacity.
+		*/
+		virtual void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
+		/*
+			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
+			Call popClipShape to remove the last pushed clip corner rectangle.
+			The alpha of the clipped content will be multiplied by p_opacity.
+		*/
+		virtual void pushClipRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
+		/*
+			After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
+			p_size is the size of the clip rectangle positioned at the origin.
+			Call popClipShape to remove the last pushed clip corner rectangle.
+			The alpha of the clipped content will be multiplied by p_opacity.
+		*/
+		virtual void pushClipRectangle(Point<float> const& p_size, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
+
+		//------------------------------
+
+		/*
+			After calling this, all graphics drawn outside the rounded rectangle will be invisible, on pixel-level.
+			Call popClipShape to remove the last pushed rounded clip rectangle.
+			The alpha of the clipped content will be multiplied by p_opacity.
+		*/
+		virtual void pushRoundedClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_opacity = 1.f) = 0;
+		/*
+			After calling this, all graphics drawn outside the rounded rectangle will be invisible, on pixel-level.
+			Call popClipShape to remove the last pushed rounded clip rectangle.
+			The alpha of the clipped content will be multiplied by p_opacity.
+		*/
+		virtual void pushRoundedClipRectangle(Rectangle<float> const& p_rectangle, float p_radius, float p_opacity = 1.f) = 0;
+		/*
+			After calling this, all graphics drawn outside a rounded rectangle at the origin with the given size and radius will be invisible, on pixel level.
+			p_size is the size of the rounded clip rectangle positioned at the origin.
+			Call popClipShape to remove the last pushed rounded clip rectangle.
+			The alpha of the clipped content will be multiplied by p_opacity.
+		*/
+		virtual void pushRoundedClipRectangle(Point<float> const& p_size, float p_radius, float p_opacity = 1.f) = 0;
+
+		//------------------------------
+
+		/*
+			Generates an image of a shadow that is cast by a rectangle.
+
+			p_size is the size of the rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.
+			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
+			p_color is the color of the resulting shadow.
+		*/
+		virtual Image createRectangleShadowImage(Point<float> const& p_size, float p_blur, Color const& p_color) = 0;
+		/*
+			Generates an image of a shadow that is cast by a rectangle.
+
+			p_width is the width of the rectangle which will cast the shadow. The shadow will be wider than this if p_blur > 0.
+			p_height is the height of the rectangle which will cast the shadow. The shadow will be taller than this if p_blur > 0.
+			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
+			p_color is the color of the resulting shadow.
+		*/
+		virtual Image createRectangleShadowImage(float p_width, float p_height, float p_blur, Color const& p_color) = 0;
+
+		/*
+			Generates an image of a shadow that is cast by a rectangle with custom corners.
+
+			p_size is the size of the rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.
+			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
+			p_color is the color of the resulting shadow.
+		*/
+		virtual Image createRectangleShadowImage(Point<float> const& p_size, RectangleCorners const& p_corners, float p_blur, Color const& p_color) = 0;
+		/*
+			Generates an image of a shadow that is cast by a rectangle with custom corners.
+
+			p_width is the width of the rectangle which will cast the shadow. The shadow will be wider than this if p_blur > 0.
+			p_height is the height of the rectangle which will cast the shadow. The shadow will be taller than this if p_blur > 0.
+			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
+			p_color is the color of the resulting shadow.
+		*/
+		virtual Image createRectangleShadowImage(float p_width, float p_height, RectangleCorners const& p_corners, float p_blur, Color const& p_color) = 0;
+
+		//------------------------------
+
+		/*
+			Generates an image of a shadow that is cast by a rounded rectangle.
+
+			p_size is the size of the rounded rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.
+			p_radius is the corner radius ("roundness") of the rounded rectangle which will cast the shadow.
+			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
+			p_color is the color of the resulting shadow.
+		*/
+		virtual Image createRoundedRectangleShadowImage(Point<float> const& p_size, float p_radius, float p_blur, Color const& p_color) = 0;
+		/*
+			Generates an image of a shadow that is cast by a rounded rectangle.
+
+			p_width is the width of the rounded rectangle which will cast the shadow. The shadow will be wider than this if p_blur > 0.
+			p_height is the height of the rounded rectangle which will cast the shadow. The shadow will be taller than this if p_blur > 0.
+			p_radius is the corner radius ("roundness") of the rounded rectangle which will cast the shadow.
+			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
+			p_color is the color of the resulting shadow.
+		*/
+		virtual Image createRoundedRectangleShadowImage(float p_width, float p_height, float p_radius, float p_blur, Color const& p_color) = 0;
+
+		//------------------------------
+
+		/*
+			Loads an image from pixel data in BGRA format.
+
+			p_pixelData is an array which is 4*width*height bytes in size.
+			It contains the color values for every pixel in the image, row-by-row. One byte for every color channel.
+
+			p_width and p_height are in pixels.
+		*/
+		virtual Image createImage(uint8 const* p_pixelData, uint32 p_width, uint32 p_height) = 0;
+		/*
+			Loads an image from the data of an image file.
+			p_imageData is a memory block which is p_size bytes in size.
+		*/
+		virtual Image createImage(uint8 const* p_imageData, uint32 p_size) = 0;
+		/*
+			Loads an image from a file. Most standard image formats/codecs are supported.
+			p_filePath is the path, relative or absolute, to the image file to be loaded.
+			If this returns an invalid image, then the file path is probably incorrect.
+		*/
+		virtual Image createImage(std::string const& p_filePath) = 0;
+		/*
+			Creates an image from an OS-specific handle.
+
+			On Windows, it is an HICON or HBITMAP.
+		*/
+		virtual Image createImageFromHandle(void* p_handle) = 0;
+		/*
+			Draws an image, placed according to the image's bounds and positioning/scaling options.
+		*/
+		virtual void drawImage(Image const& p_image, float p_multiplicativeOpacity = 1.f) = 0;
+
+		//------------------------------
+
+		/*
+			Creates a buffer that contains the file data of an image, encoded in the format p_format.
+		*/
+		virtual std::vector<uint8> createImageFileData(Image const& p_image, ImageFormat p_format = ImageFormat::Png) = 0;
+		/*
+			Creates a stream that contains the file data of an image, encoded in the format p_format.
+			On Windows, the return pointer type is IStream.
+		*/
+		virtual void* createImageFileDataNativeStream(Image const& p_image, ImageFormat p_format = ImageFormat::Png) = 0;
+		/*
+			Saves an image to a file, encoded in the format p_format.
+		*/
+		virtual void saveImageToFile(Image const& p_image, std::string const& p_filePath, ImageFormat p_format = ImageFormat::Png) = 0;
+
+		//------------------------------
+
+		/*
+			Creates an OS API native image from an AvoGUI image.
+			On Windows, it returns an HBITMAP.
+		*/
+		virtual void* createNativeImageFromImage(Image const& p_image) = 0;
+
+		//------------------------------
+
+		/*
+			Creates a linear gradient that can be used as a brush when drawing things.
+		*/
+		virtual LinearGradient createLinearGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX = 0.f, float p_startY = 0.f, float p_endX = 0.f, float p_endY = 0.f) = 0;
+		/*
+			Creates a linear gradient that can be used as a brush when drawing things.
+		*/
+		virtual LinearGradient createLinearGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, Point<float> const& p_endPosition) = 0;
+
+		/*
+			Creates a radial gradient that can be used as a brush when drawing things.
+		*/
+		virtual RadialGradient createRadialGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX = 0.f, float p_startY = 0.f, float p_radiusX = 0.f, float p_radiusY = 0.f) = 0;
+		/*
+			Creates a radial gradient that can be used as a brush when drawing things.
+		*/
+		virtual RadialGradient createRadialGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radius) = 0;
+		/*
+			Creates a radial gradient that can be used as a brush when drawing things.
+		*/
+		virtual RadialGradient createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, float p_radiusX, float p_radiusY) = 0;
+		/*
+			Creates a radial gradient that can be used as a brush when drawing things.
+		*/
+		virtual RadialGradient createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, float p_radius) = 0;
+		/*
+			Creates a radial gradient that can be used as a brush when drawing things.
+		*/
+		virtual RadialGradient createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, Point<float> const& p_radius) = 0;
+
+		/*
+			Sets a linear gradient to be used as the brush when drawing things.
+		*/
+		virtual void setGradient(LinearGradient const& p_gradient) = 0;
+		/*
+			Sets a radial gradient to be used as the brush when drawing things.
+		*/
+		virtual void setGradient(RadialGradient const& p_gradient) = 0;
+		/*
+			Sets a color to be used when drawing things.
+		*/
+		virtual void setColor(Color const& p_color) = 0;
+
+		/*
+			Sets the transparency of all graphics that will be drawn.
+		*/
+		virtual void setOpacity(float p_opacity) = 0;
+
+		//------------------------------
+
+		/*
+			Adds a new font family that can be used by text.
+			p_filePath is a path to a font file with a common format.
+		*/
+		virtual void addFont(std::string const& p_filePath) = 0;
+
+		/*
+			Adds a new font to a font family that can be used by text.
+			p_data is the data that would be in a font file with a common format.
+		*/
+		virtual void addFont(std::vector<uint8> const& p_data) = 0;
+		/*
+			Adds a new font to a font family that can be used by text.
+			p_data is the data that would be in a font file with a common format.
+		*/
+		virtual void addFont(std::vector<uint8>&& p_data) = 0;
+		/*
+			Adds a new font to a font family that can be used by text.
+			p_data is the data that would be in a font file with a common format.
+			p_size is the size of the data in bytes.
+		*/
+		virtual void addFont(uint8 const* p_data, uint32 p_size) = 0;
+
+		//------------------------------
+
+		/*
+			Sets the default properties of text created with this drawing context.
+			These properties can be overridden by changing the properties of a text object.
+		*/
+		virtual void setDefaultTextProperties(TextProperties const& p_textProperties) = 0;
+		/*
+			Returns the default properties of text created with this drawing context.
+			These properties can be overridden by changing the properties of a text object.
+		*/
+		virtual TextProperties getDefaultTextProperties() = 0;
+
+		//------------------------------
+
+		/*
+			Creates a new Text object which represents a pre-calculated text layout, using the current text properties.
+			p_bounds is the maximum bounds of the text. If it's (0, 0, 0, 0) then the bounds will be calculated to fit the text.
+		*/
+		virtual Text createText(std::string const& p_string, float p_fontSize, Rectangle<float> p_bounds = Rectangle<float>()) = 0;
+		/*
+			Draws pre-calculated text created with the createText method.
+		*/
+		virtual void drawText(Text p_text) = 0;
+
+		/*
+			Lays out and draws a string in a rectangle.
+			If you're drawing the same text repeatedly, use a Text object (created with method createText).
+		*/
+		virtual void drawText(std::string const& p_string, Rectangle<float> const& p_rectangle) = 0;
+		/*
+			Lays out and draws a string in a rectangle.
+			If you're drawing the same text repeatedly, use a Text object (created with method createText()).
+		*/
+		virtual void drawText(std::string const& p_string, float p_left, float p_top, float p_right, float p_bottom) = 0;
+		/*
+			Lays out and draws a string in a rectangle.
+			If you're drawing the same text repeatedly, use a Text object (created with method createText()).
+		*/
+		virtual void drawText(std::string const& p_string, Point<float> const& p_position, Point<float> const& p_size) = 0;
+		/*
+			Lays out and draws a string at a position.
+			If you're drawing the same text repeatedly, use a Text object (created with createText()).
+		*/
+		virtual void drawText(std::string const& p_string, float p_x, float p_y) = 0;
+		/*
+			Lays out and draws a string at a position.
+			If you're drawing the same text repeatedly, use a Text object (created with createText()).
+		*/
+		virtual void drawText(std::string const& p_string, Point<float> const& p_position) = 0;
+	};
 
 	enum class Cursor
 	{
@@ -3983,9 +7076,9 @@ namespace AvoGUI
 	class MouseEvent
 	{
 	public:
-	    /*
-            The view that the mouse interacted with.
-        */
+		/*
+			The view that the mouse interacted with.
+		*/
 		View* target{ nullptr };
 
 		/*
@@ -4097,8 +7190,6 @@ namespace AvoGUI
 		uint32 size;
 	};
 
-	class Image;
-
 	class ClipboardData
 	{
 	public:
@@ -4176,7 +7267,7 @@ namespace AvoGUI
 			If an image is being dragged, this creates and returns an Image object representing the image that was dragged.
 			If no image is being dragged, it returns 0.
 		*/
-		virtual Image* getImage() const = 0;
+		virtual Image getImage() const = 0;
 	};
 
 	class DragDropEvent
@@ -4216,23 +7307,605 @@ namespace AvoGUI
 
 	//------------------------------
 
-	// forward declaration <3
-
 	class Window;
-	class Gui;
-	class DrawingContext;
-	class Geometry;
+	class WindowEvent
+	{
+	public:
+		/*
+			The window that has received the event from the OS.
+		*/
+		Window* window{ nullptr };
+		/*
+			The new width of the window if it has changed size (includes sizeChange/maximize/restore events).
+			Expressed in dips.
+		*/
+		float width{ 0.f };
+		/*
+			The new height of the window if it has changed size (includes sizeChange/maximize/restore events).
+			Expressed in dips.
+		*/
+		float height{ 0.f };
+	};
+
+	//------------------------------
+
+	enum class WindowStyleFlags
+	{
+		None = 0x0UL, // Borderless window.
+		Border = 0x1UL,
+		Invisible = 0x2UL, // Makes the window invisible at first. You can make it visible afterwards.
+		Minimized = 0x8UL,
+		Maximized = 0x10UL,
+		MinimizeButton = 0x20UL,
+		MaximizeButton = 0x40UL,
+		ResizeBorder = 0x80UL,
+		CustomBorder = 0x100UL, // This makes the client area take up the full window, and the GUI determines which areas are for resizing and moving the window.
+		DefaultCustom = CustomBorder | MaximizeButton | MinimizeButton | ResizeBorder,
+		Default = Border | MinimizeButton | MaximizeButton | ResizeBorder,
+		DefaultNoResize = Border | MinimizeButton
+	};
+
+	constexpr WindowStyleFlags operator&(WindowStyleFlags p_left, WindowStyleFlags p_right)
+	{
+		return WindowStyleFlags((uint32)p_left & (uint32)p_right);
+	}
+	constexpr WindowStyleFlags operator|(WindowStyleFlags p_left, WindowStyleFlags p_right)
+	{
+		return WindowStyleFlags((uint32)p_left | (uint32)p_right);
+	}
+	constexpr WindowStyleFlags& operator|=(WindowStyleFlags& p_left, WindowStyleFlags p_right)
+	{
+		p_left = p_left | p_right;
+		return p_left;
+	}
+
+	enum class WindowBorderArea
+	{
+		None = 0, // The area of the window is not part of the window border, meaning any mouse events are handled only by the GUI.
+		TopLeftResize,
+		TopResize,
+		TopRightResize,
+		LeftResize,
+		RightResize,
+		BottomLeftResize,
+		BottomResize,
+		BottomRightResize,
+		Dragging // The area of the window is used for dragging the window, normally the title bar.
+	};
+
+	enum class WindowState
+	{
+		Minimized,
+		Maximized,
+		Restored
+	};
+
+	/*
+		An abstract window, which has an OS-specific implementation.
+		The window is responsible for receiving events from the OS and sending them to the GUI.
+		It's like a portal between your application and the operating system.
+		It is only intended to be created by a GUI, and you can access and use it from there.
+	*/
+	class Window : public ReferenceCounted
+	{
+	public:
+		/*
+			Creates the window. To close it, use close().
+
+			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
+
+			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
+			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
+
+			p_positionFactorY is the vertical equivalent to p_positionFactorX.
+
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent window, which this window would appear above.
+		*/
+		virtual void create(std::string const& p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
+		/*
+			Creates the window in the center of the screen. To close it, use close().
+
+			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
+			p_width is the width of the client area in DIPs (device independent pixels).
+			p_height is the height of the client area in DIPs (device independent pixels).
+			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent window, which this window would appear above.
+		*/
+		virtual void create(std::string const& p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
+
+	protected:
+		bool m_isRunning{ false };
+		std::mutex m_isRunningMutex;
+		std::condition_variable m_isRunningConditionVariable;
+
+		friend class Gui;
+
+		/*
+			Makes the window start receiving events.
+		*/
+		void run()
+		{
+			m_isRunningMutex.lock();
+			m_isRunning = true;
+			m_isRunningMutex.unlock();
+			m_isRunningConditionVariable.notify_one();
+		}
+	public:
+
+		/*
+			Closes the window, if the GUI associated with the window allows it.
+			The animation thread will then safely destroy the window when it has terminated.
+		*/
+		virtual void close() = 0;
+		/*
+			Returns whether the OS window has been created and exists.
+		*/
+		virtual bool getIsOpen() const = 0;
+
+	protected:
+		bool m_willClose{ false };
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Returns whether the GUI and its window is awaiting being closed by the animation/drawing thread.
+		*/
+		bool getWillClose()
+		{
+			return m_willClose;
+		}
+
+		//------------------------------
+
+		/*
+			Usually used for the parent of a popup window when the popup is closed.
+			Makes the window receive mouse and keyboard events again.
+		*/
+		virtual void enableUserInteraction() = 0;
+		/*
+			Usually used for the parent of a popup window when the popup is opened.
+			Makes the window not receive any mouse and keyboard events, until enableUserInteraction is called.
+		*/
+		virtual void disableUserInteraction() = 0;
+		/*
+			Returns whether the window receives mouse and keyboard events.
+		*/
+		virtual bool getIsUserInteractionEnabled() = 0;
+
+		//------------------------------
+
+		/*
+			Sets the text shown in the titlebar.
+		*/
+		virtual void setTitle(std::string const& p_title) = 0;
+		/*
+			Returns the text shown in the titlebar.
+		*/
+		virtual std::string getTitle() const = 0;
+
+		//------------------------------
+
+		/*
+			Changes the styles that determine how the window is drawn by the OS.
+			These are set when the window is created, and you can change them afterwards here.
+		*/
+		virtual void setStyles(WindowStyleFlags p_styles) = 0;
+		/*
+			Returns the current styles that determine how the window is drawn by the OS.
+		*/
+		virtual WindowStyleFlags getStyles() const = 0;
+
+		//------------------------------
+
+		/*
+			Returns the OS-specific window object associated with this window.
+		*/
+		virtual void* getNativeHandle() const = 0;
+
+		//------------------------------
+
+		/*
+			Changes whether the client area of the window fills the whole screen.
+		*/
+		virtual void setIsFullscreen(bool p_isFullscreen) = 0;
+		/*
+			Switches between fullscreen and windowed mode.
+			If the window is currently windowed, it will become fullscreen, and the other way around.
+		*/
+		virtual void switchFullscreen() = 0;
+		/*
+			Returns whether the client area of the window fills the whole screen.
+		*/
+		virtual bool getIsFullscreen() const = 0;
+
+		//------------------------------
+
+		/*
+			Makes the window invisible and disabled.
+		*/
+		virtual void hide() = 0;
+		/*
+			Shows the window and enables it.
+		*/
+		virtual void show() = 0;
+
+		/*
+			Makes the size of the window as big as possible so that the border still shows.
+		*/
+		virtual void maximize() = 0;
+		/*
+			Hides the window temporarily in a taskbar where it can be restored again.
+		*/
+		virtual void minimize() = 0;
+		/*
+			Shows/opens the window as it was before it was minimized.
+		*/
+		virtual void restore() = 0;
+
+		/*
+			Changes the window state, which determines how the window is viewed; hidden in the taskbar, maximized so it fills the client area
+			of the screen, or restored which is the default window state where the window can overlap other windows and be resized normally.
+			Methods maximize(), minimize() and restore() do the same thing.
+		*/
+		virtual void setState(WindowState p_state) = 0;
+		/*
+			Returns the window state, which determines how the window is viewed; hidden in the taskbar, maximized so it fills the client area
+			of the screen, or restored which is the default window state where the window can overlap other windows and be resized normally.
+		*/
+		virtual WindowState getState() const = 0;
+
+		//------------------------------
+
+		/*
+			Sets the position of the window relative to the top-left corner of the screen, in pixel units.
+		*/
+		virtual void setPosition(Point<int32> const& p_position) = 0;
+		/*
+			Sets the position of the window relative to the top-left corner of the screen, in pixel units.
+		*/
+		virtual void setPosition(int32 p_x, int32 p_y) = 0;
+		/*
+			Returns the position of the window relative to the top-left corner of the screen, in pixel units.
+		*/
+		virtual Point<int32> getPosition() const = 0;
+		/*
+			Returns the position of the left edge of the window relative to the top-left corner of the screen, in pixel units.
+		*/
+		virtual int32 getPositionX() const = 0;
+		/*
+			Returns the position of the top edge of the window relative to the top-left corner of the screen, in pixel units.
+		*/
+		virtual int32 getPositionY() const = 0;
+
+		/*
+			Sets the size of the client area of the window, in dip units.
+		*/
+		virtual void setSize(Point<float> const& p_size) = 0;
+		/*
+			Sets the size of the client area of the window, in dip units.
+		*/
+		virtual void setSize(float p_width, float p_height) = 0;
+		/*
+			Returns the size of the client area of the window, in dip units.
+		*/
+		virtual Point<float> getSize() const = 0;
+		/*
+			Returns the width of the client area of the window, in dip units.
+		*/
+		virtual float getWidth() const = 0;
+		/*
+			Returns the height of the client area of the window, in dip units.
+		*/
+		virtual float getHeight() const = 0;
+
+		/*
+			Sets the smallest allowed size for the window when the user is resizing it, in dip units.
+		*/
+		virtual void setMinSize(Point<float> const& p_minSize) = 0;
+		/*
+			Sets the smallest allowed size for the window when the user is resizing it, in dip units.
+		*/
+		virtual void setMinSize(float p_minWidth, float p_minHeight) = 0;
+		/*
+			Returns the smallest allowed size for the window when the user is resizing it, in dip units.
+		*/
+		virtual Point<float> getMinSize() const = 0;
+		/*
+			Returns the smallest allowed width for the window when the user is resizing it, in dip units.
+		*/
+		virtual float getMinWidth() const = 0;
+		/*
+			Returns the smallest allowed height for the window when the user is resizing it, in dip units.
+		*/
+		virtual float getMinHeight() const = 0;
+
+		/*
+			Sets the biggest allowed size for the window when the user is resizing it, in dip units.
+		*/
+		virtual void setMaxSize(Point<float> const& p_maxSize) = 0;
+		/*
+			Sets the biggest allowed size for the window when the user is resizing it, in dip units.
+		*/
+		virtual void setMaxSize(float p_maxWidth, float p_maxHeight) = 0;
+		/*
+			Returns the biggest allowed size for the window when the user is resizing it, in dip units.
+		*/
+		virtual Point<float> getMaxSize() const = 0;
+		/*
+			Returns the biggest allowed width for the window when the user is resizing it, in dip units.
+		*/
+		virtual float getMaxWidth() const = 0;
+		/*
+			Returns the biggest allowed height for the window when the user is resizing it, in dip units.
+		*/
+		virtual float getMaxHeight() const = 0;
+
+		//------------------------------
+
+		/*
+			Returns the bounds of the current monitor used by the window, in pixel units.
+		*/
+		virtual Rectangle<uint32> getMonitorBounds() const = 0;
+		/*
+			Returns the virtual position of the current monitor used by the window relative to other monitors, in pixel units.
+		*/
+		virtual Point<uint32> getMonitorPosition() const = 0;
+		/*
+			Returns the size of the current monitor used by the window, in pixel units.
+		*/
+		virtual Point<uint32> getMonitorSize() const = 0;
+		/*
+			Returns the width of the current monitor used by the window, in pixel units.
+		*/
+		virtual uint32 getMonitorWidth() const = 0;
+		/*
+			Returns the height of the current monitor used by the window, in pixel units.
+		*/
+		virtual uint32 getMonitorHeight() const = 0;
+
+		//------------------------------
+
+		/*
+			Returns the bounds of the work area of the monitor currently used by the window, in pixel units.
+			This excludes the taskbar on Windows.
+		*/
+		virtual Rectangle<uint32> getWorkAreaBounds() const = 0;
+		/*
+			Returns the virtual position of the work area of the monitor currently used by the window, in pixel units.
+			This excludes the taskbar on Windows.
+		*/
+		virtual Point<uint32> getWorkAreaPosition() const = 0;
+		/*
+			Returns the size of the work area of the monitor currently used by the window, in pixel units.
+			This excludes the taskbar on Windows.
+		*/
+		virtual Point<uint32> getWorkAreaSize() const = 0;
+		/*
+			Returns the width of the work area of the monitor currently used by the window, in pixel units.
+			This excludes the taskbar on Windows.
+		*/
+		virtual uint32 getWorkAreaWidth() const = 0;
+		/*
+			Returns the height of the work area of the monitor currently used by the window, in pixel units.
+			This excludes the taskbar on Windows.
+		*/
+		virtual uint32 getWorkAreaHeight() const = 0;
+
+		//------------------------------
+
+		/*
+			Returns whether a key is currently pressed down.
+		*/
+		virtual bool getIsKeyDown(KeyboardKey p_key) const = 0;
+		/*
+			Returns whether a mouse button is currently pressed down.
+		*/
+		virtual bool getIsMouseButtonDown(MouseButton p_button) const = 0;
+		/*
+			Returns the position of the mouse cursor, relative to the top-left corner of the window.
+		*/
+		virtual Point<float> getMousePosition() const = 0;
+
+		//------------------------------
+
+		/*
+			Changes what the mouse cursor looks like.
+		*/
+		virtual void setCursor(Cursor p_cursor) = 0;
+		/*
+			Returns the current mouse cursor.
+		*/
+		virtual Cursor getCursor() const = 0;
+
+		//------------------------------
+
+		/*
+			Returns the factor that is used to convert DIP units to pixel units in the window.
+			This can change during the lifetime of the window, if the user drags it to a monitor with a different DPI for example.
+		*/
+		virtual float getDipToPixelFactor() const = 0;
+
+		//------------------------------
+
+		/*
+			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropString(std::string const& p_string, Image const& p_dragImage = Image(), Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
+
+		/*
+			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropString(std::wstring const& p_string, Image const& p_dragImage = Image(), Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
+
+
+		/*
+			Runs a blocking loop that allows the user to drag image data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropImage(Image const& p_image, Image const& p_dragImage = Image(), Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropFile(uint8 const* p_data, uint32 p_dataSize, std::string const& p_name, Image const& p_dragImage = Image(), Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropFile(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, Image const& p_dragImage = Image(), Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropFile(std::vector<uint8> const& p_data, std::string const& p_name, Image const& p_dragImage = Image(), Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropFile(std::vector<uint8> const& p_data, std::wstring const& p_name, Image const& p_dragImage = Image(), Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag file data or a directory from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropFile(std::string const& p_path, Image const& p_dragImage = Image(), Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag file data or a directory from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropFile(std::wstring const& p_path, Image const& p_dragImage = Image(), Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
+
+		/*
+			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_paths, Image const& p_dragImage = Image(), Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
+		/*
+			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
+			This method sends events to the drop target(s).
+			The return value indicates what operation was made after the drop.
+		*/
+		virtual DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_paths, Image const& p_dragImage = Image(), Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
+
+		//------------------------------
+
+		/*
+			Gives a UTF-16 encoded string for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this string.
+		*/
+		virtual void setClipboardString(std::wstring const& p_string, uint64 p_additionalData = 0u) const = 0;
+
+		/*
+			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this string.
+		*/
+		virtual void setClipboardString(std::string const& p_string, uint64 p_additionalData = 0u) const = 0;
+
+		/*
+			Gives an image for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this data.
+		*/
+		virtual void setClipboardImage(Image const& p_image, uint64 p_additionalData = 0u) const = 0;
+
+		/*
+			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this data.
+		*/
+		virtual void setClipboardFile(uint8 const* p_data, uint32 p_dataSize, std::string const& p_name, uint64 p_additionalData = 0u) const = 0;
+		/*
+			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this data.
+		*/
+		virtual void setClipboardFile(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, uint64 p_additionalData = 0u) const = 0;
+		/*
+			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this data.
+		*/
+		virtual void setClipboardFile(std::vector<uint8> const& p_data, std::string const& p_name, uint64 p_additionalData = 0u) const = 0;
+		/*
+			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this data.
+		*/
+		virtual void setClipboardFile(std::vector<uint8> const& p_data, std::wstring const& p_name, uint64 p_additionalData = 0u) const = 0;
+		/*
+			Gives a UTF-8 file path for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this data.
+		*/
+		virtual void setClipboardFile(std::string const& p_path, uint64 p_additionalData = 0u) const = 0;
+		/*
+			Gives a UTF-16 file path for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this data.
+		*/
+		virtual void setClipboardFile(std::wstring const& p_path, uint64 p_additionalData = 0u) const = 0;
+
+		/*
+			Gives UTF-8 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this data.
+		*/
+		virtual void setClipboardFiles(std::vector<std::string> const& p_paths, uint64 p_additionalData = 0u) const = 0;
+		/*
+			Gives UTF-16 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this data.
+		*/
+		virtual void setClipboardFiles(std::vector<std::wstring> const& p_paths, uint64 p_additionalData = 0u) const = 0;
+
+		/*
+			Returns the data that is currently stored on the clipboard.
+		*/
+		[[nodiscard]] virtual std::unique_ptr<ClipboardData> getClipboardData() const = 0;
+
+		//------------------------------
+		// Window events
+
+	protected:
+		bool sendWindowCloseEvents(WindowEvent const& p_event)
+		{
+			bool willClose = true;
+			for (auto& listener : windowCloseListeners.listeners)
+			{
+				if (!listener(p_event))
+				{
+					willClose = false;
+				}
+			}
+			return willClose;
+		}
+
+	public:
+		EventListeners<bool(WindowEvent const&)> windowCloseListeners;
+		EventListeners<void(WindowEvent const&)> windowCreateListeners;
+		EventListeners<void(WindowEvent const&)> windowDestroyListeners;
+		EventListeners<void(WindowEvent const&)> windowMinimizeListeners;
+		EventListeners<void(WindowEvent const&)> windowMaximizeListeners;
+		EventListeners<void(WindowEvent const&)> windowRestoreListeners;
+		EventListeners<void(WindowEvent const&)> windowSizeChangeListeners;
+		EventListeners<void(WindowEvent const&)> windowFocusGainListeners;
+		EventListeners<void(WindowEvent const&)> windowFocusLoseListeners;
+	};
 
 	/*
 		A rectangle that can draw itself and receive events. Used for GUI components and stuff.
 	*/
 	class View : public Component, public ProtectedRectangle
 	{
-    private:
-        friend class Gui;
+	private:
+		friend class Gui;
 
 	public:
-		explicit View(View* p_parent, Rectangle<float> const& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
+		View(View* p_parent, Rectangle<float> const& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f));
 		template<typename T>
 		View(View* p_parent, T p_id, Rectangle<float> const& p_bounds = Rectangle<float>(0.f, 0.f, 0.f, 0.f)) :
 			View(p_parent, p_bounds)
@@ -4242,25 +7915,28 @@ namespace AvoGUI
 		~View() override;
 
 	protected:
-		Geometry* m_clipGeometry{ nullptr };
+		Geometry m_clipGeometry;
 		/*
 			LIBRARY IMPLEMENTED
 			This is called whenever the clipping geometry of the view needs to be updated.
-			You can override this if you want a custom clipping geometry - just remember to forget() the old one if it's not null.
+			You can override this if you want a custom clipping geometry, just replace m_clipGeometry.
 		*/
 		virtual void updateClipGeometry();
 
 	public:
 		/*
 			Sets the geometry being used to clip the view's contents.
-			The clip geometry of the view is by default updated automatically in the updateGeometry method when the size has changed, but only if the old geometry's reference count is equal to 1.
+			The clip geometry of the view is by default updated automatically in the updateGeometry method when the size has changed.
 			Note that hit testing is not by default affected by this, override getIsContaining(float p_x, float p_y) if you want custom hit testing.
 		*/
-		void setClipGeometry(Geometry* p_geometry);
+		void setClipGeometry(Geometry const& p_geometry)
+		{
+			m_clipGeometry = p_geometry;
+		}
 		/*
 			Returns the geometry being used to clip the view's contents.
 		*/
-		Geometry* getClipGeometry()
+		Geometry const& getClipGeometry()
 		{
 			return m_clipGeometry;
 		}
@@ -4337,6 +8013,10 @@ namespace AvoGUI
 
 		//------------------------------
 
+		// TODO: Add view transforms
+
+		//------------------------------
+
 		/*
 			LIBRARY IMPLEMENTED
 			Sets the cursor that will by default be shown when the mouse enters the view.
@@ -4391,6 +8071,30 @@ namespace AvoGUI
 			Returns the window that is attached to the GUI.
 		*/
 		Window* getWindow();
+
+	private:
+		std::vector<Animation*> m_animations;
+
+	public:
+		/*
+			Creates an animation that is released by this view when it is destroyed.
+			p_milliseconds is the duration of the animation, can be changed later on the returned object.
+		*/
+		[[nodiscard]] Animation* createAnimation(Easing const& p_easing, float p_milliseconds)
+		{
+			Animation* animation = new Animation(this, p_easing, p_milliseconds);
+			m_animations.push_back(animation);
+			return animation;
+		}
+		/*
+			Creates an animation that is released by the view when it is destroyed.
+			p_easingId is the theme easing ID of the animation easing to be used.
+			p_milliseconds is the duration of the animation, can be changed later on the returned object.
+		*/
+		[[nodiscard]] Animation* createAnimation(Id const& p_easingId, float p_milliseconds)
+		{
+			return createAnimation(getThemeEasing(p_easingId), p_milliseconds);
+		}
 
 	private:
 		/*
@@ -4565,7 +8269,7 @@ namespace AvoGUI
 		//------------------------------
 
 	private:
-		Image* m_shadowImage{ nullptr };
+		Image m_shadowImage;
 		float m_elevation{ 0.f };
 
 		/*
@@ -5216,7 +8920,7 @@ namespace AvoGUI
 				uint32 startIndex = 0;
 				while (true)
 				{
-					loopBody:
+				loopBody:
 					for (uint32 a = startIndex; a < currentContainer->getNumberOfChildViews(); a++)
 					{
 						auto child = currentContainer->getChildView(a);
@@ -5338,8 +9042,8 @@ namespace AvoGUI
 		Rectangle<float> getAbsoluteShadowBounds() const
 		{
 			Rectangle<float> bounds;
-			bounds.left = m_absolutePosition.x + (m_bounds.getWidth() - m_shadowBounds.getWidth())*0.5f;
-			bounds.top = m_absolutePosition.y + (m_bounds.getHeight() - m_shadowBounds.getHeight())*0.5f;
+			bounds.left = m_absolutePosition.x + (m_bounds.getWidth() - m_shadowBounds.getWidth()) * 0.5f;
+			bounds.top = m_absolutePosition.y + (m_bounds.getHeight() - m_shadowBounds.getHeight()) * 0.5f;
 			bounds.right = bounds.left + m_shadowBounds.getWidth();
 			bounds.bottom = bounds.top + m_shadowBounds.getHeight();
 			return bounds;
@@ -5688,8 +9392,8 @@ namespace AvoGUI
 		*/
 		void setAbsoluteCenter(float p_x, float p_y)
 		{
-			float offsetX = p_x - m_absolutePosition.x - getWidth()*0.5f;
-			float offsetY = p_y - m_absolutePosition.y - getHeight()*0.5f;
+			float offsetX = p_x - m_absolutePosition.x - getWidth() * 0.5f;
+			float offsetY = p_y - m_absolutePosition.y - getHeight() * 0.5f;
 			if (offsetX || offsetY)
 			{
 				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
@@ -5770,7 +9474,7 @@ namespace AvoGUI
 		*/
 		Point<float> getAbsoluteCenter() const
 		{
-			return Point<float>(m_absolutePosition.x + getWidth()*0.5f, m_absolutePosition.y + getHeight()*0.5f);
+			return Point<float>(m_absolutePosition.x + getWidth() * 0.5f, m_absolutePosition.y + getHeight() * 0.5f);
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -5786,7 +9490,7 @@ namespace AvoGUI
 		*/
 		float getAbsoluteCenterX() const
 		{
-			return m_absolutePosition.x + getWidth()*0.5f;
+			return m_absolutePosition.x + getWidth() * 0.5f;
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -5802,7 +9506,7 @@ namespace AvoGUI
 		*/
 		float getAbsoluteCenterY() const
 		{
-			return m_absolutePosition.y + getHeight()*0.5f;
+			return m_absolutePosition.y + getHeight() * 0.5f;
 		}
 
 		//------------------------------
@@ -6185,7 +9889,7 @@ namespace AvoGUI
 					{
 						if (m_corners.topLeftType == RectangleCornerType::Round)
 						{
-							if (Point<>::getLengthSquared(m_bounds.left + m_corners.topLeftSizeX - p_left, (m_bounds.top + m_corners.topLeftSizeY - p_top)*m_corners.topLeftSizeX/m_corners.topLeftSizeY) > m_corners.topLeftSizeX*m_corners.topLeftSizeX)
+							if (Point<>::getLengthSquared(m_bounds.left + m_corners.topLeftSizeX - p_left, (m_bounds.top + m_corners.topLeftSizeY - p_top) * m_corners.topLeftSizeX / m_corners.topLeftSizeY) > m_corners.topLeftSizeX * m_corners.topLeftSizeX)
 							{
 								return false;
 							}
@@ -6199,7 +9903,7 @@ namespace AvoGUI
 					{
 						if (m_corners.topLeftType == RectangleCornerType::Round)
 						{
-							if (Point<>::getLengthSquared(m_bounds.left + m_corners.bottomLeftSizeX - p_left, (m_bounds.bottom - m_corners.bottomLeftSizeY - p_bottom) * m_corners.bottomLeftSizeX / m_corners.bottomLeftSizeY) > m_corners.bottomLeftSizeX*m_corners.bottomLeftSizeX)
+							if (Point<>::getLengthSquared(m_bounds.left + m_corners.bottomLeftSizeX - p_left, (m_bounds.bottom - m_corners.bottomLeftSizeY - p_bottom) * m_corners.bottomLeftSizeX / m_corners.bottomLeftSizeY) > m_corners.bottomLeftSizeX * m_corners.bottomLeftSizeX)
 							{
 								return false;
 							}
@@ -6213,7 +9917,7 @@ namespace AvoGUI
 					{
 						if (m_corners.topLeftType == RectangleCornerType::Round)
 						{
-							if (Point<>::getLengthSquared(m_bounds.right - m_corners.topRightSizeX - p_right, (m_bounds.top + m_corners.topRightSizeY - p_top) * m_corners.topRightSizeX / m_corners.topRightSizeY) > m_corners.topRightSizeX* m_corners.topRightSizeX)
+							if (Point<>::getLengthSquared(m_bounds.right - m_corners.topRightSizeX - p_right, (m_bounds.top + m_corners.topRightSizeY - p_top) * m_corners.topRightSizeX / m_corners.topRightSizeY) > m_corners.topRightSizeX * m_corners.topRightSizeX)
 							{
 								return false;
 							}
@@ -6227,7 +9931,7 @@ namespace AvoGUI
 					{
 						if (m_corners.topLeftType == RectangleCornerType::Round)
 						{
-							if (Point<>::getLengthSquared(m_bounds.right - m_corners.bottomRightSizeX - p_right, (m_bounds.bottom - m_corners.bottomRightSizeY - p_bottom) * m_corners.bottomRightSizeX / m_corners.bottomRightSizeY) > m_corners.bottomRightSizeX* m_corners.bottomRightSizeX)
+							if (Point<>::getLengthSquared(m_bounds.right - m_corners.bottomRightSizeX - p_right, (m_bounds.bottom - m_corners.bottomRightSizeY - p_bottom) * m_corners.bottomRightSizeX / m_corners.bottomRightSizeY) > m_corners.bottomRightSizeX * m_corners.bottomRightSizeX)
 							{
 								return false;
 							}
@@ -6278,7 +9982,7 @@ namespace AvoGUI
 						{
 							return Point<>::getLengthSquared(m_bounds.left + m_corners.topLeftSizeX - p_x, (m_bounds.top + m_corners.topLeftSizeY - p_y) * m_corners.topLeftSizeX / m_corners.topLeftSizeY) < m_corners.topLeftSizeX * m_corners.topLeftSizeX;
 						}
-						return p_y > m_bounds.top + m_corners.topLeftSizeY - (p_x - m_bounds.left)* m_corners.topLeftSizeY / m_corners.topLeftSizeX;
+						return p_y > m_bounds.top + m_corners.topLeftSizeY - (p_x - m_bounds.left) * m_corners.topLeftSizeY / m_corners.topLeftSizeX;
 					}
 					else if (p_x > m_bounds.right - m_corners.topRightSizeX && p_y < m_bounds.top + m_corners.topRightSizeY)
 					{
@@ -6745,2432 +10449,6 @@ namespace AvoGUI
 
 	//------------------------------
 
-	class WindowEvent
-	{
-	public:
-		/*
-			The window that has received the event from the OS.
-		*/
-		Window* window{nullptr};
-		/*
-			The new width of the window if it has changed size (includes sizeChange/maximize/restore events).
-			Expressed in dips.
-		*/
-		float width{0.f};
-		/*
-			The new height of the window if it has changed size (includes sizeChange/maximize/restore events).
-			Expressed in dips.
-		*/
-		float height{0.f};
-	};
-
-	//------------------------------
-
-	enum class WindowStyleFlags
-	{
-		None = 0x0UL, // Borderless window.
-		Border = 0x1UL,
-		Invisible = 0x2UL, // Makes the window invisible at first. You can make it visible afterwards.
-		Minimized = 0x8UL,
-		Maximized = 0x10UL,
-		MinimizeButton = 0x20UL,
-		MaximizeButton = 0x40UL,
-		ResizeBorder = 0x80UL,
-		CustomBorder = 0x100UL, // This makes the client area take up the full window, and the GUI determines which areas are for resizing and moving the window.
-		DefaultCustom = CustomBorder | MaximizeButton | MinimizeButton | ResizeBorder,
-		Default = Border | MinimizeButton | MaximizeButton | ResizeBorder,
-		DefaultNoResize = Border | MinimizeButton
-	};
-
-	constexpr WindowStyleFlags operator&(WindowStyleFlags p_left, WindowStyleFlags p_right)
-	{
-		return WindowStyleFlags((uint32)p_left & (uint32)p_right);
-	}
-	constexpr WindowStyleFlags operator|(WindowStyleFlags p_left, WindowStyleFlags p_right)
-	{
-		return WindowStyleFlags((uint32)p_left | (uint32)p_right);
-	}
-	constexpr WindowStyleFlags& operator|=(WindowStyleFlags& p_left, WindowStyleFlags p_right)
-	{
-		p_left = p_left | p_right;
-		return p_left;
-	}
-
-	enum class WindowBorderArea
-	{
-		None = 0, // The area of the window is not part of the window border, meaning any mouse events are handled only by the GUI.
-		TopLeftResize,
-		TopResize,
-		TopRightResize,
-		LeftResize,
-		RightResize,
-		BottomLeftResize,
-		BottomResize,
-		BottomRightResize,
-		Dragging // The area of the window is used for dragging the window, normally the title bar.
-	};
-
-	enum class WindowState
-	{
-		Minimized,
-		Maximized,
-		Restored
-	};
-
-	/*
-		An abstract window, which has an OS-specific implementation.
-		The window is responsible for receiving events from the OS and sending them to the GUI.
-		It's like a portal between your application and the operating system.
-		It is only intended to be created by a GUI, and you can access and use it from there.
-	*/
-	class Window : public ReferenceCounted
-	{
-	public:
-		/*
-			Creates the window. To close it, use close().
-
-			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
-			p_titleSize is the size in bytes of p_title.
-
-			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
-			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
-
-			p_positionFactorY is the vertical equivalent to p_positionFactorX.
-
-			p_width is the width of the client area in DIPs (device independent pixels).
-			p_height is the height of the client area in DIPs (device independent pixels).
-			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
-			p_parent is an optional parent window, which this window would appear above.
-		*/
-		virtual void create(char const* p_title, uint32 p_titleSize, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
-		/*
-			Creates the window in the center of the screen. To close it, use close().
-
-			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
-			p_titleSize is the size in bytes of p_title.
-			p_width is the width of the client area in DIPs (device independent pixels).
-			p_height is the height of the client area in DIPs (device independent pixels).
-			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
-			p_parent is an optional parent window, which this window would appear above.
-		*/
-		virtual void create(char const* p_title, uint32 p_titleSize, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
-		/*
-			Creates the window. To close it, use close().
-
-			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
-
-			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
-			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
-
-			p_positionFactorY is the vertical equivalent to p_positionFactorX.
-
-			p_width is the width of the client area in DIPs (device independent pixels).
-			p_height is the height of the client area in DIPs (device independent pixels).
-			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
-			p_parent is an optional parent window, which this window would appear above.
-		*/
-		virtual void create(char const* p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
-		/*
-			Creates the window in the center of the screen. To close it, use close().
-
-			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
-			p_width is the width of the client area in DIPs (device independent pixels).
-			p_height is the height of the client area in DIPs (device independent pixels).
-			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
-			p_parent is an optional parent window, which this window would appear above.
-		*/
-		virtual void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
-		/*
-			Creates the window. To close it, use close().
-
-			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
-
-			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
-			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
-
-			p_positionFactorY is the vertical equivalent to p_positionFactorX.
-
-			p_width is the width of the client area in DIPs (device independent pixels).
-			p_height is the height of the client area in DIPs (device independent pixels).
-			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
-			p_parent is an optional parent window, which this window would appear above.
-		*/
-		virtual void create(std::string const& p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
-		/*
-			Creates the window in the center of the screen. To close it, use close().
-
-			p_title is the text that appears in the title bar of the window (if it has a border), in UTF-8 encoding.
-			p_width is the width of the client area in DIPs (device independent pixels).
-			p_height is the height of the client area in DIPs (device independent pixels).
-			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
-			p_parent is an optional parent window, which this window would appear above.
-		*/
-		virtual void create(std::string const& p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
-
-		/*
-			Closes the window, if the GUI associated with the window allows it.
-			The animation thread will then safely destroy the window when it has terminated.
-		*/
-		virtual void close() = 0;
-		/*
-			Returns whether the OS window has been created and exists.
-		*/
-		virtual bool getIsOpen() const = 0;
-
-	protected:
-		bool m_willClose{ false };
-	public:
-		/*
-			LIBRARY IMPLEMENTED
-			Returns whether the GUI and its window is awaiting being closed by the animation/drawing thread.
-		*/
-		bool getWillClose()
-		{
-			return m_willClose;
-		}
-
-		//------------------------------
-
-		/*
-			Usually used for the parent of a popup window when the popup is closed.
-			Makes the window receive mouse and keyboard events again.
-		*/
-		virtual void enableUserInteraction() = 0;
-		/*
-			Usually used for the parent of a popup window when the popup is opened.
-			Makes the window not receive any mouse and keyboard events, until enableUserInteraction is called.
-		*/
-		virtual void disableUserInteraction() = 0;
-		/*
-			Returns whether the window receives mouse and keyboard events.
-		*/
-		virtual bool getIsUserInteractionEnabled() = 0;
-
-		//------------------------------
-
-		/*
-			Sets the text shown in the titlebar.
-			p_size is the size in bytes of the string.
-		*/
-		virtual void setTitle(char const* p_title, uint32 p_size) = 0;
-		/*
-			Sets the text shown in the titlebar.
-			p_title is assumed to be null terminated.
-		*/
-		virtual void setTitle(char const* p_title) = 0;
-		/*
-			Sets the text shown in the titlebar.
-		*/
-		virtual void setTitle(std::string const& p_title) = 0;
-		/*
-			Returns the text shown in the titlebar.
-		*/
-		virtual std::string getTitle() const = 0;
-
-		//------------------------------
-
-		/*
-			Changes the styles that determine how the window is drawn by the OS.
-			These are set when the window is created, and you can change them afterwards here.
-		*/
-		virtual void setStyles(WindowStyleFlags p_styles) = 0;
-		/*
-			Returns the current styles that determine how the window is drawn by the OS.
-		*/
-		virtual WindowStyleFlags getStyles() const = 0;
-
-		//------------------------------
-
-		/*
-			Returns the OS-specific window object associated with this window.
-		*/
-		virtual void* getNativeHandle() const = 0;
-
-		//------------------------------
-
-		/*
-			Changes whether the client area of the window fills the whole screen.
-		*/
-		virtual void setIsFullscreen(bool p_isFullscreen) = 0;
-		/*
-			Switches between fullscreen and windowed mode.
-			If the window is currently windowed, it will become fullscreen, and the other way around.
-		*/
-		virtual void switchFullscreen() = 0;
-		/*
-			Returns whether the client area of the window fills the whole screen.
-		*/
-		virtual bool getIsFullscreen() const = 0;
-
-		//------------------------------
-
-		/*
-			Makes the window invisible and disabled.
-		*/
-		virtual void hide() = 0;
-		/*
-			Shows the window and enables it.
-		*/
-		virtual void show() = 0;
-
-		/*
-			Makes the size of the window as big as possible so that the border still shows.
-		*/
-		virtual void maximize() = 0;
-		/*
-			Hides the window temporarily in a taskbar where it can be restored again.
-		*/
-		virtual void minimize() = 0;
-		/*
-			Shows/opens the window as it was before it was minimized.
-		*/
-		virtual void restore() = 0;
-
-		/*
-			Changes the window state, which determines how the window is viewed; hidden in the taskbar, maximized so it fills the client area
-			of the screen, or restored which is the default window state where the window can overlap other windows and be resized normally.
-			Methods maximize(), minimize() and restore() do the same thing.
-		*/
-		virtual void setState(WindowState p_state) = 0;
-		/*
-			Returns the window state, which determines how the window is viewed; hidden in the taskbar, maximized so it fills the client area
-			of the screen, or restored which is the default window state where the window can overlap other windows and be resized normally.
-		*/
-		virtual WindowState getState() const = 0;
-
-		//------------------------------
-
-		/*
-			Sets the position of the window relative to the top-left corner of the screen, in pixel units.
-		*/
-		virtual void setPosition(Point<int32> const& p_position) = 0;
-		/*
-			Sets the position of the window relative to the top-left corner of the screen, in pixel units.
-		*/
-		virtual void setPosition(int32 p_x, int32 p_y) = 0;
-		/*
-			Returns the position of the window relative to the top-left corner of the screen, in pixel units.
-		*/
-		virtual Point<int32> getPosition() const = 0;
-		/*
-			Returns the position of the left edge of the window relative to the top-left corner of the screen, in pixel units.
-		*/
-		virtual int32 getPositionX() const = 0;
-		/*
-			Returns the position of the top edge of the window relative to the top-left corner of the screen, in pixel units.
-		*/
-		virtual int32 getPositionY() const = 0;
-
-		/*
-			Sets the size of the client area of the window, in dip units.
-		*/
-		virtual void setSize(Point<float> const& p_size) = 0;
-		/*
-			Sets the size of the client area of the window, in dip units.
-		*/
-		virtual void setSize(float p_width, float p_height) = 0;
-		/*
-			Returns the size of the client area of the window, in dip units.
-		*/
-		virtual Point<float> getSize() const = 0;
-		/*
-			Returns the width of the client area of the window, in dip units.
-		*/
-		virtual float getWidth() const = 0;
-		/*
-			Returns the height of the client area of the window, in dip units.
-		*/
-		virtual float getHeight() const = 0;
-
-		/*
-			Sets the smallest allowed size for the window when the user is resizing it, in dip units.
-		*/
-		virtual void setMinSize(Point<float> const& p_minSize) = 0;
-		/*
-			Sets the smallest allowed size for the window when the user is resizing it, in dip units.
-		*/
-		virtual void setMinSize(float p_minWidth, float p_minHeight) = 0;
-		/*
-			Returns the smallest allowed size for the window when the user is resizing it, in dip units.
-		*/
-		virtual Point<float> getMinSize() const = 0;
-		/*
-			Returns the smallest allowed width for the window when the user is resizing it, in dip units.
-		*/
-		virtual float getMinWidth() const = 0;
-		/*
-			Returns the smallest allowed height for the window when the user is resizing it, in dip units.
-		*/
-		virtual float getMinHeight() const = 0;
-
-		/*
-			Sets the biggest allowed size for the window when the user is resizing it, in dip units.
-		*/
-		virtual void setMaxSize(Point<float> const& p_maxSize) = 0;
-		/*
-			Sets the biggest allowed size for the window when the user is resizing it, in dip units.
-		*/
-		virtual void setMaxSize(float p_maxWidth, float p_maxHeight) = 0;
-		/*
-			Returns the biggest allowed size for the window when the user is resizing it, in dip units.
-		*/
-		virtual Point<float> getMaxSize() const = 0;
-		/*
-			Returns the biggest allowed width for the window when the user is resizing it, in dip units.
-		*/
-		virtual float getMaxWidth() const = 0;
-		/*
-			Returns the biggest allowed height for the window when the user is resizing it, in dip units.
-		*/
-		virtual float getMaxHeight() const = 0;
-
-		//------------------------------
-
-		/*
-			Returns the bounds of the current monitor used by the window, in pixel units.
-		*/
-		virtual Rectangle<uint32> getMonitorBounds() const = 0;
-		/*
-			Returns the virtual position of the current monitor used by the window relative to other monitors, in pixel units.
-		*/
-		virtual Point<uint32> getMonitorPosition() const = 0;
-		/*
-			Returns the size of the current monitor used by the window, in pixel units.
-		*/
-		virtual Point<uint32> getMonitorSize() const = 0;
-		/*
-			Returns the width of the current monitor used by the window, in pixel units.
-		*/
-		virtual uint32 getMonitorWidth() const = 0;
-		/*
-			Returns the height of the current monitor used by the window, in pixel units.
-		*/
-		virtual uint32 getMonitorHeight() const = 0;
-
-		//------------------------------
-
-		/*
-			Returns the bounds of the work area of the monitor currently used by the window, in pixel units.
-			This excludes the taskbar on Windows.
-		*/
-		virtual Rectangle<uint32> getWorkAreaBounds() const = 0;
-		/*
-			Returns the virtual position of the work area of the monitor currently used by the window, in pixel units.
-			This excludes the taskbar on Windows.
-		*/
-		virtual Point<uint32> getWorkAreaPosition() const = 0;
-		/*
-			Returns the size of the work area of the monitor currently used by the window, in pixel units.
-			This excludes the taskbar on Windows.
-		*/
-		virtual Point<uint32> getWorkAreaSize() const = 0;
-		/*
-			Returns the width of the work area of the monitor currently used by the window, in pixel units.
-			This excludes the taskbar on Windows.
-		*/
-		virtual uint32 getWorkAreaWidth() const = 0;
-		/*
-			Returns the height of the work area of the monitor currently used by the window, in pixel units.
-			This excludes the taskbar on Windows.
-		*/
-		virtual uint32 getWorkAreaHeight() const = 0;
-
-		//------------------------------
-
-		/*
-			Returns whether a key is currently pressed down.
-		*/
-		virtual bool getIsKeyDown(KeyboardKey p_key) const = 0;
-		/*
-			Returns whether a mouse button is currently pressed down.
-		*/
-		virtual bool getIsMouseButtonDown(MouseButton p_button) const = 0;
-		/*
-			Returns the position of the mouse cursor, relative to the top-left corner of the window.
-		*/
-		virtual Point<float> getMousePosition() const = 0;
-
-		//------------------------------
-
-		/*
-			Changes what the mouse cursor looks like.
-		*/
-		virtual void setCursor(Cursor p_cursor) = 0;
-		/*
-			Returns the current mouse cursor.
-		*/
-		virtual Cursor getCursor() const = 0;
-
-		//------------------------------
-
-		/*
-			Returns the factor that is used to convert DIP units to pixel units in the window.
-			This can change during the lifetime of the window, if the user drags it to a monitor with a different DPI for example.
-		*/
-		virtual float getDipToPixelFactor() const = 0;
-
-		//------------------------------
-
-		/*
-			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropString(std::string const& p_string, Image* p_dragImage = 0, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
-
-		/*
-			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropString(std::wstring const& p_string, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
-
-
-		/*
-			Runs a blocking loop that allows the user to drag image data from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropImage(Image* p_image, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropFile(uint8 const* p_data, uint32 p_dataSize, std::string const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropFile(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropFile(std::vector<uint8> const& p_data, std::string const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropFile(std::vector<uint8> const& p_data, std::wstring const& p_name, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag file data or a directory from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropFile(std::string const& p_path, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag file data or a directory from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropFile(std::wstring const& p_path, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
-
-		/*
-			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_paths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_paths, Image* p_dragImage = nullptr, Point<float> const& p_dragImageCursorPosition = Point<float>(), uint64 p_additionalData = 0u) = 0;
-
-		//------------------------------
-
-		/*
-			Gives a UTF-16 encoded string for the OS to store globally. Other programs, or this one, can then access it.
-			The data currently stored on the clipboard is freed and replaced by this string.
-		*/
-		virtual void setClipboardString(std::wstring const& p_string, uint64 p_additionalData = 0u) const = 0;
-
-		/*
-			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
-			The data currently stored on the clipboard is freed and replaced by this string.
-		*/
-		virtual void setClipboardString(std::string const& p_string, uint64 p_additionalData = 0u) const = 0;
-
-		/*
-			Gives an image for the OS to store globally. Other programs, or this one, can then access it.
-		    The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardImage(Image* p_image, uint64 p_additionalData = 0u) const = 0;
-
-		/*
-			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
-		    The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardFile(uint8 const* p_data, uint32 p_dataSize, std::string const& p_name, uint64 p_additionalData = 0u) const = 0;
-		/*
-			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
-		    The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardFile(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, uint64 p_additionalData = 0u) const = 0;
-		/*
-			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
-		    The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardFile(std::vector<uint8> const& p_data, std::string const& p_name, uint64 p_additionalData = 0u) const = 0;
-		/*
-			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
-		    The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardFile(std::vector<uint8> const& p_data, std::wstring const& p_name, uint64 p_additionalData = 0u) const = 0;
-		/*
-			Gives a UTF-8 file path for the OS to store globally. Other programs, or this one, can then access it.
-		    The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardFile(std::string const& p_path, uint64 p_additionalData = 0u) const = 0;
-		/*
-			Gives a UTF-16 file path for the OS to store globally. Other programs, or this one, can then access it.
-		    The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardFile(std::wstring const& p_path, uint64 p_additionalData = 0u) const = 0;
-
-		/*
-			Gives UTF-8 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
-		    The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardFiles(std::vector<std::string> const& p_paths, uint64 p_additionalData = 0u) const = 0;
-		/*
-			Gives UTF-16 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
-		    The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardFiles(std::vector<std::wstring> const& p_paths, uint64 p_additionalData = 0u) const = 0;
-
-		/*
-			Returns the data that is currently stored on the clipboard.
-		*/
-		[[nodiscard]] virtual std::unique_ptr<ClipboardData> getClipboardData() const = 0;
-
-		//------------------------------
-		// Window events
-
-	protected:
-		bool sendWindowCloseEvents(WindowEvent const& p_event)
-		{
-			bool willClose = true;
-			for (auto& listener : windowCloseListeners.listeners)
-			{
-				if (!listener(p_event))
-				{
-					willClose = false;
-				}
-			}
-			return willClose;
-		}
-
-	public:
-		EventListeners<bool(WindowEvent const&)> windowCloseListeners;
-		EventListeners<void(WindowEvent const&)> windowCreateListeners;
-		EventListeners<void(WindowEvent const&)> windowDestroyListeners;
-		EventListeners<void(WindowEvent const&)> windowMinimizeListeners;
-		EventListeners<void(WindowEvent const&)> windowMaximizeListeners;
-		EventListeners<void(WindowEvent const&)> windowRestoreListeners;
-		EventListeners<void(WindowEvent const&)> windowSizeChangeListeners;
-		EventListeners<void(WindowEvent const&)> windowFocusGainListeners;
-		EventListeners<void(WindowEvent const&)> windowFocusLoseListeners;
-	};
-
-	//------------------------------
-
-	/*
-		This specifies what is done to fit the image within its bounds.
-	*/
-	enum class ImageBoundsSizing
-	{
-		Stretch, // This stretches the image so that it fills its bounds.
-		Contain, // This makes sure the image is as big as possible while still keeping the image within its bounds. Aspect ratio is kept.
-		Fill // This makes sure the image is so big that it fills its bounds while keeping aspect ratio. Edges may be clipped.
-	};
-
-	/*
-		This specifies how the pixels of an image are interpolated when it is scaled.
-	*/
-	enum class ImageScalingMethod
-	{
-		Pixelated, // Uses nearest neighbor interpolation
-		Smooth // Uses linear interpolation
-	};
-
-	/*
-		The formats that an image can be encoded to and decoded from.
-	*/
-	enum class ImageFormat
-	{
-		Png,
-		Jpeg,
-		Bmp, // Only on Windows.
-		Ico, // Only on Windows.
-		Unknown
-	};
-
-	/*
-		Represents an image on the GPU which can be created and drawn by a DrawingContext.
-		Notice that this is not a view but should be treated as a drawable object.
-		It is your responsibility to manage its lifetime, using remember() and forget().
-	*/
-	class Image : public ReferenceCounted, public ProtectedRectangle
-	{
-	public:
-		/*
-			Sets a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
-			This is in original image DIP coordinates, meaning sizing is not taken into account.
-		*/
-		virtual void setCropRectangle(Rectangle<float> const& p_rectangle) = 0;
-		/*
-			Returns a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
-			This is in original image DIP coordinates, meaning sizing is not taken into account.
-		*/
-		virtual Rectangle<float> const& getCropRectangle() const = 0;
-
-		/*
-			Returns the DIP size of the actual image.
-		*/
-		virtual Point<uint32> getOriginalSize() const = 0;
-		/*
-			Returns the DIP width of the actual image.
-		*/
-		virtual uint32 getOriginalWidth() const = 0;
-		/*
-			Returns the DIP height of the actual image.
-		*/
-		virtual uint32 getOriginalHeight() const = 0;
-
-		//------------------------------
-
-		/*
-			Sets the way the image is fit within its bounds.
-		*/
-		virtual void setBoundsSizing(ImageBoundsSizing p_sizeMode) = 0;
-		/*
-			Returns the way the image is fit within its bounds.
-		*/
-		virtual ImageBoundsSizing getBoundsSizing() const = 0;
-
-		/*
-			Sets the way the image is positioned within its bounds.
-
-			p_x represents the x coordinate of the point on the image that aligns with the same point but relative to the bounds.
-			p_x is expressed as a factor of the width of the image. For example, if p_x is 1, the right edge of the image will be
-			aligned with the right edge of the bounds. 0.5 means the centers will be aligned.
-			Same for p_y but vertical coordinates.
-		*/
-		virtual void setBoundsPositioning(float p_x, float p_y) = 0;
-		/*
-			Sets the way the image is positioned within its bounds on the x-axis.
-
-			p_x represents the x coordinate of the point on the image that aligns with the same point but relative to the bounds.
-			p_x is expressed as a factor of the width of the image. For example, if p_x is 1, the right edge of the image will be
-			aligned with the right edge of the bounds. 0.5 means the centers will be aligned.
-		*/
-		virtual void setBoundsPositioningX(float p_x) = 0;
-		/*
-			Sets the way the image is positioned within its bounds on the y-axis.
-
-			p_y represents the y coordinate of the point on the image that aligns with the same point but relative to the bounds.
-			p_y is expressed as a factor of the height of the image. For example, if p_y is 1, the bottom edge of the image will be
-			aligned with the bottom edge of the bounds. 0.5 means the centers will be aligned.
-		*/
-		virtual void setBoundsPositioningY(float p_y) = 0;
-		/*
-			Returns the way the image is positioned within its bounds. See setBoundsPositioning for more info.
-		*/
-		virtual Point<float> const& getBoundsPositioning() const = 0;
-		/*
-			Returns the way the image is positioned within its bounds on the x-axis. See setBoundsPositioningX for more info.
-		*/
-		virtual float getBoundsPositioningX() const = 0;
-		/*
-			Returns the way the image is positioned within its bounds on the y-axis. See setBoundsPositioningY for more info.
-		*/
-		virtual float getBoundsPositioningY() const = 0;
-
-		//------------------------------
-
-		/*
-			Sets how the pixels of the image are interpolated when the image is scaled.
-		*/
-		virtual void setScalingMethod(ImageScalingMethod p_scalingMethod) = 0;
-		/*
-			Returns how the pixels of the image are interpolated when the image is scaled.
-		*/
-		virtual ImageScalingMethod getScalingMethod() const = 0;
-
-		//------------------------------
-
-		/*
-			Sets how opaque the image is being drawn.
-		*/
-		virtual void setOpacity(float p_opacity) = 0;
-		/*
-			Returns how opaque the image is being drawn.
-		*/
-		virtual float getOpacity() const = 0;
-
-		//------------------------------
-
-		/*
-			Returns the drawn width of the image within the bounds, calculated using the sizing options and the crop rectangle.
-		*/
-		virtual float getInnerWidth() const = 0;
-		/*
-			Returns the drawn height of the image within the bounds, calculated using the sizing options and the crop rectangle.
-		*/
-		virtual float getInnerHeight() const = 0;
-		/*
-			Returns the drawn size of the image within the bounds, calculated using the sizing options and the crop rectangle.
-		*/
-		virtual Point<float> getInnerSize() const = 0;
-		/*
-			Returns the drawn inner bounds of the image within the outer bounds, calculated using the positioning options, sizing options and the crop rectangle.
-		*/
-		virtual Rectangle<float> getInnerBounds() const = 0;
-
-		//------------------------------
-
-		/*
-			Returns a pointer to the os-specific image object.
-		*/
-		virtual void* getHandle() const = 0;
-	};
-
-	//------------------------------
-
-	enum class WordWrapping
-	{
-		Emergency, // Keeps words whole unless a word is wider than the maximum width.
-		WholeWord, // Only wraps between words to prevent overflow.
-		Always, // Always wraps to the next line to prevent overflow.
-		Never // Allows overflow, never wraps.
-	};
-
-	enum class FontWeight
-	{
-		Thin = 100, // Thinnest option
-		UltraLight = 200,
-		Light = 300,
-		SemiLight = 350,
-		Regular = 400, // Normal thickness
-		Medium = 500, // A bit thicker than regular
-		SemiBold = 600,
-		Bold = 700,
-		UltraBold = 800,
-		Black = 900, // Second most thick option
-		UltraBlack = 950 // Most thick option
-	};
-
-	enum class FontStyle
-	{
-		Normal,
-		Oblique,
-		Italic
-	};
-
-	/*
-		The horizontal stretch of the font.
-		Only some fonts have different horizontal stretch options.
-	*/
-	enum class FontStretch
-	{
-		Undefined = 0,
-		UltraCondensed = 1, // Most condensed
-		ExtraCondensed = 2, // Second most condensed
-		Condensed = 3,
-		SemiCondensed = 4,
-		Medium = 5,
-		SemiStretched = 6,
-		Stretched = 7,
-		ExtraStretched = 8, // Second most stretched
-		UltraStretched = 9 // Most stretched
-	};
-
-	enum class TextAlign
-	{
-		Left,
-		Center,
-		Right,
-		Fill // Stretches the spaces of the text to make the left and right edges of the text line up with the bounds of the text.
-	};
-	enum class ReadingDirection
-	{
-		LeftToRight,
-		RightToLeft,
-		TopToBottom,
-		BottomToTop
-	};
-
-	/*
-		Represents a text block which can be calculated once and drawn any number of times by a DrawingContext.
-		Notice that this is not a view, but should be treated as a drawable object created by a DrawingContext.
-		It is your responsibility to mange its lifetime, using remember() and forget().
-	*/
-	class Text : public ProtectedRectangle, public ReferenceCounted
-	{
-	public:
-		/*
-			Sets the rules for inserting line breaks in the text to avoid overflow.
-		*/
-		virtual void setWordWrapping(WordWrapping p_wordWrapping) = 0;
-		/*
-			Returns the type of rules used for inserting line breaks in the text to avoid overflow.
-		*/
-		virtual WordWrapping getWordWrapping() = 0;
-
-		/*
-			Sets the size of the bounding box to fit the text.
-			There may still be space between the tallest character in the text and the top edge of the bounds.
-			If you want the text to be positioned without any space on the top, call setIsTopTrimmed(true) before this.
-		*/
-		virtual void fitSizeToText() = 0;
-		/*
-			Sets the width of the bounding box to fit the text.
-		*/
-		virtual void fitWidthToText() = 0;
-		/*
-			Sets the height of the bounding box to fit the text.
-			There may still be space between the tallest character in the text and the top edge of the bounds.
-			If you want the text to be positioned without any space on the top, call setIsTopTrimmed(true) before this.
-		*/
-		virtual void fitHeightToText() = 0;
-		/*
-			Returns the smallest size to contain the actual text.
-			If getIsTopTrimmed() == false, the height includes the space between the top of the tallest character
-			and the top edge of the bounds.
-		*/
-		virtual Point<float> getMinimumSize() = 0;
-		/*
-			Returns the smallest width to contain the actual text.
-		*/
-		virtual float getMinimumWidth() = 0;
-		/*
-			Returns the smallest height to contain the actual text.
-			If getIsTopTrimmed() == false, this includes the space between the top of the tallest character
-			and the top edge of the bounds.
-		*/
-		virtual float getMinimumHeight() = 0;
-
-		//------------------------------
-
-		/*
-			Sets whether the top of the text is trimmed so that there is no space between the top of the tallest
-			character of the text and the top edge of the bounds.
-
-			If this is false, the text is positioned within the bounds so that the baseline is at a fixed position,
-			and there may be space above the characters in the text to allow this. This is the default.
-
-			Setting this to true can be useful when you want to perfectly center text vertically.
-		*/
-		virtual void setIsTopTrimmed(bool p_isTopTrimmed) = 0;
-		/*
-			Returns whether the top of the text is trimmed so that there is no space between the top of the tallest
-			character of the text and the top edge of the bounds. This is false by default.
-		*/
-		virtual bool getIsTopTrimmed() = 0;
-
-		//------------------------------
-
-		/*
-			Returns the 2d position of a character in the text, specified by its index in the string.
-			p_isRelativeToOrigin is whether the position returned is relative to the origin of the drawing context.
-			If not, it is relative to the bounds of the text.
-		*/
-		virtual Point<float> getCharacterPosition(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
-		/*
-			Returns the width and height of a character in the text, specified by its index in the string.
-		*/
-		virtual Point<float> getCharacterSize(uint32 p_characterIndex) = 0;
-		/*
-			Returns a rectangle enclosing a character in the text, specified by its index in the string.
-			p_isRelativeToOrigin is whether the position of the bounds returned is relative to the origin of the drawing context.
-			If not, it is relative to the bounds of the text.
-		*/
-		virtual Rectangle<float> getCharacterBounds(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) = 0;
-
-		/*
-			Returns the index of the character which is nearest to a point.
-			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context.
-			If not, it is relative to the bounds of the text.
-		*/
-		virtual uint32 getNearestCharacterIndex(Point<float> const& p_point, bool p_isRelativeToOrigin = false) = 0;
-		/*
-			Returns the index of the character which is nearest to a point.
-
-			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context.
-			If not, it is relative to the bounds of the text.
-		*/
-		virtual uint32 getNearestCharacterIndex(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false) = 0;
-		/*
-			Returns the index and position of the character which is nearest to a point.
-
-			p_outCharacterIndex is a pointer to the character index to be returned.
-			p_outCharacterPosition is a pointer to the 2d position to be returned.
-			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context.
-			If not, they are relative to the bounds of the text.
-		*/
-		virtual void getNearestCharacterIndexAndPosition(Point<float> const& p_point, uint32* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
-		/*
-			Returns the index and position of the character which is nearest to a point.
-
-			p_outCharacterIndex is a pointer to the character index to be returned.
-			p_outCharacterPosition is a pointer to the 2d position to be returned.
-			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context.
-			If not, they are relative to the bounds of the text.
-		*/
-		virtual void getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, uint32* p_outCharacterIndex, Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) = 0;
-		/*
-			Returns the index and bounds of the character which is nearest to a point.
-
-			p_outCharacterIndex is a pointer to the character index to be returned.
-			p_outCharacterBounds is a pointer to the bounding rectangle to be returned.
-			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.
-		*/
-		virtual void getNearestCharacterIndexAndBounds(Point<float> const& p_point, uint32* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
-		/*
-			Returns the index and bounds of the character which is nearest to a point.
-
-			p_outCharacterIndex is a pointer to the character index to be returned.
-			p_outCharacterBounds is a pointer to the bounding rectangle to be returned.
-			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.
-		*/
-		virtual void getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, uint32* p_outCharacterIndex, Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) = 0;
-
-		//------------------------------
-
-		/*
-			Sets how the text is placed within the bounds.
-		*/
-		virtual void setTextAlign(TextAlign p_textAlign) = 0;
-		/*
-			Returns how the text is placed within the bounds.
-		*/
-		virtual TextAlign getTextAlign() = 0;
-
-		//------------------------------
-
-		/*
-			Sets the layout direction of the text.
-		*/
-		virtual void setReadingDirection(ReadingDirection p_readingDirection) = 0;
-		/*
-			Returns the layout direction of the text.
-		*/
-		virtual ReadingDirection getReadingDirection() = 0;
-
-		//------------------------------
-
-		/*
-			Sets the font family to be used in a section of the text.
-
-			p_name is the name of the font family.
-
-			p_startPosition is the position of the first character to use this font.
-			If this is negative, it is relative to the end of the text.
-
-			p_length is the number of characters to use this font.
-			If this is negative, it goes to the left of the start position.
-			If it is 0, everything after the starting position will be affected.
-		*/
-		virtual void setFontFamily(std::string const& p_name, int32 p_startPosition = 0, int32 p_length = 0) = 0;
-
-		//------------------------------
-
-		/*
-			Sets the spacing between characters in a section of the text.
-
-			p_startPosition is the position of the first character to use this spacing.
-			If this is negative, it is relative to the end of the text.
-
-			p_length is the number of characters to use this spacing.
-			If this is negative, it goes to the left of the start position.
-			If it is 0, everything after the starting position will be affected.
-		*/
-		virtual void setCharacterSpacing(float p_characterSpacing, int32 p_startPosition = 0, int32 p_length = 0) = 0;
-		/*
-			Sets the leading and trailing spacing of the characters in a section of the text.
-
-			p_leading is the spacing before the characters of the text.
-			p_trailing is the spacing after the characters of the text.
-			p_startPosition is the position of the first character to use this spacing.
-			If this is negative, it is relative to the end of the text.
-
-			p_length is the number of characters to use this spacing.
-			If this is negative, it goes to the left of the start position.
-			If it is 0, everything after the starting position will be affected.
-		*/
-		virtual void setCharacterSpacing(float p_leading, float p_trailing, int32 p_startPosition = 0, int32 p_length = 0) = 0;
-		/*
-			Returns the spacing before one of the characters.
-		*/
-		virtual float getLeadingCharacterSpacing(int32 p_characterIndex = 0) = 0;
-		/*
-			Returns the spacing after one of the characters.
-		*/
-		virtual float getTrailingCharacterSpacing(int32 p_characterIndex = 0) = 0;
-
-		//------------------------------
-
-		/*
-			Sets the distance between the baseline of lines in the text, as a factor of the default.
-		*/
-		virtual void setLineHeight(float p_lineHeight) = 0;
-		/*
-			Returns the distance between the baseline of lines in the text, as a factor of the default.
-		*/
-		virtual float getLineHeight() = 0;
-
-		//------------------------------
-
-		/*
-			Sets the thickness of characters in a section of the text.
-
-			p_startPosition is the position of the first character to use this font weight.
-			If this is negative, it is relative to the end of the text.
-
-			p_length is the number of characters to use this font weight.
-			If this is negative, it goes to the left of the start position.
-			If it is 0, everything after the starting position will be affected.
-		*/
-		virtual void setFontWeight(FontWeight p_fontWeight, int32 p_startPosition = 0, int32 p_length = 0) = 0;
-		/*
-			Returns the weight/thickness of a character in the text.
-		*/
-		virtual FontWeight getFontWeight(uint32 p_characterPosition = 0) = 0;
-
-		//------------------------------
-
-		/*
-			Sets the font style in a section of the text.
-
-			p_startPosition is the position of the first character to use this font style.
-			If this is negative, it is relative to the end of the text.
-
-			p_length is the number of characters to use this font style.
-			If this is negative, it goes to the left of the start position.
-			If it is 0, everything after the starting position will be affected.
-		*/
-		virtual void setFontStyle(FontStyle p_fontStyle, int32 p_startPosition = 0, int32 p_length = 0) = 0;
-		/*
-			Returns the style of a character in the text.
-		*/
-		virtual FontStyle getFontStyle(uint32 p_characterPosition = 0) = 0;
-
-		//------------------------------
-
-		/*
-			Sets the font stretch in a section of the text. Not all fonts support this.
-
-			p_startPosition is the position of the first character to use this font stretch.
-			If this is negative, it is relative to the end of the text.
-
-			p_length is the number of characters to use this font stretch.
-			If this is negative, it goes to the left of the start position.
-			If it is 0, everything after the starting position will be affected.
-		*/
-		virtual void setFontStretch(FontStretch p_fontStretch, int32 p_startPosition = 0, int32 p_length = 0) = 0;
-		/*
-			Returns the font stretch of a character in the text.
-		*/
-		virtual FontStretch getFontStretch(uint32 p_characterPosition = 0) = 0;
-
-		//------------------------------
-
-		/*
-			Sets the font size in a section of the text.
-
-			p_startPosition is the position of the first character to use this font size.
-			If this is negative, it is relative to the end of the text.
-
-			p_length is the number of characters to use this font size.
-			If this is negative, it goes to the left of the start position.
-			If it is 0, everything after the starting position will be affected.
-		*/
-		virtual void setFontSize(float p_fontSize, int32 p_startPosition = 0, int32 p_length = 0) = 0;
-		/*
-			Returns the size (height) of a character in the text.
-		*/
-		virtual float getFontSize(uint32 p_characterPosition = 0) = 0;
-
-		//------------------------------
-
-		virtual std::string const& getString() = 0;
-
-		//------------------------------
-
-		/*
-			Returns a pointer to an OS-specific text object.
-		*/
-		virtual void* getHandle() = 0;
-	};
-
-	//------------------------------
-
-	enum class LineCap
-	{
-		Flat,
-		Round,
-		Square,
-		Triangle
-	};
-
-	enum class LineJoin
-	{
-		Bevel,
-		Miter,
-		Round
-	};
-
-	enum class LineDashStyle
-	{
-		Solid,
-		Dash,
-		Dot,
-		DashDot,
-		DashDotDot,
-		Custom
-	};
-
-	class TextProperties
-	{
-	public:
-		std::string fontFamilyName{ "Roboto" };
-
-		FontWeight fontWeight{ FontWeight::Medium };
-		FontStyle fontStyle{ FontStyle::Normal };
-		FontStretch fontStretch{ FontStretch::Medium };
-		TextAlign textAlign{ TextAlign::Left };
-		ReadingDirection readingDirection{ ReadingDirection::LeftToRight };
-
-		float characterSpacing{ 0.f }; // Only supported for text objects.
-		float lineHeight{ 1.f };
-		float fontSize{ 22.f };
-	};
-
-	class LinearGradient : public ReferenceCounted
-	{
-	public:
-		/*
-			Sets an offset in the start and end positions.
-		*/
-		virtual void setOffset(Point<float> const& p_offset) = 0;
-		/*
-			Sets an offset in the start and end positions.
-		*/
-		virtual void setOffset(float p_x, float p_y) = 0;
-		/*
-			Sets the horizontal offset in the start position.
-		*/
-		virtual void setOffsetX(float p_x) = 0;
-		/*
-			Sets the vertical offset in the start position.
-		*/
-		virtual void setOffsetY(float p_y) = 0;
-
-		/*
-			Returns the offset in the start and end positions.
-		*/
-		virtual Point<float> const& getOffset() const = 0;
-		/*
-			Returns the horizontal offset in the start and end positions.
-		*/
-		virtual float getOffsetX() const = 0;
-		/*
-			Returns the vertical offset in the start and end positions.
-		*/
-		virtual float getOffsetY() const = 0;
-
-		/*
-			Sets the coordinates where the gradient will start, relative to the origin.
-		*/
-		virtual void setStartPosition(Point<float> const& p_startPosition) = 0;
-		/*
-			Sets the coordinates relative to the origin where the gradient will start.
-		*/
-		virtual void setStartPosition(float p_x, float p_y) = 0;
-		/*
-			Returns the coordinates relative to the origin where the gradient will start.
-		*/
-		virtual Point<float> const& getStartPosition() const = 0;
-		/*
-			Returns the X coordinate relative to the origin where the gradient will start.
-		*/
-		virtual float getStartPositionX() const = 0;
-		/*
-			Returns the Y coordinate relative to the origin where the gradient will start.
-		*/
-		virtual float getStartPositionY() const = 0;
-
-		/*
-			Sets the coordinates relative to the origin where the gradient will end.
-		*/
-		virtual void setEndPosition(Point<float> const& p_endPosition) = 0;
-		/*
-			Sets the coordinates relative to the origin where the gradient will end.
-		*/
-		virtual void setEndPosition(float p_x, float p_y) = 0;
-		/*
-			Returns the coordinates relative to the origin where the gradient will end.
-		*/
-		virtual Point<float> const& getEndPosition() const = 0;
-		/*
-			Returns the X coordinate relative to the origin where the gradient will end.
-		*/
-		virtual float getEndPositionX() const = 0;
-		/*
-			Returns the Y coordinate relative to the origin where the gradient will end.
-		*/
-		virtual float getEndPositionY() const = 0;
-	};
-	class RadialGradient : public ReferenceCounted
-	{
-		/*
-			Sets an offset in the start position.
-		*/
-		virtual void setOffset(Point<float> const& p_offset) = 0;
-		/*
-			Sets an offset in the start position.
-		*/
-		virtual void setOffset(float p_x, float p_y) = 0;
-		/*
-			Sets the horizontal offset in the start position.
-		*/
-		virtual void setOffsetX(float p_x) = 0;
-		/*
-			Sets the vertical offset in the start position.
-		*/
-		virtual void setOffsetY(float p_y) = 0;
-		/*
-			Returns the offset in the start position.
-		*/
-		virtual Point<float> const& getOffset() const = 0;
-		/*
-			Returns the horizontal offset in the start position.
-		*/
-		virtual float getOffsetX() const = 0;
-		/*
-			Returns the vertical offset in the start position.
-		*/
-		virtual float getOffsetY() const = 0;
-
-		/*
-			Sets the coordinates where the gradient will start, relative to the origin.
-		*/
-		virtual void setStartPosition(Point<float> const& p_startPosition) = 0;
-		/*
-			Sets the coordinates relative to the origin where the gradient will start.
-		*/
-		virtual void setStartPosition(float p_x, float p_y) = 0;
-		/*
-			Returns the coordinates relative to the origin where the gradient will start.
-		*/
-		virtual Point<float> const& getStartPosition() const = 0;
-		/*
-			Returns the X coordinate relative to the origin where the gradient will start.
-		*/
-		virtual float getStartPositionX() const = 0;
-		/*
-			Returns the Y coordinate relative to the origin where the gradient will start.
-		*/
-		virtual float getStartPositionY() const = 0;
-
-		/*
-			Sets the horizontal and vertical size of the gradient.
-		*/
-		virtual void setRadius(float p_radius) = 0;
-		/*
-			Sets the horizontal and vertical size of the gradient.
-		*/
-		virtual void setRadius(Point<float> const& p_radius) = 0;
-		/*
-			Sets the horizontal and vertical size of the gradient.
-		*/
-		virtual void setRadius(float p_radiusX, float p_radiusY) = 0;
-		/*
-			Returns the horizontal and vertical size of the gradient.
-		*/
-		virtual Point<float> const& getRadius() const = 0;
-		/*
-			Returns the horizontal size of the gradient.
-		*/
-		virtual float getRadiusX() const = 0;
-		/*
-			Returns the vertical size of the gradient.
-		*/
-		virtual float getRadiusY() const = 0;
-	};
-
-	/*
-		A class representing a position and a color, used to make a gradient.
-		The position between 0 and 1 and is relative to the start and end positions if it's linear,
-		and relative to the start position and radius if it's radial.
-	*/
-	class GradientStop
-	{
-	public:
-		AvoGUI::Color color;
-		float position;
-
-		GradientStop(AvoGUI::Color const& p_color, float p_position) :
-			color(p_color), position(p_position)
-		{
-		}
-	};
-
-	/*
-		Platform-specific interface for cached geometry that can be created and drawn by a DrawingContext.
-		Used to draw more efficiently.
-	*/
-	class Geometry : public ReferenceCounted { };
-
-	/*
-		Used to store the drawing state of a DrawingContext, which includes the current transformations.
-		Create one with DrawingContext::createDrawingState().
-	*/
-	class DrawingState : public ReferenceCounted { };
-
-	/*
-		A drawing context interface, created by a GUI to be used to create objects
-		like text and images (and more) as well as to draw graphics in views.
-	*/
-	class DrawingContext : public ReferenceCounted
-	{
-	protected:
-		TextProperties m_textProperties;
-
-	public:
-		/*
-			Returns the image format of the given image file.
-			Only the first 8 bytes of the file is needed.
-		*/
-		static auto getImageFormatOfFile(uint64 p_fileData)
-		{
-			if (!std::strncmp((char const*)&p_fileData, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8))
-			{
-				return AvoGUI::ImageFormat::Png;
-			}
-			else if (!std::strncmp((char const*)&p_fileData, "\xFF\xD8\xFF", 3))
-			{
-				return AvoGUI::ImageFormat::Jpeg;
-			}
-			else if (!std::strncmp((char const*)&p_fileData, "\x00\x00\x01\x00", 4) ||
-			         !std::strncmp((char const*)&p_fileData, "\x00\x00\x02\x00", 4))
-			{
-				return AvoGUI::ImageFormat::Ico;
-			}
-			return AvoGUI::ImageFormat::Unknown;
-		}
-		/*
-			Returns the image format of the given image file.
-		*/
-		static AvoGUI::ImageFormat getImageFormatOfFile(std::string const& p_filePath)
-		{
-			char signatureBytes[8];
-
-			std::ifstream fileStream(p_filePath);
-			fileStream.read(signatureBytes, 8);
-			fileStream.close();
-
-			return getImageFormatOfFile(*(uint64*)signatureBytes);
-		}
-		/*
-			Returns the image format of the given image file.
-		*/
-		static AvoGUI::ImageFormat getImageFormatOfFile(char const* p_filePath)
-		{
-			char signatureBytes[8];
-
-			std::ifstream fileStream(p_filePath);
-			fileStream.read(signatureBytes, 8);
-			fileStream.close();
-
-			return getImageFormatOfFile(*(uint64*)signatureBytes);
-		}
-
-		//------------------------------
-
-		/*
-			Initializes drawing. The GUI calls this for you.
-		*/
-		virtual void beginDrawing() = 0;
-		/*
-			Finishes the drawing and shows it. The GUI calls this for you.
-		*/
-		virtual void finishDrawing(std::vector<Rectangle<float>> const& p_updatedRectangles) = 0;
-
-		//------------------------------
-
-		/*
-			Creates a drawing state object.
-			It can be re-used and you can call saveDrawingState and restoreDrawingState as many times as you want.
-		*/
-		virtual DrawingState* createDrawingState() = 0;
-		/*
-			Saves the internal drawing state of the drawing context in a DrawingState object.
-		*/
-		virtual void saveDrawingState(DrawingState* p_drawingState) = 0;
-		/*
-			Loads the internal drawing state of the drawing context from a DrawingState object.
-		*/
-		virtual void restoreDrawingState(DrawingState* p_drawingState) = 0;
-
-		//------------------------------
-
-		/*
-			Sets whether the target is fullscreen or windowed.
-		*/
-		virtual void setIsFullscreen(bool p_isFullscreen) = 0;
-		/*
-			Switches between windowed and fullscreen mode.
-			If it is currently windowed, it switches to fullscreen, and the other way around.
-		*/
-		virtual void switchFullscreen() = 0;
-		/*
-			Returns whether the target is fullscreen or windowed.
-		*/
-		virtual bool getIsFullscreen() = 0;
-
-		//------------------------------
-
-		/*
-			Enables synchronization with the monitor.
-		*/
-		virtual void enableVsync() = 0;
-		/*
-			Disables synchronization with the monitor.
-		*/
-		virtual void disableVsync() = 0;
-		/*
-			Returns whether presentation is synchronized with the monitor.
-		*/
-		virtual bool getIsVsyncEnabled() = 0;
-
-		//------------------------------
-
-		/*
-			Sets the color that the target is filled with before any drawing.
-		*/
-		virtual void setBackgroundColor(Color const& p_color) = 0;
-		/*
-			Returns the color that the target is filled with before any drawing.
-		*/
-		virtual Color getBackgroundColor() = 0;
-
-		//------------------------------
-
-		/*
-			Returns the DPI that the DrawingContext is scaling all DIP units to.
-			All coordinates that the DrawingContext works with are in DIPs.
-		*/
-		virtual float getDpi() = 0;
-		/*
-			Sets the DPI that the DrawingContext is scaling all DIP units to.
-			It is not recommended to call this manually, since any DPI changes are updated with this method automatically from the corresponding window.
-			All coordinates that the DrawingContext works with are in DIPs.
-		*/
-		virtual void setDpi(float p_dpi) = 0;
-
-		//------------------------------
-
-		/*
-			Moves the screen position of the coordinate (0, 0).
-		*/
-		virtual void moveOrigin(Point<float> const& p_offset) = 0;
-		/*
-			Moves the screen position of the coordinate (0, 0).
-		*/
-		virtual void moveOrigin(float p_offsetX, float p_offsetY) = 0;
-		/*
-			Sets the screen position of the coordinate (0, 0).
-		*/
-		virtual void setOrigin(Point<float> const& p_origin) = 0;
-		/*
-			Sets the screen position of the coordinate (0, 0).
-		*/
-		virtual void setOrigin(float p_x, float p_y) = 0;
-		/*
-			Returns the screen position of the coordinate (0, 0).
-		*/
-		virtual Point<float> getOrigin() = 0;
-
-		//------------------------------
-
-		/*
-			Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.
-			Everything will be scaled towards the origin.
-		*/
-		virtual void scale(float p_scale) = 0;
-		/*
-			Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics
-			drawing so that it is bigger or smaller. Everything will be scaled towards the origin.
-		*/
-		virtual void scale(float p_scaleX, float p_scaleY) = 0;
-		/*
-			Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.
-			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
-		*/
-		virtual void scale(float p_scale, Point<float> const& p_origin) = 0;
-		/*
-			Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics
-			drawing so that it is bigger or smaller. Everything will be scaled towards the origin parameter, which is relative
-			to the top-left corner of the window.
-		*/
-		virtual void scale(float p_scaleX, float p_scaleY, Point<float> const& p_origin) = 0;
-		/*
-			Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.
-			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
-		*/
-		virtual void scale(float p_scale, float p_originX, float p_originY) = 0;
-		/*
-			Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics
-			drawing so that it is bigger or smaller. The origin is shifted so that everything is scaled towards the origin
-			parameter, which is relative to the top-left corner of the window.
-		*/
-		virtual void scale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) = 0;
-		/*
-			sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.
-			Everything will be scaled towards the origin.
-		*/
-		virtual void setScale(float p_scale) = 0;
-		/*
-			Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics
-			drawing so that it is bigger or smaller than normal. Everything will be scaled towards the origin.
-		*/
-		virtual void setScale(float p_scaleX, float p_scaleY) = 0;
-		/*
-			Sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.
-			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
-		*/
-		virtual void setScale(float p_scale, Point<float> const& p_origin) = 0;
-		/*
-			Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics drawing so that
-			it is bigger or smaller than normal. Everything will be scaled towards the origin parameter, which is relative
-			to the top-left corner of the window.
-		*/
-		virtual void setScale(float p_scaleX, float p_scaleY, Point<float> const& p_origin) = 0;
-		/*
-			Sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.
-			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
-		*/
-		virtual void setScale(float p_scale, float p_originX, float p_originY) = 0;
-		/*
-			Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics
-			drawing so that it is bigger or smaller. The origin is shifted so that everything is scaled towards the origin
-			parameter, which is relative to the top-left corner of the window.
-		*/
-		virtual void setScale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) = 0;
-		/*
-			Returns the sizing factor which is transforming graphics drawing so that it is bigger or smaller.
-			If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.
-		*/
-		virtual Point<float> const& getScale() = 0;
-		/*
-			Returns the sizing factor for the x-axis which is transforming graphics drawing so that it is bigger or smaller.
-			If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.
-		*/
-		virtual float getScaleX() = 0;
-		/*
-			Returns the sizing factor for the y-axis which is transforming graphics drawing so that it is bigger or smaller.
-			If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.
-		*/
-		virtual float getScaleY() = 0;
-
-		//------------------------------
-
-		/*
-			Rotates all future graphics drawing, with an angle in radians. Graphics will be rotated relative to the origin.
-			p_radians is the angle to rotate, in radians.
-			Positive angle is clockwise and negative is anticlockwise (in our coordinate system).
-		*/
-		virtual void rotate(float p_radians) = 0;
-		/*
-			Rotates all future graphics drawing, with an angle in radians.
-			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
-			p_radians is the angle to rotate, in radians.
-			Positive angle is clockwise and negative is anticlockwise (in our coordinate system).
-		*/
-		virtual void rotate(float p_radians, Point<float> const& p_origin) = 0;
-		/*
-			Rotates all future graphics drawing, with an angle in radians.
-			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
-			p_radians is the angle to rotate, in radians.
-			Positive angle is clockwise and negative is anticlockwise (in our coordinate system).
-		*/
-		virtual void rotate(float p_radians, float p_originX, float p_originY) = 0;
-
-		//------------------------------
-
-		/*
-			Resets all graphics drawing transformations, so that every coordinate used in any drawing operation is unaltered, and relative to the top-left corner of the target.
-		*/
-		virtual void resetTransformations() = 0;
-
-		//------------------------------
-
-		/*
-			Resizes the drawing buffers for the window. The GUI calls this for you when it is being resized.
-			The size is expressed in dips.
-		*/
-		virtual void setSize(Point<float> const& p_size) = 0;
-		/*
-			Resizes the drawing buffers for the window. The GUI calls this for you when it is being resized.
-			The size is expressed in dips.
-		*/
-		virtual void setSize(float p_width, float p_height) = 0;
-		/*
-			Returns the size of the drawing buffers for the window, in dips.
-		*/
-		virtual Point<float> getSize() = 0;
-
-		//------------------------------
-
-		/*
-			Clears the whole buffer with the specified color.
-		*/
-		virtual void clear(Color const& p_color) = 0;
-		/*
-			Clears the whole buffer with a transparent background.
-		*/
-		virtual void clear() = 0;
-
-		//------------------------------
-
-		/*
-			Draws a filled rectangle using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRectangle(Rectangle<float> const& p_rectangle) = 0;
-		/*
-			Draws a filled rectangle using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRectangle(Point<float> const& p_position, Point<float> const& p_size) = 0;
-		/*
-			Draws a filled rectangle using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRectangle(float p_left, float p_top, float p_right, float p_bottom) = 0;
-		/*
-			Draws a filled rectangle at the origin using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRectangle(Point<float> const& p_size) = 0;
-		/*
-			Draws a filled rectangle at the origin using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRectangle(float p_width, float p_height) = 0;
-
-		/*
-			Draws a filled rectangle with custom corners using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_rectangleCorners) = 0;
-		/*
-			Draws a filled rectangle with custom corners using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRectangle(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_rectangleCorners) = 0;
-		/*
-			Draws a filled rectangle with custom corners using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_rectangleCorners) = 0;
-
-		/*
-			Draws a filled rectangle with custom corners at the origin using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRectangle(Point<float> const& p_size, RectangleCorners const& p_rectangleCorners) = 0;
-		/*
-			Draws a filled rectangle with custom corners at the origin using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRectangle(float p_width, float p_height, RectangleCorners const& p_rectangleCorners) = 0;
-
-		/*
-			Draws a filled rounded rectangle using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius) = 0;
-		/*
-			Draws a filled rounded rectangle using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRoundedRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_radius) = 0;
-		/*
-			Draws a filled rounded rectangle using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) = 0;
-		/*
-			Draws a filled rounded rectangle at the origin using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRoundedRectangle(Point<float> const& p_size, float p_radius) = 0;
-		/*
-			Draws a filled rounded rectangle at the origin using the current color or gradient.
-			Change color being used with method setColor or gradient with setGradientBrush.
-		*/
-		virtual void fillRoundedRectangle(float p_width, float p_height, float p_radius) = 0;
-
-		//------------------------------
-
-		/*
-			Draws a rectangle outline using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRectangle(Rectangle<float> const& p_rectangle, float p_strokeWidth = 1.f) = 0;
-		/*
-			Draws a rectangle outline using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_strokeWidth = 1.f) = 0;
-		/*
-			Draws a rectangle outline using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth = 1.f) = 0;
-		/*
-			Draws a rectangle outline at the origin using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRectangle(Point<float> const& p_size, float p_strokeWidth = 1.f) = 0;
-		/*
-			Draws a rectangle outline at the origin using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRectangle(float p_width, float p_height, float p_strokeWidth = 1.f) = 0;
-
-		/*
-			Draws a rectangle outline with custom corners using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
-		/*
-			Draws a rectangle outline with custom corners using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRectangle(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
-		/*
-			Draws a rectangle outline with custom corners using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
-		/*
-			Draws a rectangle outline at the origin with custom corners using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRectangle(Point<float> const& p_size, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
-		/*
-			Draws a rectangle outline at the origin with custom corners using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRectangle(float p_width, float p_height, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
-
-		/*
-			Draws a rounded rectangle outline using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRoundedRectangle(Rectangle<float> const& p_rectangle, float p_radius, float p_strokeWidth = 1.f) = 0;
-		/*
-			Draws a rounded rectangle outline using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRoundedRectangle(Point<float> const& p_position, Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
-		/*
-			Draws a rounded rectangle outline using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_strokeWidth = 1.f) = 0;
-
-		/*
-			Draws a rounded rectangle outline at the origin using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRoundedRectangle(Point<float> const& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
-		/*
-			Draws a rounded rectangle outline at the origin using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void strokeRoundedRectangle(float p_width, float p_height, float p_radius, float p_strokeWidth = 1.f) = 0;
-
-		//------------------------------
-
-		/*
-			Draws a filled circle using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-
-			p_position is the center position of the circle.
-		*/
-		virtual void fillCircle(Point<float> const& p_position, float p_radius) = 0;
-		/*
-			Draws a filled circle using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-
-			p_x is the horizontal center position of the circle.
-			p_y is the vertical center position of the circle.
-		*/
-		virtual void fillCircle(float p_x, float p_y, float p_radius) = 0;
-
-		/*
-			Draws a circle outline using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-
-			p_position is the center position of the circle.
-		*/
-		virtual void strokeCircle(Point<float> const& p_position, float p_radius, float p_strokeWidth = 1.f) = 0;
-		/*
-			Draws a circle outline using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-
-			p_position is the center position of the circle.
-		*/
-		virtual void strokeCircle(float p_x, float p_y, float p_radius, float p_strokeWidth = 1.f) = 0;
-
-		//------------------------------
-
-		/*
-			Draws a straight line between two points using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void drawLine(Point<float> const& p_point_0, Point<float> const& p_point_1, float p_thickness = 1.f) = 0;
-		/*
-			Draws a straight line between two points using the current color or gradient.
-			Change the color being used with the method setColor or the gradient with setGradientBrush.
-		*/
-		virtual void drawLine(float p_x0, float p_y0, float p_x1, float p_y1, float p_thickness = 1.f) = 0;
-
-		//------------------------------
-
-		/*
-			Draws the edge of a custom shape.
-
-			p_vertices is a vector of the points that make up the shape.
-			p_lineThickness is how thicc the edges of the shape are.
-			p_isClosed is whether the last vertex will be connected to the first one to close the shape.
-		*/
-		virtual void strokeShape(std::vector<Point<float>> const& p_vertices, float p_lineThickness, bool p_isClosed = false) = 0;
-		/*
-			Draws the edge of a custom shape.
-
-			p_vertices is an array of points that make up the shape.
-			p_numberOfVertices is the number of points that make up the shape.
-			p_lineThickness is how thicc the edges of the shape are.
-			p_isClosed is whether the last vertex will be connected to the first one to close the shape.
-		*/
-		virtual void strokeShape(Point<float> const* p_vertices, uint32 p_numberOfVertices, float p_lineThickness, bool p_isClosed = false) = 0;
-		/*
-			Fills a custom shape with the current color or gradient.
-
-			p_shape is a vector of points that make up the shape.
-		*/
-		virtual void fillShape(std::vector<Point<float>> const& p_vertices) = 0;
-		/*
-			Fills a custom shape with the current color or gradient.
-
-			p_vertices is an array of points that make up the shape.
-			p_numberOfVertices is he number of points that make up the shape.
-		*/
-		virtual void fillShape(Point<float> const* p_vertices, uint32 p_numberOfVertices) = 0;
-
-		//------------------------------
-
-		/*
-			Draws a stroked cached geometry with its coordinates relative to the origin.
-			If you want to move the geometry, use moveOrigin().
-			If you want to scale the geometry, use scale().
-			You can also change the stroke color with setColor().
-		*/
-		virtual void strokeGeometry(Geometry* p_geometry, float p_strokeWidth = 1.f) = 0;
-		/*
-			Draws a filled cached geometry with its coordinates relative to the origin.
-			If you want to move the geometry, use moveOrigin().
-			If you want to scale the geometry, use scale().
-			You can also change the fill color with setColor().
-		*/
-		virtual void fillGeometry(Geometry* p_geometry) = 0;
-
-		//------------------------------
-
-		/*
-			Creates a Geometry object which represents a rounded rectangle.
-			The Geometry object can be cached and allows for faster drawing.
-		*/
-		virtual Geometry* createRoundedRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, float p_radius, bool p_isStroked = false) = 0;
-		/*
-			Creates a Geometry object which represents a rounded rectangle.
-			The Geometry object can be cached and allows for faster drawing.
-		*/
-		virtual Geometry* createRoundedRectangleGeometry(Point<float> const& p_position, Point<float> const& p_size, float p_radius, bool p_isStroked = false) = 0;
-		/*
-			Creates a Geometry object which represents a rounded rectangle.
-			The Geometry object can be cached and allows for faster drawing.
-		*/
-		virtual Geometry* createRoundedRectangleGeometry(Rectangle<float> const& p_rectangle, float p_radius, bool p_isStroked = false) = 0;
-		/*
-			Creates a Geometry object which represents a rounded rectangle at the origin.
-			The Geometry object can be cached and allows for faster drawing.
-		*/
-		virtual Geometry* createRoundedRectangleGeometry(float p_width, float p_height, float p_radius, bool p_isStroked = false) = 0;
-		/*
-			Creates a Geometry object which represents a rounded rectangle at the origin.
-			The Geometry object can be cached and allows for faster drawing.
-		*/
-		virtual Geometry* createRoundedRectangleGeometry(Point<float> const& p_size, float p_radius, bool p_isStroked = false) = 0;
-
-		/*
-			Creates a Geometry object which represents a rectangle with custom corners.
-			The Geometry object can be cached and allows for faster drawing.
-		*/
-		virtual Geometry* createCornerRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
-		/*
-			Creates a Geometry object which represents a rectangle with custom corners.
-			The Geometry object can be cached and allows for faster drawing.
-		*/
-		virtual Geometry* createCornerRectangleGeometry(Point<float> const& p_position, Point<float> const& p_size, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
-		/*
-			Creates a Geometry object which represents a rectangle with custom corners.
-			The Geometry object can be cached and allows for faster drawing.
-		*/
-		virtual Geometry* createCornerRectangleGeometry(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
-		/*
-			Creates a Geometry object which represents a rectangle with custom corners at the origin.
-			The Geometry object can be cached and allows for faster drawing.
-		*/
-		virtual Geometry* createCornerRectangleGeometry(float p_width, float p_height, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
-		/*
-			Creates a Geometry object which represents a rectangle with custom corners at the origin.
-			The Geometry object can be cached and allows for faster drawing.
-		*/
-		virtual Geometry* createCornerRectangleGeometry(Point<float> const& p_size, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
-
-		//------------------------------
-
-		/*
-			Creates a geometry object which represents a polygon.
-			The Geometry object can be cached and allows for faster drawing.
-		*/
-		virtual Geometry* createPolygonGeometry(std::vector<Point<float>> const& p_vertices, bool p_isStroked = false) = 0;
-		/*
-			Creates a geometry object which represents a polygon.
-			The Geometry object can be cached and allows for faster drawing.
-		*/
-		virtual Geometry* createPolygonGeometry(Point<float> const* p_vertices, uint32 p_numberOfVertices, bool p_isStroked = false) = 0;
-
-		//------------------------------
-
-		/*
-			Changes the way both start- and endpoints of lines are drawn.
-		*/
-		virtual void setLineCap(LineCap p_lineCap) = 0;
-		/*
-			Changes the way startpoints of lines are drawn.
-		*/
-		virtual void setStartLineCap(LineCap p_lineCap) = 0;
-		/*
-			Changes the way endpoints of lines are drawn.
-		*/
-		virtual void setEndLineCap(LineCap p_lineCap) = 0;
-		/*
-			Returns the way startpoints of lines are drawn.
-		*/
-		virtual LineCap getStartLineCap() = 0;
-		/*
-			Returns the way endpoints of lines are drawn.
-		*/
-		virtual LineCap getEndLineCap() = 0;
-
-		//------------------------------
-
-		/*
-			Sets how and if lines are dashed/dotted.
-		*/
-		virtual void setLineDashStyle(LineDashStyle p_dashStyle) = 0;
-		/*
-			Returns how and if lines are dashed/dotted.
-		*/
-		virtual LineDashStyle getLineDashStyle() = 0;
-
-		/*
-			Sets the offset of line dashing/dotting.
-		*/
-		virtual void setLineDashOffset(float p_dashOffset) = 0;
-		/*
-			Returns the offset of line dashing/dotting.
-		*/
-		virtual float getLineDashOffset() = 0;
-
-		/*
-			This changes the way the endpoints of dots and dashes on lines are drawn.
-		*/
-		virtual void setLineDashCap(LineCap p_dashCap) = 0;
-		/*
-			Returns the way the endpoints of dots and dashes on lines are drawn.
-		*/
-		virtual LineCap getLineDashCap() = 0;
-
-		//------------------------------
-
-		/*
-			Sets the way line joints are drawn.
-		*/
-		virtual void setLineJoin(LineJoin p_lineJoin) = 0;
-		/*
-			Returns the way line joints are drawn.
-		*/
-		virtual LineJoin getLineJoin() = 0;
-
-		/*
-			Sets the lower limit of the thickness of pointy "mitered" joints.
-		*/
-		virtual void setLineJoinMiterLimit(float p_miterLimit) = 0;
-		/*
-			Returns the lower limit of the thickness of pointy "mitered" joints.
-		*/
-		virtual float getLineJoinMiterLimit() = 0;
-
-		//------------------------------
-
-		/*
-			After calling this, all graphics drawn outside the cached geometry will be invisible, on pixel level.
-			Call popClipShape to remove the last pushed clip geometry.
-			The alpha of the clipped content will be multiplied by p_opacity.
-		*/
-		virtual void pushClipGeometry(Geometry* p_geometry, float p_opacity = 1.f) = 0;
-
-		//------------------------------
-
-		/*
-			After calling this, all graphics drawn outside the polygon will be invisible, on pixel level.
-			Call popClipShape to remove the last pushed clip shape.
-			The alpha of the clipped content will be multiplied by p_opacity.
-		*/
-		virtual void pushClipShape(std::vector<Point<float>> const& p_points, float p_opacity = 1.f) = 0;
-		/*
-			After calling this, all graphics drawn outside the polygon will be invisible, on pixel level.
-			Call popClipShape to remove the last pushed clip shape.
-			The alpha of the clipped content will be multiplied by p_opacity.
-		*/
-		virtual void pushClipShape(Point<float> const* p_points, uint32 p_numberOfPoints, float p_opacity = 1.f) = 0;
-
-		/*
-			This removes the last added clipping shape.
-		*/
-		virtual void popClipShape() = 0;
-
-		//------------------------------
-
-		/*
-			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
-			Call popClipShape to remove the last pushed clip rectangle.
-		*/
-		virtual void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_opacity = 1.f) = 0;
-		/*
-			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
-			Call popClipShape to remove the last pushed clip rectangle.
-		*/
-		virtual void pushClipRectangle(Rectangle<float> const& p_rectangle, float p_opacity = 1.f) = 0;
-		/*
-			After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
-			p_size is the size of the clip rectangle positioned at the origin.
-			Call popClipShape to remove the last pushed clip rectangle.
-		*/
-		virtual void pushClipRectangle(Point<float> const& p_size, float p_opacity = 1.f) = 0;
-
-		/*
-			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
-			Call popClipShape to remove the last pushed clip corner rectangle.
-			The alpha of the clipped content will be multiplied by p_opacity.
-		*/
-		virtual void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
-		/*
-			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
-			Call popClipShape to remove the last pushed clip corner rectangle.
-			The alpha of the clipped content will be multiplied by p_opacity.
-		*/
-		virtual void pushClipRectangle(Rectangle<float> const& p_rectangle, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
-		/*
-			After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
-			p_size is the size of the clip rectangle positioned at the origin.
-			Call popClipShape to remove the last pushed clip corner rectangle.
-			The alpha of the clipped content will be multiplied by p_opacity.
-		*/
-		virtual void pushClipRectangle(Point<float> const& p_size, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
-
-		//------------------------------
-
-		/*
-			After calling this, all graphics drawn outside the rounded rectangle will be invisible, on pixel-level.
-			Call popClipShape to remove the last pushed rounded clip rectangle.
-			The alpha of the clipped content will be multiplied by p_opacity.
-		*/
-		virtual void pushRoundedClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_opacity = 1.f) = 0;
-		/*
-			After calling this, all graphics drawn outside the rounded rectangle will be invisible, on pixel-level.
-			Call popClipShape to remove the last pushed rounded clip rectangle.
-			The alpha of the clipped content will be multiplied by p_opacity.
-		*/
-		virtual void pushRoundedClipRectangle(Rectangle<float> const& p_rectangle, float p_radius, float p_opacity = 1.f) = 0;
-		/*
-			After calling this, all graphics drawn outside a rounded rectangle at the origin with the given size and radius will be invisible, on pixel level.
-			p_size is the size of the rounded clip rectangle positioned at the origin.
-			Call popClipShape to remove the last pushed rounded clip rectangle.
-			The alpha of the clipped content will be multiplied by p_opacity.
-		*/
-		virtual void pushRoundedClipRectangle(Point<float> const& p_size, float p_radius, float p_opacity = 1.f) = 0;
-
-		//------------------------------
-
-		/*
-			Generates an image of a shadow that is cast by a rectangle.
-
-			p_size is the size of the rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.
-			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
-			p_color is the color of the resulting shadow.
-		*/
-		virtual Image* createRectangleShadowImage(Point<float> const& p_size, float p_blur, Color const& p_color) = 0;
-		/*
-			Generates an image of a shadow that is cast by a rectangle.
-
-			p_width is the width of the rectangle which will cast the shadow. The shadow will be wider than this if p_blur > 0.
-			p_height is the height of the rectangle which will cast the shadow. The shadow will be taller than this if p_blur > 0.
-			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
-			p_color is the color of the resulting shadow.
-		*/
-		virtual Image* createRectangleShadowImage(float p_width, float p_height, float p_blur, Color const& p_color) = 0;
-
-		/*
-			Generates an image of a shadow that is cast by a rectangle with custom corners.
-
-			p_size is the size of the rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.
-			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
-			p_color is the color of the resulting shadow.
-		*/
-		virtual Image* createRectangleShadowImage(Point<float> const& p_size, RectangleCorners const& p_corners, float p_blur, Color const& p_color) = 0;
-		/*
-			Generates an image of a shadow that is cast by a rectangle with custom corners.
-
-			p_width is the width of the rectangle which will cast the shadow. The shadow will be wider than this if p_blur > 0.
-			p_height is the height of the rectangle which will cast the shadow. The shadow will be taller than this if p_blur > 0.
-			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
-			p_color is the color of the resulting shadow.
-		*/
-		virtual Image* createRectangleShadowImage(float p_width, float p_height, RectangleCorners const& p_corners, float p_blur, Color const& p_color) = 0;
-
-		//------------------------------
-
-		/*
-			Generates an image of a shadow that is cast by a rounded rectangle.
-
-			p_size is the size of the rounded rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.
-			p_radius is the corner radius ("roundness") of the rounded rectangle which will cast the shadow.
-			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
-			p_color is the color of the resulting shadow.
-		*/
-		virtual Image* createRoundedRectangleShadowImage(Point<float> const& p_size, float p_radius, float p_blur, Color const& p_color) = 0;
-		/*
-			Generates an image of a shadow that is cast by a rounded rectangle.
-
-			p_width is the width of the rounded rectangle which will cast the shadow. The shadow will be wider than this if p_blur > 0.
-			p_height is the height of the rounded rectangle which will cast the shadow. The shadow will be taller than this if p_blur > 0.
-			p_radius is the corner radius ("roundness") of the rounded rectangle which will cast the shadow.
-			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
-			p_color is the color of the resulting shadow.
-		*/
-		virtual Image* createRoundedRectangleShadowImage(float p_width, float p_height, float p_radius, float p_blur, Color const& p_color) = 0;
-
-		//------------------------------
-
-		/*
-			Loads an image from pixel data in BGRA format.
-
-			p_pixelData is an array which is 4*width*height bytes in size.
-			It contains the color values for every pixel in the image, row-by-row. One byte for every color channel.
-
-			p_width and p_height are in pixels.
-		*/
-		virtual Image* createImage(uint8 const* p_pixelData, uint32 p_width, uint32 p_height) = 0;
-		/*
-			Loads an image from the data of an image file.
-			p_imageData is a memory block which is p_size bytes in size.
-		*/
-		virtual Image* createImage(uint8 const* p_imageData, uint32 p_size) = 0;
-		/*
-			Loads an image from a file. Most standard image formats/codecs are supported.
-			p_filePath is the path, relative or absolute, to the image file to be loaded.
-			If this returns 0, then the file path is probably incorrect.
-		*/
-		virtual Image* createImage(std::string const& p_filePath) = 0;
-		/*
-			Creates an image from an OS-specific handle.
-
-			On Windows, it is an HICON or HBITMAP.
-		*/
-		virtual Image* createImageFromHandle(void* p_handle) = 0;
-		/*
-			Draws an image, placed according to the image's bounds and positioning/scaling options.
-		*/
-		virtual void drawImage(Image* p_image, float p_multiplicativeOpacity = 1.f) = 0;
-
-		//------------------------------
-
-		/*
-			Creates a buffer that contains the file data of an image, encoded in the format p_format.
-		*/
-		virtual std::string createImageFileData(Image* p_image, ImageFormat p_format = ImageFormat::Png) = 0;
-		/*
-			Creates a stream that contains the file data of an image, encoded in the format p_format.
-			On Windows, the return pointer type is IStream.
-		*/
-		virtual void* createImageFileDataNativeStream(Image* p_image, ImageFormat p_format = ImageFormat::Png) = 0;
-		/*
-			Saves an image to a file, encoded in the format p_format.
-		*/
-		virtual void saveImageToFile(Image* p_image, std::string const& p_filePath, ImageFormat p_format = ImageFormat::Png) = 0;
-
-		//------------------------------
-
-		/*
-			Creates an OS API native image from an AvoGUI image.
-			On Windows, it returns an HBITMAP.
-		*/
-		virtual void* createNativeImageFromImage(Image* p_image) = 0;
-
-		//------------------------------
-
-		/*
-			Creates a linear gradient that can be used as a brush when drawing things.
-		*/
-		virtual LinearGradient* createLinearGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX = 0.f, float p_startY = 0.f, float p_endX = 0.f, float p_endY = 0.f) = 0;
-		/*
-			Creates a linear gradient that can be used as a brush when drawing things.
-		*/
-		virtual LinearGradient* createLinearGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, Point<float> const& p_endPosition) = 0;
-
-		/*
-			Creates a radial gradient that can be used as a brush when drawing things.
-		*/
-		virtual RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX = 0.f, float p_startY = 0.f, float p_radiusX = 0.f, float p_radiusY = 0.f) = 0;
-		/*
-			Creates a radial gradient that can be used as a brush when drawing things.
-		*/
-		virtual RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radius) = 0;
-		/*
-			Creates a radial gradient that can be used as a brush when drawing things.
-		*/
-		virtual RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, float p_radiusX, float p_radiusY) = 0;
-		/*
-			Creates a radial gradient that can be used as a brush when drawing things.
-		*/
-		virtual RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, float p_radius) = 0;
-		/*
-			Creates a radial gradient that can be used as a brush when drawing things.
-		*/
-		virtual RadialGradient* createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<float> const& p_startPosition, Point<float> const& p_radius) = 0;
-
-		/*
-			Sets a linear gradient to be used as the brush when drawing things.
-		*/
-		virtual void setGradient(LinearGradient* p_gradient) = 0;
-		/*
-			Sets a radial gradient to be used as the brush when drawing things.
-		*/
-		virtual void setGradient(RadialGradient* p_gradient) = 0;
-		/*
-			Sets a color to be used when drawing things.
-		*/
-		virtual void setColor(Color const& p_color) = 0;
-
-		/*
-			Sets the transparency of all graphics that will be drawn.
-		*/
-		virtual void setOpacity(float p_opacity) = 0;
-
-		//------------------------------
-
-		/*
-			Adds a new font family that can be used by text.
-			p_filePath is a path to a font file with a common format.
-		*/
-		virtual void addFont(std::string const& p_filePath) = 0;
-
-		/*
-			Adds a new font to a font family that can be used by text.
-			p_data is the data that would be in a font file with a common format.
-		*/
-		virtual void addFont(std::vector<uint8> const& p_data) = 0;
-		/*
-			Adds a new font to a font family that can be used by text.
-			p_data is the data that would be in a font file with a common format.
-		*/
-		virtual void addFont(std::vector<uint8>&& p_data) = 0;
-		/*
-			Adds a new font to a font family that can be used by text.
-			p_data is the data that would be in a font file with a common format.
-			p_size is the size of the data in bytes.
-		*/
-		virtual void addFont(uint8 const* p_data, uint32 p_size) = 0;
-
-		//------------------------------
-
-		/*
-			Sets the default properties of text created with this drawing context.
-			These properties can be overridden by changing the properties of a text object.
-		*/
-		virtual void setDefaultTextProperties(TextProperties const& p_textProperties) = 0;
-		/*
-			Returns the default properties of text created with this drawing context.
-			These properties can be overridden by changing the properties of a text object.
-		*/
-		virtual TextProperties getDefaultTextProperties() = 0;
-
-		//------------------------------
-
-		/*
-			Creates a new Text object which represents a pre-calculated text layout, using the current text properties.
-			p_bounds is the maximum bounds of the text. If it's (0, 0, 0, 0) then the bounds will be calculated to fit the text.
-		*/
-		virtual Text* createText(std::string const& p_string, float p_fontSize, Rectangle<float> p_bounds = Rectangle<float>()) = 0;
-		/*
-			Draws pre-calculated text created with the createText method.
-		*/
-		virtual void drawText(Text* p_text) = 0;
-
-		/*
-			Lays out and draws a string in a rectangle.
-			If you're drawing the same text repeatedly, use a Text object (created with method createText).
-		*/
-		virtual void drawText(std::string const& p_string, Rectangle<float> const& p_rectangle) = 0;
-		/*
-			Lays out and draws a string in a rectangle.
-			If you're drawing the same text repeatedly, use a Text object (created with method createText()).
-		*/
-		virtual void drawText(std::string const& p_string, float p_left, float p_top, float p_right, float p_bottom) = 0;
-		/*
-			Lays out and draws a string in a rectangle.
-			If you're drawing the same text repeatedly, use a Text object (created with method createText()).
-		*/
-		virtual void drawText(std::string const& p_string, Point<float> const& p_position, Point<float> const& p_size) = 0;
-		/*
-			Lays out and draws a string at a position.
-			If you're drawing the same text repeatedly, use a Text object (created with createText()).
-		*/
-		virtual void drawText(std::string const& p_string, float p_x, float p_y) = 0;
-		/*
-			Lays out and draws a string at a position.
-			If you're drawing the same text repeatedly, use a Text object (created with createText()).
-		*/
-		virtual void drawText(std::string const& p_string, Point<float> const& p_position) = 0;
-	};
-
-	//------------------------------
-
 	/*
 		The highest, "root" view in the view hierarchy.
 		It is connected to a window which it holds and receives events from.
@@ -9180,6 +10458,11 @@ namespace AvoGUI
 	{
 	private:
 		friend View;
+		friend Animation;
+
+		static uint32 s_numberOfInstances;
+		static std::vector<Gui*> s_instancesToJoin;
+		static bool s_isWaitingForInstancesToFinish;
 
 		Gui* m_parent{ nullptr };
 		Window* m_window{ nullptr };
@@ -9207,46 +10490,7 @@ namespace AvoGUI
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
 
-			waitForFinish or detachFromThread must be called after creation and before the main thread returns.
-
-			p_title is the text that appears in the title bar of the window (if it has an OS border).
-			p_titleSize is the size of p_title in bytes.
-
-			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
-			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
-
-			p_positionFactorY is the vertical equivalent to p_positionFactorX.
-
-			p_width is the width of the client area in DIPs (device independent pixels).
-			p_height is the height of the client area in DIPs (device independent pixels).
-			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
-			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
-		*/
-		void create(char const* p_title, uint32 p_titleSize, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
-		/*
-			LIBRARY IMPLEMENTED
-			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
-			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
-			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
-
-			waitForFinish or detachFromThread must be called after creation and before the main thread returns.
-
-			p_title is the text that appears in the title bar of the window (if it has an OS border).
-			p_titleSize is the size of p_title in bytes.
-
-			p_width is the width of the client area in DIPs (device independent pixels).
-			p_height is the height of the client area in DIPs (device independent pixels).
-			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
-			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
-		*/
-		void create(char const* p_title, uint32 p_titleSize, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
-		/*
-			LIBRARY IMPLEMENTED
-			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
-			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
-			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
-
-			waitForFinish or detachFromThread must be called after creation and before the main thread returns.
+			run must be called after creation and before the main thread returns.
 
 			p_title is the text that appears in the title bar of the window (if it has an OS border).
 
@@ -9260,14 +10504,14 @@ namespace AvoGUI
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(char const* p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
+		void create(std::string const& p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr);
 		/*
 			LIBRARY IMPLEMENTED
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
 			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
 			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
 
-			waitForFinish or detachFromThread must be called after creation and before the main thread returns.
+			run must be called after creation and before the main thread returns.
 
 			p_title is the text that appears in the title bar of the window (if it has an OS border).
 			p_width is the width of the client area in DIPs (device independent pixels).
@@ -9275,68 +10519,50 @@ namespace AvoGUI
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(char const* p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
-		/*
-			LIBRARY IMPLEMENTED
-			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
-			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
-			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
-
-			waitForFinish or detachFromThread must be called after creation and before the main thread returns.
-
-			p_title is the text that appears in the title bar of the window (if it has an OS border).
-
-			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
-			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
-
-			p_positionFactorY is the vertical equivalent to p_positionFactorX.
-
-			p_width is the width of the client area in DIPs (device independent pixels).
-			p_height is the height of the client area in DIPs (device independent pixels).
-			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
-			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
-		*/
-		void create(std::string const& p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
-		/*
-			LIBRARY IMPLEMENTED
-			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
-			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
-			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
-
-			waitForFinish or detachFromThread must be called after creation and before the main thread returns.
-
-			p_title is the text that appears in the title bar of the window (if it has an OS border).
-			p_width is the width of the client area in DIPs (device independent pixels).
-			p_height is the height of the client area in DIPs (device independent pixels).
-			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
-			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
-		*/
-		void create(std::string const& p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = 0);
+		void create(std::string const& p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr);
 
 		/*
 			LIBRARY IMPLEMENTED
-			This waits for all threads to finish, and returns when the window has been closed.
-			It also forgets the GUI afterwards.
-			This should be used on the main thread since all threads are often terminated by the OS when the main thread exits.
+			
+			This method starts allowing events to be received, and starts drawing. 
+			The content of the GUI should be created between a create and a run call.
+			If this is the last GUI instance among the currently existing ones to run, the method waits for all GUIs to finish before returning.
+			The GUI is forgotten when the window closes.
 		*/
-		void waitForFinish()
+		void run()
 		{
-			// The GUI is forgotten from the animation thread (to allow for cleanup if it were detached),
-			// but the join call needs to return before the GUI is destroyed, hence the remember() and forget() here.
-			remember();
-			m_animationThread.join();
-			forget();
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			This detaches the GUI from the creator thread, so that it continues to run independently.
-			The GUI is forgotten automatically when the window has closed.
-			This is recommended to be used for child GUIs like popup windows and such, since the parent thread needs to continue running
-			and can't wait for the child GUI to finish.
-		*/
-		void detachFromThread()
-		{
-			m_animationThread.detach();
+			/*
+				The size of the GUI might have changed.
+				In that case, corresponding size event(s) will be caused later by a window size change event.
+			*/
+			if (getWidth() == m_window->getWidth() && getHeight() == m_window->getHeight())
+			{
+				View::sendBoundsChangeEvents(AvoGUI::Rectangle<float>());
+			}
+			invalidate();
+
+			m_window->run();
+			m_animationThread = std::thread(&AvoGUI::Gui::thread_runAnimationLoop, this);
+
+			if (s_isWaitingForInstancesToFinish)
+			{
+				m_animationThread.detach();
+			}
+			else
+			{
+				s_instancesToJoin.push_back(this);
+			}
+			if (s_numberOfInstances == s_instancesToJoin.size() && !s_isWaitingForInstancesToFinish)
+			{
+				s_isWaitingForInstancesToFinish = true;
+				for (auto& instance : s_instancesToJoin)
+				{
+					instance->remember();
+					instance->m_animationThread.join();
+					instance->forget();
+				}
+				s_isWaitingForInstancesToFinish = false;
+			}
 		}
 
 		/*
@@ -9365,7 +10591,8 @@ namespace AvoGUI
 		//------------------------------
 
 	private:
-		std::deque<View*> m_animationUpdateQueue;
+		std::deque<View*> m_viewAnimationUpdateQueue;
+		std::deque<Animation*> m_animationUpdateQueue;
 
 		bool m_hasAnimationLoopStarted{ false };
 		std::recursive_mutex m_animationThreadMutex;
@@ -9821,7 +11048,7 @@ namespace AvoGUI
 			This is called after the window and drawing context have been created.
 			It is a good idea to initialize your GUI in this method, but do the layout in handleSizeChange() - it is called right after creation too.
 		*/
-		virtual void createContent() { }
+		//virtual void createContent() { }
 
 		//------------------------------
 
@@ -9870,11 +11097,11 @@ namespace AvoGUI
 	class Tooltip : public View
 	{
 	private:
-		Text* m_text{nullptr};
-		float m_opacityAnimationTime{0.f};
-		float m_opacity{0.f};
-		bool m_isShowing{false};
-		uint32 m_timeSinceShow{0U};
+		Text m_text;
+		float m_opacityAnimationTime{ 0.f };
+		float m_opacity{ 0.f };
+		bool m_isShowing{ false };
+		uint32 m_timeSinceShow{ 0U };
 
 	public:
 		explicit Tooltip(View* p_parent) : View(p_parent)
@@ -9888,13 +11115,6 @@ namespace AvoGUI
 			setCornerRadius(2.f);
 			setIsOverlay(true); // Don't want to block any events from reaching views below the tooltip, especially not when it has faded away.
 		}
-		~Tooltip() override
-		{
-			if (m_text)
-			{
-				m_text->forget();
-			}
-		}
 
 		//------------------------------
 
@@ -9907,17 +11127,13 @@ namespace AvoGUI
 		{
 			if (!m_isShowing)
 			{
-				if (!m_text || p_string != m_text->getString())
+				if (!m_text || p_string != m_text.getString())
 				{
-					if (m_text)
-					{
-						m_text->forget();
-					}
 					auto fontSize = getThemeValue(ThemeValues::tooltipFontSize);
 					m_text = getGui()->getDrawingContext()->createText(p_string, fontSize);
-					m_text->fitSizeToText();
-					setSize(m_text->getWidth() + 2.2f * fontSize, m_text->getHeight() + fontSize*1.8f);
-					m_text->setCenter(getWidth() * 0.5f, getHeight() * 0.5f);
+					m_text.fitSizeToText();
+					setSize(m_text.getWidth() + 2.2f * fontSize, m_text.getHeight() + fontSize*1.8f);
+					m_text.setCenter(getWidth() * 0.5f, getHeight() * 0.5f);
 				}
 
 				if (p_targetRectangle.bottom + 7.f + getHeight() >= getGui()->getHeight())
@@ -10140,7 +11356,7 @@ namespace AvoGUI
 			m_fontSize = p_fontSize;
 			if (m_text)
 			{
-				m_text->setFontSize(p_fontSize);
+				m_text.setFontSize(p_fontSize);
 			}
 		}
 		float getFontSize()
@@ -10149,7 +11365,7 @@ namespace AvoGUI
 		}
 
 	private:
-		Text* m_text{ nullptr };
+		Text m_text;
 	public:
 		void setString(std::string const& p_string)
 		{
@@ -10157,22 +11373,15 @@ namespace AvoGUI
 			{
 				return;
 			}
-			if (m_text)
-			{
-				m_text->forget();
-			}
 			m_text = getDrawingContext()->createText(p_string, m_fontSize);
-			m_text->setSize(getSize());
+			//m_text.setSize(getSize());
+			setSize(m_text.getSize());
 		}
-		void setText(Text* p_text)
+		void setText(Text p_text)
 		{
-			if (m_text)
-			{
-				m_text->forget();
-			}
 			m_text = p_text;
 		}
-		Text* getText()
+		Text& getText()
 		{
 			return m_text;
 		}
@@ -10181,24 +11390,24 @@ namespace AvoGUI
 		{
 			if (m_text)
 			{
-				m_text->fitSizeToText();
-				setSize(m_text->getSize());
+				m_text.fitSizeToText();
+				setSize(m_text.getSize());
 			}
 		}
 		void fitWidthToText()
 		{
 			if (m_text)
 			{
-				m_text->fitWidthToText();
-				setWidth(m_text->getWidth());
+				m_text.fitWidthToText();
+				setWidth(m_text.getWidth());
 			}
 		}
 		void fitHeightToText()
 		{
 			if (m_text)
 			{
-				m_text->fitHeightToText();
-				setHeight(m_text->getHeight());
+				m_text.fitHeightToText();
+				setHeight(m_text.getHeight());
 			}
 		}
 
@@ -10206,7 +11415,7 @@ namespace AvoGUI
 		{
 			if (m_text)
 			{
-				m_text->setSize(getSize());
+				m_text.setSize(getSize());
 			}
 		}
 
@@ -10226,13 +11435,6 @@ namespace AvoGUI
 			m_fontSize(p_fontSize)
 		{
 			setString(p_string);
-		}
-		~TextView()
-		{
-			if (m_text)
-			{
-				m_text->forget();
-			}
 		}
 	};
 
@@ -10491,12 +11693,12 @@ namespace AvoGUI
 		};
 
 	private:
-		Text* m_text{ nullptr };
+		Text m_text;
 
 		Tooltip* m_tooltipView{ nullptr };
 		std::string m_tooltipString;
 
-		Image* m_icon{ nullptr };
+		Image m_icon;
 
 		float m_pressAnimationTime{ 1.f };
 		bool m_isPressed{ false };
@@ -10517,16 +11719,16 @@ namespace AvoGUI
 		{
 			if (p_id == ThemeValues::buttonFontSize)
 			{
-				m_text->setFontSize(p_newValue);
+				m_text.setFontSize(p_newValue);
 				if (p_id == ThemeValues::buttonCharacterSpacing)
 				{
-					m_text->setCharacterSpacing(p_newValue);
+					m_text.setCharacterSpacing(p_newValue);
 				}
 				updateSize();
 			}
 			else if (p_id == ThemeValues::buttonCharacterSpacing)
 			{
-				m_text->setCharacterSpacing(p_newValue);
+				m_text.setCharacterSpacing(p_newValue);
 				updateSize();
 			}
 		}
@@ -10570,17 +11772,6 @@ namespace AvoGUI
 
 			enableMouseEvents();
 		}
-		~Button() override
-		{
-			if (m_text)
-			{
-				m_text->forget();
-			}
-			if (m_icon)
-			{
-				m_icon->forget();
-			}
-		}
 
 		//------------------------------
 
@@ -10591,28 +11782,28 @@ namespace AvoGUI
 				float sizeFactor = getThemeValue(ThemeValues::buttonFontSize) / 14.f;
 				if (m_icon)
 				{
-					m_icon->setSize(16.f * sizeFactor, 16.f * sizeFactor);
-					m_icon->setCenter(sizeFactor * 38.f * 0.5f, getHeight() * 0.5f);
+					m_icon.setSize(16.f * sizeFactor, 16.f * sizeFactor);
+					m_icon.setCenter(sizeFactor * 38.f * 0.5f, getHeight() * 0.5f);
 
-					m_text->setLeft(38.f * sizeFactor);
-					setSize(std::round(m_text->getWidth()) + sizeFactor * (16.f + 38.f), 36.f * sizeFactor);
+					m_text.setLeft(38.f * sizeFactor);
+					setSize(std::round(m_text.getWidth()) + sizeFactor * (16.f + 38.f), 36.f * sizeFactor);
 				}
 				else
 				{
-					if (m_text->getWidth() >= 32.f * sizeFactor)
+					if (m_text.getWidth() >= 32.f * sizeFactor)
 					{
-						setSize(std::round(m_text->getWidth()) + 32.f * sizeFactor, 36.f * sizeFactor);
+						setSize(std::round(m_text.getWidth()) + 32.f * sizeFactor, 36.f * sizeFactor);
 					}
 					else
 					{
 						setSize(64.f * sizeFactor, 36.f * sizeFactor);
 					}
-					m_text->setCenter(getCenter() - getTopLeft());
+					m_text.setCenter(getCenter() - getTopLeft());
 				}
 			}
 			else if (m_icon)
 			{
-				m_icon->setCenter(getCenter() - getTopLeft());
+				m_icon.setCenter(getCenter() - getTopLeft());
 			}
 		}
 
@@ -10700,22 +11891,18 @@ namespace AvoGUI
 		*/
 		void setString(std::string const& p_string)
 		{
-			if (m_text)
-			{
-				m_text->forget();
-			}
 			if (p_string[0])
 			{
 				m_text = getGui()->getDrawingContext()->createText(p_string, getThemeValue(ThemeValues::buttonFontSize));
-				m_text->setWordWrapping(WordWrapping::Never);
-				m_text->setCharacterSpacing(getThemeValue(ThemeValues::buttonCharacterSpacing));
-				m_text->setFontWeight(FontWeight::Medium);
-				//m_text->setIsTopTrimmed(true);
-				m_text->fitSizeToText();
+				m_text.setWordWrapping(WordWrapping::Never);
+				m_text.setCharacterSpacing(getThemeValue(ThemeValues::buttonCharacterSpacing));
+				m_text.setFontWeight(FontWeight::Medium);
+				//m_text.setIsTopTrimmed(true);
+				m_text.fitSizeToText();
 			}
 			else
 			{
-				m_text = nullptr;
+				m_text.destroy();
 			}
 			updateSize();
 		}
@@ -10727,7 +11914,7 @@ namespace AvoGUI
 		{
 			if (m_text)
 			{
-				return m_text->getString();
+				return m_text.getString();
 			}
 			return "";
 		}
@@ -10735,7 +11922,7 @@ namespace AvoGUI
 		/*
 			Returns the text object that is used to display the button label.
 		*/
-		Text* getText()
+		Text getText()
 		{
 			return m_text;
 		}
@@ -10747,22 +11934,18 @@ namespace AvoGUI
 			It is best to keep a text label with the icon, unless it is very clear to all users what the button does with the icon alone, or if you have set a tooltip.
 			If p_icon is 0, the icon is removed.
 		*/
-		void setIcon(Image* p_icon)
+		void setIcon(Image const& p_icon)
 		{
 			if (p_icon != m_icon)
 			{
-				if (m_icon)
-				{
-					m_icon->forget();
-				}
 				if (p_icon)
 				{
 					m_icon = p_icon;
-					m_icon->setBoundsSizing(ImageBoundsSizing::Contain);
+					m_icon.setBoundsSizing(ImageBoundsSizing::Contain);
 				}
 				else
 				{
-					m_icon = 0;
+					m_icon.destroy();
 				}
 				updateSize();
 				invalidate();
@@ -10772,7 +11955,7 @@ namespace AvoGUI
 		/*
 			Returns the image that is shown together with the button text.
 		*/
-		Image* getIcon()
+		Image getIcon()
 		{
 			return m_icon;
 		}
@@ -10954,7 +12137,7 @@ namespace AvoGUI
 	class EditableText : public View
 	{
 	private:
-		Text* m_text{ nullptr };
+		Text m_text;
 		float m_textDrawingOffsetX{ 0.f };
 		float m_fontSize;
 		TextAlign m_textAlign{ TextAlign::Left };
@@ -10991,11 +12174,11 @@ namespace AvoGUI
 
 			if (m_textAlign == TextAlign::Left)
 			{
-				if (m_text->getMinimumWidth() > getWidth())
+				if (m_text.getMinimumWidth() > getWidth())
 				{
-					if (m_text->getMinimumWidth() + m_textDrawingOffsetX < getWidth())
+					if (m_text.getMinimumWidth() + m_textDrawingOffsetX < getWidth())
 					{
-						m_textDrawingOffsetX = getWidth() - m_text->getMinimumWidth();
+						m_textDrawingOffsetX = getWidth() - m_text.getMinimumWidth();
 					}
 				}
 				else
@@ -11005,11 +12188,11 @@ namespace AvoGUI
 			}
 			else if (m_textAlign == TextAlign::Right)
 			{
-				if (m_text->getMinimumWidth() > getWidth())
+				if (m_text.getMinimumWidth() > getWidth())
 				{
-					if (getWidth() - m_text->getMinimumWidth() + m_textDrawingOffsetX > 0.f)
+					if (getWidth() - m_text.getMinimumWidth() + m_textDrawingOffsetX > 0.f)
 					{
-						m_textDrawingOffsetX = m_text->getMinimumWidth() - getWidth();
+						m_textDrawingOffsetX = m_text.getMinimumWidth() - getWidth();
 					}
 				}
 				else
@@ -11040,13 +12223,6 @@ namespace AvoGUI
 			setCursor(Cursor::Ibeam);
 			enableMouseEvents();
 		}
-		~EditableText()
-		{
-			if (m_text)
-			{
-				m_text->forget();
-			}
-		}
 
 		//------------------------------
 
@@ -11073,8 +12249,8 @@ namespace AvoGUI
 		{
 			if (m_text)
 			{
-				std::string const& string = m_text->getString();
-				uint32 clickCharacterIndex = m_text->getNearestCharacterIndex(p_event.x - m_textDrawingOffsetX, p_event.y, true);
+				std::string const& string = m_text.getString();
+				uint32 clickCharacterIndex = m_text.getNearestCharacterIndex(p_event.x - m_textDrawingOffsetX, p_event.y, true);
 				int32 clickByteIndex = getUtf8UnitIndexFromCharacterIndex(string, clickCharacterIndex);
 
 				m_caretCharacterIndex = 0;
@@ -11091,8 +12267,8 @@ namespace AvoGUI
 							{
 								m_selectionEndCharacterIndex = characterIndex;
 								m_selectionEndByteIndex = byteIndex;
-								m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex);
-								m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+								m_selectionEndPosition = m_text.getCharacterPosition(m_selectionEndCharacterIndex);
+								m_caretPosition = m_text.getCharacterPosition(m_caretCharacterIndex, true);
 								updateCaretTracking();
 								break;
 							}
@@ -11118,8 +12294,8 @@ namespace AvoGUI
 			{
 				if (p_event.modifierKeys & ModifierKeyFlags::Shift)
 				{
-					m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_selectionEndCharacterIndex, &m_selectionEndPosition, true);
-					m_selectionEndByteIndex = getUtf8UnitIndexFromCharacterIndex(m_text->getString(), m_selectionEndCharacterIndex);
+					m_text.getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_selectionEndCharacterIndex, &m_selectionEndPosition, true);
+					m_selectionEndByteIndex = getUtf8UnitIndexFromCharacterIndex(m_text.getString(), m_selectionEndCharacterIndex);
 
 					if (m_selectionEndCharacterIndex == m_caretCharacterIndex)
 					{
@@ -11136,8 +12312,8 @@ namespace AvoGUI
 				}
 				else
 				{
-					m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_caretCharacterIndex, &m_caretPosition, true);
-					m_caretByteIndex = getUtf8UnitIndexFromCharacterIndex(m_text->getString(), m_caretCharacterIndex);
+					m_text.getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, p_event.y, &m_caretCharacterIndex, &m_caretPosition, true);
+					m_caretByteIndex = getUtf8UnitIndexFromCharacterIndex(m_text.getString(), m_caretCharacterIndex);
 					updateCaretTracking();
 
 					m_isCaretVisible = true;
@@ -11160,8 +12336,8 @@ namespace AvoGUI
 		{
 			if (m_isSelectingWithMouse)
 			{
-				m_text->getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, 0, &m_selectionEndCharacterIndex, &m_selectionEndPosition, true);
-				m_selectionEndByteIndex = getUtf8UnitIndexFromCharacterIndex(m_text->getString(), m_selectionEndCharacterIndex);
+				m_text.getNearestCharacterIndexAndPosition(p_event.x - m_textDrawingOffsetX, 0, &m_selectionEndCharacterIndex, &m_selectionEndPosition, true);
+				m_selectionEndByteIndex = getUtf8UnitIndexFromCharacterIndex(m_text.getString(), m_selectionEndCharacterIndex);
 				updateSelectionEndTracking();
 				m_isSelectionVisible = m_selectionEndCharacterIndex != m_caretCharacterIndex;
 				m_isCaretVisible = true;
@@ -11194,7 +12370,7 @@ namespace AvoGUI
 		{
 			if (p_event.character > u8"\u001f" && (p_event.character < u8"\u007f" || p_event.character > u8"\u009f"))
 			{
-				std::string string(m_text ? m_text->getString() : "");
+				std::string string(m_text ? m_text.getString() : "");
 				if (m_isSelectionVisible)
 				{
 					if (m_caretCharacterIndex <= m_selectionEndCharacterIndex)
@@ -11226,7 +12402,7 @@ namespace AvoGUI
 		{
 			Window* window = getGui()->getWindow();
 
-			std::string string = m_text ? m_text->getString() : "";
+			std::string string = m_text ? m_text.getString() : "";
 
 			if (m_isSelectionVisible && (p_event.key == KeyboardKey::Backspace || p_event.key == KeyboardKey::Delete) && m_caretCharacterIndex != m_selectionEndCharacterIndex)
 			{
@@ -11246,7 +12422,7 @@ namespace AvoGUI
 				}
 				if (m_textAlign == TextAlign::Center && m_text)
 				{
-					m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex);
+					m_caretPosition = m_text.getCharacterPosition(m_caretCharacterIndex);
 					updateCaretTracking();
 				}
 
@@ -11360,7 +12536,7 @@ namespace AvoGUI
 										}
 										else
 										{
-											m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
+											m_selectionEndPosition = m_text.getCharacterPosition(m_selectionEndCharacterIndex, true);
 											updateSelectionEndTracking();
 											m_isSelectionVisible = true;
 										}
@@ -11381,7 +12557,7 @@ namespace AvoGUI
 									{
 										m_caretByteIndex = byteIndex;
 										m_caretCharacterIndex = characterIndex;
-										m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+										m_caretPosition = m_text.getCharacterPosition(m_caretCharacterIndex, true);
 										updateCaretTracking();
 										m_isSelectionVisible = false;
 										break;
@@ -11412,7 +12588,7 @@ namespace AvoGUI
 									}
 									else
 									{
-										m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
+										m_selectionEndPosition = m_text.getCharacterPosition(m_selectionEndCharacterIndex, true);
 										updateSelectionEndTracking();
 										m_isSelectionVisible = true;
 									}
@@ -11444,7 +12620,7 @@ namespace AvoGUI
 									{
 										m_caretCharacterIndex--;
 										m_caretByteIndex = byteIndex;
-										m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+										m_caretPosition = m_text.getCharacterPosition(m_caretCharacterIndex, true);
 										updateCaretTracking();
 										break;
 									}
@@ -11488,7 +12664,7 @@ namespace AvoGUI
 										}
 										else
 										{
-											m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
+											m_selectionEndPosition = m_text.getCharacterPosition(m_selectionEndCharacterIndex, true);
 											updateSelectionEndTracking();
 											m_isSelectionVisible = true;
 										}
@@ -11509,7 +12685,7 @@ namespace AvoGUI
 									{
 										m_caretByteIndex = byteIndex;
 										m_caretCharacterIndex = characterIndex;
-										m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+										m_caretPosition = m_text.getCharacterPosition(m_caretCharacterIndex, true);
 										updateCaretTracking();
 										m_isSelectionVisible = false;
 										break;
@@ -11534,7 +12710,7 @@ namespace AvoGUI
 							}
 							else
 							{
-								m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
+								m_selectionEndPosition = m_text.getCharacterPosition(m_selectionEndCharacterIndex, true);
 								updateSelectionEndTracking();
 								m_isSelectionVisible = true;
 							}
@@ -11559,7 +12735,7 @@ namespace AvoGUI
 							{
 								m_caretByteIndex += getNumberOfUnitsInUtf8Character(string[m_caretByteIndex]);
 								m_caretCharacterIndex++;
-								m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+								m_caretPosition = m_text.getCharacterPosition(m_caretCharacterIndex, true);
 								updateCaretTracking();
 							}
 						}
@@ -11677,7 +12853,7 @@ namespace AvoGUI
 		{
 			if (m_text)
 			{
-				uint32 numberOfCharactersInString = getCharacterIndexFromUtf8UnitIndex(m_text->getString(), m_text->getString().size());
+				uint32 numberOfCharactersInString = getCharacterIndexFromUtf8UnitIndex(m_text.getString(), m_text.getString().size());
 				p_startIndex = min(numberOfCharactersInString, p_startIndex);
 				p_endIndex = min(numberOfCharactersInString, max(p_startIndex, p_endIndex));
 				if (p_startIndex != p_endIndex)
@@ -11685,15 +12861,15 @@ namespace AvoGUI
 					if (p_startIndex != m_caretCharacterIndex)
 					{
 						m_caretCharacterIndex = p_startIndex;
-						m_caretByteIndex = getUtf8UnitIndexFromCharacterIndex(m_text->getString(), m_caretCharacterIndex);
-						m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+						m_caretByteIndex = getUtf8UnitIndexFromCharacterIndex(m_text.getString(), m_caretCharacterIndex);
+						m_caretPosition = m_text.getCharacterPosition(m_caretCharacterIndex, true);
 					}
 
 					if (p_endIndex != m_selectionEndCharacterIndex)
 					{
 						m_selectionEndCharacterIndex = p_endIndex;
-						m_selectionEndByteIndex = getUtf8UnitIndexFromCharacterIndex(m_text->getString(), m_selectionEndCharacterIndex);
-						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
+						m_selectionEndByteIndex = getUtf8UnitIndexFromCharacterIndex(m_text.getString(), m_selectionEndCharacterIndex);
+						m_selectionEndPosition = m_text.getCharacterPosition(m_selectionEndCharacterIndex, true);
 					}
 					m_isSelectionVisible = true;
 					invalidate();
@@ -11707,21 +12883,21 @@ namespace AvoGUI
 		{
 			if (m_text)
 			{
-				uint32 stringLength = m_text->getString().size();
+				uint32 stringLength = m_text.getString().size();
 				if (stringLength)
 				{
 					if (m_caretCharacterIndex != 0)
 					{
 						m_caretCharacterIndex = 0;
 						m_caretByteIndex = 0;
-						m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+						m_caretPosition = m_text.getCharacterPosition(m_caretCharacterIndex, true);
 					}
 
 					if (m_selectionEndCharacterIndex != stringLength)
 					{
-						m_selectionEndCharacterIndex = getCharacterIndexFromUtf8UnitIndex(m_text->getString(), stringLength);
+						m_selectionEndCharacterIndex = getCharacterIndexFromUtf8UnitIndex(m_text.getString(), stringLength);
 						m_selectionEndByteIndex = stringLength;
-						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
+						m_selectionEndPosition = m_text.getCharacterPosition(m_selectionEndCharacterIndex, true);
 					}
 					m_isSelectionVisible = true;
 					invalidate();
@@ -11739,7 +12915,7 @@ namespace AvoGUI
 		*/
 		void setString(std::string const& p_string, int32 p_newCaretCharacterIndex = -1)
 		{
-			if (m_text && m_text->getString() == p_string)
+			if (m_text && m_text.getString() == p_string)
 			{
 				return;
 			}
@@ -11758,13 +12934,9 @@ namespace AvoGUI
 				}
 			}
 
-			if (m_text)
-			{
-				m_text->forget();
-			}
 			if (!newString.size())
 			{
-				m_text = 0;
+				m_text.destroy();
 				m_caretCharacterIndex = 0;
 				m_caretByteIndex = 0;
 				m_caretPosition.y = 0;
@@ -11786,12 +12958,12 @@ namespace AvoGUI
 				return;
 			}
 
-			m_text = getGui()->getDrawingContext()->createText(newString, m_fontSize);
-			m_text->setFontWeight(FontWeight::Regular);
-			m_text->setTextAlign(m_textAlign);
-			m_text->setWidth(getWidth());
-			m_text->setTop(2.f);
-			m_text->setBottom(getHeight(), false);
+			m_text = getDrawingContext()->createText(newString, m_fontSize);
+			m_text.setFontWeight(FontWeight::Regular);
+			m_text.setTextAlign(m_textAlign);
+			m_text.setWidth(getWidth());
+			m_text.setTop(2.f);
+			m_text.setBottom(getHeight(), false);
 
 			auto characterCount = getNumberOfCharactersInUtf8String(newString);
 			if (p_newCaretCharacterIndex > characterCount)
@@ -11812,7 +12984,7 @@ namespace AvoGUI
 					m_caretByteIndex = getUtf8UnitIndexFromCharacterIndex(newString, p_newCaretCharacterIndex);
 				}
 			}
-			m_caretPosition = m_text->getCharacterPosition(m_caretCharacterIndex, true);
+			m_caretPosition = m_text.getCharacterPosition(m_caretCharacterIndex, true);
 			updateCaretTracking();
 
 			if (m_isSelectionVisible)
@@ -11827,7 +12999,7 @@ namespace AvoGUI
 					}
 					else
 					{
-						m_selectionEndPosition = m_text->getCharacterPosition(m_selectionEndCharacterIndex, true);
+						m_selectionEndPosition = m_text.getCharacterPosition(m_selectionEndCharacterIndex, true);
 					}
 				}
 			}
@@ -11856,7 +13028,7 @@ namespace AvoGUI
 		{
 			if (m_text)
 			{
-				return m_text->getString();
+				return m_text.getString();
 			}
 			return "";
 		}
@@ -11864,7 +13036,7 @@ namespace AvoGUI
 		/*
 			Returns the internal text graphics object.
 		*/
-		Text* getText()
+		Text getText()
 		{
 			return m_text;
 		}
@@ -11879,7 +13051,7 @@ namespace AvoGUI
 			m_textAlign = p_textAlign;
 			if (m_text)
 			{
-				m_text->setTextAlign(m_textAlign);
+				m_text.setTextAlign(m_textAlign);
 				invalidate();
 			}
 		}
@@ -11898,7 +13070,7 @@ namespace AvoGUI
 			m_fontSize = p_fontSize;
 			if (m_text)
 			{
-				m_text->setFontSize(p_fontSize);
+				m_text.setFontSize(p_fontSize);
 			}
 			setHeight(p_fontSize * 1.2f);
 			invalidate();
@@ -11915,7 +13087,7 @@ namespace AvoGUI
 			updateCaretTracking();
 			if (m_text)
 			{
-				m_text->setWidth(getWidth());
+				m_text.setWidth(getWidth());
 			}
 		}
 
@@ -12022,21 +13194,6 @@ namespace AvoGUI
 
 			queueAnimationUpdate();
 		}
-		~TextField()
-		{
-			if (m_labelText)
-			{
-				m_labelText->forget();
-			}
-			if (m_prefixText)
-			{
-				m_prefixText->forget();
-			}
-			if (m_suffixText)
-			{
-				m_suffixText->forget();
-			}
-		}
 
 		//------------------------------
 
@@ -12056,18 +13213,18 @@ namespace AvoGUI
 			{
 				if (m_labelText)
 				{
-					m_labelText->setFontSize(p_newValue);
-					m_labelText->fitSizeToText();
+					m_labelText.setFontSize(p_newValue);
+					m_labelText.fitSizeToText();
 				}
 				if (m_prefixText)
 				{
-					m_prefixText->setFontSize(p_newValue);
-					m_prefixText->fitSizeToText();
+					m_prefixText.setFontSize(p_newValue);
+					m_prefixText.fitSizeToText();
 				}
 				if (m_suffixText)
 				{
-					m_suffixText->setFontSize(p_newValue);
-					m_suffixText->fitSizeToText();
+					m_suffixText.setFontSize(p_newValue);
+					m_suffixText.fitSizeToText();
 				}
 				m_editableText->setFontSize(p_newValue);
 			}
@@ -12080,12 +13237,12 @@ namespace AvoGUI
 			{
 				if (m_labelText)
 				{
-					m_labelText->setLeft(p_newValue);
+					m_labelText.setLeft(p_newValue);
 				}
 				if (m_prefixText)
 				{
-					m_prefixText->setLeft(p_newValue);
-					m_editableText->setLeft(m_prefixText->getRight() + 1.f, false);
+					m_prefixText.setLeft(p_newValue);
+					m_editableText->setLeft(m_prefixText.getRight() + 1.f, false);
 				}
 				else
 				{
@@ -12096,8 +13253,8 @@ namespace AvoGUI
 			{
 				if (m_suffixText)
 				{
-					m_suffixText->setRight(getWidth() - p_newValue);
-					m_editableText->setRight(m_suffixText->getLeft() - 1.f, false);
+					m_suffixText.setRight(getWidth() - p_newValue);
+					m_editableText->setRight(m_suffixText.getLeft() - 1.f, false);
 				}
 				else
 				{
@@ -12108,11 +13265,11 @@ namespace AvoGUI
 			{
 				if (m_prefixText)
 				{
-					m_prefixText->setBottom(getHeight() - p_newValue);
+					m_prefixText.setBottom(getHeight() - p_newValue);
 				}
 				if (m_suffixText)
 				{
-					m_suffixText->setBottom(getHeight() - p_newValue);
+					m_suffixText.setBottom(getHeight() - p_newValue);
 				}
 				m_editableText->setBottom(getHeight() - p_newValue);
 			}
@@ -12123,8 +13280,8 @@ namespace AvoGUI
 		{
 			if (m_suffixText)
 			{
-				m_suffixText->setRight(getWidth() - getThemeValue(ThemeValues::textFieldPaddingRight));
-				m_editableText->setRight(m_suffixText->getLeft() - 1.f, false);
+				m_suffixText.setRight(getWidth() - getThemeValue(ThemeValues::textFieldPaddingRight));
+				m_editableText->setRight(m_suffixText.getLeft() - 1.f, false);
 			}
 			else
 			{
@@ -12136,15 +13293,15 @@ namespace AvoGUI
 				float bottom = getHeight() - getThemeValue(ThemeValues::textFieldFilledPaddingBottom);
 				if (m_labelText)
 				{
-					m_labelText->setCenterY(getHeight() * 0.5f);
+					m_labelText.setCenterY(getHeight() * 0.5f);
 				}
 				if (m_prefixText)
 				{
-					m_prefixText->setBottom(bottom);
+					m_prefixText.setBottom(bottom);
 				}
 				if (m_suffixText)
 				{
-					m_suffixText->setBottom(bottom);
+					m_suffixText.setBottom(bottom);
 				}
 				m_editableText->setBottom(bottom);
 			}
@@ -12153,22 +13310,22 @@ namespace AvoGUI
 				float centerY = OUTLINED_PADDING_LABEL + (getHeight() - OUTLINED_PADDING_LABEL) * 0.5f;
 				if (m_labelText)
 				{
-					m_labelText->setCenterY(centerY);
+					m_labelText.setCenterY(centerY);
 				}
 				if (m_prefixText)
 				{
-					m_prefixText->setCenterY(centerY);
+					m_prefixText.setCenterY(centerY);
 				}
 				if (m_suffixText)
 				{
-					m_suffixText->setCenterY(centerY);
+					m_suffixText.setCenterY(centerY);
 				}
 				m_editableText->setCenterY(centerY);
 			}
 		}
 
 	private:
-		Text* m_labelText{ nullptr };
+		Text m_labelText;
 		Color m_labelColor;
 
 	public:
@@ -12176,28 +13333,27 @@ namespace AvoGUI
 		{
 			if (m_labelText)
 			{
-				if (p_label == m_labelText->getString())
+				if (p_label == m_labelText.getString())
 				{
 					return;
 				}
-				m_labelText->forget();
 			}
 			if (p_label[0] == 0)
 			{
-				m_labelText = 0;
+				m_labelText.destroy();
 			}
 			else
 			{
 				m_labelText = getGui()->getDrawingContext()->createText(p_label, getThemeValue(ThemeValues::textFieldFontSize));
-				m_labelText->setFontWeight(AvoGUI::FontWeight::Regular);
-				m_labelText->fitSizeToText();
+				m_labelText.setFontWeight(AvoGUI::FontWeight::Regular);
+				m_labelText.fitSizeToText();
 				if (m_type == Type::Filled)
 				{
-					m_labelText->setCenterY(getHeight() * 0.5f);
+					m_labelText.setCenterY(getHeight() * 0.5f);
 				}
 				else if (m_type == Type::Outlined)
 				{
-					m_labelText->setCenterY(OUTLINED_PADDING_LABEL + (getHeight() - OUTLINED_PADDING_LABEL) * 0.5f);
+					m_labelText.setCenterY(OUTLINED_PADDING_LABEL + (getHeight() - OUTLINED_PADDING_LABEL) * 0.5f);
 				}
 				queueAnimationUpdate();
 			}
@@ -12206,7 +13362,7 @@ namespace AvoGUI
 		{
 			if (m_labelText)
 			{
-				return m_labelText->getString();
+				return m_labelText.getString();
 			}
 			return "";
 		}
@@ -12214,34 +13370,33 @@ namespace AvoGUI
 		//------------------------------
 
 	private:
-		Text* m_prefixText{ nullptr };
-		Text* m_suffixText{ nullptr };
+		Text m_prefixText;
+		Text m_suffixText;
 
-		bool setAffixString(std::string const& p_string, Text*& p_affixText)
+		bool setAffixString(std::string const& p_string, Text& p_affixText)
 		{
 			if (p_affixText)
 			{
-				if (p_affixText->getString() == p_string)
+				if (p_affixText.getString() == p_string)
 				{
 					return false;
 				}
-				p_affixText->forget();
 			}
 			if (p_string[0] == 0)
 			{
-				p_affixText = nullptr;
+				p_affixText.destroy();
 				return false;
 			}
 			p_affixText = getDrawingContext()->createText(p_string, getThemeValue(ThemeValues::textFieldFontSize));
-			p_affixText->setFontWeight(AvoGUI::FontWeight::Regular);
-			p_affixText->setHeight(p_affixText->getFontSize() * 1.2f);
+			p_affixText.setFontWeight(AvoGUI::FontWeight::Regular);
+			p_affixText.setHeight(p_affixText.getFontSize() * 1.2f);
 			if (m_type == Type::Filled)
 			{
-				p_affixText->setBottom(getThemeValue(ThemeValues::textFieldFilledPaddingBottom));
+				p_affixText.setBottom(getThemeValue(ThemeValues::textFieldFilledPaddingBottom));
 			}
 			else
 			{
-				p_affixText->setTop(m_editableText->getTop() + 2.f);
+				p_affixText.setTop(m_editableText->getTop() + 2.f);
 			}
 			return true;
 		}
@@ -12250,11 +13405,11 @@ namespace AvoGUI
 		{
 			if (setAffixString(p_string, m_prefixText))
 			{
-				m_prefixText->setLeft(getThemeValue(ThemeValues::textFieldPaddingLeft));
-				m_editableText->setLeft(m_prefixText->getRight() + 1.f, false);
+				m_prefixText.setLeft(getThemeValue(ThemeValues::textFieldPaddingLeft));
+				m_editableText->setLeft(m_prefixText.getRight() + 1.f, false);
 				if (m_labelText)
 				{
-					m_labelText->setLeft(m_prefixText->getRight() + 1.f);
+					m_labelText.setLeft(m_prefixText.getRight() + 1.f);
 				}
 			}
 		}
@@ -12262,7 +13417,7 @@ namespace AvoGUI
 		{
 			if (m_suffixText)
 			{
-				return m_suffixText->getString();
+				return m_suffixText.getString();
 			}
 			return "";
 		}
@@ -12274,15 +13429,15 @@ namespace AvoGUI
 		{
 			if (setAffixString(p_string, m_suffixText))
 			{
-				m_suffixText->setRight(getWidth() - getThemeValue(ThemeValues::textFieldPaddingRight));
-				m_editableText->setRight(m_suffixText->getLeft() - 1.f, false);
+				m_suffixText.setRight(getWidth() - getThemeValue(ThemeValues::textFieldPaddingRight));
+				m_editableText->setRight(m_suffixText.getLeft() - 1.f, false);
 			}
 		}
 		std::string getSuffixString()
 		{
 			if (m_suffixText)
 			{
-				return m_suffixText->getString();
+				return m_suffixText.getString();
 			}
 			return "";
 		}
@@ -12450,7 +13605,7 @@ namespace AvoGUI
 				{
 					float labelAnimationValue = m_editableText->getString()[0] == 0 ? m_focusAnimationValue : 1.f;
 					float leftPadding = getThemeValue(ThemeValues::textFieldPaddingLeft);
-					p_context->moveOrigin(leftPadding + 2.f*labelAnimationValue, -0.17f*(getHeight() - m_labelText->getHeight() - leftPadding) * labelAnimationValue);
+					p_context->moveOrigin(leftPadding + 2.f*labelAnimationValue, -0.17f*(getHeight() - m_labelText.getHeight() - leftPadding) * labelAnimationValue);
 					p_context->setScale(1.f - labelAnimationValue * 0.3f);
 					p_context->setColor(m_labelColor);
 					p_context->drawText(m_labelText);
@@ -12470,7 +13625,7 @@ namespace AvoGUI
 					p_context->setScale(1.f - labelAnimationValue * 0.3f);
 
 					p_context->setColor(getThemeColor(ThemeColors::background));
-					p_context->fillRoundedRectangle(Rectangle<float>(m_labelText->getLeft() - 4.f, m_labelText->getTop(), m_labelText->getRight() + 4.f, m_labelText->getBottom()), 2.f);
+					p_context->fillRoundedRectangle(Rectangle<float>(m_labelText.getLeft() - 4.f, m_labelText.getTop(), m_labelText.getRight() + 4.f, m_labelText.getBottom()), 2.f);
 
 					p_context->setColor(m_labelColor);
 					p_context->drawText(m_labelText);

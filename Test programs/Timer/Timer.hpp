@@ -19,7 +19,14 @@ public:
 	TimerApp()
 	{
 		create("The best timer that exists", 2.f*(TIMER_SPIRAL_RADIUS + TIMER_SPIRAL_PADDING), 2.f*(TIMER_SPIRAL_RADIUS + TIMER_SPIRAL_PADDING), AvoGUI::WindowStyleFlags::DefaultNoResize);
-		waitForFinish();
+		
+		m_tooltip = new AvoGUI::Tooltip(this);
+
+		m_mainScreen = new MainScreen(this);
+		m_timeoutScreen = new TimeoutScreen(this);
+		m_timeoutScreen->setIsVisible(false);
+
+		run();
 	}
 
 	//------------------------------
@@ -30,15 +37,6 @@ public:
 	}
 
 	//------------------------------
-
-	void createContent() override
-	{
-		m_tooltip = new AvoGUI::Tooltip(this);
-
-		m_mainScreen = new MainScreen(this);
-		m_timeoutScreen = new TimeoutScreen(this);
-		m_timeoutScreen->setIsVisible(false);
-	}
 
 	void showTimeoutScreen()
 	{

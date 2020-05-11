@@ -36,23 +36,13 @@ class Boids :
 {
 private:
 	std::vector<Boid> m_boids;
-	AvoGUI::Geometry* m_boidGeometry{ nullptr };
+	AvoGUI::Geometry m_boidGeometry;
 
 public:
 	Boids()
 	{
 		create("Boids", 600, 400);
-		waitForFinish();
-	}
-	~Boids()
-	{
-		m_boidGeometry->forget();
-	}
 
-	//------------------------------
-
-	void createContent() override
-	{
 		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(0.05f));
 
 		//------------------------------
@@ -73,6 +63,8 @@ public:
 
 		enableMouseEvents();
 		queueAnimationUpdate();
+
+		run();
 	}
 
 	//------------------------------

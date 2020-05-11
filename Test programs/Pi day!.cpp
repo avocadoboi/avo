@@ -45,10 +45,10 @@ private:
 	Block m_firstBlock;
 	Block m_secondBlock;
 	
-	AvoGUI::Text* m_text_numberOfCollisions{ nullptr };
+	AvoGUI::Text m_text_numberOfCollisions;
 	uint32_t m_numberOfCollisions{ 0u };
 
-	AvoGUI::Text* m_text_numberOfDigits{ nullptr };
+	AvoGUI::Text m_text_numberOfDigits;
 	AvoGUI::TextField* m_textField_numberOfDigits{ nullptr };
 
 	AvoGUI::Button* m_restartButton{ nullptr };
@@ -63,34 +63,15 @@ private:
 	}
 	void createText()
 	{
-		if (m_text_numberOfCollisions)
-		{
-			m_text_numberOfCollisions->forget();
-		}
 		m_text_numberOfCollisions = getDrawingContext()->createText(std::to_string(m_numberOfCollisions), 35.f);
-		m_text_numberOfCollisions->setTopLeft(20.f, 10.f);
+		m_text_numberOfCollisions.setTopLeft(20.f, 10.f);
 	}
 
 public:
 	PiDay()
 	{
 		create("Pi day!", (uint32_t)windowWidth, (uint32_t)windowHeight, AvoGUI::WindowStyleFlags::DefaultNoResize);
-		waitForFinish();
-	}
-	~PiDay()
-	{
-		if (m_text_numberOfCollisions)
-		{
-			m_text_numberOfCollisions->forget();
-		}
-		if (m_text_numberOfDigits)
-		{
-			m_text_numberOfDigits->forget();
-		}
-	}
 
-	void createContent()
-	{
 		m_restartButton = new AvoGUI::Button(this, "RESTART", AvoGUI::Button::Emphasis::High);
 		m_restartButton->setTopRight(getRight() - 10.f, 10.f);
 		m_restartButton->buttonClickListeners += [this](auto) { startSimulation(); };
@@ -121,13 +102,15 @@ public:
 		m_textField_numberOfDigits->setString(std::to_string((uint32_t)NUMBER_OF_DIGITS));
 
 		m_text_numberOfDigits = getDrawingContext()->createText("PI digits:", 18.f);
-		m_text_numberOfDigits->setRight(m_textField_numberOfDigits->getLeft() - 7.f);
-		m_text_numberOfDigits->setCenterY(m_textField_numberOfDigits->getCenterY() + 2.f);
-		m_text_numberOfDigits->setFontWeight(AvoGUI::FontWeight::Regular);
+		m_text_numberOfDigits.setRight(m_textField_numberOfDigits->getLeft() - 7.f);
+		m_text_numberOfDigits.setCenterY(m_textField_numberOfDigits->getCenterY() + 2.f);
+		m_text_numberOfDigits.setFontWeight(AvoGUI::FontWeight::Regular);
 
 		enableMouseEvents();
 		createText();
 		startSimulation();
+
+		run();
 	}
 
 	//------------------------------
@@ -172,7 +155,7 @@ public:
 		if (numberOfCollisionsBefore != m_numberOfCollisions)
 		{
 			createText();
-			invalidateRectangle(m_text_numberOfCollisions->getLeft(), m_text_numberOfCollisions->getTop(), 300.f, m_text_numberOfCollisions->getBottom() + 1.f);
+			invalidateRectangle(m_text_numberOfCollisions.getLeft(), m_text_numberOfCollisions.getTop(), 300.f, m_text_numberOfCollisions.getBottom() + 1.f);
 		}
 
 		if (m_firstBlock.position < getWidth())

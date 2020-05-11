@@ -8,20 +8,16 @@ public:
 	static constexpr auto PADDING = 0.8f;
 
 private:
-	AvoGUI::Text* m_text{ nullptr };
+	AvoGUI::Text m_text;
 	float m_size;
 public:
 	void setIcon(std::string const& p_icon)
 	{
-		if (m_text)
-		{
-			m_text->forget();
-		}
 		m_text = getDrawingContext()->createText(p_icon, m_size);
-		m_text->setFontFamily(AvoGUI::FONT_FAMILY_MATERIAL_ICONS);
-		m_text->setIsTopTrimmed(true);
-		m_text->fitSizeToText();
-		m_text->setCenter(getSize() * 0.5f);
+		m_text.setFontFamily(AvoGUI::FONT_FAMILY_MATERIAL_ICONS);
+		m_text.setIsTopTrimmed(true);
+		m_text.fitSizeToText();
+		m_text.setCenter(getSize() * 0.5f);
 		invalidate();
 	}
 
