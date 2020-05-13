@@ -1541,7 +1541,7 @@ public:
 		m_dragDropEvent.y = newY;
 		m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
-		m_gui->excludeAnimationThread();
+		m_gui->lockThreads();
 		m_gui->handleGlobalDragDropEnter(m_dragDropEvent);
 		switch (m_gui->getGlobalDragDropOperation(m_dragDropEvent))
 		{
@@ -1557,7 +1557,7 @@ public:
 			default:
 				*p_effect = DROPEFFECT_NONE;
 		}
-		m_gui->includeAnimationThread();
+		m_gui->unlockThreads();
 		m_currentEffect = *p_effect;
 
 		return S_OK;
@@ -1578,7 +1578,7 @@ public:
 		m_dragDropEvent.y = newY;
 		m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
-		m_gui->excludeAnimationThread();
+		m_gui->lockThreads();
 		m_gui->handleGlobalDragDropMove(m_dragDropEvent);
 		switch (m_gui->getGlobalDragDropOperation(m_dragDropEvent))
 		{
@@ -1594,7 +1594,7 @@ public:
 			default:
 				*p_effect = DROPEFFECT_NONE;
 		}
-		m_gui->includeAnimationThread();
+		m_gui->unlockThreads();
 		m_currentEffect = *p_effect;
 
 		return S_OK;
@@ -1615,9 +1615,9 @@ public:
 		m_dragDropEvent.x = newX;
 		m_dragDropEvent.y = newY;
 
-		m_gui->excludeAnimationThread();
+		m_gui->lockThreads();
 		m_gui->handleGlobalDragDropLeave(m_dragDropEvent);
-		m_gui->includeAnimationThread();
+		m_gui->unlockThreads();
 
 		m_dropData.setOleDataObject(0);
 		return S_OK;
@@ -1636,9 +1636,9 @@ public:
 		m_dragDropEvent.y = newY;
 		m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
-		m_gui->excludeAnimationThread();
+		m_gui->lockThreads();
 		m_gui->handleGlobalDragDropFinish(m_dragDropEvent);
-		m_gui->includeAnimationThread();
+		m_gui->unlockThreads();
 
 		clientMousePosition.x = p_mousePosition.x;
 		clientMousePosition.y = p_mousePosition.y;
@@ -2261,10 +2261,10 @@ private:
 			m_oleDropSource->setDragImage(p_dragImage, p_dragImageCursorPosition, p_dataObject);
 		}
 
-		m_gui->includeAnimationThread();
+		m_gui->unlockThreads();
 		DWORD dropOperation = DROPEFFECT_NONE;
 		DoDragDrop(p_dataObject, m_oleDropSource, DROPEFFECT_MOVE | DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
-		m_gui->excludeAnimationThread();
+		m_gui->lockThreads();
 
 		event.x = m_mousePosition.x / m_dipToPixelFactor;
 		event.y = m_mousePosition.y / m_dipToPixelFactor;
@@ -2432,6 +2432,7 @@ public:
 
 	void create(std::string const& p_title, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override
 	{
+		m_title = p_title;
 		m_crossPlatformStyles = p_styleFlags;
 		m_styles = convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styleFlags, p_parent);
 		
@@ -3473,9 +3474,9 @@ public:
 						m_mousePosition.x = mousePosition.x;
 						m_mousePosition.y = mousePosition.y;
 
-						m_gui->excludeAnimationThread();
+						m_gui->lockThreads();
 						m_gui->handleGlobalMouseMove(mouseEvent);
-						m_gui->includeAnimationThread();
+						m_gui->unlockThreads();
 					}
 					return 0;
 				}
@@ -3500,9 +3501,9 @@ public:
 				m_mousePosition.x = x;
 				m_mousePosition.y = y;
 
-				m_gui->excludeAnimationThread();
+				m_gui->lockThreads();
 				m_gui->handleGlobalMouseMove(mouseEvent);
-				m_gui->includeAnimationThread();
+				m_gui->unlockThreads();
 
 				if (m_isMouseOutsideClientArea)
 				{
@@ -3552,10 +3553,10 @@ public:
 					m_mousePosition.x = mousePosition.x;
 					m_mousePosition.y = mousePosition.y;
 
-					m_gui->excludeAnimationThread();
+					m_gui->lockThreads();
 					m_gui->handleGlobalMouseMove(mouseEvent);
 					m_gui->handleGlobalMouseLeave(mouseEvent);
-					m_gui->includeAnimationThread();
+					m_gui->unlockThreads();
 				}
 				return 0;
 			}
@@ -3653,9 +3654,9 @@ public:
 				mouseEvent.scrollDelta = delta;
 				mouseEvent.modifierKeys = modifierKeyFlags;
 
-				m_gui->excludeAnimationThread();
+				m_gui->lockThreads();
 				m_gui->handleGlobalMouseScroll(mouseEvent);
-				m_gui->includeAnimationThread();
+				m_gui->unlockThreads();
 
 				return 0;
 			}
@@ -3672,9 +3673,9 @@ public:
 				mouseEvent.mouseButton = AvoGUI::MouseButton::Left;
 				mouseEvent.modifierKeys = modifierFlags;
 
-				m_gui->excludeAnimationThread();
+				m_gui->lockThreads();
 				m_gui->handleGlobalMouseDown(mouseEvent);
-				m_gui->includeAnimationThread();
+				m_gui->unlockThreads();
 
 				SetCapture(m_windowHandle);
 
@@ -3693,9 +3694,9 @@ public:
 				mouseEvent.mouseButton = AvoGUI::MouseButton::Left;
 				mouseEvent.modifierKeys = modifierFlags;
 
-				m_gui->excludeAnimationThread();
+				m_gui->lockThreads();
 				m_gui->handleGlobalMouseUp(mouseEvent);
-				m_gui->includeAnimationThread();
+				m_gui->unlockThreads();
 
 				ReleaseCapture();
 
@@ -3713,9 +3714,9 @@ public:
 				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = AvoGUI::MouseButton::Left;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_gui->excludeAnimationThread();
+				m_gui->lockThreads();
 				m_gui->handleGlobalMouseDoubleClick(mouseEvent);
-				m_gui->includeAnimationThread();
+				m_gui->unlockThreads();
 
 				return 0;
 			}
@@ -3731,9 +3732,9 @@ public:
 				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = AvoGUI::MouseButton::Right;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_gui->excludeAnimationThread();
+				m_gui->lockThreads();
 				m_gui->handleGlobalMouseDown(mouseEvent);
-				m_gui->includeAnimationThread();
+				m_gui->unlockThreads();
 
 				return 0;
 			}
@@ -3749,9 +3750,9 @@ public:
 				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = AvoGUI::MouseButton::Right;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_gui->excludeAnimationThread();
+				m_gui->lockThreads();
 				m_gui->handleGlobalMouseUp(mouseEvent);
-				m_gui->includeAnimationThread();
+				m_gui->unlockThreads();
 
 				return 0;
 			}
@@ -3767,9 +3768,9 @@ public:
 				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = AvoGUI::MouseButton::Right;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_gui->excludeAnimationThread();
+				m_gui->lockThreads();
 				m_gui->handleGlobalMouseDoubleClick(mouseEvent);
-				m_gui->includeAnimationThread();
+				m_gui->unlockThreads();
 
 				return 0;
 			}
@@ -3785,9 +3786,9 @@ public:
 				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = AvoGUI::MouseButton::Middle;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_gui->excludeAnimationThread();
+				m_gui->lockThreads();
 				m_gui->handleGlobalMouseDown(mouseEvent);
-				m_gui->includeAnimationThread();
+				m_gui->unlockThreads();
 
 				return 0;
 			}
@@ -3803,9 +3804,9 @@ public:
 				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = AvoGUI::MouseButton::Middle;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_gui->excludeAnimationThread();
+				m_gui->lockThreads();
 				m_gui->handleGlobalMouseUp(mouseEvent);
-				m_gui->includeAnimationThread();
+				m_gui->unlockThreads();
 
 				return 0;
 			}
@@ -3821,9 +3822,9 @@ public:
 				mouseEvent.y = y / m_dipToPixelFactor;
 				mouseEvent.mouseButton = AvoGUI::MouseButton::Middle;
 				mouseEvent.modifierKeys = modifierFlags;
-				m_gui->excludeAnimationThread();
+				m_gui->lockThreads();
 				m_gui->handleGlobalMouseDoubleClick(mouseEvent);
-				m_gui->includeAnimationThread();
+				m_gui->unlockThreads();
 
 				return 0;
 			}
@@ -3836,9 +3837,9 @@ public:
 				AvoGUI::KeyboardEvent keyboardEvent;
 				keyboardEvent.key = key;
 				keyboardEvent.isRepeated = isRepeated;
-				m_gui->excludeAnimationThread();
+				m_gui->lockThreads();
 				m_gui->sendGlobalKeyboardKeyDownEvents(keyboardEvent);
-				m_gui->includeAnimationThread();
+				m_gui->unlockThreads();
 
 				return 0;
 			}
@@ -3849,9 +3850,9 @@ public:
 
 				AvoGUI::KeyboardEvent keyboardEvent;
 				keyboardEvent.key = key;
-				m_gui->excludeAnimationThread();
+				m_gui->lockThreads();
 				m_gui->sendGlobalKeyboardKeyUpEvents(keyboardEvent);
-				m_gui->includeAnimationThread();
+				m_gui->unlockThreads();
 
 				return 0;
 			}
@@ -3866,9 +3867,9 @@ public:
 				AvoGUI::KeyboardEvent keyboardEvent;
 				keyboardEvent.character = character;
 				keyboardEvent.isRepeated = isRepeated;
-				m_gui->excludeAnimationThread();
+				m_gui->lockThreads();
 				m_gui->sendGlobalCharacterInputEvents(keyboardEvent);
-				m_gui->includeAnimationThread();
+				m_gui->unlockThreads();
 				return 0;
 			}
 			case WM_MENUCHAR:
@@ -4571,9 +4572,9 @@ private:
 							}
 							else
 							{
-								m_gui->excludeAnimationThread();
+								m_gui->lockThreads();
 								m_gui->handleWindowClose({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
-								m_gui->includeAnimationThread();
+								m_gui->unlockThreads();
 							}
 						}
 					}
@@ -4599,13 +4600,13 @@ private:
 					if (!m_hasCreatedWindow)
 					{
 						AvoGUI::WindowEvent windowEvent = { this, p_width, p_height };
-						m_gui->excludeAnimationThread();
+						m_gui->lockThreads();
 						m_gui->handleWindowCreate(windowEvent);
-						m_gui->includeAnimationThread();
+						m_gui->unlockThreads();
 
-						m_gui->excludeAnimationThread();
+						m_gui->lockThreads();
 						m_gui->handleWindowSizeChange(windowEvent);
-						m_gui->includeAnimationThread();
+						m_gui->unlockThreads();
 
 						m_hasCreatedWindowMutex.lock();
 						m_hasCreatedWindow = true;
@@ -4615,9 +4616,9 @@ private:
 					else if (m_size.x != event.xconfigure.width || m_size.y != event.xconfigure.height)
 					{
 						m_size.set(event.xconfigure.width, event.xconfigure.height);
-						m_gui->excludeAnimationThread();
+						m_gui->lockThreads();
 						m_gui->handleWindowSizeChange({ this, m_size.x / m_dipToPixelFactor, m_size.y / m_dipToPixelFactor });
-						m_gui->includeAnimationThread();
+						m_gui->unlockThreads();
 					}
 					break;
 				}
@@ -4643,17 +4644,17 @@ private:
 					if (characterLookupStatus == XLookupBoth || characterLookupStatus == XLookupChars)
 					{
 						keyboardEvent.character = character;
-						m_gui->excludeAnimationThread();
+						m_gui->lockThreads();
 						m_gui->handleGlobalCharacterInput(keyboardEvent);
-						m_gui->includeAnimationThread();
+						m_gui->unlockThreads();
 					}
 					if (characterLookupStatus == XLookupBoth || characterLookupStatus == XLookupKeySym)
 					{
 						keyboardEvent.character = "";
 						keyboardEvent.key = convertKeySymToKeyboardKey(key);
-						m_gui->excludeAnimationThread();
+						m_gui->lockThreads();
 						m_gui->handleGlobalKeyboardKeyDown(keyboardEvent);
-						m_gui->includeAnimationThread();
+						m_gui->unlockThreads();
 					}
 
 					lastKeyPressTime = event.xkey.time;
@@ -4676,9 +4677,9 @@ private:
 					if (keyboardEvent.key != AvoGUI::KeyboardKey::None)
 					{
 						keyboardEvent.isRepeated = lastKeyPressKeyCode == event.xkey.keycode && event.xkey.time < lastKeyPressTime + 2;
-						m_gui->excludeAnimationThread();
+						m_gui->lockThreads();
 						m_gui->handleGlobalKeyboardKeyUp(keyboardEvent);
-						m_gui->includeAnimationThread();
+						m_gui->unlockThreads();
 						lastKeyPressTime = event.xkey.time;
 					}
 
@@ -6594,7 +6595,6 @@ public:
 		//	fontFamilyNames.push_back(buffer);
 		//}
 
-		m_textProperties.fontFamilyName = "Roboto";
 		setDefaultTextProperties(m_textProperties);
 
 		//m_context->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE::D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
@@ -11226,7 +11226,7 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 	{
 		//if (m_hasNewWindowSize)
 		//{
-			//excludeAnimationThread();
+			//lockThreads();
 			//m_hasNewWindowSize = false;
 
 			//AvoGUI::Point<float> sizeBefore = getBottomRight();
@@ -11239,10 +11239,10 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 
 			//m_invalidRectangles.clear();
 			//invalidate();
-			//includeAnimationThread();
+			//unlockThreads();
 		//}
 
-		excludeAnimationThread();
+		lockThreads();
 		uint32 numberOfAnimationUpdates = m_viewAnimationUpdateQueue.size();
 		for (uint32 a = 0; a < numberOfAnimationUpdates; a++)
 		{
@@ -11251,9 +11251,9 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 			m_viewAnimationUpdateQueue.front()->forget();
 			m_viewAnimationUpdateQueue.pop_front();
 		}
-		includeAnimationThread();
+		unlockThreads();
 
-		excludeAnimationThread();
+		lockThreads();
 		numberOfAnimationUpdates = m_animationUpdateQueue.size();
 		for (uint32 a = 0; a < numberOfAnimationUpdates; a++)
 		{
@@ -11261,7 +11261,7 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 			m_animationUpdateQueue.front()->forget();
 			m_animationUpdateQueue.pop_front();
 		}
-		includeAnimationThread();
+		unlockThreads();
 
 		if (!m_invalidRectangles.empty())
 		{
@@ -11308,8 +11308,6 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 }
 
 uint32 AvoGUI::Gui::s_numberOfInstances = 0u;
-std::vector<AvoGUI::Gui*> AvoGUI::Gui::s_instancesToJoin;
-bool AvoGUI::Gui::s_isWaitingForInstancesToFinish = false;
 
 AvoGUI::Gui::Gui() :
 	AvoGUI::View(nullptr)
@@ -11426,7 +11424,7 @@ void AvoGUI::Gui::handleWindowCreate(WindowEvent const& p_event)
 }
 void AvoGUI::Gui::handleWindowDestroy(WindowEvent const& p_event)
 {
-	excludeAnimationThread();
+	lockThreads();
 	if (!m_viewAnimationUpdateQueue.empty())
 	{
 		for (AvoGUI::View* view : m_viewAnimationUpdateQueue)
@@ -11443,11 +11441,11 @@ void AvoGUI::Gui::handleWindowDestroy(WindowEvent const& p_event)
 		}
 		m_pressedMouseEventListeners.clear();
 	}
-	includeAnimationThread();
+	unlockThreads();
 }
 void AvoGUI::Gui::handleWindowSizeChange(WindowEvent const& p_event)
 {
-	excludeAnimationThread();
+	lockThreads();
 	m_drawingContext->setSize(p_event.width, p_event.height);
 
 	m_bounds.set(0, 0, p_event.width, p_event.height);
@@ -11459,7 +11457,7 @@ void AvoGUI::Gui::handleWindowSizeChange(WindowEvent const& p_event)
 	m_invalidRectangles.clear();
 
 	invalidate();
-	includeAnimationThread();
+	unlockThreads();
 }
 
 //------------------------------
@@ -12206,10 +12204,11 @@ void AvoGUI::Gui::drawViews()
 	if (!m_invalidRectangles.empty())
 	{
 		m_invalidRectanglesMutex.lock();
-		std::vector<AvoGUI::Rectangle<float>> invalidRectangles(std::move(m_invalidRectangles));
+		auto invalidRectangles(std::move(m_invalidRectangles));
+		m_invalidRectangles = std::vector<AvoGUI::Rectangle<float>>();
 		m_invalidRectanglesMutex.unlock();
 
-		excludeAnimationThread(); // State needs to be static during drawing.
+		lockThreads(); // State needs to be static during drawing.
 
 		m_drawingContext->beginDrawing();
 
@@ -12306,7 +12305,7 @@ void AvoGUI::Gui::drawViews()
 			drawOverlay(m_drawingContext, targetRectangle);
 			m_drawingContext->popClipShape();
 		}
-		includeAnimationThread();
+		unlockThreads();
 		m_drawingContext->restoreDrawingState(m_drawingContextState);
 		m_drawingContext->finishDrawing(invalidRectangles);
 	}

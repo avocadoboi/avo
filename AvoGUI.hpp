@@ -5926,7 +5926,7 @@ namespace AvoGUI
 	class TextProperties
 	{
 	public:
-		std::string fontFamilyName{ "Roboto" };
+		std::string fontFamilyName{ FONT_FAMILY_ROBOTO };
 
 		FontWeight fontWeight{ FontWeight::Medium };
 		FontStyle fontStyle{ FontStyle::Normal };
@@ -8150,7 +8150,6 @@ namespace AvoGUI
 
 			if (m_parent)
 			{
-				remember();
 				m_parent->removeChildView(this);
 			}
 
@@ -8205,7 +8204,7 @@ namespace AvoGUI
 		*/
 		void removeChildView(uint32 p_viewIndex)
 		{
-			AvoGUI::View* childToRemove = m_childViews[p_viewIndex];
+			auto childToRemove = m_childViews[p_viewIndex];
 			childViewDetachmentListeners(childToRemove);
 
 			childToRemove->m_parent = nullptr;
@@ -10465,8 +10464,6 @@ namespace AvoGUI
 		friend Animation;
 
 		static uint32 s_numberOfInstances;
-		static std::vector<Gui*> s_instancesToJoin;
-		static bool s_isWaitingForInstancesToFinish;
 
 		Gui* m_parent{ nullptr };
 		Window* m_window{ nullptr };
@@ -10548,18 +10545,30 @@ namespace AvoGUI
 			m_window->run();
 			m_animationThread = std::thread(&AvoGUI::Gui::thread_runAnimationLoop, this);
 
+			static std::vector<Gui*> s_instancesToJoin;
+			static std::mutex s_instancesToJoinMutex;
+			static bool s_isWaitingForInstancesToFinish{ false };
+
 			if (s_isWaitingForInstancesToFinish)
 			{
 				m_animationThread.detach();
 			}
 			else
 			{
+				s_instancesToJoinMutex.lock();
 				s_instancesToJoin.push_back(this);
+				s_instancesToJoinMutex.unlock();
 			}
 			if (s_numberOfInstances == s_instancesToJoin.size() && !s_isWaitingForInstancesToFinish)
 			{
 				s_isWaitingForInstancesToFinish = true;
-				for (auto& instance : s_instancesToJoin)
+
+				s_instancesToJoinMutex.lock();
+				auto instancesToJoin(std::move(s_instancesToJoin));
+				s_instancesToJoin = std::vector<Gui*>();
+				s_instancesToJoinMutex.unlock();
+
+				for (auto& instance : instancesToJoin)
 				{
 					instance->remember();
 					instance->m_animationThread.join();
@@ -10599,26 +10608,34 @@ namespace AvoGUI
 		std::deque<Animation*> m_animationUpdateQueue;
 
 		bool m_hasAnimationLoopStarted{ false };
-		std::recursive_mutex m_animationThreadMutex;
+		std::recursive_mutex m_sharedStateMutex;
 		std::thread m_animationThread;
 
 		void thread_runAnimationLoop();
 	public:
 		/*
 			LIBRARY IMPLEMENTED
-			This locks the animation thread mutex, so that the critical section in the animation thread does not run until the mutex is unlocked again (or the other way around).
+			Gives the running thread exclusive access to modify any state that is shared by the event thread and animation thread.
 		*/
-		void excludeAnimationThread()
+		void lockThreads()
 		{
-			m_animationThreadMutex.lock();
+			m_sharedStateMutex.lock();
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			This unlocks the animation thread mutex, so that the critical section in the animation thread is allowed to run.
+			Gives back the other threads access to modify any state that is shared by the event thread and animation thread.
 		*/
-		void includeAnimationThread()
+		void unlockThreads()
 		{
-			m_animationThreadMutex.unlock();
+			m_sharedStateMutex.unlock();
+		}
+		/*
+			LIBRARY IMPLEMENTED
+
+		*/
+		auto createThreadLock()
+		{
+			return std::scoped_lock(m_sharedStateMutex);
 		}
 
 		//------------------------------
