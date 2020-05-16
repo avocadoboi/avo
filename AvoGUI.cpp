@@ -329,13 +329,15 @@ void AvoGUI::View::updateShadow()
 {
 	if (getWidth() >= 1.f && getHeight() >= 1.f && m_elevation > 0.00001f && m_hasShadow && m_elevation < 400.f)
 	{
-		m_shadowImage = m_gui->getDrawingContext()->createRectangleShadowImage(getSize(), m_corners, m_elevation, m_theme->colors[ThemeColors::shadow]);
-		m_shadowBounds = AvoGUI::Rectangle<float>(
-			AvoGUI::Point<float>(
+		m_shadowImage = m_gui->getDrawingContext()->createRectangleShadowImage(
+			getSize(), m_corners, m_elevation, m_theme->colors[ThemeColors::shadow]
+		);
+		m_shadowBounds = {
+			AvoGUI::Point<float>{
 				0.5f * (m_bounds.right - m_bounds.left - (float)m_shadowImage.getWidth()),
 				0.35f * (m_bounds.bottom - m_bounds.top - (float)m_shadowImage.getHeight())
-				), m_shadowImage.getSize()
-			);
+			}, m_shadowImage.getSize()
+		};
 		m_shadowImage.setTopLeft(m_shadowBounds.getTopLeft());
 	}
 	else
@@ -349,7 +351,8 @@ void AvoGUI::View::sendBoundsChangeEvents(AvoGUI::Rectangle<float> const& p_prev
 	if (p_previousBounds.left != m_bounds.left || p_previousBounds.right != m_bounds.right ||
 		p_previousBounds.top != m_bounds.top || p_previousBounds.bottom != m_bounds.bottom)
 	{
-		if (fabsf(p_previousBounds.getWidth() - m_bounds.getWidth()) > 0.001f || fabsf(p_previousBounds.getHeight() - m_bounds.getHeight()) > 0.001f)
+		if (fabsf(p_previousBounds.getWidth() - m_bounds.getWidth()) > 0.001f || 
+			fabsf(p_previousBounds.getHeight() - m_bounds.getHeight()) > 0.001f)
 		{
 			updateShadow(); // This is to update the shadow bounds and image.
 
@@ -520,7 +523,8 @@ void AvoGUI::View::invalidate()
 		shadowBounds.right = ceil(shadowBounds.right * dipToPixelFactor) / dipToPixelFactor;
 		shadowBounds.bottom = ceil(shadowBounds.bottom * dipToPixelFactor) / dipToPixelFactor;
 
-		if (shadowBounds == m_lastInvalidatedShadowBounds || (!m_lastInvalidatedShadowBounds.getWidth() && !m_lastInvalidatedShadowBounds.getHeight()))
+		if (shadowBounds == m_lastInvalidatedShadowBounds || 
+			(!m_lastInvalidatedShadowBounds.getWidth() && !m_lastInvalidatedShadowBounds.getHeight()))
 		{
 			m_gui->invalidateRectangle(shadowBounds);
 		}
@@ -552,6 +556,9 @@ void AvoGUI::View::drawShadow(DrawingContext* p_drawingContext)
 #ifdef _WIN32
 
 #define IUnknownDefinition(p_interfaceName)\
+private:\
+ULONG m_referenceCount = 1u;\
+public:\
 ULONG __stdcall AddRef() override\
 {\
 return InterlockedIncrement(&m_referenceCount);\
@@ -608,46 +615,14 @@ AvoGUI::ModifierKeyFlags convertWindowsKeyStateToModifierKeyFlags(unsigned short
 
 class OleFormatEnumerator : public IEnumFORMATETC
 {
-private:
-	uint32 m_referenceCount{ 1 };
-
-	FORMATETC* m_formats{ nullptr };
-	uint32 m_numberOfFormats;
-	uint32 m_currentFormatIndex{ 0 };
-
-public:
-	OleFormatEnumerator(FORMATETC* p_formats, uint32 p_numberOfFormats) :
-		m_numberOfFormats(p_numberOfFormats)
-	{
-		m_formats = new FORMATETC[p_numberOfFormats];
-		for (uint32 a = 0; a < p_numberOfFormats; a++)
-		{
-			m_formats[a] = p_formats[a];
-			if (m_formats[a].ptd)
-			{
-				m_formats[a].ptd = (DVTARGETDEVICE*)CoTaskMemAlloc(sizeof(DVTARGETDEVICE));
-				*m_formats[a].ptd = *p_formats[a].ptd;
-			}
-		}
-	}
-	~OleFormatEnumerator()
-	{
-		for (uint32 a = 0; a < m_numberOfFormats; a++)
-		{
-			if (m_formats[a].ptd)
-			{
-				CoTaskMemFree(m_formats[a].ptd);
-			}
-		}
-		delete[] m_formats;
-	}
-
-	//------------------------------
-
 	IUnknownDefinition(IEnumFORMATETC)
 
-	//------------------------------
+private:
+	FORMATETC* m_formats = nullptr;
+	uint32 m_numberOfFormats;
+	uint32 m_currentFormatIndex = 0u;
 
+public:
 	HRESULT __stdcall Next(ULONG p_numberOfFormatsToGet, FORMATETC* p_formats, ULONG* p_numberOfFormatsGotten) override
 	{
 		uint32 numberOfFormatsGotten = 0;
@@ -685,6 +660,34 @@ public:
 		*p_formatEnumerator = newFormatEnumerator;
 		return S_OK;
 	}
+
+	//------------------------------
+
+	OleFormatEnumerator(FORMATETC* p_formats, uint32 p_numberOfFormats) :
+		m_numberOfFormats{ p_numberOfFormats }
+	{
+		m_formats = new FORMATETC[p_numberOfFormats];
+		for (uint32 a = 0; a < p_numberOfFormats; a++)
+		{
+			m_formats[a] = p_formats[a];
+			if (m_formats[a].ptd)
+			{
+				m_formats[a].ptd = (DVTARGETDEVICE*)CoTaskMemAlloc(sizeof(DVTARGETDEVICE));
+				*m_formats[a].ptd = *p_formats[a].ptd;
+			}
+		}
+	}
+	~OleFormatEnumerator()
+	{
+		for (uint32 a = 0; a < m_numberOfFormats; a++)
+		{
+			if (m_formats[a].ptd)
+			{
+				CoTaskMemFree(m_formats[a].ptd);
+			}
+		}
+		delete[] m_formats;
+	}
 };
 
 /*
@@ -692,39 +695,13 @@ public:
 */
 class OleDataObject : public IDataObject
 {
-private:
-	uint32 m_referenceCount;
+	IUnknownDefinition(IDataObject)
 
+private:
 	std::vector<FORMATETC> m_formats;
 	std::vector<STGMEDIUM> m_mediums;
 
 public:
-	OleDataObject(FORMATETC* p_formats, STGMEDIUM* p_mediums, uint32 p_numberOfFormats) :
-		m_referenceCount(1)
-	{
-		m_formats.resize(p_numberOfFormats);
-		m_mediums.resize(p_numberOfFormats);
-
-		for (uint32 a = 0; a < p_numberOfFormats; a++)
-		{
-			m_formats[a] = p_formats[a];
-			m_mediums[a] = p_mediums[a];
-		}
-	}
-	~OleDataObject()
-	{
-		for (STGMEDIUM& medium : m_mediums)
-		{
-			ReleaseStgMedium(&medium);
-		}
-	}
-
-	//------------------------------
-
-	IUnknownDefinition(IDataObject)
-
-	//------------------------------
-
 	HRESULT __stdcall SetData(FORMATETC* p_format, STGMEDIUM* p_medium, BOOL p_willRelease) override
 	{
 		if (p_willRelease)
@@ -866,6 +843,27 @@ public:
 	{
 		return OLE_E_ADVISENOTSUPPORTED;
 	}
+
+	//------------------------------
+
+	OleDataObject(FORMATETC* p_formats, STGMEDIUM* p_mediums, uint32 p_numberOfFormats)
+	{
+		m_formats.resize(p_numberOfFormats);
+		m_mediums.resize(p_numberOfFormats);
+
+		for (uint32 a = 0; a < p_numberOfFormats; a++)
+		{
+			m_formats[a] = p_formats[a];
+			m_mediums[a] = p_mediums[a];
+		}
+	}
+	~OleDataObject()
+	{
+		for (STGMEDIUM& medium : m_mediums)
+		{
+			ReleaseStgMedium(&medium);
+		}
+	}
 };
 
 //------------------------------
@@ -873,29 +871,14 @@ public:
 class OleDropSource :
 	public IDropSource
 {
+	IUnknownDefinition(IDropSource)
+
 private:
-	uint32 m_referenceCount;
 	AvoGUI::Gui* m_gui;
 
 	IDragSourceHelper* m_dragImageHelper;
 
 public:
-	OleDropSource(AvoGUI::Gui* p_gui) :
-		m_referenceCount(1), m_gui(p_gui)
-	{
-		CoCreateInstance(CLSID_DragDropHelper, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_dragImageHelper));
-	}
-	~OleDropSource()
-	{
-		m_dragImageHelper->Release();
-	}
-
-	//------------------------------
-
-	IUnknownDefinition(IDropSource)
-
-	//------------------------------
-
 	void setDragImage(AvoGUI::Image const& p_image, AvoGUI::Point<float> const& p_cursorPosition, IDataObject* p_dataObject)
 	{
 		D2D_SIZE_U size = ((ID2D1Bitmap1*)p_image.getHandle())->GetPixelSize();
@@ -941,6 +924,16 @@ public:
 		}
 		m_gui->dragDropOperationChangeListeners(operation);
 		return DRAGDROP_S_USEDEFAULTCURSORS;
+	}
+
+	OleDropSource(AvoGUI::Gui* p_gui) :
+		m_gui{ p_gui }
+	{
+		CoCreateInstance(CLSID_DragDropHelper, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_dragImageHelper));
+	}
+	~OleDropSource()
+	{
+		m_dragImageHelper->Release();
 	}
 };
 
@@ -1491,37 +1484,18 @@ public:
 
 class OleDropTarget : public IDropTarget
 {
-private:
-	uint32 m_referenceCount;
+	IUnknownDefinition(IDropTarget)
 
+private:
 	AvoGUI::Gui* m_gui;
 
 	OleClipboardData m_dropData;
 	AvoGUI::DragDropEvent m_dragDropEvent;
 
-	IDropTargetHelper* m_dropImageViewer;
+	IDropTargetHelper* m_dropImageViewer = nullptr;
 	uint32 m_currentEffect;
 
 public:
-	OleDropTarget(AvoGUI::Gui* p_gui) :
-		m_referenceCount(1), m_gui(p_gui), m_dropData(p_gui)
-	{
-		m_dropData.formats.reserve(15);
-		m_dragDropEvent.data = std::unique_ptr<AvoGUI::ClipboardData>((AvoGUI::ClipboardData*)&m_dropData);
-
-		CoCreateInstance(CLSID_DragDropHelper, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_dropImageViewer));
-	}
-	~OleDropTarget()
-	{
-		m_dropImageViewer->Release();
-	}
-
-	//------------------------------
-
-	IUnknownDefinition(IDropTarget)
-
-	//------------------------------
-
 	HRESULT __stdcall DragEnter(IDataObject* p_dataObject, DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
 	{
 		POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
@@ -1648,6 +1622,22 @@ public:
 
 		return S_OK;
 	}
+
+	//------------------------------
+
+	OleDropTarget(AvoGUI::Gui* p_gui) :
+		m_gui{ p_gui },
+		m_dropData{ p_gui }
+	{
+		m_dropData.formats.reserve(15);
+		m_dragDropEvent.data = std::unique_ptr<AvoGUI::ClipboardData>((AvoGUI::ClipboardData*) & m_dropData);
+
+		CoCreateInstance(CLSID_DragDropHelper, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_dropImageViewer));
+	}
+	~OleDropTarget()
+	{
+		m_dropImageViewer->Release();
+	}
 };
 
 //------------------------------
@@ -1663,40 +1653,20 @@ private:
 	OleDropSource* m_oleDropSource{ nullptr };
 	OleDropTarget* m_oleDropTarget{ nullptr };
 
-	uint32 m_clipboardFormat_fileContents{ 0u };
-	uint32 m_clipboardFormat_fileGroupDescriptor{ 0u };
-	uint32 m_clipboardFormat_additionalData{ 0u };
-
 	//------------------------------
 
 	HWND m_windowHandle{ 0 };
 	AvoGUI::WindowStyleFlags m_crossPlatformStyles;
 	uint32 m_styles{ 0 };
-	AvoGUI::WindowState m_state{ AvoGUI::WindowState::Restored };
 
 	//------------------------------
 
 	bool m_hasGottenInitialSizeMessageForCustomBorderWindows{ false };
 	bool m_isOpen{ false };
-	AvoGUI::Point<int32> m_position;
-	AvoGUI::Point<uint32> m_size;
-	AvoGUI::Point<uint32> m_minSize;
-	AvoGUI::Point<uint32> m_maxSize;
-
-	std::string m_title;
-
-	float m_dipToPixelFactor{ 1.f };
-
-	bool m_isFullscreen{ false };
-	RECT m_windowRectBeforeFullscreen;
-	bool m_wasWindowMaximizedBeforeFullscreen{ false };
 
 	//------------------------------
 
 	bool m_isMouseOutsideClientArea{ true };
-	AvoGUI::Point<int32> m_mousePosition{ -1, -1 };
-	HCURSOR m_cursorHandle{ 0 };
-	AvoGUI::Cursor m_cursorType{ (AvoGUI::Cursor)-1 };
 
 	//------------------------------
 
@@ -1960,6 +1930,12 @@ private:
 		}
 		return AvoGUI::KeyboardKey::None;
 	}
+
+	//------------------------------
+
+	uint32 m_clipboardFormat_fileContents{ 0u };
+	uint32 m_clipboardFormat_fileGroupDescriptor{ 0u };
+	uint32 m_clipboardFormat_additionalData{ 0u };
 
 	void createAdditionalData(FORMATETC& p_format, STGMEDIUM& p_medium, uint64 p_data) const
 	{
@@ -2278,6 +2254,8 @@ private:
 
 	//------------------------------
 
+	inline static auto const WINDOW_CLASS_NAME = L"AvoGUI Window";
+
 	bool m_hasCreatedWindow = false;
 	std::condition_variable m_hasCreatedWindowConditionVariable;
 	std::mutex m_hasCreatedWindowMutex;
@@ -2406,31 +2384,11 @@ private:
 
 public:
 	static std::atomic<uint32> s_numberOfWindows;
-	static wchar_t const* const WINDOW_CLASS_NAME;
 
 	//------------------------------
 
-	WindowsWindow(AvoGUI::Gui* p_gui) :
-		m_gui(p_gui), m_crossPlatformStyles((AvoGUI::WindowStyleFlags)0)
-	{
-		setCursor(AvoGUI::Cursor::Arrow);
-	}
-	WindowsWindow(AvoGUI::Gui* p_gui, std::string const& p_title, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) :
-		m_gui(p_gui), m_crossPlatformStyles(p_styleFlags)
-	{
-		create(p_title, p_width, p_height, p_styleFlags, p_parent);
-
-		setCursor(AvoGUI::Cursor::Arrow);
-	}
-	~WindowsWindow()
-	{
-		m_messageThread.join();
-		DestroyCursor(m_cursorHandle);
-	}
-
-	//------------------------------
-
-	void create(std::string const& p_title, float p_x, float p_y, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override
+	void create(std::string const& p_title, float p_x, float p_y, float p_width, float p_height, 
+		AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override
 	{
 		m_title = p_title;
 		m_crossPlatformStyles = p_styleFlags;
@@ -2443,7 +2401,8 @@ public:
 			m_hasCreatedWindowConditionVariable.wait(lock, [=] { return (bool)m_hasCreatedWindow; });
 		}
 	}
-	void create(std::string const& p_title, float p_width, float p_height, AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override
+	void create(std::string const& p_title, float p_width, float p_height, 
+		AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override
 	{
 		create(p_title, 0.5f, 0.5f, p_width, p_height, p_styleFlags, p_parent);
 	}
@@ -2477,6 +2436,9 @@ public:
 
 	//------------------------------
 
+private:
+	std::string m_title;
+public:
 	void setTitle(std::string const& p_title) override
 	{
 		m_title = p_title;
@@ -2514,6 +2476,11 @@ public:
 
 	//------------------------------
 
+private:
+	bool m_isFullscreen = false;
+	RECT m_windowRectBeforeFullscreen;
+	bool m_wasWindowMaximizedBeforeFullscreen = false;
+public:
 	void setIsFullscreen(bool p_isFullscreen) override
 	{
 		if (m_isFullscreen == p_isFullscreen)
@@ -2575,6 +2542,9 @@ public:
 
 	//------------------------------
 
+private:
+	AvoGUI::WindowState m_state{ AvoGUI::WindowState::Restored };
+public:
 	void hide() override
 	{
 		ShowWindow(m_windowHandle, SW_HIDE);
@@ -2613,10 +2583,9 @@ public:
 
 	//------------------------------
 
-	void setPosition(AvoGUI::Point<int32> const& p_position) override
-	{
-		setPosition(p_position.x, p_position.y);
-	}
+private:
+	AvoGUI::Point<int32> m_position;
+public:
 	void setPosition(int32 p_x, int32 p_y) override
 	{
 		SetWindowPos(m_windowHandle, 0, p_x, p_y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
@@ -2635,10 +2604,9 @@ public:
 		return m_position.y;
 	}
 
-	void setSize(AvoGUI::Point<float> const& p_size) override
-	{
-		setSize(p_size.x, p_size.y);
-	}
+private:
+	AvoGUI::Point<uint32> m_size;
+public:
 	void setSize(float p_width, float p_height) override
 	{
 		if (m_windowHandle)
@@ -2656,7 +2624,6 @@ public:
 			}
 		}
 	}
-
 	AvoGUI::Point<float> getSize() const override
 	{
 		return m_size / m_dipToPixelFactor;
@@ -2672,10 +2639,9 @@ public:
 
 	//------------------------------
 
-	void setMinSize(AvoGUI::Point<float> const& p_minSize) override
-	{
-		m_minSize = p_minSize*m_dipToPixelFactor;
-	}
+private:
+	AvoGUI::Point<uint32> m_minSize;
+public:
 	void setMinSize(float p_minWidth, float p_minHeight) override
 	{
 		m_minSize.x = p_minWidth * m_dipToPixelFactor;
@@ -2694,10 +2660,9 @@ public:
 		return m_minSize.y/ m_dipToPixelFactor;
 	}
 
-	void setMaxSize(AvoGUI::Point<float> const& p_maxSize) override
-	{
-		m_maxSize = p_maxSize* m_dipToPixelFactor;
-	}
+private:
+	AvoGUI::Point<uint32> m_maxSize;
+public:
 	void setMaxSize(float p_maxWidth, float p_maxHeight) override
 	{
 		m_maxSize.x = p_maxWidth* m_dipToPixelFactor;
@@ -3042,6 +3007,10 @@ public:
 		}
 		return false;
 	}
+
+private:
+	AvoGUI::Point<int32> m_mousePosition{ -1, -1 };
+public:
 	AvoGUI::Point<float> getMousePosition() const override
 	{
 		return m_mousePosition / m_dipToPixelFactor;
@@ -3049,6 +3018,10 @@ public:
 
 	//------------------------------
 
+private:
+	HCURSOR m_cursorHandle = nullptr;
+	AvoGUI::Cursor m_cursorType = (AvoGUI::Cursor) - 1;
+public:
 	void setCursor(AvoGUI::Cursor p_cursor) override
 	{
 		if (p_cursor == m_cursorType) return;
@@ -3105,6 +3078,9 @@ public:
 
 	//------------------------------
 
+private:
+	float m_dipToPixelFactor = 1.f;
+public:
 	float getDipToPixelFactor() const override
 	{
 		return m_dipToPixelFactor;
@@ -3128,12 +3104,14 @@ private:
 	}
 
 public:
-	AvoGUI::DragDropOperation dragAndDropString(std::string const& p_string, AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
+	AvoGUI::DragDropOperation dragAndDropString(std::string const& p_string, AvoGUI::Image const& p_dragImage, 
+		AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
 	{
 		return dragAndDropString(AvoGUI::convertUtf8ToUtf16(p_string), p_dragImage, p_dragImageCursorPosition, p_additionalData);
 	}
 
-	AvoGUI::DragDropOperation dragAndDropString(std::wstring const& p_string, AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
+	AvoGUI::DragDropOperation dragAndDropString(std::wstring const& p_string, AvoGUI::Image const& p_dragImage, 
+		AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
 	{
 		auto dataObject = createStringOleDataObject(p_string, p_additionalData);
 		auto dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
@@ -3142,7 +3120,8 @@ public:
 		return convertNativeDropEffectToDragDropOperation(dropOperation);
 	}
 
-	AvoGUI::DragDropOperation dragAndDropImage(AvoGUI::Image const& p_image, AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
+	AvoGUI::DragDropOperation dragAndDropImage(AvoGUI::Image const& p_image, AvoGUI::Image const& p_dragImage, 
+		AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
 	{
 		auto dataObject = createImageOleDataObject(p_image, p_additionalData);
 		auto dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
@@ -3159,11 +3138,13 @@ public:
 		}
 		return AvoGUI::DragDropOperation::None;
 	}
-	AvoGUI::DragDropOperation dragAndDropFile(uint8 const* p_data, uint32 p_dataSize, std::string const& p_name, AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
+	AvoGUI::DragDropOperation dragAndDropFile(uint8 const* p_data, uint32 p_dataSize, std::string const& p_name, 
+		AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
 	{
 		return dragAndDropFile(p_data, p_dataSize, AvoGUI::convertUtf8ToUtf16(p_name), p_dragImage, p_dragImageCursorPosition, p_additionalData);
 	}
-	AvoGUI::DragDropOperation dragAndDropFile(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
+	AvoGUI::DragDropOperation dragAndDropFile(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, 
+		AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
 	{
 		auto dataObject = createFileOleDataObject(p_data, p_dataSize, p_name, p_additionalData);
 		auto dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
@@ -3171,19 +3152,25 @@ public:
 
 		return convertNativeDropEffectToDragDropOperation(dropOperation);
 	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::vector<uint8> const& p_data, std::string const& p_name, AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
+	AvoGUI::DragDropOperation dragAndDropFile(std::vector<uint8> const& p_data, std::string const& p_name, 
+		AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
 	{
-		return dragAndDropFile(p_data.data(), p_data.size(), AvoGUI::convertUtf8ToUtf16(p_name), p_dragImage, p_dragImageCursorPosition, p_additionalData);
+		return dragAndDropFile(
+			p_data.data(), p_data.size(), AvoGUI::convertUtf8ToUtf16(p_name), p_dragImage, p_dragImageCursorPosition, p_additionalData
+		);
 	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::vector<uint8> const& p_data, std::wstring const& p_name, AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
+	AvoGUI::DragDropOperation dragAndDropFile(std::vector<uint8> const& p_data, std::wstring const& p_name, 
+		AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData) override
 	{
 		return dragAndDropFile(p_data.data(), p_data.size(), p_name, p_dragImage, p_dragImageCursorPosition, p_additionalData);
 	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_path, AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData)
+	AvoGUI::DragDropOperation dragAndDropFile(std::string const& p_path, AvoGUI::Image const& p_dragImage, 
+		AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData)
 	{
 		return dragAndDropFile(AvoGUI::convertUtf8ToUtf16(p_path), p_dragImage, p_dragImageCursorPosition, p_additionalData);
 	}
-	AvoGUI::DragDropOperation dragAndDropFile(std::wstring const& p_path, AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData)
+	AvoGUI::DragDropOperation dragAndDropFile(std::wstring const& p_path, AvoGUI::Image const& p_dragImage, 
+		AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData)
 	{
 		auto dataObject = createFileOleDataObject(p_path, p_additionalData);
 		auto dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
@@ -3192,7 +3179,8 @@ public:
 		return convertNativeDropEffectToDragDropOperation(dropOperation);
 	}
 
-	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_pathStrings, AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData)
+	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_pathStrings, AvoGUI::Image const& p_dragImage, 
+		AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData)
 	{
 		std::vector<std::wstring> widePathStrings(p_pathStrings.size());
 		for (auto a = 0u; a < p_pathStrings.size(); a++)
@@ -3202,7 +3190,8 @@ public:
 
 		return dragAndDropFiles(widePathStrings, p_dragImage, p_dragImageCursorPosition, p_additionalData);
 	}
-	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_pathStrings, AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData)
+	AvoGUI::DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_pathStrings, AvoGUI::Image const& p_dragImage, 
+		AvoGUI::Point<float> const& p_dragImageCursorPosition, uint64 p_additionalData)
 	{
 		auto dataObject = createFilesOleDataObject(p_pathStrings, p_additionalData);
 		auto dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
@@ -3443,7 +3432,8 @@ public:
 					POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
 					ScreenToClient(m_windowHandle, &mousePosition);
 
-					bool wasMousePositionInsideWindow = m_mousePosition.x >= 0 && m_mousePosition.y >= 0 && m_mousePosition.x < m_size.x && m_mousePosition.y < m_size.y;
+					bool wasMousePositionInsideWindow = m_mousePosition.x >= 0 && m_mousePosition.y >= 0 
+					                                 && m_mousePosition.x < m_size.x && m_mousePosition.y < m_size.y;
 					if (!m_isMouseOutsideClientArea || m_isMouseOutsideClientArea && !wasMousePositionInsideWindow) // Is was outside of the nonclient area before this mousemove.
 					{
 						TRACKMOUSEEVENT trackStructure = { };
@@ -3533,7 +3523,8 @@ public:
 
 					ScreenToClient(m_windowHandle, &mousePosition);
 
-					if (mousePosition.x >= 0 && mousePosition.y >= 0 && mousePosition.x < m_size.x && mousePosition.y < m_size.y && isMouseOverWindow)
+					if (mousePosition.x >= 0 && mousePosition.y >= 0 && 
+						mousePosition.x < m_size.x && mousePosition.y < m_size.y && isMouseOverWindow)
 					{
 						// If it's a WM_MOUSELEAVE message, then it has entered the nonclient area if the new mouse position still is inside the window.
 						// If it's a WM_NCMOUSELEAVE message, then it has entered the client area.
@@ -3569,7 +3560,7 @@ public:
 						POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
 						ScreenToClient(m_windowHandle, &mousePosition);
 
-						AvoGUI::WindowBorderArea area = m_gui->getWindowBorderAreaAtPosition(mousePosition.x / m_dipToPixelFactor, mousePosition.y / m_dipToPixelFactor);
+						auto area = m_gui->getWindowBorderAreaAtPosition(mousePosition.x / m_dipToPixelFactor, mousePosition.y / m_dipToPixelFactor);
 						if (IsMaximized(m_windowHandle) && area != AvoGUI::WindowBorderArea::Dragging && area != AvoGUI::WindowBorderArea::None)
 						{
 							return HTCLIENT;
@@ -3607,20 +3598,28 @@ public:
 				m_gui->getDrawingContext()->setDpi(float(HIWORD(p_data_a)));
 				m_dipToPixelFactor = HIWORD(p_data_a) / (float)USER_DEFAULT_SCREEN_DPI;
 				RECT* newRectangle = (RECT*)p_data_b;
-				SetWindowPos(m_windowHandle, 0, newRectangle->left, newRectangle->top, newRectangle->right - newRectangle->left, newRectangle->bottom - newRectangle->top, SWP_NOZORDER | SWP_NOACTIVATE);
+				SetWindowPos(
+					m_windowHandle, 0, 
+					newRectangle->left, newRectangle->top, 
+					newRectangle->right - newRectangle->left, newRectangle->bottom - newRectangle->top, 
+					SWP_NOZORDER | SWP_NOACTIVATE
+				);
 				return 0;
 			}
 			case WM_GETMINMAXINFO:
 			{
-				MINMAXINFO* minMaxInfo = (MINMAXINFO*)p_data_b;
-				RECT rect = { 0, 0, (int)m_minSize.x, (int)m_minSize.y };
-				AdjustWindowRect(&rect, m_styles, 0);
+				auto minMaxInfo = (MINMAXINFO*)p_data_b;
 
+				RECT rect{ 0, 0, (int)m_minSize.x, (int)m_minSize.y };
+				AdjustWindowRect(&rect, m_styles, 0);
 				if (m_minSize.x > 0U || m_minSize.y > 0U)
 				{
 					minMaxInfo->ptMinTrackSize.x = rect.right - rect.left;
 					minMaxInfo->ptMinTrackSize.y = rect.bottom - rect.top;
 				}
+
+				rect = { 0, 0, (int)m_maxSize.x, (int)m_maxSize.y };
+				AdjustWindowRect(&rect, m_styles, 0);
 				if (m_maxSize.x > 0U || m_maxSize.y > 0U)
 				{
 					minMaxInfo->ptMaxTrackSize.x = rect.right - rect.left;
@@ -3646,7 +3645,7 @@ public:
 
 				float delta = float(GET_WHEEL_DELTA_WPARAM(p_data_a)) / 120.f;
 
-				AvoGUI::ModifierKeyFlags modifierKeyFlags = convertWindowsKeyStateToModifierKeyFlags(GET_KEYSTATE_WPARAM(p_data_a));
+				auto modifierKeyFlags = convertWindowsKeyStateToModifierKeyFlags(GET_KEYSTATE_WPARAM(p_data_a));
 
 				AvoGUI::MouseEvent mouseEvent;
 				mouseEvent.x = mousePosition.x / m_dipToPixelFactor;
@@ -3665,7 +3664,7 @@ public:
 				int32 x = GET_X_LPARAM(p_data_b);
 				int32 y = GET_Y_LPARAM(p_data_b);
 
-				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				AvoGUI::MouseEvent mouseEvent;
 				mouseEvent.x = x / m_dipToPixelFactor;
@@ -3686,7 +3685,7 @@ public:
 				int32 x = GET_X_LPARAM(p_data_b);
 				int32 y = GET_Y_LPARAM(p_data_b);
 
-				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				AvoGUI::MouseEvent mouseEvent;
 				mouseEvent.x = x / m_dipToPixelFactor;
@@ -3707,7 +3706,7 @@ public:
 				int32 x = GET_X_LPARAM(p_data_b);
 				int32 y = GET_Y_LPARAM(p_data_b);
 
-				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				AvoGUI::MouseEvent mouseEvent;
 				mouseEvent.x = x / m_dipToPixelFactor;
@@ -3725,7 +3724,7 @@ public:
 				int32 x = GET_X_LPARAM(p_data_b);
 				int32 y = GET_Y_LPARAM(p_data_b);
 
-				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				AvoGUI::MouseEvent mouseEvent;
 				mouseEvent.x = x / m_dipToPixelFactor;
@@ -3743,7 +3742,7 @@ public:
 				int32 x = GET_X_LPARAM(p_data_b);
 				int32 y = GET_Y_LPARAM(p_data_b);
 
-				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				AvoGUI::MouseEvent mouseEvent;
 				mouseEvent.x = x / m_dipToPixelFactor;
@@ -3761,7 +3760,7 @@ public:
 				int32 x = GET_X_LPARAM(p_data_b);
 				int32 y = GET_Y_LPARAM(p_data_b);
 
-				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				AvoGUI::MouseEvent mouseEvent;
 				mouseEvent.x = x / m_dipToPixelFactor;
@@ -3779,7 +3778,7 @@ public:
 				int32 x = GET_X_LPARAM(p_data_b);
 				int32 y = GET_Y_LPARAM(p_data_b);
 
-				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				AvoGUI::MouseEvent mouseEvent;
 				mouseEvent.x = x / m_dipToPixelFactor;
@@ -3797,7 +3796,7 @@ public:
 				int32 x = GET_X_LPARAM(p_data_b);
 				int32 y = GET_Y_LPARAM(p_data_b);
 
-				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				AvoGUI::MouseEvent mouseEvent;
 				mouseEvent.x = x / m_dipToPixelFactor;
@@ -3815,7 +3814,7 @@ public:
 				int32 x = GET_X_LPARAM(p_data_b);
 				int32 y = GET_Y_LPARAM(p_data_b);
 
-				AvoGUI::ModifierKeyFlags modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
+				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
 
 				AvoGUI::MouseEvent mouseEvent;
 				mouseEvent.x = x / m_dipToPixelFactor;
@@ -3832,7 +3831,7 @@ public:
 			case WM_KEYDOWN:
 			{
 				bool isRepeated = p_data_b & (1 << 30);
-				AvoGUI::KeyboardKey key = convertWindowsDataToKeyboardKey(p_data_a);
+				auto key = convertWindowsDataToKeyboardKey(p_data_a);
 
 				AvoGUI::KeyboardEvent keyboardEvent;
 				keyboardEvent.key = key;
@@ -3846,7 +3845,7 @@ public:
 			case WM_SYSKEYUP:
 			case WM_KEYUP:
 			{
-				AvoGUI::KeyboardKey key = convertWindowsDataToKeyboardKey(p_data_a);
+				auto key = convertWindowsDataToKeyboardKey(p_data_a);
 
 				AvoGUI::KeyboardEvent keyboardEvent;
 				keyboardEvent.key = key;
@@ -3937,9 +3936,27 @@ public:
 		}
 		return DefWindowProc(p_windowHandle, p_message, p_data_a, p_data_b);
 	}
+
+	WindowsWindow(AvoGUI::Gui* p_gui) :
+		m_gui(p_gui), m_crossPlatformStyles((AvoGUI::WindowStyleFlags)0)
+	{
+		setCursor(AvoGUI::Cursor::Arrow);
+	}
+	WindowsWindow(AvoGUI::Gui* p_gui, std::string const& p_title, float p_width, float p_height,
+		AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) :
+		m_gui(p_gui), m_crossPlatformStyles(p_styleFlags)
+	{
+		create(p_title, p_width, p_height, p_styleFlags, p_parent);
+
+		setCursor(AvoGUI::Cursor::Arrow);
+	}
+	~WindowsWindow()
+	{
+		m_messageThread.join();
+		DestroyCursor(m_cursorHandle);
+	}
 };
 std::atomic<uint32> WindowsWindow::s_numberOfWindows;
-wchar_t const* const WindowsWindow::WINDOW_CLASS_NAME = L"AvoGUI window class";
 #endif
 
 #ifdef __linux__
@@ -5366,7 +5383,7 @@ private:
 	IDWriteTextLayout1* m_handle;
 	std::wstring m_wideString;
 	std::string m_string;
-	bool m_isTopTrimmed;
+	bool m_isTopTrimmed = false;
 
 	DWRITE_TEXT_RANGE createTextRange(int32 p_startPosition, int32 p_length)
 	{
@@ -5391,8 +5408,11 @@ protected:
 	}
 
 public:
-	DirectWriteText(IDWriteTextLayout1* p_handle, std::wstring const& p_wideString, std::string const& p_string, AvoGUI::Rectangle<float> const& p_bounds) :
-		m_handle(p_handle), m_wideString(p_wideString), m_string(p_string), m_isTopTrimmed(false)
+	DirectWriteText(IDWriteTextLayout1* p_handle, std::wstring const& p_wideString, std::string const& p_string, 
+		AvoGUI::Rectangle<float> const& p_bounds) :
+		m_handle(p_handle), 
+		m_wideString(p_wideString), 
+		m_string(p_string)
 	{
 		m_bounds = p_bounds;
 		if (!m_bounds.right && !m_bounds.bottom)
@@ -5509,7 +5529,10 @@ public:
 	{
 		AvoGUI::Point<float> result;
 		DWRITE_HIT_TEST_METRICS metrics = { 0 };
-		m_handle->HitTestTextPosition(AvoGUI::getUtf16UnitIndexFromCharacterIndex(m_wideString, p_characterIndex), false, &result.x, &result.y, &metrics);
+		m_handle->HitTestTextPosition(
+			AvoGUI::getUtf16UnitIndexFromCharacterIndex(m_wideString, p_characterIndex), 
+			false, &result.x, &result.y, &metrics
+		);
 		if (p_isRelativeToOrigin)
 		{
 			result.x += m_bounds.left;
@@ -5529,7 +5552,10 @@ public:
 	{
 		AvoGUI::Rectangle<float> result;
 		DWRITE_HIT_TEST_METRICS metrics = { 0 };
-		m_handle->HitTestTextPosition(AvoGUI::getUtf16UnitIndexFromCharacterIndex(m_wideString, p_characterIndex), false, &result.left, &result.top, &metrics);
+		m_handle->HitTestTextPosition(
+			AvoGUI::getUtf16UnitIndexFromCharacterIndex(m_wideString, p_characterIndex), 
+			false, &result.left, &result.top, &metrics
+		);
 		if (p_isRelativeToOrigin)
 		{
 			result.left += m_bounds.left;
@@ -5544,24 +5570,39 @@ public:
 		int isTrailingHit;
 		int isInside;
 		DWRITE_HIT_TEST_METRICS metrics = { 0 };
-		m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * m_bounds.left, p_pointY - p_isRelativeToOrigin * m_bounds.top, &isTrailingHit, &isInside, &metrics);
+		m_handle->HitTestPoint(
+			p_pointX - p_isRelativeToOrigin * m_bounds.left, p_pointY - p_isRelativeToOrigin * m_bounds.top, 
+			&isTrailingHit, &isInside, &metrics
+		);
 		return AvoGUI::getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition) + isTrailingHit;// *isInside;
 	}
-	void getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, uint32* p_outCharacterIndex, AvoGUI::Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) override
+	void getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, uint32* p_outCharacterIndex, 
+		AvoGUI::Point<float>* p_outCharacterPosition, bool p_isRelativeToOrigin = false) override
 	{
 		int isTrailingHit;
 		int isInside;
 		DWRITE_HIT_TEST_METRICS metrics = { 0 };
-		m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * m_bounds.left, p_pointY - p_isRelativeToOrigin * m_bounds.top, &isTrailingHit, &isInside, &metrics);
+		m_handle->HitTestPoint(
+			p_pointX - p_isRelativeToOrigin * m_bounds.left, p_pointY - p_isRelativeToOrigin * m_bounds.top, 
+			&isTrailingHit, &isInside, &metrics
+		);
 		*p_outCharacterIndex = AvoGUI::getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition) + isTrailingHit;// *isInside;
-		p_outCharacterPosition->set(metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * m_bounds.left, metrics.top + p_isRelativeToOrigin * m_bounds.top);
+		p_outCharacterPosition->set(
+			metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * m_bounds.left, 
+			metrics.top + p_isRelativeToOrigin * m_bounds.top
+		);
 	}
-	void getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, uint32* p_outCharacterIndex, AvoGUI::Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) override
+	void getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, uint32* p_outCharacterIndex, 
+		AvoGUI::Rectangle<float>* p_outCharacterBounds, bool p_isRelativeToOrigin = false) override
 	{
 		int isTrailingHit;
 		int isInside;
 		DWRITE_HIT_TEST_METRICS metrics = { 0 };
-		m_handle->HitTestPoint(p_pointX - p_isRelativeToOrigin * m_bounds.left, p_pointY - p_isRelativeToOrigin * m_bounds.top, &isTrailingHit, &isInside, &metrics);
+		m_handle->HitTestPoint(
+			p_pointX - p_isRelativeToOrigin * m_bounds.left, 
+			p_pointY - p_isRelativeToOrigin * m_bounds.top, 
+			&isTrailingHit, &isInside, &metrics
+		);
 		*p_outCharacterIndex = AvoGUI::getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition) + isTrailingHit;// *isInside;
 		p_outCharacterBounds->left = metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * m_bounds.left;
 		p_outCharacterBounds->top = metrics.top + p_isRelativeToOrigin * m_bounds.top;
@@ -5766,22 +5807,13 @@ using FontData = std::shared_ptr<std::vector<uint8>>;
 
 class FontFileStream : public IDWriteFontFileStream
 {
-private:
-	ULONG m_referenceCount;
-	FontData m_fontData;
-
-public:
-	FontFileStream(FontData p_fontData) : 
-		m_referenceCount(1), m_fontData(p_fontData)
-	{ 
-	}
-
-	//------------------------------
-
 	IUnknownDefinition(IDWriteFontFileStream)
 
 	//------------------------------
 
+private:
+	FontData m_fontData;
+public:
 	HRESULT __stdcall ReadFileFragment(void const** p_fragment, UINT64 p_fileOffset, UINT64 p_fragmentSize, void** p_fragmentContext) override
 	{
 		if (p_fileOffset + p_fragmentSize > m_fontData->size() || !p_fragmentSize)
@@ -5808,21 +5840,17 @@ public:
 		*p_lastWriteTime = 0;
 		return E_NOTIMPL;
 	}
+
+	//------------------------------
+
+	FontFileStream(FontData p_fontData) :
+		m_fontData{ p_fontData }
+	{
+	}
 };
 
 class FontFileLoader : public IDWriteFontFileLoader
 {
-private:
-	uint32 m_referenceCount;
-
-public:
-	FontFileLoader() :
-		m_referenceCount(1)
-	{ 
-	}
-
-	//------------------------------
-
 	IUnknownDefinition(IDWriteFontFileLoader)
 
 	//------------------------------
@@ -5840,31 +5868,13 @@ public:
 };
 class FontFileEnumerator : public IDWriteFontFileEnumerator
 {
-private:
-	uint32 m_referenceCount;
-
-	//------------------------------
-
-	IDWriteFactory* m_factory;
-	FontFileLoader* m_fontFileLoader;
-
-	std::vector<FontData>* m_fontData;
-	IDWriteFontFile* m_currentFontFile = 0;
-	int32 m_currentFontFileIndex;
-
-public:
-	FontFileEnumerator(IDWriteFactory* p_factory, FontFileLoader* p_fontFileLoader, std::vector<FontData>* p_data) :
-		m_referenceCount(1), m_factory(p_factory), m_fontFileLoader(p_fontFileLoader), m_fontData(p_data),
-		m_currentFontFileIndex(-1)
-	{
-	}
-
-	//------------------------------
-
 	IUnknownDefinition(IDWriteFontFileEnumerator)
 
 	//------------------------------
 
+private:
+	IDWriteFontFile* m_currentFontFile = nullptr;
+public:
 	HRESULT __stdcall GetCurrentFontFile(IDWriteFontFile** p_fontFile) override
 	{
 		*p_fontFile = m_currentFontFile;
@@ -5874,6 +5884,14 @@ public:
 		}
 		return E_FAIL;
 	}
+
+private:
+	IDWriteFactory* m_factory;
+	FontFileLoader* m_fontFileLoader;
+
+	std::vector<FontData>* m_fontData;
+	int32 m_currentFontFileIndex = -1;
+public:
 	HRESULT __stdcall MoveNext(BOOL* p_hasCurrentFile) override
 	{
 		m_currentFontFileIndex++;
@@ -5886,25 +5904,23 @@ public:
 		else
 		{
 			*p_hasCurrentFile = 1;
-			m_factory->CreateCustomFontFileReference((void const*)(m_fontData->data() + m_currentFontFileIndex), sizeof(FontData), m_fontFileLoader, &m_currentFontFile);
+			m_factory->CreateCustomFontFileReference(
+				(void const*)(m_fontData->data() + m_currentFontFileIndex), sizeof(FontData), m_fontFileLoader, &m_currentFontFile
+			);
 		}
 		return S_OK;
+	}
+
+public:
+	FontFileEnumerator(IDWriteFactory* p_factory, FontFileLoader* p_fontFileLoader, std::vector<FontData>* p_data) :
+		m_factory{ p_factory },
+		m_fontFileLoader{ p_fontFileLoader },
+		m_fontData{ p_data }
+	{
 	}
 };
 class FontCollectionLoader : public IDWriteFontCollectionLoader
 {
-private:
-	uint32 m_referenceCount;
-	FontFileLoader* m_fontFileLoader;
-
-public:
-	FontCollectionLoader(FontFileLoader* p_fontFileLoader) :
-		m_referenceCount(1), m_fontFileLoader(p_fontFileLoader)
-	{
-	}
-
-	//------------------------------
-
 	IUnknownDefinition(IDWriteFontCollectionLoader)
 
 	//------------------------------
@@ -5913,6 +5929,14 @@ public:
 	{
 		*p_fontFileEnumerator = new FontFileEnumerator(p_factory, m_fontFileLoader, (std::vector<FontData>*)p_data);
 		return S_OK;
+	}
+
+private:
+	FontFileLoader* m_fontFileLoader;
+public:
+	FontCollectionLoader(FontFileLoader* p_fontFileLoader) :
+		m_fontFileLoader{ p_fontFileLoader }
+	{
 	}
 };
 
@@ -6771,9 +6795,9 @@ public:
 			multithreader->Leave();
 			multithreader->Release();
 
-			return AvoGUI::Color(dxgiColor.r, dxgiColor.g, dxgiColor.b, dxgiColor.a);
+			return AvoGUI::Color{ dxgiColor.r, dxgiColor.g, dxgiColor.b, dxgiColor.a };
 		}
-		return AvoGUI::Color(0.5f);
+		return AvoGUI::Color{ 0.5f };
 	}
 
 	//------------------------------
@@ -6828,7 +6852,7 @@ public:
 	{
 		D2D1_MATRIX_3X2_F transform;
 		m_context->GetTransform(&transform);
-		return AvoGUI::Point<float>(transform.dx, transform.dy);
+		return { transform.dx, transform.dy };
 	}
 
 	//------------------------------
@@ -6950,7 +6974,7 @@ public:
 	}
 	void setSize(float p_width, float p_height) override
 	{
-		D2D1_SIZE_F oldSize = m_context->GetSize();
+		auto oldSize = m_context->GetSize();
 		//if (oldSize.width >= p_width && oldSize.width < p_width + 200 &&
 			//oldSize.height >= p_height && oldSize.height < p_height + 200)
 		if (oldSize.width == p_width && oldSize.height == p_height)
@@ -7011,18 +7035,18 @@ public:
 	}
 	AvoGUI::Point<float> getSize() override
 	{
-		return AvoGUI::Point<float>(m_context->GetSize().width, m_context->GetSize().height);
+		return { m_context->GetSize().width, m_context->GetSize().height };
 	}
 
 	//------------------------------
 
 	void clear(AvoGUI::Color const& p_color) override
 	{
-		m_context->Clear(D2D1::ColorF(p_color.red, p_color.green, p_color.blue, p_color.alpha));
+		m_context->Clear({ p_color.red, p_color.green, p_color.blue, p_color.alpha });
 	}
 	void clear() override
 	{
-		m_context->Clear(D2D1::ColorF(0.f, 0.f, 0.f, 0.f));
+		m_context->Clear({ 0.f, 0.f, 0.f, 0.f });
 	}
 
 	//------------------------------
@@ -7352,7 +7376,7 @@ public:
 			), &geometry
 		);
 
-		return createGeometryFromImplementation(new Direct2dGeometry((ID2D1Geometry*)geometry));
+		return createGeometryFromImplementation(new Direct2dGeometry{ (ID2D1Geometry*)geometry });
 	}
 	AvoGUI::Geometry createRoundedRectangleGeometry(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, float p_radius, bool p_isStroked) override
 	{
@@ -7377,7 +7401,7 @@ public:
 		s_direct2DFactory->CreatePathGeometry(&pathGeometry);
 		createCornerRectangleGeometry(pathGeometry, p_left, p_top, p_right, p_bottom, p_corners, true);
 
-		return createGeometryFromImplementation(new Direct2dGeometry((ID2D1Geometry*)pathGeometry));
+		return createGeometryFromImplementation(new Direct2dGeometry{ (ID2D1Geometry*)pathGeometry });
 	}
 	AvoGUI::Geometry createCornerRectangleGeometry(AvoGUI::Point<float> const& p_position, AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners, bool p_isStroked) override
 	{
@@ -7406,7 +7430,7 @@ public:
 	{
 		if (!p_numberOfVertices)
 		{
-			return AvoGUI::Geometry();
+			return AvoGUI::Geometry{};
 		}
 
 		ID2D1PathGeometry1* path;
@@ -7425,7 +7449,7 @@ public:
 		sink->Close();
 		sink->Release();
 
-		return createGeometryFromImplementation(new Direct2dGeometry(path));
+		return createGeometryFromImplementation(new Direct2dGeometry{ path });
 	}
 
 	//------------------------------
@@ -7789,15 +7813,12 @@ public:
 			), &geometry
 		);
 
-		ID2D1Layer* layer;
-		m_context->CreateLayer(&layer);
 		m_context->PushLayer(
 			D2D1::LayerParameters1(
 				D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
 				D2D1::IdentityMatrix(), p_opacity, nullptr, D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND | D2D1_LAYER_OPTIONS1_IGNORE_ALPHA // Improves performance :^)
 			), nullptr
 		);
-		layer->Release();
 		geometry->Release();
 		m_clipTypeStack.push(true);
 	}
@@ -8022,11 +8043,13 @@ public:
 
 		return createImageFromImplementation(new Direct2dImage(outputBitmap));
 	}
-	AvoGUI::Image createRectangleShadowImage(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners, float p_blur, AvoGUI::Color const& p_color) override
+	AvoGUI::Image createRectangleShadowImage(AvoGUI::Point<float> const& p_size, AvoGUI::RectangleCorners const& p_corners, 
+		float p_blur, AvoGUI::Color const& p_color) override
 	{
 		return createRectangleShadowImage(p_size.x, p_size.y, p_corners, p_blur, p_color);
 	}
-	AvoGUI::Image createRectangleShadowImage(float p_width, float p_height, AvoGUI::RectangleCorners const& p_corners, float p_blur, AvoGUI::Color const& p_color) override
+	AvoGUI::Image createRectangleShadowImage(float p_width, float p_height, AvoGUI::RectangleCorners const& p_corners, 
+		float p_blur, AvoGUI::Color const& p_color) override
 	{
 		if (!p_width || !p_height || !p_color.alpha) return AvoGUI::Image();
 
@@ -8509,7 +8532,8 @@ public:
 		}
 		else
 		{
-			m_context->CreateBitmap(size, 0, 0, D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_CPU_READ | D2D1_BITMAP_OPTIONS_CANNOT_DRAW, sourceBitmap->GetPixelFormat()), &cpuBitmap);
+			m_context->CreateBitmap(size, 0, 0, D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_CPU_READ | D2D1_BITMAP_OPTIONS_CANNOT_DRAW, 
+				sourceBitmap->GetPixelFormat()), &cpuBitmap);
 		}
 
 		D2D1_POINT_2U destinationPoint{ 0, 0 };
@@ -8527,7 +8551,8 @@ public:
 		bitmapInfoHeader.biBitCount = 32;
 		bitmapInfoHeader.biCompression = BI_RGB;
 		bitmapInfoHeader.biPlanes = 1;
-		HBITMAP result = CreateDIBitmap(GetDC((HWND)m_window->getNativeHandle()), &bitmapInfoHeader, CBM_INIT, mappedRectangle.bits, (BITMAPINFO*)&bitmapInfoHeader, DIB_RGB_COLORS);
+		HBITMAP result = CreateDIBitmap(GetDC((HWND)m_window->getNativeHandle()), &bitmapInfoHeader, CBM_INIT, mappedRectangle.bits, 
+			(BITMAPINFO*)&bitmapInfoHeader, DIB_RGB_COLORS);
 
 		cpuBitmap->Unmap();
 		cpuBitmap->Release();
@@ -8537,7 +8562,8 @@ public:
 
 	//------------------------------
 
-	AvoGUI::LinearGradient createLinearGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_endX, float p_endY) override
+	AvoGUI::LinearGradient createLinearGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, float p_startX, float p_startY, 
+		float p_endX, float p_endY) override
 	{
 		D2D1_GRADIENT_STOP* gradientStops = new D2D1_GRADIENT_STOP[p_gradientStops.size()];
 		for (uint32 a = 0; a < p_gradientStops.size(); a++)
@@ -8552,18 +8578,21 @@ public:
 		delete[] gradientStops;
 
 		ID2D1LinearGradientBrush* brush = 0;
-		m_context->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(p_startX, p_startY), D2D1::Point2F(p_endX, p_endY)), stopCollection, &brush);
+		m_context->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(p_startX, p_startY), D2D1::Point2F(p_endX, p_endY)), 
+			stopCollection, &brush);
 
 		stopCollection->Release();
 
-		return createLinearGradientFromImplementation(new Direct2dLinearGradient(brush));
+		return createLinearGradientFromImplementation(new Direct2dLinearGradient{ brush });
 	}
-	AvoGUI::LinearGradient createLinearGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, AvoGUI::Point<float> const& p_startPosition, AvoGUI::Point<float> const& p_endPosition) override
+	AvoGUI::LinearGradient createLinearGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, AvoGUI::Point<float> const& p_startPosition, 
+		AvoGUI::Point<float> const& p_endPosition) override
 	{
 		return createLinearGradient(p_gradientStops, p_startPosition.x, p_startPosition.y, p_endPosition.x, p_endPosition.y);
 	}
 
-	AvoGUI::RadialGradient createRadialGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radiusX, float p_radiusY) override
+	AvoGUI::RadialGradient createRadialGradient(std::vector<AvoGUI::GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radiusX, 
+		float p_radiusY) override
 	{
 		D2D1_GRADIENT_STOP* gradientStops = new D2D1_GRADIENT_STOP[p_gradientStops.size()];
 		for (uint32 a = 0; a < p_gradientStops.size(); a++)
@@ -11224,24 +11253,6 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 
 	while (!m_window->getWillClose())
 	{
-		//if (m_hasNewWindowSize)
-		//{
-			//lockThreads();
-			//m_hasNewWindowSize = false;
-
-			//AvoGUI::Point<float> sizeBefore = getBottomRight();
-			//m_drawingContext->setSize(m_newWindowSize.x, m_newWindowSize.y);
-			//m_bounds.set(0, 0, m_newWindowSize.x, m_newWindowSize.y);
-			//m_shadowBounds = m_bounds;
-			//m_lastWindowSize = m_newWindowSize;
-
-			//sendBoundsChangeEvents(AvoGUI::Rectangle<float>(0.f, 0.f, sizeBefore.x, sizeBefore.y));
-
-			//m_invalidRectangles.clear();
-			//invalidate();
-			//unlockThreads();
-		//}
-
 		lockThreads();
 		uint32 numberOfAnimationUpdates = m_viewAnimationUpdateQueue.size();
 		for (uint32 a = 0; a < numberOfAnimationUpdates; a++)
@@ -11301,6 +11312,14 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 			m_viewAnimationUpdateQueue.pop_front();
 		}
 	}
+	if (m_animationUpdateQueue.size())
+	{
+		while (m_animationUpdateQueue.size())
+		{
+			m_animationUpdateQueue.front()->forget();
+			m_animationUpdateQueue.pop_front();
+		}
+	}
 
 	// This will cause the window to be destroyed, because getWillClose() is true.
 	m_window->close();
@@ -11310,16 +11329,17 @@ void AvoGUI::Gui::thread_runAnimationLoop()
 uint32 AvoGUI::Gui::s_numberOfInstances = 0u;
 
 AvoGUI::Gui::Gui() :
-	AvoGUI::View(nullptr)
+	AvoGUI::View{ nullptr },
+	m_timerThread{ m_sharedStateMutex }
 {
 	s_numberOfInstances++;
 
 #ifdef _WIN32
 	Direct2DDrawingContext::createStaticResources();
-	m_window = new WindowsWindow(this);
+	m_window = new WindowsWindow{ this };
 #endif
 #ifdef __linux__
-	m_window = new LinuxWindow(this);
+	m_window = new LinuxWindow{ this };
 #endif
 
 	m_window->windowCreateListeners += AvoGUI::bind(&Gui::handleWindowCreate, this);
@@ -11329,7 +11349,7 @@ AvoGUI::Gui::Gui() :
 	m_gui = this;
 }
 AvoGUI::Gui::Gui(Component* p_parent) :
-	Gui()
+	Gui{}
 {
 	((Component*)this)->setParent(p_parent);
 }
@@ -11400,7 +11420,7 @@ AvoGUI::View* AvoGUI::Gui::getViewAt(AvoGUI::Point<float> const& p_coordinates)
 }
 AvoGUI::View* AvoGUI::Gui::getViewAt(float p_x, float p_y)
 {
-	return getViewAt(AvoGUI::Point<float>(p_x, p_y));
+	return getViewAt(AvoGUI::Point<float>{p_x, p_y});
 }
 
 //------------------------------
@@ -11412,9 +11432,9 @@ void AvoGUI::Gui::handleWindowCreate(WindowEvent const& p_event)
 		m_drawingContext->forget();
 	}
 #ifdef _WIN32
-	m_drawingContext = new Direct2DDrawingContext(m_window);
+	m_drawingContext = new Direct2DDrawingContext{ m_window };
 #elif __linux__
-	m_drawingContext = new OpenGlDrawingContext(m_window);
+	m_drawingContext = new OpenGlDrawingContext{ m_window };
 #endif
 	m_drawingContextState = m_drawingContext->createDrawingState();
 
@@ -11451,7 +11471,7 @@ void AvoGUI::Gui::handleWindowSizeChange(WindowEvent const& p_event)
 	m_bounds.set(0, 0, p_event.width, p_event.height);
 	m_shadowBounds = m_bounds;
 
-	sendBoundsChangeEvents(AvoGUI::Rectangle<float>(0.f, 0.f, m_lastUpdatedWindowSize.x, m_lastUpdatedWindowSize.y));
+	sendBoundsChangeEvents(AvoGUI::Rectangle<float>{0.f, 0.f, m_lastUpdatedWindowSize.x, m_lastUpdatedWindowSize.y});
 
 	m_lastUpdatedWindowSize.set(p_event.width, p_event.height);
 	m_invalidRectangles.clear();
@@ -12204,8 +12224,8 @@ void AvoGUI::Gui::drawViews()
 	if (!m_invalidRectangles.empty())
 	{
 		m_invalidRectanglesMutex.lock();
-		auto invalidRectangles(std::move(m_invalidRectangles));
-		m_invalidRectangles = std::vector<AvoGUI::Rectangle<float>>();
+		auto invalidRectangles{ std::move(m_invalidRectangles) };
+		m_invalidRectangles = std::vector<AvoGUI::Rectangle<float>>{};
 		m_invalidRectanglesMutex.unlock();
 
 		lockThreads(); // State needs to be static during drawing.

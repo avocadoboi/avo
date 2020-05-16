@@ -42,6 +42,7 @@
 #include <sstream>
 #include <vector>
 #include <deque>
+#include <set>
 #include <unordered_map>
 #include <functional>
 
@@ -57,15 +58,15 @@
 //------------------------------
 // I don't like the t
 
-using int8 = int8_t;
-using int16 = int16_t;
-using int32 = int32_t;
-using int64 = int64_t;
+using int8 = std::int8_t;
+using int16 = std::int16_t;
+using int32 = std::int32_t;
+using int64 = std::int64_t;
 
-using uint8 = uint8_t;
-using uint16 = uint16_t;
-using uint32 = uint32_t;
-using uint64 = uint64_t;
+using uint8 = std::uint8_t;
+using uint16 = std::uint16_t;
+using uint32 = std::uint32_t;
+using uint64 = std::uint64_t;
 
 //------------------------------
 
@@ -566,10 +567,10 @@ namespace AvoGUI
 		Only values of [0, 9] are allowed as the indicies, meaning max 10 objects can be inserted in one call.
 
 		Example:
-		std::string formattedString(AvoGUI::createFormattedString(
+		std::string formattedString = AvoGUI::createFormattedString(
 			"I have {1} {2} and {3} {4} and {5} {6}. Pi: {0}",
 			AvoGUI::PI, 2, "cats", 0, "dogs", 10, "fingers"
-		));
+		);
 	*/
 	template<typename ... FormattableType>
 	inline std::string createFormattedString(std::string p_format, FormattableType&& ... p_objects)
@@ -602,7 +603,7 @@ namespace AvoGUI
 
 	inline std::vector<uint8> readFile(std::string const& p_path)
 	{
-		std::ifstream file(p_path, std::ios::ate | std::ios::binary);
+		std::ifstream file{ p_path, std::ios::ate | std::ios::binary };
 
 		std::vector<uint8> result(file.tellg());
 		file.seekg(0, std::ios::beg);
@@ -613,6 +614,9 @@ namespace AvoGUI
 
 	//------------------------------
 
+	/*
+		Binds an object to a member method of its class, so that the returned function can be called without providing the instance.
+	*/
 	template<typename ReturnType, typename Class, typename ... Arguments>
 	std::function<ReturnType(Arguments...)> bind(ReturnType(Class::* p_function)(Arguments...), Class* p_instance)
 	{
@@ -685,6 +689,149 @@ namespace AvoGUI
 	//------------------------------
 
 	/*
+		A TimerThread is used for timer callbacks. 
+		The first time a callback is added, it spawns a thread that sleeps until the next callback should be called.
+	*/
+	class TimerThread
+	{
+		class Timeout
+		{
+			std::function<void()> callback;
+			float duration;
+		public:
+			std::chrono::steady_clock::time_point endTime;
+			
+			Timeout(std::function<void()> const& p_callback, float p_duration)
+			{
+				callback = p_callback;
+				duration = p_duration;
+				endTime = std::chrono::steady_clock::now() + std::chrono::steady_clock::duration{ int64(p_duration)*1'000'000ll };
+			}
+			Timeout(Timeout&& p_other)
+			{
+				callback = std::move(p_other.callback);
+				duration = p_other.duration;
+				endTime = std::move(p_other.endTime);
+			}
+
+			void operator()() const
+			{
+				callback();
+			}
+
+			bool operator<(Timeout const& p_other) const
+			{
+				return endTime < p_other.endTime;
+			}
+		};
+
+		std::set<Timeout> m_timeouts;
+		std::mutex m_timeoutsMutex;
+		std::_Mutex_base* m_callbackMutex = nullptr;
+
+		std::atomic<bool> m_needsToWake = false;
+		std::condition_variable m_wakeConditionVariable;
+		std::mutex m_wakeMutex;
+
+		std::atomic<bool> m_isRunning = false;
+		std::thread m_thread;
+		void thread_run()
+		{
+			m_isRunning = true;
+			while (m_isRunning)
+			{
+				if (!m_timeouts.empty())
+				{
+					if (!m_needsToWake)
+					{
+						std::unique_lock<std::mutex> lock{ m_wakeMutex };
+						m_wakeConditionVariable.wait_until(lock, m_timeouts.begin()->endTime, [&] { return (bool)m_needsToWake; });
+						m_needsToWake = false;
+					}
+
+					std::scoped_lock lock{ m_timeoutsMutex };
+
+					auto timeout = m_timeouts.begin();
+					while (timeout->endTime < std::chrono::steady_clock::now())
+					{
+						m_callbackMutex->lock();
+						(*timeout)();
+						m_callbackMutex->unlock();
+
+						m_timeouts.erase(timeout);
+						if (m_timeouts.empty())
+						{
+							break;
+						}
+						else
+						{
+							timeout = m_timeouts.begin();
+						}
+					}
+				}
+				else
+				{
+					std::unique_lock<std::mutex> lock{ m_wakeMutex };
+					m_wakeConditionVariable.wait(lock, [&] { return !m_needsToWake; });
+					m_needsToWake = false;
+				}
+			}
+		}
+
+		void wake()
+		{
+			if (!m_needsToWake)
+			{
+				m_wakeMutex.lock();
+				m_needsToWake = false;
+				m_wakeMutex.unlock();
+				m_wakeConditionVariable.notify_one();
+			}
+		}
+
+		void run()
+		{
+			m_thread = std::thread{ &TimerThread::thread_run, this };
+		}
+
+	public:
+		TimerThread() = default;
+		/*
+			p_callbackMutex is a mutex that is locked every time a timer callback is called.
+		*/
+		TimerThread(std::_Mutex_base& p_callbackMutex) :
+			m_callbackMutex(&p_callbackMutex)
+		{
+		}
+		~TimerThread()
+		{
+			if (m_isRunning)
+			{
+				m_isRunning = false;
+				wake();
+				m_thread.join();
+			}
+		}
+
+		/*
+			Adds a function that will be called in p_milliseconds milliseconds from now.
+		*/
+		void addCallback(std::function<void()>& p_callback, float p_milliseconds)
+		{
+			if (!m_isRunning)
+			{
+				run();
+			}
+			m_timeoutsMutex.lock();
+			m_timeouts.insert({ p_callback, p_milliseconds });
+			m_timeoutsMutex.unlock();
+			wake();
+		}
+	};
+
+	//------------------------------
+
+	/*
 		This is very useful when storing pointers to dynamically allocated objects in multiple places.
 		The object doesn't get deleted until every remember() has a forget().
 		The constructor is the first remember(), meaning m_referenceCount is initialized with 1.
@@ -741,17 +888,17 @@ namespace AvoGUI
 		T* m_implementation;
 
 		ProtectedReferenceCounted(T* p_implementation) :
-			m_implementation(p_implementation)
+			m_implementation{ p_implementation }
 		{
 		}
 
 	public:
 		ProtectedReferenceCounted() :
-			m_implementation(nullptr)
+			m_implementation{ nullptr }
 		{
 		}
 		ProtectedReferenceCounted(T const& p_other) :
-			m_implementation(p_other.m_implementation)
+			m_implementation{ p_other.m_implementation }
 		{
 			if (m_implementation)
 			{
@@ -814,7 +961,7 @@ namespace AvoGUI
 		Just use it like this: 
 			Id id;
 		An ID which converts to 0 is invalid, and can be created like this: 
-			Id id{ 0 };
+			Id id = 0;
 	*/
 	class Id
 	{
@@ -875,7 +1022,7 @@ namespace AvoGUI
 		}
 
 	private:
-		Component* m_parent{ nullptr };
+		Component* m_parent = nullptr;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -980,7 +1127,7 @@ namespace AvoGUI
 		{
 			while (!m_children.empty())
 			{
-				Component* child = m_children.back();
+				auto child = m_children.back();
 				child->m_parent = nullptr;
 				child->parentChangeListeners(this);
 				child->forget();
@@ -1026,8 +1173,8 @@ namespace AvoGUI
 
 	private:
 		std::unordered_map<uint64, Component*> m_componentsById;
-		Component* m_idScope{ nullptr };
-		Id m_id{ 0 };
+		Component* m_idScope = nullptr;
+		Id m_id = 0;
 	public:
 		/*
 			Sets an ID that can be used to retrieve the component from the hierarchy.
@@ -1089,11 +1236,11 @@ namespace AvoGUI
 
 	public:
 		Component() :
-			m_root(this)
+			m_root{ this }
 		{
 		}
 		Component(Component* p_parent) :
-			m_root(p_parent ? p_parent->getRoot() : this)
+			m_root{ p_parent ? p_parent->getRoot() : this }
 		{
 			if (p_parent && p_parent != this)
 			{
@@ -1160,7 +1307,7 @@ namespace AvoGUI
 
 		Point<PointType> operator-() const
 		{
-			return Point<PointType>(-x, -y);
+			return { -x, -y };
 		}
 
 		//------------------------------
@@ -1254,23 +1401,23 @@ namespace AvoGUI
 		template<typename T>
 		Point<PointType> operator+(Point<T> const& p_point) const
 		{
-			return Point<PointType>(x + p_point.x, y + p_point.y);
+			return { x + p_point.x, y + p_point.y };
 		}
 		template<typename T>
 		Point<PointType> operator+(Point<T>&& p_point) const
 		{
-			return Point<PointType>(x + p_point.x, y + p_point.y);
+			return { x + p_point.x, y + p_point.y };
 		}
 		/*
 			Returns a version of this point that is offset by an equal amount on the x- and y-axis.
 		*/
 		Point<PointType> operator+(PointType p_offset) const
 		{
-			return Point<PointType>(x + p_offset, y + p_offset);
+			return { x + p_offset, y + p_offset };
 		}
 		Point<PointType> createAddedCopy(PointType p_x, PointType p_y) const
 		{
-			return Point<PointType>(x + p_x, y + p_y);
+			return { x + p_x, y + p_y };
 		}
 
 		template<typename T>
@@ -1298,23 +1445,23 @@ namespace AvoGUI
 		template<typename T>
 		Point<PointType> operator-(Point<T> const& p_point) const
 		{
-			return Point<PointType>(x - p_point.x, y - p_point.y);
+			return { x - p_point.x, y - p_point.y };
 		}
 		template<typename T>
 		Point<PointType> operator-(Point<T>&& p_point) const
 		{
-			return Point<PointType>(x - p_point.x, y - p_point.y);
+			return { x - p_point.x, y - p_point.y };
 		}
 		/*
 			Returns a version of this point that is offset negatively by the same amount on the x- and y-axis.
 		*/
 		Point<PointType> operator-(PointType p_offset) const
 		{
-			return Point<PointType>(x - p_offset, y - p_offset);
+			return { x - p_offset, y - p_offset };
 		}
 		Point<PointType> createSubtractedCopy(PointType p_x, PointType p_y) const
 		{
-			return Point<PointType>(x - p_x, y - p_y);
+			return { x - p_x, y - p_y };
 		}
 
 		template<typename T>
@@ -1336,22 +1483,22 @@ namespace AvoGUI
 		template<typename T>
 		Point<PointType> operator*(Point<T> const& p_point) const
 		{
-			return Point<PointType>(x*p_point.x, y*p_point.y);
+			return { x * p_point.x, y * p_point.y };
 		}
 		template<typename T>
 		Point<PointType> operator*(Point<T>&& p_point) const
 		{
-			return Point<PointType>(x*p_point.x, y*p_point.y);
+			return { x * p_point.x, y * p_point.y };
 		}
 		template<typename T>
 		Point<PointType> operator*(T p_factor) const
 		{
-			return Point<PointType>(x*p_factor, y*p_factor);
+			return { x * p_factor, y * p_factor };
 		}
 		template<typename T0, typename T1>
 		Point<PointType> createMultipliedCopy(T0 p_x, T1 p_y) const
 		{
-			return Point<PointType>(x * p_x, y * p_y);
+			return { x * p_x, y * p_y };
 		}
 
 		template<typename T>
@@ -1374,22 +1521,17 @@ namespace AvoGUI
 		template<typename T>
 		Point<PointType> operator/(Point<T> const& p_point) const
 		{
-			return Point<PointType>(x / p_point.x, y / p_point.y);
-		}
-		template<typename T>
-		Point<PointType> operator/(Point<T>&& p_point) const
-		{
-			return Point<PointType>(x / p_point.x, y / p_point.y);
+			return { PointType(x / p_point.x), PointType(y / p_point.y)};
 		}
 		template<typename T>
 		Point<PointType> operator/(T p_divisor) const
 		{
-			return Point<PointType>(x / p_divisor, y / p_divisor);
+			return { PointType(x / p_divisor), PointType(y / p_divisor) };
 		}
 		template<typename T0, typename T1>
 		Point<PointType> createDividedCopy(T0 p_x, T1 p_y) const
 		{
-			return Point<PointType>(x / p_x, y / p_y);
+			return { PointType(x / p_x), PointType(y / p_y) };
 		}
 
 		template<typename T>
@@ -1786,12 +1928,12 @@ namespace AvoGUI
 	template<typename T0, typename T1>
 	Point<double> operator*(T0 p_factor, Point<T1> const& p_point)
 	{
-		return Point<T1>(p_point.x * p_factor, p_point.y * p_factor);
+		return { p_point.x * p_factor, p_point.y * p_factor };
 	}
 	template<typename T0, typename T1>
 	Point<double> operator/(T0 p_dividend, Point<T1> const& p_point)
 	{
-		return Point<T1>(p_dividend / p_point.x, p_dividend/p_point.y);
+		return { p_dividend / p_point.x, p_dividend / p_point.y };
 	}
 
 	template<typename T0, typename T1>
@@ -1825,8 +1967,8 @@ namespace AvoGUI
 		/*
 			These are the transform coefficients.
 		*/
-		float xToX{ 1.f }, yToX{ 0.f }, offsetX{ 0.f },
-			  xToY{ 0.f }, yToY{ 1.f }, offsetY{ 0.f };
+		float xToX = 1.f, yToX = 0.f, offsetX = 0.f,
+			  xToY = 0.f, yToY = 1.f, offsetY = 0.f;
 
 		//------------------------------
 
@@ -2032,11 +2174,6 @@ namespace AvoGUI
 		{
 			*this = p_rectangle;
 		}
-		template<typename T>
-		explicit Rectangle(Rectangle<T>&& p_rectangle)
-		{
-			*this = p_rectangle;
-		}
 
 		//------------------------------
 
@@ -2060,15 +2197,6 @@ namespace AvoGUI
 
 		template<typename T>
 		Rectangle<RectangleType>& operator=(Rectangle<T> const& p_rectangle)
-		{
-			left = p_rectangle.left;
-			top = p_rectangle.top;
-			right = p_rectangle.right;
-			bottom = p_rectangle.bottom;
-			return *this;
-		}
-		template<typename T>
-		Rectangle<RectangleType>& operator=(Rectangle<T>&& p_rectangle)
 		{
 			left = p_rectangle.left;
 			top = p_rectangle.top;
@@ -2121,12 +2249,12 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType> operator+(Point<T> const& p_offset)
 		{
-			return Rectangle<RectangleType>(left + p_offset.x, top + p_offset.y, right + p_offset.x, bottom + p_offset.y);
+			return { left + p_offset.x, top + p_offset.y, right + p_offset.x, bottom + p_offset.y };
 		}
 		template<typename T>
 		Rectangle<RectangleType> operator-(Point<T> const& p_offset)
 		{
-			return Rectangle<RectangleType>(left - p_offset.x, top - p_offset.y, right - p_offset.x, bottom - p_offset.y);
+			return { left - p_offset.x, top - p_offset.y, right - p_offset.x, bottom - p_offset.y };
 		}
 
 		//------------------------------
@@ -2161,7 +2289,7 @@ namespace AvoGUI
 
 		Rectangle<RectangleType> createCopyAtOrigin() const
 		{
-			return Rectangle<RectangleType>(0, 0, right - left, bottom - top);
+			return { 0, 0, right - left, bottom - top };
 		}
 
 		//------------------------------
@@ -2172,7 +2300,7 @@ namespace AvoGUI
 		*/
 		Rectangle<RectangleType> createCopyWithTopLeft(RectangleType p_topAndLeft, bool p_willKeepSize = true) const
 		{
-			return Rectangle<RectangleType>(p_topAndLeft, p_topAndLeft, p_willKeepSize*(p_topAndLeft - left) + right, p_willKeepSize*(p_topAndLeft - top) + bottom);
+			return createCopyWithTopLeft(p_topAndLeft, p_topAndLeft, p_willKeepSize);
 		}
 		/*
 			Creates a copy of this rectangle, with a new top-left corner.
@@ -2181,7 +2309,7 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType> createCopyWithTopLeft(Point<T> const& p_position, bool p_willKeepSize = true) const
 		{
-			return Rectangle<RectangleType>(p_position.x, p_position.y, p_willKeepSize*(p_position.x - left) + right, p_willKeepSize*(p_position.y - top) + bottom);
+			return createCopyWithTopLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
 			Creates a copy of this rectangle, with a new top-left corner.
@@ -2189,7 +2317,11 @@ namespace AvoGUI
 		*/
 		Rectangle<RectangleType> createCopyWithTopLeft(RectangleType p_left, RectangleType p_top, bool p_willKeepSize = true) const
 		{
-			return Rectangle<RectangleType>(p_left, p_top, p_willKeepSize*(p_left - left) + right, p_willKeepSize*(p_top - top) + bottom);
+			return {
+				p_left, p_top,
+				p_willKeepSize * (p_left - left) + right,
+				p_willKeepSize * (p_top - top) + bottom
+			};
 		}
 
 		/*
@@ -2229,7 +2361,7 @@ namespace AvoGUI
 		*/
 		Point<RectangleType> getTopLeft() const
 		{
-			return Point<RectangleType>(left, top);
+			return { left, top };
 		}
 
 		//------------------------------
@@ -2240,7 +2372,7 @@ namespace AvoGUI
 		*/
 		Rectangle<RectangleType> createCopyWithTopRight(RectangleType p_topAndRight, bool p_willKeepSize = true) const
 		{
-			return Rectangle<RectangleType>(p_willKeepSize*(p_topAndRight - right) + left, p_topAndRight, p_topAndRight, p_willKeepSize*(p_topAndRight - top) + bottom);
+			return createCopyWithTopRight(p_topAndRight, p_topAndRight, p_willKeepSize);
 		}
 		/*
 			Creates a copy of this rectangle, with a new top-right corner.
@@ -2249,7 +2381,7 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType> createCopyWithTopRight(Point<T> const& p_position, bool p_willKeepSize = true) const
 		{
-			return Rectangle<RectangleType>(p_willKeepSize*(p_position.x - right) + left, p_position.y, p_position.x, p_willKeepSize*(p_position.y - top) + bottom);
+			return createCopyWithTopRight(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
 			Creates a copy of this rectangle, with a new top-right corner.
@@ -2257,7 +2389,11 @@ namespace AvoGUI
 		*/
 		Rectangle<RectangleType> createCopyWithTopRight(RectangleType p_right, RectangleType p_top, bool p_willKeepSize = true) const
 		{
-			return Rectangle<RectangleType>(p_willKeepSize*(p_right - right) + left, p_top, p_right, p_willKeepSize*(p_top - top) + bottom);
+			return {
+				p_willKeepSize * (p_right - right) + left,
+				p_top, p_right,
+				p_willKeepSize * (p_top - top) + bottom
+			};
 		}
 		/*
 			Sets the same position for the top and right edge of the rectangle.
@@ -2296,7 +2432,7 @@ namespace AvoGUI
 		*/
 		Point<RectangleType> getTopRight() const
 		{
-			return Point<RectangleType>(right, top);
+			return { right, top };
 		}
 
 		//------------------------------
@@ -2307,7 +2443,7 @@ namespace AvoGUI
 		*/
 		Rectangle<RectangleType> createCopyWithBottomLeft(RectangleType p_bottomAndLeft, bool p_willKeepSize = true) const
 		{
-			return Rectangle<RectangleType>(p_bottomAndLeft, p_willKeepSize*(p_bottomAndLeft - bottom) + top, (p_bottomAndLeft - left) + right, p_bottomAndLeft);
+			return createCopyWithBottomLeft(p_bottomAndLeft, p_bottomAndLeft, p_willKeepSize);
 		}
 		/*
 			Creates a copy of this rectangle, with a new bottom-left corner.
@@ -2316,7 +2452,7 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType> createCopyWithBottomLeft(Point<T> const& p_position, bool p_willKeepSize = true) const
 		{
-			return Rectangle<RectangleType>(p_position.x, p_willKeepSize*(p_position.y - bottom) + top, (p_position.x - left) + right, p_position.y);
+			return createCopyWithBottomLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
 			Creates a copy of this rectangle, with a new bottom-left corner.
@@ -2324,7 +2460,12 @@ namespace AvoGUI
 		*/
 		Rectangle<RectangleType> createCopyWithBottomLeft(RectangleType p_left, RectangleType p_bottom, bool p_willKeepSize = true) const
 		{
-			return Rectangle<RectangleType>(p_left, p_willKeepSize*(p_bottom - bottom) + top, (p_left - left) + right, p_bottom);
+			return {
+				p_left,
+				p_willKeepSize * (p_bottom - bottom) + top,
+				(p_left - left) + right,
+				p_bottom
+			};
 		}
 		/*
 			Sets the same position for the bottom and left edge of the rectangle.
@@ -2363,7 +2504,7 @@ namespace AvoGUI
 		*/
 		Point<RectangleType> getBottomLeft() const
 		{
-			return Point<RectangleType>(left, bottom);
+			return { left, bottom };
 		}
 
 		//------------------------------
@@ -2374,7 +2515,7 @@ namespace AvoGUI
 		*/
 		Rectangle<RectangleType> createCopyWithBottomRight(RectangleType p_bottomAndRight, bool p_willKeepSize = true) const
 		{
-			return Rectangle<RectangleType>(p_willKeepSize*(p_bottomAndRight - right) + left, p_willKeepSize*(p_bottomAndRight - bottom) + top, p_bottomAndRight, p_bottomAndRight);
+			return createCopyWithBottomRight(p_bottomAndRight, p_bottomAndRight, p_willKeepSize);
 		}
 		/*
 			Creates a copy of this rectangle, with a new bottom-right corner.
@@ -2383,7 +2524,7 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType> createCopyWithBottomRight(Point<T> const& p_position, bool p_willKeepSize = true) const
 		{
-			return Rectangle<RectangleType>(p_willKeepSize*(p_position.x - right) + left, p_willKeepSize*(p_position.y - bottom) + top, p_position.x, p_position.y);
+			return createCopyWithBottomRight(p_position.x, p_position.y, p_willKeepSize);
 		}
 		/*
 			Creates a copy of this rectangle, with a new bottom-right corner.
@@ -2391,7 +2532,11 @@ namespace AvoGUI
 		*/
 		Rectangle<RectangleType> createCopyWithBottomRight(RectangleType p_right, RectangleType p_bottom, bool p_willKeepSize = true) const
 		{
-			return Rectangle<RectangleType>(p_willKeepSize*(p_right - right) + left, p_willKeepSize*(p_bottom - bottom) + top, p_right, p_bottom);
+			return {
+				p_willKeepSize * (p_right - right) + left,
+				p_willKeepSize * (p_bottom - bottom) + top,
+				p_right, p_bottom
+			};
 		}
 		/*
 			Sets the same position for the bottom and right edge of the rectangle.
@@ -2495,12 +2640,7 @@ namespace AvoGUI
 		*/
 		Rectangle<RectangleType> createCopyWithOutwardsRoundedCoordinates() const
 		{
-			Rectangle<RectangleType> rounded;
-			rounded.left = floor(left);
-			rounded.top = floor(top);
-			rounded.right = ceil(right);
-			rounded.bottom = ceil(bottom);
-			return rounded;
+			return { floor(left), floor(top), ceil(right), ceil(bottom) };
 		}
 		/*
 			Rounds the coordinates of the rectangle in the directions that expand the rectangle.
@@ -2522,9 +2662,7 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType> createCopyWithCenter(T p_centerXY) const
 		{
-			RectangleType offsetX = p_centerXY - (left + right) / 2;
-			RectangleType offsetY = p_centerXY - (top + bottom) / 2;
-			return Rectangle<RectangleType>(offsetX + left, offsetY + top, offsetX + right, offsetY + bottom);
+			return createCopyWithCenter(p_centerXY, p_centerXY);
 		}
 		/*
 			Creates a copy of this rectangle, with a new center position.
@@ -2532,9 +2670,7 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType> createCopyWithCenter(Point<T> const& p_position) const
 		{
-			RectangleType offsetX = p_position.x - (left + right)/2;
-			RectangleType offsetY = p_position.y - (top + bottom)/2;
-			return Rectangle<RectangleType>(offsetX + left, offsetY + top, offsetX + right, offsetY + bottom);
+			return createCopyWithCenter(p_position.x, p_position.y);
 		}
 		/*
 			Creates a copy of this rectangle, with a new center position.
@@ -2544,7 +2680,7 @@ namespace AvoGUI
 		{
 			RectangleType offsetX = p_centerX - (left + right)/2;
 			RectangleType offsetY = p_centerY - (top + bottom)/2;
-			return Rectangle<RectangleType>(offsetX + left, offsetY + top, offsetX + right, offsetY + bottom);
+			return { offsetX + left, offsetY + top, offsetX + right, offsetY + bottom };
 		}
 		/*
 			Sets the same center coordinates of the rectangle for the x-axis and the y-axis.
@@ -2603,7 +2739,7 @@ namespace AvoGUI
 		*/
 		Point<RectangleType> getCenter() const
 		{
-			return Point<RectangleType>((left + right) / 2, (top + bottom) / 2);
+			return { (left + right) / 2, (top + bottom) / 2 };
 		}
 		/*
 			Returns the x-axis center coordinate of the rectangle.
@@ -2628,9 +2764,7 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType>& moveTopLeft(Point<T> const& p_offset)
 		{
-			left += p_offset.x;
-			top += p_offset.y;
-			return *this;
+			return moveTopLeft(p_offset.x, p_offset.y);
 		}
 		/*
 			Moves the left and top coordinates of the rectangle without affecting the other two.
@@ -2648,9 +2782,7 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType>& moveTopRight(Point<T> const& p_offset)
 		{
-			right += p_offset.x;
-			top += p_offset.y;
-			return *this;
+			return moveTopRight(p_offset.x, p_offset.y);
 		}
 		/*
 			Moves the right and top coordinates of the rectangle without affecting the other two.
@@ -2668,9 +2800,7 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType>& moveBottomLeft(Point<T> const& p_offset)
 		{
-			left += p_offset.x;
-			bottom += p_offset.y;
-			return *this;
+			return moveBottomLeft(p_offset.x, p_offset.y);
 		}
 		/*
 			Moves the left and bottom coordinates of the rectangle without affecting the other two.
@@ -2688,9 +2818,7 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType>& moveBottomRight(Point<T> const& p_offset)
 		{
-			right += p_offset.x;
-			bottom += p_offset.y;
-			return *this;
+			return moveBottomRight(p_offset.x, p_offset.y);
 		}
 		/*
 			Moves the right and bottom coordinates of the rectangle without affecting the other two.
@@ -2710,14 +2838,14 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType> createMovedCopy(Point<T> const& p_offset) const
 		{
-			return Rectangle<RectangleType>(left + p_offset.x, top + p_offset.y, right + p_offset.x, bottom + p_offset.y);
+			return createMovedCopy(p_offset.x, p_offset.y);
 		}
 		/*
 			Creates a copy of this rectangle, offseted by an amount.
 		*/
 		Rectangle<RectangleType> createMovedCopy(RectangleType p_offsetX, RectangleType p_offsetY) const
 		{
-			return Rectangle<RectangleType>(left + p_offsetX, top + p_offsetY, right + p_offsetX, bottom + p_offsetY);
+			return { left + p_offsetX, top + p_offsetY, right + p_offsetX, bottom + p_offsetY };
 		}
 		/*
 			Does the same as the += operator, offsets the whole rectangle.
@@ -2725,11 +2853,7 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType>& move(Point<T> const& p_offset)
 		{
-			left += p_offset.x;
-			right += p_offset.x;
-			top += p_offset.y;
-			bottom += p_offset.y;
-			return *this;
+			return move(p_offset.x, p_offset.y);
 		}
 		/*
 			Does the same as the += operator, offsets the whole rectangle.
@@ -2828,26 +2952,19 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType> createBoundedCopy(Rectangle<T> const& p_bounds) const
 		{
-			Rectangle<RectangleType> bounded;
-			bounded.left = constrain(left, p_bounds.left, p_bounds.right);
-			bounded.top = constrain(top, p_bounds.top, p_bounds.bottom);
-			bounded.right = constrain(right, p_bounds.left, p_bounds.right);
-			bounded.bottom = constrain(bottom, p_bounds.top, p_bounds.bottom);
-
-			return bounded;
+			return createBoundedCopy(p_bounds.left, p_bounds.top, p_bounds.right, p_bounds.bottom);
 		}
 		/*
 			Returns a new copy of this rectangle, that is clipped to fit into the parameter rectangle.
 		*/
 		Rectangle<RectangleType> createBoundedCopy(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom) const
 		{
-			Rectangle<RectangleType> bounded;
-			bounded.left = constrain(left, p_left, p_right);
-			bounded.top = constrain(top, p_top, p_bottom);
-			bounded.right = constrain(right, p_left, p_right);
-			bounded.bottom = constrain(bottom, p_top, p_bottom);
-
-			return bounded;
+			return {
+				constrain(left, p_left, p_right),
+				constrain(top, p_top, p_bottom),
+				constrain(right, p_left, p_right),
+				constrain(bottom, p_top, p_bottom)
+			};
 		}
 
 		/*
@@ -2856,12 +2973,7 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType>& bound(Rectangle<T> const& p_bounds)
 		{
-			left = constrain(left, p_bounds.left, p_bounds.right);
-			top = constrain(top, p_bounds.top, p_bounds.bottom);
-			right = constrain(right, p_bounds.left, p_bounds.right);
-			bottom = constrain(bottom, p_bounds.top, p_bounds.bottom);
-
-			return *this;
+			return bound(p_bounds.left, p_bounds.top, p_bounds.right, p_bounds.bottom);
 		}
 		/*
 			Clips this rectangle to fit into the parameter rectangle edge coordinates.
@@ -2884,26 +2996,19 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType> createContainedCopy(Rectangle<T> const& p_rectangle) const
 		{
-			Rectangle<RectangleType> contained;
-			contained.left = min(left, p_rectangle.left);
-			contained.top = min(top, p_rectangle.top);
-			contained.right = max(right, p_rectangle.right);
-			contained.bottom = max(bottom, p_rectangle.bottom);
-
-			return contained;
+			return createContainedCopy(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
 		/*
 			Returns a copy of this rectangle that is extended so that it contains the parameter rectangle edge coordinates.
 		*/
 		Rectangle<RectangleType> createContainedCopy(RectangleType p_left, RectangleType p_top, RectangleType p_right, RectangleType p_bottom) const
 		{
-			Rectangle<RectangleType> contained;
-			contained.left = min(left, p_left);
-			contained.top = min(top, p_top);
-			contained.right = max(right, p_right);
-			contained.bottom = max(bottom, p_bottom);
-
-			return contained;
+			return {
+				min(left, p_left),
+				min(top, p_top),
+				max(right, p_right),
+				max(bottom, p_bottom)
+			};
 		}
 
 		/*
@@ -2912,16 +3017,7 @@ namespace AvoGUI
 		template<typename T>
 		Rectangle<RectangleType>& contain(Rectangle<T> const& p_rectangle)
 		{
-			if (p_rectangle.left < left)
-				left = p_rectangle.left;
-			if (p_rectangle.top < top)
-				top = p_rectangle.top;
-			if (p_rectangle.right > right)
-				right = p_rectangle.right;
-			if (p_rectangle.bottom > bottom)
-				bottom = p_rectangle.bottom;
-
-			return *this;
+			return contain(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
 
 		/*
@@ -2946,20 +3042,19 @@ namespace AvoGUI
 		/*
 			Returns whether a point lies within this rectangle.
 		*/
-		template<typename T>
-		bool getIsContaining(Point<T> const& p_point) const
-		{
-			return p_point.x >= left && p_point.x < right
-				&& p_point.y >= top && p_point.y < bottom;
-		}
-		/*
-			Returns whether a point lies within this rectangle.
-		*/
 		template<typename T0, typename T1>
 		bool getIsContaining(T0 p_x, T1 p_y) const
 		{
 			return p_x >= left && p_x < right
 				&& p_y >= top && p_y < bottom;
+		}
+		/*
+			Returns whether a point lies within this rectangle.
+		*/
+		template<typename T>
+		bool getIsContaining(Point<T> const& p_point) const
+		{
+			return getIsContaining(p_point.x, p_point.y);
 		}
 
 		/*
@@ -2977,8 +3072,7 @@ namespace AvoGUI
 		template<typename T>
 		bool getIsContaining(Rectangle<T> const& p_rectangle) const
 		{
-			return p_rectangle.left >= left && p_rectangle.right < right
-				&& p_rectangle.top >= top && p_rectangle.bottom < bottom;
+			return getIsContaining(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
 		/*
 			Returns whether a protected rectangle is fully inside this rectangle.
@@ -3000,8 +3094,7 @@ namespace AvoGUI
 		template<typename T>
 		bool getIsIntersecting(Rectangle<T> const& p_rectangle) const
 		{
-			return p_rectangle.right >= left && p_rectangle.bottom >= top
-				&& p_rectangle.left <= right && p_rectangle.top <= bottom;
+			return getIsIntersecting(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
 		/*
 			Returns whether this rectangle intersects/overlaps/touches a protected rectangle.
@@ -3028,7 +3121,7 @@ namespace AvoGUI
 
 		virtual void setBounds(float p_left, float p_top, float p_right, float p_bottom)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.set(p_left, p_top, p_right, p_bottom);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3049,7 +3142,7 @@ namespace AvoGUI
 
 		virtual void move(float p_offsetX, float p_offsetY)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.move(p_offsetX, p_offsetY);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3059,13 +3152,13 @@ namespace AvoGUI
 		}
 		virtual void moveX(float p_offsetX)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.moveX(p_offsetX);
 			handleProtectedRectangleChange(oldRectangle);
 		}
 		virtual void moveY(float p_offsetY)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.moveY(p_offsetY);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3074,7 +3167,7 @@ namespace AvoGUI
 
 		virtual void setTopLeft(float p_left, float p_top, bool p_willKeepSize = true)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.setTopLeft(p_left, p_top, p_willKeepSize);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3093,7 +3186,7 @@ namespace AvoGUI
 
 		virtual void setTopRight(float p_right, float p_top, bool p_willKeepSize = true)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3112,7 +3205,7 @@ namespace AvoGUI
 
 		virtual void setBottomLeft(float p_left, float p_bottom, bool p_willKeepSize = true)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3131,7 +3224,7 @@ namespace AvoGUI
 
 		virtual void setBottomRight(float p_right, float p_bottom, bool p_willKeepSize = true)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.setBottomRight(p_right, p_bottom, p_willKeepSize);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3152,7 +3245,7 @@ namespace AvoGUI
 
 		virtual void setCenter(float p_x, float p_y)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.setCenter(p_x, p_y);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3166,13 +3259,13 @@ namespace AvoGUI
 		}
 		virtual void setCenterX(float p_x)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.setCenterX(p_x);
 			handleProtectedRectangleChange(oldRectangle);
 		}
 		virtual void setCenterY(float p_y)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.setCenterY(p_y);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3194,7 +3287,7 @@ namespace AvoGUI
 
 		virtual void setLeft(float p_left, bool p_willKeepWidth = true)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.setLeft(p_left, p_willKeepWidth);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3205,7 +3298,7 @@ namespace AvoGUI
 
 		virtual void setTop(float p_top, bool p_willKeepHeight = true)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.setTop(p_top, p_willKeepHeight);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3216,7 +3309,7 @@ namespace AvoGUI
 
 		virtual void setRight(float p_right, bool p_willKeepWidth = true)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.setRight(p_right, p_willKeepWidth);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3227,7 +3320,7 @@ namespace AvoGUI
 
 		virtual void setBottom(float p_bottom, bool p_willKeepHeight = true)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.setBottom(p_bottom, p_willKeepHeight);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3240,7 +3333,7 @@ namespace AvoGUI
 
 		virtual void setWidth(float p_width)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.setWidth(p_width);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3251,7 +3344,7 @@ namespace AvoGUI
 
 		virtual void setHeight(float p_height)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.setHeight(p_height);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3262,7 +3355,7 @@ namespace AvoGUI
 
 		virtual void setSize(float p_width, float p_height)
 		{
-			Rectangle<float> oldRectangle(m_bounds);
+			auto oldRectangle = m_bounds;
 			m_bounds.setSize(p_width, p_height);
 			handleProtectedRectangleChange(oldRectangle);
 		}
@@ -3341,38 +3434,38 @@ namespace AvoGUI
 		float bottomRightSizeY;
 
 		RectangleCorners() :
-			topLeftSizeX(0.f), topLeftSizeY(0.f), topRightSizeX(0.f), topRightSizeY(0.f),
-			bottomLeftSizeX(0.f), bottomLeftSizeY(0.f), bottomRightSizeX(0.f), bottomRightSizeY(0.f),
-			topLeftType(RectangleCornerType::Round), topRightType(RectangleCornerType::Round),
-			bottomLeftType(RectangleCornerType::Round), bottomRightType(RectangleCornerType::Round)
+			topLeftSizeX{ 0.f }, topLeftSizeY{ 0.f }, topRightSizeX{ 0.f }, topRightSizeY{ 0.f },
+			bottomLeftSizeX{ 0.f }, bottomLeftSizeY{ 0.f }, bottomRightSizeX{ 0.f }, bottomRightSizeY{ 0.f },
+			topLeftType{ RectangleCornerType::Round }, topRightType{ RectangleCornerType::Round },
+			bottomLeftType{ RectangleCornerType::Round }, bottomRightType{ RectangleCornerType::Round }
 		{
 		}
 		explicit RectangleCorners(float p_cornerSize, RectangleCornerType p_cornerType = RectangleCornerType::Round) :
-			topLeftSizeX(p_cornerSize), topLeftSizeY(p_cornerSize),
-			topRightSizeX(p_cornerSize), topRightSizeY(p_cornerSize),
-			bottomLeftSizeX(p_cornerSize), bottomLeftSizeY(p_cornerSize),
-			bottomRightSizeX(p_cornerSize), bottomRightSizeY(p_cornerSize),
-			topLeftType(p_cornerType), topRightType(p_cornerType),
-			bottomLeftType(p_cornerType), bottomRightType(p_cornerType)
+			topLeftSizeX{ p_cornerSize }, topLeftSizeY{ p_cornerSize },
+			topRightSizeX{ p_cornerSize }, topRightSizeY{ p_cornerSize },
+			bottomLeftSizeX{ p_cornerSize }, bottomLeftSizeY{ p_cornerSize },
+			bottomRightSizeX{ p_cornerSize }, bottomRightSizeY{ p_cornerSize },
+			topLeftType{ p_cornerType }, topRightType{ p_cornerType },
+			bottomLeftType{ p_cornerType }, bottomRightType{ p_cornerType }
 		{
 		}
 		RectangleCorners(float p_cornerSizeX, float p_cornerSizeY, RectangleCornerType p_cornerType = RectangleCornerType::Cut) :
-			topLeftSizeX(p_cornerSizeX), topLeftSizeY(p_cornerSizeY),
-			topRightSizeX(p_cornerSizeX), topRightSizeY(p_cornerSizeY),
-			bottomLeftSizeX(p_cornerSizeX), bottomLeftSizeY(p_cornerSizeY),
-			bottomRightSizeX(p_cornerSizeX), bottomRightSizeY(p_cornerSizeY),
-			topLeftType(p_cornerType), topRightType(p_cornerType),
-			bottomLeftType(p_cornerType), bottomRightType(p_cornerType)
+			topLeftSizeX{ p_cornerSizeX }, topLeftSizeY{ p_cornerSizeY },
+			topRightSizeX{ p_cornerSizeX }, topRightSizeY{ p_cornerSizeY },
+			bottomLeftSizeX{ p_cornerSizeX }, bottomLeftSizeY{ p_cornerSizeY },
+			bottomRightSizeX{ p_cornerSizeX }, bottomRightSizeY{ p_cornerSizeY },
+			topLeftType{ p_cornerType }, topRightType{ p_cornerType },
+			bottomLeftType{ p_cornerType }, bottomRightType{ p_cornerType }
 		{
 		}
 
 		RectangleCorners(float p_topLeftSize, float p_topRightSize, float p_bottomLeftSize, float p_bottomRightSize, RectangleCornerType p_cornerType = RectangleCornerType::Round) :
-			topLeftSizeX(p_topLeftSize), topLeftSizeY(p_topLeftSize),
-			topRightSizeX(p_topRightSize), topRightSizeY(p_topRightSize),
-			bottomLeftSizeX(p_bottomLeftSize), bottomLeftSizeY(p_bottomLeftSize),
-			bottomRightSizeX(p_bottomRightSize), bottomRightSizeY(p_bottomRightSize),
-			topLeftType(p_cornerType), topRightType(p_cornerType),
-			bottomLeftType(p_cornerType), bottomRightType(p_cornerType)
+			topLeftSizeX{ p_topLeftSize }, topLeftSizeY{ p_topLeftSize },
+			topRightSizeX{ p_topRightSize }, topRightSizeY{ p_topRightSize },
+			bottomLeftSizeX{ p_bottomLeftSize }, bottomLeftSizeY{ p_bottomLeftSize },
+			bottomRightSizeX{ p_bottomRightSize }, bottomRightSizeY{ p_bottomRightSize },
+			topLeftType{ p_cornerType }, topRightType{ p_cornerType },
+			bottomLeftType{ p_cornerType }, bottomRightType{ p_cornerType }
 		{
 		}
 	};
@@ -3399,7 +3492,7 @@ namespace AvoGUI
 
 		//------------------------------
 
-		Easing() : x0(0.f), y0(0.f), x1(1.f), y1(1.f) { }
+		Easing() : x0{ 0.f }, y0{ 0.f }, x1{ 1.f }, y1{ 1.f } { }
 		Easing(Easing const& p_easing)
 		{
 			*this = p_easing;
@@ -3413,14 +3506,14 @@ namespace AvoGUI
 			The parameters are the coordinates of the first and second control points, respectively.
 		*/
 		Easing(float p_x0, float p_y0, float p_x1, float p_y1) :
-			x0(p_x0), y0(p_y0), x1(p_x1), y1(p_y1)
+			x0{ p_x0 }, y0{ p_y0 }, x1{ p_x1 }, y1{ p_y1 }
 		{ }
 		/*
 			Initializes the control points of the bezier curve easing.
 			The parameters are the coordinates of the first and second control points, respectively.
 		*/
 		Easing(double p_x0, double p_y0, double p_x1, double p_y1) :
-			x0((float)p_x0), y0((float)p_y0), x1((float)p_x1), y1((float)p_y1)
+			x0{ (float)p_x0 }, y0{ (float)p_y0 }, x1{ (float)p_x1 }, y1{ (float)p_y1 }
 		{ }
 
 		Easing& operator=(Easing const& p_easing)
@@ -3463,11 +3556,6 @@ namespace AvoGUI
 		*/
 		static float easeValue(float p_x0, float p_y0, float p_x1, float p_y1, float p_value, float p_precision = 0.005f)
 		{
-			/*
-				f(x) = 3*t*(1-t)*(1-t)*x0 + 3*t*t*(1-t)*x1 + t*t*t
-
-				f'(x) = x0*(3 - 12*t + 9*t*t) + x1*(6*t - 9*t*t) + 3*t*t
-			*/
 
 			if (p_value <= 0.00001f)
 			{
@@ -3480,8 +3568,14 @@ namespace AvoGUI
 
 			float t = p_value < 0.5f ? 0.25f : 0.75f;
 
+			/*
+				f(x) = 3*t*(1-t)*(1-t)*x0 + 3*t*t*(1-t)*x1 + t*t*t
+
+				f'(x) = x0*(3 - 12*t + 9*t*t) + x1*(6*t - 9*t*t) + 3*t*t
+			*/
+
 			float error = 1;
-			while (abs(error) > p_precision)
+			while (std::abs(error) > p_precision)
 			{
 				error = p_value - t * ((1.f - t) * (3.f * (1.f - t) * p_x0 + 3.f * t * p_x1) + t * t);
 				t += error / (p_x0 * (3.f - 12.f * t + 9.f * t * t) + p_x1 * (6.f * t - 9.f * t * t) + 3.f * t * t);
@@ -3527,10 +3621,10 @@ namespace AvoGUI
 		{
 			if (p_isReversed != m_isReversed)
 			{
-				float value = m_easing.easeValue(std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - m_startTime).count() / m_milliseconds, m_easingPrecision);
-				m_startTime = std::chrono::steady_clock::now() - std::chrono::steady_clock::duration(uint64((m_easing.easeValueInverse(1.f - value))*m_milliseconds*1'000'000));
+				float value = m_easing.easeValue(std::chrono::duration<float, std::milli>{std::chrono::steady_clock::now() - m_startTime}.count() / m_milliseconds, m_easingPrecision);
+				m_startTime = std::chrono::steady_clock::now() - std::chrono::steady_clock::duration{ uint64(m_easing.easeValueInverse(1.f - value) * m_milliseconds * 1'000'000) };
+				m_isReversed = p_isReversed;
 			}
-			m_isReversed = p_isReversed;
 		}
 		bool getIsReversed()
 		{
@@ -3591,7 +3685,7 @@ namespace AvoGUI
 
 		void update()
 		{
-			float value = m_easing.easeValue(std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - m_startTime).count() / m_milliseconds, m_easingPrecision);
+			float value = m_easing.easeValue(std::chrono::duration<float, std::milli>{std::chrono::steady_clock::now() - m_startTime}.count() / m_milliseconds, m_easingPrecision);
 			if (value >= 1.f)
 			{
 				m_isDone = true;
@@ -3635,6 +3729,7 @@ namespace AvoGUI
 			{
 				m_startTime = std::chrono::steady_clock::now();
 			}
+			else return;
 			m_isDone = false;
 			queueUpdate();
 		}
@@ -3650,11 +3745,11 @@ namespace AvoGUI
 			m_isDone = false;
 			if (m_isReversed)
 			{
-				m_startTime = std::chrono::steady_clock::now() - std::chrono::steady_clock::duration(uint64((1.f - p_startProgress) * m_milliseconds*1'000'000));
+				m_startTime = std::chrono::steady_clock::now() - std::chrono::steady_clock::duration{ uint64((1.f - p_startProgress) * m_milliseconds * 1'000'000) };
 			}
 			else
 			{
-				m_startTime = std::chrono::steady_clock::now() - std::chrono::steady_clock::duration(uint64(p_startProgress * m_milliseconds * 1'000'000));
+				m_startTime = std::chrono::steady_clock::now() - std::chrono::steady_clock::duration{ uint64(p_startProgress * m_milliseconds * 1'000'000) };
 			}
 		}
 		void pause()
@@ -7421,7 +7516,7 @@ namespace AvoGUI
 		virtual void create(std::string const& p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
 
 	protected:
-		bool m_isRunning{ false };
+		bool m_isRunning = false;
 		std::mutex m_isRunningMutex;
 		std::condition_variable m_isRunningConditionVariable;
 
@@ -7450,7 +7545,7 @@ namespace AvoGUI
 		virtual bool getIsOpen() const = 0;
 
 	protected:
-		bool m_willClose{ false };
+		bool m_willClose = false;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -7565,7 +7660,10 @@ namespace AvoGUI
 		/*
 			Sets the position of the window relative to the top-left corner of the screen, in pixel units.
 		*/
-		virtual void setPosition(Point<int32> const& p_position) = 0;
+		void setPosition(Point<int32> const& p_position)
+		{
+			setPosition(p_position.x, p_position.y);
+		}
 		/*
 			Sets the position of the window relative to the top-left corner of the screen, in pixel units.
 		*/
@@ -7586,7 +7684,10 @@ namespace AvoGUI
 		/*
 			Sets the size of the client area of the window, in dip units.
 		*/
-		virtual void setSize(Point<float> const& p_size) = 0;
+		void setSize(Point<float> const& p_size)
+		{
+			setSize(p_size.x, p_size.y);
+		}
 		/*
 			Sets the size of the client area of the window, in dip units.
 		*/
@@ -7607,7 +7708,10 @@ namespace AvoGUI
 		/*
 			Sets the smallest allowed size for the window when the user is resizing it, in dip units.
 		*/
-		virtual void setMinSize(Point<float> const& p_minSize) = 0;
+		void setMinSize(Point<float> const& p_minSize)
+		{
+			setMinSize(p_minSize.x, p_minSize.y);
+		}
 		/*
 			Sets the smallest allowed size for the window when the user is resizing it, in dip units.
 		*/
@@ -7628,7 +7732,10 @@ namespace AvoGUI
 		/*
 			Sets the biggest allowed size for the window when the user is resizing it, in dip units.
 		*/
-		virtual void setMaxSize(Point<float> const& p_maxSize) = 0;
+		void setMaxSize(Point<float> const& p_maxSize)
+		{
+			setMaxSize(p_maxSize.x, p_maxSize.y);
+		}
 		/*
 			Sets the biggest allowed size for the window when the user is resizing it, in dip units.
 		*/
@@ -8099,6 +8206,28 @@ namespace AvoGUI
 		{
 			return createAnimation(getThemeEasing(p_easingId), p_milliseconds);
 		}
+		/*
+			Creates an animation that is released by this view when it is destroyed.
+			p_milliseconds is the duration of the animation, can be changed later on the returned object.
+			p_callback is a function that will be called every time the animation has been updated, it takes the current animation value as a parameter.
+		*/
+		[[nodiscard]] Animation* createAnimation(Easing const& p_easing, float p_milliseconds, std::function<void(float)> p_callback)
+		{
+			Animation* animation = new Animation(this, p_easing, p_milliseconds);
+			animation->updateListeners += p_callback;
+			m_animations.push_back(animation);
+			return animation;
+		}
+		/*
+			Creates an animation that is released by the view when it is destroyed.
+			p_easingId is the theme easing ID of the animation easing to be used.
+			p_milliseconds is the duration of the animation, can be changed later on the returned object.
+			p_callback is a function that will be called every time the animation has been updated, it takes the current animation value as a parameter.
+		*/
+		[[nodiscard]] Animation* createAnimation(Id const& p_easingId, float p_milliseconds, std::function<void(float)> p_callback)
+		{
+			return createAnimation(getThemeEasing(p_easingId), p_milliseconds, p_callback);
+		}
 
 	private:
 		/*
@@ -8267,6 +8396,26 @@ namespace AvoGUI
 		auto const& getChildViews() const
 		{
 			return m_childViews;
+		}
+
+		using iterator = std::vector<View*>::iterator;
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the begin iterator for the view's child views.
+			This allows writing range-based for loops over a view's children with simpler syntax.
+		*/
+		iterator begin() noexcept
+		{
+			return m_childViews.begin();
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			Returns the end iterator for the view's child views.
+			This allows writing range-based for loops over a view's children with simpler syntax.
+		*/
+		iterator end() noexcept
+		{
+			return m_childViews.end();
 		}
 
 		//------------------------------
@@ -10494,12 +10643,9 @@ namespace AvoGUI
 			run must be called after creation and before the main thread returns.
 
 			p_title is the text that appears in the title bar of the window (if it has an OS border).
-
 			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
 			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
-
 			p_positionFactorY is the vertical equivalent to p_positionFactorX.
-
 			p_width is the width of the client area in DIPs (device independent pixels).
 			p_height is the height of the client area in DIPs (device independent pixels).
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
@@ -10521,6 +10667,63 @@ namespace AvoGUI
 			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
 		void create(std::string const& p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr);
+		/*
+			LIBRARY IMPLEMENTED
+			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
+			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
+			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+
+			run must be called after creation and before the main thread returns.
+
+			p_title is the text that appears in the title bar of the window (if it has an OS border).
+			p_size is the size of the client area in DIPS (device independent pixels).
+			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
+		*/
+		void create(std::string const& p_title, Point<float> const& p_size, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr)
+		{
+			create(p_title, p_size.x, p_size.y, p_windowFlags, p_parent);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
+			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
+			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+
+			run must be called after creation and before the main thread returns.
+
+			p_title is the text that appears in the title bar of the window (if it has an OS border).
+			p_positionFactor is the position of the window, expressed as horizontal and vertical factors between 0 and 1, 
+			where (0, 0) means the top left corner of the primary monitor and the top left edge of the window are aligned, 
+			and (1, 1) means the bottom right corners are aligned.
+			p_size is the size of the client area in DIPS (device independent pixels).
+			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
+		*/
+		void create(std::string const& p_title, Point<float> const& p_positionFactor, Point<float> const& p_size, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr)
+		{
+			create(p_title, p_positionFactor.x, p_positionFactor.y, p_size.x, p_size.y, p_windowFlags, p_parent);
+		}
+		/*
+			LIBRARY IMPLEMENTED
+			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
+			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
+			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+
+			run must be called after creation and before the main thread returns.
+
+			p_title is the text that appears in the title bar of the window (if it has an OS border).
+			p_positionFactorX is the horizontal position of the window, expressed as a factor between 0 and 1, where 0 means the left edge
+			of the primary monitor and the left edge of the window are aligned, and 1 means the right edges are aligned.
+			p_positionFactorY is the vertical equivalent to p_positionFactorX.
+			p_size is the size of the client area in DIPS (device independent pixels).
+			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
+			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
+		*/
+		void create(std::string const& p_title, float p_positionFactorX, float p_positionFactorY, Point<float> const& p_size, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr)
+		{
+			create(p_title, p_positionFactorX, p_positionFactorY, p_size.x, p_size.y, p_windowFlags, p_parent);
+		}
 
 		/*
 			LIBRARY IMPLEMENTED
@@ -10604,11 +10807,26 @@ namespace AvoGUI
 		//------------------------------
 
 	private:
+		TimerThread m_timerThread;
+
+	public:
+		/*
+			Adds a function that will be called in p_milliseconds milliseconds from now.
+		*/
+		void addTimerCallback(std::function<void()> p_callback, float p_milliseconds)
+		{
+			m_timerThread.addCallback(p_callback, p_milliseconds);
+		}
+
+		//------------------------------
+
+	private:
+		std::recursive_mutex m_sharedStateMutex;
+
 		std::deque<View*> m_viewAnimationUpdateQueue;
 		std::deque<Animation*> m_animationUpdateQueue;
 
 		bool m_hasAnimationLoopStarted{ false };
-		std::recursive_mutex m_sharedStateMutex;
 		std::thread m_animationThread;
 
 		void thread_runAnimationLoop();
