@@ -605,6 +605,11 @@ namespace AvoGUI
 	{
 		std::ifstream file{ p_path, std::ios::ate | std::ios::binary };
 
+		if (!file.is_open())
+		{
+			return std::vector<uint8>();
+		}
+
 		std::vector<uint8> result(file.tellg());
 		file.seekg(0, std::ios::beg);
 		file.read((char*)result.data(), result.size());
@@ -1401,23 +1406,23 @@ namespace AvoGUI
 		template<typename T>
 		Point<PointType> operator+(Point<T> const& p_point) const
 		{
-			return { x + p_point.x, y + p_point.y };
+			return { PointType(x + p_point.x), PointType(y + p_point.y) };
 		}
 		template<typename T>
 		Point<PointType> operator+(Point<T>&& p_point) const
 		{
-			return { x + p_point.x, y + p_point.y };
+			return { PointType(x + p_point.x), PointType(y + p_point.y) };
 		}
 		/*
 			Returns a version of this point that is offset by an equal amount on the x- and y-axis.
 		*/
 		Point<PointType> operator+(PointType p_offset) const
 		{
-			return { x + p_offset, y + p_offset };
+			return { PointType(x + p_offset), PointType(y + p_offset) };
 		}
 		Point<PointType> createAddedCopy(PointType p_x, PointType p_y) const
 		{
-			return { x + p_x, y + p_y };
+			return { PointType(x + p_x), PointType(y + p_y) };
 		}
 
 		template<typename T>
@@ -1445,23 +1450,23 @@ namespace AvoGUI
 		template<typename T>
 		Point<PointType> operator-(Point<T> const& p_point) const
 		{
-			return { x - p_point.x, y - p_point.y };
+			return { PointType(x - p_point.x), PointType(y - p_point.y) };
 		}
 		template<typename T>
 		Point<PointType> operator-(Point<T>&& p_point) const
 		{
-			return { x - p_point.x, y - p_point.y };
+			return { PointType(x - p_point.x), PointType(y - p_point.y) };
 		}
 		/*
 			Returns a version of this point that is offset negatively by the same amount on the x- and y-axis.
 		*/
 		Point<PointType> operator-(PointType p_offset) const
 		{
-			return { x - p_offset, y - p_offset };
+			return { PointType(x - p_offset), PointType(y - p_offset) };
 		}
 		Point<PointType> createSubtractedCopy(PointType p_x, PointType p_y) const
 		{
-			return { x - p_x, y - p_y };
+			return { PointType(x - p_x), PointType(y - p_y) };
 		}
 
 		template<typename T>
@@ -1483,22 +1488,22 @@ namespace AvoGUI
 		template<typename T>
 		Point<PointType> operator*(Point<T> const& p_point) const
 		{
-			return { x * p_point.x, y * p_point.y };
+			return { PointType(x * p_point.x), PointType(y * p_point.y) };
 		}
 		template<typename T>
 		Point<PointType> operator*(Point<T>&& p_point) const
 		{
-			return { x * p_point.x, y * p_point.y };
+			return { PointType(x * p_point.x), PointType(y * p_point.y) };
 		}
 		template<typename T>
 		Point<PointType> operator*(T p_factor) const
 		{
-			return { x * p_factor, y * p_factor };
+			return { PointType(x * p_factor), PointType(y * p_factor) };
 		}
 		template<typename T0, typename T1>
 		Point<PointType> createMultipliedCopy(T0 p_x, T1 p_y) const
 		{
-			return { x * p_x, y * p_y };
+			return { PointType(x * p_x), PointType(y * p_y) };
 		}
 
 		template<typename T>
@@ -6951,6 +6956,10 @@ namespace AvoGUI
 			p_imageData is a memory block which is p_size bytes in size.
 		*/
 		virtual Image createImage(uint8 const* p_imageData, uint32 p_size) = 0;
+		virtual Image createImage(std::vector<uint8> const& p_imageData)
+		{
+			return createImage(p_imageData.data(), p_imageData.size());
+		}
 		/*
 			Loads an image from a file. Most standard image formats/codecs are supported.
 			p_filePath is the path, relative or absolute, to the image file to be loaded.
@@ -8151,7 +8160,7 @@ namespace AvoGUI
 		//------------------------------
 
 	private:
-		Gui* m_gui{ nullptr };
+		Gui* m_gui = nullptr;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -14387,6 +14396,7 @@ namespace MaterialIcons
 	constexpr auto DATA_USAGE{ u8"\ue1af" };
 	constexpr auto DATE_RANGE{ u8"\ue916" };
 	constexpr auto DEHAZE{ u8"\ue3c7" };
+#undef DELETE
 	constexpr auto DELETE{ u8"\ue872" };
 	constexpr auto DELETE_FOREVER{ u8"\ue92b" };
 	constexpr auto DELETE_SWEEP{ u8"\ue16c" };
@@ -14418,9 +14428,7 @@ namespace MaterialIcons
 	constexpr auto DO_NOT_DISTURB_OFF{ u8"\ue643" };
 	constexpr auto DO_NOT_DISTURB_ON{ u8"\ue644" };
 	constexpr auto DOCK{ u8"\ue30e" };
-#ifdef DOMAIN
 #undef DOMAIN
-#endif
 	constexpr auto DOMAIN{ u8"\ue7ee" };
 	constexpr auto DONE{ u8"\ue876" };
 	constexpr auto DONE_ALL{ u8"\ue877" };

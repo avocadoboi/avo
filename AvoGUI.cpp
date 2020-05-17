@@ -944,24 +944,19 @@ constexpr auto CLIPBOARD_FORMAT_ADDITIONAL_DATA = L"AvoGUI additional data";
 class OleClipboardData : public AvoGUI::ClipboardData
 {
 private:
-	IDataObject* m_dataObject{ nullptr };
-	FORMATETC* m_oleFormats{ nullptr };
-	uint32 m_numberOfFormats{ 0 };
-	uint32 m_numberOfFiles{ 0 };
+	IDataObject* m_dataObject = nullptr;
+	FORMATETC* m_oleFormats = nullptr;
+	uint32 m_numberOfFormats = 0;
+	uint32 m_numberOfFiles = 0;
 
-	FORMATETC* m_fileDescriptorFormat{ nullptr };
-	FORMATETC* m_itemNamesFormat{ nullptr };
-	FORMATETC* m_textFormat{ nullptr };
-	FORMATETC* m_additionalDataFormat{ nullptr };
-
-	std::vector<STGMEDIUM> m_globalDataToRelease;
-	std::vector<char const*> m_streamBuffersToRelease;
+	FORMATETC* m_fileDescriptorFormat = nullptr;
+	FORMATETC* m_itemNamesFormat = nullptr;
+	FORMATETC* m_textFormat = nullptr;
+	FORMATETC* m_additionalDataFormat = nullptr;
 
 	uint32 m_clipboardFormat_fileContents;
 	uint32 m_clipboardFormat_fileGroupDescriptor;
 	uint32 m_clipboardFormat_additionalData;
-
-	AvoGUI::Gui* m_gui;
 
 	void releaseDataObject()
 	{
@@ -994,18 +989,6 @@ private:
 	}
 
 public:
-	OleClipboardData(AvoGUI::Gui* p_gui) :
-		m_gui(p_gui)
-	{
-		m_clipboardFormat_fileContents = RegisterClipboardFormatW(CFSTR_FILECONTENTS);
-		m_clipboardFormat_fileGroupDescriptor = RegisterClipboardFormatW(CFSTR_FILEDESCRIPTORW);
-		m_clipboardFormat_additionalData = RegisterClipboardFormatW(CLIPBOARD_FORMAT_ADDITIONAL_DATA);
-	}
-	~OleClipboardData()
-	{
-		releaseDataObject();
-	}
-
 	void setOleDataObject(IDataObject* p_dataObject)
 	{
 		releaseDataObject();
@@ -1053,6 +1036,10 @@ public:
 		return m_dataObject;
 	}
 
+private:
+	std::vector<STGMEDIUM> m_globalDataToRelease;
+	std::vector<char const*> m_streamBuffersToRelease;
+public:
 	AvoGUI::DragDropFormatData getDataForFormat(uint32 p_formatIndex) const override
 	{
 		switch (m_oleFormats[p_formatIndex].tymed)
@@ -1462,7 +1449,7 @@ public:
 		auto result = m_dataObject->GetData(m_additionalDataFormat, &medium);
 		if (result == S_OK)
 		{
-			uint64 additionalData = *(uint64*)GlobalLock(medium.hGlobal);
+			auto additionalData = *(uint64*)GlobalLock(medium.hGlobal);
 			GlobalUnlock(medium.hGlobal);
 			return additionalData;
 		}
@@ -1477,6 +1464,21 @@ public:
 			return m_gui->getDrawingContext()->createImage((uint8 const*)file.data(), file.size());
 		}
 		return AvoGUI::Image();
+	}
+
+private:
+	AvoGUI::Gui* m_gui;
+public:
+	OleClipboardData(AvoGUI::Gui* p_gui) :
+		m_gui(p_gui)
+	{
+		m_clipboardFormat_fileContents = RegisterClipboardFormatW(CFSTR_FILECONTENTS);
+		m_clipboardFormat_fileGroupDescriptor = RegisterClipboardFormatW(CFSTR_FILEDESCRIPTORW);
+		m_clipboardFormat_additionalData = RegisterClipboardFormatW(CLIPBOARD_FORMAT_ADDITIONAL_DATA);
+	}
+	~OleClipboardData()
+	{
+		releaseDataObject();
 	}
 };
 
@@ -1647,28 +1649,13 @@ constexpr int WM_APP_SET_IS_ENABLED = WM_APP + 1;
 
 class WindowsWindow : public AvoGUI::Window
 {
+public:
+	static std::atomic<uint32> s_numberOfWindows;
+
 private:
-	AvoGUI::Gui* m_gui;
-
-	OleDropSource* m_oleDropSource{ nullptr };
-	OleDropTarget* m_oleDropTarget{ nullptr };
-
-	//------------------------------
-
-	HWND m_windowHandle{ 0 };
+	HWND m_windowHandle = nullptr;
 	AvoGUI::WindowStyleFlags m_crossPlatformStyles;
-	uint32 m_styles{ 0 };
-
-	//------------------------------
-
-	bool m_hasGottenInitialSizeMessageForCustomBorderWindows{ false };
-	bool m_isOpen{ false };
-
-	//------------------------------
-
-	bool m_isMouseOutsideClientArea{ true };
-
-	//------------------------------
+	uint32 m_styles = 0u;
 
 	bool getHasCustomBorder()
 	{
@@ -1933,327 +1920,6 @@ private:
 
 	//------------------------------
 
-	uint32 m_clipboardFormat_fileContents{ 0u };
-	uint32 m_clipboardFormat_fileGroupDescriptor{ 0u };
-	uint32 m_clipboardFormat_additionalData{ 0u };
-
-	void createAdditionalData(FORMATETC& p_format, STGMEDIUM& p_medium, uint64 p_data) const
-	{
-		p_format.cfFormat = m_clipboardFormat_additionalData;
-		p_format.ptd = nullptr;
-		p_format.lindex = -1;
-		p_format.dwAspect = DVASPECT_CONTENT;
-		p_format.tymed = TYMED_HGLOBAL;
-
-		p_medium.tymed = TYMED_HGLOBAL;
-		p_medium.pUnkForRelease = nullptr;
-		p_medium.hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(p_data));
-		*(uint64*)p_medium.hGlobal = p_data;
-	}
-	OleDataObject* createStringOleDataObject(std::wstring const& p_string, uint64 p_additionalData) const
-	{
-		FORMATETC format[2];
-		format[0].cfFormat = CF_UNICODETEXT;
-		format[0].tymed = TYMED_HGLOBAL;
-		format[0].dwAspect = DVASPECT_CONTENT;
-		format[0].lindex = -1;
-		format[0].ptd = 0;
-
-		STGMEDIUM medium[2];
-		medium[0].tymed = TYMED_HGLOBAL;
-		medium[0].pUnkForRelease = 0;
-
-		//------------------------------
-
-		auto const stringSize = (p_string.size() + 1) * sizeof(wchar_t);
-		medium[0].hGlobal = GlobalAlloc(GMEM_FIXED, stringSize);
-		memcpy(medium[0].hGlobal, p_string.data(), stringSize);
-
-		//------------------------------
-
-		createAdditionalData(format[1], medium[1], p_additionalData);
-
-		return new OleDataObject(format, medium, 2);
-	}
-	OleDataObject* createImageOleDataObject(AvoGUI::Image const& p_image, uint64 p_additionalData) const
-	{
-		FORMATETC formats[3];
-		STGMEDIUM mediums[3];
-
-		auto bitmap = (ID2D1Bitmap1*)p_image.getHandle();
-
-		formats[0].cfFormat = m_clipboardFormat_fileContents;
-		formats[0].tymed = TYMED_ISTREAM;
-		formats[0].dwAspect = DVASPECT_CONTENT;
-		formats[0].lindex = -1;
-		formats[0].ptd = 0;
-
-		mediums[0].tymed = TYMED_ISTREAM;
-		mediums[0].pUnkForRelease = 0;
-		mediums[0].pstm = (IStream*)m_gui->getDrawingContext()->createImageFileDataNativeStream(p_image);
-
-		//------------------------------
-
-		formats[1].cfFormat = m_clipboardFormat_fileGroupDescriptor;
-		formats[1].tymed = TYMED_HGLOBAL;
-		formats[1].dwAspect = DVASPECT_CONTENT;
-		formats[1].lindex = -1;
-		formats[1].ptd = 0;
-
-		mediums[1].tymed = TYMED_HGLOBAL;
-		mediums[1].pUnkForRelease = 0;
-		mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
-
-		auto groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[1].hGlobal;
-		groupDescriptor->cItems = 1;
-		groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
-		wcscpy_s(groupDescriptor->fgd[0].cFileName, L"image.png");
-
-		//------------------------------
-
-		createAdditionalData(formats[2], mediums[2], p_additionalData);
-
-		return new OleDataObject(formats, mediums, 3);
-	}
-	OleDataObject* createFileOleDataObject(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, uint64 p_additionalData) const
-	{
-		FORMATETC formats[4];
-		STGMEDIUM mediums[4];
-
-		formats[0].cfFormat = CF_UNICODETEXT;
-		formats[0].tymed = TYMED_HGLOBAL;
-		formats[0].dwAspect = DVASPECT_CONTENT;
-		formats[0].lindex = -1;
-		formats[0].ptd = 0;
-
-		mediums[0].tymed = TYMED_HGLOBAL;
-		mediums[0].pUnkForRelease = 0;
-
-		auto const stringSize = (p_name.size() + 1)*sizeof(wchar_t);
-		mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, stringSize);
-		memcpy(mediums[0].hGlobal, p_name.data(), stringSize);
-
-		//------------------------------
-
-		formats[1].cfFormat = m_clipboardFormat_fileContents;
-		formats[1].tymed = TYMED_ISTREAM;
-		formats[1].dwAspect = DVASPECT_CONTENT;
-		formats[1].lindex = -1;
-		formats[1].ptd = 0;
-
-		mediums[1].pUnkForRelease = 0;
-		mediums[1].tymed = TYMED_ISTREAM;
-		mediums[1].pstm = SHCreateMemStream((BYTE const*)p_data, p_dataSize);
-
-		//------------------------------
-
-		formats[2].cfFormat = m_clipboardFormat_fileGroupDescriptor;
-		formats[2].tymed = TYMED_HGLOBAL;
-		formats[2].dwAspect = DVASPECT_CONTENT;
-		formats[2].lindex = -1;
-		formats[2].ptd = 0;
-
-		mediums[2].tymed = TYMED_HGLOBAL;
-		mediums[2].pUnkForRelease = 0;
-		mediums[2].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
-
-		FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[2].hGlobal;
-		groupDescriptor->cItems = 1;
-		groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
-		memcpy(groupDescriptor->fgd[0].cFileName, p_name.data(), stringSize);
-
-		//------------------------------
-
-		createAdditionalData(formats[3], mediums[3], p_additionalData);
-
-		return new OleDataObject(formats, mediums, 4);
-	}
-	OleDataObject* createFileOleDataObject(std::wstring const& p_path, uint64 p_additionalData) const
-	{
-		filesystem::path path(p_path);
-		uint32 widePathStringSize = (p_path.size() + 1) * sizeof(wchar_t);
-
-		FORMATETC formats[6];
-		STGMEDIUM mediums[6];
-
-		formats[0].cfFormat = CF_UNICODETEXT;
-		formats[0].tymed = TYMED_HGLOBAL;
-		formats[0].dwAspect = DVASPECT_CONTENT;
-		formats[0].lindex = -1;
-		formats[0].ptd = 0;
-
-		mediums[0].tymed = TYMED_HGLOBAL;
-		mediums[0].pUnkForRelease = 0;
-		mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, widePathStringSize);
-		memcpy(mediums[0].hGlobal, p_path.data(), widePathStringSize);
-
-		//------------------------------
-
-		formats[1].cfFormat = CF_HDROP;
-		formats[1].tymed = TYMED_HGLOBAL;
-		formats[1].dwAspect = DVASPECT_CONTENT;
-		formats[1].lindex = -1;
-		formats[1].ptd = 0;
-
-		mediums[1].tymed = TYMED_HGLOBAL;
-		mediums[1].pUnkForRelease = 0;
-		mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + widePathStringSize + sizeof(wchar_t));
-
-		DROPFILES* filenameStructure = (DROPFILES*)mediums[1].hGlobal;
-		filenameStructure->fNC = true;
-		filenameStructure->fWide = true;
-		filenameStructure->pt.x = 0;
-		filenameStructure->pt.y = 0;
-		filenameStructure->pFiles = sizeof(DROPFILES);
-
-		memcpy((char*)mediums[1].hGlobal + sizeof(DROPFILES), p_path.data(), widePathStringSize);
-		*(wchar_t*)((char*)mediums[1].hGlobal + sizeof(DROPFILES) + widePathStringSize) = 0;
-
-		//------------------------------
-
-		createAdditionalData(formats[2], mediums[2], p_additionalData);
-
-		//------------------------------
-
-		OleDataObject* dataObject = 0;
-		if (filesystem::is_regular_file(path))
-		{
-			formats[3].cfFormat = m_clipboardFormat_fileContents;
-			formats[3].tymed = TYMED_ISTREAM;
-			formats[3].dwAspect = DVASPECT_CONTENT;
-			formats[3].lindex = -1;
-			formats[3].ptd = 0;
-
-			mediums[3].tymed = TYMED_ISTREAM;
-			mediums[3].pUnkForRelease = 0;
-			SHCreateStreamOnFileEx(p_path.data(), STGM_READ | STGM_SHARE_DENY_WRITE, 0, false, 0, &mediums[3].pstm);
-
-			//------------------------------
-
-			formats[4].cfFormat = m_clipboardFormat_fileGroupDescriptor;
-			formats[4].tymed = TYMED_HGLOBAL;
-			formats[4].dwAspect = DVASPECT_CONTENT;
-			formats[4].lindex = -1;
-			formats[4].ptd = 0;
-
-			mediums[4].tymed = TYMED_HGLOBAL;
-			mediums[4].pUnkForRelease = 0;
-			mediums[4].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
-
-			FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[4].hGlobal;
-			groupDescriptor->cItems = 1;
-			groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
-
-			memcpy(groupDescriptor->fgd[0].cFileName, p_path.data(), widePathStringSize);
-
-			return new OleDataObject(formats, mediums, 5);
-		}
-		return new OleDataObject(formats, mediums, 3);
-	}
-	OleDataObject* createFilesOleDataObject(std::vector<std::wstring> const& p_pathStrings, uint64 p_additionalData) const
-	{
-		FORMATETC format[2];
-		STGMEDIUM medium[2];
-
-		//------------------------------
-		// Create an HDROP format, which is just the paths of all items.
-
-		format[0].cfFormat = CF_HDROP;
-		format[0].tymed = TYMED_HGLOBAL;
-		format[0].dwAspect = DVASPECT_CONTENT;
-		format[0].lindex = -1;
-		format[0].ptd = 0;
-
-		uint32 pathsStringSize = 0;
-		for (uint32 a = 0; a < p_pathStrings.size(); a++)
-		{
-			pathsStringSize += p_pathStrings[a].size() + 1;
-		}
-		pathsStringSize++;
-
-		medium[0].tymed = TYMED_HGLOBAL;
-		medium[0].pUnkForRelease = 0;
-		medium[0].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + pathsStringSize * sizeof(wchar_t));
-
-		DROPFILES* filenameStructure = (DROPFILES*)medium[0].hGlobal;
-		filenameStructure->fNC = true;
-		filenameStructure->fWide = true;
-		filenameStructure->pt.x = 0;
-		filenameStructure->pt.y = 0;
-		filenameStructure->pFiles = sizeof(DROPFILES);
-
-		wchar_t* pathsString = (wchar_t*)((char*)medium[0].hGlobal + sizeof(DROPFILES));
-		wchar_t* pathsStringPosition = pathsString;
-		for (uint32 a = 0; a < p_pathStrings.size(); a++)
-		{
-			memcpy(pathsStringPosition, p_pathStrings[a].data(), (p_pathStrings[a].size() + 1) * sizeof(wchar_t));
-			pathsStringPosition += p_pathStrings[a].size() + 1;
-		}
-		pathsString[pathsStringSize - 1] = 0;
-
-		//------------------------------
-
-		createAdditionalData(format[1], medium[1], p_additionalData);
-
-		//------------------------------
-
-		return new OleDataObject(format, medium, 2);
-	}
-
-	uint32 doDragDrop(OleDataObject* p_dataObject, AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition)
-	{
-		AvoGUI::Point<uint32> mousePositionBefore(m_mousePosition);
-
-		AvoGUI::MouseEvent event;
-		event.x = m_mousePosition.x / m_dipToPixelFactor;
-		event.y = m_mousePosition.y / m_dipToPixelFactor;
-		if (getIsMouseButtonDown(AvoGUI::MouseButton::Left))
-		{
-			event.mouseButton = AvoGUI::MouseButton::Left;
-		}
-		else if (getIsMouseButtonDown(AvoGUI::MouseButton::Middle))
-		{
-			event.mouseButton = AvoGUI::MouseButton::Middle;
-		}
-		else if (getIsMouseButtonDown(AvoGUI::MouseButton::Right))
-		{
-			event.mouseButton = AvoGUI::MouseButton::Right;
-		}
-		else if (getIsMouseButtonDown(AvoGUI::MouseButton::X0))
-		{
-			event.mouseButton = AvoGUI::MouseButton::X0;
-		}
-		else if (getIsMouseButtonDown(AvoGUI::MouseButton::X1))
-		{
-			event.mouseButton = AvoGUI::MouseButton::X1;
-		}
-		if (event.mouseButton != AvoGUI::MouseButton::None)
-		{
-			m_gui->handleGlobalMouseUp(event);
-		}
-
-		if (p_dragImage)
-		{
-			m_oleDropSource->setDragImage(p_dragImage, p_dragImageCursorPosition, p_dataObject);
-		}
-
-		m_gui->unlockThreads();
-		DWORD dropOperation = DROPEFFECT_NONE;
-		DoDragDrop(p_dataObject, m_oleDropSource, DROPEFFECT_MOVE | DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
-		m_gui->lockThreads();
-
-		event.x = m_mousePosition.x / m_dipToPixelFactor;
-		event.y = m_mousePosition.y / m_dipToPixelFactor;
-		event.movementX = (m_mousePosition.x - mousePositionBefore.x) / m_dipToPixelFactor;
-		event.movementY = (m_mousePosition.y - mousePositionBefore.y) / m_dipToPixelFactor;
-		event.mouseButton = AvoGUI::MouseButton::None;
-		m_gui->handleGlobalMouseMove(event);
-
-		return dropOperation;
-	}
-
-	//------------------------------
-
 	inline static auto const WINDOW_CLASS_NAME = L"AvoGUI Window";
 
 	bool m_hasCreatedWindow = false;
@@ -2382,10 +2048,13 @@ private:
 		}
 	}
 
+private:
+	bool m_isOpen = false;
 public:
-	static std::atomic<uint32> s_numberOfWindows;
-
-	//------------------------------
+	bool getIsOpen() const override
+	{
+		return m_isOpen;
+	}
 
 	void create(std::string const& p_title, float p_x, float p_y, float p_width, float p_height, 
 		AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) override
@@ -2413,10 +2082,6 @@ public:
 		{
 			SendMessage(m_windowHandle, WM_CLOSE, 0, 0);
 		}
-	}
-	bool getIsOpen() const override
-	{
-		return m_isOpen;
 	}
 
 	//------------------------------
@@ -2543,7 +2208,7 @@ public:
 	//------------------------------
 
 private:
-	AvoGUI::WindowState m_state{ AvoGUI::WindowState::Restored };
+	AvoGUI::WindowState m_state = AvoGUI::WindowState::Restored;
 public:
 	void hide() override
 	{
@@ -3089,6 +2754,328 @@ public:
 	//------------------------------
 
 private:
+	OleDropSource* m_oleDropSource = nullptr;
+	OleDropTarget* m_oleDropTarget = nullptr;
+
+	uint32 m_clipboardFormat_fileContents = 0u;
+	uint32 m_clipboardFormat_fileGroupDescriptor = 0u;
+	uint32 m_clipboardFormat_additionalData = 0u;
+
+	void createAdditionalData(FORMATETC& p_format, STGMEDIUM& p_medium, uint64 p_data) const
+	{
+		p_format.cfFormat = m_clipboardFormat_additionalData;
+		p_format.ptd = nullptr;
+		p_format.lindex = -1;
+		p_format.dwAspect = DVASPECT_CONTENT;
+		p_format.tymed = TYMED_HGLOBAL;
+
+		p_medium.tymed = TYMED_HGLOBAL;
+		p_medium.pUnkForRelease = nullptr;
+		p_medium.hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(p_data));
+		*(uint64*)p_medium.hGlobal = p_data;
+	}
+	OleDataObject* createStringOleDataObject(std::wstring const& p_string, uint64 p_additionalData) const
+	{
+		FORMATETC format[2];
+		format[0].cfFormat = CF_UNICODETEXT;
+		format[0].tymed = TYMED_HGLOBAL;
+		format[0].dwAspect = DVASPECT_CONTENT;
+		format[0].lindex = -1;
+		format[0].ptd = 0;
+
+		STGMEDIUM medium[2];
+		medium[0].tymed = TYMED_HGLOBAL;
+		medium[0].pUnkForRelease = 0;
+
+		//------------------------------
+
+		auto const stringSize = (p_string.size() + 1) * sizeof(wchar_t);
+		medium[0].hGlobal = GlobalAlloc(GMEM_FIXED, stringSize);
+		memcpy(medium[0].hGlobal, p_string.data(), stringSize);
+
+		//------------------------------
+
+		createAdditionalData(format[1], medium[1], p_additionalData);
+
+		return new OleDataObject(format, medium, 2);
+	}
+	OleDataObject* createImageOleDataObject(AvoGUI::Image const& p_image, uint64 p_additionalData) const
+	{
+		FORMATETC formats[3];
+		STGMEDIUM mediums[3];
+
+		auto bitmap = (ID2D1Bitmap1*)p_image.getHandle();
+
+		formats[0].cfFormat = m_clipboardFormat_fileContents;
+		formats[0].tymed = TYMED_ISTREAM;
+		formats[0].dwAspect = DVASPECT_CONTENT;
+		formats[0].lindex = -1;
+		formats[0].ptd = 0;
+
+		mediums[0].tymed = TYMED_ISTREAM;
+		mediums[0].pUnkForRelease = 0;
+		mediums[0].pstm = (IStream*)m_gui->getDrawingContext()->createImageFileDataNativeStream(p_image);
+
+		//------------------------------
+
+		formats[1].cfFormat = m_clipboardFormat_fileGroupDescriptor;
+		formats[1].tymed = TYMED_HGLOBAL;
+		formats[1].dwAspect = DVASPECT_CONTENT;
+		formats[1].lindex = -1;
+		formats[1].ptd = 0;
+
+		mediums[1].tymed = TYMED_HGLOBAL;
+		mediums[1].pUnkForRelease = 0;
+		mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
+
+		auto groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[1].hGlobal;
+		groupDescriptor->cItems = 1;
+		groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
+		wcscpy_s(groupDescriptor->fgd[0].cFileName, L"image.png");
+
+		//------------------------------
+
+		createAdditionalData(formats[2], mediums[2], p_additionalData);
+
+		return new OleDataObject(formats, mediums, 3);
+	}
+	OleDataObject* createFileOleDataObject(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, uint64 p_additionalData) const
+	{
+		FORMATETC formats[4];
+		STGMEDIUM mediums[4];
+
+		formats[0].cfFormat = CF_UNICODETEXT;
+		formats[0].tymed = TYMED_HGLOBAL;
+		formats[0].dwAspect = DVASPECT_CONTENT;
+		formats[0].lindex = -1;
+		formats[0].ptd = 0;
+
+		mediums[0].tymed = TYMED_HGLOBAL;
+		mediums[0].pUnkForRelease = 0;
+
+		auto const stringSize = (p_name.size() + 1) * sizeof(wchar_t);
+		mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, stringSize);
+		memcpy(mediums[0].hGlobal, p_name.data(), stringSize);
+
+		//------------------------------
+
+		formats[1].cfFormat = m_clipboardFormat_fileContents;
+		formats[1].tymed = TYMED_ISTREAM;
+		formats[1].dwAspect = DVASPECT_CONTENT;
+		formats[1].lindex = -1;
+		formats[1].ptd = 0;
+
+		mediums[1].pUnkForRelease = 0;
+		mediums[1].tymed = TYMED_ISTREAM;
+		mediums[1].pstm = SHCreateMemStream((BYTE const*)p_data, p_dataSize);
+
+		//------------------------------
+
+		formats[2].cfFormat = m_clipboardFormat_fileGroupDescriptor;
+		formats[2].tymed = TYMED_HGLOBAL;
+		formats[2].dwAspect = DVASPECT_CONTENT;
+		formats[2].lindex = -1;
+		formats[2].ptd = 0;
+
+		mediums[2].tymed = TYMED_HGLOBAL;
+		mediums[2].pUnkForRelease = 0;
+		mediums[2].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
+
+		FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[2].hGlobal;
+		groupDescriptor->cItems = 1;
+		groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
+		memcpy(groupDescriptor->fgd[0].cFileName, p_name.data(), stringSize);
+
+		//------------------------------
+
+		createAdditionalData(formats[3], mediums[3], p_additionalData);
+
+		return new OleDataObject(formats, mediums, 4);
+	}
+	OleDataObject* createFileOleDataObject(std::wstring const& p_path, uint64 p_additionalData) const
+	{
+		filesystem::path path(p_path);
+		uint32 widePathStringSize = (p_path.size() + 1) * sizeof(wchar_t);
+
+		FORMATETC formats[6];
+		STGMEDIUM mediums[6];
+
+		formats[0].cfFormat = CF_UNICODETEXT;
+		formats[0].tymed = TYMED_HGLOBAL;
+		formats[0].dwAspect = DVASPECT_CONTENT;
+		formats[0].lindex = -1;
+		formats[0].ptd = 0;
+
+		mediums[0].tymed = TYMED_HGLOBAL;
+		mediums[0].pUnkForRelease = 0;
+		mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, widePathStringSize);
+		memcpy(mediums[0].hGlobal, p_path.data(), widePathStringSize);
+
+		//------------------------------
+
+		formats[1].cfFormat = CF_HDROP;
+		formats[1].tymed = TYMED_HGLOBAL;
+		formats[1].dwAspect = DVASPECT_CONTENT;
+		formats[1].lindex = -1;
+		formats[1].ptd = 0;
+
+		mediums[1].tymed = TYMED_HGLOBAL;
+		mediums[1].pUnkForRelease = 0;
+		mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + widePathStringSize + sizeof(wchar_t));
+
+		DROPFILES* filenameStructure = (DROPFILES*)mediums[1].hGlobal;
+		filenameStructure->fNC = true;
+		filenameStructure->fWide = true;
+		filenameStructure->pt.x = 0;
+		filenameStructure->pt.y = 0;
+		filenameStructure->pFiles = sizeof(DROPFILES);
+
+		memcpy((char*)mediums[1].hGlobal + sizeof(DROPFILES), p_path.data(), widePathStringSize);
+		*(wchar_t*)((char*)mediums[1].hGlobal + sizeof(DROPFILES) + widePathStringSize) = 0;
+
+		//------------------------------
+
+		createAdditionalData(formats[2], mediums[2], p_additionalData);
+
+		//------------------------------
+
+		OleDataObject* dataObject = 0;
+		if (filesystem::is_regular_file(path))
+		{
+			formats[3].cfFormat = m_clipboardFormat_fileContents;
+			formats[3].tymed = TYMED_ISTREAM;
+			formats[3].dwAspect = DVASPECT_CONTENT;
+			formats[3].lindex = -1;
+			formats[3].ptd = 0;
+
+			mediums[3].tymed = TYMED_ISTREAM;
+			mediums[3].pUnkForRelease = 0;
+			SHCreateStreamOnFileEx(p_path.data(), STGM_READ | STGM_SHARE_DENY_WRITE, 0, false, 0, &mediums[3].pstm);
+
+			//------------------------------
+
+			formats[4].cfFormat = m_clipboardFormat_fileGroupDescriptor;
+			formats[4].tymed = TYMED_HGLOBAL;
+			formats[4].dwAspect = DVASPECT_CONTENT;
+			formats[4].lindex = -1;
+			formats[4].ptd = 0;
+
+			mediums[4].tymed = TYMED_HGLOBAL;
+			mediums[4].pUnkForRelease = 0;
+			mediums[4].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
+
+			FILEGROUPDESCRIPTORW* groupDescriptor = (FILEGROUPDESCRIPTORW*)mediums[4].hGlobal;
+			groupDescriptor->cItems = 1;
+			groupDescriptor->fgd[0].dwFlags = FD_UNICODE;
+
+			memcpy(groupDescriptor->fgd[0].cFileName, p_path.data(), widePathStringSize);
+
+			return new OleDataObject(formats, mediums, 5);
+		}
+		return new OleDataObject(formats, mediums, 3);
+	}
+	OleDataObject* createFilesOleDataObject(std::vector<std::wstring> const& p_pathStrings, uint64 p_additionalData) const
+	{
+		FORMATETC format[2];
+		STGMEDIUM medium[2];
+
+		//------------------------------
+		// Create an HDROP format, which is just the paths of all items.
+
+		format[0].cfFormat = CF_HDROP;
+		format[0].tymed = TYMED_HGLOBAL;
+		format[0].dwAspect = DVASPECT_CONTENT;
+		format[0].lindex = -1;
+		format[0].ptd = 0;
+
+		uint32 pathsStringSize = 0;
+		for (uint32 a = 0; a < p_pathStrings.size(); a++)
+		{
+			pathsStringSize += p_pathStrings[a].size() + 1;
+		}
+		pathsStringSize++;
+
+		medium[0].tymed = TYMED_HGLOBAL;
+		medium[0].pUnkForRelease = 0;
+		medium[0].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + pathsStringSize * sizeof(wchar_t));
+
+		DROPFILES* filenameStructure = (DROPFILES*)medium[0].hGlobal;
+		filenameStructure->fNC = true;
+		filenameStructure->fWide = true;
+		filenameStructure->pt.x = 0;
+		filenameStructure->pt.y = 0;
+		filenameStructure->pFiles = sizeof(DROPFILES);
+
+		wchar_t* pathsString = (wchar_t*)((char*)medium[0].hGlobal + sizeof(DROPFILES));
+		wchar_t* pathsStringPosition = pathsString;
+		for (uint32 a = 0; a < p_pathStrings.size(); a++)
+		{
+			memcpy(pathsStringPosition, p_pathStrings[a].data(), (p_pathStrings[a].size() + 1) * sizeof(wchar_t));
+			pathsStringPosition += p_pathStrings[a].size() + 1;
+		}
+		pathsString[pathsStringSize - 1] = 0;
+
+		//------------------------------
+
+		createAdditionalData(format[1], medium[1], p_additionalData);
+
+		//------------------------------
+
+		return new OleDataObject(format, medium, 2);
+	}
+
+	uint32 doDragDrop(OleDataObject* p_dataObject, AvoGUI::Image const& p_dragImage, AvoGUI::Point<float> const& p_dragImageCursorPosition)
+	{
+		AvoGUI::Point<uint32> mousePositionBefore(m_mousePosition);
+
+		AvoGUI::MouseEvent event;
+		event.x = m_mousePosition.x / m_dipToPixelFactor;
+		event.y = m_mousePosition.y / m_dipToPixelFactor;
+		if (getIsMouseButtonDown(AvoGUI::MouseButton::Left))
+		{
+			event.mouseButton = AvoGUI::MouseButton::Left;
+		}
+		else if (getIsMouseButtonDown(AvoGUI::MouseButton::Middle))
+		{
+			event.mouseButton = AvoGUI::MouseButton::Middle;
+		}
+		else if (getIsMouseButtonDown(AvoGUI::MouseButton::Right))
+		{
+			event.mouseButton = AvoGUI::MouseButton::Right;
+		}
+		else if (getIsMouseButtonDown(AvoGUI::MouseButton::X0))
+		{
+			event.mouseButton = AvoGUI::MouseButton::X0;
+		}
+		else if (getIsMouseButtonDown(AvoGUI::MouseButton::X1))
+		{
+			event.mouseButton = AvoGUI::MouseButton::X1;
+		}
+		if (event.mouseButton != AvoGUI::MouseButton::None)
+		{
+			m_gui->handleGlobalMouseUp(event);
+		}
+
+		if (p_dragImage)
+		{
+			m_oleDropSource->setDragImage(p_dragImage, p_dragImageCursorPosition, p_dataObject);
+		}
+
+		m_gui->unlockThreads();
+		DWORD dropOperation = DROPEFFECT_NONE;
+		DoDragDrop(p_dataObject, m_oleDropSource, DROPEFFECT_MOVE | DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
+		m_gui->lockThreads();
+
+		event.x = m_mousePosition.x / m_dipToPixelFactor;
+		event.y = m_mousePosition.y / m_dipToPixelFactor;
+		event.movementX = (m_mousePosition.x - mousePositionBefore.x) / m_dipToPixelFactor;
+		event.movementY = (m_mousePosition.y - mousePositionBefore.y) / m_dipToPixelFactor;
+		event.mouseButton = AvoGUI::MouseButton::None;
+		m_gui->handleGlobalMouseMove(event);
+
+		return dropOperation;
+	}
+
 	auto convertNativeDropEffectToDragDropOperation(uint32 p_dropEffect)
 	{
 		switch (p_dropEffect)
@@ -3286,6 +3273,10 @@ public:
 
 	//------------------------------
 
+private:
+	bool m_hasGottenInitialSizeMessageForCustomBorderWindows = false;
+	bool m_isMouseOutsideClientArea = true;
+public:
 	// Returns true if the event was handled
 	long long handleEvent(UINT p_message, WPARAM p_data_a, LPARAM p_data_b)
 	{
@@ -3910,9 +3901,6 @@ public:
 		return ~0LL;
 	}
 
-	//------------------------------
-	// Static
-
 	static LRESULT CALLBACK handleGlobalEvents(HWND p_windowHandle, UINT p_message, WPARAM p_data_a, LPARAM p_data_b)
 	{
 		WindowsWindow* window;
@@ -3937,14 +3925,21 @@ public:
 		return DefWindowProc(p_windowHandle, p_message, p_data_a, p_data_b);
 	}
 
+	//------------------------------
+
+private:
+	AvoGUI::Gui* m_gui;
+public:
 	WindowsWindow(AvoGUI::Gui* p_gui) :
-		m_gui(p_gui), m_crossPlatformStyles((AvoGUI::WindowStyleFlags)0)
+		m_gui(p_gui), 
+		m_crossPlatformStyles((AvoGUI::WindowStyleFlags)0)
 	{
 		setCursor(AvoGUI::Cursor::Arrow);
 	}
 	WindowsWindow(AvoGUI::Gui* p_gui, std::string const& p_title, float p_width, float p_height,
 		AvoGUI::WindowStyleFlags p_styleFlags = AvoGUI::WindowStyleFlags::Default, AvoGUI::Window* p_parent = 0) :
-		m_gui(p_gui), m_crossPlatformStyles(p_styleFlags)
+		m_gui(p_gui), 
+		m_crossPlatformStyles(p_styleFlags)
 	{
 		create(p_title, p_width, p_height, p_styleFlags, p_parent);
 
@@ -3957,6 +3952,7 @@ public:
 	}
 };
 std::atomic<uint32> WindowsWindow::s_numberOfWindows;
+
 #endif
 
 #ifdef __linux__
