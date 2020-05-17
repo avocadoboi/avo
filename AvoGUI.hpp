@@ -3620,7 +3620,7 @@ namespace AvoGUI
 	class Animation : public ReferenceCounted
 	{
 	private:
-		bool m_isReversed{ false };
+		bool m_isReversed = false;
 	public:
 		void setIsReversed(bool p_isReversed)
 		{
@@ -3637,7 +3637,7 @@ namespace AvoGUI
 		}
 
 	private:
-		bool m_isDone{ true };
+		bool m_isDone = true;
 	public:
 		bool getIsDone()
 		{
@@ -3672,7 +3672,7 @@ namespace AvoGUI
 		}
 
 	private:
-		float m_easingPrecision{ 0.005f };
+		float m_easingPrecision = 0.005f;
 	public:
 		void setEasingPrecision(float p_easingPrecision)
 		{
@@ -3685,7 +3685,7 @@ namespace AvoGUI
 
 	private:
 		View* m_view;
-		bool m_isInUpdateQueue{ false };
+		bool m_isInUpdateQueue = false;
 		void queueUpdate();
 
 		void update()
@@ -4543,6 +4543,7 @@ namespace AvoGUI
 	namespace ThemeValues
 	{
 		inline Id const hoverAnimationSpeed;
+		inline Id const hoverAnimationDuration;
 	}
 
 	/*
@@ -4598,6 +4599,7 @@ namespace AvoGUI
 			// Values
 
 			values[ThemeValues::hoverAnimationSpeed] = 1.f/6.f; // 1/frames where frames is the number of frames the animation takes to finish. If it's 0.5, it finishes in 2 frames.
+			values[ThemeValues::hoverAnimationDuration] = 60.f;
 		}
 		~Theme() override = default;
 	};
@@ -11692,6 +11694,13 @@ namespace AvoGUI
 	{
 		inline Id const ripple;
 	}
+	namespace ThemeValues
+	{
+		/*
+			In milliseconds
+		*/
+		inline Id const rippleDuration;
+	}
 
 	/*
 		A view that shows a ripple effect when you click it and optionally shows a hover effect when the mouse hovers over it.
@@ -11700,50 +11709,8 @@ namespace AvoGUI
 	class Ripple : public View
 	{
 	private:
-		Color m_color;
-
-		bool m_isEnabled{ true };
-
-		//------------------------------
-
-		Point<float> m_position;
-		float m_maxSize{ 0.f };
-		float m_size{ 0.f };
-		float m_circleAnimationTime{ 1.f };
-
-		//------------------------------
-
-		float m_alphaFactor{ 0.f };
-		float m_alphaAnimationTime{ 0.f };
-		bool m_isMouseDown{ false };
-
-		//------------------------------
-
-		float m_overlayAlphaFactor{ 0.f };
-		float m_overlayAnimationTime{ 0.f };
-		bool m_isMouseHovering{ false };
-		bool m_hasHoverEffect{ true };
-
+		bool m_isEnabled = true;
 	public:
-		explicit Ripple(View* p_parent, Color const& p_color = Color(1.f, 0.45f)) :
-			View(p_parent, p_parent->getBounds().createCopyAtOrigin()),
-			m_color(p_color)
-		{
-			initializeThemeEasing(ThemeEasings::ripple, Easing(0.1, 0.8, 0.2, 0.95));
-
-			setIsOverlay(true); // Mouse events should be sent through
-			setHasShadow(false);
-			setElevation(FLT_MAX); // Nothing can be above a ripple...
-			enableMouseEvents();
-
-			p_parent->sizeChangeListeners += bind(&Ripple::handleParentSizeChange, this);
-		}
-		~Ripple() override
-		{
-		}
-
-		//------------------------------
-
 		/*
 			Disables the ripple and hover effects.
 		*/
@@ -11768,6 +11735,9 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		Color m_color;
+	public:
 		/*
 			Sets the color that is used by the ripple and hover effects.
 		*/
@@ -11785,6 +11755,9 @@ namespace AvoGUI
 
 		//------------------------------
 
+	private:
+		bool m_hasHoverEffect = true;
+	public:
 		/*
 			Sets whether the view will be lightly highlighted when the mouse hovers over it.
 			This is true by default and is recommended since it indicates that the view can be pressed.
@@ -11803,109 +11776,14 @@ namespace AvoGUI
 
 		//------------------------------
 
-		void handleParentSizeChange(float p_previousWidth, float p_previousHeight)
-		{
-			setSize(getParent<View>()->getSize());
-			m_maxSize = 2.f * Point<>::getDistanceFast(m_position, Point<float>(m_position.x < getWidth() * 0.5 ? getWidth() : 0, m_position.y < getHeight() * 0.5 ? getHeight() : 0));
-		}
+	private:
+		Point<float> m_position;
+		float m_size = 0.f;
 
-		void handleMouseDown(MouseEvent const& p_event) override
-		{
-			if (m_isEnabled && p_event.mouseButton == MouseButton::Left)
-			{
-				m_position.set(p_event.x - getLeft(), p_event.y - getTop());
-				m_circleAnimationTime = 0.f;
-				m_alphaFactor = 1.f;
-				m_isMouseDown = true;
+		float m_alphaFactor = 0.f;
+		float m_overlayAlphaFactor = 0.f;
 
-				m_maxSize = 2.f * Point<>::getDistanceFast(m_position, Point<float>(m_position.x < getWidth() * 0.5 ? getWidth() : 0, m_position.y < getHeight() * 0.5 ? getHeight() : 0));
-
-				queueAnimationUpdate();
-			}
-		}
-		void handleMouseUp(MouseEvent const& p_event) override
-		{
-			if (m_isMouseDown && p_event.mouseButton == MouseButton::Left)
-			{
-				m_isMouseDown = false;
-				m_alphaAnimationTime = 0.f;
-				queueAnimationUpdate();
-			}
-		}
-		void handleMouseBackgroundEnter(MouseEvent const& p_event) override
-		{
-			if (m_isEnabled)
-			{
-				View::handleMouseBackgroundEnter(p_event);
-				m_isMouseHovering = true;
-				queueAnimationUpdate();
-			}
-		}
-		void handleMouseBackgroundLeave(MouseEvent const& p_event) override
-		{
-			if (m_isMouseHovering)
-			{
-				m_isMouseHovering = false;
-				queueAnimationUpdate();
-			}
-		}
-
-		void updateAnimations() override
-		{
-			if (m_hasHoverEffect)
-			{
-				m_overlayAlphaFactor = getThemeEasing(ThemeEasings::inOut).easeValue(m_overlayAnimationTime);
-
-				if (m_isMouseHovering)
-				{
-					if (m_overlayAlphaFactor < 1.f)
-					{
-						m_overlayAnimationTime = min(m_overlayAnimationTime + getThemeValue(ThemeValues::hoverAnimationSpeed), 1.f);
-						queueAnimationUpdate();
-					}
-				}
-				else if (m_overlayAlphaFactor > 0.f)
-				{
-					m_overlayAnimationTime = max(m_overlayAnimationTime - getThemeValue(ThemeValues::hoverAnimationSpeed), 0.f);
-					queueAnimationUpdate();
-				}
-			}
-
-			float circleAnimationValue = 1.f;
-			if (m_circleAnimationTime < 1.f)
-			{
-				circleAnimationValue = getThemeEasing(ThemeEasings::ripple).easeValue(m_circleAnimationTime);
-				m_circleAnimationTime += 0.05f;
-				m_size = interpolate(m_maxSize * 0.4f, m_maxSize, circleAnimationValue);
-			}
-
-			if (m_isMouseDown)
-			{
-				if (circleAnimationValue < 1.f)
-				{
-					queueAnimationUpdate();
-				}
-			}
-			else if (circleAnimationValue >= 1.f)
-			{
-				if (m_alphaAnimationTime < 1.f)
-				{
-					m_alphaFactor = 1.f - getThemeEasing(ThemeEasings::inOut).easeValue(m_alphaAnimationTime);
-					m_alphaAnimationTime = min(1.f, m_alphaAnimationTime + 0.05f);
-
-					queueAnimationUpdate();
-				}
-			}
-			else
-			{
-				queueAnimationUpdate();
-			}
-
-			invalidate();
-		}
-
-		//------------------------------
-
+	public:
 		void draw(DrawingContext* p_drawingContext, Rectangle<float> const& p_targetRectangle) override
 		{
 			if (m_isEnabled)
@@ -11919,6 +11797,93 @@ namespace AvoGUI
 					p_drawingContext->fillCircle(m_position, m_size * 0.5f);
 				}
 			}
+		}
+
+	private:
+		float m_maxSize = 0.f;
+	public:
+		void updateMaxSize()
+		{
+			m_maxSize = 2.f * Point<>::getDistanceFast(m_position, Point<>{
+				m_position.x < getWidth() * 0.5f ? getWidth() : 0.f,
+				m_position.y < getHeight() * 0.5f ? getHeight() : 0.f
+			});
+		}
+
+	private:
+		bool m_isMouseDown = false;
+	public:
+		Ripple(View* p_parent, Color const& p_color = { 1.f, 0.45f }) :
+			View{ p_parent, p_parent->getBounds().createCopyAtOrigin() },
+			m_color{ p_color }
+		{
+			initializeThemeEasing(ThemeEasings::ripple, { 0.1, 0.8, 0.2, 0.95 });
+			initializeThemeValue(ThemeValues::rippleDuration, 300);
+
+			setIsOverlay(true); // Mouse events should be sent through
+			setHasShadow(false);
+			setElevation(FLT_MAX); // Nothing can be above a ripple...
+			enableMouseEvents();
+
+			p_parent->sizeChangeListeners += [=](auto...) {
+				setSize(getParent<View>()->getSize());
+				updateMaxSize();
+			};
+
+			auto rippleFadeAnimation = createAnimation(ThemeEasings::inOut, 400, [=](float p_value) {
+				m_alphaFactor = 1.f - p_value;
+				invalidate();
+			});
+			auto rippleAnimation = createAnimation(ThemeEasings::ripple, getThemeValue(ThemeValues::rippleDuration), [=](float p_value) {
+				m_size = interpolate(m_maxSize * 0.4f, m_maxSize, p_value);
+				m_alphaFactor = 1.f;
+				if (!m_isMouseDown && p_value == 1.f)
+				{
+					rippleFadeAnimation->replay();
+				}
+				invalidate();
+			});
+
+			auto mouseDownListener = [=](MouseEvent const& p_event) {
+				if (m_isEnabled && p_event.mouseButton == MouseButton::Left)
+				{
+					rippleFadeAnimation->stop();
+
+					m_isMouseDown = true;
+					m_position.set(p_event.x - getLeft(), p_event.y - getTop());
+					m_alphaFactor = 1.f;
+					updateMaxSize();
+
+					rippleAnimation->replay();
+				}
+			};
+			mouseDownListeners += mouseDownListener;
+			mouseDoubleClickListeners += [=](auto p_event) { 
+				mouseDownListener(p_event);  
+				m_isMouseDown = false;
+			};
+			mouseUpListeners += [=](MouseEvent const& p_event) {
+				if (m_isMouseDown && p_event.mouseButton == MouseButton::Left)
+				{
+					m_isMouseDown = false;
+					if (m_size == m_maxSize && m_alphaFactor == 1.f)
+					{
+						rippleAnimation->stop();
+						rippleFadeAnimation->replay();
+					}
+				}
+			};
+
+			auto hoverAnimation = createAnimation(ThemeEasings::inOut, getThemeValue(ThemeValues::hoverAnimationDuration), [=](float p_value) {
+				m_overlayAlphaFactor = p_value;
+				invalidate();
+			});
+			mouseBackgroundEnterListeners += [=](auto) {
+				hoverAnimation->play(false);
+			};
+			mouseBackgroundLeaveListeners += [=](auto) {
+				hoverAnimation->play(true);
+			};
 		}
 	};
 
