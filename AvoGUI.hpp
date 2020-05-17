@@ -7388,24 +7388,24 @@ namespace AvoGUI
 		/*
 			The modifier keys that were pressed when the event fired.
 		*/
-		ModifierKeyFlags modifierKeys{ ModifierKeyFlags::None };
+		ModifierKeyFlags modifierKeys = ModifierKeyFlags::None;
 
 		/*
 			The horizontal position of the cursor in DIP view coordinates.
 		*/
-		float x{ 0.f };
+		float x = 0.f;
 		/*
 			The vertical position of the cursor in DIP view coordinates.
 		*/
-		float y{ 0.f };
+		float y = 0.f;
 		/*
 			The horizontal movement of the cursor in DIP view coordinates.
 		*/
-		float movementX{ 0.f };
+		float movementX = 0.f;
 		/*
 			The vertical movement of the cursor in DIP view coordinates.
 		*/
-		float movementY{ 0.f };
+		float movementY = 0.f;
 
 		/*
 			Contains the data that is being dragged.
@@ -7422,17 +7422,17 @@ namespace AvoGUI
 		/*
 			The window that has received the event from the OS.
 		*/
-		Window* window{ nullptr };
+		Window* window = nullptr;
 		/*
 			The new width of the window if it has changed size (includes sizeChange/maximize/restore events).
 			Expressed in dips.
 		*/
-		float width{ 0.f };
+		float width = 0.f;
 		/*
 			The new height of the window if it has changed size (includes sizeChange/maximize/restore events).
 			Expressed in dips.
 		*/
-		float height{ 0.f };
+		float height = 0.f;
 	};
 
 	//------------------------------
@@ -7440,17 +7440,17 @@ namespace AvoGUI
 	enum class WindowStyleFlags
 	{
 		None = 0x0UL, // Borderless window.
-		Border = 0x1UL,
+		CloseButton = 0x1UL,
 		Invisible = 0x2UL, // Makes the window invisible at first. You can make it visible afterwards.
 		Minimized = 0x8UL,
 		Maximized = 0x10UL,
 		MinimizeButton = 0x20UL,
 		MaximizeButton = 0x40UL,
-		ResizeBorder = 0x80UL,
+		Resizable = 0x80UL,
 		CustomBorder = 0x100UL, // This makes the client area take up the full window, and the GUI determines which areas are for resizing and moving the window.
-		DefaultCustom = CustomBorder | MaximizeButton | MinimizeButton | ResizeBorder,
-		Default = Border | MinimizeButton | MaximizeButton | ResizeBorder,
-		DefaultNoResize = Border | MinimizeButton
+		DefaultCustom = CustomBorder | MaximizeButton | MinimizeButton | Resizable,
+		Default = CloseButton | MinimizeButton | MaximizeButton | Resizable,
+		DefaultNoResize = CloseButton | MinimizeButton
 	};
 
 	constexpr WindowStyleFlags operator&(WindowStyleFlags p_left, WindowStyleFlags p_right)

@@ -1672,7 +1672,7 @@ private:
 
 		if (!bool(p_styleFlags & AvoGUI::WindowStyleFlags::Invisible))
 			styles |= WS_VISIBLE;
-		if (bool(p_styleFlags & AvoGUI::WindowStyleFlags::Border) || 
+		if (bool(p_styleFlags & AvoGUI::WindowStyleFlags::CloseButton) || 
 			bool(p_styleFlags & AvoGUI::WindowStyleFlags::CustomBorder))
 			styles |= WS_CAPTION | WS_SYSMENU;
 
@@ -1685,7 +1685,7 @@ private:
 			styles |= WS_MINIMIZEBOX;
 		if (bool(p_styleFlags & AvoGUI::WindowStyleFlags::MaximizeButton))
 			styles |= WS_MAXIMIZEBOX;
-		if (bool(p_styleFlags & AvoGUI::WindowStyleFlags::ResizeBorder))
+		if (bool(p_styleFlags & AvoGUI::WindowStyleFlags::Resizable))
 			styles |= WS_THICKFRAME;
 
 		return styles;
