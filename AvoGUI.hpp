@@ -620,6 +620,47 @@ namespace AvoGUI
 	//------------------------------
 
 	/*
+		Represents an ID.
+		To generate a new unique ID, use the default constructor like this:
+			Id id;
+		To create an ID with a specific value, just assign:
+			ID id = 1234;
+		An ID which converts to 0 is considered invalid, and can be created like this:
+			Id id = 0;
+	*/
+	class Id
+	{
+	private:
+		static uint64 s_counter;
+		uint64 m_count;
+
+	public:
+		operator uint64() const
+		{
+			return m_count;
+		}
+		bool operator==(Id const& p_id) const
+		{
+			return (uint64)p_id == m_count;
+		}
+
+		Id(uint64 p_id)
+		{
+			m_count = p_id;
+		}
+		Id(Id const& p_id)
+		{
+			m_count = (uint64)p_id;
+		}
+		Id()
+		{
+			m_count = ++s_counter;
+		}
+	};
+
+	//------------------------------
+
+	/*
 		Binds an object to a member method of its class, so that the returned function can be called without providing the instance.
 	*/
 	template<typename ReturnType, typename Class, typename ... Arguments>
@@ -705,32 +746,44 @@ namespace AvoGUI
 			float duration;
 		public:
 			std::chrono::steady_clock::time_point endTime;
+			Id id = 0;
 			
-			Timeout(std::function<void()> const& p_callback, float p_duration)
+			Timeout(std::function<void()> const& p_callback, float p_duration, Id p_id) :
+				callback{ p_callback },
+				duration{ p_duration },
+				endTime{ std::chrono::steady_clock::now() + std::chrono::steady_clock::duration{ int64(p_duration) * 1'000'000ll } },
+				id{ p_id }
 			{
-				callback = p_callback;
-				duration = p_duration;
-				endTime = std::chrono::steady_clock::now() + std::chrono::steady_clock::duration{ int64(p_duration)*1'000'000ll };
 			}
+			Timeout(Timeout const& p_other) = default;
 			Timeout(Timeout&& p_other)
+			{
+				operator=(std::move(p_other));
+			}
+
+			void operator=(Timeout const& p_other)
+			{
+				callback = p_other.callback;
+				duration = p_other.duration;
+				endTime = p_other.endTime;
+				id = p_other.id;
+			}
+			void operator=(Timeout&& p_other)
 			{
 				callback = std::move(p_other.callback);
 				duration = p_other.duration;
 				endTime = std::move(p_other.endTime);
+				id = p_other.id;
 			}
 
 			void operator()() const
 			{
 				callback();
 			}
-
-			bool operator<(Timeout const& p_other) const
-			{
-				return endTime < p_other.endTime;
-			}
 		};
 
-		std::set<Timeout> m_timeouts;
+		std::atomic<uint64> m_idCounter = 1u;
+		std::vector<Timeout> m_timeouts;
 		std::mutex m_timeoutsMutex;
 		std::_Mutex_base* m_callbackMutex = nullptr;
 
@@ -745,17 +798,31 @@ namespace AvoGUI
 			m_isRunning = true;
 			while (m_isRunning)
 			{
-				if (!m_timeouts.empty())
+				if (m_timeouts.empty())
+				{
+					m_idCounter = 0;
+					if (!m_needsToWake)
+					{
+						std::unique_lock<std::mutex> lock{ m_wakeMutex };
+						m_wakeConditionVariable.wait(lock, [&] { return (bool)m_needsToWake; });
+					}
+					m_needsToWake = false;
+				}
+				else
 				{
 					if (!m_needsToWake)
 					{
 						std::unique_lock<std::mutex> lock{ m_wakeMutex };
 						m_wakeConditionVariable.wait_until(lock, m_timeouts.begin()->endTime, [&] { return (bool)m_needsToWake; });
-						m_needsToWake = false;
 					}
+					m_needsToWake = false;
 
 					std::scoped_lock lock{ m_timeoutsMutex };
 
+					if (m_timeouts.empty())
+					{
+						continue;
+					}
 					auto timeout = m_timeouts.begin();
 					while (timeout->endTime < std::chrono::steady_clock::now())
 					{
@@ -763,22 +830,13 @@ namespace AvoGUI
 						(*timeout)();
 						m_callbackMutex->unlock();
 
-						m_timeouts.erase(timeout);
-						if (m_timeouts.empty())
+						timeout++;
+						if (timeout == m_timeouts.end())
 						{
 							break;
 						}
-						else
-						{
-							timeout = m_timeouts.begin();
-						}
 					}
-				}
-				else
-				{
-					std::unique_lock<std::mutex> lock{ m_wakeMutex };
-					m_wakeConditionVariable.wait(lock, [&] { return !m_needsToWake; });
-					m_needsToWake = false;
+					m_timeouts.erase(m_timeouts.begin(), timeout);
 				}
 			}
 		}
@@ -788,7 +846,7 @@ namespace AvoGUI
 			if (!m_needsToWake)
 			{
 				m_wakeMutex.lock();
-				m_needsToWake = false;
+				m_needsToWake = true;
 				m_wakeMutex.unlock();
 				m_wakeConditionVariable.notify_one();
 			}
@@ -821,16 +879,30 @@ namespace AvoGUI
 		/*
 			Adds a function that will be called in p_milliseconds milliseconds from now.
 		*/
-		void addCallback(std::function<void()>& p_callback, float p_milliseconds)
+		Id addCallback(std::function<void()>& p_callback, float p_milliseconds)
 		{
 			if (!m_isRunning)
 			{
 				run();
 			}
-			m_timeoutsMutex.lock();
-			m_timeouts.insert({ p_callback, p_milliseconds });
-			m_timeoutsMutex.unlock();
+
+			Timeout timeout{ p_callback, p_milliseconds, m_idCounter++ };
+			{
+				std::scoped_lock lock{ m_timeoutsMutex };
+				auto position = std::lower_bound(m_timeouts.begin(), m_timeouts.end(), timeout, [](Timeout const& p_a, Timeout const& p_b) { return p_a.endTime < p_b.endTime; });
+				m_timeouts.insert(position, timeout);
+			}
 			wake();
+			return timeout.id;
+		}
+		void cancelCallback(Id const& p_id)
+		{
+			std::scoped_lock lock{ m_timeoutsMutex };
+			auto position = std::find_if(m_timeouts.begin(), m_timeouts.end(), [=](Timeout const& p_timeout) { return p_timeout.id == p_id; });
+			if (position != m_timeouts.end())
+			{
+				m_timeouts.erase(position);
+			}
 		}
 	};
 
@@ -956,45 +1028,6 @@ namespace AvoGUI
 			{
 				m_implementation->forget();
 			}
-		}
-	};
-
-	//------------------------------
-
-	/*
-		Generates an unique ID.
-		Just use it like this: 
-			Id id;
-		An ID which converts to 0 is invalid, and can be created like this: 
-			Id id = 0;
-	*/
-	class Id
-	{
-	private:
-		static uint64 s_counter;
-		uint64 m_count;
-
-	public:
-		operator uint64() const
-		{
-			return m_count;
-		}
-		bool operator==(Id const& p_id) const
-		{
-			return (uint64)p_id == m_count;
-		}
-
-		Id(uint64 p_id)
-		{
-			m_count = p_id;
-		}
-		Id(Id const& p_id)
-		{
-			m_count = (uint64)p_id;
-		}
-		Id()
-		{
-			m_count = ++s_counter;
 		}
 	};
 
@@ -8976,6 +9009,27 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
+
+			Sets multiple theme colors.
+			Example usage:
+				using namespace AvoGUI::ThemeColors;
+				setThemeColors({
+					{ background, 0.f },
+					{ onBackground, {1.f, 0.f, 0.2f} },
+				});
+
+			See setThemeColor for more details.
+		*/
+		template<typename Pairs = std::initializer_list<std::pair<Id, Color>>>
+		void setThemeColors(Pairs const& p_pairs, bool p_willAffectChildren = true)
+		{
+			for (auto pair : p_pairs)
+			{
+				setThemeColor(pair.first, pair.second, p_willAffectChildren);
+			}
+		}
+		/*
+			LIBRARY IMPLEMENTED
 		*/
 		Color getThemeColor(Id const& p_id) const
 		{
@@ -9012,6 +9066,27 @@ namespace AvoGUI
 		}
 		/*
 			LIBRARY IMPLEMENTED
+
+			Sets multiple theme easings.
+			Example usage:
+				using namespace AvoGUI::ThemeEasings;
+				setThemeEasings({
+					{ in, {1.f, 0.f, 1.f, 1.f} },
+					{ inOut, {1.f, 0.f, 0.f, 1.f} },
+				});
+
+			See setThemeEasing for more details.
+		*/
+		template<typename Pairs = std::initializer_list<std::pair<Id, Easing>>>
+		void setThemeEasings(Pairs const& p_pairs, bool p_willAffectChildren = true)
+		{
+			for (auto pair : p_pairs)
+			{
+				setThemeEasing(pair.first, pair.second, p_willAffectChildren);
+			}
+		}
+		/*
+			LIBRARY IMPLEMENTED
 		*/
 		Easing const& getThemeEasing(Id const& p_id) const
 		{
@@ -9044,6 +9119,27 @@ namespace AvoGUI
 			{
 				m_theme->values[p_id] = p_value;
 				themeValueChangeListeners(p_id, p_value);
+			}
+		}
+		/*
+			LIBRARY IMPLEMENTED
+
+			Sets multiple theme values.
+			Example usage:
+				using namespace AvoGUI::ThemeValues;
+				setThemeValues({
+					{ hoverAnimationDuration, 100 },
+					{ tooltipFontSize, 13.f },
+				});
+
+			See setThemeValue for more details.
+		*/
+		template<typename Pairs = std::initializer_list<std::pair<Id, float>>>
+		void setThemeValues(Pairs const& p_pairs, bool p_willAffectChildren = true)
+		{
+			for (auto pair : p_pairs)
+			{
+				setThemeValue(pair.first, pair.second, p_willAffectChildren);
 			}
 		}
 		/*
@@ -10822,11 +10918,16 @@ namespace AvoGUI
 
 	public:
 		/*
-			Adds a function that will be called in p_milliseconds milliseconds from now.
+			Adds a function that will be called in p_milliseconds milliseconds from now
+			and returns an ID that identifies the timer callback.
 		*/
-		void addTimerCallback(std::function<void()> p_callback, float p_milliseconds)
+		Id addTimerCallback(std::function<void()> p_callback, float p_milliseconds)
 		{
-			m_timerThread.addCallback(p_callback, p_milliseconds);
+			return m_timerThread.addCallback(p_callback, p_milliseconds);
+		}
+		void cancelTimerCallback(Id const& p_id)
+		{
+			m_timerThread.cancelCallback(p_id);
 		}
 
 		//------------------------------
@@ -11338,6 +11439,10 @@ namespace AvoGUI
 	namespace ThemeValues
 	{
 		inline Id const tooltipFontSize;
+		/*
+			In milliseconds.
+		*/
+		inline Id const tooltipDelay;
 	}
 
 	/*
@@ -11347,27 +11452,13 @@ namespace AvoGUI
 	class Tooltip : public View
 	{
 	private:
-		Text m_text;
-		float m_opacityAnimationTime{ 0.f };
-		float m_opacity{ 0.f };
-		bool m_isShowing{ false };
-		uint32 m_timeSinceShow{ 0U };
-
+		Animation* m_showAnimation = createAnimation(ThemeEasings::out, 100, [=](float p_value) {
+			m_opacity = p_value;
+			invalidate();
+		});
+		bool m_isShowing = false;
+		Id m_timerId = 0;
 	public:
-		explicit Tooltip(View* p_parent) : View(p_parent)
-		{
-			initializeThemeColor(ThemeColors::tooltipBackground, Color(0.2f, 0.8f));
-			initializeThemeColor(ThemeColors::tooltipOnBackground, Color(1.f, 0.95f));
-			initializeThemeValue(ThemeValues::tooltipFontSize, 12.f);
-
-			setHasShadow(false);
-			setElevation(-1.f);
-			setCornerRadius(2.f);
-			setIsOverlay(true); // Don't want to block any events from reaching views below the tooltip, especially not when it has faded away.
-		}
-
-		//------------------------------
-
 		/*
 			Makes the tooltip appear
 			p_string is the string to be displayed on the tooltip.
@@ -11383,7 +11474,7 @@ namespace AvoGUI
 					m_text = getGui()->getDrawingContext()->createText(p_string, fontSize);
 					m_text.fitSizeToText();
 					setSize(m_text.getWidth() + 2.2f * fontSize, m_text.getHeight() + fontSize*1.8f);
-					m_text.setCenter(getWidth() * 0.5f, getHeight() * 0.5f);
+					m_text.setCenter(getSize()/2);
 				}
 
 				if (p_targetRectangle.bottom + 7.f + getHeight() >= getGui()->getHeight())
@@ -11394,13 +11485,13 @@ namespace AvoGUI
 				{
 					setTop(p_targetRectangle.bottom + 7.f, true);
 				}
-				setCenterX(max(1.f + getWidth() * 0.5f, min(getGui()->getWidth() - getWidth() * 0.5f - 1.f, p_targetRectangle.getCenterX())));
+				setCenterX(max(1.f + getWidth()/2, min(getGui()->getWidth() - getWidth()/2 - 1.f, p_targetRectangle.getCenterX())));
 
-				m_opacityAnimationTime = 0.f;
-				m_opacity = 0.f;
 				m_isShowing = true;
-				m_timeSinceShow = 0U;
-				queueAnimationUpdate();
+				m_timerId = getGui()->addTimerCallback([=] {
+					m_opacity = 0.f;
+					m_showAnimation->play(false);
+				}, getThemeValue(ThemeValues::tooltipDelay));
 			}
 		}
 
@@ -11411,56 +11502,48 @@ namespace AvoGUI
 		{
 			if (m_isShowing)
 			{
+				getGui()->cancelTimerCallback(m_timerId);
 				m_isShowing = false;
-				queueAnimationUpdate();
+				if (m_opacity)
+				{
+					m_showAnimation->play(true);
+				}
 			}
 		}
 
 		//------------------------------
 
-		void updateAnimations() override
-		{
-			if (m_isShowing)
-			{
-				if (m_timeSinceShow > 6U)
-				{
-					m_opacity = getThemeEasing(ThemeEasings::out).easeValue(m_opacityAnimationTime);
-					if (m_opacity < 1.f)
-					{
-						m_opacityAnimationTime = min(m_opacityAnimationTime + 0.08f, 1.f);
-						queueAnimationUpdate();
-					}
-				}
-				else
-				{
-					m_timeSinceShow++;
-					queueAnimationUpdate();
-				}
-			}
-			else
-			{
-				m_opacity = getThemeEasing(ThemeEasings::inOut).easeValue(m_opacityAnimationTime);
-				if (m_opacity > 0.f)
-				{
-					m_opacityAnimationTime = max(m_opacityAnimationTime - 0.2f, 0.f);
-					queueAnimationUpdate();
-				}
-			}
-
-			invalidate();
-		}
-
+	private:
+		Text m_text;
+		float m_opacity = 0.f;
+	public:
 		void draw(DrawingContext* p_drawingContext) override
 		{
 			if (m_text)
 			{
 				p_drawingContext->scale(m_opacity * 0.3f + 0.7f, getAbsoluteCenter());
-				p_drawingContext->setColor(Color(getThemeColor(ThemeColors::tooltipBackground), m_opacity));
+				p_drawingContext->setColor({ getThemeColor(ThemeColors::tooltipBackground), m_opacity });
 				p_drawingContext->fillRectangle(getSize());
 				p_drawingContext->setColor(Color(getThemeColor(ThemeColors::tooltipOnBackground), m_opacity));
 				p_drawingContext->drawText(m_text);
 				p_drawingContext->scale(1.f / (m_opacity * 0.3f + 0.7f), getAbsoluteCenter());
 			}
+		}
+
+		//------------------------------
+
+		Tooltip(View* p_parent) :
+			View{ p_parent }
+		{
+			initializeThemeColor(ThemeColors::tooltipBackground, { 0.2f, 0.8f });
+			initializeThemeColor(ThemeColors::tooltipOnBackground, { 1.f, 0.95f });
+			initializeThemeValue(ThemeValues::tooltipFontSize, 12.f);
+			initializeThemeValue(ThemeValues::tooltipDelay, 400.f);
+
+			setHasShadow(false);
+			setElevation(-1.f);
+			setCornerRadius(2.f);
+			setIsOverlay(true); // Don't want to block any events from reaching views below the tooltip, especially not when it has faded away.
 		}
 	};
 
