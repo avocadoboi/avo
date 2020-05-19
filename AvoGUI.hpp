@@ -70,7 +70,7 @@ using uint64 = std::uint64_t;
 
 //------------------------------
 
-namespace AvoGUI
+namespace Avo
 {
 	constexpr double E =       2.71828182845904523;
 	constexpr double HALF_PI = 1.57079632679489661;
@@ -567,9 +567,9 @@ namespace AvoGUI
 		Only values of [0, 9] are allowed as the indicies, meaning max 10 objects can be inserted in one call.
 
 		Example:
-		std::string formattedString = AvoGUI::createFormattedString(
+		std::string formattedString = Avo::createFormattedString(
 			"I have {1} {2} and {3} {4} and {5} {6}. Pi: {0}",
-			AvoGUI::PI, 2, "cats", 0, "dogs", 10, "fingers"
+			Avo::PI, 2, "cats", 0, "dogs", 10, "fingers"
 		);
 	*/
 	template<typename ... FormattableType>
@@ -1044,7 +1044,7 @@ namespace AvoGUI
 		and their memory is automatically managed by their parent so there is no need to call forget.
 		The root component, however, doesn't have a parent and could be allocated on the stack.
 
-		See AvoGUI::View and AvoGUI::Gui for more information.
+		See Avo::View and Avo::Gui for more information.
 	*/
 	class Component : public ReferenceCounted
 	{
@@ -1303,7 +1303,7 @@ namespace AvoGUI
 
 	/*
 		A 2D point/vector where x is the horizontal component and y is the vertical component if you were to think of it graphically.
-		The coordinate system used throughout AvoGUI is one where the positive y-direction is downwards and the positive x-direction is to the right.
+		The coordinate system used throughout Avo is one where the positive y-direction is downwards and the positive x-direction is to the right.
 	*/
 	template<typename PointType = float>
 	class Point
@@ -2094,7 +2094,7 @@ namespace AvoGUI
 		/*
 			Rotates transformed points around p_origin by an angle expressed in radians.
 		*/
-		Transform& rotate(float p_radians, AvoGUI::Point<float> const& p_origin)
+		Transform& rotate(float p_radians, Avo::Point<float> const& p_origin)
 		{
 			return rotate(p_radians, p_origin.x, p_origin.y);
 		}
@@ -2186,7 +2186,7 @@ namespace AvoGUI
 	/*
 		A 2D axis-aligned rectangle. right > left and bottom > top.
 		Increasingly positive values for bottom and top will move the rectangle downwards and increasingly positive
-		values for left and right will move the rectangle to the right (when used in the AvoGUI framework).
+		values for left and right will move the rectangle to the right (when used in the Avo framework).
 	*/
 	template<typename RectangleType = float>
 	class Rectangle
@@ -4582,7 +4582,7 @@ namespace AvoGUI
 	/*
 		A theme consists of different variables that change the look and feel of the parts of the GUI that are using the theme.
 		Can be used for changing and accessing any values, colors and easings.
-		All the default IDs are in AvoGUI::ThemeColors, AvoGUI::ThemeEasings and AvoGUI::ThemeValues.
+		All the default IDs are in Avo::ThemeColors, Avo::ThemeEasings and Avo::ThemeValues.
 	*/
 	class Theme : public ReferenceCounted
 	{
@@ -6019,10 +6019,10 @@ namespace AvoGUI
 	class GradientStop
 	{
 	public:
-		AvoGUI::Color color;
+		Avo::Color color;
 		float position;
 
-		GradientStop(AvoGUI::Color const& p_color, float p_position) :
+		GradientStop(Avo::Color const& p_color, float p_position) :
 			color(p_color), position(p_position)
 		{
 		}
@@ -6142,23 +6142,23 @@ namespace AvoGUI
 		{
 			if (!std::strncmp((char const*)&p_fileData, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8))
 			{
-				return AvoGUI::ImageFormat::Png;
+				return Avo::ImageFormat::Png;
 			}
 			else if (!std::strncmp((char const*)&p_fileData, "\xFF\xD8\xFF", 3))
 			{
-				return AvoGUI::ImageFormat::Jpeg;
+				return Avo::ImageFormat::Jpeg;
 			}
 			else if (!std::strncmp((char const*)&p_fileData, "\x00\x00\x01\x00", 4) ||
 			         !std::strncmp((char const*)&p_fileData, "\x00\x00\x02\x00", 4))
 			{
-				return AvoGUI::ImageFormat::Ico;
+				return Avo::ImageFormat::Ico;
 			}
-			return AvoGUI::ImageFormat::Unknown;
+			return Avo::ImageFormat::Unknown;
 		}
 		/*
 			Returns the image format of the given image file.
 		*/
-		static AvoGUI::ImageFormat getImageFormatOfFile(std::string const& p_filePath)
+		static Avo::ImageFormat getImageFormatOfFile(std::string const& p_filePath)
 		{
 			char signatureBytes[8];
 
@@ -6171,7 +6171,7 @@ namespace AvoGUI
 		/*
 			Returns the image format of the given image file.
 		*/
-		static AvoGUI::ImageFormat getImageFormatOfFile(char const* p_filePath)
+		static Avo::ImageFormat getImageFormatOfFile(char const* p_filePath)
 		{
 			char signatureBytes[8];
 
@@ -7031,7 +7031,7 @@ namespace AvoGUI
 		//------------------------------
 
 		/*
-			Creates an OS API native image from an AvoGUI image.
+			Creates an OS API native image from an Avo image.
 			On Windows, it returns an HBITMAP.
 		*/
 		virtual void* createNativeImageFromImage(Image const& p_image) = 0;
@@ -7402,7 +7402,7 @@ namespace AvoGUI
 		virtual uint32 getNumberOfFiles() const = 0;
 
 		/*
-			Returns the additional data that has been assigned by an AvoGUI application.
+			Returns the additional data that has been assigned by an Avo application.
 		*/
 		virtual uint64 getAdditionalData() const = 0;
 
@@ -8399,7 +8399,7 @@ namespace AvoGUI
 		{
 			while (!m_childViews.empty()) // That function naming, ew... Why didn't they call it getIsEmpty? empty() should be emptying something >:^(
 			{
-				AvoGUI::View* child = m_childViews.back();
+				Avo::View* child = m_childViews.back();
 				childViewDetachmentListeners(child);
 				child->m_parent = nullptr;
 				m_childViews.pop_back();
@@ -8992,7 +8992,7 @@ namespace AvoGUI
 
 			Some IDs have a default color that can be changed.
 			These colors may be used by views that come with the library, but you can use them yourself too.
-			The default color IDs are in the AvoGUI::ThemeColors namespace.
+			The default color IDs are in the Avo::ThemeColors namespace.
 			If p_id is anything else, the color is kept in the theme and you can use it yourself.
 
 			If p_willAffectChildren is true, all children and views below those too will change this color in their themes.
@@ -9012,7 +9012,7 @@ namespace AvoGUI
 
 			Sets multiple theme colors.
 			Example usage:
-				using namespace AvoGUI::ThemeColors;
+				using namespace Avo::ThemeColors;
 				setThemeColors({
 					{ background, 0.f },
 					{ onBackground, {1.f, 0.f, 0.2f} },
@@ -9049,7 +9049,7 @@ namespace AvoGUI
 
 			Some IDs have a default easing that can be changed.
 			These easings may be used by views that come with the library, but you can use them yourself too.
-			The default easing IDs are in the AvoGUI::ThemeEasings namespace.
+			The default easing IDs are in the Avo::ThemeEasings namespace.
 			If p_id is anything else, the easing is kept in the theme and you can use it yourself.
 
 			if p_willAffectChildren is true, all children and views below those too will change this easing in their themes.
@@ -9069,7 +9069,7 @@ namespace AvoGUI
 
 			Sets multiple theme easings.
 			Example usage:
-				using namespace AvoGUI::ThemeEasings;
+				using namespace Avo::ThemeEasings;
 				setThemeEasings({
 					{ in, {1.f, 0.f, 1.f, 1.f} },
 					{ inOut, {1.f, 0.f, 0.f, 1.f} },
@@ -9106,7 +9106,7 @@ namespace AvoGUI
 
 			Some IDs have a default value that can be changed.
 			These values may be used by views that come with the library, but you can use them yourself too.
-			The default value IDs are in the AvoGUI::ThemeValues namespace.
+			The default value IDs are in the Avo::ThemeValues namespace.
 			If p_id is anything else, the value is kept in the theme and you can use it yourself.
 
 			if p_willAffectChildren is true, all children and views below those too will change this value in their themes.
@@ -9126,7 +9126,7 @@ namespace AvoGUI
 
 			Sets multiple theme values.
 			Example usage:
-				using namespace AvoGUI::ThemeValues;
+				using namespace Avo::ThemeValues;
 				setThemeValues({
 					{ hoverAnimationDuration, 100 },
 					{ tooltipFontSize, 13.f },
@@ -9326,7 +9326,7 @@ namespace AvoGUI
 		{
 			if (p_offsetX || p_offsetY)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(p_offsetX, p_offsetY);
 				m_bounds.move(p_offsetX, p_offsetY);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9362,7 +9362,7 @@ namespace AvoGUI
 		{
 			if (p_left != m_bounds.left || p_top != m_bounds.top)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(p_left - m_bounds.left, p_top - m_bounds.top);
 				m_bounds.setTopLeft(p_left, p_top, p_willKeepSize);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9379,7 +9379,7 @@ namespace AvoGUI
 			float offsetY = p_top - m_absolutePosition.y;
 			if (offsetX || offsetY)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(offsetX, offsetY);
 				m_bounds.setTopLeft(m_bounds.left + offsetX, m_bounds.top + offsetY, p_willKeepSize);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9429,7 +9429,7 @@ namespace AvoGUI
 		{
 			if (p_right != m_bounds.right || p_top != m_bounds.top)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(p_willKeepSize ? p_right - m_bounds.right : 0, p_top - m_bounds.top);
 				m_bounds.setTopRight(p_right, p_top, p_willKeepSize);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9446,7 +9446,7 @@ namespace AvoGUI
 			float offsetY = p_top - m_absolutePosition.y;
 			if (offsetX || offsetY)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(p_willKeepSize ? offsetX : 0, offsetY);
 				m_bounds.setTopRight(m_bounds.right + offsetX, m_bounds.top + offsetY, p_willKeepSize);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9496,7 +9496,7 @@ namespace AvoGUI
 		{
 			if (p_left != m_bounds.left || p_bottom != m_bounds.bottom)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(p_left - m_bounds.left, p_willKeepSize ? p_bottom - m_bounds.bottom : 0);
 				m_bounds.setBottomLeft(p_left, p_bottom, p_willKeepSize);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9513,7 +9513,7 @@ namespace AvoGUI
 			float offsetY = p_bottom - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
 			if (offsetX || offsetY)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(offsetX, p_willKeepSize ? offsetY : 0.f);
 				m_bounds.setBottomLeft(m_bounds.left + offsetX, m_bounds.bottom + offsetY, p_willKeepSize);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9563,7 +9563,7 @@ namespace AvoGUI
 		{
 			if (p_right != m_bounds.right || p_bottom != m_bounds.bottom)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				if (p_willKeepSize)
 				{
 					moveAbsolutePositions(p_right - m_bounds.right, p_bottom - m_bounds.bottom);
@@ -9583,7 +9583,7 @@ namespace AvoGUI
 			float offsetY = p_bottom - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
 			if (offsetX || offsetY)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				if (p_willKeepSize)
 				{
 					moveAbsolutePositions(offsetX, offsetY);
@@ -9639,7 +9639,7 @@ namespace AvoGUI
 		{
 			if (p_x != m_bounds.getCenterX() || p_y != m_bounds.getCenterY())
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(p_x - m_bounds.getCenterX(), p_y - m_bounds.getCenterY());
 				m_bounds.setCenter(p_x, p_y);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9655,7 +9655,7 @@ namespace AvoGUI
 			float offsetY = p_y - m_absolutePosition.y - getHeight() * 0.5f;
 			if (offsetX || offsetY)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(offsetX, offsetY);
 				m_bounds.move(offsetX, offsetY);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9669,7 +9669,7 @@ namespace AvoGUI
 		{
 			if (p_x != m_bounds.getCenterX())
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(p_x - m_bounds.getCenterX(), 0);
 				m_bounds.setCenterX(p_x);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9684,7 +9684,7 @@ namespace AvoGUI
 			float offsetX = p_x - m_absolutePosition.x - getWidth() * 0.5f;
 			if (offsetX)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(offsetX, 0);
 				m_bounds.moveX(offsetX);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9698,7 +9698,7 @@ namespace AvoGUI
 		{
 			if (p_y != m_bounds.getCenterY())
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(0, p_y - m_bounds.getCenterY());
 				m_bounds.setCenterY(p_y);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9713,7 +9713,7 @@ namespace AvoGUI
 			float offsetY = p_y - m_absolutePosition.y - getHeight() * 0.5f;
 			if (offsetY)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(0.f, offsetY);
 				m_bounds.moveX(offsetY);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9779,7 +9779,7 @@ namespace AvoGUI
 		{
 			if (p_left != m_bounds.left)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(p_left - m_bounds.left, 0);
 				m_bounds.setLeft(p_left, p_willKeepWidth);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9794,7 +9794,7 @@ namespace AvoGUI
 		{
 			if (p_left != m_absolutePosition.x)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(p_left - m_absolutePosition.x, 0);
 				m_bounds.setLeft(p_left - m_absolutePosition.x + m_bounds.left, p_willKeepWidth);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9826,7 +9826,7 @@ namespace AvoGUI
 		{
 			if (p_top != m_bounds.top)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(0, p_top - m_bounds.top);
 				m_bounds.setTop(p_top, p_willKeepHeight);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9841,7 +9841,7 @@ namespace AvoGUI
 		{
 			if (p_top != m_absolutePosition.y)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				moveAbsolutePositions(0, p_top - m_absolutePosition.y);
 				m_bounds.setTop(p_top - m_absolutePosition.y + m_bounds.top, p_willKeepHeight);
 				sendBoundsChangeEvents(boundsBefore);
@@ -9873,7 +9873,7 @@ namespace AvoGUI
 		{
 			if (p_right != m_bounds.right)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				if (p_willKeepWidth)
 				{
 					moveAbsolutePositions(p_right - m_bounds.right, 0);
@@ -9892,7 +9892,7 @@ namespace AvoGUI
 			float offset = p_right - m_absolutePosition.x + m_bounds.left - m_bounds.right;
 			if (offset)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				if (p_willKeepWidth)
 				{
 					moveAbsolutePositions(offset, 0);
@@ -9931,7 +9931,7 @@ namespace AvoGUI
 		{
 			if (p_bottom != m_bounds.bottom)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				if (p_willKeepHeight)
 				{
 					moveAbsolutePositions(0, p_bottom - m_bounds.bottom);
@@ -9950,7 +9950,7 @@ namespace AvoGUI
 			float offset = p_bottom - m_absolutePosition.y + m_bounds.top - m_bounds.bottom;
 			if (offset)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				if (p_willKeepHeight)
 				{
 					m_bounds.moveY(offset);
@@ -9990,7 +9990,7 @@ namespace AvoGUI
 		{
 			if (p_width != m_bounds.right - m_bounds.left)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				m_bounds.setWidth(p_width);
 				sendBoundsChangeEvents(boundsBefore);
 			}
@@ -10012,7 +10012,7 @@ namespace AvoGUI
 		{
 			if (p_height != m_bounds.bottom - m_bounds.top)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				m_bounds.setHeight(p_height);
 				sendBoundsChangeEvents(boundsBefore);
 			}
@@ -10042,7 +10042,7 @@ namespace AvoGUI
 		{
 			if (p_width != m_bounds.right - m_bounds.left || p_height != m_bounds.bottom - m_bounds.top)
 			{
-				AvoGUI::Rectangle<float> boundsBefore = m_bounds;
+				Avo::Rectangle<float> boundsBefore = m_bounds;
 				m_bounds.setSize(p_width, p_height);
 				sendBoundsChangeEvents(boundsBefore);
 			}
@@ -10721,10 +10721,10 @@ namespace AvoGUI
 
 		static uint32 s_numberOfInstances;
 
-		Gui* m_parent{ nullptr };
-		Window* m_window{ nullptr };
-		DrawingContext* m_drawingContext{ nullptr };
-		DrawingState* m_drawingContextState{ nullptr };
+		Gui* m_parent = nullptr;
+		Window* m_window = nullptr;
+		DrawingContext* m_drawingContext = nullptr;
+		DrawingState* m_drawingContextState = nullptr;
 
 		//------------------------------
 
@@ -10744,8 +10744,8 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
-			A call to AvoGUI::GUI::createContent will be made when these objects have been created.
-			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+			A call to Avo::GUI::createContent will be made when these objects have been created.
+			After that, an initial call to Avo::GUI::handleSizeChange will also be made.
 
 			run must be called after creation and before the main thread returns.
 
@@ -10762,8 +10762,8 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
-			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
-			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+			A call to Avo::GUI::createContent will be made when these objects have been created and can be used.
+			After that, an initial call to Avo::GUI::handleSizeChange will also be made.
 
 			run must be called after creation and before the main thread returns.
 
@@ -10777,8 +10777,8 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
-			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
-			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+			A call to Avo::GUI::createContent will be made when these objects have been created and can be used.
+			After that, an initial call to Avo::GUI::handleSizeChange will also be made.
 
 			run must be called after creation and before the main thread returns.
 
@@ -10794,8 +10794,8 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
-			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
-			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+			A call to Avo::GUI::createContent will be made when these objects have been created and can be used.
+			After that, an initial call to Avo::GUI::handleSizeChange will also be made.
 
 			run must be called after creation and before the main thread returns.
 
@@ -10814,8 +10814,8 @@ namespace AvoGUI
 		/*
 			LIBRARY IMPLEMENTED
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
-			A call to AvoGUI::GUI::createContent will be made when these objects have been created and can be used.
-			After that, an initial call to AvoGUI::GUI::handleSizeChange will also be made.
+			A call to Avo::GUI::createContent will be made when these objects have been created and can be used.
+			After that, an initial call to Avo::GUI::handleSizeChange will also be made.
 
 			run must be called after creation and before the main thread returns.
 
@@ -10848,12 +10848,12 @@ namespace AvoGUI
 			*/
 			if (getWidth() == m_window->getWidth() && getHeight() == m_window->getHeight())
 			{
-				View::sendBoundsChangeEvents(AvoGUI::Rectangle<float>());
+				View::sendBoundsChangeEvents(Avo::Rectangle<float>());
 			}
 			invalidate();
 
 			m_window->run();
-			m_animationThread = std::thread(&AvoGUI::Gui::thread_runAnimationLoop, this);
+			m_animationThread = std::thread(&Avo::Gui::thread_runAnimationLoop, this);
 
 			static std::vector<Gui*> s_instancesToJoin;
 			static std::mutex s_instancesToJoinMutex;
@@ -10915,7 +10915,6 @@ namespace AvoGUI
 
 	private:
 		TimerThread m_timerThread;
-
 	public:
 		/*
 			Adds a function that will be called in p_milliseconds milliseconds from now
@@ -10938,7 +10937,7 @@ namespace AvoGUI
 		std::deque<View*> m_viewAnimationUpdateQueue;
 		std::deque<Animation*> m_animationUpdateQueue;
 
-		bool m_hasAnimationLoopStarted{ false };
+		bool m_hasAnimationLoopStarted = false;
 		std::thread m_animationThread;
 
 		void thread_runAnimationLoop();
@@ -10977,7 +10976,7 @@ namespace AvoGUI
 		Point<float> m_lastUpdatedWindowSize;
 		void handleWindowSizeChange(WindowEvent const& p_event);
 
-		void sendBoundsChangeEvents(AvoGUI::Rectangle<float> const& p_previousBounds) override
+		void sendBoundsChangeEvents(Avo::Rectangle<float> const& p_previousBounds) override
 		{
 			if ((uint32)getWidth() != (uint32)m_window->getSize().x || (uint32)getHeight() != (uint32)m_window->getSize().y)
 			{
@@ -10998,24 +10997,23 @@ namespace AvoGUI
 		*/
 		DragDropOperation getGlobalDragDropOperation(DragDropEvent& p_event)
 		{
-			std::vector<View*> targets;
-			getTopMouseListenersAt(p_event.x, p_event.y, targets);
+			std::vector<View*> targets = getTopMouseListenersAt(p_event.x, p_event.y);
 
 			float absoluteX = p_event.x, absoluteY = p_event.y;
 
-			DragDropOperation result(DragDropOperation::None);
-			for (View* target : targets)
+			auto result = DragDropOperation::None;
+			for (auto target : targets)
 			{
 				p_event.x = absoluteX - target->getAbsoluteLeft();
 				p_event.y = absoluteY - target->getAbsoluteTop();
-				DragDropOperation operation = target->getDragDropOperation(p_event);
+				auto operation = target->getDragDropOperation(p_event);
 				if (operation != DragDropOperation::None)
 				{
 					result = operation;
 					break;
 				}
 			}
-			for (View* target : targets)
+			for (auto target : targets)
 			{
 				target->forget();
 			}
@@ -11117,11 +11115,11 @@ namespace AvoGUI
 		/*
 			Returns the topmost non-overlay view which contains the coordinates given, as well as any overlay views which are above the non-overlay view.
 		*/
-		void getTopMouseListenersAt(Point<float> const& p_coordinates, std::vector<View*>& p_result);
+		std::vector<View*> getTopMouseListenersAt(Point<float> const& p_coordinates);
 		/*
 			Returns the topmost non-overlay view which contains the coordinates given, as well as any overlay views which are above the non-overlay view.
 		*/
-		void getTopMouseListenersAt(float p_x, float p_y, std::vector<View*>& p_result);
+		std::vector<View*> getTopMouseListenersAt(float p_x, float p_y);
 
 		std::vector<View*> m_pressedMouseEventListeners;
 		Point<float> m_mouseDownPosition;
@@ -11131,8 +11129,7 @@ namespace AvoGUI
 		*/
 		void handleGlobalMouseDown(MouseEvent& p_event)
 		{
-			std::vector<View*> targets;
-			getTopMouseListenersAt(p_event.x, p_event.y, targets);
+			auto targets = getTopMouseListenersAt(p_event.x, p_event.y);
 
 			float absoluteX = p_event.x;
 			float absoluteY = p_event.y;
@@ -11160,13 +11157,13 @@ namespace AvoGUI
 			float absoluteY = p_event.y;
 			if (!m_pressedMouseEventListeners.empty())
 			{
-				for (View* view : m_pressedMouseEventListeners)
+				for (auto view : m_pressedMouseEventListeners)
 				{
 					p_event.x = absoluteX - view->getAbsoluteLeft();
 					p_event.y = absoluteY - view->getAbsoluteTop();
 					view->mouseUpListeners(p_event);
 				}
-				for (View* view : m_pressedMouseEventListeners)
+				for (auto view : m_pressedMouseEventListeners)
 				{
 					view->forget();
 				}
@@ -11187,22 +11184,21 @@ namespace AvoGUI
 		*/
 		void handleGlobalMouseDoubleClick(MouseEvent& p_event)
 		{
-			std::vector<View*> targets;
-			getTopMouseListenersAt(p_event.x, p_event.y, targets);
+			auto targets = getTopMouseListenersAt(p_event.x, p_event.y);
 
 			float absoluteX = p_event.x;
 			float absoluteY = p_event.y;
 
 			if (!targets.empty())
 			{
-				for (View* view : targets)
+				for (auto view : targets)
 				{
 					p_event.x = absoluteX - view->getAbsoluteLeft();
 					p_event.y = absoluteY - view->getAbsoluteTop();
 
 					view->mouseDoubleClickListeners(p_event);
 				}
-				for (View* view : targets)
+				for (auto view : targets)
 				{
 					view->forget();
 				}
@@ -11221,22 +11217,21 @@ namespace AvoGUI
 		*/
 		void handleGlobalMouseScroll(MouseEvent& p_event)
 		{
-			std::vector<View*> targets;
-			getTopMouseListenersAt(p_event.x, p_event.y, targets);
+			auto targets = getTopMouseListenersAt(p_event.x, p_event.y);
 
 			float absoluteX = p_event.x;
 			float absoluteY = p_event.y;
 
 			if (!targets.empty())
 			{
-				for (View* view : targets)
+				for (auto view : targets)
 				{
 					p_event.x = absoluteX - view->getAbsoluteLeft();
 					p_event.y = absoluteY - view->getAbsoluteTop();
 
 					view->mouseScrollListeners(p_event);
 				}
-				for (View* view : targets)
+				for (auto view : targets)
 				{
 					view->forget();
 				}
@@ -11307,7 +11302,7 @@ namespace AvoGUI
 		//------------------------------
 
 	private:
-		View* m_keyboardFocus{nullptr};
+		View* m_keyboardFocus = nullptr;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -11320,7 +11315,7 @@ namespace AvoGUI
 				return;
 			}
 
-			View* focusBefore = m_keyboardFocus;
+			auto focusBefore = m_keyboardFocus;
 
 			m_keyboardFocus = p_view;
 
@@ -11391,15 +11386,6 @@ namespace AvoGUI
 		{
 			return m_drawingContext;
 		}
-
-		//------------------------------
-
-		/*
-			USER IMPLEMENTED
-			This is called after the window and drawing context have been created.
-			It is a good idea to initialize your GUI in this method, but do the layout in handleSizeChange() - it is called right after creation too.
-		*/
-		//virtual void createContent() { }
 
 		//------------------------------
 
@@ -11568,20 +11554,8 @@ namespace AvoGUI
 		};
 
 	private:
-		Gui* m_gui;
-
-		bool m_canSelectMultipleFiles{ false };
-		std::vector<FileExtensionFilter> m_fileExtensions;
-		std::string m_title{ "Open file..." };
-
+		bool m_canSelectMultipleFiles = false;
 	public:
-		OpenFileDialog() :
-			m_gui(nullptr)
-		{ }
-		OpenFileDialog(Gui* p_gui) :
-			m_gui(p_gui)
-		{ }
-
 		/*
 			If this is true, the user can select more than 1 file to open.
 		*/
@@ -11594,6 +11568,9 @@ namespace AvoGUI
 			return m_canSelectMultipleFiles;
 		}
 
+	private:
+		std::string m_title = "Open file...";
+	public:
 		/*
 			Sets the title shown in the top border of the open file dialog.
 		*/
@@ -11616,6 +11593,9 @@ namespace AvoGUI
 			return m_title;
 		}
 
+	private:
+		std::vector<FileExtensionFilter> m_fileExtensions;
+	public:
 		/*
 			Sets the file extensions of the files that the user can open with the dialog.
 			See the properties of FileExtensionFilter for details.
@@ -11660,6 +11640,16 @@ namespace AvoGUI
 			It can be empty if the user closed the window without selecting any files.
 		*/
 		std::vector<std::string> open();
+
+	private:
+		Gui* m_gui;
+	public:
+		OpenFileDialog() :
+			m_gui{ nullptr }
+		{ }
+		OpenFileDialog(Gui* p_gui) :
+			m_gui{ p_gui }
+		{ }
 	};
 
 	//------------------------------
@@ -11670,13 +11660,13 @@ namespace AvoGUI
 	class TextView : public View
 	{
 	private:
-		AvoGUI::Color m_color{ getThemeColor(ThemeColors::onBackground) };
+		Avo::Color m_color{ getThemeColor(ThemeColors::onBackground) };
 	public:
-		void setColor(AvoGUI::Color const& p_color)
+		void setColor(Avo::Color const& p_color)
 		{
 			m_color = p_color;
 		}
-		AvoGUI::Color getColor()
+		Avo::Color getColor()
 		{
 			return m_color;
 		}
@@ -11752,7 +11742,7 @@ namespace AvoGUI
 			}
 		}
 
-		void draw(AvoGUI::DrawingContext* p_context) override
+		void draw(Avo::DrawingContext* p_context) override
 		{
 			if (m_text)
 			{
@@ -11764,8 +11754,8 @@ namespace AvoGUI
 		//------------------------------
 
 		TextView(View* p_parent, float p_fontSize, std::string const& p_string = "") :
-			View(p_parent),
-			m_fontSize(p_fontSize)
+			View{ p_parent },
+			m_fontSize{ p_fontSize }
 		{
 			setString(p_string);
 		}
@@ -12041,7 +12031,7 @@ namespace AvoGUI
 			else if (p_id == (m_isAccent ? ThemeColors::secondaryOnBackground : ThemeColors::primaryOnBackground))
 			{
 				m_currentColor = p_newColor;
-				m_ripple->setColor(AvoGUI::Color(p_newColor, 0.3f));
+				m_ripple->setColor(Avo::Color(p_newColor, 0.3f));
 			}
 		}
 
@@ -13479,7 +13469,7 @@ namespace AvoGUI
 
 			if (p_type == Type::Filled)
 			{
-				setCorners(AvoGUI::RectangleCorners(5.f, 5.f, 0.f, 0.f));
+				setCorners(Avo::RectangleCorners(5.f, 5.f, 0.f, 0.f));
 			}
 			else
 			{
@@ -13641,7 +13631,7 @@ namespace AvoGUI
 			else
 			{
 				m_labelText = getGui()->getDrawingContext()->createText(p_label, getThemeValue(ThemeValues::textFieldFontSize));
-				m_labelText.setFontWeight(AvoGUI::FontWeight::Regular);
+				m_labelText.setFontWeight(Avo::FontWeight::Regular);
 				m_labelText.fitSizeToText();
 				if (m_type == Type::Filled)
 				{
@@ -13684,7 +13674,7 @@ namespace AvoGUI
 				return false;
 			}
 			p_affixText = getDrawingContext()->createText(p_string, getThemeValue(ThemeValues::textFieldFontSize));
-			p_affixText.setFontWeight(AvoGUI::FontWeight::Regular);
+			p_affixText.setFontWeight(Avo::FontWeight::Regular);
 			p_affixText.setHeight(p_affixText.getFontSize() * 1.2f);
 			if (m_type == Type::Filled)
 			{
@@ -13950,7 +13940,7 @@ namespace AvoGUI
 */
 namespace MaterialColors
 {
-	inline AvoGUI::colorInt const
+	inline Avo::colorInt const
 		RED_50 = 0xFFFFEBEE,
 		RED_100 = 0xFFFFCDD2,
 		RED_200 = 0xFFEF9A9A,

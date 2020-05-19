@@ -7,27 +7,27 @@ double const BALL_RADIUS = 60.0;
 double const BALL_RESTITUTION = 0.8;
 double const GRAVITATIONAL_ACCELERATION = 9.8;
 double const PIXELS_PER_METER = 400.0;
-AvoGUI::Color const WALL_COLOR(0.2f);
+Avo::Color const WALL_COLOR(0.2f);
 
 //------------------------------
 
 class Ball
 {
 public:
-	AvoGUI::Color color;
+	Avo::Color color;
 	double radius;
 
-	AvoGUI::Point<double> position;
-	AvoGUI::Point<double> velocity;
+	Avo::Point<double> position;
+	Avo::Point<double> velocity;
 	double acceleration; // There's only acceleration on the y-axis.
 
-	AvoGUI::Point<double> draggingVelocity;
+	Avo::Point<double> draggingVelocity;
 	bool isDragged;
 
 	Ball() :
 		radius(0.), acceleration(0.), isDragged(false)
 	{
-		color.setHSBA(AvoGUI::random(), 1.f, 1.f);
+		color.setHSBA(Avo::random(), 1.f, 1.f);
 	}
 
 	bool isPointInside(double p_x, double p_y)
@@ -35,7 +35,7 @@ public:
 		return position.getDistanceSquared(p_x, p_y) < radius*radius;
 	}
 
-	void draw(AvoGUI::DrawingContext* p_context)
+	void draw(Avo::DrawingContext* p_context)
 	{
 		p_context->setColor(color);
 		p_context->fillCircle(position, radius);
@@ -44,13 +44,13 @@ public:
 
 //------------------------------
 
-class Application : public AvoGUI::Gui
+class Application : public Avo::Gui
 {
 private:
 	Ball m_ball;
-	AvoGUI::Rectangle<double> m_wallLeft;
-	AvoGUI::Rectangle<double> m_wallRight;
-	AvoGUI::Rectangle<double> m_wallBottom;
+	Avo::Rectangle<double> m_wallLeft;
+	Avo::Rectangle<double> m_wallRight;
+	Avo::Rectangle<double> m_wallBottom;
 
 	std::chrono::time_point<std::chrono::steady_clock> m_lastTimeMeasurementPoint;
 	uint32 m_frameCount{ 0u };
@@ -60,7 +60,7 @@ public:
 	{
 		create("Bouncing ball!", 800, 700);
 
-		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(1.f, 1.f, 1.f));
+		setThemeColor(Avo::ThemeColors::background, Avo::Color(1.f, 1.f, 1.f));
 
 		m_ball.radius = BALL_RADIUS;
 		m_ball.position = getCenter();
@@ -76,7 +76,7 @@ public:
 
 	//------------------------------
 
-	void handleMouseMove(AvoGUI::MouseEvent const& p_event) override
+	void handleMouseMove(Avo::MouseEvent const& p_event) override
 	{
 		if (m_ball.isDragged)
 		{
@@ -85,14 +85,14 @@ public:
 			m_ball.velocity.move(p_event.movementX, p_event.movementY);
 		}
 	}
-	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
+	void handleMouseDown(Avo::MouseEvent const& p_event) override
 	{
 		if (m_ball.isPointInside(p_event.x, p_event.y))
 		{
 			m_ball.isDragged = true;
 		}
 	}
-	void handleMouseUp(AvoGUI::MouseEvent const& p_event) override
+	void handleMouseUp(Avo::MouseEvent const& p_event) override
 	{
 		m_ball.isDragged = false;
 		m_ball.velocity = m_ball.draggingVelocity;
@@ -160,7 +160,7 @@ public:
 		invalidate();
 	}
 
-	void draw(AvoGUI::DrawingContext* p_context) override
+	void draw(Avo::DrawingContext* p_context) override
 	{
 		m_frameCount++;
 		if (m_frameCount == 5*60)
@@ -173,9 +173,9 @@ public:
 		}
 
 		p_context->setColor(WALL_COLOR);
-		p_context->fillRectangle(AvoGUI::Rectangle<float>(m_wallLeft));
-		p_context->fillRectangle(AvoGUI::Rectangle<float>(m_wallRight));
-		p_context->fillRectangle(AvoGUI::Rectangle<float>(m_wallBottom));
+		p_context->fillRectangle(Avo::Rectangle<float>(m_wallLeft));
+		p_context->fillRectangle(Avo::Rectangle<float>(m_wallRight));
+		p_context->fillRectangle(Avo::Rectangle<float>(m_wallBottom));
 		m_ball.draw(p_context);
 	}
 };

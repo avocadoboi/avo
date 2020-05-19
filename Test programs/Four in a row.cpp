@@ -7,25 +7,25 @@ int32 const NUMBER_OF_ROWS = 6;
 
 float const CELL_WIDTH = 100.f;
 
-AvoGUI::Color const COLOR_PLAYER_1(1.f, 0.f, 0.f);
-AvoGUI::Color const COLOR_PLAYER_2(0.f, 0.f, 1.f);
+Avo::Color const COLOR_PLAYER_1(1.f, 0.f, 0.f);
+Avo::Color const COLOR_PLAYER_2(0.f, 0.f, 1.f);
 
 //------------------------------
 
 class YouWon :
-	public AvoGUI::View
+	public Avo::View
 {
 private:
 	bool m_isOpen{ false };
 	float m_openAnimationTime{ 0.f };
 	float m_openAnimationValue{ 0.f };
 
-	AvoGUI::Color m_winningColor;
+	Avo::Color m_winningColor;
 
-	AvoGUI::Text m_text{ getDrawingContext()->createText("won!", 20.f) };
+	Avo::Text m_text{ getDrawingContext()->createText("won!", 20.f) };
 
 public:
-	YouWon(AvoGUI::View* p_parent) :
+	YouWon(Avo::View* p_parent) :
 		View(p_parent)
 	{
 		setElevation(5.f);
@@ -36,7 +36,7 @@ public:
 		m_text.setCenter(getWidth() * 0.65f, getHeight()*0.5f);
 	}
 
-	void open(AvoGUI::Color const& p_winningColor)
+	void open(Avo::Color const& p_winningColor)
 	{
 		m_winningColor = p_winningColor;
 		setIsVisible(true);
@@ -57,7 +57,7 @@ public:
 		{
 			if (m_openAnimationTime < 1.f)
 			{
-				m_openAnimationValue = getThemeEasing(AvoGUI::ThemeEasings::out).easeValue(m_openAnimationTime += 0.1f);
+				m_openAnimationValue = getThemeEasing(Avo::ThemeEasings::out).easeValue(m_openAnimationTime += 0.1f);
 				queueAnimationUpdate();
 			}
 		}
@@ -65,7 +65,7 @@ public:
 		{
 			if (m_openAnimationTime < 1.f)
 			{
-				m_openAnimationValue = 1.f - getThemeEasing(AvoGUI::ThemeEasings::in).easeValue(m_openAnimationTime += 0.1f);
+				m_openAnimationValue = 1.f - getThemeEasing(Avo::ThemeEasings::in).easeValue(m_openAnimationTime += 0.1f);
 				queueAnimationUpdate();
 			}
 			else
@@ -79,9 +79,9 @@ public:
 		invalidate();
 	}
 
-	void draw(AvoGUI::DrawingContext* p_context) override
+	void draw(Avo::DrawingContext* p_context) override
 	{
-		p_context->setColor(AvoGUI::Color(1.f));
+		p_context->setColor(Avo::Color(1.f));
 		p_context->fillRectangle(getSize());
 
 		p_context->setColor(m_winningColor);
@@ -93,7 +93,7 @@ public:
 //------------------------------
 
 class FourInARow : 
-	public AvoGUI::Gui
+	public Avo::Gui
 {
 private:
 	YouWon* m_youWon{ nullptr };
@@ -104,7 +104,7 @@ private:
 public:
 	FourInARow()
 	{
-		create("Four in a row", NUMBER_OF_COLUMNS*CELL_WIDTH, NUMBER_OF_ROWS*CELL_WIDTH, AvoGUI::WindowStyleFlags::DefaultNoResize);
+		create("Four in a row", NUMBER_OF_COLUMNS*CELL_WIDTH, NUMBER_OF_ROWS*CELL_WIDTH, Avo::WindowStyleFlags::DefaultNoResize);
 		for (uint32 x = 0; x < NUMBER_OF_COLUMNS; x++)
 		{
 			for (uint32 y = 0; y < NUMBER_OF_ROWS; y++)
@@ -121,7 +121,7 @@ public:
 
 	//------------------------------
 
-	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
+	void handleMouseDown(Avo::MouseEvent const& p_event) override
 	{
 		if (m_youWon->getIsVisible())
 		{
@@ -173,14 +173,14 @@ public:
 
 		invalidate();
 	}
-	void handleMouseDoubleClick(AvoGUI::MouseEvent const& p_event) override
+	void handleMouseDoubleClick(Avo::MouseEvent const& p_event) override
 	{
 		handleMouseDown(p_event);
 	}
 
-	void draw(AvoGUI::DrawingContext* p_context) override
+	void draw(Avo::DrawingContext* p_context) override
 	{
-		p_context->setColor(AvoGUI::Color(0.7f));
+		p_context->setColor(Avo::Color(0.7f));
 		for (uint32 x = 1; x < NUMBER_OF_COLUMNS; x++)
 		{
 			p_context->drawLine(x * CELL_WIDTH, 0, x * CELL_WIDTH, getHeight(), 2.f);

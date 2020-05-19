@@ -12,5 +12,5 @@ float const TIMER_MAX_NUMBER_OF_HOURS = 12.f;
 
 namespace Ids
 {
-	inline AvoGUI::Id const soundOpener;
+	inline Avo::Id const soundOpener;
 }

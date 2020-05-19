@@ -2,12 +2,12 @@
 
 #include "Theme.hpp"
 
-namespace AvoGUI::ThemeValues
+namespace Avo::ThemeValues
 {
 	Id buttonSize;
 }
 
-class Button : public AvoGUI::View
+class Button : public Avo::View
 {
 public:
 	static constexpr float THICKNESS = 5.f;
@@ -15,18 +15,18 @@ public:
 	static constexpr float WIDTH = 1.f;
 	static constexpr float HEIGHT = 2.f;
 
-	AvoGUI::EventListeners<void()> clickListeners;
+	Avo::EventListeners<void()> clickListeners;
 
 private:
-	AvoGUI::Text m_text;
+	Avo::Text m_text;
 
-	float m_hoverValue{ 0.f };
-	float m_pressValue{ 0.f };
+	float m_hoverValue = 0.f;
+	float m_pressValue = 0.f;
 
 public:
-	void draw(AvoGUI::DrawingContext* p_context) override
+	void draw(Avo::DrawingContext* p_context) override
 	{
-		AvoGUI::Color primary = getThemeColor(ThemeColors::primary);
+		Avo::Color primary = getThemeColor(ThemeColors::primary);
 		p_context->setColor(primary * 0.7f);
 		p_context->fillRoundedRectangle({ 0.f, THICKNESS, getWidth(), getHeight() }, CORNER_RADIUS);
 
@@ -43,7 +43,7 @@ public:
 	}
 
 	Button(View* p_parent, std::string const& p_string) :
-		View(p_parent)
+		View{ p_parent }
 	{
 		initializeThemeValue(ThemeValues::buttonSize, 12.f);
 
@@ -63,14 +63,14 @@ public:
 		};
 
 		enableMouseEvents();
-		setCursor(AvoGUI::Cursor::Hand);
-		mouseDownListeners += [=](AvoGUI::MouseEvent const&) {
+		setCursor(Avo::Cursor::Hand);
+		mouseDownListeners += [=](Avo::MouseEvent const&) {
 			pressAnimation->play(false);
 		};
-		mouseUpListeners += [=](AvoGUI::MouseEvent const& p_event) {
+		mouseUpListeners += [=](Avo::MouseEvent const& p_event) {
 			pressAnimation->play(true);
 
-			if (getSize().getIsContaining(p_event.x, p_event.y) && p_event.mouseButton == AvoGUI::MouseButton::Left)
+			if (getSize().getIsContaining(p_event.x, p_event.y) && p_event.mouseButton == Avo::MouseButton::Left)
 			{
 				clickListeners();
 			}
@@ -82,10 +82,10 @@ public:
 			invalidate();
 		};
 
-		mouseEnterListeners += [=](AvoGUI::MouseEvent const&) {
+		mouseEnterListeners += [=](Avo::MouseEvent const&) {
 			hoverAnimation->play(false);
 		};
-		mouseLeaveListeners += [=](AvoGUI::MouseEvent const&) {
+		mouseLeaveListeners += [=](Avo::MouseEvent const&) {
 			hoverAnimation->play(true);
 		};
 	}

@@ -18,19 +18,19 @@ public:
 	long double velocity{ 0.L };
 	long double inverseMass{ 0.L };
 	long double width{ 0.L };
-	AvoGUI::Color color;
+	Avo::Color color;
 
 	Block()
 	{
-		color.setHSBA(AvoGUI::random(), 0.95f, 0.8f);
+		color.setHSBA(Avo::random(), 0.95f, 0.8f);
 	}
 	Block(long double p_position, long double p_velocity, long double p_inverseMass, long double p_width) :
 		position(p_position), velocity(p_velocity), inverseMass(p_inverseMass), width(p_width)
 	{
-		color.setHSBA(AvoGUI::random(), 0.95f, 0.8f);
+		color.setHSBA(Avo::random(), 0.95f, 0.8f);
 	}
 
-	void draw(AvoGUI::DrawingContext* p_context)
+	void draw(Avo::DrawingContext* p_context)
 	{
 		p_context->setColor(color);
 		p_context->fillRectangle((float)position, float(windowHeight - width), float(position + width), (float)windowHeight);
@@ -39,19 +39,19 @@ public:
 
 //------------------------------
 
-class PiDay : public AvoGUI::Gui
+class PiDay : public Avo::Gui
 {
 private:
 	Block m_firstBlock;
 	Block m_secondBlock;
 	
-	AvoGUI::Text m_text_numberOfCollisions;
+	Avo::Text m_text_numberOfCollisions;
 	uint32_t m_numberOfCollisions{ 0u };
 
-	AvoGUI::Text m_text_numberOfDigits;
-	AvoGUI::TextField* m_textField_numberOfDigits{ nullptr };
+	Avo::Text m_text_numberOfDigits;
+	Avo::TextField* m_textField_numberOfDigits{ nullptr };
 
-	AvoGUI::Button* m_restartButton{ nullptr };
+	Avo::Button* m_restartButton{ nullptr };
 
 	void startSimulation()
 	{
@@ -70,19 +70,19 @@ private:
 public:
 	PiDay()
 	{
-		create("Pi day!", (uint32_t)windowWidth, (uint32_t)windowHeight, AvoGUI::WindowStyleFlags::DefaultNoResize);
+		create("Pi day!", (uint32_t)windowWidth, (uint32_t)windowHeight, Avo::WindowStyleFlags::DefaultNoResize);
 
-		m_restartButton = new AvoGUI::Button(this, "RESTART", AvoGUI::Button::Emphasis::High);
+		m_restartButton = new Avo::Button(this, "RESTART", Avo::Button::Emphasis::High);
 		m_restartButton->setTopRight(getRight() - 10.f, 10.f);
 		m_restartButton->buttonClickListeners += [this](auto) { startSimulation(); };
 
-		setThemeValue(AvoGUI::ThemeValues::textFieldHeight, 2.f);
-		setThemeValue(AvoGUI::ThemeValues::textFieldFontSize, 16.f);
-		m_textField_numberOfDigits = new AvoGUI::TextField(this, AvoGUI::TextField::Type::Outlined);
-		m_textField_numberOfDigits->setTextAlign(AvoGUI::TextAlign::Center);
+		setThemeValue(Avo::ThemeValues::textFieldHeight, 2.f);
+		setThemeValue(Avo::ThemeValues::textFieldFontSize, 16.f);
+		m_textField_numberOfDigits = new Avo::TextField(this, Avo::TextField::Type::Outlined);
+		m_textField_numberOfDigits->setTextAlign(Avo::TextAlign::Center);
 		m_textField_numberOfDigits->setWidth(40.f);
 		m_textField_numberOfDigits->setTopRight(m_restartButton->getLeft() - 20.f, 5.f);
-		m_textField_numberOfDigits->getEditableText()->editableTextChangeListeners += [this](AvoGUI::EditableText* p_editableText, std::string& p_string, int32_t& p_caretIndex) -> bool {
+		m_textField_numberOfDigits->getEditableText()->editableTextChangeListeners += [this](Avo::EditableText* p_editableText, std::string& p_string, int32_t& p_caretIndex) -> bool {
 			if (std::any_of(p_string.begin(), p_string.end(), [](char character) { return character < 48 || character > 57; }))
 				return false;
 
@@ -91,7 +91,7 @@ public:
 				p_caretIndex = p_caretIndex != 0;
 				if (p_string.size() > 1)
 				{
-					p_string[0] = AvoGUI::max((char)49, p_string.back());
+					p_string[0] = Avo::max((char)49, p_string.back());
 					p_string.resize(1);
 				}
 				m_secondBlock.inverseMass = pow(100.0L, -(long double)(p_string[0] - 48) + 1.0L);
@@ -104,7 +104,7 @@ public:
 		m_text_numberOfDigits = getDrawingContext()->createText("PI digits:", 18.f);
 		m_text_numberOfDigits.setRight(m_textField_numberOfDigits->getLeft() - 7.f);
 		m_text_numberOfDigits.setCenterY(m_textField_numberOfDigits->getCenterY() + 2.f);
-		m_text_numberOfDigits.setFontWeight(AvoGUI::FontWeight::Regular);
+		m_text_numberOfDigits.setFontWeight(Avo::FontWeight::Regular);
 
 		enableMouseEvents();
 		createText();
@@ -115,7 +115,7 @@ public:
 
 	//------------------------------
 
-	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
+	void handleMouseDown(Avo::MouseEvent const& p_event) override
 	{
 		setKeyboardFocus(0);
 	}
@@ -165,11 +165,11 @@ public:
 		}
 	}
 
-	void draw(AvoGUI::DrawingContext* p_context) override
+	void draw(Avo::DrawingContext* p_context) override
 	{
 		m_firstBlock.draw(p_context);
 		m_secondBlock.draw(p_context);
-		p_context->setColor(AvoGUI::Color(17));
+		p_context->setColor(Avo::Color(17));
 		p_context->drawText(m_text_numberOfCollisions);
 		p_context->drawText(m_text_numberOfDigits);
 	}

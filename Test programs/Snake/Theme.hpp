@@ -2,7 +2,7 @@
 
 #include "../../AvoGUI.hpp"
 
-namespace ThemeColors = AvoGUI::ThemeColors;
-namespace ThemeValues = AvoGUI::ThemeValues;
-namespace ThemeEasings = AvoGUI::ThemeEasings;
-using AvoGUI::Id;
+namespace ThemeColors = Avo::ThemeColors;
+namespace ThemeValues = Avo::ThemeValues;
+namespace ThemeEasings = Avo::ThemeEasings;
+using Avo::Id;

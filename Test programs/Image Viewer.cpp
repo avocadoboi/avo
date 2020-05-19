@@ -8,25 +8,25 @@ float const ANIMATION_SPEED = 0.2f;
 
 //------------------------------
 
-class ImageViewer : public AvoGUI::Gui
+class ImageViewer : public Avo::Gui
 {
 private:
-	AvoGUI::Image m_image;
+	Avo::Image m_image;
 	std::string m_filePath;
 
-	AvoGUI::Rectangle<float> m_targetImageBounds;
+	Avo::Rectangle<float> m_targetImageBounds;
 
 public:
 	ImageViewer(char const* p_filePath) :
 		m_filePath(p_filePath)
 	{
-		create("Image viewer", 600, 500, AvoGUI::WindowStyleFlags::Default);
+		create("Image viewer", 600, 500, Avo::WindowStyleFlags::Default);
 
 		getWindow()->setMinSize(250, 200);
 		enableMouseEvents();
 		setKeyboardFocus(this);
 
-		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(0.3f));
+		setThemeColor(Avo::ThemeColors::background, Avo::Color(0.3f));
 
 		m_image = getDrawingContext()->createImage(m_filePath);
 		m_image.setCenter(getCenter());
@@ -47,17 +47,17 @@ public:
 
 	//------------------------------
 
-	void handleKeyboardKeyDown(AvoGUI::KeyboardEvent const& p_event) override
+	void handleKeyboardKeyDown(Avo::KeyboardEvent const& p_event) override
 	{
 		if (p_event.isRepeated)
 		{
 			return;
 		}
-		if (p_event.key == AvoGUI::KeyboardKey::Escape)
+		if (p_event.key == Avo::KeyboardKey::Escape)
 		{
 			getWindow()->setIsFullscreen(false);
 		}
-		else if (p_event.key == AvoGUI::KeyboardKey::F4)
+		else if (p_event.key == Avo::KeyboardKey::F4)
 		{
 			getWindow()->switchFullscreen();
 		}
@@ -65,7 +65,7 @@ public:
 
 	//------------------------------
 
-	void handleMouseScroll(AvoGUI::MouseEvent const& p_event) override
+	void handleMouseScroll(Avo::MouseEvent const& p_event) override
 	{
 		float factor = 1.f;
 		if (p_event.scrollDelta > 0.f)
@@ -87,9 +87,9 @@ public:
 		}
 		queueAnimationUpdate();
 	}
-	void handleMouseMove(AvoGUI::MouseEvent const& p_event) override
+	void handleMouseMove(Avo::MouseEvent const& p_event) override
 	{
-		if (getWindow()->getIsMouseButtonDown(AvoGUI::MouseButton::Left))
+		if (getWindow()->getIsMouseButtonDown(Avo::MouseButton::Left))
 		{
 			m_targetImageBounds.move(p_event.movementX, p_event.movementY);
 			queueAnimationUpdate();
@@ -117,17 +117,17 @@ public:
 
 	//------------------------------
 
-	void draw(AvoGUI::DrawingContext* p_context) override
+	void draw(Avo::DrawingContext* p_context) override
 	{
 		uint32_t width = ceil(getWidth() / BACKGROUND_TILE_WIDTH);
 		uint32_t height = ceil(getHeight() / BACKGROUND_TILE_WIDTH);
-		AvoGUI::Color tileColor(0.7f);
+		Avo::Color tileColor(0.7f);
 		for (uint32_t a = 0; a < width; a++)
 		{
 			for (uint32_t b = a & 1; b < height; b += 2)
 			{
 				p_context->setColor(tileColor);
-				p_context->fillRectangle(AvoGUI::Point<float>(a*BACKGROUND_TILE_WIDTH, b*BACKGROUND_TILE_WIDTH), AvoGUI::Point<float>(BACKGROUND_TILE_WIDTH, BACKGROUND_TILE_WIDTH));
+				p_context->fillRectangle(Avo::Point<float>(a*BACKGROUND_TILE_WIDTH, b*BACKGROUND_TILE_WIDTH), Avo::Point<float>(BACKGROUND_TILE_WIDTH, BACKGROUND_TILE_WIDTH));
 			}
 		}
 		p_context->drawImage(m_image);
@@ -144,14 +144,14 @@ int main(int p_numberOfArguments, char** p_arguments)
 	}
 	else
 	{
-		auto messageBox = new AvoGUI::Gui();
-		messageBox->create("No image!", 400, 0, AvoGUI::WindowStyleFlags::DefaultNoResize);
+		auto messageBox = new Avo::Gui();
+		messageBox->create("No image!", 400, 0, Avo::WindowStyleFlags::DefaultNoResize);
 
 		messageBox->enableMouseEvents();
 
-		auto messageText = new AvoGUI::TextView(messageBox, 16.f, u8"No image was given the image viewer. Please open an image using the viewer as the opener.");
-		messageText->getText().setWordWrapping(AvoGUI::WordWrapping::WholeWord);
-		messageText->getText().setFontWeight(AvoGUI::FontWeight::Regular);
+		auto messageText = new Avo::TextView(messageBox, 16.f, u8"No image was given the image viewer. Please open an image using the viewer as the opener.");
+		messageText->getText().setWordWrapping(Avo::WordWrapping::WholeWord);
+		messageText->getText().setFontWeight(Avo::FontWeight::Regular);
 		messageText->getText().setCharacterSpacing(0.3f);
 		messageText->getText().setLineHeight(1.1f);
 
@@ -160,7 +160,7 @@ int main(int p_numberOfArguments, char** p_arguments)
 		messageText->setCenterX(messageBox->getWidth()/2);
 		messageText->setTop(20.f);
 		
-		auto okButton = new AvoGUI::Button(messageBox, u8"OK");
+		auto okButton = new Avo::Button(messageBox, u8"OK");
 		okButton->setCenterX(messageText->getCenterX());
 		okButton->setTop(messageText->getBottom() + 20.f, true);
 		okButton->buttonClickListeners += [=](auto) { messageBox->getWindow()->close(); };

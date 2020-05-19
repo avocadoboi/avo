@@ -1,11 +1,11 @@
 ﻿#include "../AvoGUI.hpp"
 
-class Card : public AvoGUI::View
+class Card : public Avo::View
 {
 private:
-	AvoGUI::Text m_text;
-	AvoGUI::LinearGradient m_gradient;
-	AvoGUI::RadialGradient m_radialGradient;
+	Avo::Text m_text;
+	Avo::LinearGradient m_gradient;
+	Avo::RadialGradient m_radialGradient;
 
 public:
 	Card(View* p_parent) :
@@ -15,12 +15,12 @@ public:
 		setElevation(4.f);
 
 		m_text = getDrawingContext()->createText(u8"بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا بعضهم بعضًا ", 24.f);
-		m_text.setFontWeight(AvoGUI::FontWeight::Light);
-		m_text.setWordWrapping(AvoGUI::WordWrapping::WholeWord);
-		m_text.setReadingDirection(AvoGUI::ReadingDirection::RightToLeft);
+		m_text.setFontWeight(Avo::FontWeight::Light);
+		m_text.setWordWrapping(Avo::WordWrapping::WholeWord);
+		m_text.setReadingDirection(Avo::ReadingDirection::RightToLeft);
 
 		m_gradient = getDrawingContext()->createLinearGradient({ 
-			{ AvoGUI::Color(255, 0, 0), 0.f }, { AvoGUI::Color(0, 0, 255), 1.f } 
+			{ Avo::Color(255, 0, 0), 0.f }, { Avo::Color(0, 0, 255), 1.f } 
 		});
 		m_radialGradient = getDrawingContext()->createRadialGradient(
 			{
@@ -42,7 +42,7 @@ public:
 		m_gradient.setEndPosition(getSize());
 	}
 
-	void draw(AvoGUI::DrawingContext* p_context)
+	void draw(Avo::DrawingContext* p_context)
 	{
 		p_context->setGradient(m_gradient);
 		p_context->fillRectangle(getSize());
@@ -50,18 +50,18 @@ public:
 		p_context->setGradient(m_radialGradient);
 		p_context->fillRectangle(getSize());
 
-		p_context->setColor(AvoGUI::Color(1.f));
+		p_context->setColor(Avo::Color(1.f));
 		p_context->drawText(m_text);
 	}
 };
 
 int main()
 {
-	auto gui = new AvoGUI::Gui();
+	auto gui = new Avo::Gui();
 
 	gui->create("Graphics test", 800, 700);
 
-	gui->setThemeColor(AvoGUI::ThemeColors::shadow, AvoGUI::Color(0.f, 0.5f));
+	gui->setThemeColor(Avo::ThemeColors::shadow, Avo::Color(0.f, 0.5f));
 
 	auto card = new Card(gui);
 	card->setSize(400, 300);

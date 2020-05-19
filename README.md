@@ -10,12 +10,12 @@ All you need to do is add "AvoGUI.hpp", "AvoGUI.cpp" and "Font data.hpp" to your
 
 ### Creating your GUI class
 
-It is a good idea to create a class that inherits AvoGUI::Gui. The GUI is made up of a view tree structure where every view has a parent, some have one or more children and some have one or more siblings. The GUI is the only view that doesn't have a parent view.
+It is a good idea to create a class that inherits Avo::Gui. The GUI is made up of a view tree structure where every view has a parent, some have one or more children and some have one or more siblings. The GUI is the only view that doesn't have a parent view.
 
-This is how your GUI can be implemented. Most methods that can be overridden by your GUI (assuming it only inherits AvoGUI::Gui) are shown here.
+This is how your GUI can be implemented. Most methods that can be overridden by your GUI (assuming it only inherits Avo::Gui) are shown here.
 
 ```cpp
-class MyApplication : public AvoGUI::Gui
+class MyApplication : public Avo::Gui
 {
 public:
   MyApplication()
@@ -38,14 +38,14 @@ public:
   //------------------------------
   // Event handlers!
 
-  void handleMouseDown(AvoGUI::MouseEvent const&) override
+  void handleMouseDown(Avo::MouseEvent const&) override
   {
     /*
       If you want to react to mouse down events from your GUI, you can do 
       it here. You need to call View::enableMouseEvents for this handler 
       to be called, since mouse events are disabled by default. The mouse 
       coordinates in the event are relative to the top-left corner of 
-      the GUI. This method is inherited from AvoGUI::View.
+      the GUI. This method is inherited from Avo::View.
     */
   }
 
@@ -60,7 +60,7 @@ public:
     /*
       This is called when the GUI has changed size due to window resizing.
       This method has no default implementation. Note that this method 
-      belongs to the View class (which AvoGUI::GUI inherits) and can be 
+      belongs to the View class (which Avo::GUI inherits) and can be 
       implemented on any view. On the GUI, this will always be called 
       after creation.
     */
@@ -68,15 +68,15 @@ public:
 
   //------------------------------
 
-  void draw(AvoGUI::DrawingContext*) override
+  void draw(Avo::DrawingContext*) override
   {
     /*
       Here you can draw directly in your GUI. It will appear behind child
       views. There is no default implementation.
     */
   }
-  void draw(AvoGUI::DrawingContext*, 
-            AvoGUI::Rectangle<float> const&) override
+  void draw(Avo::DrawingContext*, 
+            Avo::Rectangle<float> const&) override
   {
     /*
       By default, this method just calls the other draw method. You can 
@@ -86,19 +86,19 @@ public:
     */
   }
 
-  void drawOverlay(AvoGUI::DrawContext*) override
+  void drawOverlay(Avo::DrawContext*) override
   {
     /*
       Here you can draw on top of child views. There is no default 
-      implementation. Inherited from AvoGUI::View.
+      implementation. Inherited from Avo::View.
     */
   }
-  void drawOverlay(AvoGUI::DrawContext*, 
-                   AvoGUI::Rectangle<float> const&) override
+  void drawOverlay(Avo::DrawContext*, 
+                   Avo::Rectangle<float> const&) override
   {
     /*
       By default, this method just calls the other drawOverlay method. 
-      Inherited from AvoGUI::View.
+      Inherited from Avo::View.
     */
   }
 }
@@ -110,13 +110,13 @@ Don't forget that you might want to create a Gui object too, quite possibly in y
 
 A view is a rectangle that can draw itself and react to different events. Views are used to create components and build up the GUI. They are also used as containers for other views, by setting them as the parent of the views that should be contained within it, using setParent() or the View constructor. Child views can only ever be drawn within their parent.
 
-This is how a custom View class can be implemented. Most methods that can be overridden by your view (assuming it only inherits AvoGUI::View) are shown here. 
+This is how a custom View class can be implemented. Most methods that can be overridden by your view (assuming it only inherits Avo::View) are shown here. 
 
 ```cpp
-class MyView : public AvoGUI::View
+class MyView : public Avo::View
 {
 public:
-  MyView(AvoGUI::View* p_parent, AvoGUI::Rectangle<float> const& p_bounds) : 
+  MyView(Avo::View* p_parent, Avo::Rectangle<float> const& p_bounds) : 
     /* 
       If you don't specify the bounds, it will be initialized with a 
       size of (0, 0) and position of (0, 0). You can then change the 
@@ -160,7 +160,7 @@ public:
 
   //------------------------------
 
-  void draw(AvoGUI::DrawingContext*) override
+  void draw(Avo::DrawingContext*) override
   {
     /*
       Draw your view here! If this view has children, do not draw them 
@@ -174,26 +174,26 @@ public:
       rectangle will be updated.
     */
   }
-  void draw(AvoGUI::DrawingContext*, 
-            AvoGUI::Rectangle<float> const&) override
+  void draw(Avo::DrawingContext*, 
+            Avo::Rectangle<float> const&) override
   {
     /*
       This can be implemented instead of the other draw method if you want 
       to know the rectangle that is going to be drawn. The default 
-      implementation only calls View::draw(AvoGUI::DrawingContext*).
+      implementation only calls View::draw(Avo::DrawingContext*).
     */
   }
 
-  void drawOverlay(AvoGUI::DrawingContext*) override
+  void drawOverlay(Avo::DrawingContext*) override
   {
     // Here, you can draw things on top of child views. 
   }
-  void drawOverlay(AvoGUI::DrawingContext*, 
-                   AvoGUI::Rectangle<float> const&) override
+  void drawOverlay(Avo::DrawingContext*, 
+                   Avo::Rectangle<float> const&) override
   {
     /*
       Default implementation only calls 
-      drawOverlay(AvoGUI::DrawingContext*).
+      drawOverlay(Avo::DrawingContext*).
     */
   }
 }
@@ -212,7 +212,7 @@ child->sizeChangeListeners += [this](View*, float, float) { /* Do anything! */ }
 Example with a member function:
 
 ```cpp
-child->sizeChangeListeners += AvoGUI::bind(&MyView::doSomething, this);
+child->sizeChangeListeners += Avo::bind(&MyView::doSomething, this);
 ```
 
 To receive keyboard events:

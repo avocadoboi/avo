@@ -33,8 +33,8 @@ void MandelbrotRenderer::render()
 					iteration++;
 				}
 
-				AvoGUI::Color color;
-				color.setHSB(iteration / (float)m_viewer->getMaxNumberOfIterations() * 1.5f, 1.f, iteration == m_viewer->getMaxNumberOfIterations() ? 0.f : 1.f);//(1.f - AvoGUI::square(1.f - 2.f * iteration / (double)MAX_NUMBER_OF_ITERATIONS)));
+				Avo::Color color;
+				color.setHSB(iteration / (float)m_viewer->getMaxNumberOfIterations() * 1.5f, 1.f, iteration == m_viewer->getMaxNumberOfIterations() ? 0.f : 1.f);//(1.f - Avo::square(1.f - 2.f * iteration / (double)MAX_NUMBER_OF_ITERATIONS)));
 
 				// Red
 				pixel[2] = color.red * 255;
@@ -63,7 +63,7 @@ void MandelbrotRenderer::render()
 
 		if (!m_needsRendering)
 		{
-			std::unique_lock<std::mutex> lock(m_needsRenderingMutex);
+			std::unique_lock<std::mutex> lock{ m_needsRenderingMutex };
 			m_needsRenderingConditionVariable.wait(lock, [this]() { return m_needsRendering; });
 		}
 	}
@@ -74,5 +74,5 @@ void MandelbrotRenderer::render()
 
 int main()
 {
-	new MandelbrotViewer();
+	new MandelbrotViewer;
 }

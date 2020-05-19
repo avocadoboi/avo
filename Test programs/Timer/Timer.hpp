@@ -8,19 +8,19 @@
 
 //------------------------------
 
-class TimerApp : public AvoGUI::Gui
+class TimerApp : public Avo::Gui
 {
 private:
 	MainScreen* m_mainScreen{ nullptr };
 	TimeoutScreen* m_timeoutScreen{ nullptr };
-	AvoGUI::Tooltip* m_tooltip{ nullptr };
+	Avo::Tooltip* m_tooltip{ nullptr };
 
 public:
 	TimerApp()
 	{
-		create("The best timer that exists", 2.f*(TIMER_SPIRAL_RADIUS + TIMER_SPIRAL_PADDING), 2.f*(TIMER_SPIRAL_RADIUS + TIMER_SPIRAL_PADDING), AvoGUI::WindowStyleFlags::DefaultNoResize);
+		create("The best timer that exists", 2.f*(TIMER_SPIRAL_RADIUS + TIMER_SPIRAL_PADDING), 2.f*(TIMER_SPIRAL_RADIUS + TIMER_SPIRAL_PADDING), Avo::WindowStyleFlags::DefaultNoResize);
 		
-		m_tooltip = new AvoGUI::Tooltip(this);
+		m_tooltip = new Avo::Tooltip(this);
 
 		m_mainScreen = new MainScreen(this);
 		m_timeoutScreen = new TimeoutScreen(this);
@@ -31,7 +31,7 @@ public:
 
 	//------------------------------
 
-	AvoGUI::Tooltip* getTooltip()
+	Avo::Tooltip* getTooltip()
 	{
 		return m_tooltip;
 	}

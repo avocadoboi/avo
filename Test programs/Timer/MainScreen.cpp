@@ -53,43 +53,43 @@ MainScreen::MainScreen(View* p_app) :
 
 	//------------------------------
 
-	setThemeColor(AvoGUI::ThemeColors::primaryOnBackground, AvoGUI::Color(1.f, 0.4f, 0.7f, 0.9f));
-	setThemeColor(AvoGUI::ThemeColors::primary, AvoGUI::Color(1.f, 0.3f, 0.7f, 0.9f));
+	setThemeColor(Avo::ThemeColors::primaryOnBackground, Avo::Color(1.f, 0.4f, 0.7f, 0.9f));
+	setThemeColor(Avo::ThemeColors::primary, Avo::Color(1.f, 0.3f, 0.7f, 0.9f));
 
-	setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(0.05f));
-	setThemeColor(AvoGUI::ThemeColors::onBackground, AvoGUI::Color(0.97f));
+	setThemeColor(Avo::ThemeColors::background, Avo::Color(0.05f));
+	setThemeColor(Avo::ThemeColors::onBackground, Avo::Color(0.97f));
 
-	setThemeColor(AvoGUI::ThemeColors::tooltipBackground, AvoGUI::Color(0.1f));
-	setThemeValue(AvoGUI::ThemeValues::tooltipFontSize, 10.f);
+	setThemeColor(Avo::ThemeColors::tooltipBackground, Avo::Color(0.1f));
+	setThemeValue(Avo::ThemeValues::tooltipFontSize, 10.f);
 
-	setThemeValue(AvoGUI::ThemeValues::textFieldHeight, 2.4f);
+	setThemeValue(Avo::ThemeValues::textFieldHeight, 2.4f);
 
-	setThemeValue(AvoGUI::ThemeValues::buttonFontSize, 11.f);
-	setThemeValue(AvoGUI::ThemeValues::buttonCharacterSpacing, 0.f);
+	setThemeValue(Avo::ThemeValues::buttonFontSize, 11.f);
+	setThemeValue(Avo::ThemeValues::buttonCharacterSpacing, 0.f);
 
 	//------------------------------
 
-	auto textFieldContainer = new AvoGUI::View(this);
+	auto textFieldContainer = new Avo::View(this);
 	textFieldContainer->enableMouseEvents();
 
-	m_textField_hours = new AvoGUI::TextField(textFieldContainer, AvoGUI::TextField::Type::Outlined, "", TIMER_TEXT_FIELD_WIDTH);
+	m_textField_hours = new Avo::TextField(textFieldContainer, Avo::TextField::Type::Outlined, "", TIMER_TEXT_FIELD_WIDTH);
 	m_textField_hours->setSuffixString(" H");
-	m_textField_hours->setTextAlign(AvoGUI::TextAlign::Right);
+	m_textField_hours->setTextAlign(Avo::TextAlign::Right);
 	m_textField_hours->setString("1");
 
-	m_textField_minutes = new AvoGUI::TextField(textFieldContainer, AvoGUI::TextField::Type::Outlined, "", TIMER_TEXT_FIELD_WIDTH + 1.5f);
+	m_textField_minutes = new Avo::TextField(textFieldContainer, Avo::TextField::Type::Outlined, "", TIMER_TEXT_FIELD_WIDTH + 1.5f);
 	m_textField_minutes->setLeft(m_textField_hours->getRight() + TIMER_TEXT_FIELD_PADDING);
 	m_textField_minutes->setSuffixString(" M");
-	m_textField_minutes->setTextAlign(AvoGUI::TextAlign::Right);
+	m_textField_minutes->setTextAlign(Avo::TextAlign::Right);
 	m_textField_minutes->setString("");
 
-	m_textField_seconds = new AvoGUI::TextField(textFieldContainer, AvoGUI::TextField::Type::Outlined, "", TIMER_TEXT_FIELD_WIDTH - 1.7f);
+	m_textField_seconds = new Avo::TextField(textFieldContainer, Avo::TextField::Type::Outlined, "", TIMER_TEXT_FIELD_WIDTH - 1.7f);
 	m_textField_seconds->setLeft(m_textField_minutes->getRight() + TIMER_TEXT_FIELD_PADDING);
 	m_textField_seconds->setSuffixString(" S");
-	m_textField_seconds->setTextAlign(AvoGUI::TextAlign::Right);
+	m_textField_seconds->setTextAlign(Avo::TextAlign::Right);
 	m_textField_seconds->setString("");
 
-	auto handleEditableTextChange = [this](AvoGUI::EditableText*, std::string& p_newString, int32& p_newCaretIndex) -> bool {
+	auto handleEditableTextChange = [this](Avo::EditableText*, std::string& p_newString, int32& p_newCaretIndex) -> bool {
 		for (uint32 a = 0; a < p_newString.size(); a++)
 		{
 			if (p_newString[a] < 48 || p_newString[a] > 57)
@@ -120,8 +120,8 @@ MainScreen::MainScreen(View* p_app) :
 
 	//------------------------------
 
-	getGui()->globalKeyboardKeyDownListeners += [this](AvoGUI::KeyboardEvent const& p_event) {
-		if (p_event.key == AvoGUI::KeyboardKey::Tab)
+	getGui()->globalKeyboardKeyDownListeners += [this](Avo::KeyboardEvent const& p_event) {
+		if (p_event.key == Avo::KeyboardKey::Tab)
 		{
 			if (m_textField_hours->getHasKeyboardFocus())
 			{
@@ -135,7 +135,7 @@ MainScreen::MainScreen(View* p_app) :
 			{
 				getGui()->setKeyboardFocus(m_textField_hours);
 			}
-			((AvoGUI::EditableText*)getGui()->getKeyboardFocus())->selectAll();
+			((Avo::EditableText*)getGui()->getKeyboardFocus())->selectAll();
 		}
 	};
 
@@ -143,12 +143,12 @@ MainScreen::MainScreen(View* p_app) :
 	// Generate spiral!
 
 	m_numberOfSpiralVerticesInTotal = TIMER_SPIRAL_RESOLUTION * TIMER_MAX_NUMBER_OF_HOURS;
-	m_spiralVertices = new AvoGUI::Point<float>[m_numberOfSpiralVerticesInTotal];
+	m_spiralVertices = new Avo::Point<float>[m_numberOfSpiralVerticesInTotal];
 	for (uint32 a = 0; a < m_numberOfSpiralVerticesInTotal; a++)
 	{
-		float angle = ((float)a / TIMER_SPIRAL_RESOLUTION - 0.25f) * AvoGUI::TAU;
+		float angle = ((float)a / TIMER_SPIRAL_RESOLUTION - 0.25f) * Avo::TAU;
 		float magnitude = TIMER_SPIRAL_RADIUS * (1.f - TIMER_SPIRAL_STEEPNESS * (float)a / m_numberOfSpiralVerticesInTotal);
-		m_spiralVertices[a] = AvoGUI::Point<float>(getWidth() * 0.5f + std::cos(angle) * magnitude, getHeight() * 0.5f + std::sin(angle) * magnitude);
+		m_spiralVertices[a] = Avo::Point<float>(getWidth() * 0.5f + std::cos(angle) * magnitude, getHeight() * 0.5f + std::sin(angle) * magnitude);
 	}
 	m_startAngle = 1.f; // One hour, 360 degrees, TAU radians
 	m_currentAngle = m_startAngle;
@@ -205,17 +205,17 @@ void MainScreen::updateAnimations()
 		}
 		else if (m_timePlayer->isPlaying)
 		{
-			m_currentAngle = AvoGUI::max(0., m_startAngle - (std::chrono::steady_clock::now() - m_timePlayer->getTimeStart()).count() / 3600'000'000'000.);
+			m_currentAngle = Avo::max(0., m_startAngle - (std::chrono::steady_clock::now() - m_timePlayer->getTimeStart()).count() / 3600'000'000'000.);
 		}
 
-		if (getGui()->getWindow()->getState() != AvoGUI::WindowState::Minimized && std::ceil(angleBefore * 3600.) != std::ceil(m_currentAngle * 3600.))
+		if (getGui()->getWindow()->getState() != Avo::WindowState::Minimized && std::ceil(angleBefore * 3600.) != std::ceil(m_currentAngle * 3600.))
 		{
 			m_timePlayer->setTimeLeft(m_currentAngle);
 			invalidate();
 		}
 		if (angleBefore > 0.f && angleBefore <= 1.f / 3600.f && !m_currentAngle)
 		{
-			if (getGui()->getWindow()->getState() == AvoGUI::WindowState::Minimized)
+			if (getGui()->getWindow()->getState() == Avo::WindowState::Minimized)
 			{
 				m_timePlayer->setTimeLeft(m_currentAngle);
 			}

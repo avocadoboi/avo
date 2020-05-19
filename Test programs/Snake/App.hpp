@@ -7,7 +7,7 @@
 
 //------------------------------
 
-class App : public AvoGUI::Gui
+class App : public Avo::Gui
 {
 public:
 	static constexpr float WIDTH = 600.f;
@@ -20,7 +20,7 @@ public:
 	}
 
 private:
-	View* m_screen{ nullptr };
+	View* m_screen = nullptr;
 public:
 	void setScreen(View* p_screen)
 	{
@@ -33,11 +33,11 @@ public:
 
 	App()
 	{
-		create(Strings::title, WIDTH, HEIGHT, AvoGUI::WindowStyleFlags::DefaultNoResize);
+		create(Strings::title, WIDTH, HEIGHT, Avo::WindowStyleFlags::DefaultNoResize);
 
 		setupTheme();
 
-		setScreen(new StartScreen(this));
+		setScreen(new StartScreen{ this });
 
 		run();
 	}

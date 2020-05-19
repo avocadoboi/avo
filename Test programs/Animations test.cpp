@@ -1,10 +1,10 @@
 #include "..//AvoGUI.hpp"
 
-class AnimationsTest : public AvoGUI::Gui
+class AnimationsTest : public Avo::Gui
 {
 private:
-	AvoGUI::Point<float> m_startPosition;
-	AvoGUI::Point<float> m_targetPosition;
+	Avo::Point<float> m_startPosition;
+	Avo::Point<float> m_targetPosition;
 	float m_animationTime;
 
 public:
@@ -19,10 +19,10 @@ public:
 	{
 		enableMouseEvents();
 
-		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(0.9f, 0.f, 0.4f));
+		setThemeColor(Avo::ThemeColors::background, Avo::Color(0.9f, 0.f, 0.4f));
 	}
 
-	void handleMouseDown(AvoGUI::MouseEvent const& p_event) override
+	void handleMouseDown(Avo::MouseEvent const& p_event) override
 	{
 		m_startPosition = m_targetPosition;
 		m_targetPosition.set(p_event.x, p_event.y);
@@ -36,10 +36,10 @@ public:
 		invalidate();
 		queueAnimationUpdate();
 	}
-	void draw(AvoGUI::DrawingContext* p_context) override
+	void draw(Avo::DrawingContext* p_context) override
 	{
-		p_context->setColor(AvoGUI::Color(1.f));
-		p_context->fillCircle(AvoGUI::interpolate(m_startPosition, m_targetPosition, AvoGUI::Easing(0.2, 0.9, 0.2, 1).easeValue(m_animationTime)), 25.f);
+		p_context->setColor(Avo::Color(1.f));
+		p_context->fillCircle(Avo::interpolate(m_startPosition, m_targetPosition, Avo::Easing(0.2, 0.9, 0.2, 1).easeValue(m_animationTime)), 25.f);
 	}
 };
 

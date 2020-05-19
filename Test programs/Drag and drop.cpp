@@ -4,39 +4,39 @@
 
 //------------------------------
 
-class DragAndDrop : public AvoGUI::Gui
+class DragAndDrop : public Avo::Gui
 {
 private:
-	std::vector<AvoGUI::Text> m_droppedTexts;
-	std::vector<AvoGUI::Image> m_droppedImages;
+	std::vector<Avo::Text> m_droppedTexts;
+	std::vector<Avo::Image> m_droppedImages;
 
 	//------------------------------
 
 	void addDroppedText(std::string const& p_string, float p_x, float p_y)
 	{
 		auto text = getDrawingContext()->createText(p_string, 25.f);
-		text.setFontWeight(AvoGUI::FontWeight::Light);
+		text.setFontWeight(Avo::FontWeight::Light);
 		if (text.getWidth() > 550.f)
 		{
 			text.setWidth(550.f);
-			text.setWordWrapping(AvoGUI::WordWrapping::WholeWord);
+			text.setWordWrapping(Avo::WordWrapping::WholeWord);
 		}
 		text.fitHeightToText();
 		text.setCenter(p_x, p_y);
-		text.move(AvoGUI::Point<float>().setPolar(AvoGUI::random() * AvoGUI::TAU, 20.f * AvoGUI::random()));
+		text.move(Avo::Point<float>().setPolar(Avo::random() * Avo::TAU, 20.f * Avo::random()));
 		m_droppedTexts.push_back(text);
 	}
 
 public:
-	void handleMouseMove(AvoGUI::MouseEvent const& p_event) override
+	void handleMouseMove(Avo::MouseEvent const& p_event) override
 	{
-		if (getWindow()->getIsMouseButtonDown(AvoGUI::MouseButton::Left))
+		if (getWindow()->getIsMouseButtonDown(Avo::MouseButton::Left))
 		{
 			for (uint32 a = 0; a < m_droppedImages.size(); a++)
 			{
 				if (m_droppedImages[a].getInnerBounds().getIsContaining(p_event.x, p_event.y))
 				{
-					AvoGUI::Image image = m_droppedImages[a];
+					Avo::Image image = m_droppedImages[a];
 					m_droppedImages.erase(m_droppedImages.begin() + a);
 					invalidateRectangle(image.getBounds());
 					getWindow()->dragAndDropImage(image);
@@ -68,12 +68,12 @@ public:
 
 	//------------------------------
 
-	AvoGUI::DragDropOperation getDragDropOperation(AvoGUI::DragDropEvent const& p_event) override
+	Avo::DragDropOperation getDragDropOperation(Avo::DragDropEvent const& p_event) override
 	{
-		return AvoGUI::DragDropOperation::Copy;
+		return Avo::DragDropOperation::Copy;
 	}
 
-	void handleDragDropFinish(AvoGUI::DragDropEvent const& p_event) override
+	void handleDragDropFinish(Avo::DragDropEvent const& p_event) override
 	{
 		/*
 			Add names of dropped directories and files, if any items were dropped.
@@ -87,10 +87,10 @@ public:
 		/*
 			Add image if the first file is one - I don't think it's possible to drag more than one image.
 		*/
-		AvoGUI::Image image;
+		Avo::Image image;
 		if (image = p_event.data->getImage())
 		{
-			image.setBoundsSizing(AvoGUI::ImageBoundsSizing::Contain);
+			image.setBoundsSizing(Avo::ImageBoundsSizing::Contain);
 			image.setSize(350.f);
 			image.setCenter(p_event.x, p_event.y);
 			m_droppedImages.push_back(image);
@@ -108,9 +108,9 @@ public:
 		invalidate();
 	}
 
-	void drawOverlay(AvoGUI::DrawingContext* p_context) override
+	void drawOverlay(Avo::DrawingContext* p_context) override
 	{
-		p_context->setColor(getThemeColor(AvoGUI::ThemeColors::onBackground));
+		p_context->setColor(getThemeColor(Avo::ThemeColors::onBackground));
 		for (auto& text : m_droppedTexts)
 		{
 			p_context->drawText(text);
@@ -128,11 +128,11 @@ public:
 		enableDragDropEvents();
 		enableMouseEvents();
 
-		setThemeColor(AvoGUI::ThemeColors::background, AvoGUI::Color(0.1f, 0.f, 0.1f));
-		setThemeColor(AvoGUI::ThemeColors::onBackground, AvoGUI::Color(1.f));
+		setThemeColor(Avo::ThemeColors::background, Avo::Color(0.1f, 0.f, 0.1f));
+		setThemeColor(Avo::ThemeColors::onBackground, Avo::Color(1.f));
 
-		auto text_dropItems = new AvoGUI::TextView(this, 50.f, "Drop something here!");
-		text_dropItems->setColor(AvoGUI::Color(getThemeColor(AvoGUI::ThemeColors::onBackground), 0.4f));
+		auto text_dropItems = new Avo::TextView(this, 50.f, "Drop something here!");
+		text_dropItems->setColor(Avo::Color(getThemeColor(Avo::ThemeColors::onBackground), 0.4f));
 		sizeChangeListeners += [=](auto...) { text_dropItems->setCenter(getSize() * 0.5f); };
 
 		run();

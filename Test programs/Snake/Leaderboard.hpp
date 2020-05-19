@@ -2,7 +2,7 @@
 
 #include "../../AvoGUI.hpp"
 
-class Leaderboard : public AvoGUI::View
+class Leaderboard : public Avo::View
 {
 
 };
