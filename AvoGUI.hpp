@@ -1303,7 +1303,7 @@ namespace Avo
 
 	/*
 		A 2D point/vector where x is the horizontal component and y is the vertical component if you were to think of it graphically.
-		The coordinate system used throughout Avo is one where the positive y-direction is downwards and the positive x-direction is to the right.
+		The coordinate system used throughout AvoGUI is one where the positive y-direction is downwards and the positive x-direction is to the right.
 	*/
 	template<typename PointType = float>
 	class Point
@@ -2186,7 +2186,7 @@ namespace Avo
 	/*
 		A 2D axis-aligned rectangle. right > left and bottom > top.
 		Increasingly positive values for bottom and top will move the rectangle downwards and increasingly positive
-		values for left and right will move the rectangle to the right (when used in the Avo framework).
+		values for left and right will move the rectangle to the right (when used in the AvoGUI framework).
 	*/
 	template<typename RectangleType = float>
 	class Rectangle
@@ -7031,7 +7031,7 @@ namespace Avo
 		//------------------------------
 
 		/*
-			Creates an OS API native image from an Avo image.
+			Creates an OS API native image from an AvoGUI image.
 			On Windows, it returns an HBITMAP.
 		*/
 		virtual void* createNativeImageFromImage(Image const& p_image) = 0;
@@ -7402,7 +7402,7 @@ namespace Avo
 		virtual uint32 getNumberOfFiles() const = 0;
 
 		/*
-			Returns the additional data that has been assigned by an Avo application.
+			Returns the additional data that has been assigned by an AvoGUI application.
 		*/
 		virtual uint64 getAdditionalData() const = 0;
 
