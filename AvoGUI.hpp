@@ -677,7 +677,7 @@ namespace Avo
 	class EventListeners
 	{
 	private:
-		std::mutex m_mutex;
+		std::recursive_mutex m_mutex;
 		std::vector<std::function<FunctionalType>> m_listeners;
 
 	public:
@@ -738,7 +738,7 @@ namespace Avo
 		template<typename ... T>
 		void notifyAll(T&& ... p_eventArguments)
 		{
-			std::scoped_lock<std::mutex> lock{ m_mutex };
+			std::scoped_lock<std::recursive_mutex> lock{ m_mutex };
 			auto listenersCopy = m_listeners;
 			for (auto listener : listenersCopy)
 			{
