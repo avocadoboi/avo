@@ -681,6 +681,15 @@ namespace Avo
 		std::vector<std::function<FunctionalType>> m_listeners;
 
 	public:
+		auto begin() noexcept
+		{
+			return m_listeners.begin();
+		}
+		auto end() noexcept
+		{
+			return m_listeners.end();
+		}
+
 		void add(std::function<FunctionalType> const& p_listener)
 		{
 			std::scoped_lock lock{ m_mutex };
@@ -729,7 +738,7 @@ namespace Avo
 		template<typename ... T>
 		void notifyAll(T&& ... p_eventArguments)
 		{
-			std::scoped_lock lock{ m_mutex };
+			std::scoped_lock<std::mutex> lock{ m_mutex };
 			auto listenersCopy = m_listeners;
 			for (auto listener : listenersCopy)
 			{
@@ -8056,7 +8065,7 @@ namespace Avo
 		bool sendWindowCloseEvents(WindowEvent const& p_event)
 		{
 			bool willClose = true;
-			for (auto& listener : windowCloseListeners.listeners)
+			for (auto& listener : windowCloseListeners)
 			{
 				if (!listener(p_event))
 				{
@@ -13239,7 +13248,7 @@ namespace Avo
 
 			auto newString = p_string;
 
-			for (auto& listener : editableTextChangeListeners.listeners)
+			for (auto& listener : editableTextChangeListeners)
 			{
 				if (!listener(this, newString, p_newCaretCharacterIndex))
 				{
