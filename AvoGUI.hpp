@@ -676,12 +676,15 @@ namespace Avo
 	template<typename FunctionalType>
 	class EventListeners
 	{
-	public:
-		std::vector<std::function<FunctionalType>> listeners;
+	private:
+		std::mutex m_mutex;
+		std::vector<std::function<FunctionalType>> m_listeners;
 
+	public:
 		void add(std::function<FunctionalType> const& p_listener)
 		{
-			listeners.push_back(p_listener);
+			std::scoped_lock lock{ m_mutex };
+			m_listeners.push_back(p_listener);
 		}
 		EventListeners& operator+=(std::function<FunctionalType> const& p_listener)
 		{
@@ -691,8 +694,9 @@ namespace Avo
 
 		void remove(std::function<FunctionalType> const& p_listener)
 		{
+			std::scoped_lock lock{ m_mutex };
 			auto const& listenerType = p_listener.target_type();
-			for (auto& listener : listeners)
+			for (auto& listener : m_listeners)
 			{
 				if (listenerType == listener.target_type())
 				{
@@ -700,8 +704,8 @@ namespace Avo
 					// std::function<FunctionalType> and < shouldn't be parsed as the less-than operator
 					if (*(p_listener.template target<FunctionalType>()) == *(listener.template target<FunctionalType>()))
 					{
-						listener = listeners.back();
-						listeners.pop_back();
+						listener = m_listeners.back();
+						m_listeners.pop_back();
 						break;
 					}
 				}
@@ -713,13 +717,20 @@ namespace Avo
 			return *this;
 		}
 
+		void clear()
+		{
+			std::scoped_lock lock{ m_mutex };
+			m_listeners.clear();
+		}
+
 		/*
 			Calls all of the listeners with p_eventArguments as the arguments.
 		*/
 		template<typename ... T>
 		void notifyAll(T&& ... p_eventArguments)
 		{
-			auto listenersCopy = listeners;
+			std::scoped_lock lock{ m_mutex };
+			auto listenersCopy = m_listeners;
 			for (auto listener : listenersCopy)
 			{
 				listener(std::forward<T>(p_eventArguments)...);
@@ -3721,8 +3732,15 @@ namespace Avo
 		bool m_isInUpdateQueue = false;
 		void queueUpdate();
 
+		bool m_areUpdatesCancelled = false;
+
 		void update()
 		{
+			if (m_areUpdatesCancelled)
+			{
+				m_isInUpdateQueue = false;
+				return;
+			}
 			float value = m_easing.easeValue(std::chrono::duration<float, std::milli>{std::chrono::steady_clock::now() - m_startTime}.count() / m_milliseconds, m_easingPrecision);
 			if (value >= 1.f)
 			{
@@ -3733,6 +3751,7 @@ namespace Avo
 			{
 				value = 1.f - value;
 			}
+
 			updateListeners(value);
 
 			m_isInUpdateQueue = false;
@@ -3740,6 +3759,10 @@ namespace Avo
 			{
 				queueUpdate();
 			}
+		}
+		void cancelAllUpdates()
+		{
+			m_areUpdatesCancelled = true;
 		}
 
 	public:
@@ -3752,7 +3775,7 @@ namespace Avo
 		EventListeners<void(float)> updateListeners;
 
 	private:
-		bool m_isPaused{ false };
+		bool m_isPaused = false;
 		std::chrono::steady_clock::time_point m_startTime;
 		std::chrono::steady_clock::time_point m_pauseTime;
 	public:
@@ -3815,6 +3838,10 @@ namespace Avo
 			m_easing(p_easing),
 			m_milliseconds(p_milliseconds)
 		{
+		}
+		~Animation()
+		{
+
 		}
 	};
 

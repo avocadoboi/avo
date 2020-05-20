@@ -455,6 +455,7 @@ Avo::View::~View()
 	}
 	for (auto animation : m_animations)
 	{
+		animation->cancelAllUpdates();
 		animation->forget();
 	}
 }
