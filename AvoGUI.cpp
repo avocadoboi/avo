@@ -361,7 +361,7 @@ void Avo::View::sendBoundsChangeEvents(Avo::Rectangle<float> const& p_previousBo
 			updateClipGeometry();
 		}
 
-		if (getParent<View>())
+		if (this != getGui() && getParent<View>())
 		{
 			Avo::Point<float> const& mousePosition = getGui()->getWindow()->getMousePosition() - getParent<View>()->getAbsoluteTopLeft();
 			if (getIsContaining(mousePosition) != p_previousBounds.getIsContaining(mousePosition))
