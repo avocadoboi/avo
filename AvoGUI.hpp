@@ -232,6 +232,17 @@ namespace Avo
 	//------------------------------
 
 	/*
+		Prints p_arguments to the console and appends a new line afterwards.
+	*/
+	template<typename ... Argument>
+	void println(Argument&& ... p_arguments)
+	{
+		((std::cout << std::forward<Argument>(p_arguments)), ...) << '\n';
+	}
+
+	//------------------------------
+
+	/*
 		Converts a UTF-8 encoded char string to a UTF-16 encoded wchar_t string.
 		It is assumed that p_input is null-terminated.
 		p_output should be allocated with p_numberOfUnitsInOutput number of wchar_t units.
@@ -3630,16 +3641,20 @@ namespace Avo
 				f(x) = 3*t*(1-t)*(1-t)*x0 + 3*t*t*(1-t)*x1 + t*t*t
 
 				f'(x) = x0*(3 - 12*t + 9*t*t) + x1*(6*t - 9*t*t) + 3*t*t
+				      = x0*9*(t - 1)*(t - 1/3) + t*(x1*(6 - 9*t) + 3*t)
 			*/
+
+			constexpr float ONE_THIRD = 1.f / 3.f;
 
 			float error = 1;
 			while (std::abs(error) > p_precision)
 			{
-				error = p_value - t * ((1.f - t) * (3.f * (1.f - t) * p_x0 + 3.f * t * p_x1) + t * t);
-				t += error / (p_x0 * (3.f - 12.f * t + 9.f * t * t) + p_x1 * (6.f * t - 9.f * t * t) + 3.f * t * t);
+				error = p_value - t*((1.f - t)*(3.f*(1.f - t)*p_x0 + 3.f*t*p_x1) + t*t);
+				//t += error / (p_x0 * (3.f - 12.f * t + 9.f * t * t) + p_x1 * (6.f * t - 9.f * t * t) + 3.f * t * t);
+				t += error / (p_x0*9.f*(t - 1.f)*(t - ONE_THIRD) + t*(p_x1*(6.f - 9.f*t) + 3.f*t));
 			}
 
-			return t * ((1.f - t) * (3.f * (1.f - t) * p_y0 + 3.f * t * p_y1) + t * t);
+			return t * ((1.f - t)*(3.f*(1.f - t)*p_y0 + 3.f*t*p_y1) + t*t);
 		}
 		/*
 			Transforms a normalized value according to a cubic bezier curve.
@@ -3742,7 +3757,6 @@ namespace Avo
 		void queueUpdate();
 
 		bool m_areUpdatesCancelled = false;
-
 		void update()
 		{
 			if (m_areUpdatesCancelled)
@@ -3843,14 +3857,10 @@ namespace Avo
 		friend class View;
 
 		Animation(View* p_view, Easing const& p_easing, float p_milliseconds) :
-			m_view(p_view),
-			m_easing(p_easing),
-			m_milliseconds(p_milliseconds)
+			m_view{ p_view },
+			m_easing{ p_easing },
+			m_milliseconds{ p_milliseconds }
 		{
-		}
-		~Animation()
-		{
-
 		}
 	};
 
@@ -4558,20 +4568,20 @@ namespace Avo
 	*/
 	inline Color interpolate(Color const& p_start, Color const& p_end, float p_progress)
 	{
-		return Color(
-			p_start.red * (1.f - p_progress) + p_end.red*p_progress,
-			p_start.green * (1.f - p_progress) + p_end.green*p_progress,
-			p_start.blue * (1.f - p_progress) + p_end.blue*p_progress,
-			p_start.alpha * (1.f - p_progress) + p_end.alpha*p_progress
-		);
+		return {
+			p_start.red * (1.f - p_progress) + p_end.red * p_progress,
+			p_start.green * (1.f - p_progress) + p_end.green * p_progress,
+			p_start.blue * (1.f - p_progress) + p_end.blue * p_progress,
+			p_start.alpha * (1.f - p_progress) + p_end.alpha * p_progress
+		};
 	}
 
 	//
 	// Font family names
 	//
 
-	inline std::string const FONT_FAMILY_ROBOTO{ "Roboto" };
-	inline std::string const FONT_FAMILY_MATERIAL_ICONS{ "Material Icons" };
+	inline std::string const FONT_FAMILY_ROBOTO = "Roboto";
+	inline std::string const FONT_FAMILY_MATERIAL_ICONS = "Material Icons";
 
 	//------------------------------
 
@@ -4659,10 +4669,10 @@ namespace Avo
 			//------------------------------
 			// Easings
 
-			easings[ThemeEasings::in] = Easing(0.6, 0.0, 0.8, 0.2);
-			easings[ThemeEasings::out] = Easing(0.1, 0.9, 0.2, 1.0);
-			easings[ThemeEasings::inOut] = Easing(0.4, 0.0, 0.0, 1.0);
-			easings[ThemeEasings::symmetricalInOut] = Easing(0.6, 0.0, 0.4, 1.0);
+			easings[ThemeEasings::in] = { 0.6, 0.0, 0.8, 0.2 };
+			easings[ThemeEasings::out] = { 0.1, 0.9, 0.2, 1.0 };
+			easings[ThemeEasings::inOut] = { 0.4, 0.0, 0.0, 1.0 };
+			easings[ThemeEasings::symmetricalInOut] = { 0.6, 0.0, 0.4, 1.0 };
 
 			//------------------------------
 			// Values
@@ -4718,102 +4728,7 @@ namespace Avo
 	*/
 	class Image : public ProtectedRectangle, protected ReferenceCounted
 	{
-	private:
-		friend class DrawingContext;
-
-		Image* m_implementation;
-
-		Image(Image* p_implementation) :
-			m_implementation(p_implementation)
-		{
-			if (m_implementation)
-			{
-				m_bounds = m_implementation->m_bounds;
-			}
-		}
-
-	protected:
-		void handleProtectedRectangleChange(Rectangle<float> const& p_old) override
-		{
-			if (m_implementation)
-			{
-				m_implementation->setBounds(m_bounds);
-			}
-		}
-
 	public:
-		Image() :
-			m_implementation(nullptr)
-		{
-		}
-		Image(Image const& p_image) :
-			m_implementation(p_image.m_implementation)
-		{
-			if (m_implementation)
-			{
-				m_implementation->remember();
-				m_bounds = m_implementation->m_bounds;
-			}
-		}
-		~Image()
-		{
-			if (m_implementation)
-			{
-				m_implementation->forget();
-			}
-		}
-
-		Image& operator=(Image const& p_image)
-		{
-			if (m_implementation)
-			{
-				m_implementation->forget();
-			}
-			m_implementation = p_image.m_implementation;
-			if (m_implementation)
-			{
-				m_implementation->remember();
-				m_bounds = m_implementation->m_bounds;
-			}
-			return *this;
-		}
-		bool operator==(Image const& p_image) const
-		{
-			return p_image.m_implementation == m_implementation;
-		}
-		bool operator!=(Image const& p_image) const
-		{
-			return p_image.m_implementation != m_implementation;
-		}
-
-		/*
-			Returns whether the image has been created.
-			For example, an image created with Image() is invalid while one that has been created using a DrawingContext is valid.
-		*/
-		bool getIsValid() const
-		{
-			return m_implementation;
-		}
-		/*
-			Same as getIsValid.
-		*/
-		operator bool() const
-		{
-			return m_implementation;
-		}
-
-		/*
-			Makes the image invalid and releases the image if it isn't used anywhere else.
-		*/
-		void destroy()
-		{
-			if (m_implementation)
-			{
-				m_implementation->forget();
-			}
-			m_implementation = nullptr;
-		}
-
 		/*
 			Sets a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
 			This is in original image DIP coordinates, meaning sizing is not taken into account.
@@ -5011,13 +4926,109 @@ namespace Avo
 		{
 			return m_implementation->getHandle();
 		}
+
+		Image& operator=(Image const& p_image)
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
+			m_implementation = p_image.m_implementation;
+			if (m_implementation)
+			{
+				m_implementation->remember();
+				m_bounds = m_implementation->m_bounds;
+			}
+			return *this;
+		}
+		bool operator==(Image const& p_image) const
+		{
+			return p_image.m_implementation == m_implementation;
+		}
+		bool operator!=(Image const& p_image) const
+		{
+			return p_image.m_implementation != m_implementation;
+		}
+
+		/*
+			Returns whether the image has been created.
+			For example, an image created with Image() is invalid while one that has been created using a DrawingContext is valid.
+		*/
+		bool getIsValid() const
+		{
+			return m_implementation;
+		}
+		/*
+			Same as getIsValid.
+		*/
+		operator bool() const
+		{
+			return m_implementation;
+		}
+
+		/*
+			Makes the image invalid and releases the image if it isn't used anywhere else.
+		*/
+		void destroy()
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
+			m_implementation = nullptr;
+		}
+
+	protected:
+		void handleProtectedRectangleChange(Rectangle<float> const& p_old) override
+		{
+			if (m_implementation)
+			{
+				m_implementation->setBounds(m_bounds);
+			}
+		}
+
+	private:
+		friend class DrawingContext;
+
+		Image* m_implementation;
+
+		Image(Image* p_implementation) :
+			m_implementation{ p_implementation }
+		{
+			if (m_implementation)
+			{
+				m_bounds = m_implementation->m_bounds;
+			}
+		}
+
+	public:
+		Image() :
+			m_implementation{ nullptr }
+		{
+		}
+		Image(Image const& p_image) :
+			m_implementation{ p_image.m_implementation }
+		{
+			if (m_implementation)
+			{
+				m_implementation->remember();
+				m_bounds = m_implementation->m_bounds;
+			}
+		}
+		~Image()
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
+		}
 	};
 
 	//------------------------------
 
 	enum class WordWrapping
 	{
-		Emergency, // Keeps words whole unless a word is wider than the maximum width.
+		Emergency, // Wraps between words unless a word is wider than the maximum width.
 		WholeWord, // Only wraps between words to prevent overflow.
 		Always, // Always wraps to the next line to prevent overflow.
 		Never // Allows overflow, never wraps.
@@ -5090,80 +5101,7 @@ namespace Avo
 	*/
 	class Text : public ProtectedRectangle, protected ReferenceCounted
 	{
-	private:
-		friend class DrawingContext;
-
-		Text* m_implementation;
-
-		Text(Text* p_implementation) :
-			m_implementation(p_implementation)
-		{
-		}
-
 	public:
-		Text() :
-			m_implementation(nullptr)
-		{
-		}
-		Text(Text const& p_text) :
-			m_implementation(p_text.m_implementation)
-		{
-			if (m_implementation)
-			{
-				m_implementation->remember();
-			}
-		}
-		~Text()
-		{
-			if (m_implementation)
-			{
-				m_implementation->forget();
-			}
-		}
-
-		Text& operator=(Text const& p_text)
-		{
-			if (m_implementation)
-			{
-				m_implementation->forget();
-			}
-			m_implementation = p_text.m_implementation;
-			if (m_implementation)
-			{
-				m_implementation->remember();
-			}
-			return *this;
-		}
-		bool operator==(Text const& p_text) const
-		{
-			return m_implementation == p_text.m_implementation;
-		}
-		bool operator!=(Text const& p_text) const
-		{
-			return m_implementation != p_text.m_implementation;
-		}
-
-		bool getIsValid() const
-		{
-			return m_implementation;
-		}
-		operator bool() const
-		{
-			return m_implementation;
-		}
-		/*
-			Returns whether the text has been created and can be used.
-			For example, an image created with Image() is invalid while one that has been created using a DrawingContext is valid.
-		*/
-		void destroy()
-		{
-			if (m_implementation)
-			{
-				m_implementation->forget();
-			}
-			m_implementation = nullptr;
-		}
-
 		/*
 			Sets the rules for inserting line breaks in the text to avoid overflow.
 		*/
@@ -5743,27 +5681,85 @@ namespace Avo
 		{
 			return m_implementation->ProtectedRectangle::getIsContaining(p_x, p_y);
 		}
-	};
 
-	class LinearGradient : public ProtectedReferenceCounted<LinearGradient>
-	{
+		Text& operator=(Text const& p_text)
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
+			m_implementation = p_text.m_implementation;
+			if (m_implementation)
+			{
+				m_implementation->remember();
+			}
+			return *this;
+		}
+		bool operator==(Text const& p_text) const
+		{
+			return m_implementation == p_text.m_implementation;
+		}
+		bool operator!=(Text const& p_text) const
+		{
+			return m_implementation != p_text.m_implementation;
+		}
+
+		bool getIsValid() const
+		{
+			return m_implementation;
+		}
+		operator bool() const
+		{
+			return m_implementation;
+		}
+		/*
+			Returns whether the text has been created and can be used.
+			For example, an image created with Image() is invalid while one that has been created using a DrawingContext is valid.
+		*/
+		void destroy()
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
+			m_implementation = nullptr;
+		}
+
 	private:
 		friend class DrawingContext;
 
-		LinearGradient(LinearGradient* p_implementation) :
-			ProtectedReferenceCounted(p_implementation)
+		Text* m_implementation;
+
+		Text(Text* p_implementation) :
+			m_implementation(p_implementation)
 		{
 		}
 
 	public:
-		LinearGradient()
+		Text() :
+			m_implementation(nullptr)
 		{
 		}
-		LinearGradient(LinearGradient const& p_gradient) :
-			ProtectedReferenceCounted(p_gradient)
+		Text(Text const& p_text) :
+			m_implementation(p_text.m_implementation)
 		{
+			if (m_implementation)
+			{
+				m_implementation->remember();
+			}
 		}
+		~Text()
+		{
+			if (m_implementation)
+			{
+				m_implementation->forget();
+			}
+		}
+	};
 
+	class LinearGradient : public ProtectedReferenceCounted<LinearGradient>
+	{
+	public:
 		virtual void* getHandle() const
 		{
 			return m_implementation->getHandle();
@@ -5891,27 +5887,28 @@ namespace Avo
 		{
 			return m_implementation->getEndPositionY();
 		}
-	};
 
-	class RadialGradient : public ProtectedReferenceCounted<RadialGradient>
-	{
 	private:
 		friend class DrawingContext;
 
-		RadialGradient(RadialGradient* p_implementation) :
+		LinearGradient(LinearGradient* p_implementation) :
 			ProtectedReferenceCounted(p_implementation)
 		{
 		}
 
 	public:
-		RadialGradient()
+		LinearGradient()
 		{
 		}
-		RadialGradient(RadialGradient const& p_gradient) :
+		LinearGradient(LinearGradient const& p_gradient) :
 			ProtectedReferenceCounted(p_gradient)
 		{
 		}
+	};
 
+	class RadialGradient : public ProtectedReferenceCounted<RadialGradient>
+	{
+	public:
 		virtual void* getHandle() const
 		{
 			return m_implementation->getHandle();
@@ -6044,6 +6041,23 @@ namespace Avo
 		virtual float getRadiusY() const
 		{
 			return m_implementation->getRadiusY();
+		}
+
+	private:
+		friend class DrawingContext;
+
+		RadialGradient(RadialGradient* p_implementation) :
+			ProtectedReferenceCounted{ p_implementation }
+		{
+		}
+
+	public:
+		RadialGradient()
+		{
+		}
+		RadialGradient(RadialGradient const& p_gradient) :
+			ProtectedReferenceCounted{ p_gradient }
+		{
 		}
 	};
 

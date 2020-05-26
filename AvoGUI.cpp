@@ -5384,7 +5384,7 @@ private:
 
 	DWRITE_TEXT_RANGE createTextRange(int32 p_startPosition, int32 p_length)
 	{
-		DWRITE_TEXT_RANGE textRange = { };
+		DWRITE_TEXT_RANGE textRange{};
 		textRange.startPosition = p_length > 0 ? p_startPosition : Avo::max(0, p_startPosition - p_length);
 		textRange.length = p_length > 0 ? p_length : (p_length == 0 ? m_string.size() : -p_length);
 		return textRange;
@@ -5407,9 +5407,9 @@ protected:
 public:
 	DirectWriteText(IDWriteTextLayout1* p_handle, std::wstring const& p_wideString, std::string const& p_string, 
 		Avo::Rectangle<float> const& p_bounds) :
-		m_handle(p_handle), 
-		m_wideString(p_wideString), 
-		m_string(p_string)
+		m_handle{ p_handle },
+		m_wideString{ p_wideString },
+		m_string{ p_string }
 	{
 		m_bounds = p_bounds;
 		if (!m_bounds.right && !m_bounds.bottom)
@@ -5464,46 +5464,46 @@ public:
 
 	void fitSizeToText() override
 	{
-		DWRITE_TEXT_METRICS metrics = { 0 };
+		DWRITE_TEXT_METRICS metrics{};
 		m_handle->GetMetrics(&metrics);
 
-		DWRITE_OVERHANG_METRICS overhangMetrics = { 0 };
+		DWRITE_OVERHANG_METRICS overhangMetrics{};
 		m_handle->GetOverhangMetrics(&overhangMetrics);
 
 		ProtectedRectangle::setSize(metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed*overhangMetrics.top);
 	}
 	void fitWidthToText() override
 	{
-		DWRITE_TEXT_METRICS metrics = { 0 };
+		DWRITE_TEXT_METRICS metrics{};
 		m_handle->GetMetrics(&metrics);
 		ProtectedRectangle::setWidth(metrics.width);
 	}
 	void fitHeightToText() override
 	{
-		DWRITE_OVERHANG_METRICS overhangMetrics = { 0 };
+		DWRITE_OVERHANG_METRICS overhangMetrics{};
 		m_handle->GetOverhangMetrics(&overhangMetrics);
 
 		ProtectedRectangle::setHeight(m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed * overhangMetrics.top);
 	}
 	Avo::Point<float> getMinimumSize() override
 	{
-		DWRITE_TEXT_METRICS metrics = { 0 };
+		DWRITE_TEXT_METRICS metrics{};
 		m_handle->GetMetrics(&metrics);
 
-		DWRITE_OVERHANG_METRICS overhangMetrics = { 0 };
+		DWRITE_OVERHANG_METRICS overhangMetrics{};
 		m_handle->GetOverhangMetrics(&overhangMetrics);
 
 		return Avo::Point<float>(metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed * overhangMetrics.top);
 	}
 	float getMinimumWidth() override
 	{
-		DWRITE_TEXT_METRICS metrics = { 0 };
+		DWRITE_TEXT_METRICS metrics{};
 		m_handle->GetMetrics(&metrics);
 		return metrics.width;
 	}
 	float getMinimumHeight() override
 	{
-		DWRITE_OVERHANG_METRICS overhangMetrics = { 0 };
+		DWRITE_OVERHANG_METRICS overhangMetrics{};
 		m_handle->GetOverhangMetrics(&overhangMetrics);
 
 		return m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed * overhangMetrics.top;
@@ -5525,7 +5525,7 @@ public:
 	Avo::Point<float> getCharacterPosition(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) override
 	{
 		Avo::Point<float> result;
-		DWRITE_HIT_TEST_METRICS metrics = { 0 };
+		DWRITE_HIT_TEST_METRICS metrics{};
 		m_handle->HitTestTextPosition(
 			Avo::getUtf16UnitIndexFromCharacterIndex(m_wideString, p_characterIndex), 
 			false, &result.x, &result.y, &metrics
@@ -5541,14 +5541,14 @@ public:
 	{
 		float x;
 		float y;
-		DWRITE_HIT_TEST_METRICS metrics = { 0 };
+		DWRITE_HIT_TEST_METRICS metrics{};
 		m_handle->HitTestTextPosition(Avo::getUtf16UnitIndexFromCharacterIndex(m_wideString, p_characterIndex), false, &x, &y, &metrics);
 		return Avo::Point<float>(metrics.width, metrics.height);
 	}
 	Avo::Rectangle<float> getCharacterBounds(uint32 p_characterIndex, bool p_isRelativeToOrigin = false) override
 	{
 		Avo::Rectangle<float> result;
-		DWRITE_HIT_TEST_METRICS metrics = { 0 };
+		DWRITE_HIT_TEST_METRICS metrics{};
 		m_handle->HitTestTextPosition(
 			Avo::getUtf16UnitIndexFromCharacterIndex(m_wideString, p_characterIndex), 
 			false, &result.left, &result.top, &metrics
@@ -5566,7 +5566,7 @@ public:
 	{
 		int isTrailingHit;
 		int isInside;
-		DWRITE_HIT_TEST_METRICS metrics = { 0 };
+		DWRITE_HIT_TEST_METRICS metrics{};
 		m_handle->HitTestPoint(
 			p_pointX - p_isRelativeToOrigin * m_bounds.left, p_pointY - p_isRelativeToOrigin * m_bounds.top, 
 			&isTrailingHit, &isInside, &metrics
@@ -5578,7 +5578,7 @@ public:
 	{
 		int isTrailingHit;
 		int isInside;
-		DWRITE_HIT_TEST_METRICS metrics = { 0 };
+		DWRITE_HIT_TEST_METRICS metrics{};
 		m_handle->HitTestPoint(
 			p_pointX - p_isRelativeToOrigin * m_bounds.left, p_pointY - p_isRelativeToOrigin * m_bounds.top, 
 			&isTrailingHit, &isInside, &metrics
@@ -5594,7 +5594,7 @@ public:
 	{
 		int isTrailingHit;
 		int isInside;
-		DWRITE_HIT_TEST_METRICS metrics = { 0 };
+		DWRITE_HIT_TEST_METRICS metrics{};
 		m_handle->HitTestPoint(
 			p_pointX - p_isRelativeToOrigin * m_bounds.left, 
 			p_pointY - p_isRelativeToOrigin * m_bounds.top, 
@@ -5859,7 +5859,7 @@ class FontFileLoader : public IDWriteFontFileLoader
 			*p_stream = 0;
 			return E_INVALIDARG;
 		}
-		*p_stream = new FontFileStream(*(FontData*)p_data);
+		*p_stream = new FontFileStream{ *(FontData*)p_data };
 		return S_OK;
 	}
 };
@@ -5943,8 +5943,8 @@ class Direct2dGeometry : public Avo::Geometry
 {
 private:
 	ID2D1Geometry* m_geometry;
-	ID2D1GeometryRealization* m_strokedRealization{ nullptr };
-	ID2D1GeometryRealization* m_filledRealization{ nullptr };
+	ID2D1GeometryRealization* m_strokedRealization = nullptr;
+	ID2D1GeometryRealization* m_filledRealization = nullptr;
 
 public:
 	Direct2dGeometry(ID2D1Geometry* p_geometry) :
@@ -5999,7 +5999,7 @@ private:
 
 public:
 	Direct2dLinearGradient(ID2D1LinearGradientBrush* p_brush) :
-		m_brush(p_brush)
+		m_brush{ p_brush }
 	{
 	}
 	~Direct2dLinearGradient()
@@ -6095,7 +6095,7 @@ private:
 
 public:
 	Direct2DRadialGradient(ID2D1RadialGradientBrush* p_brush) :
-		m_brush(p_brush)
+		m_brush{ p_brush }
 	{
 	}
 	~Direct2DRadialGradient()
@@ -6188,7 +6188,7 @@ private:
 
 public:
 	Direct2DDrawingState(ID2D1DrawingStateBlock1* p_drawingState) :
-		m_drawingState(p_drawingState)
+		m_drawingState{ p_drawingState }
 	{
 	}
 	~Direct2DDrawingState()
@@ -6204,8 +6204,7 @@ public:
 
 //------------------------------
 
-class Direct2DDrawingContext : 
-	public Avo::DrawingContext
+class Direct2DDrawingContext : public Avo::DrawingContext
 {
 public:
 	static IWICImagingFactory2* s_imagingFactory;
@@ -6243,10 +6242,10 @@ public:
 				__uuidof(s_directWriteFactory), (IUnknown**)&s_directWriteFactory
 			);
 
-			s_fontFileLoader = new FontFileLoader();
+			s_fontFileLoader = new FontFileLoader;
 			s_directWriteFactory->RegisterFontFileLoader(s_fontFileLoader);
 
-			s_fontCollectionLoader = new FontCollectionLoader(s_fontFileLoader);
+			s_fontCollectionLoader = new FontCollectionLoader{ s_fontFileLoader };
 			s_directWriteFactory->RegisterFontCollectionLoader(s_fontCollectionLoader);
 		}
 	}
@@ -6293,29 +6292,18 @@ public:
 	}
 
 private:
-	Avo::Window* m_window{ nullptr };
+	Avo::Window* m_window = nullptr;
 
-	ID2D1DeviceContext1* m_context{ nullptr };
-	IDXGISwapChain1* m_swapChain{ nullptr };
-	ID2D1Bitmap1* m_targetWindowBitmap{ nullptr };
-	bool m_isVsyncEnabled{ true };
+	ID2D1DeviceContext1* m_context = nullptr;
+	IDXGISwapChain1* m_swapChain = nullptr;
+	ID2D1Bitmap1* m_targetWindowBitmap = nullptr;
 
-	std::stack<bool> m_clipTypeStack;
-
-	ID2D1SolidColorBrush* m_solidColorBrush{ nullptr };
-	ID2D1Brush* m_currentBrush{ nullptr };
-	float m_brushOpacity{ 1.f };
+	ID2D1SolidColorBrush* m_solidColorBrush = nullptr;
+	ID2D1Brush* m_currentBrush = nullptr;
+	float m_brushOpacity = 1.f;
 
 	D2D1_STROKE_STYLE_PROPERTIES1 m_strokeStyleProperties;
-	ID2D1StrokeStyle1* m_strokeStyle = 0;
-
-	Avo::Point<float> m_scale{ 1.f, 1.f };
-
-	IDWriteTextFormat* m_textFormat = 0;
-	IDWriteFontCollection* m_fontCollection = 0;
-	std::vector<FontData> m_fontData;
-
-	std::recursive_mutex m_targetMutex;
+	ID2D1StrokeStyle1* m_strokeStyle = nullptr;
 
 	//------------------------------
 
@@ -6409,6 +6397,11 @@ private:
 		s_direct2DFactory->CreateStrokeStyle(m_strokeStyleProperties, 0, 0, &m_strokeStyle);
 	}
 
+	//------------------------------
+
+	IDWriteFontCollection* m_fontCollection = nullptr;
+	std::vector<FontData> m_fontData;
+
 	void updateFontCollection()
 	{
 		if (m_fontCollection)
@@ -6430,7 +6423,7 @@ private:
 			float dpiY = USER_DEFAULT_SCREEN_DPI;
 			m_context->GetDpi(&dpiX, &dpiY);
 
-			ID2D1GeometryRealization* geometryRealization = 0;
+			ID2D1GeometryRealization* geometryRealization = nullptr;
 			m_context->CreateStrokedGeometryRealization(p_geometry->getGeometry(), D2D1::ComputeFlatteningTolerance(transform, dpiX, dpiY), p_strokeWidth, m_strokeStyle, &geometryRealization);
 
 			p_geometry->setStrokedRealization(geometryRealization);
@@ -6447,208 +6440,15 @@ private:
 			float dpiY = USER_DEFAULT_SCREEN_DPI;
 			m_context->GetDpi(&dpiX, &dpiY);
 
-			ID2D1GeometryRealization* geometryRealization = 0;
+			ID2D1GeometryRealization* geometryRealization = nullptr;
 			m_context->CreateFilledGeometryRealization(p_geometry->getGeometry(), D2D1::ComputeFlatteningTolerance(transform, dpiX, dpiY), &geometryRealization);
 
 			p_geometry->setFilledRealization(geometryRealization);
 		}
 	}
 
+	std::recursive_mutex m_targetMutex;
 public:
-	Direct2DDrawingContext(Avo::Window* p_window) :
-		m_window(p_window)
-	{
-		// Create temporary Direct3D device
-
-		ID3D11Device* d3dDevice;
-		ID3D11DeviceContext* d3dDeviceContext;
-
-		D3D_FEATURE_LEVEL featureLevels[] =
-		{
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_12_1,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_12_0,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_11_1,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_11_0,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_10_1,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_10_0,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_9_3,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_9_2,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_9_1,
-		};
-		D3D_FEATURE_LEVEL featureLevel;
-		D3D11CreateDevice(
-			0,
-			D3D_DRIVER_TYPE_HARDWARE,
-			0,
-			D3D11_CREATE_DEVICE_BGRA_SUPPORT
-#ifdef _DEBUG 
-			| D3D11_CREATE_DEVICE_DEBUG
-#endif
-			,
-			featureLevels,
-			sizeof(featureLevels) / sizeof(D3D_FEATURE_LEVEL),
-			D3D11_SDK_VERSION,
-			&d3dDevice,
-			&featureLevel,
-			&d3dDeviceContext
-		);
-
-		//------------------------------
-		// Get dxgi factory from the Direct3D device
-
-		IDXGIDevice1* dxgiDevice = nullptr;
-		d3dDevice->QueryInterface(&dxgiDevice);
-		dxgiDevice->SetMaximumFrameLatency(1U);
-
-		IDXGIAdapter* dxgiAdapter = nullptr;
-		dxgiDevice->GetAdapter(&dxgiAdapter);
-
-		IDXGIFactory2* dxgiFactory = nullptr;
-		dxgiAdapter->GetParent(IID_PPV_ARGS(&dxgiFactory));
-
-		//------------------------------
-		// Create Direct2D device and device context.
-
-		ID2D1Device1* direct2DDevice = nullptr;
-		s_direct2DFactory->CreateDevice(dxgiDevice, &direct2DDevice);
-		direct2DDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_ENABLE_MULTITHREADED_OPTIMIZATIONS, &m_context);
-
-		float dpi = GetDpiForSystem();
-
-		//------------------------------
-		// Create swap chain, which holds the back buffer and is connected to the window.
-
-		DXGI_SWAP_CHAIN_DESC1 swapChainDescription = { };
-		swapChainDescription.Width = m_window->getWidth()*dpi/USER_DEFAULT_SCREEN_DPI;
-		swapChainDescription.Height = m_window->getHeight()*dpi/USER_DEFAULT_SCREEN_DPI;
-		swapChainDescription.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-		swapChainDescription.Stereo = false;
-		swapChainDescription.SampleDesc.Count = 1;
-		swapChainDescription.SampleDesc.Quality = 0;
-		swapChainDescription.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		swapChainDescription.BufferCount = 2;
-		swapChainDescription.Scaling = DXGI_SCALING::DXGI_SCALING_NONE;
-		swapChainDescription.SwapEffect = DXGI_SWAP_EFFECT::DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
-		swapChainDescription.Flags = 0;
-
-		dxgiFactory->CreateSwapChainForHwnd(
-			d3dDevice, (HWND)p_window->getNativeHandle(),
-			&swapChainDescription, nullptr,
-			nullptr, &m_swapChain
-		);
-
-		dxgiFactory->MakeWindowAssociation((HWND)p_window->getNativeHandle(), DXGI_MWA_NO_WINDOW_CHANGES);
-
-		//------------------------------
-		// Create a target bitmap which is connected to the back buffer of the window.
-
-		IDXGISurface* dxgiBackBuffer;
-		m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
-
-		m_context->CreateBitmapFromDxgiSurface(
-			dxgiBackBuffer,
-			D2D1::BitmapProperties1(
-				D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE::D2D1_ALPHA_MODE_IGNORE),
-				dpi, dpi
-			),
-			&m_targetWindowBitmap
-		);
-
-		m_context->SetTarget(m_targetWindowBitmap);
-
-		m_context->SetDpi(dpi, dpi);
-
-		DXGI_RGBA color;
-		color.r = 0.5f;
-		color.g = 0.5f;
-		color.b = 0.5f;
-		color.a = 1.f;
-		m_swapChain->SetBackgroundColor(&color);
-
-		//------------------------------
-
-		dxgiBackBuffer->Release();
-		direct2DDevice->Release();
-		dxgiFactory->Release();
-		dxgiAdapter->Release();
-		dxgiDevice->Release();
-		d3dDeviceContext->Release();
-		d3dDevice->Release();
-
-		//------------------------------
-
-		m_context->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), &m_solidColorBrush);
-		m_currentBrush = m_solidColorBrush;
-
-		m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE_FLAT;
-		m_strokeStyleProperties.dashOffset = 1.f;
-		m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE_SOLID;
-		m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN_ROUND;
-		m_strokeStyleProperties.miterLimit = 0.f;
-		m_strokeStyleProperties.startCap = D2D1_CAP_STYLE_FLAT;
-		m_strokeStyleProperties.endCap = D2D1_CAP_STYLE_FLAT;
-		m_strokeStyleProperties.transformType = D2D1_STROKE_TRANSFORM_TYPE::D2D1_STROKE_TRANSFORM_TYPE_NORMAL;
-
-		updateStrokeStyle();
-
-		//------------------------------
-		// Create text stuff
-
-		m_fontData.reserve(8);
-		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_LIGHT, FONT_DATA_ROBOTO_LIGHT + FONT_DATA_SIZE_ROBOTO_LIGHT));
-		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_ROBOTO_REGULAR + FONT_DATA_SIZE_ROBOTO_REGULAR));
-		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_MEDIUM, FONT_DATA_ROBOTO_MEDIUM + FONT_DATA_SIZE_ROBOTO_MEDIUM));
-		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_BOLD, FONT_DATA_ROBOTO_BOLD + FONT_DATA_SIZE_ROBOTO_BOLD));
-		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_MATERIAL_ICONS, FONT_DATA_MATERIAL_ICONS + FONT_DATA_SIZE_MATERIAL_ICONS));
-		updateFontCollection();
-
-		// Just for debugging...
-		//std::vector<wchar_t*> fontFamilyNames;
-		//for (uint32 a = 0; a < m_fontCollection->GetFontFamilyCount(); a++)
-		//{
-		//	IDWriteFontFamily* fontFamily;
-		//	m_fontCollection->GetFontFamily(a, &fontFamily);
-		//	IDWriteLocalizedStrings* names;
-		//	fontFamily->GetFamilyNames(&names);
-		//	wchar_t* buffer = new wchar_t[30];
-		//	names->GetString(0, buffer, 30);
-		//	fontFamilyNames.push_back(buffer);
-		//}
-
-		setDefaultTextProperties(m_textProperties);
-
-		//m_context->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE::D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
-	}
-
-	~Direct2DDrawingContext()
-	{
-		if (m_solidColorBrush)
-		{
-			m_solidColorBrush->Release();
-		}
-		if (m_strokeStyle)
-		{
-			m_strokeStyle->Release();
-		}
-		if (m_targetWindowBitmap)
-		{
-			m_targetWindowBitmap->Release();
-		}
-		if (m_swapChain)
-		{
-			m_swapChain->Release();
-		}
-		if (m_context)
-		{
-			m_context->Release();
-		}
-
-		destroyStaticResources();
-	}
-
-	//------------------------------
-
 	void beginDrawing() override
 	{
 		m_targetMutex.lock();
@@ -6745,6 +6545,9 @@ public:
 
 	//------------------------------
 
+private:
+	bool m_isVsyncEnabled = true;
+public:
 	void enableVsync()
 	{
 		m_isVsyncEnabled = true;
@@ -6792,9 +6595,9 @@ public:
 			multithreader->Leave();
 			multithreader->Release();
 
-			return Avo::Color{ dxgiColor.r, dxgiColor.g, dxgiColor.b, dxgiColor.a };
+			return { dxgiColor.r, dxgiColor.g, dxgiColor.b, dxgiColor.a };
 		}
-		return Avo::Color{ 0.5f };
+		return { 0.5f };
 	}
 
 	//------------------------------
@@ -6854,6 +6657,9 @@ public:
 
 	//------------------------------
 
+private:
+	Avo::Point<float> m_scale{ 1.f, 1.f };
+public:
 	void scale(float p_scale) override
 	{
 		scale(p_scale, p_scale);
@@ -6979,7 +6785,8 @@ public:
 			return;
 		}
 
-		m_targetMutex.lock();
+		std::scoped_lock targetLock{ m_targetMutex };
+
 		ID2D1Image* oldTarget = nullptr;
 		m_context->GetTarget(&oldTarget);
 
@@ -6995,7 +6802,7 @@ public:
 
 		float dpi = getDpi();
 
-		Avo::Point<float> newSize(p_width * dpi / USER_DEFAULT_SCREEN_DPI, p_height* dpi / USER_DEFAULT_SCREEN_DPI);
+		Avo::Point<float> newSize{ p_width * dpi / USER_DEFAULT_SCREEN_DPI, p_height * dpi / USER_DEFAULT_SCREEN_DPI };
 
 		ID2D1Multithread* multithreader;
 		s_direct2DFactory->QueryInterface(IID_PPV_ARGS(&multithreader));
@@ -7028,7 +6835,6 @@ public:
 		{
 			m_context->SetTarget(m_targetWindowBitmap);
 		}
-		m_targetMutex.unlock();
 	}
 	Avo::Point<float> getSize() override
 	{
@@ -7672,6 +7478,9 @@ public:
 
 	//------------------------------
 
+private:
+	std::stack<bool> m_clipTypeStack;
+public:
 	void pushClipGeometry(Avo::Geometry const& p_geometry, float p_opacity) override
 	{
 		m_context->PushLayer(
@@ -7682,8 +7491,6 @@ public:
 		);
 		m_clipTypeStack.push(true);
 	}
-
-	//------------------------------
 
 	void pushClipShape(std::vector<Avo::Point<float>> const& p_points, float p_opacity) override
 	{
@@ -7737,8 +7544,6 @@ public:
 			m_clipTypeStack.pop();
 		}
 	}
-
-	//------------------------------
 
 	void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_opacity) override
 	{
@@ -7797,8 +7602,6 @@ public:
 	{
 		pushClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_corners, p_opacity);
 	}
-
-	//------------------------------
 
 	void pushRoundedClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_opacity) override
 	{
@@ -8521,7 +8324,7 @@ public:
 		ID2D1Bitmap1* sourceBitmap = (ID2D1Bitmap1*)p_image.getHandle();
 		D2D1_SIZE_U size = sourceBitmap->GetPixelSize();
 
-		ID2D1Bitmap1* cpuBitmap = 0;
+		ID2D1Bitmap1* cpuBitmap = nullptr;
 		if (sourceBitmap->GetOptions() & D2D1_BITMAP_OPTIONS_CPU_READ)
 		{
 			cpuBitmap = sourceBitmap;
@@ -8541,7 +8344,7 @@ public:
 		D2D1_MAPPED_RECT mappedRectangle;
 		cpuBitmap->Map(D2D1_MAP_OPTIONS_READ, &mappedRectangle);
 		
-		BITMAPINFOHEADER bitmapInfoHeader = { 0 };
+		BITMAPINFOHEADER bitmapInfoHeader{};
 		bitmapInfoHeader.biSize = sizeof(BITMAPINFOHEADER);
 		bitmapInfoHeader.biWidth = ceil(size.width/16.f)*16;
 		bitmapInfoHeader.biHeight = -(long)size.height;
@@ -8562,20 +8365,19 @@ public:
 	Avo::LinearGradient createLinearGradient(std::vector<Avo::GradientStop> const& p_gradientStops, float p_startX, float p_startY, 
 		float p_endX, float p_endY) override
 	{
-		D2D1_GRADIENT_STOP* gradientStops = new D2D1_GRADIENT_STOP[p_gradientStops.size()];
+		std::vector<D2D1_GRADIENT_STOP> gradientStops(p_gradientStops.size());
 		for (uint32 a = 0; a < p_gradientStops.size(); a++)
 		{
 			Avo::Color const& color = p_gradientStops[a].color;
-			gradientStops[a].color = D2D1::ColorF(color.red, color.green, color.blue, color.alpha);
+			gradientStops[a].color = { color.red, color.green, color.blue, color.alpha };
 			gradientStops[a].position = p_gradientStops[a].position;
 		}
 
-		ID2D1GradientStopCollection* stopCollection = 0;
-		m_context->CreateGradientStopCollection(gradientStops, p_gradientStops.size(), &stopCollection);
-		delete[] gradientStops;
+		ID2D1GradientStopCollection* stopCollection = nullptr;
+		m_context->CreateGradientStopCollection(gradientStops.data(), p_gradientStops.size(), &stopCollection);
 
-		ID2D1LinearGradientBrush* brush = 0;
-		m_context->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(p_startX, p_startY), D2D1::Point2F(p_endX, p_endY)), 
+		ID2D1LinearGradientBrush* brush = nullptr;
+		m_context->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties({ p_startX, p_startY }, { p_endX, p_endY }),
 			stopCollection, &brush);
 
 		stopCollection->Release();
@@ -8591,24 +8393,23 @@ public:
 	Avo::RadialGradient createRadialGradient(std::vector<Avo::GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radiusX, 
 		float p_radiusY) override
 	{
-		D2D1_GRADIENT_STOP* gradientStops = new D2D1_GRADIENT_STOP[p_gradientStops.size()];
+		std::vector<D2D1_GRADIENT_STOP> gradientStops(p_gradientStops.size());
 		for (uint32 a = 0; a < p_gradientStops.size(); a++)
 		{
 			Avo::Color const& color = p_gradientStops[a].color;
-			gradientStops[a].color = D2D1::ColorF(color.red, color.green, color.blue, color.alpha);
+			gradientStops[a].color = { color.red, color.green, color.blue, color.alpha };
 			gradientStops[a].position = p_gradientStops[a].position;
 		}
 
-		ID2D1GradientStopCollection* stopCollection = 0;
-		m_context->CreateGradientStopCollection(gradientStops, p_gradientStops.size(), &stopCollection);
-		delete[] gradientStops;
+		ID2D1GradientStopCollection* stopCollection = nullptr;
+		m_context->CreateGradientStopCollection(gradientStops.data(), p_gradientStops.size(), &stopCollection);
 
-		ID2D1RadialGradientBrush* brush = 0;
-		m_context->CreateRadialGradientBrush(D2D1::RadialGradientBrushProperties(D2D1::Point2F(p_startX, p_startY), D2D1_POINT_2F(), p_radiusX, p_radiusY), stopCollection, &brush);
+		ID2D1RadialGradientBrush* brush = nullptr;
+		m_context->CreateRadialGradientBrush(D2D1::RadialGradientBrushProperties({ p_startX, p_startY }, {}, p_radiusX, p_radiusY), stopCollection, &brush);
 
 		stopCollection->Release();
 
-		return createRadialGradientFromImplementation(new Direct2DRadialGradient(brush));
+		return createRadialGradientFromImplementation(new Direct2DRadialGradient{ brush });
 	}
 	Avo::RadialGradient createRadialGradient(std::vector<Avo::GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radius) override
 	{
@@ -8673,10 +8474,18 @@ public:
 
 	//------------------------------
 
+private:
+	IDWriteTextFormat* m_textFormat = nullptr;
+public:
 	void setDefaultTextProperties(Avo::TextProperties const& p_textProperties) override
 	{
-		wchar_t fontFamily[100];
-		Avo::convertUtf8ToUtf16(p_textProperties.fontFamilyName, fontFamily, 100);
+		if (m_textFormat)
+		{
+			m_textFormat->Release();
+		}
+
+		wchar_t fontFamily[200];
+		Avo::convertUtf8ToUtf16(p_textProperties.fontFamilyName, fontFamily, 200);
 
 		DWRITE_FONT_STYLE fontStyle = DWRITE_FONT_STYLE_NORMAL;
 		if (p_textProperties.fontStyle == Avo::FontStyle::Italic)
@@ -8738,6 +8547,11 @@ public:
 
 		std::wstring wideString = Avo::convertUtf8ToUtf16(p_string);
 
+		if (!m_textFormat)
+		{
+			Avo::println("What.");
+		}
+
 		IDWriteTextLayout1* textLayout;
 		s_directWriteFactory->CreateTextLayout(wideString.data(), wideString.size(), m_textFormat, p_bounds.getWidth(), p_bounds.getHeight(), (IDWriteTextLayout**)&textLayout);
 		
@@ -8747,7 +8561,7 @@ public:
 		textLayout->SetFontSize(p_fontSize, textRange);
 		textLayout->SetCharacterSpacing(m_textProperties.characterSpacing * 0.5f, m_textProperties.characterSpacing * 0.5f, 0.f, textRange);
 
-		return createTextFromImplementation(new DirectWriteText(textLayout, wideString, p_string, p_bounds));
+		return createTextFromImplementation(new DirectWriteText{ textLayout, wideString, p_string, p_bounds });
 	}
 	void drawText(Avo::Text p_text) override
 	{
@@ -8755,8 +8569,16 @@ public:
 		{
 			return;
 		}
-		IDWriteTextLayout1* textLayout = (IDWriteTextLayout1*)p_text.getHandle();
-		DWRITE_OVERHANG_METRICS overhangMetrics = { 0 };
+		auto textLayout = (IDWriteTextLayout1*)p_text.getHandle();
+
+		WCHAR name[100];
+		textLayout->GetFontFamilyName(name, 100u);
+		if (std::wstring{ L"Roboto" } != name)
+		{
+			Avo::println("Whaaaaa");
+		}
+
+		DWRITE_OVERHANG_METRICS overhangMetrics{};
 		if (p_text.getIsTopTrimmed())
 		{
 			textLayout->GetOverhangMetrics(&overhangMetrics);
@@ -8795,6 +8617,200 @@ public:
 	void drawText(std::string const& p_string, Avo::Point<float> const& p_position) override
 	{
 		drawText(p_string, Avo::Rectangle<float>(p_position.x, p_position.y, m_context->GetSize().width * 2, m_context->GetSize().height * 2));
+	}
+
+	//------------------------------
+
+	Direct2DDrawingContext(Avo::Window* p_window) :
+		m_window{ p_window }
+	{
+		// Create temporary Direct3D device
+
+		ID3D11Device* d3dDevice;
+		ID3D11DeviceContext* d3dDeviceContext;
+
+		D3D_FEATURE_LEVEL featureLevels[] =
+		{
+			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_12_1,
+			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_12_0,
+			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_11_1,
+			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_11_0,
+			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_10_1,
+			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_10_0,
+			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_9_3,
+			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_9_2,
+			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_9_1,
+		};
+		D3D_FEATURE_LEVEL featureLevel;
+		D3D11CreateDevice(
+			0,
+			D3D_DRIVER_TYPE_HARDWARE,
+			0,
+			D3D11_CREATE_DEVICE_BGRA_SUPPORT
+#ifdef _DEBUG 
+			| D3D11_CREATE_DEVICE_DEBUG
+#endif
+			,
+			featureLevels,
+			sizeof(featureLevels) / sizeof(D3D_FEATURE_LEVEL),
+			D3D11_SDK_VERSION,
+			&d3dDevice,
+			&featureLevel,
+			&d3dDeviceContext
+		);
+
+		//------------------------------
+		// Get dxgi factory from the Direct3D device
+
+		IDXGIDevice1* dxgiDevice = nullptr;
+		d3dDevice->QueryInterface(&dxgiDevice);
+		dxgiDevice->SetMaximumFrameLatency(1U);
+
+		IDXGIAdapter* dxgiAdapter = nullptr;
+		dxgiDevice->GetAdapter(&dxgiAdapter);
+
+		IDXGIFactory2* dxgiFactory = nullptr;
+		dxgiAdapter->GetParent(IID_PPV_ARGS(&dxgiFactory));
+
+		//------------------------------
+		// Create Direct2D device and device context.
+
+		ID2D1Device1* direct2DDevice = nullptr;
+		s_direct2DFactory->CreateDevice(dxgiDevice, &direct2DDevice);
+		direct2DDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_ENABLE_MULTITHREADED_OPTIMIZATIONS, &m_context);
+
+		float dpi = GetDpiForSystem();
+
+		//------------------------------
+		// Create swap chain, which holds the back buffer and is connected to the window.
+
+		DXGI_SWAP_CHAIN_DESC1 swapChainDescription{};
+		swapChainDescription.Width = m_window->getWidth() * dpi / USER_DEFAULT_SCREEN_DPI;
+		swapChainDescription.Height = m_window->getHeight() * dpi / USER_DEFAULT_SCREEN_DPI;
+		swapChainDescription.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+		swapChainDescription.Stereo = false;
+		swapChainDescription.SampleDesc.Count = 1;
+		swapChainDescription.SampleDesc.Quality = 0;
+		swapChainDescription.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		swapChainDescription.BufferCount = 2;
+		swapChainDescription.Scaling = DXGI_SCALING::DXGI_SCALING_NONE;
+		swapChainDescription.SwapEffect = DXGI_SWAP_EFFECT::DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+		swapChainDescription.Flags = 0;
+
+		dxgiFactory->CreateSwapChainForHwnd(
+			d3dDevice, (HWND)p_window->getNativeHandle(),
+			&swapChainDescription, nullptr,
+			nullptr, &m_swapChain
+		);
+
+		dxgiFactory->MakeWindowAssociation((HWND)p_window->getNativeHandle(), DXGI_MWA_NO_WINDOW_CHANGES);
+
+		//------------------------------
+		// Create a target bitmap which is connected to the back buffer of the window.
+
+		IDXGISurface* dxgiBackBuffer;
+		m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
+
+		m_context->CreateBitmapFromDxgiSurface(
+			dxgiBackBuffer,
+			D2D1::BitmapProperties1(
+				D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE::D2D1_ALPHA_MODE_IGNORE),
+				dpi, dpi
+			),
+			&m_targetWindowBitmap
+		);
+
+		m_context->SetTarget(m_targetWindowBitmap);
+
+		m_context->SetDpi(dpi, dpi);
+
+		DXGI_RGBA color;
+		color.r = 0.5f;
+		color.g = 0.5f;
+		color.b = 0.5f;
+		color.a = 1.f;
+		m_swapChain->SetBackgroundColor(&color);
+
+		//------------------------------
+
+		dxgiBackBuffer->Release();
+		direct2DDevice->Release();
+		dxgiFactory->Release();
+		dxgiAdapter->Release();
+		dxgiDevice->Release();
+		d3dDeviceContext->Release();
+		d3dDevice->Release();
+
+		//------------------------------
+
+		m_context->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), &m_solidColorBrush);
+		m_currentBrush = m_solidColorBrush;
+
+		m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE_FLAT;
+		m_strokeStyleProperties.dashOffset = 1.f;
+		m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE_SOLID;
+		m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN_ROUND;
+		m_strokeStyleProperties.miterLimit = 0.f;
+		m_strokeStyleProperties.startCap = D2D1_CAP_STYLE_FLAT;
+		m_strokeStyleProperties.endCap = D2D1_CAP_STYLE_FLAT;
+		m_strokeStyleProperties.transformType = D2D1_STROKE_TRANSFORM_TYPE::D2D1_STROKE_TRANSFORM_TYPE_NORMAL;
+
+		updateStrokeStyle();
+
+		//------------------------------
+		// Create text stuff
+
+		m_fontData.reserve(8);
+		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_LIGHT, FONT_DATA_ROBOTO_LIGHT + FONT_DATA_SIZE_ROBOTO_LIGHT));
+		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_ROBOTO_REGULAR + FONT_DATA_SIZE_ROBOTO_REGULAR));
+		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_MEDIUM, FONT_DATA_ROBOTO_MEDIUM + FONT_DATA_SIZE_ROBOTO_MEDIUM));
+		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_BOLD, FONT_DATA_ROBOTO_BOLD + FONT_DATA_SIZE_ROBOTO_BOLD));
+		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_MATERIAL_ICONS, FONT_DATA_MATERIAL_ICONS + FONT_DATA_SIZE_MATERIAL_ICONS));
+		updateFontCollection();
+
+		// Just for debugging...
+		//std::vector<wchar_t*> fontFamilyNames;
+		//for (uint32 a = 0; a < m_fontCollection->GetFontFamilyCount(); a++)
+		//{
+		//	IDWriteFontFamily* fontFamily;
+		//	m_fontCollection->GetFontFamily(a, &fontFamily);
+		//	IDWriteLocalizedStrings* names;
+		//	fontFamily->GetFamilyNames(&names);
+		//	wchar_t* buffer = new wchar_t[30];
+		//	names->GetString(0, buffer, 30);
+		//	fontFamilyNames.push_back(buffer);
+		//}
+
+		setDefaultTextProperties(m_textProperties);
+
+		Avo::println("Constructed drawing context");
+		//m_context->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE::D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
+	}
+	~Direct2DDrawingContext()
+	{
+		if (m_solidColorBrush)
+		{
+			m_solidColorBrush->Release();
+		}
+		if (m_strokeStyle)
+		{
+			m_strokeStyle->Release();
+		}
+		if (m_targetWindowBitmap)
+		{
+			m_targetWindowBitmap->Release();
+		}
+		if (m_swapChain)
+		{
+			m_swapChain->Release();
+		}
+		if (m_context)
+		{
+			m_context->Release();
+		}
+
+		destroyStaticResources();
 	}
 };
 ID2D1Factory2* Direct2DDrawingContext::s_direct2DFactory{nullptr};
@@ -8882,7 +8898,7 @@ public:
 		{
 			GLchar message[256];
 			glGetShaderInfoLog(vertexShaderID, 256, nullptr, message);
-			std::cout << "\nVertex shader compile error(s)!\n" << message << '\n';
+			Avo::println("\nVertex shader compile error(s)!\n", message);
 		}
 
 		// Check for fragment shader compile errors
@@ -8891,7 +8907,7 @@ public:
 		{
 			GLchar message[256];
 			glGetShaderInfoLog(fragmentShaderID, 256, nullptr, message);
-			std::cout << "\nFragment shader compile error(s)!\n" << message << '\n';
+			Avo::println("\nFragment shader compile error(s)!\n", message);
 		}
 #endif
 
