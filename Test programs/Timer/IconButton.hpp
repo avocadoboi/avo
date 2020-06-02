@@ -33,7 +33,7 @@ public:
 	}
 	void drawOverlay(Avo::DrawingContext* p_context) override
 	{
-		p_context->setColor(Avo::Color(getThemeColor(Avo::ThemeColors::onBackground), 0.2f));
+		p_context->setColor({ getThemeColor(Avo::ThemeColors::onBackground), 0.2f });
 		p_context->strokeRectangle(getSize(), getCorners(), 2.f);
 	}
 
@@ -67,9 +67,10 @@ public:
 		View{ p_parent, { 0.f, 0.f, p_size * (1.f + PADDING), p_size * (1.f + PADDING) } },
 		m_size{ p_size }
 	{
-		new Avo::Ripple{ this, Avo::Color{ getThemeColor(Avo::ThemeColors::primaryOnBackground), 0.4f } };
-		setCornerRadius(getWidth()*0.5f);
 		enableMouseEvents();
+		setCornerRadius(getWidth()*0.5f);
 		setCursor(Avo::Cursor::Hand);
+
+		new Avo::Ripple{ this, Avo::Color{ getThemeColor(Avo::ThemeColors::primaryOnBackground), 0.4f } };
 	}
 };

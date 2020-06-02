@@ -32,22 +32,23 @@ public:
 	{
 		if (getWindow()->getIsMouseButtonDown(Avo::MouseButton::Left))
 		{
-			for (uint32 a = 0; a < m_droppedImages.size(); a++)
+			for (auto a : Avo::Indices{ m_droppedImages.size() })
 			{
 				if (m_droppedImages[a].getInnerBounds().getIsContaining(p_event.x, p_event.y))
 				{
-					Avo::Image image = m_droppedImages[a];
+					auto image = m_droppedImages[a];
 					m_droppedImages.erase(m_droppedImages.begin() + a);
 					invalidateRectangle(image.getBounds());
 					getWindow()->dragAndDropImage(image);
 					return;
 				}
 			}
-			for (uint32 a = 0; a < m_droppedTexts.size(); a++)
+
+			for (auto a : Avo::Indices{ m_droppedTexts.size() })
 			{
 				if (m_droppedTexts[a].getIsContaining(p_event.x, p_event.y))
 				{
-					std::string string = m_droppedTexts[a].getString();
+					auto string = m_droppedTexts[a].getString();
 
 					invalidateRectangle(m_droppedTexts[a].getBounds());
 					m_droppedTexts.erase(m_droppedTexts.begin() + a);
@@ -128,12 +129,14 @@ public:
 		enableDragDropEvents();
 		enableMouseEvents();
 
-		setThemeColor(Avo::ThemeColors::background, Avo::Color(0.1f, 0.f, 0.1f));
-		setThemeColor(Avo::ThemeColors::onBackground, Avo::Color(1.f));
+		setThemeColor(Avo::ThemeColors::background, { 0.1f, 0.f, 0.1f });
+		setThemeColor(Avo::ThemeColors::onBackground, { 1.f });
 
-		auto text_dropItems = new Avo::TextView(this, 50.f, "Drop something here!");
-		text_dropItems->setColor(Avo::Color(getThemeColor(Avo::ThemeColors::onBackground), 0.4f));
-		sizeChangeListeners += [=](auto...) { text_dropItems->setCenter(getSize() * 0.5f); };
+		auto text_dropItems = new Avo::TextView{ this, 50.f, "Drop something here!" };
+		text_dropItems->setColor({ getThemeColor(Avo::ThemeColors::onBackground), 0.4f });
+		sizeChangeListeners += [=](auto...) { 
+			text_dropItems->setCenter(getSize() * 0.5f); 
+		};
 
 		run();
 	}
@@ -143,5 +146,5 @@ public:
 
 int main()
 {
-	new DragAndDrop();
+	new DragAndDrop{};
 }

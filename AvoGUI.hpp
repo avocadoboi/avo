@@ -31,12 +31,12 @@
 //------------------------------
 
 #include <cstdint> // Fixed-size integer typedefs
-#include <cfloat> // Range defines for float
 #include <cmath>
 #include <cstring>
 
 // I/O
 #include <fstream>
+#include <iostream>
 
 // Data structures
 #include <string>
@@ -53,9 +53,6 @@
 #include <atomic>
 #include <condition_variable>
 
-// Debugging
-#include <iostream>
-
 //------------------------------
 // I don't like the t
 
@@ -69,6 +66,9 @@ using uint16 = std::uint16_t;
 using uint32 = std::uint32_t;
 using uint64 = std::uint64_t;
 
+using char8 = char; // char8_t Will have to wait for c++20 :(
+using char16 = char16_t;
+
 //------------------------------
 // This is strongly recommended. 
 // Remove it if it causes you any problems.
@@ -76,6 +76,511 @@ using uint64 = std::uint64_t;
 using namespace std::chrono_literals;
 
 //------------------------------
+
+/*
+	Yup, this is unnamed.
+	It's some modern utilities that I strongly recommend using.
+	They do not cause any overhead.
+*/
+
+namespace
+{
+	// Represents an index, position in some sort of list or array.
+	using Index = int64;
+	// Represents a length, size or count
+	using Count = int64;
+
+	/*
+		Represents a sequence of pointers.
+		Use it instead of data-and-length parameters in functions.
+		It does not cause overhead with optimizations turned on.
+	*/
+	template<typename T>
+	struct PointerRange
+	{
+		T* const first;
+		/*
+			Returns the first pointer in the range.
+		*/
+		T* begin() const
+		{
+			return first;
+		}
+		/*
+			Returns the first pointer in the range.
+			Horrible function name, it's just for compatibility with the standard library.
+		*/
+		T* data() const
+		{
+			return first;
+		}
+		operator T* ()
+		{
+			return first;
+		}
+		T& operator[](Index p_index) const
+		{
+			return first[p_index];
+		}
+
+		//------------------------------
+
+		Count const length;
+		/*
+			Returns the number of pointers in the range.
+			Horrible function name, it's just for compatibility with the standard library.
+		*/
+		Count size()
+		{
+			return length;
+		}
+		/*
+			Returns the pointer after the last one in the range.
+		*/
+		T* end() const
+		{
+			return first + length;
+		}
+
+		//------------------------------
+
+		constexpr PointerRange(PointerRange<T> const& p_other) :
+			first{ p_other.first },
+			length{ p_other.length }
+		{
+		}
+		/*
+			Constructs a PointerRange from a the first pointer in the range
+			and the number of pointers in the range.
+		*/
+		constexpr PointerRange(T* p_start, Count p_length) :
+			first{ p_start },
+			length{ p_length }
+		{
+		}
+		constexpr PointerRange(std::initializer_list<T> p_initializer) :
+			first{ const_cast<T*>(p_initializer.begin()) },
+			length{ static_cast<Count>(p_initializer.size()) }
+		{
+		}
+		/*
+			Constructs a PointerRange from either of these:
+				1. A container that std::data and std::size can be called on.
+				2. A static array.
+				3. A null-terminated string.
+		*/
+		template<typename ContainerType>
+		constexpr PointerRange(ContainerType const& p_container) :
+			first{ getStartFromParameter(p_container) },
+			length{ getLengthOfParameter(p_container) }
+		{
+		}
+
+	private:
+		template<typename Type>
+		constexpr T* getStartFromParameter(Type const& p_parameter)
+		{
+			static_assert(!std::is_arithmetic_v<Type>, "PointerRange error: Invalid constructor parameter type; must be an array, container or null-terminated string.");
+
+			if constexpr (std::is_pointer_v<Type> || std::is_array_v<Type>)
+			{
+				return const_cast<T*>(p_parameter);
+			}
+			else if constexpr (std::is_class_v<Type>)
+			{
+				return const_cast<T*>(std::data(p_parameter));
+			}
+		}
+		template<typename Type>
+		static Count getLengthOfParameter(Type const& p_parameter)
+		{
+			constexpr bool isContainerOrArray = std::is_array_v<Type> || std::is_class_v<Type>,
+			               isString = std::is_same_v<Type, char8*> || std::is_same_v<Type, char8 const*>,
+			               isWideString = std::is_same_v<Type, char16*> || std::is_same_v<Type, char16 const*>;
+
+			static_assert(isContainerOrArray || isString || isWideString, "PointerRange error: Invalid constructor parameter type; must be an array, container or null-terminated string.");
+
+			if constexpr (isContainerOrArray)
+			{
+				return static_cast<Count>(std::size(p_parameter));
+			}
+			else if constexpr (isString)
+			{
+				return static_cast<Count>(std::strlen(p_parameter));
+			}
+			else if constexpr (isWideString)
+			{
+				return static_cast<Count>(std::wcslen(p_parameter));
+			}
+		}
+	};
+
+	/*
+		Used to iterate over the indices of some container or array, or iterate through a range of integers.
+		Use it together with range-based for loops like this:
+			for (auto i : Indices{ array })
+		or this:
+			for (auto i : Indices{ 100 })
+		This is a zero runtime-overhead abstraction and yields identical assembly to an equivalent regular for loop. (with optimizations turned on)
+	*/
+	class Indices
+	{
+		class Iterator
+		{
+		private:
+			Index m_index;
+
+		public:
+			Index operator*()
+			{
+				return m_index;
+			}
+
+			Iterator& operator++()
+			{
+				m_index++;
+				return *this;
+			}
+
+			bool operator!=(Iterator p_other)
+			{
+				return m_index != p_other.m_index;
+			}
+
+			Iterator(Index p_index) :
+				m_index{ p_index }
+			{
+			}
+		};
+
+		Count const m_start;
+		Count const m_end;
+
+	public:
+		Iterator begin() const
+		{
+			return Iterator{ m_start };
+		}
+		Iterator end() const
+		{
+			return Iterator{ m_end };
+		}
+
+	private:
+		template<typename T>
+		constexpr Count getLengthOfParameter(T const& p_parameter)
+		{
+			if constexpr (std::is_array_v<T> || std::is_class_v<T>)
+			{
+				return static_cast<Count>(std::size(p_parameter));
+			}
+			else if constexpr (std::is_same_v<T, char8*> || std::is_same_v<T, char8 const*>)
+			{
+				return static_cast<Count>(std::strlen(p_parameter));
+			}
+			else if constexpr (std::is_same_v<T, char16*> || std::is_same_v<T, char16 const*>)
+			{
+				return static_cast<Count>(std::wcslen(p_parameter));
+			}
+			else
+			{
+				return static_cast<Count>(p_parameter);
+			}
+		}
+
+	public:
+		/*
+			Constructs an index range from either of these:
+				1. An array.
+				2. A container that std::size can be called on.
+				3. An integer length. The range becomes [0, length - 1].
+				4. A null-terminated string. The range does not include the null terminator.
+		*/
+		template<typename T>
+		constexpr Indices(T const& p_containerOrValue) :
+			m_start{ 0 },
+			m_end{ getLengthOfParameter(p_containerOrValue) }
+		{
+		}
+		/*
+			Constructs an index range from a sequence of pointers.
+		*/
+		template<typename T>
+		constexpr Indices(PointerRange<T> const& p_range) :
+			m_start{ 0 },
+			m_end{ p_range.length }
+		{
+		}
+		template<typename T1, typename T2, typename = std::enable_if_t<std::is_arithmetic_v<T1> && std::is_arithmetic_v<T2>>>
+		constexpr Indices(T1 p_start, T2 p_end) :
+			m_start{ static_cast<Count>(p_start) },
+			m_end{ static_cast<Count>(p_end) }
+		{
+			static_assert(std::is_arithmetic_v<T1> && std::is_arithmetic_v<T2>, "IndexRange error: p_start and p_end must have an arithmetic type.");
+		}
+		template<typename ContainerType, typename T, typename = std::enable_if_t<!std::is_arithmetic_v<ContainerType>>>
+		constexpr Indices(ContainerType const& p_container, T p_endOffset) :
+			m_start{ 0 },
+			m_end{ static_cast<Count>(getLengthOfParameter(p_container) + p_endOffset) }
+		{
+			static_assert(std::is_arithmetic_v<T>, "IndexRange error: p_endOffset must have an arithmetic type.");
+		}
+		template<typename ContainerType, typename T1, typename T2>
+		constexpr Indices(ContainerType const& p_container, T1 p_startOffset, T2 p_endOffset) :
+			m_start{ static_cast<Count>(p_startOffset) },
+			m_end{ static_cast<Count>(std::size(p_container)) + static_cast<Count>(p_endOffset) }
+		{
+			static_assert(std::is_arithmetic_v<T1> && std::is_arithmetic_v<T2>, "IndexRange error: p_startOffset and p_endOffset must have an arithmetic type.");
+		}
+		template<typename T, typename ContainerType, typename = std::enable_if_t<!std::is_arithmetic_v<ContainerType>>>
+		constexpr Indices(T p_startOffset, ContainerType const& p_container) :
+			m_start{ static_cast<Count>(p_startOffset) },
+			m_end{ static_cast<Count>(std::size(p_container)) }
+		{
+			static_assert(std::is_arithmetic_v<T>, "IndexRange error: p_startOffset must have an arithmetic type.");
+		}
+	};
+}
+
+/*
+	Contains a Console class, an instance of it and some proxy methods 
+	to simplify cross-platform UTF-8 console I/O.
+
+	Separate repository at: https://github.com/avocadoboi/Unicode-console 
+*/
+namespace Console
+{
+	/*
+		A console i/o class that supports UTF-8 (8-bit unicode) input and output.
+		This allows the usage of all characters that are supported by the console font.
+		It also provides a simpler interface and better error handling.
+	*/
+	class Console
+	{
+	public:
+		/*
+			This is the same as std::cout.operator<<.
+		*/
+		template<typename T>
+		Console& operator<<(T const& p_type)
+		{
+			std::cout << p_type;
+			return *this;
+		}
+		/*
+			Prints p_arguments to the console and appends a new line afterwards.
+		*/
+		template<typename ... Argument>
+		Console& println(Argument&& ... p_arguments)
+		{
+			((std::cout << std::forward<Argument>(p_arguments)), ...) << '\n';
+			return *this;
+		}
+
+	private:
+		bool m_wasLastInputValid = true;
+	public:
+		/*
+			Returns whether the last input read from the console was the correct type.
+		*/
+		bool getWasLastInputValid()
+		{
+			return m_wasLastInputValid;
+		}
+		/*
+			Same as getWasLastInputValid().
+		*/
+		operator bool()
+		{
+			return m_wasLastInputValid;
+		}
+		/*
+			Same as !getWasLastInputValid().
+		*/
+		bool operator!()
+		{
+			return !m_wasLastInputValid;
+		}
+
+		/*
+			This uses std::cin.operator>> but clears newline characters if user wrote invalid input.
+			If the user did provide invalid input, getWasLastInputValid() or operator bool() will 
+			return false until the next time input is correctly read.
+		*/
+		template<typename T>
+		Console& operator>>(T& p_type)
+		{
+			std::cin >> p_type;
+			m_wasLastInputValid = (bool)std::cin;
+			if (!m_wasLastInputValid)
+			{
+				// A number was expected but the user wrote characters, so we need to ignore the 
+				// trailing newline character and clear the error state of std::cin.
+				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+				std::cin.clear();
+			}
+			return *this;
+		}
+
+	private:
+#ifdef _WIN32
+		void* m_inputHandle; // Used to read unicode from console in the method below
+#endif
+		void readString(std::string& p_string);
+
+	public:
+		/*
+			This is the same as for example:
+				std::string string;
+				console >> string;
+			but a simpler interface.
+		*/
+		template<typename T>
+		T read()
+		{
+			T output;
+			operator>>(output);
+			return output;
+		}
+
+		/*
+			Reads input from the console and prints p_errorMessage if the input did not
+			correspond to the datatype T and tries again until it does.
+		*/
+		template<typename T>
+		T readValidated(std::string_view p_errorMessage)
+		{
+			T result;
+			while (true)
+			{
+				operator>>(result);
+				if (operator bool())
+				{
+					return result;
+				}
+				else
+				{
+					println(p_errorMessage);
+				}
+			}
+		}
+		/*
+			Reads input from the console and prints p_errorMessage if p_getIsValid returns
+			false and tries again until p_getIsValid returns true.
+		*/
+		template<typename T, typename ValidatorType>
+		T readValidated(ValidatorType const& p_getIsValid, std::string_view p_errorMessage)
+		{
+			T result;
+			while (true)
+			{
+				operator>>(result);
+
+				if (m_wasLastInputValid && p_getIsValid(result))
+				{
+					return result;
+				}
+				else
+				{
+					println(p_errorMessage);
+				}
+			}
+		}
+		/*
+			Reads input from the console and prints p_typeValidationErrorMessage if the input did not correspond to the datatype T.
+			If it was correctly read as T then it prints p_customValidationErrorMessage if p_getIsValid returns false.
+			If the input was invalid in any of these two ways it tries to read input again until the input is valid.
+		*/
+		template<typename T, typename ValidatorType>
+		T readValidated(ValidatorType const& p_getIsValid, std::string_view p_customValidationErrorMessage, std::string_view p_typeValidationErrorMessage)
+		{
+			T result;
+			while (true)
+			{
+				operator>>(result);
+
+				if (operator!())
+				{
+					println(p_typeValidationErrorMessage);
+				}
+				else if (!p_getIsValid(result))
+				{
+					println(p_customValidationErrorMessage);
+				}
+				else
+				{
+					return result;
+				}
+			}
+		}
+
+	public:
+		Console();
+	};
+
+	/*
+		Specialization of the input operator template, to support UTF-8 input on Windows.
+	*/
+	template<>
+	inline Console& Console::operator>><std::string>(std::string& p_string)
+	{
+		readString(p_string);
+		return *this;
+	}
+
+	/*
+		An instance of Console.
+	*/
+	inline Console io;
+
+	/*
+		Prints p_arguments to the console and appends a new line afterwards.
+	*/
+	template<typename ... Argument>
+	Console& println(Argument&& ... p_arguments)
+	{
+		return io.println(std::forward<Argument>(p_arguments)...);
+	}
+	/*
+		This is the same as for example:
+			std::string string;
+			Console::io >> string;
+		but a simpler interface.
+	*/
+	template<typename T>
+	T read()
+	{
+		return io.read<T>();
+	}
+	/*
+		Reads input from the console and prints p_errorMessage if the input did not
+		correspond to the datatype T and tries again until it does.
+	*/
+	template<typename T>
+	T readValidated(std::string_view p_errorMessage)
+	{
+		return io.readValidated<T>(p_errorMessage);
+	}
+	/*
+		Reads input from the console and prints p_errorMessage if p_getIsValid returns
+		false and tries again until p_getIsValid returns true.
+	*/
+	template<typename T, typename ValidatorType>
+	T readValidated(ValidatorType const& p_getIsValid, std::string_view p_errorMessage)
+	{
+		return io.readValidated<T>(p_getIsValid, p_errorMessage);
+	}
+	/*
+		Reads input from the console and prints p_typeValidationErrorMessage if the input did not correspond to the datatype T.
+		If it was correctly read as T then it prints p_customValidationErrorMessage if p_getIsValid returns false.
+		If the input was invalid in any of these two ways it tries to read input again until the input is valid.
+	*/
+	template<typename T, typename ValidatorType>
+	T readValidated(ValidatorType const& p_getIsValid, std::string_view p_customValidationErrorMessage, std::string_view p_typeValidationErrorMessage)
+	{
+		return io.readValidated<T>(p_getIsValid, p_customValidationErrorMessage, p_typeValidationErrorMessage);
+	}
+}
 
 namespace Avo
 {
@@ -85,35 +590,35 @@ namespace Avo
 	constexpr double TWO_PI =  6.28318530717958647;
 	constexpr double TAU =     TWO_PI;
 
-	using Index = int64;
-
 	/*
 		Returns a number multiplied by itself (x to the 2nd power, meaning x^2, meaning x*x).
 		Can be useful if you want to quickly square a longer expression.
 	*/
 	template<typename T>
-	T square(T p_x)
+	constexpr T square(T p_x)
 	{
 		return p_x * p_x;
 	}
 
 	/*
-		Returns the square root of a float using a fast but less accurate algorithm.
+		Returns the inverse square root of a float using a faster but less accurate algorithm.
+		It is about 8% to 15% faster than std::sqrt with gcc -O3 on my computer.
 	*/
-	inline float fastSqrt(float p_x)
+	inline float fastInverseSqrt(float p_input)
 	{
-		int32 bits = (*(int32*)&p_x - (1 << 23) >> 1) + (1 << 29);
-		float approximation = *(float*)&bits;
-		return (p_x / approximation + approximation) * 0.5f;
-	}
-	/*
-		Returns the inverse square root of a float using a fast but less accurate algorithm.
-	*/
-	inline float fastInverseSqrt(float p_x)
-	{
-		int32 bits = 0x5f375a86 - (*(int32*)&p_x >> 1);
-		float approximation = *(float*)&bits;
-		return approximation * (1.5f - 0.5f*p_x*approximation*approximation);
+		static_assert(std::numeric_limits<float>::is_iec559, "fastInverseSqrt error: float type must follow IEEE 754-1985 standard.");
+		static_assert(sizeof(float) == 4, "fastInverseSqrt error: sizeof(float) must be 4.");
+
+		// Only way to do type punning without undefined behavior it seems.
+		std::uint32_t bits;
+		std::memcpy(&bits, &p_input, 4);
+
+		bits = 0x5f3759df - bits / 2;
+
+		float approximation;
+		std::memcpy(&approximation, &bits, 4);
+
+		return approximation * (1.5f - 0.5f * p_input * approximation * approximation);
 	}
 
 	/*
@@ -131,7 +636,7 @@ namespace Avo
 		Returns the biggest of two numbers.
 	*/
 	template<typename T>
-	T max(T p_a, T p_b)
+	constexpr T max(T p_a, T p_b)
 	{
 		return p_a > p_b ? p_a : p_b;
 	}
@@ -139,7 +644,7 @@ namespace Avo
 		Returns the biggest of three numbers.
 	*/
 	template<typename T>
-	T max(T p_a, T p_b, T p_c)
+	constexpr T max(T p_a, T p_b, T p_c)
 	{
 		return p_a > p_b ? (p_a > p_c ? p_a : p_c) : (p_b > p_c ? p_b : p_c);
 	}
@@ -148,7 +653,7 @@ namespace Avo
 		Returns the smallest of two numbers.
 	*/
 	template<typename T>
-	T min(T p_a, T p_b)
+	constexpr T min(T p_a, T p_b)
 	{
 		return p_a < p_b ? p_a : p_b;
 	}
@@ -156,7 +661,7 @@ namespace Avo
 		Returns the smallest of three numbers.
 	*/
 	template<typename T>
-	T min(T p_a, T p_b, T p_c)
+	constexpr T min(T p_a, T p_b, T p_c)
 	{
 		return p_a < p_b ? (p_a < p_c ? p_a : p_c) : (p_b < p_c ? p_b : p_c);
 	}
@@ -167,7 +672,7 @@ namespace Avo
 		Returns a value between p_start and p_end depending on p_progress. This is linear interpolation.
 		If p_progress is below 0 or above 1, the returned value will not be within the start and end position.
 	*/
-	inline float interpolate(float p_start, float p_end, float p_progress)
+	constexpr float interpolate(float p_start, float p_end, float p_progress)
 	{
 		return p_start * (1.f - p_progress) + p_end * p_progress;
 	}
@@ -175,7 +680,7 @@ namespace Avo
 		Returns a value between p_start and p_end depending on p_progress. This is linear interpolation.
 		If p_progress is below 0 or above 1, the returned value will not be within the start and end position.
 	*/
-	inline double interpolate(double p_start, double p_end, double p_progress)
+	constexpr double interpolate(double p_start, double p_end, double p_progress)
 	{
 		return p_start * (1.0 - p_progress) + p_end * p_progress;
 	}
@@ -184,7 +689,7 @@ namespace Avo
 		If p_min <= p_value <= p_max, then the returned value is equal to p_value.
 	*/
 	template<typename T>
-	T constrain(T p_value, T p_min = 0, T p_max = 1)
+	constexpr T constrain(T p_value, T p_min = 0, T p_max = 1)
 	{
 		return p_value < p_min ? p_min : (p_value > p_max ? p_max : p_value);
 	}
@@ -195,7 +700,7 @@ namespace Avo
 		Returns -1 if the number is negative, 0 if it's 0 and 1 if it's positive.
 	*/
 	template<typename T>
-	T sign(T p_number)
+	constexpr T sign(T p_number)
 	{
 		return (p_number > (T)0) - (p_number < (T)0);
 	}
@@ -238,118 +743,34 @@ namespace Avo
 
 	//------------------------------
 
-	/*
-		Prints p_arguments to the console and appends a new line afterwards.
-	*/
-	template<typename ... Argument>
-	void println(Argument&& ... p_arguments)
-	{
-		((std::cout << std::forward<Argument>(p_arguments)), ...) << '\n';
-	}
-
-	//------------------------------
+	// TODO: add String class with built in UTF-8 support and more operations, ICU library used if available for toLowercase/toUppercase support.
+	// TODO: add Character class for UTF-8 characters with operators and stuff
 
 	/*
-		Converts a UTF-8 encoded char string to a UTF-16 encoded wchar_t string.
-		It is assumed that p_input is null-terminated.
-		p_output should be allocated with p_numberOfUnitsInOutput number of wchar_t units.
-		The output includes the null terminator.
+		Converts a UTF-8 encoded char string to a UTF-16 encoded char16 string.
 	*/
-	void convertUtf8ToUtf16(char const* p_input, wchar_t* p_output, uint32 p_numberOfUnitsInOutput);
+	void convertUtf8ToUtf16(std::string_view p_input, PointerRange<char16> p_output);
 	/*
-		Converts a UTF-8 encoded string to a UTF-16 encoded wchar_t string.
-		p_output should be allocated with p_numberOfUnitsInOutput number of wchar_t units.
-		The output includes the null terminator.
+		Converts a UTF-8 encoded string to a UTF-16 encoded std::u16string.
 	*/
-	void convertUtf8ToUtf16(std::string const& p_input, wchar_t* p_output, uint32 p_numberOfUnitsInOutput);
+	std::u16string convertUtf8ToUtf16(std::string_view p_input);
 	/*
-		Converts a UTF-8 encoded char string to a UTF-16 encoded wchar_t string.
-		p_numberOfUnitsInInput is the size in bytes of p_input.
-		p_output should be allocated with p_numberOfUnitsInOutput number of wchar_t units.
-		The output includes the null terminator if the input includes the null terminator.
+		Returns the number of UTF-16 encoded char16 units that would be used to represent the same characters in a UTF-8 encoded char string.
 	*/
-	void convertUtf8ToUtf16(char const* p_input, uint32 p_numberOfUnitsInInput, wchar_t* p_output, uint32 p_numberOfUnitsInOutput);
-	/*
-		Converts a UTF-8 encoded std::string to a UTF-16 encoded std::wstring.
-	*/
-	std::wstring convertUtf8ToUtf16(std::string const& p_input);
-	/*
-		Converts a UTF-8 encoded null-terminated string to a UTF-16 encoded std::wstring.
-	*/
-	std::wstring convertUtf8ToUtf16(char const* p_input);
-	/*
-		Converts a UTF-8 encoded null-terminated string to a UTF-16 encoded std::wstring.
-		p_numberOfUnitsInInput is the size in bytes of p_input.
-	*/
-	std::wstring convertUtf8ToUtf16(char const* p_input, uint32 p_numberOfUnitsInInput);
-	/*
-		Returns the number of UTF-16 encoded wchar_t units that would be used to represent the same characters in a UTF-8 encoded char string.
-		It is assumed that p_input is null-terminated.
-		The output includes the null terminator.
-	*/
-	uint32 getNumberOfUnitsInUtfConvertedString(char const* p_input);
-	/*
-		Returns the number of UTF-16 encoded wchar_t units that would be used to represent the same characters in a UTF-8 encoded char string.
-		if p_numberOfUnitsInInput is the size of p_input in bytes.
-		The output includes the null terminator if the input includes a null terminator.
-	*/
-	uint32 getNumberOfUnitsInUtfConvertedString(char const* p_input, int32 p_numberOfUnitsInInput);
-	/*
-		Returns the number of UTF-16 encoded wchar_t units that would be used to represent the same characters in a UTF-8 encoded char string.
-		The output includes the null terminator.
-	*/
-	uint32 getNumberOfUnitsInUtfConvertedString(std::string const& p_input);
+	Count getNumberOfUnitsInUtfConvertedString(std::string_view p_input);
 
 	/*
-		Converts a UTF-16 encoded wchar_t string to a UTF-8 encoded char string.
-		It is assumed that p_input is null-terminated.
-		p_output should be allocated with p_numberOfUnitsInOutput number of wchar_t units.
-		The output includes the null terminator.
+		Converts a UTF-16 encoded char16 string to a UTF-8 encoded char string.
 	*/
-	void convertUtf16ToUtf8(wchar_t const* p_input, char* p_output, uint32 p_numberOfUnitsInOutput);
+	void convertUtf16ToUtf8(std::u16string_view p_input, PointerRange<char8> p_output);
 	/*
-		Converts a UTF-16 encoded wstring to a UTF-8 encoded char string.
-		p_output should be allocated with p_numberOfUnitsInOutput number of wchar_t units.
-		The output includes the null terminator.
+		Converts a UTF-16 char16 string to a UTF-8 encoded std::string.
 	*/
-	void convertUtf16ToUtf8(std::wstring const& p_input, char* p_output, uint32 p_numberOfUnitsInOutput);
+	std::string convertUtf16ToUtf8(std::u16string_view p_input);
 	/*
-		Converts a UTF-16 encoded wchar_t string to a UTF-8 encoded char string.
-		p_numberOfUnitsInInput is the size of p_input, in wchar_t units.
-		p_output should be allocated with p_numberOfUnitsInOutput number of wchar_t units.
-		The output includes the null terminator.
+		Returns the number of UTF-8 encoded char units that would be used to represent the same characters in a UTF-16 encoded char16 string.
 	*/
-	void convertUtf16ToUtf8(wchar_t const* p_input, uint32 p_numberOfUnitsInInput, char* p_output, uint32 p_numberOfUnitsInOutput);
-	/*
-		Converts a UTF-16 std::wstring to a UTF-8 encoded std::string.
-	*/
-	std::string convertUtf16ToUtf8(std::wstring const& p_input);
-	/*
-		Converts a UTF-16 encoded null-terminated string to a UTF-8 encoded std::string.
-	*/
-	std::string convertUtf16ToUtf8(wchar_t const* p_input);
-	/*
-		Converts a UTF-16 encoded null-terminated string to a UTF-8 encoded std::string.
-		p_numberOfUnitsInInput is the size of p_input in wchar_t units.
-	*/
-	std::string convertUtf16ToUtf8(wchar_t const* p_input, uint32 p_numberOfUnitsInInput);
-	/*
-		Returns the number of UTF-8 encoded char units that would be used to represent the same characters in a UTF-16 encoded wchar_t string.
-		It is assumed that p_input is null terminated.
-		The output includes the null terminator.
-	*/
-	uint32 getNumberOfUnitsInUtfConvertedString(wchar_t const* p_input);
-	/*
-		Returns the number of UTF-8 encoded char units that would be used to represent the same characters in a UTF-16 encoded wchar_t string.
-		p_numberOfUnitsInInput is the size of p_input in wchar_t units.
-		The output includes the null terminator if the input includes a null terminator.
-	*/
-	uint32 getNumberOfUnitsInUtfConvertedString(wchar_t const* p_input, uint32 p_numberOfUnitsInInput);
-	/*
-		Returns the number of UTF-8 encoded char units that would be used to represent the same characters in a UTF-16 encoded wchar_t string.
-		The output includes the null terminator.
-	*/
-	uint32 getNumberOfUnitsInUtfConvertedString(std::wstring const& p_input);
+	Count getNumberOfUnitsInUtfConvertedString(std::u16string_view p_input);
 
 	//------------------------------
 
@@ -358,7 +779,7 @@ namespace Avo
 		If p_startByte is not the first byte in the character, the function returns 0.
 		If p_startByte is an invalid UTF-8 byte, -1 is returned.
 	*/
-	inline int8 getNumberOfUnitsInUtf8Character(int8 p_startByte)
+	inline int8 getNumberOfUnitsInUtf8Character(char8 p_startByte)
 	{
 		// http://www.unicode.org/versions/Unicode12.1.0/ch03.pdf , page 126
 		if (!(p_startByte & 0x80)) // 0xxxxxxx
@@ -376,7 +797,7 @@ namespace Avo
 	/*
 		Returns whether p_byte is the start of a UTF-8 encoded character
 	*/
-	inline bool getIsUnitStartOfUtf8Character(int8 p_byte)
+	inline bool getIsUnitStartOfUtf8Character(char8 p_byte)
 	{
 		return (p_byte & 0xc0) != 0x80;
 	}
@@ -384,7 +805,7 @@ namespace Avo
 		If p_startUnit is the first unit in a UTF-16 encoded character, the function returns the number of units that the character is made up of, which can only be 1 or 2.
 		If p_startUnit is not the first unit in the character, the function returns 0.
 	*/
-	inline int8 getNumberOfUnitsInUtf16Character(int16 p_startUnit)
+	inline Count getNumberOfUnitsInUtf16Character(char16 p_startUnit)
 	{
 		// http://www.unicode.org/versions/Unicode12.1.0/ch03.pdf , page 125
 		if ((p_startUnit & 0xfc00) == 0xd800) // 110110wwwwxxxxxx
@@ -396,7 +817,7 @@ namespace Avo
 	/*
 		Returns whether p_unit is the start of a UTF-8 encoded character
 	*/
-	inline bool getIsUnitStartOfUtf16Character(int8 p_unit)
+	inline bool getIsUnitStartOfUtf16Character(char8 p_unit)
 	{
 		return (p_unit & 0xfc00) != 0xdc00;
 	}
@@ -404,19 +825,22 @@ namespace Avo
 		Returns the index of the byte at a certain character index in a UTF-8 encoded string (where a character can be 1-4 bytes).
 		If p_characterIndex is outside of the string, the size of the string is returned.
 	*/
-	inline Index getUtf8UnitIndexFromCharacterIndex(std::string const& p_string, Index p_characterIndex)
+	inline Index getUtf8UnitIndexFromCharacterIndex(std::string_view p_string, Index p_characterIndex)
 	{
 		if (!p_characterIndex)
 		{
 			return 0;
 		}
-		if (p_characterIndex >= p_string.size())
+
+		auto length = p_string.size();
+
+		if (p_characterIndex >= length)
 		{
-			return p_string.size();
+			return length;
 		}
 
-		uint32 numberOfCharactersCounted = 0;
-		for (Index a = 0; a < p_string.size(); a++)
+		Count numberOfCharactersCounted = 0;
+		for (auto a : Indices{ p_string })
 		{
 			// If the byte is at the start of a new character, meaning if the byte doesn't start with (bits) 10.
 			if ((p_string[a] & 0xc0) != 0x80)
@@ -428,21 +852,21 @@ namespace Avo
 				numberOfCharactersCounted++;
 			}
 		}
-		return p_string.size();
+		return length;
 	}
 	/*
 		Returns the index of the character that the byte at p_unitIndex in the UTF-8 encoded p_string belongs to (where a character can be 1-4 bytes).
 		If p_unitIndex is outside of the string, the number of characters in the string is returned.
 	*/
-	inline Index getCharacterIndexFromUtf8UnitIndex(std::string const& p_string, Index p_unitIndex)
+	inline Index getCharacterIndexFromUtf8UnitIndex(std::string_view p_string, Index p_unitIndex)
 	{
 		if (!p_unitIndex)
 		{
 			return 0;
 		}
 
-		int32 numberOfCharactersCounted = 0;
-		for (Index a = 0; a < p_string.size(); a++)
+		Count numberOfCharactersCounted = 0;
+		for (auto a : Indices{ p_string })
 		{
 			// If the byte is at the start of a new character, meaning if the byte doesn't start with (bits) 10.
 			if ((p_string[a] & 0xc0) != 0x80)
@@ -460,7 +884,7 @@ namespace Avo
 		}
 		return numberOfCharactersCounted;
 	}
-	inline Index getNumberOfCharactersInUtf8String(std::string const& p_string)
+	inline Index getNumberOfCharactersInUtf8String(std::string_view p_string)
 	{
 		return getCharacterIndexFromUtf8UnitIndex(p_string, p_string.size());
 	}
@@ -468,7 +892,7 @@ namespace Avo
 		Returns the index of the unit at a certain character index in a UTF-8 encoded string (where a character can be 1-2 units).
 		If p_characterIndex is outside of the string, the size of the string in code units is returned.
 	*/
-	inline Index getUtf16UnitIndexFromCharacterIndex(std::wstring const& p_string, Index p_characterIndex)
+	inline Index getUtf16UnitIndexFromCharacterIndex(std::u16string_view p_string, Index p_characterIndex)
 	{
 		if (!p_characterIndex)
 		{
@@ -479,8 +903,8 @@ namespace Avo
 			return p_string.size();
 		}
 
-		uint32 numberOfCharactersCounted = 0;
-		for (Index a = 0; a < p_string.size(); a++)
+		Count numberOfCharactersCounted = 0;
+		for (auto a : Indices{ p_string })
 		{
 			// If the unit is at the start of a new character, meaning if the unit doesn't start with (bits) 110111.
 			if ((p_string[a] & 0xfc00) != 0xdc00)
@@ -498,14 +922,14 @@ namespace Avo
 		Returns the index of the character that the code unit at p_unitIndex in the utf-16 encoded p_string belongs to (where a character can be 1-2 units).
 		If p_unitIndex is outside of the string, the number of characters in the string is returned.
 	*/
-	inline Index getCharacterIndexFromUtf16UnitIndex(std::wstring const& p_string, Index p_unitIndex)
+	inline Index getCharacterIndexFromUtf16UnitIndex(std::u16string_view p_string, Index p_unitIndex)
 	{
 		if (!p_unitIndex)
 		{
 			return 0;
 		}
 
-		int32 numberOfCharactersCounted = 0;
+		Index numberOfCharactersCounted = 0;
 		for (Index a = 0; a < p_string.size(); a++)
 		{
 			// If the byte is at the start of a new character, meaning if the byte doesn't start with (bits) 10.
@@ -513,18 +937,18 @@ namespace Avo
 			{
 				if (p_unitIndex < a)
 				{
-					return numberOfCharactersCounted - 1;
+					return numberOfCharactersCounted - 1ll;
 				}
 				numberOfCharactersCounted++;
 			}
 		}
 		if (p_unitIndex < p_string.size())
 		{
-			return numberOfCharactersCounted - 1;
+			return numberOfCharactersCounted - 1ll;
 		}
 		return numberOfCharactersCounted;
 	}
-	inline int32 getNumberOfCharactersInUtf16String(std::wstring const& p_string)
+	inline int32 getNumberOfCharactersInUtf16String(std::u16string_view p_string)
 	{
 		return getCharacterIndexFromUtf16UnitIndex(p_string, p_string.size());
 	}
@@ -542,7 +966,7 @@ namespace Avo
 		Converts a number to a string, using . (dot) for the decimal point.
 	*/
 	template<typename T>
-	std::string convertNumberToString(T p_value)
+	[[nodiscard]] std::string convertNumberToString(T p_value)
 	{
 		std::ostringstream stream;
 		stream.precision(10);
@@ -556,14 +980,14 @@ namespace Avo
 		Positive goes to the right and negative goes to the left.
 	*/
 	template<typename T>
-	std::string convertNumberToString(T p_value, int32 p_roundingIndex, RoundingType p_roundingType = RoundingType::Nearest)
+	[[nodiscard]] std::string convertNumberToString(T p_value, Index p_roundingIndex, RoundingType p_roundingType = RoundingType::Nearest)
 	{
 		double roundingFactor = std::pow(10., p_roundingIndex);
 		std::ostringstream stream;
 		stream.precision(10);
 		if (p_roundingType == RoundingType::Nearest)
 		{
-			stream << std::round(p_value*roundingFactor)/roundingFactor;
+			stream << std::round(p_value*roundingFactor) / roundingFactor;
 		}
 		else if (p_roundingType == RoundingType::Down)
 		{
@@ -591,7 +1015,7 @@ namespace Avo
 		);
 	*/
 	template<typename ... FormattableType>
-	inline std::string createFormattedString(std::string p_format, FormattableType&& ... p_objects)
+	[[nodiscard]] std::string createFormattedString(std::string_view p_format, FormattableType&& ... p_objects)
 	{
 		// c++ is amazing
 		std::vector<std::ostringstream> stringifiedObjects(sizeof...(p_objects));
@@ -604,7 +1028,7 @@ namespace Avo
 		stream.precision(10);
 
 		Index lastPlaceholderEndIndex = 0;
-		for (Index a = 0; a < p_format.size() - 2; a++)
+		for (auto a : Indices{ p_format.size() - 2 })
 		{
 			// Utf-8 is backwards-compatible with ASCII so this should work fine.
 			if (p_format[a] == '{' && p_format[++a] >= '0' && p_format[a] <= '9' && p_format[a + 1] == '}')
@@ -621,11 +1045,11 @@ namespace Avo
 
 	//------------------------------
 
-	inline std::vector<uint8> readFile(std::string const& p_path)
+	[[nodiscard]] inline std::vector<uint8> readFile(std::string_view p_path)
 	{
-		std::ifstream file{ p_path, std::ios::ate | std::ios::binary };
+		std::ifstream file{ p_path.data(), std::ios::ate | std::ios::binary };
 
-		if (!file.is_open())
+		if (!file)
 		{
 			return std::vector<uint8>();
 		}
@@ -651,26 +1075,32 @@ namespace Avo
 	class Id
 	{
 	private:
-		static uint64 s_counter;
-		uint64 m_count;
+		static Count s_counter;
+		Count m_count;
 
 	public:
-		operator uint64() const
+		operator Count() const
 		{
 			return m_count;
 		}
-		bool operator==(Id const& p_id) const
+		bool operator==(Id p_id) const
 		{
-			return (uint64)p_id == m_count;
+			return (Count)p_id == m_count;
 		}
 
-		Id(uint64 p_id)
+		Id& operator=(Id const& p_id)
+		{
+			m_count = p_id;
+			return *this;
+		}
+
+		Id(Count p_id)
 		{
 			m_count = p_id;
 		}
 		Id(Id const& p_id)
 		{
-			m_count = (uint64)p_id;
+			m_count = p_id;
 		}
 		Id()
 		{
@@ -710,12 +1140,14 @@ namespace Avo
 			return m_listeners.end();
 		}
 
-		void add(std::function<FunctionalType> const& p_listener)
+		template<typename Callable>
+		void add(Callable const& p_listener)
 		{
 			std::scoped_lock lock{ m_mutex };
-			m_listeners.push_back(p_listener);
+			m_listeners.emplace_back(p_listener);
 		}
-		EventListeners& operator+=(std::function<FunctionalType> const& p_listener)
+		template<typename Callable>
+		EventListeners& operator+=(Callable const& p_listener)
 		{
 			add(p_listener);
 			return *this;
@@ -770,7 +1202,23 @@ namespace Avo
 		{
 			notifyAll(std::forward<T>(p_eventArguments)...);
 		}
+
+		EventListeners& operator=(EventListeners&& p_other) noexcept
+		{
+			m_listeners = std::move(p_other.m_listeners);
+			return *this;
+		}
+		EventListeners& operator=(EventListeners const& p_other) = delete;
+
+		EventListeners() = default;
+		EventListeners(EventListeners&& p_listeners) noexcept
+		{
+			m_listeners = std::move(p_listeners.m_listeners);
+		}
+		EventListeners(EventListeners const&) = delete;
 	};
+
+	// TODO: make Destructor class
 
 	//------------------------------
 
@@ -781,6 +1229,8 @@ namespace Avo
 	template<typename MutexType = std::mutex>
 	class TimerThread
 	{
+		using _Clock = std::chrono::steady_clock;
+
 		class Timeout
 		{
 			std::function<void()> callback;
@@ -790,7 +1240,7 @@ namespace Avo
 				callback();
 			}
 			
-			std::chrono::steady_clock::time_point endTime;
+			_Clock::time_point endTime;
 			Id id = 0;
 
 			void operator=(Timeout const& p_other)
@@ -799,31 +1249,35 @@ namespace Avo
 				endTime = p_other.endTime;
 				id = p_other.id;
 			}
-			void operator=(Timeout&& p_other)
+			void operator=(Timeout&& p_other) noexcept
 			{
 				callback = std::move(p_other.callback);
-				endTime = std::move(p_other.endTime);
+				endTime = p_other.endTime;
 				id = p_other.id;
 			}
 
-			template<typename DurationType, typename DurationPeriod>
-			Timeout(std::function<void()> const& p_callback, std::chrono::duration<DurationType, DurationPeriod> const& p_duration, Id p_id) :
+			template<typename Callable, typename DurationType, typename DurationPeriod>
+			Timeout(Callable const& p_callback, std::chrono::duration<DurationType, DurationPeriod> p_duration, Id p_id) :
 				callback{ p_callback },
-				endTime{ std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(p_duration)/*std::chrono::steady_clock::duration{ int64(p_duration) * 1'000'000ll }*/ },
+				endTime{ _Clock::now() + std::chrono::duration_cast<_Clock::duration>(p_duration) },
 				id{ p_id }
 			{
+				static_assert(std::is_invocable_r_v<void, Callable>, "TimerThread::Timeout error: Timeout callback must be of type void().");
 			}
 			Timeout(Timeout const& p_other) = default;
-			Timeout(Timeout&& p_other)
-			{
-				operator=(std::move(p_other));
-			}
+			Timeout(Timeout&& p_other) noexcept = default;
 		};
 
-		std::atomic<uint64> m_idCounter = 1u;
 		std::vector<Timeout> m_timeouts;
+
+		// Protects the m_timeouts vector because it is modified in different threads
 		std::mutex m_timeoutsMutex;
+
+		// This is a pointer to a user-provided mutex that should be locked during all timeout callbacks.
 		MutexType* m_callbackMutex = nullptr;
+
+		// The timeouts have their own IDs and this is used to generate new ones
+		std::atomic<Count> m_idCounter = 1;
 
 		std::atomic<bool> m_needsToWake = false;
 		std::condition_variable m_wakeConditionVariable;
@@ -831,6 +1285,7 @@ namespace Avo
 
 		std::atomic<bool> m_isRunning = false;
 		std::thread m_thread;
+
 		void thread_run()
 		{
 			m_isRunning = true;
@@ -867,7 +1322,7 @@ namespace Avo
 						continue;
 					}
 					auto timeout = m_timeouts.begin();
-					while (timeout->endTime < std::chrono::steady_clock::now())
+					while (timeout->endTime < _Clock::now())
 					{
 						if (m_callbackMutex)
 						{
@@ -904,14 +1359,15 @@ namespace Avo
 		void run()
 		{
 			m_thread = std::thread{ &TimerThread::thread_run, this };
+			m_isRunning = true;
 		}
 
 	public:
 		/*
 			Adds a function that will be called in p_duration from now.
 		*/
-		template<typename DurationType, typename DurationPeriod>
-		Id addCallback(std::function<void()>& p_callback, std::chrono::duration<DurationType, DurationPeriod> p_duration)
+		template<typename Callable, typename DurationType, typename DurationPeriod>
+		Id addCallback(Callable const& p_callback, std::chrono::duration<DurationType, DurationPeriod> p_duration)
 		{
 			if (!m_isRunning)
 			{
@@ -933,12 +1389,13 @@ namespace Avo
 			wake();
 			return timeout.id;
 		}
-		Id addCallback(std::function<void()>& p_callback, float p_milliseconds)
+		template<typename Callable>
+		Id addCallback(Callable const& p_callback, float p_milliseconds)
 		{
 			return addCallback(p_callback, std::chrono::duration<float, std::milli>{ p_milliseconds });
 		}
 
-		void cancelCallback(Id const& p_id)
+		void cancelCallback(Id p_id)
 		{
 			std::scoped_lock lock{ m_timeoutsMutex };
 			auto position = std::find_if(
@@ -975,24 +1432,28 @@ namespace Avo
 	//------------------------------
 
 	/*
-		This is very useful when storing pointers to dynamically allocated objects in multiple places.
-		The object doesn't get deleted until every remember() has a forget().
+		An object that inherits RefernceCounted doesn't get deleted until every remember() has a forget().
 		The constructor is the first remember(), meaning m_referenceCount is initialized with 1.
 		Don't use the delete operator with objects that are ReferenceCounted, use forget() instead.
+
+		The use of this interface is 100% optional in AvoGUI, and should only be used in rare cases. 
+		The idea is that if you want your own control over the lifetime of for example a view, 
+		then you can use remember() and forget(). Everything allocated by the framework is managed by 
+		the framework otherwise.
 	*/
 	class ReferenceCounted
 	{
 	private:
-		std::atomic<uint32> m_referenceCount;
+		std::atomic<Count> m_referenceCount = 1;
 
 	public:
-		ReferenceCounted() : m_referenceCount(1U) { }
+		ReferenceCounted() { }
 		virtual ~ReferenceCounted() = default;
 
 		/*
 			Increments the reference count and returns the new reference count. Remembers a pointer reference.
 		*/
-		uint32 remember()
+		Count remember()
 		{
 			return ++m_referenceCount;
 		}
@@ -1001,10 +1462,9 @@ namespace Avo
 			Decrements the reference count, returns the new reference count and deletes the object if the reference
 			count has reached 0. Forgets a pointer reference.
 		*/
-		uint32 forget()
+		Count forget()
 		{
-			m_referenceCount--;
-			if (!m_referenceCount)
+			if (!--m_referenceCount)
 			{
 				delete this;
 				return 0;
@@ -1015,7 +1475,7 @@ namespace Avo
 		/*
 			Returns the number of pointer references to the dynamically allocated object that have been remembered.
 		*/
-		uint32 getReferenceCount()
+		Count getReferenceCount()
 		{
 			return m_referenceCount;
 		}
@@ -1276,7 +1736,7 @@ namespace Avo
 		virtual void handleParentChange(Component* p_oldParent) { }
 
 	private:
-		std::unordered_map<uint64, Component*> m_componentsById;
+		std::unordered_map<Count, Component*> m_componentsById;
 		Component* m_idScope = nullptr;
 		Id m_id = 0;
 	public:
@@ -1286,7 +1746,7 @@ namespace Avo
 			p_scope is the component that manages the ID of this component and is the topmost component 
 			from which the ID of this component can be retrieved.
 		*/
-		void setId(Id const& p_id, Component* p_scope)
+		void setId(Id p_id, Component* p_scope)
 		{
 			if (m_idScope)
 			{
@@ -1302,7 +1762,7 @@ namespace Avo
 				m_idScope = p_scope;
 			}
 		}
-		void setId(Id const& p_id)
+		void setId(Id p_id)
 		{
 			setId(p_id, getRoot());
 		}
@@ -1315,7 +1775,7 @@ namespace Avo
 			return m_id;
 		}
 
-		Component* getComponentById(Id const& p_id)
+		Component* getComponentById(Id p_id)
 		{
 			Component* parent = this;
 			while (parent)
@@ -1333,7 +1793,7 @@ namespace Avo
 			return nullptr;
 		}
 		template<typename T>
-		T* getComponentById(Id const& p_id)
+		T* getComponentById(Id p_id)
 		{
 			return (T*)getComponentById(p_id);
 		}
@@ -1372,9 +1832,8 @@ namespace Avo
 		The coordinate system used throughout AvoGUI is one where the positive y-direction is downwards and the positive x-direction is to the right.
 	*/
 	template<typename PointType = float>
-	class Point
+	struct Point
 	{
-	public:
 		PointType x, y;
 
 		Point()
@@ -1688,13 +2147,6 @@ namespace Avo
 		{
 			return sqrt(x*x + y * y);
 		}
-		/*
-			Uses a fast but less accurate algorithm to calculate the length of the 2d vector with pythagorean teorem.
-		*/
-		double getLengthFast() const
-		{
-			return fastSqrt(x*x + y * y);
-		}
 
 		/*
 			Calculates the distance between this point and another point with pythagorean theorem.
@@ -1756,7 +2208,7 @@ namespace Avo
 		template<typename T0, typename T1>
 		static double getLengthSquared(T0 p_x, T1 p_y)
 		{
-			return p_x * p_x + p_y * p_y;
+			return static_cast<double>(p_x * p_x) + static_cast<double>(p_y * p_y);
 		}
 		/*
 			Uses an accurate but slower algorithm to calculate the length of a 2d vector with pythagorean teorem.
@@ -1765,14 +2217,6 @@ namespace Avo
 		static double getLength(T0 p_x, T1 p_y)
 		{
 			return sqrt(p_x * p_x + p_y * p_y);
-		}
-		/*
-			Uses a fast but less accurate algorithm to calculate the length of a 2d vector with pythagorean teorem.
-		*/
-		template<typename T0, typename T1>
-		static double getLengthFast(T0 p_x, T1 p_y)
-		{
-			return fastSqrt(p_x * p_x + p_y * p_y);
 		}
 
 		/*
@@ -1808,22 +2252,6 @@ namespace Avo
 		static double getDistance(T0 p_x0, T1 p_y0, T2 p_x1, T3 p_y1)
 		{
 			return sqrt((p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0));
-		}
-		/*
-			Uses a fast but less accurate algorithm to calculate the distance between two points with pytagorean theorem.
-		*/
-		template<typename T0, typename T1>
-		static float getDistanceFast(Point<T0> const& p_point_0, Point<T1> const& p_point_1)
-		{
-			return fastSqrt((p_point_1.x - p_point_0.x)*(p_point_1.x - p_point_0.x) + (p_point_1.y - p_point_0.y)*(p_point_1.y - p_point_0.y));
-		}
-		/*
-			Uses a fast but less accurate algorithm to calculate the distance between two points with pytagorean theorem.
-		*/
-		template<typename T0, typename T1, typename T2, typename T3>
-		static float getDistanceFast(T0 p_x0, T1 p_y0, T2 p_x1, T3 p_y1)
-		{
-			return fastSqrt((p_x1 - p_x0)*(p_x1 - p_x0) + (p_y1 - p_y0)*(p_y1 - p_y0));
 		}
 
 		//------------------------------
@@ -2059,9 +2487,8 @@ namespace Avo
 
 	//------------------------------
 
-	class Transform
+	struct Transform
 	{
-	public:
 		/*
 			These are the transform coefficients.
 		*/
@@ -2073,7 +2500,7 @@ namespace Avo
 		/*
 			Applies the transform to a point.
 		*/
-		Point<> operator*(Point<> const& p_point) const
+		Point<> operator*(Point<> p_point) const
 		{
 			return { 
 				xToX*p_point.x + yToX*p_point.y + offsetX, 
@@ -2154,7 +2581,7 @@ namespace Avo
 		/*
 			Rotates transformed points around p_origin by an angle expressed in radians.
 		*/
-		Transform& rotate(float p_radians, Avo::Point<> const& p_origin)
+		Transform& rotate(float p_radians, Avo::Point<> p_origin)
 		{
 			return rotate(p_radians, p_origin.x, p_origin.y);
 		}
@@ -2170,7 +2597,7 @@ namespace Avo
 		/*
 			Moves the translation by (p_dx, p_dy).
 		*/
-		Transform& translate(Point<> const& p_offset)
+		Transform& translate(Point<> p_offset)
 		{
 			offsetX += p_offset.x, offsetY += p_offset.y;
 			return *this;
@@ -2186,7 +2613,7 @@ namespace Avo
 		/*
 			Sets the absolute offset in coordinates caused by the transform.
 		*/
-		Transform& setTranslation(Point<> const& p_point)
+		Transform& setTranslation(Point<> p_point)
 		{
 			offsetX = p_point.x, offsetY = p_point.y;
 			return *this;
@@ -2217,7 +2644,7 @@ namespace Avo
 		/*
 			Scales the transform by a horizontal and vertical factor.
 		*/
-		Transform& scale(Point<> const& p_scaleFactor)
+		Transform& scale(Point<> p_scaleFactor)
 		{
 			xToX *= p_scaleFactor.x;
 			yToX *= p_scaleFactor.x;
@@ -2249,9 +2676,8 @@ namespace Avo
 		values for left and right will move the rectangle to the right (when used in the AvoGUI framework).
 	*/
 	template<typename RectangleType = float>
-	class Rectangle
+	struct Rectangle
 	{
-	public:
 		RectangleType left, top, right, bottom;
 
 		Rectangle()
@@ -3210,11 +3636,11 @@ namespace Avo
 	protected:
 		Rectangle<> m_bounds;
 
-		virtual void handleProtectedRectangleChange(Rectangle<> const& p_oldRectangle) { }
+		virtual void handleProtectedRectangleChange(Rectangle<> p_oldRectangle) { }
 
 	public:
 		ProtectedRectangle() = default;
-		explicit ProtectedRectangle(Rectangle<> const& p_bounds) : m_bounds(p_bounds) { }
+		explicit ProtectedRectangle(Rectangle<> p_bounds) : m_bounds(p_bounds) { }
 		explicit ProtectedRectangle(Rectangle<>&& p_bounds) : m_bounds(p_bounds) { }
 
 		virtual void setBounds(float p_left, float p_top, float p_right, float p_bottom)
@@ -3223,15 +3649,15 @@ namespace Avo
 			m_bounds.set(p_left, p_top, p_right, p_bottom);
 			handleProtectedRectangleChange(oldRectangle);
 		}
-		virtual void setBounds(Rectangle<> const& p_rectangle)
+		virtual void setBounds(Rectangle<> p_rectangle)
 		{
 			setBounds(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
-		virtual void setBounds(Point<> const& p_position, Point<> const& p_size)
+		virtual void setBounds(Point<> p_position, Point<> p_size)
 		{
 			setBounds(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y);
 		}
-		virtual Rectangle<> const& getBounds() const
+		virtual Rectangle<> getBounds() const
 		{
 			return m_bounds;
 		}
@@ -3244,7 +3670,7 @@ namespace Avo
 			m_bounds.move(p_offsetX, p_offsetY);
 			handleProtectedRectangleChange(oldRectangle);
 		}
-		virtual void move(Point<> const& p_offset)
+		virtual void move(Point<> p_offset)
 		{
 			move(p_offset.x, p_offset.y);
 		}
@@ -3273,7 +3699,7 @@ namespace Avo
 		{
 			setTopLeft(p_topAndLeft, p_topAndLeft, p_willKeepSize);
 		}
-		virtual void setTopLeft(Point<> const& p_position, bool p_willKeepSize = true)
+		virtual void setTopLeft(Point<> p_position, bool p_willKeepSize = true)
 		{
 			setTopLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -3292,7 +3718,7 @@ namespace Avo
 		{
 			setTopRight(p_topAndRight, p_topAndRight, p_willKeepSize);
 		}
-		virtual void setTopRight(Point<> const& p_topRight, bool p_willKeepSize = true)
+		virtual void setTopRight(Point<> p_topRight, bool p_willKeepSize = true)
 		{
 			setTopRight(p_topRight.x, p_topRight.y, p_willKeepSize);
 		}
@@ -3311,7 +3737,7 @@ namespace Avo
 		{
 			setBottomLeft(p_bottomAndLeft, p_bottomAndLeft, p_willKeepSize);
 		}
-		virtual void setBottomLeft(Point<> const& p_bottomLeft, bool p_willKeepSize = true)
+		virtual void setBottomLeft(Point<> p_bottomLeft, bool p_willKeepSize = true)
 		{
 			setBottomLeft(p_bottomLeft.x, p_bottomLeft.y, p_willKeepSize);
 		}
@@ -3330,7 +3756,7 @@ namespace Avo
 		{
 			setBottomRight(p_bottomAndRight, p_bottomAndRight, p_willKeepSize);
 		}
-		virtual void setBottomRight(Point<> const& p_bottomRight, bool p_willKeepSize = true)
+		virtual void setBottomRight(Point<> p_bottomRight, bool p_willKeepSize = true)
 		{
 			setBottomRight(p_bottomRight.x, p_bottomRight.y, p_willKeepSize);
 		}
@@ -3351,7 +3777,7 @@ namespace Avo
 		{
 			setCenter(p_centerXY, p_centerXY);
 		}
-		virtual void setCenter(Point<> const& p_position)
+		virtual void setCenter(Point<> p_position)
 		{
 			setCenter(p_position.x, p_position.y);
 		}
@@ -3457,7 +3883,7 @@ namespace Avo
 			m_bounds.setSize(p_width, p_height);
 			handleProtectedRectangleChange(oldRectangle);
 		}
-		virtual void setSize(Point<> const& p_size)
+		virtual void setSize(Point<> p_size)
 		{
 			setSize(p_size.x, p_size.y);
 		}
@@ -3472,7 +3898,7 @@ namespace Avo
 		{
 			return m_bounds.getIsIntersecting(p_left, p_top, p_right, p_bottom);
 		}
-		virtual bool getIsIntersecting(Rectangle<> const& p_rectangle) const
+		virtual bool getIsIntersecting(Rectangle<> p_rectangle) const
 		{
 			return getIsIntersecting(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
@@ -3485,7 +3911,7 @@ namespace Avo
 		{
 			return m_bounds.getIsContaining(p_left, p_top, p_right, p_bottom);
 		}
-		virtual bool getIsContaining(Rectangle<> const& p_rectangle) const
+		virtual bool getIsContaining(Rectangle<> p_rectangle) const
 		{
 			return getIsContaining(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
@@ -3498,7 +3924,7 @@ namespace Avo
 		{
 			return m_bounds.getIsContaining(p_x, p_y);
 		}
-		virtual bool getIsContaining(Point<> const& p_point) const
+		virtual bool getIsContaining(Point<> p_point) const
 		{
 			return getIsContaining(p_point.x, p_point.y);
 		}
@@ -3511,9 +3937,8 @@ namespace Avo
 		Round,
 		Cut
 	};
-	class RectangleCorners
+	struct RectangleCorners
 	{
-	public:
 		RectangleCornerType topLeftType;
 		RectangleCornerType topRightType;
 		RectangleCornerType bottomLeftType;
@@ -3711,11 +4136,53 @@ namespace Avo
 
 	/*
 		Class used for making animations.
-		To make an animation, call View::createAnimation from a view.
-		It is then cleaned up when the view destroys.
+		Preferrablý use the constructor directly, but there is also View::addAnimation 
+		methods to dynamically create animations that have the same lifetime as a view.
 	*/
-	class Animation : public ReferenceCounted
+	class Animation
 	{
+		friend class Gui;
+
+	private:
+		using _Clock = std::chrono::steady_clock;
+		using _Duration = std::chrono::duration<float, std::milli>;
+
+		_Duration m_duration;
+	public:
+		void setDuration(float p_milliseconds)
+		{
+			m_duration = _Duration{ p_milliseconds };
+		}
+		/*
+			Returns the duration of the animation in milliseconds.
+		*/
+		float getDuration()
+		{
+			return m_duration.count();
+		}
+		/*
+			Sets the duration of the animation in any type from the standard chrono library.
+			Example:
+				animation.setDuration(1min/5); // Minutes
+				animation.setDuration(2s); // Seconds
+				animation.setDuration(400ms); // Milliseconds
+		*/
+		template<typename DurationType, typename DurationPeriod>
+		void setDuration(std::chrono::duration<DurationType, DurationPeriod> p_duration)
+		{
+			m_duration = std::chrono::duration_cast<_Duration>(p_duration);
+		}
+		/*
+			Returns the duration of the animation in any duration type from the standard chrono library.
+			Example:
+				auto seconds = animation.getDuration<std::chrono::seconds>();
+		*/
+		template<typename DurationType>
+		DurationType getDuration()
+		{
+			return std::chrono::duration_cast<DurationType>(m_duration);
+		}
+
 	private:
 		bool m_isReversed = false;
 	public:
@@ -3723,8 +4190,8 @@ namespace Avo
 		{
 			if (p_isReversed != m_isReversed)
 			{
-				float value = m_easing.easeValue(std::chrono::duration<float, std::milli>{std::chrono::steady_clock::now() - m_startTime}.count() / m_milliseconds, m_easingPrecision);
-				m_startTime = std::chrono::steady_clock::now() - std::chrono::steady_clock::duration{ uint64(m_easing.easeValueInverse(1.f - value) * m_milliseconds * 1'000'000) };
+				float value = m_easing.easeValue(std::chrono::duration_cast<_Duration>(_Clock::now() - m_startTime) / m_duration, m_easingPrecision);
+				m_startTime = _Clock::now() - std::chrono::duration_cast<_Clock::duration>(m_easing.easeValueInverse(1.f - value) * m_duration);
 				m_isReversed = p_isReversed;
 			}
 		}
@@ -3742,46 +4209,9 @@ namespace Avo
 		}
 
 	private:
-		float m_milliseconds;
-	public:
-		void setDuration(float p_milliseconds)
-		{
-			m_milliseconds = p_milliseconds;
-		}
-		/*
-			Returns the duration of the animation in milliseconds.
-		*/
-		float getDuration()
-		{
-			return m_milliseconds;
-		}
-		/*
-			Sets the duration of the animation in any type from the standard chrono library.
-			Example:
-				animation.setDuration(1min/5); // Minutes
-				animation.setDuration(2s); // Seconds
-				animation.setDuration(400ms); // Milliseconds
-		*/
-		template<typename DurationType, typename DurationPeriod>
-		void setDuration(std::chrono::duration<DurationType, DurationPeriod> const& p_duration)
-		{
-			m_milliseconds = std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(p_duration).count();
-		}
-		/*
-			Returns the duration of the animation in any duration type from the standard chrono library.
-			Example:
-				auto seconds = animation.getDuration<std::chrono::seconds>();
-		*/
-		template<typename DurationType>
-		DurationType getDuration()
-		{
-			return std::chrono::duration_cast<DurationType>(std::chrono::duration<float, std::milli>{ m_milliseconds });
-		}
-
-	private:
 		Easing m_easing;
 	public:
-		void setEasing(Easing const& p_easing)
+		void setEasing(Easing p_easing)
 		{
 			m_easing = p_easing;
 		}
@@ -3803,7 +4233,7 @@ namespace Avo
 		}
 
 	private:
-		View* m_view;
+		Gui* m_gui = nullptr;
 		bool m_isInUpdateQueue = false;
 		void queueUpdate();
 
@@ -3815,7 +4245,7 @@ namespace Avo
 				m_isInUpdateQueue = false;
 				return;
 			}
-			float value = m_easing.easeValue(std::chrono::duration<float, std::milli>{std::chrono::steady_clock::now() - m_startTime}.count() / m_milliseconds, m_easingPrecision);
+			float value = m_easing.easeValue(std::chrono::duration_cast<_Duration>(_Clock::now() - m_startTime) / m_duration, m_easingPrecision);
 			if (value >= 1.f)
 			{
 				m_isDone = true;
@@ -3834,10 +4264,7 @@ namespace Avo
 				queueUpdate();
 			}
 		}
-		void cancelAllUpdates()
-		{
-			m_areUpdatesCancelled = true;
-		}
+		void cancelAllUpdates();
 
 	public:
 		/*
@@ -3850,19 +4277,19 @@ namespace Avo
 
 	private:
 		bool m_isPaused = false;
-		std::chrono::steady_clock::time_point m_startTime;
-		std::chrono::steady_clock::time_point m_pauseTime;
+		_Clock::time_point m_startTime;
+		_Clock::time_point m_pauseTime;
 	public:
 		void play(bool p_isReversed)
 		{
 			setIsReversed(p_isReversed);
 			if (m_isPaused)
 			{
-				m_startTime += std::chrono::steady_clock::now() - m_pauseTime;
+				m_startTime += _Clock::now() - m_pauseTime;
 			}
 			else if (m_isDone)
 			{
-				m_startTime = std::chrono::steady_clock::now();
+				m_startTime = _Clock::now();
 			}
 			else return;
 			m_isDone = false;
@@ -3880,11 +4307,11 @@ namespace Avo
 			m_isDone = false;
 			if (m_isReversed)
 			{
-				m_startTime = std::chrono::steady_clock::now() - std::chrono::steady_clock::duration{ uint64((1.f - p_startProgress) * m_milliseconds * 1'000'000) };
+				m_startTime = _Clock::now() - std::chrono::duration_cast<_Clock::duration>((1.f - p_startProgress) * m_duration);
 			}
 			else
 			{
-				m_startTime = std::chrono::steady_clock::now() - std::chrono::steady_clock::duration{ uint64(p_startProgress * m_milliseconds * 1'000'000) };
+				m_startTime = _Clock::now() - std::chrono::duration_cast<_Clock::duration>(p_startProgress * m_duration);
 			}
 		}
 		void pause()
@@ -3903,20 +4330,58 @@ namespace Avo
 			play();
 		}
 
-	private:
-		friend class Gui;
-		friend class View;
+		//------------------------------
 
-		Animation(View* p_view, Easing const& p_easing, float p_milliseconds) :
-			m_view{ p_view },
+		Animation& operator=(Animation const&) = default;
+		Animation& operator=(Animation&& p_other) noexcept = default;
+
+		Animation() = default;
+		Animation(Animation const&) = default;
+		Animation(Animation&&) = default;
+
+		Animation(Gui* p_gui, Easing p_easing, float p_milliseconds) :
+			m_gui{ p_gui },
 			m_easing{ p_easing },
-			m_milliseconds{ p_milliseconds }
+			m_duration{ p_milliseconds }
 		{
 		}
-		template<typename DurationType, typename DurationPeriod>
-		Animation(View* p_view, Easing const& p_easing, std::chrono::duration<DurationType, DurationPeriod> const& p_duration) :
-			Animation{ p_view, p_easing, std::chrono::duration_cast<std::chrono::duration<float, std::milli>>(p_duration).count() }
+		template<typename Callback>
+		Animation(Gui* p_gui, Easing p_easing, float p_milliseconds, Callback const& p_callback) :
+			m_gui{ p_gui },
+			m_easing{ p_easing },
+			m_duration{ p_milliseconds }
 		{
+			static_assert(std::is_invocable_r_v<void, Callback, float>, "Animation error: callback must be of type void (float).");
+			updateListeners += p_callback;
+		}
+		template<typename DurationType, typename DurationPeriod>
+		Animation(Gui* p_gui, Easing p_easing, std::chrono::duration<DurationType, DurationPeriod> const& p_duration) :
+			Animation{ p_gui, p_easing, std::chrono::duration_cast<_Duration>(p_duration).count() }
+		{
+		}
+		template<typename DurationType, typename DurationPeriod, typename Callback>
+		Animation(Gui* p_gui, Easing p_easing, std::chrono::duration<DurationType, DurationPeriod> const& p_duration, Callback const& p_callback) :
+			Animation{ p_gui, p_easing, std::chrono::duration_cast<_Duration>(p_duration).count(), p_callback }
+		{
+		}
+		~Animation()
+		{
+			cancelAllUpdates();
+		}
+	};
+
+	//------------------------------
+
+	/*
+		Runs a callable on construction.
+	*/
+	class Initializer
+	{
+	public:
+		template<typename Lambda>
+		Initializer(Lambda p_initializer)
+		{
+			p_initializer();
 		}
 	};
 
@@ -3949,9 +4414,8 @@ namespace Avo
 		Object representing a color. A Color object stores the channels as 32-bit floats with a range of [0, 1].
 		This means that a Color object is 4 times as big as a packed 32-bit color.
 	*/
-	class Color
+	struct Color
 	{
-	public:
 		float red;
 		float green;
 		float blue;
@@ -3959,105 +4423,142 @@ namespace Avo
 
 		//------------------------------
 
-		Color() :
-			red(0.f), green(0.f), blue(0.f), alpha(1.f)
+		constexpr Color() :
+			red{ 0.f }, 
+			green{ 0.f }, 
+			blue{ 0.f }, 
+			alpha{ 1.f }
 		{ }
 		/*
 			The channels are floats in the range [0, 1].
 		*/
-		Color(float p_red, float p_green, float p_blue, float p_alpha = 1.f) :
-			red(constrain(p_red)), green(constrain(p_green)), blue(constrain(p_blue)), alpha(constrain(p_alpha))
+		constexpr Color(float p_red, float p_green, float p_blue, float p_alpha = 1.f) :
+			red{ constrain(p_red) }, 
+			green{ constrain(p_green) }, 
+			blue{ constrain(p_blue) }, 
+			alpha{ constrain(p_alpha) }
 		{ }
 		/*
 			The channels are doubles in the range [0, 1].
 		*/
-		Color(double p_red, double p_green, double p_blue, double p_alpha = 1.f) :
-			red(constrain(p_red)), green(constrain(p_green)), blue(constrain(p_blue)), alpha(constrain(p_alpha))
+		constexpr Color(double p_red, double p_green, double p_blue, double p_alpha = 1.f) :
+			red{ (float)constrain(p_red) },
+			green{ (float)constrain(p_green) },
+			blue{ (float)constrain(p_blue) },
+			alpha{ (float)constrain(p_alpha) }
 		{ }
 		/*
 			The channels are in the range [0, 255]
 		*/
-		Color(uint8 p_red, uint8 p_green, uint8 p_blue, uint8 p_alpha = (uint8)255) :
-			red(float(p_red) / 255.f), green(float(p_green) / 255.f), blue(float(p_blue) / 255.f), alpha(float(p_alpha) / 255.f)
+		constexpr Color(uint8 p_red, uint8 p_green, uint8 p_blue, uint8 p_alpha = (uint8)255) :
+			red{ p_red / 255.f },
+			green{ p_green / 255.f },
+			blue{ p_blue / 255.f },
+			alpha{ p_alpha / 255.f }
 		{ }
 		/*
 			The channels are in the range [0, 255]
 		*/
-		Color(uint32 p_red, uint32 p_green, uint32 p_blue, uint32 p_alpha = (uint32)255) :
-			red(constrain(float(p_red) / 255.f)), green(constrain(float(p_green) / 255.f)), blue(constrain(float(p_blue) / 255.f)), alpha(constrain(float(p_alpha) / 255.f))
+		constexpr Color(uint32 p_red, uint32 p_green, uint32 p_blue, uint32 p_alpha = (uint32)255) :
+			red{ constrain(p_red / 255.f) }, 
+			green{ constrain(p_green / 255.f) }, 
+			blue{ constrain(p_blue / 255.f) }, 
+			alpha{ constrain(p_alpha / 255.f) }
 		{ }
 		/*
 			The channels are in the range [0, 255]
 		*/
-		Color(int32 p_red, int32 p_green, int32 p_blue, int32 p_alpha = (int32)255) :
-			red(constrain(float(p_red) / 255.f)), green(constrain(float(p_green) / 255.f)), blue(constrain(float(p_blue) / 255.f)), alpha(constrain(float(p_alpha) / 255.f))
+		constexpr Color(int32 p_red, int32 p_green, int32 p_blue, int32 p_alpha = (int32)255) :
+			red{ constrain(p_red / 255.f) }, 
+			green{ constrain(p_green / 255.f) }, 
+			blue{ constrain(p_blue / 255.f) }, 
+			alpha{ constrain(p_alpha / 255.f) }
 		{ }
 		/*
 			Initializes the color with a grayscale value. The values are floats in the range [0, 1].
 		*/
-		Color(float p_lightness, float p_alpha = 1.f)
+		constexpr Color(float p_lightness, float p_alpha = 1.f) :
+			red{ constrain(p_lightness) },
+			green{ constrain(p_lightness) },
+			blue{ constrain(p_lightness) },
+			alpha{ constrain(p_alpha) }
 		{
-			red = green = blue = constrain(p_lightness);
-			alpha = constrain(p_alpha);
 		}
 		/*
 			Initializes the color with a grayscale value. The values are doubles in the range [0, 1].
 		*/
-		Color(double p_lightness, double p_alpha = 1.)
+		constexpr Color(double p_lightness, double p_alpha = 1.) :
+			red{ (float)constrain(p_lightness) },
+			green{ red },
+			blue{ red },
+			alpha{ (float)constrain(p_alpha) }
 		{
-			red = green = blue = constrain(p_lightness);
-			alpha = constrain(p_alpha);
 		}
 		/*
 			Initializes the color with a grayscale value. The values are bytes in the range [0, 255].
 		*/
-		Color(uint8 p_lightness, uint8 p_alpha = (uint8)255)
+		constexpr Color(uint8 p_lightness, uint8 p_alpha = (uint8)255) :
+			red{ constrain(p_lightness / 255.f) },
+			green{ red },
+			blue{ red },
+			alpha{ constrain(p_alpha / 255.f) }
 		{
-			red = green = blue = float(p_lightness) / 255.f;
-			alpha = float(p_alpha) / 255.f;
 		}
 		/*
 			Initializes the color with a grayscale value. The values are in the range [0, 255].
 		*/
-		Color(uint32 p_lightness, uint32 p_alpha)
+		constexpr Color(uint32 p_lightness, uint32 p_alpha) :
+			red{ constrain(p_lightness / 255.f) },
+			green{ red },
+			blue{ red },
+			alpha{ constrain(p_alpha / 255.f) }
 		{
-			red = green = blue = constrain(float(p_lightness) / 255.f);
-			alpha = constrain(float(p_alpha) / 255.f);
 		}
 		/*
 			Initializes the color with a grayscale value. The values are in the range [0, 255].
 		*/
-		Color(int32 p_lightness, int32 p_alpha = 255)
+		constexpr Color(int32 p_lightness, int32 p_alpha = 255) :
+			red{ constrain(p_lightness / 255.f) },
+			green{ red },
+			blue{ red },
+			alpha{ constrain(p_alpha / 255.f) }
 		{
-			red = green = blue = constrain(float(p_lightness) / 255.f);
-			alpha = constrain(float(p_alpha) / 255.f);
 		}
 		/*
 			Creates a copy of another color but with a new alpha.
 		*/
-		Color(Color const& p_color, float p_alpha) :
-			red(p_color.red), green(p_color.green), blue(p_color.blue), alpha(p_alpha)
+		constexpr Color(Color const& p_color, float p_alpha) :
+			red{ p_color.red }, 
+			green{ p_color.green }, 
+			blue{ p_color.blue }, 
+			alpha{ p_alpha }
 		{ }
 		/*
 			Creates a copy of another color but with a new alpha.
 		*/
-		Color(Color const& p_color, double p_alpha) :
-			red(p_color.red), green(p_color.green), blue(p_color.blue), alpha(p_alpha)
+		constexpr Color(Color const& p_color, double p_alpha) :
+			red{ p_color.red }, 
+			green{ p_color.green }, 
+			blue{ p_color.blue }, 
+			alpha{ float(p_alpha) }
 		{ }
 		/*
 			Initializes with a 4-byte packed RGBA color.
 		*/
-		Color(colorInt p_color)
+		constexpr Color(colorInt p_color) :
+			alpha{ (p_color >> 24u) / 255.f },
+			red{ (p_color >> 16u & 0xffu) / 255.f },
+			green{ (p_color >> 8u & 0xffu) / 255.f },
+			blue{ (p_color & 0xffu) / 255.f }
 		{
-			operator=(p_color);
 		}
 
 		Color& operator=(colorInt p_color)
 		{
-			alpha = float(p_color >> 24u) / 255.f;
-			red = float(p_color >> 16u & 0xffu) / 255.f;
-			green = float(p_color >> 8u & 0xffu) / 255.f;
-			blue = float(p_color & 0xffu) / 255.f;
+			alpha = (p_color >> 24u) / 255.f;
+			red = (p_color >> 16u & 0xffu) / 255.f;
+			green = (p_color >> 8u & 0xffu) / 255.f;
+			blue = (p_color & 0xffu) / 255.f;
 			return *this;
 		}
 
@@ -4622,7 +5123,7 @@ namespace Avo
 		Linearly interpolates a color between p_start and p_end. Each channel is faded individually.
 		If p_progress is 0, p_start is returned. If p_progress is 1, p_end is returned.
 	*/
-	inline Color interpolate(Color const& p_start, Color const& p_end, float p_progress)
+	inline Color interpolate(Color p_start, Color p_end, float p_progress)
 	{
 		return {
 			p_start.red * (1.f - p_progress) + p_end.red * p_progress,
@@ -4686,9 +5187,8 @@ namespace Avo
 		Can be used for changing and accessing any values, colors and easings.
 		All the default IDs are in Avo::ThemeColors, Avo::ThemeEasings and Avo::ThemeValues.
 	*/
-	class Theme : public ReferenceCounted
+	struct Theme : public ReferenceCounted
 	{
-	public:
 		std::unordered_map<uint64, Color> colors;
 		std::unordered_map<uint64, Easing> easings;
 		std::unordered_map<uint64, float> values;
@@ -4789,7 +5289,7 @@ namespace Avo
 			Sets a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
 			This is in original image DIP coordinates, meaning sizing is not taken into account.
 		*/
-		virtual void setCropRectangle(Rectangle<> const& p_rectangle)
+		virtual void setCropRectangle(Rectangle<> p_rectangle)
 		{
 			if (m_implementation)
 			{
@@ -4874,7 +5374,7 @@ namespace Avo
 			It is expressed as a factor of the size of the image. For example, if p_factor is (1, 1), the bottom right corner of the image will be
 			aligned with the bottom right corner of the bounds. 0.5 means the centers will be aligned.
 		*/
-		virtual void setBoundsPositioning(Point<> const& p_factor)
+		virtual void setBoundsPositioning(Point<> p_factor)
 		{
 			setBoundsPositioning(p_factor.x, p_factor.y);
 		}
@@ -5116,7 +5616,7 @@ namespace Avo
 		}
 
 	protected:
-		void handleProtectedRectangleChange(Rectangle<float> const& p_old) override
+		void handleProtectedRectangleChange(Rectangle<> p_old) override
 		{
 			if (m_implementation)
 			{
@@ -5160,6 +5660,8 @@ namespace Avo
 			}
 		}
 	};
+
+	// TODO: Make ImageView class
 
 	//------------------------------
 
@@ -5252,7 +5754,7 @@ namespace Avo
 		/*
 			Returns the type of rules used for inserting line breaks in the text to avoid overflow.
 		*/
-		virtual WordWrapping getWordWrapping()
+		virtual WordWrapping getWordWrapping() const
 		{
 			if (m_implementation)
 			{
@@ -5300,7 +5802,7 @@ namespace Avo
 			If getIsTopTrimmed() == false, the height includes the space between the top of the tallest character
 			and the top edge of the bounds.
 		*/
-		virtual Point<> getMinimumSize()
+		virtual Point<> getMinimumSize() const
 		{
 			if (m_implementation)
 			{
@@ -5311,7 +5813,7 @@ namespace Avo
 		/*
 			Returns the smallest width to contain the actual text.
 		*/
-		virtual float getMinimumWidth()
+		virtual float getMinimumWidth() const
 		{
 			if (m_implementation)
 			{
@@ -5324,7 +5826,7 @@ namespace Avo
 			If getIsTopTrimmed() == false, this includes the space between the top of the tallest character
 			and the top edge of the bounds.
 		*/
-		virtual float getMinimumHeight()
+		virtual float getMinimumHeight() const
 		{
 			if (m_implementation)
 			{
@@ -5355,7 +5857,7 @@ namespace Avo
 			Returns whether the top of the text is trimmed so that there is no space between the top of the tallest
 			character of the text and the top edge of the bounds. This is false by default.
 		*/
-		virtual bool getIsTopTrimmed()
+		virtual bool getIsTopTrimmed() const
 		{
 			if (m_implementation)
 			{
@@ -5371,7 +5873,7 @@ namespace Avo
 			p_isRelativeToOrigin is whether the position returned is relative to the origin of the drawing context.
 			If not, it is relative to the bounds of the text.
 		*/
-		virtual Point<> getCharacterPosition(Index p_characterIndex, bool p_isRelativeToOrigin = false)
+		virtual Point<> getCharacterPosition(Index p_characterIndex, bool p_isRelativeToOrigin = false) const
 		{
 			if (m_implementation)
 			{
@@ -5382,7 +5884,7 @@ namespace Avo
 		/*
 			Returns the width and height of a character in the text, specified by its index in the string.
 		*/
-		virtual Point<> getCharacterSize(Index p_characterIndex)
+		virtual Point<> getCharacterSize(Index p_characterIndex) const
 		{
 			if (m_implementation)
 			{
@@ -5395,7 +5897,7 @@ namespace Avo
 			p_isRelativeToOrigin is whether the position of the bounds returned is relative to the origin of the drawing context.
 			If not, it is relative to the bounds of the text.
 		*/
-		virtual Rectangle<> getCharacterBounds(Index p_characterIndex, bool p_isRelativeToOrigin = false)
+		virtual Rectangle<> getCharacterBounds(Index p_characterIndex, bool p_isRelativeToOrigin = false) const
 		{
 			if (m_implementation)
 			{
@@ -5409,7 +5911,7 @@ namespace Avo
 			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context.
 			If not, it is relative to the bounds of the text.
 		*/
-		virtual Index getNearestCharacterIndex(Point<> const& p_point, bool p_isRelativeToOrigin = false)
+		virtual Index getNearestCharacterIndex(Point<> p_point, bool p_isRelativeToOrigin = false) const
 		{
 			if (m_implementation)
 			{
@@ -5423,7 +5925,7 @@ namespace Avo
 			p_isRelativeToOrigin is whether the position given is relative to the origin of the drawing context.
 			If not, it is relative to the bounds of the text.
 		*/
-		virtual Index getNearestCharacterIndex(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false)
+		virtual Index getNearestCharacterIndex(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false) const
 		{
 			if (m_implementation)
 			{
@@ -5437,7 +5939,7 @@ namespace Avo
 			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context.
 			If not, they are relative to the bounds of the text.
 		*/
-		virtual std::tuple<Index, Point<>> getNearestCharacterIndexAndPosition(Point<> const& p_point, bool p_isRelativeToOrigin = false)
+		virtual std::tuple<Index, Point<>> getNearestCharacterIndexAndPosition(Point<> p_point, bool p_isRelativeToOrigin = false) const
 		{
 			return getNearestCharacterIndexAndPosition(p_point.x, p_point.y, p_isRelativeToOrigin);
 		}
@@ -5447,7 +5949,7 @@ namespace Avo
 			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context.
 			If not, they are relative to the bounds of the text.
 		*/
-		virtual std::tuple<Index, Point<>> getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false)
+		virtual std::tuple<Index, Point<>> getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false) const
 		{
 			if (m_implementation)
 			{
@@ -5460,7 +5962,7 @@ namespace Avo
 
 			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.
 		*/
-		virtual std::tuple<Index, Rectangle<>> getNearestCharacterIndexAndBounds(Point<> const& p_point, bool p_isRelativeToOrigin = false)
+		virtual std::tuple<Index, Rectangle<>> getNearestCharacterIndexAndBounds(Point<> p_point, bool p_isRelativeToOrigin = false) const
 		{
 			return getNearestCharacterIndexAndBounds(p_point, p_isRelativeToOrigin);
 		}
@@ -5469,7 +5971,7 @@ namespace Avo
 
 			p_isRelativeToOrigin is whether the input and output points are relative to the origin of the drawing context. If not, they are relative to the bounds of the text.
 		*/
-		virtual std::tuple<Index, Rectangle<>> getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false)
+		virtual std::tuple<Index, Rectangle<>> getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, bool p_isRelativeToOrigin = false) const
 		{
 			if (m_implementation)
 			{
@@ -5493,7 +5995,7 @@ namespace Avo
 		/*
 			Returns how the text is placed within the bounds.
 		*/
-		virtual TextAlign getTextAlign()
+		virtual TextAlign getTextAlign() const
 		{
 			if (m_implementation)
 			{
@@ -5517,7 +6019,7 @@ namespace Avo
 		/*
 			Returns the layout direction of the text.
 		*/
-		virtual ReadingDirection getReadingDirection()
+		virtual ReadingDirection getReadingDirection() const
 		{
 			if (m_implementation)
 			{
@@ -5529,22 +6031,35 @@ namespace Avo
 		//------------------------------
 
 		/*
+			Represents a part of the text that a property-changing method will affect.
+		*/
+		struct Range
+		{
+			/*
+				The position of the first character that a property is set on.
+				If this is negative, it is relative to the end of the text.
+			*/
+			Index startPosition = 0;
+			/*
+				The number of characters that a property is set on.
+				If this is negative, it goes to the left of the start position.
+				If it is 0, everything after the start position is affected.
+			*/
+			Count length = 0;
+		};
+
+		//------------------------------
+
+		/*
 			Sets the font family to be used in a section of the text.
 
 			p_name is the name of the font family.
-
-			p_startPosition is the position of the first character to use this font.
-			If this is negative, it is relative to the end of the text.
-
-			p_length is the number of characters to use this font.
-			If this is negative, it goes to the left of the start position.
-			If it is 0, everything after the starting position will be affected.
 		*/
-		virtual void setFontFamily(std::string const& p_name, int32 p_startPosition = 0, int32 p_length = 0)
+		virtual void setFontFamily(std::string_view p_name, Range const& p_range = {})
 		{
 			if (m_implementation)
 			{
-				m_implementation->setFontFamily(p_name, p_startPosition, p_length);
+				m_implementation->setFontFamily(p_name, p_range);
 			}
 		}
 
@@ -5552,44 +6067,28 @@ namespace Avo
 
 		/*
 			Sets the spacing between characters in a section of the text.
-
-			p_startPosition is the position of the first character to use this spacing.
-			If this is negative, it is relative to the end of the text.
-
-			p_length is the number of characters to use this spacing.
-			If this is negative, it goes to the left of the start position.
-			If it is 0, everything after the starting position will be affected.
 		*/
-		virtual void setCharacterSpacing(float p_characterSpacing, int32 p_startPosition = 0, int32 p_length = 0)
+		void setCharacterSpacing(float p_characterSpacing, Range const& p_range = {})
 		{
-			if (m_implementation)
-			{
-				m_implementation->setCharacterSpacing(p_characterSpacing, p_startPosition, p_length);
-			}
+			setCharacterSpacing(p_characterSpacing * 0.5f, p_characterSpacing * 0.5f, p_range);
 		}
 		/*
 			Sets the leading and trailing spacing of the characters in a section of the text.
 
 			p_leading is the spacing before the characters of the text.
 			p_trailing is the spacing after the characters of the text.
-			p_startPosition is the position of the first character to use this spacing.
-			If this is negative, it is relative to the end of the text.
-
-			p_length is the number of characters to use this spacing.
-			If this is negative, it goes to the left of the start position.
-			If it is 0, everything after the starting position will be affected.
 		*/
-		virtual void setCharacterSpacing(float p_leading, float p_trailing, int32 p_startPosition = 0, int32 p_length = 0)
+		virtual void setCharacterSpacing(float p_leading, float p_trailing, Range const& p_range = {})
 		{
 			if (m_implementation)
 			{
-				m_implementation->setCharacterSpacing(p_leading, p_trailing, p_startPosition, p_length);
+				m_implementation->setCharacterSpacing(p_leading, p_trailing, p_range);
 			}
 		}
 		/*
 			Returns the spacing before one of the characters.
 		*/
-		virtual float getLeadingCharacterSpacing(int32 p_characterIndex = 0)
+		virtual float getLeadingCharacterSpacing(Index p_characterIndex = 0) const
 		{
 			if (m_implementation)
 			{
@@ -5600,7 +6099,7 @@ namespace Avo
 		/*
 			Returns the spacing after one of the characters.
 		*/
-		virtual float getTrailingCharacterSpacing(int32 p_characterIndex = 0)
+		virtual float getTrailingCharacterSpacing(Index p_characterIndex = 0) const
 		{
 			if (m_implementation)
 			{
@@ -5624,7 +6123,7 @@ namespace Avo
 		/*
 			Returns the distance between the baseline of lines in the text, as a factor of the default.
 		*/
-		virtual float getLineHeight()
+		virtual float getLineHeight() const
 		{
 			if (m_implementation)
 			{
@@ -5637,25 +6136,18 @@ namespace Avo
 
 		/*
 			Sets the thickness of characters in a section of the text.
-
-			p_startPosition is the position of the first character to use this font weight.
-			If this is negative, it is relative to the end of the text.
-
-			p_length is the number of characters to use this font weight.
-			If this is negative, it goes to the left of the start position.
-			If it is 0, everything after the starting position will be affected.
 		*/
-		virtual void setFontWeight(FontWeight p_fontWeight, int32 p_startPosition = 0, int32 p_length = 0)
+		virtual void setFontWeight(FontWeight p_fontWeight, Range const& p_range = {})
 		{
 			if (m_implementation)
 			{
-				m_implementation->setFontWeight(p_fontWeight, p_startPosition, p_length);
+				m_implementation->setFontWeight(p_fontWeight, p_range);
 			}
 		}
 		/*
 			Returns the weight/thickness of a character in the text.
 		*/
-		virtual FontWeight getFontWeight(uint32 p_characterPosition = 0)
+		virtual FontWeight getFontWeight(Index p_characterPosition = 0) const
 		{
 			if (m_implementation)
 			{
@@ -5668,25 +6160,18 @@ namespace Avo
 
 		/*
 			Sets the font style in a section of the text.
-
-			p_startPosition is the position of the first character to use this font style.
-			If this is negative, it is relative to the end of the text.
-
-			p_length is the number of characters to use this font style.
-			If this is negative, it goes to the left of the start position.
-			If it is 0, everything after the starting position will be affected.
 		*/
-		virtual void setFontStyle(FontStyle p_fontStyle, int32 p_startPosition = 0, int32 p_length = 0)
+		virtual void setFontStyle(FontStyle p_fontStyle, Range const& p_range = {})
 		{
 			if (m_implementation)
 			{
-				m_implementation->setFontStyle(p_fontStyle, p_startPosition, p_length);
+				m_implementation->setFontStyle(p_fontStyle, p_range);
 			}
 		}
 		/*
 			Returns the style of a character in the text.
 		*/
-		virtual FontStyle getFontStyle(uint32 p_characterPosition = 0)
+		virtual FontStyle getFontStyle(Index p_characterPosition = 0) const
 		{
 			if (m_implementation)
 			{
@@ -5699,25 +6184,18 @@ namespace Avo
 
 		/*
 			Sets the font stretch in a section of the text. Not all fonts support this.
-
-			p_startPosition is the position of the first character to use this font stretch.
-			If this is negative, it is relative to the end of the text.
-
-			p_length is the number of characters to use this font stretch.
-			If this is negative, it goes to the left of the start position.
-			If it is 0, everything after the starting position will be affected.
 		*/
-		virtual void setFontStretch(FontStretch p_fontStretch, int32 p_startPosition = 0, int32 p_length = 0)
+		virtual void setFontStretch(FontStretch p_fontStretch, Range const& p_range = {})
 		{
 			if (m_implementation)
 			{
-				m_implementation->setFontStretch(p_fontStretch, p_startPosition, p_length);
+				m_implementation->setFontStretch(p_fontStretch, p_range);
 			}
 		}
 		/*
 			Returns the font stretch of a character in the text.
 		*/
-		virtual FontStretch getFontStretch(uint32 p_characterPosition = 0)
+		virtual FontStretch getFontStretch(Index p_characterPosition = 0) const
 		{
 			if (m_implementation)
 			{
@@ -5730,25 +6208,18 @@ namespace Avo
 
 		/*
 			Sets the font size in a section of the text.
-
-			p_startPosition is the position of the first character to use this font size.
-			If this is negative, it is relative to the end of the text.
-
-			p_length is the number of characters to use this font size.
-			If this is negative, it goes to the left of the start position.
-			If it is 0, everything after the starting position will be affected.
 		*/
-		virtual void setFontSize(float p_fontSize, int32 p_startPosition = 0, int32 p_length = 0)
+		virtual void setFontSize(float p_fontSize, Range const& p_range = {})
 		{
 			if (m_implementation)
 			{
-				m_implementation->setFontSize(p_fontSize, p_startPosition, p_length);
+				m_implementation->setFontSize(p_fontSize, p_range);
 			}
 		}
 		/*
 			Returns the size (height) of a character in the text.
 		*/
-		virtual float getFontSize(uint32 p_characterPosition = 0)
+		virtual float getFontSize(Index p_characterPosition = 0) const
 		{
 			if (m_implementation)
 			{
@@ -5759,7 +6230,7 @@ namespace Avo
 
 		//------------------------------
 
-		virtual std::string const& getString()
+		virtual std::string_view getString() const
 		{
 			if (m_implementation)
 			{
@@ -5773,7 +6244,7 @@ namespace Avo
 		/*
 			Returns a pointer to an OS-specific text object.
 		*/
-		virtual void* getHandle()
+		virtual void* getHandle() const
 		{
 			if (m_implementation)
 			{
@@ -5792,7 +6263,7 @@ namespace Avo
 				m_implementation->ProtectedRectangle::setBounds(p_left, p_top, p_right, p_bottom);
 			}
 		}
-		Rectangle<> const& getBounds() const override
+		Rectangle<> getBounds() const override
 		{
 			if (m_implementation)
 			{
@@ -6164,7 +6635,7 @@ namespace Avo
 		/*
 			Sets an offset in the start and end positions.
 		*/
-		virtual void setOffset(Point<> const& p_offset)
+		virtual void setOffset(Point<> p_offset)
 		{
 			setOffset(p_offset.x, p_offset.y);
 		}
@@ -6202,7 +6673,7 @@ namespace Avo
 		/*
 			Returns the offset in the start and end positions.
 		*/
-		virtual Point<> const& getOffset() const
+		virtual Point<> getOffset() const
 		{
 			if (m_implementation)
 			{
@@ -6236,7 +6707,7 @@ namespace Avo
 		/*
 			Sets the coordinates where the gradient will start, relative to the origin.
 		*/
-		virtual void setStartPosition(Point<> const& p_startPosition)
+		virtual void setStartPosition(Point<> p_startPosition)
 		{
 			setStartPosition(p_startPosition.x, p_startPosition.y);
 		}
@@ -6253,7 +6724,7 @@ namespace Avo
 		/*
 			Returns the coordinates relative to the origin where the gradient will start.
 		*/
-		virtual Point<> const& getStartPosition() const
+		virtual Point<> getStartPosition() const
 		{
 			if (m_implementation)
 			{
@@ -6287,7 +6758,7 @@ namespace Avo
 		/*
 			Sets the coordinates relative to the origin where the gradient will end.
 		*/
-		virtual void setEndPosition(Point<> const& p_endPosition)
+		virtual void setEndPosition(Point<> p_endPosition)
 		{
 			setEndPosition(p_endPosition.x, p_endPosition.y);
 		}
@@ -6304,7 +6775,7 @@ namespace Avo
 		/*
 			Returns the coordinates relative to the origin where the gradient will end.
 		*/
-		virtual Point<> const& getEndPosition() const
+		virtual Point<> getEndPosition() const
 		{
 			if (m_implementation)
 			{
@@ -6378,7 +6849,7 @@ namespace Avo
 		/*
 			Sets an offset in the start position.
 		*/
-		virtual void setOffset(Point<> const& p_offset)
+		virtual void setOffset(Point<> p_offset)
 		{
 			setOffset(p_offset.x, p_offset.y);
 		}
@@ -6405,7 +6876,7 @@ namespace Avo
 		/*
 			Returns the offset in the start position.
 		*/
-		virtual Point<> const& getOffset() const
+		virtual Point<> getOffset() const
 		{
 			if (m_implementation)
 			{
@@ -6449,7 +6920,7 @@ namespace Avo
 		/*
 			Sets the coordinates where the gradient will start, relative to the origin.
 		*/
-		virtual void setStartPosition(Point<> const& p_startPosition)
+		virtual void setStartPosition(Point<> p_startPosition)
 		{
 			if (m_implementation)
 			{
@@ -6459,7 +6930,7 @@ namespace Avo
 		/*
 			Returns the coordinates relative to the origin where the gradient will start.
 		*/
-		virtual Point<> const& getStartPosition() const
+		virtual Point<> getStartPosition() const
 		{
 			if (m_implementation)
 			{
@@ -6510,14 +6981,14 @@ namespace Avo
 		/*
 			Sets the horizontal and vertical size of the gradient.
 		*/
-		virtual void setRadius(Point<> const& p_radius)
+		virtual void setRadius(Point<> p_radius)
 		{
 			setRadius(p_radius.x, p_radius.y);
 		}
 		/*
 			Returns the horizontal and vertical size of the gradient.
 		*/
-		virtual Point<> const& getRadius() const
+		virtual Point<> getRadius() const
 		{
 			if (m_implementation)
 			{
@@ -6545,6 +7016,7 @@ namespace Avo
 			{
 				return m_implementation->getRadiusY();
 			}
+			return 0.f;
 		}
 
 	private:
@@ -6556,9 +7028,7 @@ namespace Avo
 		}
 
 	public:
-		RadialGradient()
-		{
-		}
+		RadialGradient() = default;
 		RadialGradient(RadialGradient const& p_gradient) :
 			ProtectedReferenceCounted{ p_gradient }
 		{
@@ -6570,13 +7040,12 @@ namespace Avo
 		The position between 0 and 1 and is relative to the start and end positions if it's linear,
 		and relative to the start position and radius if it's radial.
 	*/
-	class GradientStop
+	struct GradientStop
 	{
-	public:
 		Avo::Color color;
 		float position;
 
-		GradientStop(Avo::Color const& p_color, float p_position) :
+		GradientStop(Avo::Color p_color, float p_position) :
 			color{ p_color }, 
 			position{ p_position }
 		{
@@ -6611,9 +7080,8 @@ namespace Avo
 	*/
 	class DrawingState : public ReferenceCounted { };
 
-	class TextProperties
+	struct TextProperties
 	{
-	public:
 		std::string fontFamilyName = FONT_FAMILY_ROBOTO;
 
 		FontWeight fontWeight = FontWeight::Medium;
@@ -6691,18 +7159,18 @@ namespace Avo
 			Returns the image format of the given image file.
 			Only the first 8 bytes of the file is needed.
 		*/
-		static auto getImageFormatOfFile(uint64 p_fileData)
+		static auto getImageFormatOfFile(char const p_fileData[8])
 		{
-			if (!std::strncmp((char const*)&p_fileData, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8))
+			if (!std::strncmp(p_fileData, "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A", 8))
 			{
 				return Avo::ImageFormat::Png;
 			}
-			else if (!std::strncmp((char const*)&p_fileData, "\xFF\xD8\xFF", 3))
+			else if (!std::strncmp(p_fileData, "\xFF\xD8\xFF", 3))
 			{
 				return Avo::ImageFormat::Jpeg;
 			}
-			else if (!std::strncmp((char const*)&p_fileData, "\x00\x00\x01\x00", 4) ||
-			         !std::strncmp((char const*)&p_fileData, "\x00\x00\x02\x00", 4))
+			else if (!std::strncmp(p_fileData, "\x00\x00\x01\x00", 4) ||
+			         !std::strncmp(p_fileData, "\x00\x00\x02\x00", 4))
 			{
 				return Avo::ImageFormat::Ico;
 			}
@@ -6711,28 +7179,17 @@ namespace Avo
 		/*
 			Returns the image format of the given image file.
 		*/
-		static Avo::ImageFormat getImageFormatOfFile(std::string const& p_filePath)
+		static Avo::ImageFormat getImageFormatOfFile(std::string_view p_filePath)
 		{
 			char signatureBytes[8];
 
-			std::ifstream fileStream(p_filePath);
-			fileStream.read(signatureBytes, 8);
-			fileStream.close();
-
-			return getImageFormatOfFile(*(uint64*)signatureBytes);
-		}
-		/*
-			Returns the image format of the given image file.
-		*/
-		static Avo::ImageFormat getImageFormatOfFile(char const* p_filePath)
-		{
-			char signatureBytes[8];
-
-			std::ifstream fileStream(p_filePath);
-			fileStream.read(signatureBytes, 8);
-			fileStream.close();
-
-			return getImageFormatOfFile(*(uint64*)signatureBytes);
+			std::ifstream fileStream{ p_filePath.data() };
+			if (fileStream)
+			{
+				fileStream.read(signatureBytes, 8);
+				return getImageFormatOfFile(signatureBytes);
+			}
+			return Avo::ImageFormat::Unknown;
 		}
 
 		//------------------------------
@@ -6744,7 +7201,7 @@ namespace Avo
 		/*
 			Finishes the drawing and shows it. The GUI calls this for you.
 		*/
-		virtual void finishDrawing(std::vector<Rectangle<>> const& p_updatedRectangles) = 0;
+		virtual void finishDrawing(PointerRange<Rectangle<>> p_updatedRectangles) = 0;
 
 		//------------------------------
 
@@ -6798,7 +7255,7 @@ namespace Avo
 		/*
 			Sets the color that the target is filled with before any drawing.
 		*/
-		virtual void setBackgroundColor(Color const& p_color) = 0;
+		virtual void setBackgroundColor(Color p_color) = 0;
 		/*
 			Returns the color that the target is filled with before any drawing.
 		*/
@@ -6823,7 +7280,7 @@ namespace Avo
 		/*
 			Moves the screen position of the coordinate (0, 0).
 		*/
-		virtual void moveOrigin(Point<> const& p_offset) = 0;
+		virtual void moveOrigin(Point<> p_offset) = 0;
 		/*
 			Moves the screen position of the coordinate (0, 0).
 		*/
@@ -6831,7 +7288,7 @@ namespace Avo
 		/*
 			Sets the screen position of the coordinate (0, 0).
 		*/
-		virtual void setOrigin(Point<> const& p_origin) = 0;
+		virtual void setOrigin(Point<> p_origin) = 0;
 		/*
 			Sets the screen position of the coordinate (0, 0).
 		*/
@@ -6857,13 +7314,13 @@ namespace Avo
 			Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.
 			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
 		*/
-		virtual void scale(float p_scale, Point<> const& p_origin) = 0;
+		virtual void scale(float p_scale, Point<> p_origin) = 0;
 		/*
 			Multiplies the size factor independently for the x-axis and y-axis, which will be transforming future graphics
 			drawing so that it is bigger or smaller. Everything will be scaled towards the origin parameter, which is relative
 			to the top-left corner of the window.
 		*/
-		virtual void scale(float p_scaleX, float p_scaleY, Point<> const& p_origin) = 0;
+		virtual void scale(float p_scaleX, float p_scaleY, Point<> p_origin) = 0;
 		/*
 			Multiplies the size factor, which will be transforming future graphics drawing so that it is bigger or smaller.
 			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
@@ -6889,13 +7346,13 @@ namespace Avo
 			Sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.
 			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
 		*/
-		virtual void setScale(float p_scale, Point<> const& p_origin) = 0;
+		virtual void setScale(float p_scale, Point<> p_origin) = 0;
 		/*
 			Sets the size factor independently for the x-axis and y-axis, which will be transforming future graphics drawing so that
 			it is bigger or smaller than normal. Everything will be scaled towards the origin parameter, which is relative
 			to the top-left corner of the window.
 		*/
-		virtual void setScale(float p_scaleX, float p_scaleY, Point<> const& p_origin) = 0;
+		virtual void setScale(float p_scaleX, float p_scaleY, Point<> p_origin) = 0;
 		/*
 			Sets the size factor, which will be transforming future graphics drawing so that it is bigger or smaller than normal.
 			Everything will be scaled towards the origin parameter, which is relative to the top-left corner of the window.
@@ -6911,7 +7368,7 @@ namespace Avo
 			Returns the sizing factor which is transforming graphics drawing so that it is bigger or smaller.
 			If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.
 		*/
-		virtual Point<> const& getScale() = 0;
+		virtual Point<> getScale() = 0;
 		/*
 			Returns the sizing factor for the x-axis which is transforming graphics drawing so that it is bigger or smaller.
 			If it is 2, graphics is drawn double as big as normal. 0.5 is half as big as normal.
@@ -6937,7 +7394,7 @@ namespace Avo
 			p_radians is the angle to rotate, in radians.
 			Positive angle is clockwise and negative is anticlockwise (in our coordinate system).
 		*/
-		virtual void rotate(float p_radians, Point<> const& p_origin) = 0;
+		virtual void rotate(float p_radians, Point<> p_origin) = 0;
 		/*
 			Rotates all future graphics drawing, with an angle in radians.
 			Graphics will be rotated relative to the origin parameter, which itself is relative to the current origin.
@@ -6959,7 +7416,7 @@ namespace Avo
 			Resizes the drawing buffers for the window. The GUI calls this for you when it is being resized.
 			The size is expressed in dips.
 		*/
-		virtual void setSize(Point<> const& p_size) = 0;
+		virtual void setSize(Point<> p_size) = 0;
 		/*
 			Resizes the drawing buffers for the window. The GUI calls this for you when it is being resized.
 			The size is expressed in dips.
@@ -6975,7 +7432,7 @@ namespace Avo
 		/*
 			Clears the whole buffer with the specified color.
 		*/
-		virtual void clear(Color const& p_color) = 0;
+		virtual void clear(Color p_color) = 0;
 		/*
 			Clears the whole buffer with a transparent background.
 		*/
@@ -6987,12 +7444,12 @@ namespace Avo
 			Draws a filled rectangle using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
-		virtual void fillRectangle(Rectangle<> const& p_rectangle) = 0;
+		virtual void fillRectangle(Rectangle<> p_rectangle) = 0;
 		/*
 			Draws a filled rectangle using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
-		virtual void fillRectangle(Point<> const& p_position, Point<> const& p_size) = 0;
+		virtual void fillRectangle(Point<> p_position, Point<> p_size) = 0;
 		/*
 			Draws a filled rectangle using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
@@ -7002,7 +7459,7 @@ namespace Avo
 			Draws a filled rectangle at the origin using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
-		virtual void fillRectangle(Point<> const& p_size) = 0;
+		virtual void fillRectangle(Point<> p_size) = 0;
 		/*
 			Draws a filled rectangle at the origin using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
@@ -7013,12 +7470,12 @@ namespace Avo
 			Draws a filled rectangle with custom corners using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
-		virtual void fillRectangle(Rectangle<> const& p_rectangle, RectangleCorners const& p_rectangleCorners) = 0;
+		virtual void fillRectangle(Rectangle<> p_rectangle, RectangleCorners const& p_rectangleCorners) = 0;
 		/*
 			Draws a filled rectangle with custom corners using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
-		virtual void fillRectangle(Point<> const& p_position, Point<> const& p_size, RectangleCorners const& p_rectangleCorners) = 0;
+		virtual void fillRectangle(Point<> p_position, Point<> p_size, RectangleCorners const& p_rectangleCorners) = 0;
 		/*
 			Draws a filled rectangle with custom corners using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
@@ -7029,7 +7486,7 @@ namespace Avo
 			Draws a filled rectangle with custom corners at the origin using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
-		virtual void fillRectangle(Point<> const& p_size, RectangleCorners const& p_rectangleCorners) = 0;
+		virtual void fillRectangle(Point<> p_size, RectangleCorners const& p_rectangleCorners) = 0;
 		/*
 			Draws a filled rectangle with custom corners at the origin using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
@@ -7040,12 +7497,12 @@ namespace Avo
 			Draws a filled rounded rectangle using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
-		virtual void fillRoundedRectangle(Rectangle<> const& p_rectangle, float p_radius) = 0;
+		virtual void fillRoundedRectangle(Rectangle<> p_rectangle, float p_radius) = 0;
 		/*
 			Draws a filled rounded rectangle using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
-		virtual void fillRoundedRectangle(Point<> const& p_position, Point<> const& p_size, float p_radius) = 0;
+		virtual void fillRoundedRectangle(Point<> p_position, Point<> p_size, float p_radius) = 0;
 		/*
 			Draws a filled rounded rectangle using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
@@ -7055,7 +7512,7 @@ namespace Avo
 			Draws a filled rounded rectangle at the origin using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
 		*/
-		virtual void fillRoundedRectangle(Point<> const& p_size, float p_radius) = 0;
+		virtual void fillRoundedRectangle(Point<> p_size, float p_radius) = 0;
 		/*
 			Draws a filled rounded rectangle at the origin using the current color or gradient.
 			Change color being used with method setColor or gradient with setGradientBrush.
@@ -7068,12 +7525,12 @@ namespace Avo
 			Draws a rectangle outline using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
-		virtual void strokeRectangle(Rectangle<> const& p_rectangle, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRectangle(Rectangle<> p_rectangle, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rectangle outline using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
-		virtual void strokeRectangle(Point<> const& p_position, Point<> const& p_size, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRectangle(Point<> p_position, Point<> p_size, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rectangle outline using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
@@ -7083,7 +7540,7 @@ namespace Avo
 			Draws a rectangle outline at the origin using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
-		virtual void strokeRectangle(Point<> const& p_size, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRectangle(Point<> p_size, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rectangle outline at the origin using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
@@ -7094,12 +7551,12 @@ namespace Avo
 			Draws a rectangle outline with custom corners using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
-		virtual void strokeRectangle(Rectangle<> const& p_rectangle, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRectangle(Rectangle<> p_rectangle, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rectangle outline with custom corners using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
-		virtual void strokeRectangle(Point<> const& p_position, Point<> const& p_size, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRectangle(Point<> p_position, Point<> p_size, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rectangle outline with custom corners using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
@@ -7109,7 +7566,7 @@ namespace Avo
 			Draws a rectangle outline at the origin with custom corners using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
-		virtual void strokeRectangle(Point<> const& p_size, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRectangle(Point<> p_size, RectangleCorners const& p_rectangleCorners, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rectangle outline at the origin with custom corners using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
@@ -7120,12 +7577,12 @@ namespace Avo
 			Draws a rounded rectangle outline using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
-		virtual void strokeRoundedRectangle(Rectangle<> const& p_rectangle, float p_radius, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRoundedRectangle(Rectangle<> p_rectangle, float p_radius, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rounded rectangle outline using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
-		virtual void strokeRoundedRectangle(Point<> const& p_position, Point<> const& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRoundedRectangle(Point<> p_position, Point<> p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rounded rectangle outline using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
@@ -7136,7 +7593,7 @@ namespace Avo
 			Draws a rounded rectangle outline at the origin using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
-		virtual void strokeRoundedRectangle(Point<> const& p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeRoundedRectangle(Point<> p_size, float p_radius, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a rounded rectangle outline at the origin using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
@@ -7151,7 +7608,7 @@ namespace Avo
 
 			p_position is the center position of the circle.
 		*/
-		virtual void fillCircle(Point<> const& p_position, float p_radius) = 0;
+		virtual void fillCircle(Point<> p_position, float p_radius) = 0;
 		/*
 			Draws a filled circle using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
@@ -7167,7 +7624,7 @@ namespace Avo
 
 			p_position is the center position of the circle.
 		*/
-		virtual void strokeCircle(Point<> const& p_position, float p_radius, float p_strokeWidth = 1.f) = 0;
+		virtual void strokeCircle(Point<> p_position, float p_radius, float p_strokeWidth = 1.f) = 0;
 		/*
 			Draws a circle outline using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
@@ -7182,7 +7639,7 @@ namespace Avo
 			Draws a straight line between two points using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
 		*/
-		virtual void drawLine(Point<> const& p_point_0, Point<> const& p_point_1, float p_thickness = 1.f) = 0;
+		virtual void drawLine(Point<> p_point_0, Point<> p_point_1, float p_thickness = 1.f) = 0;
 		/*
 			Draws a straight line between two points using the current color or gradient.
 			Change the color being used with the method setColor or the gradient with setGradientBrush.
@@ -7250,12 +7707,12 @@ namespace Avo
 			Creates a Geometry object which represents a rounded rectangle.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry createRoundedRectangleGeometry(Point<> const& p_position, Point<> const& p_size, float p_radius, bool p_isStroked = false) = 0;
+		virtual Geometry createRoundedRectangleGeometry(Point<> p_position, Point<> p_size, float p_radius, bool p_isStroked = false) = 0;
 		/*
 			Creates a Geometry object which represents a rounded rectangle.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry createRoundedRectangleGeometry(Rectangle<> const& p_rectangle, float p_radius, bool p_isStroked = false) = 0;
+		virtual Geometry createRoundedRectangleGeometry(Rectangle<> p_rectangle, float p_radius, bool p_isStroked = false) = 0;
 		/*
 			Creates a Geometry object which represents a rounded rectangle at the origin.
 			The Geometry object can be cached and allows for faster drawing.
@@ -7265,7 +7722,7 @@ namespace Avo
 			Creates a Geometry object which represents a rounded rectangle at the origin.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry createRoundedRectangleGeometry(Point<> const& p_size, float p_radius, bool p_isStroked = false) = 0;
+		virtual Geometry createRoundedRectangleGeometry(Point<> p_size, float p_radius, bool p_isStroked = false) = 0;
 
 		/*
 			Creates a Geometry object which represents a rectangle with custom corners.
@@ -7276,12 +7733,12 @@ namespace Avo
 			Creates a Geometry object which represents a rectangle with custom corners.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry createCornerRectangleGeometry(Point<> const& p_position, Point<> const& p_size, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
+		virtual Geometry createCornerRectangleGeometry(Point<> p_position, Point<> p_size, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
 		/*
 			Creates a Geometry object which represents a rectangle with custom corners.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry createCornerRectangleGeometry(Rectangle<> const& p_rectangle, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
+		virtual Geometry createCornerRectangleGeometry(Rectangle<> p_rectangle, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
 		/*
 			Creates a Geometry object which represents a rectangle with custom corners at the origin.
 			The Geometry object can be cached and allows for faster drawing.
@@ -7291,7 +7748,7 @@ namespace Avo
 			Creates a Geometry object which represents a rectangle with custom corners at the origin.
 			The Geometry object can be cached and allows for faster drawing.
 		*/
-		virtual Geometry createCornerRectangleGeometry(Point<> const& p_size, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
+		virtual Geometry createCornerRectangleGeometry(Point<> p_size, RectangleCorners const& p_corners, bool p_isStroked = false) = 0;
 
 		//------------------------------
 
@@ -7421,13 +7878,13 @@ namespace Avo
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
 			Call popClipShape to remove the last pushed clip rectangle.
 		*/
-		virtual void pushClipRectangle(Rectangle<> const& p_rectangle, float p_opacity = 1.f) = 0;
+		virtual void pushClipRectangle(Rectangle<> p_rectangle, float p_opacity = 1.f) = 0;
 		/*
 			After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
 			p_size is the size of the clip rectangle positioned at the origin.
 			Call popClipShape to remove the last pushed clip rectangle.
 		*/
-		virtual void pushClipRectangle(Point<> const& p_size, float p_opacity = 1.f) = 0;
+		virtual void pushClipRectangle(Point<> p_size, float p_opacity = 1.f) = 0;
 
 		/*
 			After calling this, all graphics drawn outside the rectangle will be invisible, on pixel level.
@@ -7440,14 +7897,14 @@ namespace Avo
 			Call popClipShape to remove the last pushed clip corner rectangle.
 			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
-		virtual void pushClipRectangle(Rectangle<> const& p_rectangle, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
+		virtual void pushClipRectangle(Rectangle<> p_rectangle, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
 		/*
 			After calling this, all graphics drawn outside a rectangle at the origin with the given size will be invisible, on pixel level.
 			p_size is the size of the clip rectangle positioned at the origin.
 			Call popClipShape to remove the last pushed clip corner rectangle.
 			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
-		virtual void pushClipRectangle(Point<> const& p_size, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
+		virtual void pushClipRectangle(Point<> p_size, RectangleCorners const& p_corners, float p_opacity = 1.f) = 0;
 
 		//------------------------------
 
@@ -7462,14 +7919,14 @@ namespace Avo
 			Call popClipShape to remove the last pushed rounded clip rectangle.
 			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
-		virtual void pushRoundedClipRectangle(Rectangle<> const& p_rectangle, float p_radius, float p_opacity = 1.f) = 0;
+		virtual void pushRoundedClipRectangle(Rectangle<> p_rectangle, float p_radius, float p_opacity = 1.f) = 0;
 		/*
 			After calling this, all graphics drawn outside a rounded rectangle at the origin with the given size and radius will be invisible, on pixel level.
 			p_size is the size of the rounded clip rectangle positioned at the origin.
 			Call popClipShape to remove the last pushed rounded clip rectangle.
 			The alpha of the clipped content will be multiplied by p_opacity.
 		*/
-		virtual void pushRoundedClipRectangle(Point<> const& p_size, float p_radius, float p_opacity = 1.f) = 0;
+		virtual void pushRoundedClipRectangle(Point<> p_size, float p_radius, float p_opacity = 1.f) = 0;
 
 		//------------------------------
 
@@ -7480,7 +7937,7 @@ namespace Avo
 			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image createRectangleShadowImage(Point<> const& p_size, float p_blur, Color const& p_color) = 0;
+		virtual Image createRectangleShadowImage(Point<> p_size, float p_blur, Color p_color) = 0;
 		/*
 			Generates an image of a shadow that is cast by a rectangle.
 
@@ -7489,7 +7946,7 @@ namespace Avo
 			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image createRectangleShadowImage(float p_width, float p_height, float p_blur, Color const& p_color) = 0;
+		virtual Image createRectangleShadowImage(float p_width, float p_height, float p_blur, Color p_color) = 0;
 
 		/*
 			Generates an image of a shadow that is cast by a rectangle with custom corners.
@@ -7498,7 +7955,7 @@ namespace Avo
 			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image createRectangleShadowImage(Point<> const& p_size, RectangleCorners const& p_corners, float p_blur, Color const& p_color) = 0;
+		virtual Image createRectangleShadowImage(Point<> p_size, RectangleCorners const& p_corners, float p_blur, Color p_color) = 0;
 		/*
 			Generates an image of a shadow that is cast by a rectangle with custom corners.
 
@@ -7507,7 +7964,7 @@ namespace Avo
 			p_blur is how far away from the surface the rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image createRectangleShadowImage(float p_width, float p_height, RectangleCorners const& p_corners, float p_blur, Color const& p_color) = 0;
+		virtual Image createRectangleShadowImage(float p_width, float p_height, RectangleCorners const& p_corners, float p_blur, Color p_color) = 0;
 
 		//------------------------------
 
@@ -7519,7 +7976,7 @@ namespace Avo
 			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image createRoundedRectangleShadowImage(Point<> const& p_size, float p_radius, float p_blur, Color const& p_color) = 0;
+		virtual Image createRoundedRectangleShadowImage(Point<> p_size, float p_radius, float p_blur, Color p_color) = 0;
 		/*
 			Generates an image of a shadow that is cast by a rounded rectangle.
 
@@ -7529,7 +7986,7 @@ namespace Avo
 			p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
 			p_color is the color of the resulting shadow.
 		*/
-		virtual Image createRoundedRectangleShadowImage(float p_width, float p_height, float p_radius, float p_blur, Color const& p_color) = 0;
+		virtual Image createRoundedRectangleShadowImage(float p_width, float p_height, float p_radius, float p_blur, Color p_color) = 0;
 
 		//------------------------------
 
@@ -7546,21 +8003,13 @@ namespace Avo
 			Loads an image from the data of an image file.
 			p_imageData is a memory block which is p_size bytes in size.
 		*/
-		virtual Image createImage(uint8 const* p_imageData, uint32 p_size) = 0;
-		/*
-			Loads an image from the data of an image file.
-			p_imageData is a memory block which is p_size bytes in size.
-		*/
-		Image createImage(std::vector<uint8> const& p_imageData)
-		{
-			return createImage(p_imageData.data(), p_imageData.size());
-		}
+		virtual Image createImage(PointerRange<uint8 const> p_imageData) = 0;
 		/*
 			Loads an image from a file. Most standard image formats/codecs are supported.
 			p_filePath is the path, relative or absolute, to the image file to be loaded.
 			If this returns an invalid image, then the file path is probably incorrect.
 		*/
-		virtual Image createImage(std::string const& p_filePath) = 0;
+		virtual Image createImage(std::string_view p_filePath) = 0;
 		/*
 			Creates an image from an OS-specific handle.
 
@@ -7586,7 +8035,7 @@ namespace Avo
 		/*
 			Saves an image to a file, encoded in the format p_format.
 		*/
-		virtual void saveImageToFile(Image const& p_image, std::string const& p_filePath, ImageFormat p_format = ImageFormat::Png) = 0;
+		virtual void saveImageToFile(Image const& p_image, std::string_view p_filePath, ImageFormat p_format = ImageFormat::Png) = 0;
 
 		//------------------------------
 
@@ -7601,32 +8050,32 @@ namespace Avo
 		/*
 			Creates a linear gradient that can be used as a brush when drawing things.
 		*/
-		virtual LinearGradient createLinearGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX = 0.f, float p_startY = 0.f, float p_endX = 0.f, float p_endY = 0.f) = 0;
+		virtual LinearGradient createLinearGradient(PointerRange<GradientStop> p_gradientStops, float p_startX = 0.f, float p_startY = 0.f, float p_endX = 0.f, float p_endY = 0.f) = 0;
 		/*
 			Creates a linear gradient that can be used as a brush when drawing things.
 		*/
-		virtual LinearGradient createLinearGradient(std::vector<GradientStop> const& p_gradientStops, Point<> const& p_startPosition, Point<> const& p_endPosition) = 0;
+		virtual LinearGradient createLinearGradient(PointerRange<GradientStop> p_gradientStops, Point<> p_startPosition, Point<> p_endPosition) = 0;
 
 		/*
 			Creates a radial gradient that can be used as a brush when drawing things.
 		*/
-		virtual RadialGradient createRadialGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX = 0.f, float p_startY = 0.f, float p_radiusX = 0.f, float p_radiusY = 0.f) = 0;
+		virtual RadialGradient createRadialGradient(PointerRange<GradientStop> p_gradientStops, float p_startX = 0.f, float p_startY = 0.f, float p_radiusX = 0.f, float p_radiusY = 0.f) = 0;
 		/*
 			Creates a radial gradient that can be used as a brush when drawing things.
 		*/
-		virtual RadialGradient createRadialGradient(std::vector<GradientStop> const& p_gradientStops, float p_startX, float p_startY, float p_radius) = 0;
+		virtual RadialGradient createRadialGradient(PointerRange<GradientStop> p_gradientStops, float p_startX, float p_startY, float p_radius) = 0;
 		/*
 			Creates a radial gradient that can be used as a brush when drawing things.
 		*/
-		virtual RadialGradient createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<> const& p_startPosition, float p_radiusX, float p_radiusY) = 0;
+		virtual RadialGradient createRadialGradient(PointerRange<GradientStop> p_gradientStops, Point<> p_startPosition, float p_radiusX, float p_radiusY) = 0;
 		/*
 			Creates a radial gradient that can be used as a brush when drawing things.
 		*/
-		virtual RadialGradient createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<> const& p_startPosition, float p_radius) = 0;
+		virtual RadialGradient createRadialGradient(PointerRange<GradientStop> p_gradientStops, Point<> p_startPosition, float p_radius) = 0;
 		/*
 			Creates a radial gradient that can be used as a brush when drawing things.
 		*/
-		virtual RadialGradient createRadialGradient(std::vector<GradientStop> const& p_gradientStops, Point<> const& p_startPosition, Point<> const& p_radius) = 0;
+		virtual RadialGradient createRadialGradient(PointerRange<GradientStop> p_gradientStops, Point<> p_startPosition, Point<> p_radius) = 0;
 
 		/*
 			Sets a linear gradient to be used as the brush when drawing things.
@@ -7639,7 +8088,7 @@ namespace Avo
 		/*
 			Sets a color to be used when drawing things.
 		*/
-		virtual void setColor(Color const& p_color) = 0;
+		virtual void setColor(Color p_color) = 0;
 
 		/*
 			Sets the transparency of all graphics that will be drawn.
@@ -7652,16 +8101,12 @@ namespace Avo
 			Adds a new font family that can be used by text.
 			p_filePath is a path to a font file with a common format.
 		*/
-		virtual void addFont(std::string const& p_filePath) = 0;
+		virtual void addFont(std::string_view p_filePath) = 0;
 
 		/*
 			Adds a new font to a font family that can be used by text.
 			p_data is the data that would be in a font file with a common format.
-		*/
-		virtual void addFont(std::vector<uint8> const& p_data) = 0;
-		/*
-			Adds a new font to a font family that can be used by text.
-			p_data is the data that would be in a font file with a common format.
+			The data is moved from p_data.
 		*/
 		virtual void addFont(std::vector<uint8>&& p_data) = 0;
 		/*
@@ -7669,7 +8114,7 @@ namespace Avo
 			p_data is the data that would be in a font file with a common format.
 			p_size is the size of the data in bytes.
 		*/
-		virtual void addFont(uint8 const* p_data, uint32 p_size) = 0;
+		virtual void addFont(PointerRange<uint8 const> p_data) = 0;
 
 		//------------------------------
 
@@ -7690,7 +8135,7 @@ namespace Avo
 			Creates a new Text object which represents a pre-calculated text layout, using the current text properties.
 			p_bounds is the maximum bounds of the text. If it's (0, 0, 0, 0) then the bounds will be calculated to fit the text.
 		*/
-		virtual Text createText(std::string const& p_string, float p_fontSize, Rectangle<> p_bounds = Rectangle<>{}) = 0;
+		virtual Text createText(std::string_view p_string, float p_fontSize, Rectangle<> p_bounds = {}) = 0;
 		/*
 			Draws pre-calculated text created with the createText method.
 		*/
@@ -7700,12 +8145,12 @@ namespace Avo
 			Lays out and draws a string in a rectangle.
 			If you're drawing the same text repeatedly, use a Text object (created with method createText()).
 		*/
-		virtual void drawText(std::string const& p_string, float p_left, float p_top, float p_right, float p_bottom) = 0;
+		virtual void drawText(std::string_view p_string, float p_left, float p_top, float p_right, float p_bottom) = 0;
 		/*
 			Lays out and draws a string in a rectangle.
 			If you're drawing the same text repeatedly, use a Text object (created with method createText).
 		*/
-		virtual void drawText(std::string const& p_string, Rectangle<> const& p_rectangle)
+		virtual void drawText(std::string_view p_string, Rectangle<> p_rectangle)
 		{
 			drawText(p_string, p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
@@ -7713,7 +8158,7 @@ namespace Avo
 			Lays out and draws a string in a rectangle.
 			If you're drawing the same text repeatedly, use a Text object (created with method createText()).
 		*/
-		virtual void drawText(std::string const& p_string, Point<> const& p_position, Point<> const& p_size)
+		virtual void drawText(std::string_view p_string, Point<> p_position, Point<> p_size)
 		{
 			drawText(p_string, p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y);
 		}
@@ -7722,12 +8167,12 @@ namespace Avo
 			Lays out and draws a string at a position using the current text properties.
 			If you're drawing the same text repeatedly, use a Text object (created with createText()).
 		*/
-		virtual void drawText(std::string const& p_string, float p_x, float p_y) = 0;
+		virtual void drawText(std::string_view p_string, float p_x, float p_y) = 0;
 		/*
 			Lays out and draws a string at a position usinng the current text properties.
 			If you're drawing the same text repeatedly, use a Text object (created with createText()).
 		*/
-		virtual void drawText(std::string const& p_string, Point<> const& p_position)
+		virtual void drawText(std::string_view p_string, Point<> p_position)
 		{
 			drawText(p_string, p_position.x, p_position.y);
 		}
@@ -7763,7 +8208,7 @@ namespace Avo
 	};
 	constexpr bool operator&(ModifierKeyFlags p_left, ModifierKeyFlags p_right)
 	{
-		return (uint32)p_left & (uint32)p_right;
+		return static_cast<uint32>(p_left) & static_cast<uint32>(p_right);
 	}
 	constexpr ModifierKeyFlags operator|(ModifierKeyFlags p_left, ModifierKeyFlags p_right)
 	{
@@ -7771,8 +8216,7 @@ namespace Avo
 	}
 	constexpr ModifierKeyFlags& operator|=(ModifierKeyFlags& p_left, ModifierKeyFlags p_right)
 	{
-		p_left = p_left | p_right;
-		return p_left;
+		return p_left = p_left | p_right;
 	}
 
 	enum class MouseButton
@@ -7786,9 +8230,8 @@ namespace Avo
 	};
 
 	class View;
-	class MouseEvent
+	struct MouseEvent
 	{
-	public:
 		/*
 			The view that the mouse interacted with.
 		*/
@@ -7864,9 +8307,8 @@ namespace Avo
 		Regional1, Regional2, Regional3, Regional4, Regional5, Regional6, Regional7, Regional8
 	};
 
-	class KeyboardEvent
+	struct KeyboardEvent
 	{
-	public:
 		/*
 			A pointer to the view that the event is directed towards.
 		*/
@@ -7896,13 +8338,6 @@ namespace Avo
 		None
 	};
 
-	class DragDropFormatData
-	{
-	public:
-		char const* buffer;
-		uint32 size;
-	};
-
 	class ClipboardData
 	{
 	public:
@@ -7915,7 +8350,7 @@ namespace Avo
 			When data is dragged from an application, many data formats may be given which tell different things about the data or represent it in different ways.
 			There may be more than 1 data format with the value formats[p_formatIndex].
 		*/
-		virtual DragDropFormatData getDataForFormat(uint32 p_formatIndex) const = 0;
+		virtual PointerRange<char const> getDataForFormat(Index p_formatIndex) = 0;
 		/*
 			p_format is one of the values in the "formats" vector.
 		*/
@@ -7928,7 +8363,7 @@ namespace Avo
 		/*
 			Returns the text of what is to be dropped, in UTF-16 encoding.
 		*/
-		virtual std::wstring getUtf16String() const = 0;
+		virtual std::u16string getUtf16String() const = 0;
 		/*
 			Returns whether the item to be dropped has any text.
 		*/
@@ -7943,12 +8378,12 @@ namespace Avo
 			Returns the names of what is to be dropped, in UTF-16 encoding.
 			Keep in mind that this includes both dragged files and directories.
 		*/
-		virtual std::vector<std::wstring> getUtf16ItemNames() const = 0;
+		virtual std::vector<std::u16string> getUtf16ItemNames() const = 0;
 		/*
 			Returns the number of items that have a name.
 			Keep in mind that this includes both dragged files and directories.
 		*/
-		virtual uint32 getNumberOfItemNames() const = 0;
+		virtual Count getNumberOfItemNames() const = 0;
 
 		/*
 			Returns the file names of the respective file contents, in UTF-8 encoding.
@@ -7957,7 +8392,7 @@ namespace Avo
 		/*
 			Returns the file names of the respective file contents, in UTF-16 encoding.
 		*/
-		virtual std::vector<std::wstring> getUtf16FileNames() const = 0;
+		virtual std::vector<std::u16string> getUtf16FileNames() const = 0;
 		/*
 			Returns the file contents of every file that is being dragged.
 		*/
@@ -7965,11 +8400,11 @@ namespace Avo
 		/*
 			Returns the file contents of an item that is being dragged, by its index.
 		*/
-		virtual std::string getFileContents(uint32 p_index) const = 0;
+		virtual std::string getFileContents(Index p_index) const = 0;
 		/*
 			Returns the number of dragged items that have file contents.
 		*/
-		virtual uint32 getNumberOfFiles() const = 0;
+		virtual Count getNumberOfFiles() const = 0;
 
 		/*
 			Returns the additional data that has been assigned by an AvoGUI application.
@@ -7983,9 +8418,8 @@ namespace Avo
 		virtual Image getImage() const = 0;
 	};
 
-	class DragDropEvent
+	struct DragDropEvent
 	{
-	public:
 		/*
 			The view that the event is directed towards.
 		*/
@@ -8015,15 +8449,14 @@ namespace Avo
 		/*
 			Contains the data that is being dragged.
 		*/
-		std::unique_ptr<ClipboardData> data;
+		ClipboardData* data;
 	};
 
 	//------------------------------
 
 	class Window;
-	class WindowEvent
+	struct WindowEvent
 	{
-	public:
 		/*
 			The window that has received the event from the OS.
 		*/
@@ -8117,7 +8550,7 @@ namespace Avo
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(std::string const& p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
+		virtual void create(std::string_view p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
 		/*
 			Creates the window in the center of the screen. To close it, use close().
 
@@ -8127,7 +8560,7 @@ namespace Avo
 			p_styleFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent window, which this window would appear above.
 		*/
-		virtual void create(std::string const& p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
+		virtual void create(std::string_view p_title, float p_width, float p_height, WindowStyleFlags p_styleFlags = WindowStyleFlags::Default, Window* p_parent = nullptr) = 0;
 
 	protected:
 		bool m_isRunning = false;
@@ -8192,7 +8625,7 @@ namespace Avo
 		/*
 			Sets the text shown in the titlebar.
 		*/
-		virtual void setTitle(std::string const& p_title) = 0;
+		virtual void setTitle(std::string_view p_title) = 0;
 		/*
 			Returns the text shown in the titlebar.
 		*/
@@ -8298,7 +8731,7 @@ namespace Avo
 		/*
 			Sets the size of the client area of the window, in dip units.
 		*/
-		void setSize(Point<> const& p_size)
+		void setSize(Point<> p_size)
 		{
 			setSize(p_size.x, p_size.y);
 		}
@@ -8322,7 +8755,7 @@ namespace Avo
 		/*
 			Sets the smallest allowed size for the window when the user is resizing it, in dip units.
 		*/
-		void setMinSize(Point<> const& p_minSize)
+		void setMinSize(Point<> p_minSize)
 		{
 			setMinSize(p_minSize.x, p_minSize.y);
 		}
@@ -8346,7 +8779,7 @@ namespace Avo
 		/*
 			Sets the biggest allowed size for the window when the user is resizing it, in dip units.
 		*/
-		void setMaxSize(Point<> const& p_maxSize)
+		void setMaxSize(Point<> p_maxSize)
 		{
 			setMaxSize(p_maxSize.x, p_maxSize.y);
 		}
@@ -8459,85 +8892,81 @@ namespace Avo
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropString(std::string const& p_string, Image const& p_dragImage = Image(), Point<> const& p_dragImageCursorPosition = Point<>(), uint64 p_additionalData = 0u) = 0;
-
+		virtual DragDropOperation dragAndDropString(std::string_view p_string, Image const& p_dragImage = {},
+			Point<> p_dragImageCursorPosition = {}, uint64 p_additionalData = 0u) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag string data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropString(std::wstring const& p_string, Image const& p_dragImage = Image(), Point<> const& p_dragImageCursorPosition = Point<>(), uint64 p_additionalData = 0u) = 0;
-
+		virtual DragDropOperation dragAndDropString(std::u16string_view p_string, Image const& p_dragImage = {},
+			Point<> p_dragImageCursorPosition = {}, uint64 p_additionalData = 0u) = 0;
 
 		/*
 			Runs a blocking loop that allows the user to drag image data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropImage(Image const& p_image, Image const& p_dragImage = Image(), Point<> const& p_dragImageCursorPosition = Point<>(), uint64 p_additionalData = 0u) = 0;
+		virtual DragDropOperation dragAndDropImage(Image const& p_image, Image const& p_dragImage = {},
+			Point<> p_dragImageCursorPosition = {}, uint64 p_additionalData = 0u) = 0;
+
 		/*
 			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(uint8 const* p_data, uint32 p_dataSize, std::string const& p_name, Image const& p_dragImage = Image(), Point<> const& p_dragImageCursorPosition = Point<>(), uint64 p_additionalData = 0u) = 0;
+		virtual DragDropOperation dragAndDropFile(PointerRange<uint8 const> p_data, std::string_view p_name, 
+			Image const& p_dragImage = {}, Point<> p_dragImageCursorPosition = {}, uint64 p_additionalData = 0u) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, Image const& p_dragImage = Image(), Point<> const& p_dragImageCursorPosition = Point<>(), uint64 p_additionalData = 0u) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropFile(std::vector<uint8> const& p_data, std::string const& p_name, Image const& p_dragImage = Image(), Point<> const& p_dragImageCursorPosition = Point<>(), uint64 p_additionalData = 0u) = 0;
-		/*
-			Runs a blocking loop that allows the user to drag file data from this application to another one, or to itself.
-			This method sends events to the drop target(s).
-			The return value indicates what operation was made after the drop.
-		*/
-		virtual DragDropOperation dragAndDropFile(std::vector<uint8> const& p_data, std::wstring const& p_name, Image const& p_dragImage = Image(), Point<> const& p_dragImageCursorPosition = Point<>(), uint64 p_additionalData = 0u) = 0;
+		virtual DragDropOperation dragAndDropFile(PointerRange<uint8 const> p_data, std::u16string_view p_name, 
+			Image const& p_dragImage = {}, Point<> p_dragImageCursorPosition = {}, uint64 p_additionalData = 0u) = 0;
+
 		/*
 			Runs a blocking loop that allows the user to drag file data or a directory from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(std::string const& p_path, Image const& p_dragImage = Image(), Point<> const& p_dragImageCursorPosition = Point<>(), uint64 p_additionalData = 0u) = 0;
+		virtual DragDropOperation dragAndDropFile(std::string_view p_path, Image const& p_dragImage = {}, 
+			Point<> p_dragImageCursorPosition = {}, uint64 p_additionalData = 0u) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag file data or a directory from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFile(std::wstring const& p_path, Image const& p_dragImage = Image(), Point<> const& p_dragImageCursorPosition = Point<>(), uint64 p_additionalData = 0u) = 0;
+		virtual DragDropOperation dragAndDropFile(std::u16string_view p_path, Image const& p_dragImage = {}, 
+			Point<> p_dragImageCursorPosition = {}, uint64 p_additionalData = 0u) = 0;
 
 		/*
 			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFiles(std::vector<std::string> const& p_paths, Image const& p_dragImage = Image(), Point<> const& p_dragImageCursorPosition = Point<>(), uint64 p_additionalData = 0u) = 0;
+		virtual DragDropOperation dragAndDropFiles(PointerRange<std::string> p_paths, Image const& p_dragImage = {},
+			Point<> p_dragImageCursorPosition = {}, uint64 p_additionalData = 0u) = 0;
 		/*
 			Runs a blocking loop that allows the user to drag regular files and/or directories from this application to another one, or to itself.
 			This method sends events to the drop target(s).
 			The return value indicates what operation was made after the drop.
 		*/
-		virtual DragDropOperation dragAndDropFiles(std::vector<std::wstring> const& p_paths, Image const& p_dragImage = Image(), Point<> const& p_dragImageCursorPosition = Point<>(), uint64 p_additionalData = 0u) = 0;
+		virtual DragDropOperation dragAndDropFiles(PointerRange<std::u16string> p_paths, Image const& p_dragImage = {},
+			Point<> p_dragImageCursorPosition = {}, uint64 p_additionalData = 0u) = 0;
 
 		//------------------------------
-
-		/*
-			Gives a UTF-16 encoded string for the OS to store globally. Other programs, or this one, can then access it.
-			The data currently stored on the clipboard is freed and replaced by this string.
-		*/
-		virtual void setClipboardString(std::wstring const& p_string, uint64 p_additionalData = 0u) const = 0;
 
 		/*
 			Gives a UTF-8 encoded string for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this string.
 		*/
-		virtual void setClipboardString(std::string const& p_string, uint64 p_additionalData = 0u) const = 0;
+		virtual void setClipboardString(std::string_view p_string, uint64 p_additionalData = 0u) const = 0;
+		/*
+			Gives a UTF-16 encoded string for the OS to store globally. Other programs, or this one, can then access it.
+			The data currently stored on the clipboard is freed and replaced by this string.
+		*/
+		virtual void setClipboardString(std::u16string_view p_string, uint64 p_additionalData = 0u) const = 0;
 
 		/*
 			Gives an image for the OS to store globally. Other programs, or this one, can then access it.
@@ -8549,48 +8978,38 @@ namespace Avo
 			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardFile(uint8 const* p_data, uint32 p_dataSize, std::string const& p_name, uint64 p_additionalData = 0u) const = 0;
+		virtual void setClipboardFile(PointerRange<uint8 const> p_data, std::string_view p_name, uint64 p_additionalData = 0u) const = 0;
 		/*
 			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardFile(uint8 const* p_data, uint32 p_dataSize, std::wstring const& p_name, uint64 p_additionalData = 0u) const = 0;
-		/*
-			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
-			The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardFile(std::vector<uint8> const& p_data, std::string const& p_name, uint64 p_additionalData = 0u) const = 0;
-		/*
-			Gives file data for the OS to store globally. Other programs, or this one, can then access it.
-			The data currently stored on the clipboard is freed and replaced by this data.
-		*/
-		virtual void setClipboardFile(std::vector<uint8> const& p_data, std::wstring const& p_name, uint64 p_additionalData = 0u) const = 0;
+		virtual void setClipboardFile(PointerRange<uint8 const> p_data, std::u16string_view p_name, uint64 p_additionalData = 0u) const = 0;
 		/*
 			Gives a UTF-8 file path for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardFile(std::string const& p_path, uint64 p_additionalData = 0u) const = 0;
+		virtual void setClipboardFile(std::string_view p_path, uint64 p_additionalData = 0u) const = 0;
 		/*
 			Gives a UTF-16 file path for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardFile(std::wstring const& p_path, uint64 p_additionalData = 0u) const = 0;
+		virtual void setClipboardFile(std::u16string_view p_path, uint64 p_additionalData = 0u) const = 0;
 
 		/*
 			Gives UTF-8 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardFiles(std::vector<std::string> const& p_paths, uint64 p_additionalData = 0u) const = 0;
+		virtual void setClipboardFiles(PointerRange<std::string> p_paths, uint64 p_additionalData = 0u) const = 0;
 		/*
 			Gives UTF-16 file/directory paths for the OS to store globally. Other programs, or this one, can then access it.
 			The data currently stored on the clipboard is freed and replaced by this data.
 		*/
-		virtual void setClipboardFiles(std::vector<std::wstring> const& p_paths, uint64 p_additionalData = 0u) const = 0;
+		virtual void setClipboardFiles(PointerRange<std::u16string> p_paths, uint64 p_additionalData = 0u) const = 0;
 
 		/*
 			Returns the data that is currently stored on the clipboard.
 		*/
-		[[nodiscard]] virtual std::unique_ptr<ClipboardData> getClipboardData() const = 0;
+		virtual std::unique_ptr<ClipboardData> getClipboardData() const = 0;
 
 		//------------------------------
 		// Window events
@@ -8632,9 +9051,9 @@ namespace Avo
 		friend class Gui;
 
 	public:
-		View(View* p_parent, Rectangle<> const& p_bounds = Rectangle<>{});
+		View(View* p_parent, Rectangle<> p_bounds = Rectangle<>{});
 		template<typename T>
-		View(View* p_parent, T p_id, Rectangle<> const& p_bounds = Rectangle<>{}) :
+		View(View* p_parent, T p_id, Rectangle<> p_bounds = Rectangle<>{}) :
 			View{ p_parent, p_bounds }
 		{
 			setId(p_id, getGui());
@@ -8799,96 +9218,99 @@ namespace Avo
 		*/
 		Window* getWindow();
 
+		//------------------------------
+
 	private:
-		std::vector<Animation*> m_animations;
+		std::vector<std::unique_ptr<Animation>> m_animations;
 
 	public:
+
 		/*
 			Creates an animation that is released by this view when it is destroyed.
+			It is recommended to create Animation objects as stack-allocated member variables of the view instead of using these methods if you can.
 			p_milliseconds is the duration of the animation, can be changed later on the returned object.
 		*/
-		[[nodiscard]] Animation* createAnimation(Easing const& p_easing, float p_milliseconds)
+		Animation* addAnimation(Easing p_easing, float p_milliseconds)
 		{
-			auto animation = new Animation{ this, p_easing, p_milliseconds };
-			m_animations.push_back(animation);
-			return animation;
+			return m_animations.emplace_back(std::make_unique<Animation>(getGui(), p_easing, p_milliseconds)).get();
 		}
 		/*
-			Creates an animation that is released by the view when it is destroyed.
+			Creates an animation.
+			It is recommended to create Animation objects as stack-allocated member variables of the view instead of using these methods if you can.
 			p_easingId is the theme easing ID of the animation easing to be used.
 			p_milliseconds is the duration of the animation, can be changed later on the returned object.
 		*/
-		[[nodiscard]] Animation* createAnimation(Id const& p_easingId, float p_milliseconds)
+		Animation* addAnimation(Id p_easingId, float p_milliseconds)
 		{
-			return createAnimation(getThemeEasing(p_easingId), p_milliseconds);
+			return m_animations.emplace_back(std::make_unique<Animation>(getGui(), getThemeEasing(p_easingId), p_milliseconds)).get();
 		}
 		/*
 			Creates an animation that is released by this view when it is destroyed.
+			It is recommended to create Animation objects as stack-allocated member variables of the view instead of using these methods if you can.
 			p_milliseconds is the duration of the animation, can be changed later on the returned object.
 			p_callback is a function that will be called every time the animation has been updated, it takes the current animation value as a parameter.
 		*/
-		[[nodiscard]] Animation* createAnimation(Easing const& p_easing, float p_milliseconds, std::function<void(float)> p_callback)
+		template<typename Callable>
+		Animation* addAnimation(Easing p_easing, float p_milliseconds, Callable const& p_callback)
 		{
-			auto animation = new Animation{ this, p_easing, p_milliseconds };
-			animation->updateListeners += p_callback;
-			m_animations.push_back(animation);
-			return animation;
+			return m_animations.emplace_back(std::make_unique<Animation>(getGui(), p_easing, p_milliseconds, p_callback)).get();
 		}
 		/*
 			Creates an animation that is released by the view when it is destroyed.
+			It is recommended to create Animation objects as stack-allocated member variables of the view instead of using these methods if you can.
 			p_easingId is the theme easing ID of the animation easing to be used.
 			p_milliseconds is the duration of the animation, can be changed later on the returned object.
 			p_callback is a function that will be called every time the animation has been updated, it takes the current animation value as a parameter.
 		*/
-		[[nodiscard]] Animation* createAnimation(Id const& p_easingId, float p_milliseconds, std::function<void(float)> p_callback)
+		template<typename Callable>
+		Animation* addAnimation(Id p_easingId, float p_milliseconds, Callable const& p_callback)
 		{
-			return createAnimation(getThemeEasing(p_easingId), p_milliseconds, p_callback);
+			return m_animations.emplace_back(std::make_unique<Animation>(getGui(), getThemeEasing(p_easingId), p_milliseconds, p_callback)).get();
 		}
 
 		/*
 			Creates an animation that is released by this view when it is destroyed.
+			It is recommended to create Animation objects as stack-allocated member variables of the view instead of using these methods if you can.
 			p_duration is the duration of the animation, can be changed later on the returned object.
 		*/
 		template<typename DurationType, typename DurationPeriod>
-		[[nodiscard]] Animation* createAnimation(Easing const& p_easing, std::chrono::duration<DurationType, DurationPeriod> const& p_duration)
+		Animation* addAnimation(Easing p_easing, std::chrono::duration<DurationType, DurationPeriod> p_duration)
 		{
-			auto animation = new Animation{ this, p_easing, p_duration };
-			m_animations.push_back(animation);
-			return animation;
+			return m_animations.emplace_back(std::make_unique<Animation>(getGui(), p_easing, p_milliseconds)).get();
 		}
 		/*
 			Creates an animation that is released by the view when it is destroyed.
+			It is recommended to create Animation objects as stack-allocated member variables of the view instead of using these methods if you can.
 			p_easingId is the theme easing ID of the animation easing to be used.
 			p_duration is the duration of the animation, can be changed later on the returned object.
 		*/
 		template<typename DurationType, typename DurationPeriod>
-		[[nodiscard]] Animation* createAnimation(Id const& p_easingId, std::chrono::duration<DurationType, DurationPeriod> const& p_duration)
+		Animation* addAnimation(Id p_easingId, std::chrono::duration<DurationType, DurationPeriod> p_duration)
 		{
-			return createAnimation(getThemeEasing(p_easingId), p_duration);
+			return m_animations.emplace_back(std::make_unique<Animation>(getGui(), getThemeEasing(p_easingId), p_milliseconds)).get();
 		}
 		/*
 			Creates an animation that is released by this view when it is destroyed.
+			It is recommended to create Animation objects as stack-allocated member variables of the view instead of using these methods if you can.
 			p_duration is the duration of the animation, can be changed later on the returned object.
 			p_callback is a function that will be called every time the animation has been updated, it takes the current animation value as a parameter.
 		*/
-		template<typename DurationType, typename DurationPeriod>
-		[[nodiscard]] Animation* createAnimation(Easing const& p_easing, std::chrono::duration<DurationType, DurationPeriod> const& p_duration, std::function<void(float)> p_callback)
+		template<typename DurationType, typename DurationPeriod, typename Callable>
+		Animation* addAnimation(Easing p_easing, std::chrono::duration<DurationType, DurationPeriod> const& p_duration, Callable const& p_callback)
 		{
-			auto animation = new Animation{ this, p_easing, p_duration };
-			animation->updateListeners += p_callback;
-			m_animations.push_back(animation);
-			return animation;
+			return m_animations.emplace_back(std::make_unique<Animation>(getGui(), p_easing, p_duration, p_callback)).get();
 		}
 		/*
 			Creates an animation that is released by the view when it is destroyed.
+			It is recommended to create Animation objects as stack-allocated member variables of the view instead of using these methods if you can.
 			p_easingId is the theme easing ID of the animation easing to be used.
 			p_duration is the duration of the animation, can be changed later on the returned object.
 			p_callback is a function that will be called every time the animation has been updated, it takes the current animation value as a parameter.
 		*/
 		template<typename DurationType, typename DurationPeriod>
-		[[nodiscard]] Animation* createAnimation(Id const& p_easingId, std::chrono::duration<DurationType, DurationPeriod> const& p_duration, std::function<void(float)> p_callback)
+		Animation* addAnimation(Id p_easingId, std::chrono::duration<DurationType, DurationPeriod> const& p_duration, std::function<void(float)> p_callback)
 		{
-			return createAnimation(getThemeEasing(p_easingId), p_duration, p_callback);
+			return m_animations.emplace_back(std::make_unique<Animation>(getGui(), getThemeEasing(p_easingId), p_duration, p_callback)).get();
 		}
 
 	private:
@@ -8898,26 +9320,26 @@ namespace Avo
 		*/
 		void updateViewDrawingIndex(View* p_view);
 
-		uint32 m_index{ 0 };
+		Index m_index = 0;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
 			Returns the index of this view relative to its siblings.
 		*/
-		uint32 getIndex() const
+		Index getIndex() const
 		{
 			return m_index;
 		}
 
 	private:
-		uint32 m_layerIndex{ 0 };
+		Index m_layerIndex = 0;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
 			Returns the layer index of the view, how deep down the view hierarchy it is.
 			The GUI view has a layer index of 0.
 		*/
-		uint32 getLayerIndex() const
+		Index getLayerIndex() const
 		{
 			return m_layerIndex;
 		}
@@ -8993,14 +9415,14 @@ namespace Avo
 			Removes a child view from this view. This forgets the view being removed.
 			If you haven't remembered it yourself, it will get deleted.
 		*/
-		void removeChildView(uint32 p_viewIndex)
+		void removeChildView(Index p_viewIndex)
 		{
 			auto childToRemove = m_childViews[p_viewIndex];
 			childViewDetachmentListeners(childToRemove);
 
 			childToRemove->m_parent = nullptr;
 
-			for (uint32 a = p_viewIndex; a < m_childViews.size() - 1; a++)
+			for (auto a : Indices{ p_viewIndex, m_childViews })
 			{
 				m_childViews[a] = m_childViews[a + 1];
 				m_childViews[a]->m_index = a;
@@ -9017,7 +9439,7 @@ namespace Avo
 		{
 			while (!m_childViews.empty()) // That function naming, ew... Why didn't they call it getIsEmpty? empty() should be emptying something >:^(
 			{
-				Avo::View* child = m_childViews.back();
+				auto child = m_childViews.back();
 				childViewDetachmentListeners(child);
 				child->m_parent = nullptr;
 				m_childViews.pop_back();
@@ -9030,7 +9452,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Returns the child view at an index.
 		*/
-		View* getChildView(uint32 p_viewIndex) const
+		auto getChildView(uint32 p_viewIndex) const
 		{
 			return m_childViews[p_viewIndex];
 		}
@@ -9039,17 +9461,17 @@ namespace Avo
 			Returns the child view at an index, casted to a pointer of another type.
 		*/
 		template<typename T>
-		T* getChildView(uint32 p_viewIndex) const
+		auto getChildView(uint32 p_viewIndex) const
 		{
-			return (T*)m_childViews[p_viewIndex];
+			return dynamic_cast<T*>(m_childViews[p_viewIndex]);
 		}
 		/*
 			LIBRARY IMPLEMENTED
 			Returns the number of child views that are attached to this view.
 		*/
-		uint32 getNumberOfChildViews() const
+		auto getNumberOfChildViews() const
 		{
-			return m_childViews.size();
+			return static_cast<Count>(m_childViews.size());
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -9119,7 +9541,7 @@ namespace Avo
 		}
 
 	private:
-		bool m_hasShadow{ true };
+		bool m_hasShadow = true;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -9200,7 +9622,7 @@ namespace Avo
 			p_targetRectangle is the rectangle that needs to be drawn, relative to the top-left corner of the GUI.
 			To optimize your application, you can make sure to only draw stuff in this region.
 		*/
-		virtual void draw(DrawingContext* p_drawingContext, Rectangle<> const& p_targetRectangle)
+		virtual void draw(DrawingContext* p_drawingContext, Rectangle<> p_targetRectangle)
 		{
 			draw(p_drawingContext);
 		}
@@ -9224,7 +9646,7 @@ namespace Avo
 			p_targetRectangle is the rectangle that needs to be drawn, relative to the top-left corner of the GUI.
 			To optimize your application, you can make sure to only draw stuff in this region.
 		*/
-		virtual void drawOverlay(DrawingContext* p_drawingContext, Rectangle<> const& p_targetRectangle)
+		virtual void drawOverlay(DrawingContext* p_drawingContext, Rectangle<> p_targetRectangle)
 		{
 			drawOverlay(p_drawingContext);
 		}
@@ -9247,7 +9669,7 @@ namespace Avo
 			float right = m_childViews[0]->getRight();
 			float top = m_childViews[0]->getTop();
 			float bottom = m_childViews[0]->getBottom();
-			for (uint32 a = 1; a < m_childViews.size(); a++)
+			for (auto a : Indices{ 1, m_childViews })
 			{
 				if (m_childViews[a]->getLeft() < left)
 				{
@@ -9267,7 +9689,7 @@ namespace Avo
 				}
 			}
 
-			return Rectangle<>(left, top, right, bottom);
+			return { left, top, right, bottom };
 		}
 
 		/*
@@ -9513,39 +9935,39 @@ namespace Avo
 
 		/*
 			Listener signature:
-				void (Id const& id, Color const& color)
+				void (Id id, Color color)
 			See View::handleThemeColorChange for more information.
 		*/
-		EventListeners<void(Id const&, Color const&)> themeColorChangeListeners;
+		EventListeners<void(Id, Color)> themeColorChangeListeners;
 		/*
 			USER IMPLEMENTED
 			This gets called whenever a theme color has changed, not including initialization.
 		*/
-		virtual void handleThemeColorChange(Id const& p_id, Color const& p_newColor) { }
+		virtual void handleThemeColorChange(Id p_id, Color p_newColor) { }
 
 		/*
 			Listener signature:
-				void (Id const& id, Easing const& easing)
+				void (Id id, Easing easing)
 			See View::handleThemeEasingChange for more information.
 		*/
-		EventListeners<void(Id const&, Easing const&)> themeEasingChangeListeners;
+		EventListeners<void(Id, Easing)> themeEasingChangeListeners;
 		/*
 			USER IMPLEMENTED
 			This gets called whenever a theme easing has changed, not including initialization.
 		*/
-		virtual void handleThemeEasingChange(Id const& p_id, Easing const& p_newEasing) { };
+		virtual void handleThemeEasingChange(Id p_id, Easing p_newEasing) { };
 
 		/*
 			Listener signature:
-				void (Id const& id, float value)
+				void (Id id, float value)
 			See View::handleThemeValueChange for more information.
 		*/
-		EventListeners<void(Id const&, float)> themeValueChangeListeners;
+		EventListeners<void(Id, float)> themeValueChangeListeners;
 		/*
 			USER IMPLEMENTED
 			This gets called whenever a theme value has changed, not including initialization.
 		*/
-		virtual void handleThemeValueChange(Id const& p_id, float p_newValue) { };
+		virtual void handleThemeValueChange(Id p_id, float p_newValue) { };
 
 		//------------------------------
 
@@ -9563,7 +9985,7 @@ namespace Avo
 
 	private:
 		template<typename T, typename U>
-		void propagateThemePropertyChange(void(View::* p_function)(Id const&, T, bool), Id const& p_id, U&& p_property, bool p_willAffectChildren)
+		void propagateThemePropertyChange(void(View::* p_function)(Id, T, bool), Id p_id, U&& p_property, bool p_willAffectChildren)
 		{
 			if (p_willAffectChildren)
 			{
@@ -9615,7 +10037,7 @@ namespace Avo
 
 			If p_willAffectChildren is true, all children and views below those too will change this color in their themes.
 		*/
-		void setThemeColor(Id const& p_id, Color const& p_color, bool p_willAffectChildren = true)
+		void setThemeColor(Id p_id, Color p_color, bool p_willAffectChildren = true)
 		{
 			propagateThemePropertyChange(&View::setThemeColor, p_id, p_color, p_willAffectChildren);
 
@@ -9649,7 +10071,7 @@ namespace Avo
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		Color getThemeColor(Id const& p_id) const
+		Color getThemeColor(Id p_id) const
 		{
 			return m_theme->colors[p_id];
 		}
@@ -9657,7 +10079,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			p_color is inserted into the theme with the id p_id if it doesn't already have a value.
 		*/
-		void initializeThemeColor(Id const& p_id, Color const& p_color)
+		void initializeThemeColor(Id p_id, Color p_color)
 		{
 			m_theme->colors.insert({ p_id, p_color });
 		}
@@ -9672,7 +10094,7 @@ namespace Avo
 
 			if p_willAffectChildren is true, all children and views below those too will change this easing in their themes.
 		*/
-		void setThemeEasing(Id const& p_id, Easing const& p_easing, bool p_willAffectChildren = true)
+		void setThemeEasing(Id p_id, Easing p_easing, bool p_willAffectChildren = true)
 		{
 			propagateThemePropertyChange(&View::setThemeEasing, p_id, p_easing, p_willAffectChildren);
 
@@ -9706,7 +10128,7 @@ namespace Avo
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		Easing const& getThemeEasing(Id const& p_id) const
+		Easing getThemeEasing(Id p_id) const
 		{
 			return m_theme->easings[p_id];
 		}
@@ -9714,7 +10136,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			p_easing is inserted into the theme with the ID p_id if it doesn't already have a value.
 		*/
-		void initializeThemeEasing(Id const& p_id, Easing const& p_easing)
+		void initializeThemeEasing(Id p_id, Easing p_easing)
 		{
 			m_theme->easings.insert({ p_id, p_easing });
 		}
@@ -9729,7 +10151,7 @@ namespace Avo
 
 			if p_willAffectChildren is true, all children and views below those too will change this value in their themes.
 		*/
-		void setThemeValue(Id const& p_id, float p_value, bool p_willAffectChildren = true)
+		void setThemeValue(Id p_id, float p_value, bool p_willAffectChildren = true)
 		{
 			propagateThemePropertyChange(&View::setThemeValue, p_id, p_value, p_willAffectChildren);
 
@@ -9763,7 +10185,7 @@ namespace Avo
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		float getThemeValue(Id const& p_id) const
+		float getThemeValue(Id p_id) const
 		{
 			return m_theme->values[p_id];
 		}
@@ -9771,7 +10193,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			p_value is inserted into the theme with the ID p_id if it doesn't already have a value.
 		*/
-		void initializeThemeValue(Id const& p_id, float p_value)
+		void initializeThemeValue(Id p_id, float p_value)
 		{
 			m_theme->values.insert({ p_id, p_value });
 		}
@@ -9868,7 +10290,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.
 		*/
-		void setBounds(Point<> const& p_position, Point<> const& p_size) override
+		void setBounds(Point<> p_position, Point<> p_size) override
 		{
 			setBounds(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y);
 		}
@@ -9876,7 +10298,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.
 		*/
-		void setAbsoluteBounds(Point<> const& p_position, Point<> const& p_size)
+		void setAbsoluteBounds(Point<> p_position, Point<> p_size)
 		{
 			setAbsoluteBounds(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y);
 		}
@@ -9884,7 +10306,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Sets the rectangle representing the bounds of this view relative to the top left corner of the parent.
 		*/
-		void setBounds(Rectangle<> const& p_rectangle) override
+		void setBounds(Rectangle<> p_rectangle) override
 		{
 			setBounds(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
@@ -9892,7 +10314,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Sets the rectangle representing the bounds of this view relative to the top left corner of the GUI.
 		*/
-		void setAbsoluteBounds(Rectangle<> const& p_rectangle)
+		void setAbsoluteBounds(Rectangle<> p_rectangle)
 		{
 			setAbsoluteBounds(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
@@ -9900,7 +10322,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Returns a rectangle representing the bounds of this view relative to the top left corner of the parent.
 		*/
-		Rectangle<> const& getBounds() const override
+		Rectangle<> getBounds() const override
 		{
 			return m_bounds;
 		}
@@ -9932,7 +10354,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Moves the whole view.
 		*/
-		void move(Point<> const& p_offset) override
+		void move(Point<> p_offset) override
 		{
 			move(p_offset.x, p_offset.y);
 		}
@@ -9958,7 +10380,7 @@ namespace Avo
 			Sets the top left coordinates of the view relative to the top left corner of the parent.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setTopLeft(Point<> const& p_position, bool p_willKeepSize = true) override
+		void setTopLeft(Point<> p_position, bool p_willKeepSize = true) override
 		{
 			setTopLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -9967,7 +10389,7 @@ namespace Avo
 			Sets the top left coordinates of the view relative to the top left corner of the GUI.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setAbsoluteTopLeft(Point<> const& p_position, bool p_willKeepSize = true)
+		void setAbsoluteTopLeft(Point<> p_position, bool p_willKeepSize = true)
 		{
 			setAbsoluteTopLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -10015,7 +10437,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Returns the coordinates of the top left corner of the view relative to the top left corner of the GUI.
 		*/
-		Point<> const& getAbsoluteTopLeft() const
+		Point<> getAbsoluteTopLeft() const
 		{
 			return m_absolutePosition;
 		}
@@ -10025,7 +10447,7 @@ namespace Avo
 			Sets the top right coordinates of the view relative to the top left corner of the parent.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setTopRight(Point<> const& p_position, bool p_willKeepSize = true) override
+		void setTopRight(Point<> p_position, bool p_willKeepSize = true) override
 		{
 			setTopLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -10034,7 +10456,7 @@ namespace Avo
 			Sets the top right coordinates of the view relative to the top left corner of the GUI.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setAbsoluteTopRight(Point<> const& p_position, bool p_willKeepSize = true)
+		void setAbsoluteTopRight(Point<> p_position, bool p_willKeepSize = true)
 		{
 			setAbsoluteTopRight(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -10092,7 +10514,7 @@ namespace Avo
 			Sets the bottom left coordinates of the view relative to the top left corner of the parent.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setBottomLeft(Point<> const& p_position, bool p_willKeepSize = true) override
+		void setBottomLeft(Point<> p_position, bool p_willKeepSize = true) override
 		{
 			setBottomLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -10101,7 +10523,7 @@ namespace Avo
 			Sets the bottom left coordinates of the view relative to the top left corner of the GUI.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setAbsoluteBottomLeft(Point<> const& p_position, bool p_willKeepSize = true)
+		void setAbsoluteBottomLeft(Point<> p_position, bool p_willKeepSize = true)
 		{
 			setAbsoluteBottomLeft(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -10159,7 +10581,7 @@ namespace Avo
 			Sets the bottom right coordinates of the view relative to the top left corner of the parent.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setBottomRight(Point<> const& p_position, bool p_willKeepSize = true) override
+		void setBottomRight(Point<> p_position, bool p_willKeepSize = true) override
 		{
 			setBottomRight(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -10168,7 +10590,7 @@ namespace Avo
 			Sets the bottom right coordinates of the view relative to the top left corner of the GUI.
 			If p_willKeepSize is true, the view will only get positioned, keeping its size.
 		*/
-		void setAbsoluteBottomRight(Point<> const& p_position, bool p_willKeepSize = true)
+		void setAbsoluteBottomRight(Point<> p_position, bool p_willKeepSize = true)
 		{
 			setAbsoluteBottomRight(p_position.x, p_position.y, p_willKeepSize);
 		}
@@ -10237,7 +10659,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Sets the center coordinates of the view relative to the top left corner of the parent.
 		*/
-		void setCenter(Point<> const& p_position) override
+		void setCenter(Point<> p_position) override
 		{
 			setCenter(p_position.x, p_position.y);
 		}
@@ -10245,7 +10667,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Sets the center coordinates of the view relative to the top left corner of the GUI.
 		*/
-		void setAbsoluteCenter(Point<> const& p_position)
+		void setAbsoluteCenter(Point<> p_position)
 		{
 			setAbsoluteCenter(p_position.x, p_position.y);
 		}
@@ -10648,7 +11070,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Sets the size of this view by changing the right and bottom coordinates and updates the layout.
 		*/
-		void setSize(Point<> const& p_size) override
+		void setSize(Point<> p_size) override
 		{
 			setSize(p_size.x, p_size.y);
 		}
@@ -10730,7 +11152,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Returns whether this view intersects/overlaps a rectangle that is relative to the top left corner of the parent.
 		*/
-		bool getIsIntersecting(Rectangle<> const& p_rectangle) const override
+		bool getIsIntersecting(Rectangle<> p_rectangle) const override
 		{
 			return getIsIntersecting(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
@@ -10828,7 +11250,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Returns whether a rectangle can be contained within this view. The rectangle is relative to the parent of this view.
 		*/
-		bool getIsContaining(Rectangle<> const& p_rectangle)
+		bool getIsContaining(Rectangle<> p_rectangle)
 		{
 			return getIsContaining(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
 		}
@@ -10895,7 +11317,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Returns whether a point is within the bounds of this view. The point is relative to the parent of the view.
 		*/
-		bool getIsContaining(Point<> const& p_point) const override
+		bool getIsContaining(Point<> p_point) const override
 		{
 			return getIsContaining(p_point.x, p_point.y);
 		}
@@ -10915,7 +11337,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Returns whether a point is within the bounds of this view. The point is relative to the top-left corner of the GUI.
 		*/
-		bool getIsContainingAbsolute(Point<> const& p_point) const
+		bool getIsContainingAbsolute(Point<> p_point) const
 		{
 			if (m_parent)
 			{
@@ -11266,14 +11688,14 @@ namespace Avo
 		// Size change events
 
 	private:
-		virtual void sendBoundsChangeEvents(Rectangle<> const& p_previousBounds);
+		virtual void sendBoundsChangeEvents(Rectangle<> p_previousBounds);
 	public:
-		EventListeners<void(Rectangle<> const&)> boundsChangeListeners;
+		EventListeners<void(Rectangle<>)> boundsChangeListeners;
 		/*
 			USER IMPLEMENTED
 			Implement this method in your view if you want to update things when the bounds of the view have been changed.
 		*/
-		virtual void handleBoundsChange(Rectangle<> const& p_previousBounds) { }
+		virtual void handleBoundsChange(Rectangle<> p_previousBounds) { }
 
 	public:
 		/*
@@ -11346,7 +11768,7 @@ namespace Avo
 
 		//------------------------------
 
-		void handleThemeColorChange(Id const& p_id, Color const& p_newColor) override
+		void handleThemeColorChange(Id p_id, Color p_newColor) override
 		{
 			if (p_id == ThemeColors::background)
 			{
@@ -11355,10 +11777,6 @@ namespace Avo
 		}
 
 	public:
-		Gui();
-		Gui(Component* p_parent);
-		~Gui() override;
-
 		/*
 			LIBRARY IMPLEMENTED
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
@@ -11376,7 +11794,7 @@ namespace Avo
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(std::string const& p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr);
+		void create(std::string_view p_title, float p_positionFactorX, float p_positionFactorY, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr);
 		/*
 			LIBRARY IMPLEMENTED
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
@@ -11391,7 +11809,7 @@ namespace Avo
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(std::string const& p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr);
+		void create(std::string_view p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr);
 		/*
 			LIBRARY IMPLEMENTED
 			This method creates the window and drawing context as well as creates the content of the GUI and lays it out.
@@ -11405,7 +11823,7 @@ namespace Avo
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(std::string const& p_title, Point<> const& p_size, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr)
+		void create(std::string_view p_title, Point<> p_size, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr)
 		{
 			create(p_title, p_size.x, p_size.y, p_windowFlags, p_parent);
 		}
@@ -11425,7 +11843,7 @@ namespace Avo
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(std::string const& p_title, Point<> const& p_positionFactor, Point<> const& p_size, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr)
+		void create(std::string_view p_title, Point<> p_positionFactor, Point<> p_size, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr)
 		{
 			create(p_title, p_positionFactor.x, p_positionFactor.y, p_size.x, p_size.y, p_windowFlags, p_parent);
 		}
@@ -11445,7 +11863,7 @@ namespace Avo
 			p_windowFlags are the styling options for the window which can be combined with the binary OR operator, "|".
 			p_parent is an optional parent GUI, only used if the Child bit is turned on in p_windowFlags.
 		*/
-		void create(std::string const& p_title, float p_positionFactorX, float p_positionFactorY, Point<> const& p_size, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr)
+		void create(std::string_view p_title, float p_positionFactorX, float p_positionFactorY, Point<> p_size, WindowStyleFlags p_windowFlags = WindowStyleFlags::Default, Gui* p_parent = nullptr)
 		{
 			create(p_title, p_positionFactorX, p_positionFactorY, p_size.x, p_size.y, p_windowFlags, p_parent);
 		}
@@ -11522,7 +11940,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Returns the topmost non-overlay view which contains the coordinates given.
 		*/
-		View* getViewAt(Point<> const& p_coordinates);
+		View* getViewAt(Point<> p_coordinates);
 		/*
 			LIBRARY IMPLEMENTED
 			Returns the topmost non-overlay view which contains the coordinates given.
@@ -11538,8 +11956,8 @@ namespace Avo
 			Adds a function that will be called in p_duration from now
 			and returns an ID that identifies the timer callback.
 		*/
-		template<typename DurationTime, typename DurationPeriod>
-		Id addTimerCallback(std::function<void()> p_callback, std::chrono::duration<DurationTime, DurationPeriod> p_duration)
+		template<typename Callable, typename DurationTime, typename DurationPeriod>
+		Id addTimerCallback(Callable const& p_callback, std::chrono::duration<DurationTime, DurationPeriod> const& p_duration)
 		{
 			return m_timerThread.addCallback(p_callback, p_duration);
 		}
@@ -11547,11 +11965,12 @@ namespace Avo
 			Adds a function that will be called in p_milliseconds milliseconds from now
 			and returns an ID that identifies the timer callback.
 		*/
-		Id addTimerCallback(std::function<void()> p_callback, float p_milliseconds)
+		template<typename Callable>
+		Id addTimerCallback(Callable const& p_callback, float p_milliseconds)
 		{
 			return m_timerThread.addCallback(p_callback, p_milliseconds);
 		}
-		void cancelTimerCallback(Id const& p_id)
+		void cancelTimerCallback(Id p_id)
 		{
 			m_timerThread.cancelCallback(p_id);
 		}
@@ -11603,7 +12022,7 @@ namespace Avo
 		Point<> m_lastUpdatedWindowSize;
 		void handleWindowSizeChange(WindowEvent const& p_event);
 
-		void sendBoundsChangeEvents(Avo::Rectangle<> const& p_previousBounds) override
+		void sendBoundsChangeEvents(Avo::Rectangle<> p_previousBounds) override
 		{
 			if ((uint32)getWidth() != (uint32)m_window->getSize().x || (uint32)getHeight() != (uint32)m_window->getSize().y)
 			{
@@ -11742,7 +12161,7 @@ namespace Avo
 		/*
 			Returns the topmost non-overlay view which contains the coordinates given, as well as any overlay views which are above the non-overlay view.
 		*/
-		std::vector<View*> getTopMouseListenersAt(Point<> const& p_coordinates);
+		std::vector<View*> getTopMouseListenersAt(Point<> p_coordinates);
 		/*
 			Returns the topmost non-overlay view which contains the coordinates given, as well as any overlay views which are above the non-overlay view.
 		*/
@@ -12040,6 +12459,12 @@ namespace Avo
 			Draws the invalid rectangles of the GUI. This method should only be called internally by the library. Use draw() to draw things directly on the GUI.
 		*/
 		void drawViews();
+
+		//------------------------------
+
+		Gui();
+		Gui(Component* p_parent);
+		~Gui() override;
 	};
 
 	//------------------------------
@@ -12065,19 +12490,25 @@ namespace Avo
 	class Tooltip : public View
 	{
 	private:
-		Animation* m_showAnimation = createAnimation(ThemeEasings::out, 100, [=](float p_value) {
-			m_opacity = p_value;
-			invalidate();
-		});
+		Animation m_showAnimation
+		{
+			getGui(), getThemeEasing(ThemeEasings::out), 100ms, 
+			[=](float p_value) {
+				m_opacity = p_value;
+				invalidate();
+			} 
+		};
 		bool m_isShowing = false;
+
 		Id m_timerId = 0;
+
 	public:
 		/*
 			Makes the tooltip appear
 			p_string is the string to be displayed on the tooltip.
 			p_targetBounds is the area that the tooltip points to and is relative to the parent of this tooltip. The tooltip decides the exact positioning.
 		*/
-		virtual void show(std::string const& p_string, Rectangle<> const& p_targetRectangle)
+		virtual void show(std::string_view p_string, Rectangle<> p_targetRectangle)
 		{
 			if (!m_isShowing)
 			{
@@ -12103,7 +12534,7 @@ namespace Avo
 				m_isShowing = true;
 				m_timerId = getGui()->addTimerCallback([=] {
 					m_opacity = 0.f;
-					m_showAnimation->play(false);
+					m_showAnimation.play(false);
 				}, getThemeValue(ThemeValues::tooltipDelay));
 			}
 		}
@@ -12119,7 +12550,7 @@ namespace Avo
 				m_isShowing = false;
 				if (m_opacity)
 				{
-					m_showAnimation->play(true);
+					m_showAnimation.play(true);
 				}
 			}
 		}
@@ -12201,21 +12632,14 @@ namespace Avo
 		/*
 			Sets the title shown in the top border of the open file dialog.
 		*/
-		void setTitle(char const* p_title)
-		{
-			m_title = p_title;
-		}
-		/*
-			Sets the title shown in the top border of the open file dialog.
-		*/
-		void setTitle(std::string const& p_title)
+		void setTitle(std::string_view p_title)
 		{
 			m_title = p_title;
 		}
 		/*
 			Returns the title shown in the thop border of the open file dialog.
 		*/
-		std::string const& getTitle()
+		std::string_view getTitle()
 		{
 			return m_title;
 		}
@@ -12289,7 +12713,7 @@ namespace Avo
 	private:
 		Avo::Color m_color{ getThemeColor(ThemeColors::onBackground) };
 	public:
-		void setColor(Avo::Color const& p_color)
+		void setColor(Avo::Color p_color)
 		{
 			m_color = p_color;
 		}
@@ -12317,7 +12741,7 @@ namespace Avo
 	private:
 		Text m_text;
 	public:
-		void setString(std::string const& p_string)
+		void setString(std::string_view p_string)
 		{
 			if (p_string.empty())
 			{
@@ -12380,7 +12804,7 @@ namespace Avo
 
 		//------------------------------
 
-		TextView(View* p_parent, float p_fontSize, std::string const& p_string = "") :
+		TextView(View* p_parent, float p_fontSize, std::string_view p_string = "") :
 			View{ p_parent },
 			m_fontSize{ p_fontSize }
 		{
@@ -12441,14 +12865,14 @@ namespace Avo
 		/*
 			Sets the color that is used by the ripple and hover effects.
 		*/
-		void setColor(Color const& p_color)
+		void setColor(Color p_color)
 		{
 			m_color = p_color;
 		}
 		/*
 			Returns the color that is used by the ripple and hover effects.
 		*/
-		Color const& getColor()
+		Color getColor()
 		{
 			return m_color;
 		}
@@ -12474,115 +12898,136 @@ namespace Avo
 			return m_hasHoverEffect;
 		}
 
-		//------------------------------
-
 	private:
 		Point<> m_position;
-		float m_size = 0.f;
-
-		float m_alphaFactor = 0.f;
-		float m_overlayAlphaFactor = 0.f;
-
-	public:
-		void draw(DrawingContext* p_drawingContext, Rectangle<> const& p_targetRectangle) override
-		{
-			if (m_isEnabled)
-			{
-				p_drawingContext->setColor(Color(m_color, m_color.alpha * m_overlayAlphaFactor * 0.3f));
-				p_drawingContext->fillRectangle(getSize());
-
-				if (m_color.alpha * m_alphaFactor >= 0.f)
-				{
-					p_drawingContext->setColor(Color(m_color, m_color.alpha * m_alphaFactor * 0.8f));
-					p_drawingContext->fillCircle(m_position, m_size * 0.5f);
-				}
-			}
-		}
-
-	private:
 		float m_maxSize = 0.f;
 	public:
 		void updateMaxSize()
 		{
-			m_maxSize = 2.f * Point<>::getDistanceFast(m_position, Point<>{
+			m_maxSize = 2.f * Point<>::getDistance(m_position, Point{
 				m_position.x < getWidth() * 0.5f ? getWidth() : 0.f,
 				m_position.y < getHeight() * 0.5f ? getHeight() : 0.f
 			});
 		}
 
 	private:
-		bool m_isMouseDown = false;
-	public:
-		Ripple(View* p_parent, Color const& p_color = { 1.f, 0.45f }) :
-			View{ p_parent, p_parent->getBounds().createCopyAtOrigin() },
-			m_color{ p_color }
-		{
+		// This might be a bad idea but i'm experimenting haha
+
+		Initializer init_theme = [=] {
 			initializeThemeEasing(ThemeEasings::ripple, { 0.1, 0.8, 0.2, 0.95 });
 			initializeThemeValue(ThemeValues::rippleDuration, 300);
+		};
 
-			setIsOverlay(true); // Mouse events should be sent through
-			setHasShadow(false);
-			setElevation(FLT_MAX); // Nothing can be above a ripple...
-			enableMouseEvents();
-
-			p_parent->sizeChangeListeners += [=](auto...) {
-				setSize(getParent<View>()->getSize());
-				updateMaxSize();
-			};
-
-			auto rippleFadeAnimation = createAnimation(ThemeEasings::inOut, 400, [=](float p_value) {
-				m_alphaFactor = 1.f - p_value;
-				invalidate();
-			});
-			auto rippleAnimation = createAnimation(ThemeEasings::ripple, getThemeValue(ThemeValues::rippleDuration), [=](float p_value) {
+		float m_size = 0.f;
+		Animation m_rippleAnimation
+		{
+			getGui(), getThemeEasing(ThemeEasings::ripple), getThemeValue(ThemeValues::rippleDuration),
+			[=](float p_value) {
 				m_size = interpolate(m_maxSize * 0.4f, m_maxSize, p_value);
 				m_alphaFactor = 1.f;
 				if (!m_isMouseDown && p_value == 1.f)
 				{
-					rippleFadeAnimation->replay();
+					m_rippleFadeAnimation.replay();
 				}
 				invalidate();
-			});
+			}
+		};
 
+		bool m_isMouseDown = false;
+		Initializer init_press = [=] {
 			auto mouseDownListener = [=](MouseEvent const& p_event) {
 				if (m_isEnabled && p_event.mouseButton == MouseButton::Left)
 				{
-					rippleFadeAnimation->stop();
+					m_rippleFadeAnimation.stop();
 
 					m_isMouseDown = true;
-					m_position.set(p_event.x - getLeft(), p_event.y - getTop());
+					m_position = Point{ p_event.x, p_event.y } - getTopLeft();
 					m_alphaFactor = 1.f;
 					updateMaxSize();
 
-					rippleAnimation->replay();
+					m_rippleAnimation.replay();
 				}
 			};
 			mouseDownListeners += mouseDownListener;
-			mouseDoubleClickListeners += [=](auto p_event) { 
-				mouseDownListener(p_event);  
+			mouseDoubleClickListeners += [=](auto p_event) {
+				mouseDownListener(p_event);
 				m_isMouseDown = false;
 			};
+		};
+
+		float m_alphaFactor = 0.f;
+		Animation m_rippleFadeAnimation
+		{
+			getGui(), getThemeEasing(ThemeEasings::inOut), 400ms,
+			[=](float p_value) {
+				m_alphaFactor = 1.f - p_value;
+				invalidate();
+			}
+		};
+
+		Initializer init_release = [=] {
 			mouseUpListeners += [=](MouseEvent const& p_event) {
 				if (m_isMouseDown && p_event.mouseButton == MouseButton::Left)
 				{
 					m_isMouseDown = false;
 					if (m_size == m_maxSize && m_alphaFactor == 1.f)
 					{
-						rippleAnimation->stop();
-						rippleFadeAnimation->replay();
+						m_rippleAnimation.stop();
+						m_rippleFadeAnimation.replay();
 					}
 				}
 			};
+		};
 
-			auto hoverAnimation = createAnimation(ThemeEasings::inOut, getThemeValue(ThemeValues::hoverAnimationDuration), [=](float p_value) {
+		float m_overlayAlphaFactor = 0.f;
+		Animation m_hoverAnimation
+		{
+			getGui(), getThemeEasing(ThemeEasings::inOut), getThemeValue(ThemeValues::hoverAnimationDuration),
+			[=](float p_value) {
 				m_overlayAlphaFactor = p_value;
 				invalidate();
-			});
+			}
+		};
+
+		Initializer init_hover = [=] {
 			mouseBackgroundEnterListeners += [=](auto) {
-				hoverAnimation->play(false);
+				m_hoverAnimation.play(false);
 			};
 			mouseBackgroundLeaveListeners += [=](auto) {
-				hoverAnimation->play(true);
+				m_hoverAnimation.play(true);
+			};
+		};
+
+		//------------------------------
+
+	public:
+		void draw(DrawingContext* p_drawingContext, Rectangle<> p_targetRectangle) override
+		{
+			if (m_isEnabled)
+			{
+				p_drawingContext->setColor({ m_color, m_color.alpha * m_overlayAlphaFactor * 0.3f });
+				p_drawingContext->fillRectangle(getSize());
+
+				if (m_color.alpha * m_alphaFactor >= 0.f)
+				{
+					p_drawingContext->setColor({ m_color, m_color.alpha * m_alphaFactor * 0.8f });
+					p_drawingContext->fillCircle(m_position, m_size * 0.5f);
+				}
+			}
+		}
+
+		Ripple(View* p_parent, Color p_color = { 1.f, 0.45f }) :
+			View{ p_parent, p_parent->getBounds().createCopyAtOrigin() },
+			m_color{ p_color }
+		{
+			setIsOverlay(true); // Mouse events should be sent through
+			setHasShadow(false);
+			setElevation(std::numeric_limits<float>::max());
+			enableMouseEvents();
+
+			p_parent->sizeChangeListeners += [=](auto...) {
+				setSize(getParent<View>()->getSize());
+				updateMaxSize();
 			};
 		}
 	};
@@ -12594,6 +13039,8 @@ namespace Avo
 		inline Id const buttonFontSize;
 		inline Id const buttonCharacterSpacing;
 	}
+
+	// TOOD: Update/remake Button class
 
 	class Button : public View
 	{
@@ -12608,27 +13055,27 @@ namespace Avo
 	private:
 		Text m_text;
 
-		Tooltip* m_tooltipView{ nullptr };
+		Tooltip* m_tooltipView = nullptr;
 		std::string m_tooltipString;
 
 		Image m_icon;
 
-		float m_pressAnimationTime{ 1.f };
-		bool m_isPressed{ false };
-		bool m_isRaising{ false };
+		float m_pressAnimationTime = 1.f;
+		bool m_isPressed = false;
+		bool m_isRaising = false;
 		Emphasis m_emphasis;
 
-		bool m_isEnabled{ true };
+		bool m_isEnabled = true;
 		Color m_currentColor;
-		float m_colorAnimationTime{ 1.f };
-		bool m_isAccent{ false };
+		float m_colorAnimationTime = 1.f;
+		bool m_isAccent = false;
 
-		bool m_isMouseHovering{ false };
+		bool m_isMouseHovering = false;
 
-		Ripple* m_ripple{ nullptr };
+		Ripple* m_ripple = nullptr;
 
 	protected:
-		void handleThemeValueChange(Id const& p_id, float p_newValue) override
+		void handleThemeValueChange(Id p_id, float p_newValue) override
 		{
 			if (p_id == ThemeValues::buttonFontSize)
 			{
@@ -12645,7 +13092,7 @@ namespace Avo
 				updateSize();
 			}
 		}
-		void handleThemeColorChange(Id const& p_id, Color const& p_newColor) override
+		void handleThemeColorChange(Id p_id, Color p_newColor) override
 		{
 			if (m_emphasis == Emphasis::High)
 			{
@@ -12663,7 +13110,7 @@ namespace Avo
 		}
 
 	public:
-		explicit Button(View* p_parent, std::string const& p_text = "", Emphasis p_emphasis = Emphasis::High, bool p_isAccent = false) :
+		explicit Button(View* p_parent, std::string_view p_text = "", Emphasis p_emphasis = Emphasis::High, bool p_isAccent = false) :
 			View(p_parent),
 			m_emphasis(p_emphasis)
 		{
@@ -12802,7 +13249,7 @@ namespace Avo
 		/*
 			Sets the string that the button displays.
 		*/
-		void setString(std::string const& p_string)
+		void setString(std::string_view p_string)
 		{
 			if (p_string[0])
 			{
@@ -12823,7 +13270,7 @@ namespace Avo
 		/*
 			Returns the string that the button displays.
 		*/
-		std::string getString()
+		std::string_view getString()
 		{
 			if (m_text)
 			{
@@ -12880,7 +13327,7 @@ namespace Avo
 			Should give the user additional information about the button's purpose.
 			An empty string disables the tooltip.
 		*/
-		void setTooltip(Tooltip* p_tooltipView, std::string const& p_info)
+		void setTooltip(Tooltip* p_tooltipView, std::string_view p_info)
 		{
 			m_tooltipView = p_tooltipView;
 			m_tooltipString = p_info;
@@ -13004,7 +13451,7 @@ namespace Avo
 
 		//------------------------------
 
-		void drawOverlay(DrawingContext* p_drawingContext, Rectangle<> const& p_targetRectangle) override
+		void drawOverlay(DrawingContext* p_drawingContext, Rectangle<> p_targetRectangle) override
 		{
 			if (m_emphasis == Emphasis::Medium)
 			{
@@ -13013,7 +13460,7 @@ namespace Avo
 			}
 		}
 
-		void draw(DrawingContext* p_drawingContext, Rectangle<> const& p_targetRectangle) override
+		void draw(DrawingContext* p_drawingContext, Rectangle<> p_targetRectangle) override
 		{
 			if (m_emphasis == Emphasis::High)
 			{
@@ -13051,21 +13498,21 @@ namespace Avo
 	{
 	private:
 		Text m_text;
-		float m_textDrawingOffsetX{ 0.f };
+		float m_textDrawingOffsetX = 0.f;
 		float m_fontSize;
-		TextAlign m_textAlign{ TextAlign::Left };
+		TextAlign m_textAlign = TextAlign::Left;
 
-		uint32 m_caretCharacterIndex{ 0 };
-		uint32 m_caretByteIndex{ 0 };
+		Index m_caretCharacterIndex = 0;
+		Index m_caretByteIndex = 0;
 		Point<> m_caretPosition;
-		bool m_isCaretVisible{ false };
-		uint32 m_caretFrameCount{ 0 };
+		bool m_isCaretVisible = false;
+		Count m_caretFrameCount = 0;
 
-		uint32 m_selectionEndCharacterIndex{ 0 };
-		uint32 m_selectionEndByteIndex{ 0 };
+		Index m_selectionEndCharacterIndex = 0;
+		Index m_selectionEndByteIndex = 0;
 		Point<> m_selectionEndPosition;
-		bool m_isSelectingWithMouse{ false };
-		bool m_isSelectionVisible{ false };
+		bool m_isSelectingWithMouse = false;
+		bool m_isSelectionVisible = false;
 
 		//------------------------------
 
@@ -13162,7 +13609,7 @@ namespace Avo
 		{
 			if (m_text)
 			{
-				std::string const& string = m_text.getString();
+				std::string_view string = m_text.getString();
 				uint32 clickCharacterIndex = m_text.getNearestCharacterIndex(p_event.x - m_textDrawingOffsetX, p_event.y, true);
 				int32 clickByteIndex = getUtf8UnitIndexFromCharacterIndex(string, clickCharacterIndex);
 
@@ -13321,7 +13768,7 @@ namespace Avo
 		{
 			Window* window = getWindow();
 
-			std::string string = m_text ? m_text.getString() : "";
+			auto string = m_text ? std::string{ m_text.getString() } : "";
 
 			if (m_isSelectionVisible && 
 				(p_event.key == KeyboardKey::Backspace || p_event.key == KeyboardKey::Delete) && 
@@ -13411,7 +13858,7 @@ namespace Avo
 							{
 								if (byteIndex == string.size() - 1 || (string[byteIndex + 1U] == ' ' && string[byteIndex] != ' '))
 								{
-									string.erase(m_caretByteIndex, byteIndex - (int32)m_caretByteIndex + 1);
+									string.erase(m_caretByteIndex, byteIndex - m_caretByteIndex + 1);
 									setString(string);
 									break;
 								}
@@ -13735,7 +14182,7 @@ namespace Avo
 							m_isSelectionVisible = false;
 						}
 						auto clipboardData = window->getClipboardData();
-						std::string clipboardString = clipboardData->getString();
+						auto clipboardString = clipboardData->getString();
 						string.insert(caretByteIndex, clipboardString);
 						setString(string, caretCharacterIndex + getCharacterIndexFromUtf8UnitIndex(clipboardString, clipboardString.size()));
 
@@ -13834,7 +14281,7 @@ namespace Avo
 			This is needed because the old caret index will be kept in case any event listener returns false.
 			Note that it is a character index and not a byte index, the string is utf-8 encoded.
 		*/
-		void setString(std::string const& p_string, int32 p_newCaretCharacterIndex = -1)
+		void setString(std::string_view p_string, int32 p_newCaretCharacterIndex = -1)
 		{
 			if (m_text && m_text.getString() == p_string)
 			{
@@ -13845,7 +14292,7 @@ namespace Avo
 				p_newCaretCharacterIndex = m_caretCharacterIndex;
 			}
 
-			auto newString = p_string;
+			auto newString = std::string{ p_string };
 
 			for (auto& listener : editableTextChangeListeners)
 			{
@@ -13945,7 +14392,7 @@ namespace Avo
 		/*
 			Returns the content of the editable text.
 		*/
-		std::string getString()
+		std::string_view getString()
 		{
 			if (m_text)
 			{
@@ -14076,7 +14523,7 @@ namespace Avo
 		Type m_type;
 
 	public:
-		TextField(View* p_parent, Type p_type = Type::Filled, std::string const& p_label = "", float p_width = 120.f) :
+		TextField(View* p_parent, Type p_type = Type::Filled, std::string_view p_label = "", float p_width = 120.f) :
 			View(p_parent),
 			m_type(p_type)
 		{
@@ -14128,7 +14575,7 @@ namespace Avo
 		}
 
 	protected:
-		void handleThemeValueChange(Id const& p_id, float p_newValue) override
+		void handleThemeValueChange(Id p_id, float p_newValue) override
 		{
 			if (p_id == ThemeValues::textFieldFontSize)
 			{
@@ -14250,7 +14697,7 @@ namespace Avo
 		Color m_labelColor;
 
 	public:
-		void setLabel(std::string const& p_label)
+		void setLabel(std::string_view p_label)
 		{
 			if (m_labelText)
 			{
@@ -14279,7 +14726,7 @@ namespace Avo
 				queueAnimationUpdate();
 			}
 		}
-		std::string getLabel()
+		std::string_view getLabel()
 		{
 			if (m_labelText)
 			{
@@ -14294,7 +14741,7 @@ namespace Avo
 		Text m_prefixText;
 		Text m_suffixText;
 
-		bool setAffixString(std::string const& p_string, Text& p_affixText)
+		bool setAffixString(std::string_view p_string, Text& p_affixText)
 		{
 			if (p_affixText)
 			{
@@ -14322,7 +14769,7 @@ namespace Avo
 			return true;
 		}
 	public:
-		void setPrefixString(std::string const& p_string)
+		void setPrefixString(std::string_view p_string)
 		{
 			if (setAffixString(p_string, m_prefixText))
 			{
@@ -14334,7 +14781,7 @@ namespace Avo
 				}
 			}
 		}
-		std::string getPrefixString()
+		std::string_view getPrefixString()
 		{
 			if (m_suffixText)
 			{
@@ -14346,7 +14793,7 @@ namespace Avo
 		//------------------------------
 
 	public:
-		void setSuffixString(std::string const& p_string)
+		void setSuffixString(std::string_view p_string)
 		{
 			if (setAffixString(p_string, m_suffixText))
 			{
@@ -14354,7 +14801,7 @@ namespace Avo
 				m_editableText->setRight(m_suffixText.getLeft() - 1.f, false);
 			}
 		}
-		std::string getSuffixString()
+		std::string_view getSuffixString()
 		{
 			if (m_suffixText)
 			{
@@ -14365,7 +14812,7 @@ namespace Avo
 
 		//------------------------------
 
-		void setString(std::string const& p_string)
+		void setString(std::string_view p_string)
 		{
 			m_editableText->setString(p_string);
 			if (m_type == Type::Filled)
@@ -14389,11 +14836,11 @@ namespace Avo
 			Sets the content of the text field as a value, rounded at a certain digit.
 		*/
 		template<typename T>
-		void setValue(T p_value, int32 p_roundingDigit, RoundingType p_roundingType = RoundingType::Nearest)
+		void setValue(T p_value, Index p_roundingDigit, RoundingType p_roundingType = RoundingType::Nearest)
 		{
 			setString(convertNumberToString(p_value, p_roundingDigit, p_roundingType));
 		}
-		std::string getString()
+		std::string_view getString()
 		{
 			return m_editableText->getString();
 		}
@@ -14513,9 +14960,14 @@ namespace Avo
 		{
 			if (m_type == Type::Filled)
 			{
-				p_context->setColor(Color(interpolate(getThemeColor(ThemeColors::background), getThemeColor(ThemeColors::onBackground), 0.05f + 0.05f * min(m_hoverAnimationValue*0.3f + m_focusAnimationValue, 1.f)), 1.f));
+				p_context->setColor({ 
+					interpolate(
+						getThemeColor(ThemeColors::background), getThemeColor(ThemeColors::onBackground), 
+						0.05f + 0.05f * min(m_hoverAnimationValue * 0.3f + m_focusAnimationValue, 1.f)
+					), 1.f 
+				});
 				p_context->fillRectangle(getSize());
-				p_context->setColor(Color(getThemeColor(ThemeColors::onBackground), 0.4));
+				p_context->setColor({ getThemeColor(ThemeColors::onBackground), 0.4 });
 				p_context->drawLine(0.f, getHeight() - 1.f, getWidth(), getHeight() - 0.5f, 1.f);
 				if (m_focusAnimationValue > 0.01f)
 				{
@@ -14537,7 +14989,7 @@ namespace Avo
 			else if (m_type == Type::Outlined)
 			{
 				p_context->setColor(m_labelColor);
-				p_context->strokeRectangle(Rectangle<>(1.f, 1.f + OUTLINED_PADDING_LABEL, getWidth() - 1.f, getHeight() - 1.f), getCorners(), m_focusAnimationValue + 1.f);
+				p_context->strokeRectangle({ 1.f, 1.f + OUTLINED_PADDING_LABEL, getWidth() - 1.f, getHeight() - 1.f }, getCorners(), m_focusAnimationValue + 1.f);
 
 				if (m_labelText)
 				{
@@ -14546,7 +14998,7 @@ namespace Avo
 					p_context->setScale(1.f - labelAnimationValue * 0.3f);
 
 					p_context->setColor(getThemeColor(ThemeColors::background));
-					p_context->fillRoundedRectangle(Rectangle<>(m_labelText.getLeft() - 4.f, m_labelText.getTop(), m_labelText.getRight() + 4.f, m_labelText.getBottom()), 2.f);
+					p_context->fillRoundedRectangle({ m_labelText.getLeft() - 4.f, m_labelText.getTop(), m_labelText.getRight() + 4.f, m_labelText.getBottom() }, 2.f);
 
 					p_context->setColor(m_labelColor);
 					p_context->drawText(m_labelText);
@@ -14558,12 +15010,12 @@ namespace Avo
 
 			if (m_prefixText)
 			{
-				p_context->setColor(Color(getThemeColor(ThemeColors::onBackground), 0.5f));
+				p_context->setColor({ getThemeColor(ThemeColors::onBackground), 0.5f });
 				p_context->drawText(m_prefixText);
 			}
 			if (m_suffixText)
 			{
-				p_context->setColor(Color(getThemeColor(ThemeColors::onBackground), 0.5f));
+				p_context->setColor({ getThemeColor(ThemeColors::onBackground), 0.5f });
 				p_context->drawText(m_suffixText);
 			}
 		}

@@ -3,25 +3,11 @@
 class AnimationsTest : public Avo::Gui
 {
 private:
-	Avo::Point<float> m_startPosition;
-	Avo::Point<float> m_targetPosition;
-	float m_animationTime;
+	Avo::Point<> m_startPosition;
+	Avo::Point<> m_targetPosition;
+	float m_animationTime = 0;
 
 public:
-	AnimationsTest() :
-		m_animationTime(0.f)
-	{
-		create("Animations test", 600, 500);
-		waitForFinish();
-	}
-
-	void createContent() override
-	{
-		enableMouseEvents();
-
-		setThemeColor(Avo::ThemeColors::background, Avo::Color(0.9f, 0.f, 0.4f));
-	}
-
 	void handleMouseDown(Avo::MouseEvent const& p_event) override
 	{
 		m_startPosition = m_targetPosition;
@@ -39,7 +25,17 @@ public:
 	void draw(Avo::DrawingContext* p_context) override
 	{
 		p_context->setColor(Avo::Color(1.f));
-		p_context->fillCircle(Avo::interpolate(m_startPosition, m_targetPosition, Avo::Easing(0.2, 0.9, 0.2, 1).easeValue(m_animationTime)), 25.f);
+		p_context->fillCircle(Avo::interpolate(m_startPosition, m_targetPosition, Avo::Easing{ 0.2, 0.9, 0.2, 1 }.easeValue(m_animationTime)), 25.f);
+	}
+
+	AnimationsTest()
+	{
+		create("Animations test", 600, 500);
+
+		enableMouseEvents();
+		setThemeColor(Avo::ThemeColors::background, { 0.9f, 0.f, 0.4f });
+
+		run();
 	}
 };
 

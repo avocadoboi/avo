@@ -192,7 +192,7 @@ public:
 		}
 	}
 
-	void draw(Avo::DrawingContext* p_context, Avo::Rectangle<float> const& p_targetRectangle) override
+	void draw(Avo::DrawingContext* p_context, Avo::Rectangle<float> p_targetRectangle) override
 	{
 		for (uint32 a = 0; a < m_renderers.size(); a++)
 		{

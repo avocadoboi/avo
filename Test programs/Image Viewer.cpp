@@ -12,13 +12,13 @@ class ImageViewer : public Avo::Gui
 {
 private:
 	Avo::Image m_image;
-	std::string m_filePath;
+	std::string_view m_filePath;
 
 	Avo::Rectangle<float> m_targetImageBounds;
 
 public:
-	ImageViewer(char const* p_filePath) :
-		m_filePath(p_filePath)
+	ImageViewer(std::string_view p_filePath) :
+		m_filePath{ p_filePath }
 	{
 		create("Image viewer", 600, 500, Avo::WindowStyleFlags::Default);
 
@@ -26,7 +26,7 @@ public:
 		enableMouseEvents();
 		setKeyboardFocus(this);
 
-		setThemeColor(Avo::ThemeColors::background, Avo::Color(0.3f));
+		setThemeColor(Avo::ThemeColors::background, 0.3f);
 
 		m_image = getDrawingContext()->createImage(m_filePath);
 		m_image.setCenter(getCenter());
@@ -102,7 +102,7 @@ public:
 		float offsetTop = m_targetImageBounds.top - m_image.getTop();
 		float offsetRight = m_targetImageBounds.right - m_image.getRight();
 		float offsetBottom = m_targetImageBounds.bottom - m_image.getBottom();
-		if (abs(offsetLeft) > 0.1f || abs(offsetTop) > 0.1f || abs(offsetRight) > 0.1f || abs(offsetBottom) > 0.1f)
+		if (std::abs(offsetLeft) > 0.1f || std::abs(offsetTop) > 0.1f || std::abs(offsetRight) > 0.1f || std::abs(offsetBottom) > 0.1f)
 		{
 			m_image.setBounds(
 				m_image.getLeft() + offsetLeft * ANIMATION_SPEED,
@@ -119,15 +119,15 @@ public:
 
 	void draw(Avo::DrawingContext* p_context) override
 	{
-		uint32_t width = ceil(getWidth() / BACKGROUND_TILE_WIDTH);
-		uint32_t height = ceil(getHeight() / BACKGROUND_TILE_WIDTH);
-		Avo::Color tileColor(0.7f);
-		for (uint32_t a = 0; a < width; a++)
+		Count width = ceil(getWidth() / BACKGROUND_TILE_WIDTH);
+		Count height = ceil(getHeight() / BACKGROUND_TILE_WIDTH);
+		Avo::Color tileColor = 0.7f;
+		for (auto a : Indices{ width })
 		{
-			for (uint32_t b = a & 1; b < height; b += 2)
+			for (Index b = a & 1; b < height; b += 2)
 			{
 				p_context->setColor(tileColor);
-				p_context->fillRectangle(Avo::Point<float>(a*BACKGROUND_TILE_WIDTH, b*BACKGROUND_TILE_WIDTH), Avo::Point<float>(BACKGROUND_TILE_WIDTH, BACKGROUND_TILE_WIDTH));
+				p_context->fillRectangle(Avo::Point{ a * BACKGROUND_TILE_WIDTH, b * BACKGROUND_TILE_WIDTH }, Avo::Point{ BACKGROUND_TILE_WIDTH, BACKGROUND_TILE_WIDTH });
 			}
 		}
 		p_context->drawImage(m_image);
@@ -140,16 +140,16 @@ int main(int p_numberOfArguments, char** p_arguments)
 {
 	if (p_numberOfArguments > 1)
 	{
-		new ImageViewer(p_arguments[1]);
+		new ImageViewer{ p_arguments[1] };
 	}
 	else
 	{
-		auto messageBox = new Avo::Gui();
+		auto messageBox = new Avo::Gui;
 		messageBox->create("No image!", 400, 0, Avo::WindowStyleFlags::DefaultNoResize);
 
 		messageBox->enableMouseEvents();
 
-		auto messageText = new Avo::TextView(messageBox, 16.f, u8"No image was given the image viewer. Please open an image using the viewer as the opener.");
+		auto messageText = new Avo::TextView{ messageBox, 16.f, u8"No image was given the image viewer. Please open an image using the viewer as the opener." };
 		messageText->getText().setWordWrapping(Avo::WordWrapping::WholeWord);
 		messageText->getText().setFontWeight(Avo::FontWeight::Regular);
 		messageText->getText().setCharacterSpacing(0.3f);
@@ -160,7 +160,7 @@ int main(int p_numberOfArguments, char** p_arguments)
 		messageText->setCenterX(messageBox->getWidth()/2);
 		messageText->setTop(20.f);
 		
-		auto okButton = new Avo::Button(messageBox, u8"OK");
+		auto okButton = new Avo::Button{ messageBox, u8"OK" };
 		okButton->setCenterX(messageText->getCenterX());
 		okButton->setTop(messageText->getBottom() + 20.f, true);
 		okButton->buttonClickListeners += [=](auto) { messageBox->getWindow()->close(); };

@@ -9,7 +9,7 @@ private:
 
 public:
 	Card(View* p_parent) :
-		View(p_parent)
+		View{ p_parent }
 	{
 		setCornerCutSize(20.f, 0.f, 0.f, 20.f);
 		setElevation(4.f);
@@ -20,7 +20,7 @@ public:
 		m_text.setReadingDirection(Avo::ReadingDirection::RightToLeft);
 
 		m_gradient = getDrawingContext()->createLinearGradient({ 
-			{ Avo::Color(255, 0, 0), 0.f }, { Avo::Color(0, 0, 255), 1.f } 
+			{ { 255, 0, 0 }, 0.f }, { { 0, 0, 255 }, 1.f }
 		});
 		m_radialGradient = getDrawingContext()->createRadialGradient(
 			{
@@ -50,20 +50,20 @@ public:
 		p_context->setGradient(m_radialGradient);
 		p_context->fillRectangle(getSize());
 
-		p_context->setColor(Avo::Color(1.f));
+		p_context->setColor(1.f);
 		p_context->drawText(m_text);
 	}
 };
 
 int main()
 {
-	auto gui = new Avo::Gui();
+	auto gui = new Avo::Gui;
 
 	gui->create("Graphics test", 800, 700);
 
-	gui->setThemeColor(Avo::ThemeColors::shadow, Avo::Color(0.f, 0.5f));
+	gui->setThemeColor(Avo::ThemeColors::shadow, { 0.f, 0.5f });
 
-	auto card = new Card(gui);
+	auto card = new Card{ gui };
 	card->setSize(400, 300);
 	gui->sizeChangeListeners += [=](auto...) { card->setCenter(gui->getCenter()); };
 
