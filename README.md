@@ -1,6 +1,6 @@
 # AvoGUI
 
-AvoGUI is a light, modern framework for desktop applications written for c++17 (so far). 
+AvoGUI is a light, modern framework for desktop applications. Written in c++17, but will be updated for c++20 when it has been fully implemented by compilers.
 
 The project was started because I wanted a graphical framework designed from the user's perspective. The goal is a modern design that allows creative coding and interactive programs yet is scalable for writing larger applications. The API should be intuitive with documentation that explains things clearly and doesn't assume much knowledge.
 
@@ -10,7 +10,7 @@ Warning: the project is still in development and a lot of breaking changes are b
 
 ## How to start
 
-All you need to do is add "AvoGUI.hpp", "AvoGUI.cpp" and "Font data.hpp" to your project, and you're ready to start. c++17 standard is required.
+All you need to do is add "AvoGUI.hpp", "AvoGUI.cpp" and "Font data.hpp" to your project, and you're ready to start. c++17 standard is required. 
 
 A short "getting started" tutorial will be added in the near future. Take a look at the documentation in AvoGUI.hpp for more information about anything. If there's something you wonder about not addressed in the documentation, please open an issue! More guides will also be made at some point, when the API has gotten somewhat stable. Meanwhile, the programs in "Test programs" can be useful for learning about how to use the framework. They should be up to date with the API.
 
