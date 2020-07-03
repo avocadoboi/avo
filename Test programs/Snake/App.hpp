@@ -1,28 +1,24 @@
 #pragma once
 
-#include "Strings.hpp"
 #include "StartScreen.hpp"
-
-#include "../../AvoGUI.hpp"
 
 //------------------------------
 
 class App : public Avo::Gui
 {
 public:
-	static constexpr float WIDTH = 600.f;
-	static constexpr float HEIGHT = 700.f;
+	static constexpr auto size = Avo::Size{600.f, 700.f};
 
-	void setupTheme()
+	auto setupTheme() -> void
 	{
-		setThemeColor(ThemeColors::background, { 0.1f });
-		setThemeColor(ThemeColors::onBackground, { 1.f });
+		setThemeColor(ThemeColors::background, {0.1f});
+		setThemeColor(ThemeColors::onBackground, {1.f});
 	}
 
 private:
-	View* m_screen = nullptr;
+	View* m_screen{};
 public:
-	void setScreen(View* p_screen)
+	auto setScreen(View* p_screen) -> void
 	{
 		if (m_screen)
 		{
@@ -33,11 +29,11 @@ public:
 
 	App()
 	{
-		create(Strings::title, WIDTH, HEIGHT, Avo::WindowStyleFlags::DefaultNoResize);
+		create(Strings::title, size, Avo::WindowStyleFlags::DefaultNoResize);
 
 		setupTheme();
 
-		setScreen(new StartScreen{ this });
+		setScreen(new StartScreen{this});
 
 		run();
 	}

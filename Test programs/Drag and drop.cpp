@@ -12,7 +12,7 @@ private:
 
 	//------------------------------
 
-	void addDroppedText(std::string const& p_string, float p_x, float p_y)
+	auto addDroppedText(std::string const& p_string, Avo::Point<> const p_position) -> void
 	{
 		auto text = getDrawingContext()->createText(p_string, 25.f);
 		text.setFontWeight(Avo::FontWeight::Light);
@@ -22,36 +22,43 @@ private:
 			text.setWordWrapping(Avo::WordWrapping::WholeWord);
 		}
 		text.fitHeightToText();
-		text.setCenter(p_x, p_y);
-		text.move(Avo::Point<float>().setPolar(Avo::random() * Avo::TAU, 20.f * Avo::random()));
-		m_droppedTexts.push_back(text);
+		text.setCenter(p_position);
+		text.move(Avo::Vector2d<>::fromPolar(Avo::Radians{Avo::random() * Avo::TAU<float>}, 20.f * Avo::random()));
+		m_droppedTexts.push_back(std::move(text));
 	}
 
+	bool m_startedDragging{};
 public:
-	void handleMouseMove(Avo::MouseEvent const& p_event) override
+	auto handleMouseDown(Avo::MouseEvent const& p_event) -> void override
 	{
-		if (getWindow()->getIsMouseButtonDown(Avo::MouseButton::Left))
+		if (p_event.mouseButton == Avo::MouseButton::Left)
 		{
-			for (auto a : Avo::Indices{ m_droppedImages.size() })
+			m_startedDragging = true;
+		}
+	}
+	auto handleMouseMove(Avo::MouseEvent const& p_event) -> void override
+	{
+		if (getWindow()->getIsMouseButtonDown(Avo::MouseButton::Left) && m_startedDragging)
+		{
+			m_startedDragging = false;
+
+			for (auto const a : Avo::Indices{m_droppedImages})
 			{
-				if (m_droppedImages[a].getInnerBounds().getIsContaining(p_event.x, p_event.y))
+				if (m_droppedImages[a].getInnerBounds().getIsContaining(p_event.xy))
 				{
-					auto image = m_droppedImages[a];
+					auto const image = m_droppedImages[a];
 					m_droppedImages.erase(m_droppedImages.begin() + a);
-					invalidateRectangle(image.getBounds());
 					getWindow()->dragAndDropImage(image);
+					invalidate();
 					return;
 				}
 			}
 
-			for (auto a : Avo::Indices{ m_droppedTexts.size() })
+			for (auto const a : Avo::Indices{m_droppedTexts})
 			{
-				if (m_droppedTexts[a].getIsContaining(p_event.x, p_event.y))
+				if (m_droppedTexts[a].getIsContaining(p_event.xy))
 				{
-					auto string = m_droppedTexts[a].getString();
-
-					invalidateRectangle(m_droppedTexts[a].getBounds());
-					m_droppedTexts.erase(m_droppedTexts.begin() + a);
+					auto const string = m_droppedTexts[a].getString();
 
 					if (std::filesystem::exists(std::filesystem::u8path(string)))
 					{
@@ -61,6 +68,8 @@ public:
 					{
 						getWindow()->dragAndDropString(string);
 					}
+					m_droppedTexts.erase(m_droppedTexts.begin() + a);
+					invalidate();
 					return;
 				}
 			}
@@ -69,7 +78,7 @@ public:
 
 	//------------------------------
 
-	Avo::DragDropOperation getDragDropOperation(Avo::DragDropEvent const& p_event) override
+	auto getDragDropOperation(Avo::DragDropEvent const& p_event) const -> Avo::DragDropOperation override
 	{
 		return Avo::DragDropOperation::Copy;
 	}
@@ -79,10 +88,10 @@ public:
 		/*
 			Add names of dropped directories and files, if any items were dropped.
 		*/
-		std::vector<std::string> itemNames = p_event.data->getItemNames();
-		for (uint32 a = 0; a < itemNames.size(); a++)
+		auto const itemNames = p_event.data->getItemNames();
+		for (auto const& name : itemNames)
 		{
-			addDroppedText(itemNames[a], p_event.x, p_event.y);
+			addDroppedText(name, p_event.xy);
 		}
 
 		/*
@@ -93,7 +102,7 @@ public:
 		{
 			image.setBoundsSizing(Avo::ImageBoundsSizing::Contain);
 			image.setSize(350.f);
-			image.setCenter(p_event.x, p_event.y);
+			image.setCenter(p_event.xy);
 			m_droppedImages.push_back(image);
 		}
 		
@@ -102,7 +111,7 @@ public:
 		*/
 		if (!image && !itemNames.size() && p_event.data->getHasString())
 		{
-			addDroppedText(p_event.data->getString(), p_event.x, p_event.y);
+			addDroppedText(p_event.data->getString(), p_event.xy);
 		}
 
 		handleSizeChange();
@@ -124,18 +133,18 @@ public:
 
 	DragAndDrop()
 	{
-		create(u8"Drag and drop", 800, 600);
+		create(u8"Drag and drop", {800, 600});
 
 		enableDragDropEvents();
 		enableMouseEvents();
 
-		setThemeColor(Avo::ThemeColors::background, { 0.1f, 0.f, 0.1f });
-		setThemeColor(Avo::ThemeColors::onBackground, { 1.f });
+		setThemeColor(Avo::ThemeColors::background, {0.1f, 0.f, 0.1f});
+		setThemeColor(Avo::ThemeColors::onBackground, {1.f});
 
-		auto text_dropItems = new Avo::TextView{ this, 50.f, "Drop something here!" };
-		text_dropItems->setColor({ getThemeColor(Avo::ThemeColors::onBackground), 0.4f });
-		sizeChangeListeners += [=](auto...) { 
-			text_dropItems->setCenter(getSize() * 0.5f); 
+		auto text_dropItems = new Avo::TextView{this, 50.f, "Drop something here!"};
+		text_dropItems->setColor({getThemeColor(Avo::ThemeColors::onBackground), 0.4f});
+		sizeChangeListeners += [=](auto) { 
+			text_dropItems->setCenter(Avo::Point{getSize()/2}); 
 		};
 
 		run();

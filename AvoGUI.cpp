@@ -4,9 +4,9 @@
 
 //------------------------------
 
+#include <array>
 #include <stack>
 #include <random>
-#include <chrono>
 #include <ctime>
 
 #if __has_include("filesystem")
@@ -80,13 +80,20 @@ namespace filesystem = std::experimental::filesystem;
 
 //------------------------------
 
+using Avo::Index;
+using Avo::Count;
+using Avo::Range;
+using Avo::Indices;
+
+//------------------------------
+
 namespace Console
 {
 	//
 	// Private
 	//
 
-	void Console::readString(std::string& p_string)
+	auto Console::readString(std::string& p_string) -> void
 	{
 #ifdef _WIN32
 		// The only way to read unicode characters from the console on Windows is to read UTF-16 in a wide string.
@@ -120,64 +127,88 @@ namespace Console
 
 //------------------------------
 
-std::mt19937_64 randomEngine{ (unsigned long long)time(nullptr) };
-std::uniform_real_distribution<long double> uniformDistribution{ 0.L, 1.L };
-std::normal_distribution<long double> normalDistribution{ 0.L, 1.L };
+auto randomEngine = std::mt19937_64{static_cast<unsigned long long>(time(nullptr))};
+auto uniformDistribution = std::uniform_real_distribution{0.l, 1.l};
+auto normalDistribution = std::normal_distribution{0.l, 1.l};
 
-long double Avo::random()
+auto Avo::random() -> long double
 {
 	return uniformDistribution(randomEngine);
 }
-long double Avo::randomNormal()
+auto Avo::randomNormal() -> long double
 {
 	return normalDistribution(randomEngine);
 }
 
 //------------------------------
 
-void Avo::convertUtf8ToUtf16(std::string_view p_input, PointerRange<char16> p_output)
+auto Avo::convertUtf8ToUtf16(std::string_view const p_input, Range<char16*> const p_output) -> void
 {
 #ifdef _WIN32
-	auto length = MultiByteToWideChar(CP_UTF8, 0, p_input.data(), p_input.size(), reinterpret_cast<wchar_t*>(p_output.first), p_output.length);
+	auto const length = MultiByteToWideChar(
+		CP_UTF8, 0, 
+		p_input.data(), p_input.size(), 
+		reinterpret_cast<wchar_t*>(p_output.data()), p_output.size()
+	);
 	p_output[length] = 0;
 #endif
 }
-std::u16string Avo::convertUtf8ToUtf16(std::string_view p_input)
+auto Avo::convertUtf8ToUtf16(std::string_view const p_input) -> std::u16string
 {
 #ifdef _WIN32
-	std::u16string result;
-	result.resize(MultiByteToWideChar(CP_UTF8, 0, p_input.data(), p_input.size(), 0, 0));
-	MultiByteToWideChar(CP_UTF8, 0, p_input.data(), p_input.size(), reinterpret_cast<wchar_t*>(result.data()), result.size());
+	auto result = std::u16string(MultiByteToWideChar(CP_UTF8, 0, p_input.data(), p_input.size(), 0, 0), '\0');
+	MultiByteToWideChar(
+		CP_UTF8, 0, 
+		p_input.data(), p_input.size(), 
+		reinterpret_cast<wchar_t*>(result.data()), result.size()
+	);
 	return result;
 #endif
 }
-Count Avo::getNumberOfUnitsInUtfConvertedString(std::string_view p_input)
+auto Avo::getNumberOfUnitsInUtfConvertedString(std::string_view const p_input) -> Count
 {
 #ifdef _WIN32
 	return MultiByteToWideChar(CP_UTF8, 0, p_input.data(), p_input.size(), 0, 0);
 #endif
 }
 
-void Avo::convertUtf16ToUtf8(std::u16string_view p_input, PointerRange<char8> p_output)
+auto Avo::convertUtf16ToUtf8(std::u16string_view const p_input, Range<char8*> const p_output) -> void
 {
 #ifdef _WIN32
-	auto length = WideCharToMultiByte(CP_UTF8, 0, reinterpret_cast<wchar_t const*>(p_input.data()), p_input.size(), p_output.first, p_output.length, 0, 0);
+	auto const length = WideCharToMultiByte(
+		CP_UTF8, 0, 
+		reinterpret_cast<wchar_t const*>(p_input.data()), p_input.size(), 
+		p_output.data(), p_output.size(), 
+		0, 0
+	);
 	p_output[length] = 0;
 #endif
 }
-std::string Avo::convertUtf16ToUtf8(std::u16string_view p_input)
+auto Avo::convertUtf16ToUtf8(std::u16string_view const p_input) -> std::string
 {
 #ifdef _WIN32
-	std::string result;
-	result.resize(WideCharToMultiByte(CP_UTF8, 0, reinterpret_cast<wchar_t const*>(p_input.data()), p_input.size(), 0, 0, 0, 0));
-	WideCharToMultiByte(CP_UTF8, 0, reinterpret_cast<wchar_t const*>(p_input.data()), p_input.size(), result.data(), result.size(), 0, 0);
+	auto result = std::string(WideCharToMultiByte(
+		CP_UTF8, 0, 
+		reinterpret_cast<wchar_t const*>(p_input.data()), p_input.size(), 
+		0, 0, 0, 0
+	), '\0');
+	WideCharToMultiByte(
+		CP_UTF8, 0, 
+		reinterpret_cast<wchar_t const*>(p_input.data()), p_input.size(), 
+		result.data(), result.size(), 
+		0, 0
+	);
 	return result;
 #endif
 }
-Count Avo::getNumberOfUnitsInUtfConvertedString(std::u16string_view p_input)
+auto Avo::getNumberOfUnitsInUtfConvertedString(std::u16string_view const p_input) -> Count
 {
 #ifdef _WIN32
-	return WideCharToMultiByte(CP_UTF8, 0, reinterpret_cast<wchar_t const*>(p_input.data()), p_input.size(), 0, 0, 0, 0);
+	return WideCharToMultiByte(
+		CP_UTF8, 0, 
+		reinterpret_cast<wchar_t const*>(p_input.data()), p_input.size(), 
+		0, 0, 0, 0
+	);
 #endif
 }
 
@@ -185,7 +216,7 @@ Count Avo::getNumberOfUnitsInUtfConvertedString(std::u16string_view p_input)
 // class Avo::Animation
 //------------------------------
 
-void Avo::Animation::queueUpdate()
+auto Avo::Animation::queueUpdate() -> void
 {
 	if (!m_isInUpdateQueue)
 	{
@@ -194,14 +225,14 @@ void Avo::Animation::queueUpdate()
 	}
 }
 
-void Avo::Animation::cancelAllUpdates()
+auto Avo::Animation::cancelAllUpdates() -> void
 {
 	m_areUpdatesCancelled = true;
 
 	// The animation might currently be in the animation update queue.
 	auto& queue = m_gui->m_animationUpdateQueue;
 
-	if (auto position = std::find(queue.begin(), queue.end(), this);
+	if (auto const position = std::find(queue.begin(), queue.end(), this);
 		position != queue.end())
 	{
 		queue.erase(position);
@@ -209,27 +240,10 @@ void Avo::Animation::cancelAllUpdates()
 }
 
 //------------------------------
-// class Avo::Rectangle
-//------------------------------
-
-template <typename RectangleType>
-bool Avo::Rectangle<RectangleType>::getIsContaining(ProtectedRectangle* p_protectedRectangle) const
-{
-	return p_protectedRectangle->getLeft() >= left && p_protectedRectangle->getTop() >= top
-		&& p_protectedRectangle->getRight() <= right && p_protectedRectangle->getBottom() <= bottom;
-}
-template <typename RectangleType>
-bool Avo::Rectangle<RectangleType>::getIsIntersecting(ProtectedRectangle* p_protectedRectangle) const
-{
-	return p_protectedRectangle->getRight() >= left && p_protectedRectangle->getBottom() >= top
-		&& p_protectedRectangle->getLeft() <= right && p_protectedRectangle->getTop() <= bottom;
-}
-
-//------------------------------
 // class Id
 //------------------------------
 
-Count Avo::Id::s_counter = 0ll;
+Count Avo::Id::s_counter = {};
 
 //------------------------------
 // class Avo::View
@@ -239,7 +253,7 @@ Count Avo::Id::s_counter = 0ll;
 // Private
 //
 
-Avo::Point<> Avo::View::calculateAbsolutePositionRelativeTo(Avo::Point<> p_position) const
+auto Avo::View::calculateAbsolutePositionRelativeTo(Avo::Point<> p_position) const -> Avo::Point<>
 {
 	auto container = getParent<View>();
 	while (container && container != getGui())
@@ -251,15 +265,15 @@ Avo::Point<> Avo::View::calculateAbsolutePositionRelativeTo(Avo::Point<> p_posit
 	return p_position;
 }
 
-void Avo::View::updateViewDrawingIndex(Avo::View* p_view)
+auto Avo::View::updateViewDrawingIndex(Avo::View* const p_view) -> void
 {
-	auto numberOfViews = static_cast<Count>(m_childViews.size());
+	auto const numberOfViews = static_cast<Count>(m_childViews.size());
 	if (numberOfViews <= 1 || p_view->getParent<View>() != this)
 	{
 		return;
 	}
 
-	float elevation = p_view->getElevation();
+	auto const elevation = p_view->getElevation();
 	if (!p_view->getIndex() || (p_view->getIndex() < numberOfViews - 1 && m_childViews[p_view->getIndex() + 1]->getElevation() < elevation))
 	{
 		for (auto a = p_view->getIndex(); a < numberOfViews; a++)
@@ -296,36 +310,38 @@ void Avo::View::updateViewDrawingIndex(Avo::View* p_view)
 	}
 }
 
-void Avo::View::updateShadow()
+auto Avo::View::updateShadow() -> void
 {
-	if (getWidth() >= 1.f && getHeight() >= 1.f && m_elevation > 0.00001f && m_hasShadow && m_elevation < 400.f)
+	constexpr auto minElevation = 0.00001f;
+	constexpr auto maxElevation = 400.f;
+	if (getSize() >= 1.f && m_hasShadow && m_elevation > minElevation && m_elevation < maxElevation)
 	{
 		m_shadowImage = getDrawingContext()->createRectangleShadowImage(getSize(), m_corners, m_elevation, getThemeColor(ThemeColors::shadow));
 		m_shadowBounds = {
 			Avo::Point{
-				0.5f * (m_bounds.right - m_bounds.left - m_shadowImage.getWidth()),
-				0.35f * (m_bounds.bottom - m_bounds.top - m_shadowImage.getHeight())
+				0.5f*(m_bounds.right - m_bounds.left - m_shadowImage.getWidth()),
+				0.35f*(m_bounds.bottom - m_bounds.top - m_shadowImage.getHeight())
 			}, m_shadowImage.getSize()
 		};
 		m_shadowImage.setTopLeft(m_shadowBounds.getTopLeft());
 	}
 	else
 	{
-		m_shadowBounds = m_bounds.createCopyAtOrigin();
+		m_shadowBounds = m_bounds.getSize();
 	}
 }
 
-void Avo::View::sendBoundsChangeEvents(Avo::Rectangle<> p_previousBounds)
+auto Avo::View::sendBoundsChangeEvents(Avo::Rectangle<> const p_previousBounds) -> void
 {
-	if (p_previousBounds.left != m_bounds.left || p_previousBounds.right != m_bounds.right ||
-		p_previousBounds.top != m_bounds.top || p_previousBounds.bottom != m_bounds.bottom)
+	if (p_previousBounds != m_bounds)
 	{
-		if (fabsf(p_previousBounds.getWidth() - m_bounds.getWidth()) > 0.001f || 
-			fabsf(p_previousBounds.getHeight() - m_bounds.getHeight()) > 0.001f)
+		if (auto const previousSize = p_previousBounds.getSize();
+		    fabsf(previousSize.width - m_bounds.getWidth()) > 0.001f || 
+			fabsf(previousSize.height - m_bounds.getHeight()) > 0.001f)
 		{
 			updateShadow(); // This is to update the shadow bounds and image.
 
-			sizeChangeListeners(p_previousBounds.getWidth(), p_previousBounds.getHeight());
+			sizeChangeListeners(previousSize);
 
 			updateClipGeometry();
 		}
@@ -335,9 +351,8 @@ void Avo::View::sendBoundsChangeEvents(Avo::Rectangle<> p_previousBounds)
 			auto const mousePosition = getGui()->getWindow()->getMousePosition() - getParent<View>()->getAbsoluteTopLeft();
 			if (getIsContaining(mousePosition) != p_previousBounds.getIsContaining(mousePosition))
 			{
-				Avo::MouseEvent event;
-				event.x = mousePosition.x + getParent<View>()->getAbsoluteLeft();
-				event.y = mousePosition.y + getParent<View>()->getAbsoluteTop();
+				auto event = Avo::MouseEvent{};
+				event.xy = mousePosition + getParent<View>()->getAbsoluteTopLeft();
 				getGui()->handleGlobalMouseMove(event);
 			}
 		}
@@ -350,7 +365,7 @@ void Avo::View::sendBoundsChangeEvents(Avo::Rectangle<> p_previousBounds)
 // Protected
 //
 
-void Avo::View::updateClipGeometry()
+auto Avo::View::updateClipGeometry() -> void
 {
 	if (getHasCornerStyles())
 	{
@@ -362,14 +377,13 @@ void Avo::View::updateClipGeometry()
 // Public
 //
 
-Avo::View::View(Avo::View* p_parent, Avo::Rectangle<> p_bounds) :
-	Component{ p_parent },
-	ProtectedRectangle{ p_bounds },
-	m_shadowBounds{ p_bounds }
+Avo::View::View(Avo::View* const p_parent, Avo::Rectangle<> const p_bounds) :
+	Component{p_parent},
+	ProtectedRectangle{p_bounds},
+	m_shadowBounds{p_bounds}
 {
 	mouseDownListeners += Avo::bind(&View::handleMouseDown, this);
 	mouseUpListeners += Avo::bind(&View::handleMouseUp, this);
-	mouseDoubleClickListeners += Avo::bind(&View::handleMouseDoubleClick, this);
 	mouseScrollListeners += Avo::bind(&View::handleMouseScroll, this);
 	mouseMoveListeners += Avo::bind(&View::handleMouseMove, this);
 	mouseEnterListeners += Avo::bind(&View::handleMouseEnter, this);
@@ -395,7 +409,7 @@ Avo::View::View(Avo::View* p_parent, Avo::Rectangle<> p_bounds) :
 	themeValueChangeListeners += Avo::bind(&View::handleThemeValueChange, this);
 
 	boundsChangeListeners += Avo::bind(&View::handleBoundsChange, this);
-	sizeChangeListeners += Avo::bind((void (View::*)(float, float))&View::handleSizeChange, this);
+	sizeChangeListeners += Avo::bind((void (View::*)(Avo::Size<>))&View::handleSizeChange, this);
 	childViewAttachmentListeners += Avo::bind(&View::handleChildViewAttachment, this);
 	childViewDetachmentListeners += Avo::bind(&View::handleChildViewDetachment, this);
 
@@ -415,6 +429,11 @@ Avo::View::View(Avo::View* p_parent, Avo::Rectangle<> p_bounds) :
 		m_theme = new Theme;
 	}
 }
+Avo::View::View(Avo::View* const p_parent, Avo::Id const p_id, Avo::Rectangle<> const p_bounds) :
+	View{p_parent, p_bounds}
+{
+	setId(p_id, getGui());
+}
 Avo::View::~View()
 {
 	m_theme->forget();
@@ -428,18 +447,18 @@ Avo::View::~View()
 
 //------------------------------
 
-Avo::DrawingContext* Avo::View::getDrawingContext()
+auto Avo::View::getDrawingContext() const -> Avo::DrawingContext*
 {
 	return m_gui->getDrawingContext();
 }
-Avo::Window* Avo::View::getWindow()
+auto Avo::View::getWindow() const -> Avo::Window*
 {
 	return m_gui->getWindow();
 }
 
 //------------------------------
 
-void Avo::View::setHasShadow(bool p_hasShadow)
+auto Avo::View::setHasShadow(bool const p_hasShadow) -> void
 {
 	if (m_hasShadow != p_hasShadow)
 	{
@@ -451,14 +470,14 @@ void Avo::View::setHasShadow(bool p_hasShadow)
 		else if (m_shadowImage)
 		{
 			m_shadowImage.destroy();
-			m_shadowBounds = m_bounds.createCopyAtOrigin();
+			m_shadowBounds = m_bounds.getSize();
 		}
 	}
 }
 
 //------------------------------
 
-void Avo::View::queueAnimationUpdate()
+auto Avo::View::queueAnimationUpdate() -> void
 {
 	if (!m_isInAnimationUpdateQueue && m_gui && m_isVisible)
 	{
@@ -471,24 +490,24 @@ void Avo::View::queueAnimationUpdate()
 
 //------------------------------
 
-void Avo::View::handleMouseBackgroundEnter(MouseEvent const& p_event)
+auto Avo::View::handleMouseBackgroundEnter(MouseEvent const& p_event) -> void
 {
 	getGui()->getWindow()->setCursor(m_cursor);
 }
 
 //------------------------------
 
-void Avo::View::invalidate()
+auto Avo::View::invalidate() -> void
 {
 	if (m_gui)
 	{
 		auto shadowBounds = getAbsoluteShadowBounds();
 
-		float dipToPixelFactor = m_gui->m_window->getDipToPixelFactor();
-		shadowBounds.left = floor(shadowBounds.left * dipToPixelFactor) / dipToPixelFactor;
-		shadowBounds.top = floor(shadowBounds.top * dipToPixelFactor) / dipToPixelFactor;
-		shadowBounds.right = ceil(shadowBounds.right * dipToPixelFactor) / dipToPixelFactor;
-		shadowBounds.bottom = ceil(shadowBounds.bottom * dipToPixelFactor) / dipToPixelFactor;
+		auto dipToPixelFactor = m_gui->m_window->getDipToPixelFactor();
+		shadowBounds.left = floor(shadowBounds.left*dipToPixelFactor)/dipToPixelFactor;
+		shadowBounds.top = floor(shadowBounds.top*dipToPixelFactor)/dipToPixelFactor;
+		shadowBounds.right = ceil(shadowBounds.right*dipToPixelFactor)/dipToPixelFactor;
+		shadowBounds.bottom = ceil(shadowBounds.bottom*dipToPixelFactor)/dipToPixelFactor;
 
 		if (shadowBounds == m_lastInvalidatedShadowBounds || 
 			(!m_lastInvalidatedShadowBounds.getWidth() && !m_lastInvalidatedShadowBounds.getHeight()))
@@ -497,7 +516,7 @@ void Avo::View::invalidate()
 		}
 		else if (shadowBounds.getIsIntersecting(m_lastInvalidatedShadowBounds))
 		{
-			m_gui->invalidateRectangle(m_lastInvalidatedShadowBounds.createContainedCopy(shadowBounds));
+			m_gui->invalidateRectangle(m_lastInvalidatedShadowBounds.copy().contain(shadowBounds));
 		}
 		else
 		{
@@ -509,11 +528,11 @@ void Avo::View::invalidate()
 	}
 }
 
-void Avo::View::drawShadow(DrawingContext* p_drawingContext)
+auto Avo::View::drawShadow(DrawingContext* const p_drawingContext) -> void
 {
 	if (m_shadowImage && m_hasShadow)
 	{
-		p_drawingContext->setColor({ 1.f });
+		p_drawingContext->setColor({1.f});
 		p_drawingContext->drawImage(m_shadowImage, m_opacity);
 	}
 }
@@ -524,39 +543,158 @@ void Avo::View::drawShadow(DrawingContext* p_drawingContext)
 
 #define IUnknownDefinition(p_interfaceName)\
 private:\
-ULONG m_referenceCount = 1u;\
+	ULONG m_referenceCount = 1ul;\
 public:\
-ULONG __stdcall AddRef() override\
-{\
-return InterlockedIncrement(&m_referenceCount);\
-}\
-ULONG __stdcall Release() override\
-{\
-uint32 referenceCount = InterlockedDecrement(&m_referenceCount);\
-if (!referenceCount)\
-{\
-	delete this;\
-	return 0;\
-}\
-return referenceCount;\
-}\
-HRESULT __stdcall QueryInterface(IID const& p_id, void** p_object) override\
-{\
-if (p_id == IID_IUnknown || p_id == __uuidof(p_interfaceName))\
-{\
-	*p_object = this;\
-	AddRef();\
-	return S_OK;\
-}\
-*p_object = 0;\
-return E_NOINTERFACE;\
+	auto __stdcall AddRef() -> ULONG override\
+	{\
+		return InterlockedIncrement(&m_referenceCount);\
+	}\
+	auto __stdcall Release() -> ULONG override\
+	{\
+		auto const referenceCount = InterlockedDecrement(&m_referenceCount);\
+		if (!referenceCount)\
+		{\
+			delete this;\
+			return 0;\
+		}\
+		return referenceCount;\
+	}\
+	auto __stdcall QueryInterface(IID const& p_id, void** const p_object) -> HRESULT override\
+	{\
+		if (p_id == IID_IUnknown || p_id == __uuidof(p_interfaceName))\
+		{\
+			*p_object = this;\
+			AddRef();\
+			return S_OK;\
+		}\
+		*p_object = 0;\
+		return E_NOINTERFACE;\
+	}
+
+template<typename T, typename = std::enable_if_t<std::is_base_of_v<IUnknown, T>>>
+class ComReference
+{
+	T* m_pointer = nullptr;
+public:
+	operator T* () const
+	{
+		return m_pointer;
+	}
+	auto operator&() -> T**
+	{
+		return &m_pointer;
+	}
+	auto operator->() const -> T*
+	{
+		return m_pointer;
+	}
+	auto operator*() const -> T*
+	{
+		return m_pointer;
+	}
+	/*
+		Steals our reference to the pointer and returns the raw pointer.
+		This object then doesn't reference anything anymore.
+	*/
+	[[nodiscard]] auto steal() -> T*
+	{
+		auto* const oldPointer = m_pointer;
+		m_pointer = nullptr;
+		return oldPointer;
+	}
+	template<typename _Target>
+	[[nodiscard]] auto as() -> ComReference<_Target>
+	{
+		_Target* pointer;
+		m_pointer->QueryInterface(&pointer);
+		return pointer;
+	}
+
+	/*
+		Adds a reference.
+	*/
+	auto operator=(T* const p_pointer) -> auto&
+	{
+		if (m_pointer)
+		{
+			m_pointer->Release();
+		}
+		m_pointer = p_pointer;
+		if (m_pointer)
+		{
+			m_pointer->AddRef();
+		}
+		return *this;
+	}
+	auto operator=(ComReference<T>&& p_other) noexcept -> auto&
+	{
+		if (m_pointer)
+		{
+			m_pointer->Release();
+		}
+		m_pointer = p_other.m_pointer;
+		p_other.m_pointer = nullptr;
+		return *this;
+	}
+	auto operator=(ComReference<T> const& p_other) -> auto&
+	{
+		if (m_pointer)
+		{
+			m_pointer->Release();
+		}
+		m_pointer = p_other.m_pointer;
+		if (m_pointer)
+		{
+			m_pointer->AddRef();
+		}
+		return *this;
+	}
+
+	/*
+		Transfers ownership.
+	*/
+	ComReference(T* const p_pointer) :
+		m_pointer{p_pointer}
+	{
+		// if (m_pointer)
+		// {
+		// 	m_pointer->AddRef();
+		// }
+	}
+	ComReference(ComReference<T>&& p_other) noexcept :
+		m_pointer{p_other.m_pointer}
+	{
+		p_other.m_pointer = nullptr;
+	}
+	ComReference(ComReference<T> const& p_other) :
+		m_pointer{p_other.m_pointer}
+	{
+		if (m_pointer)
+		{
+			m_pointer->AddRef();
+		}
+	}
+	ComReference() = default;
+	~ComReference()
+	{
+		if (m_pointer)
+		{
+			m_pointer->Release();
+		}
+	}
+};
+
+template<typename T, typename ... Arguments>
+auto makeComReference(Arguments&& ... p_arguments) -> ComReference<T>
+{
+	return ComReference<T>{new T{std::forward<Arguments>(p_arguments)...}};
 }
 
 //------------------------------
 
-Avo::ModifierKeyFlags convertWindowsKeyStateToModifierKeyFlags(unsigned short p_keyState)
+auto convertWindowsKeyStateToModifierKeyFlags(unsigned short const p_keyState) -> Avo::ModifierKeyFlags
 {
-	Avo::ModifierKeyFlags modifierFlags = Avo::ModifierKeyFlags::None;
+	auto modifierFlags = Avo::ModifierKeyFlags::None;
 
 	if (p_keyState & MK_CONTROL)
 		modifierFlags |= Avo::ModifierKeyFlags::Control;
@@ -586,12 +724,12 @@ class OleFormatEnumerator : public IEnumFORMATETC
 
 private:
 	std::vector<FORMATETC> m_formats;
-	Index m_currentFormatIndex = 0;
+	Index m_currentFormatIndex{};
 
 public:
-	HRESULT __stdcall Next(ULONG p_numberOfFormatsToGet, FORMATETC* p_formats, ULONG* p_numberOfFormatsGotten) override
+	auto __stdcall Next(ULONG p_numberOfFormatsToGet, FORMATETC* p_formats, ULONG* p_numberOfFormatsGotten) -> HRESULT override
 	{
-		Count numberOfFormatsGotten = 0;
+		auto numberOfFormatsGotten = Count{};
 		while (m_currentFormatIndex < m_formats.size() && numberOfFormatsGotten < p_numberOfFormatsToGet)
 		{
 			*p_formats = m_formats[m_currentFormatIndex];
@@ -607,21 +745,21 @@ public:
 		return p_numberOfFormatsToGet == numberOfFormatsGotten ? S_OK : S_FALSE;
 	}
 
-	HRESULT __stdcall Skip(ULONG p_offset) override
+	auto __stdcall Skip(ULONG p_offset) -> HRESULT override
 	{
 		m_currentFormatIndex += p_offset;
 		return m_currentFormatIndex < m_formats.size() ? S_OK : S_FALSE;
 	}
 
-	HRESULT __stdcall Reset() override
+	auto __stdcall Reset() -> HRESULT override
 	{
-		m_currentFormatIndex = 0;
+		m_currentFormatIndex = {};
 		return S_OK;
 	}
 
-	HRESULT __stdcall Clone(IEnumFORMATETC** p_formatEnumerator) override
+	auto __stdcall Clone(IEnumFORMATETC** p_formatEnumerator) -> HRESULT override
 	{
-		auto newFormatEnumerator = new OleFormatEnumerator{ m_formats };
+		auto newFormatEnumerator = new OleFormatEnumerator{m_formats};
 		newFormatEnumerator->m_currentFormatIndex = m_currentFormatIndex;
 		*p_formatEnumerator = newFormatEnumerator;
 		return S_OK;
@@ -629,10 +767,10 @@ public:
 
 	//------------------------------
 	
-	OleFormatEnumerator(PointerRange<FORMATETC> p_formats) :
-		m_formats(p_formats.length)
+	OleFormatEnumerator(Range<FORMATETC*> p_formats) :
+		m_formats(p_formats.size())
 	{
-		for (auto a : Indices{ p_formats })
+		for (auto a : Indices{p_formats})
 		{
 			m_formats[a] = p_formats[a];
 			if (m_formats[a].ptd)
@@ -666,12 +804,12 @@ private:
 	std::vector<STGMEDIUM> m_mediums;
 
 public:
-	HRESULT __stdcall SetData(FORMATETC* p_format, STGMEDIUM* p_medium, BOOL p_willRelease) override
+	auto __stdcall SetData(FORMATETC* p_format, STGMEDIUM* p_medium, BOOL p_willRelease) -> HRESULT override
 	{
 		if (p_willRelease)
 		{
 			bool hasFormat = false;
-			for (auto a : Indices{ m_formats.size() })
+			for (auto a : Indices{m_formats})
 			{
 				if (m_formats[a].cfFormat == p_format->cfFormat &&
 					m_formats[a].dwAspect == p_format->dwAspect &&
@@ -695,9 +833,9 @@ public:
 			return E_NOTIMPL;
 		}
 	}
-	HRESULT __stdcall QueryGetData(FORMATETC* p_format) override
+	auto __stdcall QueryGetData(FORMATETC* p_format) -> HRESULT override
 	{
-		for (auto& format : m_formats)
+		for (auto const& format : m_formats)
 		{
 			if (format.cfFormat == p_format->cfFormat &&
 				format.dwAspect == p_format->dwAspect &&
@@ -709,36 +847,44 @@ public:
 		}
 		return DV_E_FORMATETC;
 	}
-	HRESULT __stdcall GetData(FORMATETC* p_format, STGMEDIUM* p_medium) override
+	auto __stdcall GetData(FORMATETC* p_format, STGMEDIUM* p_medium) -> HRESULT override
 	{
-		for (auto a : Indices{ m_formats })
+		for (auto a : Indices{m_formats})
 		{
 			if (m_formats[a].cfFormat == p_format->cfFormat &&
 				m_formats[a].dwAspect == p_format->dwAspect &&
 				m_formats[a].tymed & p_format->tymed &&
 				m_formats[a].lindex == p_format->lindex)
 			{
-				p_medium->pUnkForRelease = 0;
+				p_medium->pUnkForRelease = {};
 				if ((p_medium->tymed = m_formats[a].tymed) == TYMED_HGLOBAL)
 				{
 					// Copy memory from m_mediums[a].hGlobal to p_medium->hGlobal
-					SIZE_T size = GlobalSize(m_mediums[a].hGlobal);
+					auto size = GlobalSize(m_mediums[a].hGlobal);
 					p_medium->hGlobal = GlobalAlloc(GMEM_FIXED, size); // Returns pointer
-					memcpy(p_medium->hGlobal, GlobalLock(m_mediums[a].hGlobal), size);
-					GlobalUnlock(m_mediums[a].hGlobal);
+					if (auto lockedPointer = GlobalLock(m_mediums[a].hGlobal); lockedPointer)
+					{
+						memcpy(p_medium->hGlobal, lockedPointer, size);
+						GlobalUnlock(m_mediums[a].hGlobal);
+					}
+					else
+					{
+						// No need to unlock, because it was an unsuccessful lock.
+						return E_FAIL;
+					}
 				}
 				else if (p_medium->tymed == TYMED_ISTREAM)
 				{
 					p_medium->pstm = SHCreateMemStream(0, 0);
 
-					STATSTG stats;
+					auto stats = STATSTG{};
 					m_mediums[a].pstm->Stat(&stats, STATFLAG_NONAME);
 					p_medium->pstm->SetSize(stats.cbSize);
 
-					m_mediums[a].pstm->Seek({ 0 }, SEEK_SET, 0);
+					m_mediums[a].pstm->Seek({0}, SEEK_SET, 0);
 					m_mediums[a].pstm->CopyTo(p_medium->pstm, stats.cbSize, 0, 0);
 
-					p_medium->pstm->Seek({ 0 }, SEEK_SET, 0);
+					p_medium->pstm->Seek({0}, SEEK_SET, 0);
 				}
 
 				return S_OK;
@@ -747,9 +893,9 @@ public:
 		return DV_E_FORMATETC;
 	}
 	// Non-allocating version of GetData
-	HRESULT __stdcall GetDataHere(FORMATETC* p_format, STGMEDIUM* p_medium) override
+	auto __stdcall GetDataHere(FORMATETC* p_format, STGMEDIUM* p_medium) -> HRESULT override
 	{
-		for (auto a : Indices{ m_formats.size() })
+		for (auto a : Indices{m_formats})
 		{
 			if (m_formats[a].cfFormat == p_format->cfFormat &&
 				m_formats[a].dwAspect == p_format->dwAspect &&
@@ -760,14 +906,14 @@ public:
 				if ((p_medium->tymed = m_formats[a].tymed) == TYMED_HGLOBAL)
 				{
 					// Copy memory from m_mediums[a].hGlobal to p_medium->hGlobal
-					SIZE_T size = GlobalSize(m_mediums[a].hGlobal);
+					auto size = GlobalSize(m_mediums[a].hGlobal);
 					memcpy(GlobalLock(p_medium->hGlobal), GlobalLock(m_mediums[a].hGlobal), size);
 					GlobalUnlock(m_mediums[a].hGlobal);
 					GlobalUnlock(p_medium->hGlobal);
 				}
 				else if (p_medium->tymed == TYMED_ISTREAM)
 				{
-					ULARGE_INTEGER size;
+					auto size = ULARGE_INTEGER{};
 					size.QuadPart = ULONGLONG_MAX;
 					m_mediums[a].pstm->CopyTo(p_medium->pstm, size, 0, 0);
 				}
@@ -778,16 +924,16 @@ public:
 		return DV_E_FORMATETC;
 	}
 
-	HRESULT __stdcall GetCanonicalFormatEtc(FORMATETC* p_formatIn, FORMATETC* p_formatOut) override
+	auto __stdcall GetCanonicalFormatEtc(FORMATETC* p_formatIn, FORMATETC* p_formatOut) -> HRESULT override
 	{
-		p_formatOut->ptd = 0;
+		p_formatOut->ptd = {};
 		return E_NOTIMPL;
 	}
-	HRESULT __stdcall EnumFormatEtc(DWORD p_direction, IEnumFORMATETC** p_formatEnumerator) override
+	auto __stdcall EnumFormatEtc(DWORD p_direction, IEnumFORMATETC** p_formatEnumerator) -> HRESULT override
 	{
 		if (p_direction == DATADIR_GET)
 		{
-			*p_formatEnumerator = new OleFormatEnumerator{ m_formats };
+			*p_formatEnumerator = new OleFormatEnumerator{m_formats};
 			return S_OK;
 		}
 		
@@ -795,31 +941,28 @@ public:
 		return E_NOTIMPL;
 	}
 
-	HRESULT __stdcall DAdvise(FORMATETC*, DWORD, IAdviseSink*, DWORD*) override
+	auto __stdcall DAdvise(FORMATETC*, DWORD, IAdviseSink*, DWORD*) -> HRESULT override
 	{
 		return OLE_E_ADVISENOTSUPPORTED;
 	}
-	HRESULT __stdcall DUnadvise(DWORD) override
+	auto __stdcall DUnadvise(DWORD) -> HRESULT override
 	{
 		return OLE_E_ADVISENOTSUPPORTED;
 	}
-	HRESULT __stdcall EnumDAdvise(IEnumSTATDATA**) override
+	auto __stdcall EnumDAdvise(IEnumSTATDATA**) -> HRESULT override
 	{
 		return OLE_E_ADVISENOTSUPPORTED;
 	}
 
 	//------------------------------
 
-	OleDataObject(FORMATETC* p_formats, STGMEDIUM* p_mediums, uint32 p_numberOfFormats)
+	OleDataObject(Range<FORMATETC*> p_formats, Range<STGMEDIUM*> p_mediums)
 	{
-		m_formats.resize(p_numberOfFormats);
-		m_mediums.resize(p_numberOfFormats);
+		m_formats.resize(p_formats.size());
+		std::copy(p_formats.begin(), p_formats.end(), m_formats.begin());
 
-		for (auto a : Indices{ p_numberOfFormats })
-		{
-			m_formats[a] = p_formats[a];
-			m_mediums[a] = p_mediums[a];
-		}
+		m_mediums.resize(p_mediums.size());
+		std::copy(p_mediums.begin(), p_mediums.end(), m_mediums.begin());
 	}
 	__stdcall ~OleDataObject()
 	{
@@ -839,26 +982,26 @@ class OleDropSource : public IDropSource
 private:
 	Avo::Gui* m_gui;
 
-	IDragSourceHelper* m_dragImageHelper;
+	ComReference<IDragSourceHelper> m_dragImageHelper;
 
 public:
-	void setDragImage(Avo::Image const& p_image, Avo::Point<> p_cursorPosition, IDataObject* p_dataObject)
+	auto setDragImage(Avo::Image const& p_image, Avo::Point<> p_cursorPosition, IDataObject* p_dataObject) -> void
 	{
-		D2D_SIZE_U size = static_cast<ID2D1Bitmap1*>(p_image.getHandle())->GetPixelSize();
-		float dipToPixelFactor = m_gui->getWindow()->getDipToPixelFactor();
+		auto const size = p_image.getOriginalPixelSize();
+		auto const dipToPixelFactor = m_gui->getWindow()->getDipToPixelFactor();
 
 		SHDRAGIMAGE dragImage;
 		dragImage.crColorKey = RGB(0, 0, 0);
 		dragImage.hbmpDragImage = static_cast<HBITMAP>(m_gui->getDrawingContext()->createNativeImageFromImage(p_image));
-		dragImage.ptOffset = { long(p_cursorPosition.x*dipToPixelFactor), long(p_cursorPosition.y * dipToPixelFactor) };
-		dragImage.sizeDragImage = { (long)size.width, (long)size.height };
+		dragImage.ptOffset = {long(p_cursorPosition.x*dipToPixelFactor), long(p_cursorPosition.y*dipToPixelFactor)};
+		dragImage.sizeDragImage = {(long)size.width, (long)size.height};
 
 		m_dragImageHelper->InitializeFromBitmap(&dragImage, p_dataObject);
 	}
 
 	//------------------------------
 
-	HRESULT __stdcall QueryContinueDrag(BOOL p_wasEscapePressed, DWORD p_keyState)
+	auto __stdcall QueryContinueDrag(BOOL p_wasEscapePressed, DWORD p_keyState) -> HRESULT override
 	{
 		if (p_wasEscapePressed)
 		{
@@ -872,9 +1015,9 @@ public:
 		return S_OK;
 	}
 
-	HRESULT __stdcall GiveFeedback(DWORD p_effect)
+	auto __stdcall GiveFeedback(DWORD p_effect) -> HRESULT override
 	{
-		Avo::DragDropOperation operation = Avo::DragDropOperation::None;
+		auto operation = Avo::DragDropOperation::None;
 		switch (p_effect)
 		{
 			case DROPEFFECT_COPY:
@@ -891,13 +1034,9 @@ public:
 	}
 
 	OleDropSource(Avo::Gui* p_gui) :
-		m_gui{ p_gui }
+		m_gui{p_gui}
 	{
 		CoCreateInstance(CLSID_DragDropHelper, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_dragImageHelper));
-	}
-	__stdcall ~OleDropSource()
-	{
-		m_dragImageHelper->Release();
 	}
 };
 
@@ -908,10 +1047,12 @@ constexpr auto CLIPBOARD_FORMAT_ADDITIONAL_DATA = L"AvoGUI additional data";
 class OleClipboardData : public Avo::ClipboardData
 {
 private:
-	IDataObject* m_dataObject = nullptr;
-	FORMATETC* m_oleFormats = nullptr;
-	uint32 m_numberOfFormats = 0;
-	uint32 m_numberOfFiles = 0;
+	ComReference<IDataObject> m_dataObject;
+
+	std::array<FORMATETC, 80> m_oleFormats{};
+	Count m_numberOfFormats{};
+
+	Count m_numberOfFiles{};
 
 	FORMATETC* m_fileDescriptorFormat = nullptr;
 	FORMATETC* m_itemNamesFormat = nullptr;
@@ -922,16 +1063,12 @@ private:
 	uint32 m_clipboardFormat_fileGroupDescriptor;
 	uint32 m_clipboardFormat_additionalData;
 
-	void releaseDataObject()
+	auto releaseDataObject() -> void
 	{
 		if (m_dataObject)
 		{
-			m_dataObject->Release();
 			m_dataObject = nullptr;
 
-			delete[] m_oleFormats;
-			m_oleFormats = nullptr;
-			
 			m_numberOfFormats = 0;
 			m_numberOfFiles = 0;
 
@@ -945,106 +1082,97 @@ private:
 			GlobalUnlock(medium.hGlobal);
 			ReleaseStgMedium(&medium);
 		}
-		for (auto buffer : m_streamBuffersToRelease)
-		{
-			delete[] buffer;
-		}
-		m_globalDataToRelease.clear();
 		m_streamBuffersToRelease.clear();
+		m_globalDataToRelease.clear();
 		formats.clear();
 	}
 
 public:
-	void setOleDataObject(IDataObject* p_dataObject)
+	auto setOleDataObject(IDataObject* const p_dataObject) -> void
 	{
 		releaseDataObject();
-		m_dataObject = p_dataObject;
-		if (m_dataObject)
+		if (m_dataObject = p_dataObject)
 		{
-			m_dataObject->AddRef();
-
-			IEnumFORMATETC* enumerator = 0;
+			auto enumerator = ComReference<IEnumFORMATETC>{};
 			m_dataObject->EnumFormatEtc(DATADIR_GET, &enumerator);
 
-			m_oleFormats = new FORMATETC[80];
-			enumerator->Next(80, m_oleFormats, (ULONG*)&m_numberOfFormats);
-			for (uint32 a = 0; a < m_numberOfFormats; a++)
+			auto numberOfFormats = ULONG{};
+			enumerator->Next(80, m_oleFormats.data(), &numberOfFormats);
+			m_numberOfFormats = numberOfFormats;
+
+			for (auto a : Indices{m_numberOfFormats})
 			{
-				uint32 format = m_oleFormats[a].cfFormat;
-				if (format == CF_HDROP && m_oleFormats[a].dwAspect == DVASPECT_CONTENT)
+				auto* format = &m_oleFormats[a];
+				auto const formatId = m_oleFormats[a].cfFormat;
+				if (formatId == CF_HDROP && format->dwAspect == DVASPECT_CONTENT)
 				{
-					m_itemNamesFormat = m_oleFormats + a;
+					m_itemNamesFormat = format;
 				}
-				else if (format == m_clipboardFormat_fileGroupDescriptor)
+				else if (formatId == m_clipboardFormat_fileGroupDescriptor)
 				{
-					m_fileDescriptorFormat = m_oleFormats + a;
+					m_fileDescriptorFormat = format;
 				}
-				else if (format == m_clipboardFormat_fileContents)
+				else if (formatId == m_clipboardFormat_fileContents)
 				{
 					m_numberOfFiles++;
 				}
-				else if (format == CF_UNICODETEXT)
+				else if (formatId == CF_UNICODETEXT)
 				{
-					m_textFormat = m_oleFormats + a;
+					m_textFormat = format;
 				}
-				else if (format == m_clipboardFormat_additionalData)
+				else if (formatId == m_clipboardFormat_additionalData)
 				{
-					m_additionalDataFormat = m_oleFormats + a;
+					m_additionalDataFormat = format;
 				}
-				formats.push_back(m_oleFormats[a].cfFormat);
+				formats.push_back(format->cfFormat);
 			}
-
-			enumerator->Release();
 		}
 	}
-	IDataObject* getOleDataObject()
+	auto getOleDataObject() -> IDataObject*
 	{
 		return m_dataObject;
 	}
 
 private:
-	std::vector<STGMEDIUM> m_globalDataToRelease;
-	std::vector<char const*> m_streamBuffersToRelease;
+	std::vector<STGMEDIUM> mutable m_globalDataToRelease;
+	std::vector<Avo::DataVector> mutable m_streamBuffersToRelease;
 public:
-	PointerRange<char const> getDataForFormat(Index p_formatIndex) override
+	auto getDataForFormat(Index p_formatIndex) const -> Range<std::byte const*> override
 	{
 		switch (m_oleFormats[p_formatIndex].tymed)
 		{
 			case TYMED_HGLOBAL:
 			{
-				STGMEDIUM medium;
-				auto const result = m_dataObject->GetData(m_oleFormats + p_formatIndex, &medium);
-				if (result == S_OK)
+				// GetData does not mutate m_oleFormats.
+				if (STGMEDIUM medium; m_dataObject->GetData(const_cast<FORMATETC*>(&m_oleFormats[p_formatIndex]), &medium) == S_OK)
 				{
 					m_globalDataToRelease.push_back(medium);
-					return { static_cast<char const*>(GlobalLock(medium.hGlobal)), static_cast<Count>(GlobalSize(medium.hGlobal)) };
+					return {static_cast<std::byte const*>(GlobalLock(medium.hGlobal)), static_cast<Count>(GlobalSize(medium.hGlobal))};
 				}
 				break;
 			}
 			case TYMED_ISTREAM:
 			{
-				STGMEDIUM medium;
-				auto const result = m_dataObject->GetData(m_oleFormats + p_formatIndex, &medium);
-				if (result == S_OK)
+				// GetData does not mutate m_oleFormats.
+				if (STGMEDIUM medium; m_dataObject->GetData(const_cast<FORMATETC*>(&m_oleFormats[p_formatIndex]), &medium) == S_OK)
 				{
 					STATSTG stats;
 					medium.pstm->Stat(&stats, STATFLAG_NONAME);
 
-					char const* buffer = new char[stats.cbSize.QuadPart];
-					ULONG numberOfBytesRead = 0;
-					medium.pstm->Seek({ 0 }, SEEK_SET, 0);
-					medium.pstm->Read((void*)buffer, stats.cbSize.QuadPart, &numberOfBytesRead);
+					auto& buffer = m_streamBuffersToRelease.emplace_back(stats.cbSize.QuadPart);
+					auto numberOfBytesRead = ULONG{};
+					medium.pstm->Seek({0}, SEEK_SET, 0);
+					medium.pstm->Read(static_cast<void*>(buffer.data()), stats.cbSize.QuadPart, &numberOfBytesRead);
 					ReleaseStgMedium(&medium);
-					m_streamBuffersToRelease.push_back(buffer);
 
-					return { buffer, numberOfBytesRead };
+					return {buffer.data(), numberOfBytesRead};
 				}
 				break;
 			}
 		}
-		return { nullptr, 0 };
+		return {nullptr, 0};
 	}
-	std::string getFormatName(uint32 p_format) const override
+	auto getFormatName(uint32 p_format) const -> std::string override
 	{
 		wchar_t name[51];
 		auto const length = GetClipboardFormatNameW(p_format, name, 50);
@@ -1109,333 +1237,305 @@ public:
 		return Avo::convertUtf16ToUtf8(reinterpret_cast<char16 const*>(name));
 	}
 
-	std::string getString() const override
+private:
+	template<typename StringType>
+	auto getString() const -> StringType
 	{
+		constexpr bool isUtf8 = std::is_same_v<StringType, std::string>;
+
 		if (m_textFormat)
 		{
-			STGMEDIUM medium;
-			auto const result = m_dataObject->GetData(m_textFormat, &medium);
-			if (result == S_OK)
+			if (STGMEDIUM medium; m_dataObject->GetData(m_textFormat, &medium) == S_OK)
 			{
-				auto string = Avo::convertUtf16ToUtf8(static_cast<char16 const*>(GlobalLock(medium.hGlobal)));
-				GlobalUnlock(medium.hGlobal);
-				ReleaseStgMedium(&medium);
-				return string;
+				Avo::Cleanup cleanup = [&] {
+					GlobalUnlock(medium.hGlobal);
+					ReleaseStgMedium(&medium);
+				};
+				if constexpr (isUtf8)
+				{
+					return Avo::convertUtf16ToUtf8(static_cast<char16 const*>(GlobalLock(medium.hGlobal)));
+				}
+				else
+				{
+					return static_cast<char16 const*>(GlobalLock(medium.hGlobal));
+				}
 			}
 		}
-		return "";
-	}
-	std::u16string getUtf16String() const override
-	{
-		if (m_textFormat)
+		
+		if constexpr (isUtf8)
 		{
-			STGMEDIUM medium;
-			auto const result = m_dataObject->GetData(m_textFormat, &medium);
-			if (result == S_OK)
-			{
-				std::u16string string = static_cast<char16*>(GlobalLock(medium.hGlobal));
-				GlobalUnlock(medium.hGlobal);
-				ReleaseStgMedium(&medium);
-				return string;
-			}
+			return u8"";
 		}
-		return u"";
+		else
+		{
+			return u"";
+		}
 	}
-	bool getHasString() const override
+
+public:
+	auto getString() const -> std::string override
+	{
+		return getString<std::string>();
+	}
+	auto getUtf16String() const -> std::u16string override
+	{
+		return getString<std::u16string>();
+	}
+	auto getHasString() const -> bool override
 	{
 		return m_textFormat;
 	}
 
-	std::vector<std::string> getItemNames() const override
+private:
+	template<typename StringType>
+	auto getItemNames() const -> std::vector<StringType>
 	{
 		if (m_itemNamesFormat)
 		{
-			std::vector<std::string> itemNames;
+			std::vector<StringType> itemNames;
 
-			STGMEDIUM medium;
-			auto const result = m_dataObject->GetData(m_itemNamesFormat, &medium);
-			if (result == S_OK)
+			if (auto medium = STGMEDIUM{}; m_dataObject->GetData(m_itemNamesFormat, &medium) == S_OK)
 			{
+				Avo::Cleanup const cleanup_releaseMedium = [&] { ReleaseStgMedium(&medium); };
+
 				if (medium.tymed == TYMED_HGLOBAL)
 				{
-					auto filenameStructure = static_cast<DROPFILES*>(GlobalLock(medium.hGlobal));
+					auto const filenameStructure = static_cast<DROPFILES const*>(GlobalLock(medium.hGlobal));
+					Avo::Cleanup const globalMemoryLockGuard = [&] { GlobalUnlock(medium.hGlobal); };
 
-					auto currentBufferPosition = reinterpret_cast<char16 const*>(reinterpret_cast<char*>(filenameStructure) + filenameStructure->pFiles) + 1;
-					itemNames.push_back(Avo::convertUtf16ToUtf8(currentBufferPosition - 1));
-					while (true)
+					// When you have to deal with C in C++...
+					auto currentBufferPosition = reinterpret_cast<char16 const*>(
+						reinterpret_cast<char const*>(filenameStructure) + filenameStructure->pFiles
+					);
+					while (*currentBufferPosition)
 					{
-						if (!*currentBufferPosition)
+						if constexpr (std::is_same_v<StringType, std::string>)
 						{
-							if (!*(currentBufferPosition + 1))
-							{
-								break;
-							}
-							itemNames.push_back(Avo::convertUtf16ToUtf8(currentBufferPosition + 1));
+							currentBufferPosition += itemNames.emplace_back(Avo::convertUtf16ToUtf8(currentBufferPosition)).size() + 1;
 						}
-						currentBufferPosition++;
+						else
+						{
+							currentBufferPosition += itemNames.emplace_back(currentBufferPosition).size() + 1;
+						}
 					}
-
-					GlobalUnlock(medium.hGlobal);
 				}
-				ReleaseStgMedium(&medium);
 			}
 			return itemNames;
 		}
-		return getFileNames();
+		return getFileNames<StringType>();
 	}
-	std::vector<std::u16string> getUtf16ItemNames() const override
+
+public:
+	auto getItemNames() const -> std::vector<std::string> override
+	{
+		return getItemNames<std::string>();
+	}
+	auto getUtf16ItemNames() const -> std::vector<std::u16string> override
+	{
+		return getItemNames<std::u16string>();
+	}
+	auto getNumberOfItemNames() const -> Count override
 	{
 		if (m_itemNamesFormat)
 		{
-			std::vector<std::u16string> itemNames;
+			auto numberOfItemNames = Count{};
 
-			STGMEDIUM medium;
-			auto const result = m_dataObject->GetData(m_itemNamesFormat, &medium);
-			if (result == S_OK)
+			if (auto medium = STGMEDIUM{}; m_dataObject->GetData(m_itemNamesFormat, &medium) == S_OK )
 			{
+				Avo::Cleanup const cleanup_releaseMedium = [&] { ReleaseStgMedium(&medium); };
+
 				if (medium.tymed == TYMED_HGLOBAL)
 				{
-					auto filenameStructure = static_cast<DROPFILES*>(GlobalLock(medium.hGlobal));
+					auto filenameStructure = static_cast<DROPFILES const*>(GlobalLock(medium.hGlobal));
+					Avo::Cleanup const globalMemoryLockGuard = [&] { GlobalUnlock(medium.hGlobal); };
 
-					auto currentBufferPosition = reinterpret_cast<char16 const*>(reinterpret_cast<char*>(filenameStructure) + filenameStructure->pFiles) + 1;
-					itemNames.push_back(currentBufferPosition - 1);
-					while (true)
+					auto currentBufferPosition = reinterpret_cast<wchar_t const*>(
+						reinterpret_cast<char const*>(filenameStructure) + filenameStructure->pFiles
+					);
+					while (*currentBufferPosition)
 					{
-						if (!*currentBufferPosition)
-						{
-							if (!*(currentBufferPosition + 1))
-							{
-								break;
-							}
-							itemNames.push_back(currentBufferPosition + 1);
-						}
-						currentBufferPosition++;
+						currentBufferPosition += std::wcslen(currentBufferPosition) + 1;
 					}
-
-					GlobalUnlock(medium.hGlobal);
 				}
-				ReleaseStgMedium(&medium);
-			}
-			return itemNames;
-		}
-		return getUtf16FileNames();
-	}
-	Count getNumberOfItemNames() const override
-	{
-		if (m_itemNamesFormat)
-		{
-			Count numberOfItemNames = 0;
-
-			STGMEDIUM medium;
-			auto const result = m_dataObject->GetData(m_itemNamesFormat, &medium);
-			if (result == S_OK)
-			{
-				if (medium.tymed == TYMED_HGLOBAL)
-				{
-					auto filenameStructure = static_cast<DROPFILES*>(GlobalLock(medium.hGlobal));
-
-					auto currentBufferPosition = reinterpret_cast<wchar_t const*>(reinterpret_cast<char*>(filenameStructure) + filenameStructure->pFiles) + 1;
-					while (true)
-					{
-						if (!*currentBufferPosition)
-						{
-							numberOfItemNames++;
-							if (!*(currentBufferPosition + 1))
-							{
-								break;
-							}
-						}
-						currentBufferPosition++;
-					}
-
-					GlobalUnlock(medium.hGlobal);
-				}
-				ReleaseStgMedium(&medium);
 			}
 			return numberOfItemNames;
 		}
 		return getNumberOfFiles();
 	}
 
-	std::vector<std::string> getFileNames() const override
+private:
+	template<typename StringType>
+	auto getFileNames() const -> std::vector<StringType>
 	{
 		if (m_fileDescriptorFormat)
 		{
-			std::vector<std::string> fileNames;
+			auto fileNames = std::vector<StringType>();
 
-			STGMEDIUM medium;
-			auto const result = m_dataObject->GetData(m_fileDescriptorFormat, &medium);
-			if (result == S_OK)
+			if (auto medium = STGMEDIUM{}; m_dataObject->GetData(m_fileDescriptorFormat, &medium) == S_OK)
 			{
+				Avo::Cleanup const cleanup_releaseMedium = [&]{ ReleaseStgMedium(&medium); };
+
 				if (medium.tymed == TYMED_HGLOBAL)
 				{
-					auto groupDescriptor = static_cast<FILEGROUPDESCRIPTORW*>(GlobalLock(medium.hGlobal));
+					auto const groupDescriptor = static_cast<FILEGROUPDESCRIPTORW*>(GlobalLock(medium.hGlobal));
+					Avo::Cleanup const cleanup_unlockGlobalMemory = [&]{ GlobalUnlock(medium.hGlobal); };
+					
 					fileNames.reserve(groupDescriptor->cItems);
-					for (auto a : Indices{ fileNames })
+					for (auto const a : Indices{fileNames})
 					{
-						fileNames[a] = Avo::convertUtf16ToUtf8(reinterpret_cast<char16 const*>(groupDescriptor->fgd[a].cFileName));
+						auto const fileNameWideString = reinterpret_cast<char16 const*>(groupDescriptor->fgd[a].cFileName);
+						if constexpr (std::is_same_v<StringType, std::string>)
+						{
+							fileNames[a] = Avo::convertUtf16ToUtf8(fileNameWideString);
+						}
+						else
+						{
+							fileNames[a] = fileNameWideString;
+						}
 					}
-					GlobalUnlock(medium.hGlobal);
 				}
-				ReleaseStgMedium(&medium);
 			}
 			return fileNames;
 		}
-		return { };
+		return {};
 	}
-	std::vector<std::u16string> getUtf16FileNames() const override
+
+public:
+	auto getFileNames() const -> std::vector<std::string> override
+	{
+		return getFileNames<std::string>();
+	}
+	auto getUtf16FileNames() const -> std::vector<std::u16string> override
+	{
+		return getFileNames<std::u16string>();
+	}
+
+	auto getFileContents() const -> std::vector<Avo::DataVector> override
 	{
 		if (m_fileDescriptorFormat)
 		{
-			std::vector<std::u16string> fileNames;
+			auto output = std::vector<Avo::DataVector>();
 
-			STGMEDIUM medium;
-			HRESULT result = m_dataObject->GetData(m_fileDescriptorFormat, &medium);
-			if (result == S_OK)
-			{
-				if (medium.tymed == TYMED_HGLOBAL)
-				{
-					auto groupDescriptor = static_cast<FILEGROUPDESCRIPTORW*>(GlobalLock(medium.hGlobal));
-					fileNames.reserve(groupDescriptor->cItems);
-					for (auto a : Indices{ fileNames })
-					{
-						fileNames[a] = reinterpret_cast<char16 const*>(groupDescriptor->fgd[a].cFileName);
-					}
-					GlobalUnlock(medium.hGlobal);
-				}
-				ReleaseStgMedium(&medium);
-			}
-			return fileNames;
-		}
-		return { };
-	}
-	std::vector<std::string> getFileContents() const override
-	{
-		if (m_fileDescriptorFormat)
-		{
-			std::vector<std::string> output;
-
-			for (uint32 a = 0; a < m_numberOfFormats; a++)
+			for (auto a : Indices{m_numberOfFormats})
 			{
 				if (m_oleFormats[a].cfFormat == m_clipboardFormat_fileContents)
 				{
-					STGMEDIUM medium;
-					HRESULT errorCode = m_dataObject->GetData(m_oleFormats + a, &medium);
-					if (errorCode == S_OK)
+					// GetData shouldn't mutate m_oleFormats.
+					if (auto medium = STGMEDIUM{}; 
+					    m_dataObject->GetData(const_cast<FORMATETC*>(&m_oleFormats[a]), &medium) == S_OK)
 					{
+						Avo::Cleanup cleanup_releaseMedium = [&]{ ReleaseStgMedium(&medium); };
+						
 						if (medium.tymed == TYMED_HGLOBAL)
 						{
-							output.push_back(std::string{});
-							output.back().assign(static_cast<char const*>(GlobalLock(medium.hGlobal)), GlobalSize(medium.hGlobal));
+							auto* const pointer = static_cast<std::byte*>(GlobalLock(medium.hGlobal));
+							output.emplace_back(pointer, pointer + GlobalSize(medium.hGlobal));
 							GlobalUnlock(medium.hGlobal);
 						}
 						else if (medium.tymed == TYMED_ISTREAM)
 						{
-							STATSTG stats;
+							auto stats = STATSTG{};
 							medium.pstm->Stat(&stats, STATFLAG_NONAME);
 
-							output.push_back(std::string{});
-							output.back().resize(stats.cbSize.QuadPart);
+							output.emplace_back(stats.cbSize.QuadPart);
 
-							ULONG bufferSize = 0;
-							medium.pstm->Seek({ 0 }, SEEK_SET, 0);
+							auto bufferSize = ULONG{};
+							medium.pstm->Seek({0}, SEEK_SET, 0);
 							medium.pstm->Read(output.back().data(), output.size(), &bufferSize);
 							if (bufferSize != output.back().size())
 							{
 								output.back().resize(bufferSize);
 							}
 						}
-						ReleaseStgMedium(&medium);
 					}
 				}
 			}
 			return output;
 		}
-		return { };
+		return {};
 	}
-	std::string getFileContents(Index p_index) const override
+	auto getFileContents(Index p_index) const -> Avo::DataVector override
 	{
 		if (m_fileDescriptorFormat)
 		{
-			Index currentIndex = 0;
-			for (auto a : Indices{ m_numberOfFormats })
+			auto currentIndex = Index{};
+			for (auto const a : Indices{m_numberOfFormats})
 			{
 				if (m_oleFormats[a].cfFormat == m_clipboardFormat_fileContents)
 				{
 					if (currentIndex++ == p_index)
 					{
-						std::string output;
-						STGMEDIUM medium;
-						HRESULT errorCode = m_dataObject->GetData(m_oleFormats + a, &medium);
-						if (errorCode == S_OK)
+						// GetData shouldn't mutate.
+						if (auto medium = STGMEDIUM{}; m_dataObject->GetData(const_cast<FORMATETC*>(&m_oleFormats[a]), &medium) == S_OK)
 						{
+							Avo::Cleanup const cleanup_releaseMedium = [&]{ ReleaseStgMedium(&medium); };
+
 							if (medium.tymed == TYMED_HGLOBAL)
 							{
-								output.assign(static_cast<char*>(GlobalLock(medium.hGlobal)), GlobalSize(medium.hGlobal));
+								auto* const pointer = static_cast<std::byte*>(GlobalLock(medium.hGlobal));
+								auto result = Avo::DataVector(pointer, pointer + GlobalSize(medium.hGlobal));
 								GlobalUnlock(medium.hGlobal);
+								return result;
 							}
 							else if (medium.tymed == TYMED_ISTREAM)
 							{
-								STATSTG stats;
+								auto stats = STATSTG{};
 								medium.pstm->Stat(&stats, STATFLAG_NONAME);
 
-								output.resize(stats.cbSize.QuadPart);
+								auto result = Avo::DataVector(stats.cbSize.QuadPart);
 
-								ULONG bufferSize = 0;
-								medium.pstm->Seek({ 0 }, SEEK_SET, 0);
-								HRESULT result = medium.pstm->Read(output.data(), output.size(), &bufferSize);
-								if (bufferSize != output.size())
+								auto bufferSize = ULONG{};
+								medium.pstm->Seek({0}, SEEK_SET, 0);
+								medium.pstm->Read(result.data(), result.size(), &bufferSize);
+								if (bufferSize != result.size())
 								{
-									output.resize(bufferSize);
+									result.resize(bufferSize);
 								}
+								
+								return result;
 							}
-							ReleaseStgMedium(&medium);
 						}
-						return output;
 					}
 				}
 			}
 		}
 
-		return "";
+		return {};
 	}
-	Count getNumberOfFiles() const override
+	auto getNumberOfFiles() const -> Count override
 	{
 		return m_numberOfFiles;
 	}
 
-	uint64 getAdditionalData() const override
+	auto getAdditionalData() const -> uint64 override
 	{
 		if (!m_additionalDataFormat)
 		{
 			return 0u;
 		}
-		STGMEDIUM medium;
-		auto result = m_dataObject->GetData(m_additionalDataFormat, &medium);
-		if (result == S_OK)
+		
+		if (auto medium = STGMEDIUM{}; m_dataObject->GetData(m_additionalDataFormat, &medium) == S_OK)
 		{
-			auto additionalData = *static_cast<uint64*>(GlobalLock(medium.hGlobal));
-			GlobalUnlock(medium.hGlobal);
-			return additionalData;
+			return *static_cast<uint64*>(GlobalLock(medium.hGlobal)); GlobalUnlock(medium.hGlobal);
 		}
 		return 0u;
 	}
 
-	Avo::Image getImage() const override
+	auto getImage() const -> Avo::Image override
 	{
 		if (m_numberOfFiles)
 		{
-			std::string file = getFileContents(0);
-			return m_gui->getDrawingContext()->createImage({ reinterpret_cast<uint8 const*>(file.data()), static_cast<Count>(file.size()) });
+			auto const file = getFileContents(0);
+			return m_gui->getDrawingContext()->createImage({file.data(), static_cast<Count>(file.size())});
 		}
-		return Avo::Image();
+		return {};
 	}
 
 private:
 	Avo::Gui* m_gui;
 public:
 	OleClipboardData(Avo::Gui* p_gui) :
-		m_gui{ p_gui }
+		m_gui{p_gui}
 	{
 		m_clipboardFormat_fileContents = RegisterClipboardFormatW(CFSTR_FILECONTENTS);
 		m_clipboardFormat_fileGroupDescriptor = RegisterClipboardFormatW(CFSTR_FILEDESCRIPTORW);
@@ -1453,157 +1553,134 @@ class OleDropTarget : public IDropTarget
 {
 	IUnknownDefinition(IDropTarget)
 
-private:
-	Avo::Gui* m_gui;
+private:	
+	DWORD m_currentEffect;
+	auto updateEffect(DWORD* const p_effect) -> void
+	{
+		switch (m_gui->getGlobalDragDropOperation(m_dragDropEvent))
+		{
+			case Avo::DragDropOperation::Copy:
+				*p_effect = DROPEFFECT_COPY;
+				break;
+			case Avo::DragDropOperation::Move:
+				*p_effect = DROPEFFECT_MOVE;
+				break;
+			case Avo::DragDropOperation::Link:
+				*p_effect = DROPEFFECT_LINK;
+				break;
+			default:
+				*p_effect = DROPEFFECT_NONE;
+		}
+		m_currentEffect = *p_effect;
+	}
 
-	OleClipboardData m_dropData;
 	Avo::DragDropEvent m_dragDropEvent;
+	auto updateEventFromPoint(POINT& p_point) -> void
+	{
+		ScreenToClient(static_cast<HWND>(m_gui->getWindow()->getNativeHandle()), &p_point);
 
-	IDropTargetHelper* m_dropImageViewer = nullptr;
-	uint32 m_currentEffect;
+		auto const previousPosition = m_dragDropEvent.xy;
+		m_dragDropEvent.xy = m_gui->getWindow()->pixelsToDips(Avo::Point<Avo::Pixels>{p_point.x, p_point.y});
+		m_dragDropEvent.movement = Avo::Vector2d{m_dragDropEvent.xy - previousPosition};
+	}
 
 public:
-	HRESULT __stdcall DragEnter(IDataObject* p_dataObject, DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
+	auto __stdcall DragEnter(
+		IDataObject* const p_dataObject, 
+		DWORD const p_keyState, 
+		POINTL const p_mousePosition, 
+		DWORD* const p_effect
+	) -> HRESULT
 	{
-		POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
-		m_dropImageViewer->DragEnter((HWND)m_gui->getWindow()->getNativeHandle(), p_dataObject, &clientMousePosition, *p_effect);
 		m_dropData.setOleDataObject(p_dataObject);
 
-		//------------------------------
+		auto clientMousePosition = POINT{p_mousePosition.x, p_mousePosition.y};
+		m_dropImageViewer->DragEnter(m_gui->getWindow()->getNativeHandle<HWND>(), p_dataObject, &clientMousePosition, *p_effect);
+		updateEventFromPoint(clientMousePosition);
 
-		ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
-
-		float newX = clientMousePosition.x / m_gui->getWindow()->getDipToPixelFactor();
-		float newY = clientMousePosition.y / m_gui->getWindow()->getDipToPixelFactor();
-
-		m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
-		m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
-		m_dragDropEvent.x = newX;
-		m_dragDropEvent.y = newY;
 		m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
-		m_gui->lockThreads();
+		auto const lock = m_gui->createThreadLock();
 		m_gui->handleGlobalDragDropEnter(m_dragDropEvent);
-		switch (m_gui->getGlobalDragDropOperation(m_dragDropEvent))
-		{
-			case Avo::DragDropOperation::Copy:
-				*p_effect = DROPEFFECT_COPY;
-				break;
-			case Avo::DragDropOperation::Move:
-				*p_effect = DROPEFFECT_MOVE;
-				break;
-			case Avo::DragDropOperation::Link:
-				*p_effect = DROPEFFECT_LINK;
-				break;
-			default:
-				*p_effect = DROPEFFECT_NONE;
-		}
-		m_gui->unlockThreads();
-		m_currentEffect = *p_effect;
+		updateEffect(p_effect);
 
 		return S_OK;
 	}
-	HRESULT __stdcall DragOver(DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
+	auto __stdcall DragOver(
+		DWORD const p_keyState, 
+		POINTL const p_mousePosition, 
+		DWORD* const p_effect
+	) -> HRESULT
 	{
-		POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
+		auto clientMousePosition = POINT{p_mousePosition.x, p_mousePosition.y};
 		m_dropImageViewer->DragOver(&clientMousePosition, *p_effect);
+		updateEventFromPoint(clientMousePosition);
 
-		ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
-
-		float newX = clientMousePosition.x / m_gui->getWindow()->getDipToPixelFactor();
-		float newY = clientMousePosition.y / m_gui->getWindow()->getDipToPixelFactor();
-
-		m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
-		m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
-		m_dragDropEvent.x = newX;
-		m_dragDropEvent.y = newY;
 		m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
-		m_gui->lockThreads();
+		auto const lock = m_gui->createThreadLock();
 		m_gui->handleGlobalDragDropMove(m_dragDropEvent);
-		switch (m_gui->getGlobalDragDropOperation(m_dragDropEvent))
-		{
-			case Avo::DragDropOperation::Copy:
-				*p_effect = DROPEFFECT_COPY;
-				break;
-			case Avo::DragDropOperation::Move:
-				*p_effect = DROPEFFECT_MOVE;
-				break;
-			case Avo::DragDropOperation::Link:
-				*p_effect = DROPEFFECT_LINK;
-				break;
-			default:
-				*p_effect = DROPEFFECT_NONE;
-		}
-		m_gui->unlockThreads();
-		m_currentEffect = *p_effect;
+		updateEffect(p_effect);
 
 		return S_OK;
 	}
-	HRESULT __stdcall DragLeave()
+	auto __stdcall DragLeave() -> HRESULT
 	{
 		m_dropImageViewer->DragLeave();
 
-		POINT clientMousePosition;
-		GetCursorPos(&clientMousePosition);
-		ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
-
-		float newX = clientMousePosition.x / m_gui->getWindow()->getDipToPixelFactor();
-		float newY = clientMousePosition.y / m_gui->getWindow()->getDipToPixelFactor();
-
-		m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
-		m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
-		m_dragDropEvent.x = newX;
-		m_dragDropEvent.y = newY;
+		if (auto clientMousePosition = POINT{}; GetCursorPos(&clientMousePosition))
+		{
+			updateEventFromPoint(clientMousePosition);
+		}		
 
 		m_gui->lockThreads();
 		m_gui->handleGlobalDragDropLeave(m_dragDropEvent);
 		m_gui->unlockThreads();
+		
+		m_dropData.setOleDataObject(nullptr);
 
-		m_dropData.setOleDataObject(0);
 		return S_OK;
 	}
-	HRESULT __stdcall Drop(IDataObject* p_dataObject, DWORD p_keyState, POINTL p_mousePosition, DWORD* p_effect)
+	auto __stdcall Drop(
+		IDataObject* const p_dataObject, 
+		DWORD const p_keyState, 
+		POINTL const p_mousePosition, 
+		DWORD* const p_effect
+	) -> HRESULT
 	{
-		POINT clientMousePosition = { p_mousePosition.x, p_mousePosition.y };
-		ScreenToClient((HWND)m_gui->getWindow()->getNativeHandle(), &clientMousePosition);
+		auto clientMousePosition = POINT{p_mousePosition.x, p_mousePosition.y};
+		updateEventFromPoint(clientMousePosition);
 
-		float newX = clientMousePosition.x / m_gui->getWindow()->getDipToPixelFactor();
-		float newY = clientMousePosition.y / m_gui->getWindow()->getDipToPixelFactor();
-
-		m_dragDropEvent.movementX = newX - m_dragDropEvent.x;
-		m_dragDropEvent.movementY = newY - m_dragDropEvent.y;
-		m_dragDropEvent.x = newX;
-		m_dragDropEvent.y = newY;
 		m_dragDropEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_keyState);
 
 		m_gui->lockThreads();
 		m_gui->handleGlobalDragDropFinish(m_dragDropEvent);
 		m_gui->unlockThreads();
 
-		clientMousePosition.x = p_mousePosition.x;
-		clientMousePosition.y = p_mousePosition.y;
+		clientMousePosition = {p_mousePosition.x, p_mousePosition.y};
 		m_dropImageViewer->Drop(p_dataObject, &clientMousePosition, *p_effect);
 
-		m_dropData.setOleDataObject(0);
+		m_dropData.setOleDataObject(nullptr);
 
 		return S_OK;
 	}
 
 	//------------------------------
 
-	OleDropTarget(Avo::Gui* p_gui) :
-		m_gui{ p_gui },
-		m_dropData{ p_gui }
+private:
+	Avo::Gui* m_gui;
+	OleClipboardData m_dropData;
+	ComReference<IDropTargetHelper> m_dropImageViewer;
+
+public:
+	OleDropTarget(Avo::Gui* const p_gui) :
+		m_gui{p_gui},
+		m_dropData{p_gui}
 	{
 		m_dropData.formats.reserve(15);
 		m_dragDropEvent.data = &m_dropData;
 
 		CoCreateInstance(CLSID_DragDropHelper, 0, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_dropImageViewer));
-	}
-	~OleDropTarget()
-	{
-		m_dropImageViewer->Release();
 	}
 };
 
@@ -1620,42 +1697,45 @@ public:
 private:
 	HWND m_windowHandle = nullptr;
 	Avo::WindowStyleFlags m_crossPlatformStyles;
-	uint32 m_styles = 0u;
+	uint32 m_styles{};
 
-	bool getHasCustomBorder()
+	auto getHasCustomBorder() -> bool
 	{
-		return bool(m_crossPlatformStyles & Avo::WindowStyleFlags::CustomBorder);
+		return static_cast<bool>(m_crossPlatformStyles & Avo::WindowStyleFlags::CustomBorder);
 	}
-	uint32 convertWindowStyleFlagsToWindowsWindowStyleFlags(Avo::WindowStyleFlags p_styleFlags, bool p_hasParent)
+	auto convertWindowStyleFlagsToWindowsWindowStyleFlags(
+		Avo::WindowStyleFlags const p_styleFlags, 
+		bool const p_hasParent
+	) -> uint32
 	{
-		uint32 styles = 0;
+		auto styles = uint32{};
 
-		if (p_hasParent || bool(p_styleFlags & Avo::WindowStyleFlags::CustomBorder))
+		if (p_hasParent || static_cast<bool>(p_styleFlags & Avo::WindowStyleFlags::CustomBorder))
 		{
 			styles |= WS_POPUP;
 		}
 
-		if (!bool(p_styleFlags & Avo::WindowStyleFlags::Invisible))
+		if (!static_cast<bool>(p_styleFlags & Avo::WindowStyleFlags::Invisible))
 			styles |= WS_VISIBLE;
-		if (bool(p_styleFlags & Avo::WindowStyleFlags::CloseButton) || 
-			bool(p_styleFlags & Avo::WindowStyleFlags::CustomBorder))
+		if (static_cast<bool>(p_styleFlags & Avo::WindowStyleFlags::CloseButton) || 
+			static_cast<bool>(p_styleFlags & Avo::WindowStyleFlags::CustomBorder))
 			styles |= WS_CAPTION | WS_SYSMENU;
 
-		if (bool(p_styleFlags & Avo::WindowStyleFlags::Minimized))
+		if (static_cast<bool>(p_styleFlags & Avo::WindowStyleFlags::Minimized))
 			styles |= WS_MINIMIZE;
-		else if (bool(p_styleFlags & Avo::WindowStyleFlags::Maximized))
+		else if (static_cast<bool>(p_styleFlags & Avo::WindowStyleFlags::Maximized))
 			styles |= WS_MAXIMIZE;
 
-		if (bool(p_styleFlags & Avo::WindowStyleFlags::MinimizeButton))
+		if (static_cast<bool>(p_styleFlags & Avo::WindowStyleFlags::MinimizeButton))
 			styles |= WS_MINIMIZEBOX;
-		if (bool(p_styleFlags & Avo::WindowStyleFlags::MaximizeButton))
+		if (static_cast<bool>(p_styleFlags & Avo::WindowStyleFlags::MaximizeButton))
 			styles |= WS_MAXIMIZEBOX;
-		if (bool(p_styleFlags & Avo::WindowStyleFlags::Resizable))
+		if (static_cast<bool>(p_styleFlags & Avo::WindowStyleFlags::Resizable))
 			styles |= WS_THICKFRAME;
 
 		return styles;
 	}
-	Avo::KeyboardKey convertWindowsDataToKeyboardKey(uint64 p_data)
+	auto convertWindowsDataToKeyboardKey(uint64 const p_data) -> Avo::KeyboardKey
 	{
 		switch (p_data)
 		{
@@ -1891,7 +1971,12 @@ private:
 	std::condition_variable m_hasCreatedWindowConditionVariable;
 	std::mutex m_hasCreatedWindowMutex;
 	std::thread m_messageThread;
-	void thread_createAndRun(std::string_view p_title, float p_x, float p_y, float p_width, float p_height, Avo::Window* p_parent)
+	auto thread_createAndRun(
+		std::string_view const p_title, 
+	    Avo::Point<> const p_position, 
+		Avo::Size<> const p_size, 
+	    Avo::Window* const p_parent
+	) -> void
 	{
 		if (m_windowHandle)
 		{
@@ -1900,16 +1985,17 @@ private:
 		}
 		else if (!s_numberOfWindows)
 		{
-			WNDCLASSW windowClass{ };
-			windowClass.lpszClassName = WINDOW_CLASS_NAME;
-			windowClass.hInstance = GetModuleHandle(0);
-			windowClass.lpfnWndProc = handleGlobalEvents;
-			windowClass.hbrBackground = (HBRUSH)0;
-			windowClass.hCursor = 0;
-			windowClass.style = CS_DBLCLKS;
-			windowClass.hIcon = 0;
-			windowClass.cbClsExtra = 0;
-
+			auto const windowClass = WNDCLASSW{
+				/*.style = */CS_DBLCLKS,
+				/*.lpfnWndProc = */handleGlobalEvents,
+				0, 0,
+				/*.hInstance = */GetModuleHandle(0),
+				/*.hIcon = */nullptr,
+				/*.hCursor = */nullptr,
+				/*.hbrBackground = */nullptr,
+				/*.lpszMenuName = */nullptr,
+				/*.lpszClassName = */WINDOW_CLASS_NAME,
+			};
 			RegisterClassW(&windowClass);
 		}
 
@@ -1917,30 +2003,30 @@ private:
 
 		SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
-		m_dipToPixelFactor = GetDpiForSystem() / (float)USER_DEFAULT_SCREEN_DPI;
+		m_dipToPixelFactor = GetDpiForSystem()/(float)USER_DEFAULT_SCREEN_DPI;
 
 		// Calculate nonclient window rectangle from client size.
-		RECT windowRect{ 0, 0, (int)std::ceil(p_width * m_dipToPixelFactor), (int)std::ceil(p_height * m_dipToPixelFactor) };
-		m_size.set(windowRect.right, windowRect.bottom); // Client area
+		auto windowRect = RECT{0, 0, (int)std::ceil(p_size.x*m_dipToPixelFactor), (int)std::ceil(p_size.y*m_dipToPixelFactor)};
+		m_size = {windowRect.right, windowRect.bottom}; // Client area
 		
 		AdjustWindowRect(&windowRect, m_styles, 0);
 
 		//------------------------------
 
-		POINT cursorPosition{ 0 };
+		auto cursorPosition = POINT{};
 		GetCursorPos(&cursorPosition);
-		m_mousePosition.set(cursorPosition.x, cursorPosition.y);
+		m_mousePosition = {cursorPosition.x, cursorPosition.y};
 
-		RECT parentRect{ 0 };
+		auto parentRect = RECT{};
 
 		if (p_parent)
 		{
-			GetWindowRect((HWND)p_parent->getNativeHandle(), &parentRect);
+			GetWindowRect(static_cast<HWND>(p_parent->getNativeHandle()), &parentRect);
 		}
 		else
 		{
-			HMONITOR monitor = MonitorFromPoint(cursorPosition, MONITOR_DEFAULTTONEAREST);
-			MONITORINFO monitorInfo;
+			auto const monitor = MonitorFromPoint(cursorPosition, MONITOR_DEFAULTTONEAREST);
+			auto monitorInfo = MONITORINFO{};
 			monitorInfo.cbSize = sizeof(MONITORINFO);
 			GetMonitorInfo(monitor, &monitorInfo);
 			parentRect = monitorInfo.rcWork;
@@ -1948,9 +2034,11 @@ private:
 
 		//------------------------------
 
-		auto wideTitle = Avo::convertUtf8ToUtf16(p_title);
+		auto const wideTitle = Avo::convertUtf8ToUtf16(p_title);
 
 		// m_windowHandle is initialized by the WM_CREATE event, before CreateWindow returns.
+
+		auto const parentWindowHandle = p_parent ? static_cast<HWND>(p_parent->getNativeHandle()) : nullptr;
 
 		if (getHasCustomBorder())
 		{
@@ -1960,7 +2048,7 @@ private:
 				m_styles,
 				0, 0,
 				0, 0,
-				p_parent ? (HWND)p_parent->getNativeHandle() : 0,
+				parentWindowHandle,
 				0, // No menu
 				GetModuleHandle(0),
 				this // Additional window data - the instance
@@ -1969,13 +2057,13 @@ private:
 			/*
 				Remove border, can't do that just with styles without losing the window shadow.
 			*/
-			MARGINS margins{ 0, 0, 0, 1 };
+			auto const margins = MARGINS{0, 0, 0, 1};
 			DwmExtendFrameIntoClientArea(m_windowHandle, &margins);
 
 			SetWindowPos(
 				m_windowHandle, nullptr,
-				parentRect.left + windowRect.left + p_x * (parentRect.right - parentRect.left - m_size.x),
-				parentRect.top + windowRect.top + p_y * (parentRect.bottom - parentRect.top - m_size.y),
+				parentRect.left + windowRect.left + p_position.x*(parentRect.right - parentRect.left - m_size.x),
+				parentRect.top + windowRect.top + p_position.y*(parentRect.bottom - parentRect.top - m_size.y),
 				m_size.x,
 				m_size.y,
 				SWP_FRAMECHANGED | SWP_NOZORDER
@@ -1987,11 +2075,11 @@ private:
 				WINDOW_CLASS_NAME,
 				reinterpret_cast<LPCWSTR>(wideTitle.c_str()),
 				m_styles,
-				parentRect.left + windowRect.left + p_x * (parentRect.right - parentRect.left - windowRect.right + windowRect.left),
-				parentRect.top + windowRect.top + p_y * (parentRect.bottom - parentRect.top - windowRect.bottom + windowRect.top),
+				parentRect.left + windowRect.left + p_position.x*(parentRect.right - parentRect.left - windowRect.right + windowRect.left),
+				parentRect.top + windowRect.top + p_position.y*(parentRect.bottom - parentRect.top - windowRect.bottom + windowRect.top),
 				windowRect.right - windowRect.left,
 				windowRect.bottom - windowRect.top,
-				p_parent ? (HWND)p_parent->getNativeHandle() : 0,
+				parentWindowHandle,
 				0, // No menu
 				GetModuleHandle(0),
 				this // Additional window data - the instance
@@ -2001,11 +2089,11 @@ private:
 
 		if (!m_isRunning)
 		{
-			std::unique_lock<std::mutex> lock(m_isRunningMutex);
-			m_isRunningConditionVariable.wait(lock, [=]() { return m_isRunning; });
+			auto lock = std::unique_lock{m_isRunningMutex};
+			m_isRunningConditionVariable.wait(lock, [=]() -> bool { return m_isRunning; });
 		}
 
-		MSG message{ };
+		auto message = MSG{};
 		while (GetMessageW(&message, 0, 0, 0))
 		{
 			TranslateMessage(&message);
@@ -2016,30 +2104,32 @@ private:
 private:
 	bool m_isOpen = false;
 public:
-	bool getIsOpen() const override
+	auto getIsOpen() const -> bool override
 	{
 		return m_isOpen;
 	}
 
-	void create(std::string_view p_title, float p_x, float p_y, float p_width, float p_height, Avo::WindowStyleFlags p_styleFlags, Avo::Window* p_parent) override
+	auto create(
+		std::string_view const p_title, 
+		Avo::Point<> const p_position, 
+		Avo::Size<> const p_size, 
+		Avo::WindowStyleFlags const p_styleFlags, 
+		Avo::Window* const p_parent
+	) -> void override
 	{
 		m_title = p_title;
 		m_crossPlatformStyles = p_styleFlags;
 		m_styles = convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styleFlags, p_parent);
 		
-		m_messageThread = std::thread(&WindowsWindow::thread_createAndRun, this, p_title, p_x, p_y, p_width, p_height, p_parent);
+		m_messageThread = std::thread{&WindowsWindow::thread_createAndRun, this, p_title, p_position, p_size, p_parent};
 		if (!m_hasCreatedWindow)
 		{
-			std::unique_lock<std::mutex> lock(m_hasCreatedWindowMutex);
-			m_hasCreatedWindowConditionVariable.wait(lock, [=] { return (bool)m_hasCreatedWindow; });
+			auto lock = std::unique_lock{m_hasCreatedWindowMutex};
+			m_hasCreatedWindowConditionVariable.wait(lock, [=]() -> bool { return m_hasCreatedWindow; });
 		}
 	}
-	void create(std::string_view p_title, float p_width, float p_height, Avo::WindowStyleFlags p_styleFlags, Avo::Window* p_parent) override
-	{
-		create(p_title, 0.5f, 0.5f, p_width, p_height, p_styleFlags, p_parent);
-	}
 
-	void close() override
+	auto close() -> void override
 	{
 		if (m_windowHandle)
 		{
@@ -2049,15 +2139,15 @@ public:
 
 	//------------------------------
 
-	void enableUserInteraction() override
+	auto enableUserInteraction() -> void override
 	{
 		PostMessage(m_windowHandle, WM_APP_SET_IS_ENABLED, 1, 0);
 	}
-	void disableUserInteraction() override
+	auto disableUserInteraction() -> void override
 	{
 		PostMessage(m_windowHandle, WM_APP_SET_IS_ENABLED, 0, 0);
 	}
-	bool getIsUserInteractionEnabled() override
+	auto getIsUserInteractionEnabled() -> bool override
 	{
 		return IsWindowEnabled(m_windowHandle);
 	}
@@ -2067,25 +2157,25 @@ public:
 private:
 	std::string m_title;
 public:
-	void setTitle(std::string_view p_title) override
+	auto setTitle(std::string_view const p_title) -> void override
 	{
 		m_title = p_title;
-		auto wideTitle = Avo::convertUtf8ToUtf16(p_title);
+		auto const wideTitle = Avo::convertUtf8ToUtf16(p_title);
 		SetWindowTextW(m_windowHandle, reinterpret_cast<LPCWSTR>(wideTitle.c_str()));
 	}
-	std::string getTitle() const override
+	auto getTitle() const -> std::string override
 	{
 		return m_title;
 	}
 
 	//------------------------------
 
-	void setStyles(Avo::WindowStyleFlags p_styles) override
+	auto setStyles(Avo::WindowStyleFlags const p_styles) -> void override
 	{
 		SetWindowLongPtr(m_windowHandle, GWL_STYLE, convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styles, GetParent(m_windowHandle)));
 		SetWindowPos(m_windowHandle, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
 	}
-	Avo::WindowStyleFlags getStyles() const override
+	auto getStyles() const -> Avo::WindowStyleFlags override
 	{
 		return m_crossPlatformStyles;
 	}
@@ -2093,11 +2183,11 @@ public:
 	//------------------------------
 
 	// Internal method used to initialize the window handle at the right moment.
-	void setNativeHandle(HWND p_handle)
+	auto setNativeHandle(HWND const p_handle) -> void
 	{
 		m_windowHandle = p_handle;
 	}
-	void* getNativeHandle() const override
+	auto getNativeHandle() const -> void* override
 	{
 		return m_windowHandle;
 	}
@@ -2106,10 +2196,10 @@ public:
 
 private:
 	bool m_isFullscreen = false;
-	RECT m_windowRectBeforeFullscreen;
+	RECT m_windowRectBeforeFullscreen{};
 	bool m_wasWindowMaximizedBeforeFullscreen = false;
 public:
-	void setIsFullscreen(bool p_isFullscreen) override
+	auto setIsFullscreen(bool const p_isFullscreen) -> void override
 	{
 		if (m_isFullscreen == p_isFullscreen)
 		{
@@ -2127,7 +2217,7 @@ public:
 				m_wasWindowMaximizedBeforeFullscreen = true;
 			}
 
-			MONITORINFO info = { };
+			auto info = MONITORINFO{};
 			info.cbSize = sizeof(MONITORINFO);
 			GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
 			SetWindowLongPtr(m_windowHandle, GWL_STYLE, WS_VISIBLE | WS_MAXIMIZE);
@@ -2141,10 +2231,16 @@ public:
 		}
 		else
 		{
-			SetWindowLongPtr(m_windowHandle, GWL_STYLE, m_wasWindowMaximizedBeforeFullscreen * WS_MAXIMIZE | m_styles & ~(WS_MAXIMIZE | WS_MINIMIZE));
+			SetWindowLongPtr(
+				m_windowHandle, GWL_STYLE, 
+				m_wasWindowMaximizedBeforeFullscreen*WS_MAXIMIZE | m_styles & ~(WS_MAXIMIZE | WS_MINIMIZE)
+			);
 			if (m_wasWindowMaximizedBeforeFullscreen)
 			{
-				SetWindowPos(m_windowHandle, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+				SetWindowPos(
+					m_windowHandle, 0, 0, 0, 0, 0, 
+					SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER
+				);
 			}
 			else
 			{
@@ -2159,11 +2255,11 @@ public:
 		}
 		m_isFullscreen = p_isFullscreen;
 	}
-	void switchFullscreen() override
+	auto switchFullscreen() -> void override
 	{
 		setIsFullscreen(!m_isFullscreen);
 	}
-	bool getIsFullscreen() const override
+	auto getIsFullscreen() const -> bool override
 	{
 		return m_isFullscreen;
 	}
@@ -2173,29 +2269,29 @@ public:
 private:
 	Avo::WindowState m_state = Avo::WindowState::Restored;
 public:
-	void hide() override
+	auto hide() -> void override
 	{
 		ShowWindow(m_windowHandle, SW_HIDE);
 	}
-	void show() override
+	auto show() -> void override
 	{
 		ShowWindow(m_windowHandle, SW_SHOW);
 	}
 
-	void maximize() override
+	auto maximize() -> void override
 	{
 		ShowWindow(m_windowHandle, SW_MAXIMIZE);
 	}
-	void minimize() override
+	auto minimize() -> void override
 	{
 		ShowWindow(m_windowHandle, SW_MINIMIZE);
 	}
-	void restore() override
+	auto restore() -> void override
 	{
 		ShowWindow(m_windowHandle, SW_RESTORE);
 	}
 
-	void setState(Avo::WindowState p_state) override
+	auto setState(Avo::WindowState const p_state) -> void override
 	{
 		if (p_state == Avo::WindowState::Maximized)
 			ShowWindow(m_windowHandle, SW_MAXIMIZE);
@@ -2204,7 +2300,7 @@ public:
 		else if (p_state == Avo::WindowState::Restored)
 			ShowWindow(m_windowHandle, SW_RESTORE);
 	}
-	Avo::WindowState getState() const override
+	auto getState() const -> Avo::WindowState override
 	{
 		return m_state;
 	}
@@ -2212,449 +2308,463 @@ public:
 	//------------------------------
 
 private:
-	Avo::Point<int32> m_position;
+	Avo::Point<Avo::Pixels> m_position;
 public:
-	void setPosition(int32 p_x, int32 p_y) override
+	auto setPosition(Avo::Point<Avo::Pixels> const p_position) -> void override
 	{
-		SetWindowPos(m_windowHandle, 0, p_x, p_y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
-		m_position.set(p_x, p_y);
+		SetWindowPos(m_windowHandle, 0, p_position.x, p_position.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+		m_position = p_position;
 	}
-	Avo::Point<int32> getPosition() const override
+	auto getPosition() const -> Avo::Point<Avo::Pixels> override
 	{
 		return m_position;
 	}
-	int32 getPositionX() const override
+	auto getPositionX() const -> Avo::Pixels override
 	{
 		return m_position.x;
 	}
-	int32 getPositionY() const override
+	auto getPositionY() const -> Avo::Pixels override
 	{
 		return m_position.y;
 	}
 
 private:
-	Avo::Point<uint32> m_size;
+	Avo::Size<Avo::Pixels> m_size;
 public:
-	void setSize(float p_width, float p_height) override
+	auto setPixelSize(Avo::Size<Avo::Pixels> const p_size) -> void override
 	{
 		if (m_windowHandle)
 		{
 			if (getHasCustomBorder())
 			{
-				PostMessage(m_windowHandle, WM_APP_CHANGE_SIZE, std::ceil(p_width*m_dipToPixelFactor), std::ceil(p_height*m_dipToPixelFactor));
+				PostMessage(m_windowHandle, WM_APP_CHANGE_SIZE, static_cast<WPARAM>(p_size.width), static_cast<LPARAM>(p_size.height));
 			}
 			else
 			{
-				RECT windowRect = { 0, 0, (int)std::ceil(p_width * m_dipToPixelFactor), (int)std::ceil(p_height * m_dipToPixelFactor) };
+				auto windowRect = RECT{0, 0, static_cast<int>(p_size.width), static_cast<int>(p_size.height)};
 				AdjustWindowRect(&windowRect, m_styles, 0);
 			
-				PostMessage(m_windowHandle, WM_APP_CHANGE_SIZE, uint32(windowRect.right - windowRect.left), uint32(windowRect.bottom - windowRect.top));
+				PostMessage(
+					m_windowHandle, 
+					WM_APP_CHANGE_SIZE, 
+					static_cast<WPARAM>(windowRect.right - windowRect.left), 
+					static_cast<LPARAM>(windowRect.bottom - windowRect.top)
+				);
 			}
 		}
 	}
-	Avo::Point<> getSize() const override
+	auto getPixelSize() const -> Avo::Size<Avo::Pixels> override
 	{
-		return m_size / m_dipToPixelFactor;
+		return m_size;
 	}
-	float getWidth() const override
+	auto getPixelWidth() const -> Avo::Pixels override
 	{
-		return m_size.x / m_dipToPixelFactor;
+		return m_size.x;
 	}
-	float getHeight() const override
+	auto getPixelHeight() const -> Avo::Pixels override
 	{
-		return m_size.y / m_dipToPixelFactor;
+		return m_size.y;
 	}
 
 	//------------------------------
 
 private:
-	Avo::Point<uint32> m_minSize;
+	Avo::Size<Avo::Pixels> m_minSize;
 public:
-	void setMinSize(float p_minWidth, float p_minHeight) override
+	auto setMinPixelSize(Avo::Size<Avo::Pixels> const p_size) -> void override
 	{
-		m_minSize.x = p_minWidth * m_dipToPixelFactor;
-		m_minSize.y = p_minHeight * m_dipToPixelFactor;
+		m_minSize = p_size;
 	}
-	Avo::Point<> getMinSize() const override
+	auto getMinPixelSize() const -> Avo::Size<Avo::Pixels> override
 	{
-		return m_minSize/m_dipToPixelFactor;
+		return m_minSize;
 	}
-	float getMinWidth() const override
+	auto getMinPixelWidth() const -> Avo::Pixels override
 	{
-		return m_minSize.x/ m_dipToPixelFactor;
+		return m_minSize.x;
 	}
-	float getMinHeight() const override
+	auto getMinPixelHeight() const -> Avo::Pixels override
 	{
-		return m_minSize.y/ m_dipToPixelFactor;
+		return m_minSize.y;
 	}
 
 private:
-	Avo::Point<uint32> m_maxSize;
+	Avo::Size<Avo::Pixels> m_maxSize;
 public:
-	void setMaxSize(float p_maxWidth, float p_maxHeight) override
+	auto setMaxPixelSize(Avo::Size<Avo::Pixels> p_size) -> void override
 	{
-		m_maxSize.x = p_maxWidth* m_dipToPixelFactor;
-		m_maxSize.y = p_maxHeight* m_dipToPixelFactor;
+		m_maxSize = p_size;
 	}
-	Avo::Point<> getMaxSize() const override
+	auto getMaxPixelSize() const -> Avo::Size<Avo::Pixels> override
 	{
-		return m_maxSize/ m_dipToPixelFactor;
+		return m_maxSize;
 	}
-	float getMaxWidth() const override
+	auto getMaxPixelWidth() const -> Avo::Pixels override
 	{
-		return m_maxSize.x/ m_dipToPixelFactor;
+		return m_maxSize.x;
 	}
-	float getMaxHeight() const override
+	auto getMaxPixelHeight() const -> Avo::Pixels override
 	{
-		return m_maxSize.y/ m_dipToPixelFactor;
-	}
-
-	//------------------------------
-
-	Avo::Rectangle<uint32> getMonitorBounds() const override
-	{
-		MONITORINFO info = { };
-		info.cbSize = sizeof(MONITORINFO);
-		GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
-		return Avo::Rectangle<uint32>(info.rcMonitor.left, info.rcMonitor.top, info.rcMonitor.right, info.rcMonitor.bottom);
-	}
-	Avo::Point<uint32> getMonitorPosition() const override
-	{
-		MONITORINFO info = { };
-		info.cbSize = sizeof(MONITORINFO);
-		GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
-		return Avo::Point<uint32>(info.rcMonitor.left, info.rcMonitor.top);
-	}
-	Avo::Point<uint32> getMonitorSize() const override
-	{
-		MONITORINFO info = { };
-		info.cbSize = sizeof(MONITORINFO);
-		GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
-		return Avo::Point<uint32>(info.rcMonitor.right - info.rcMonitor.left, info.rcMonitor.bottom - info.rcMonitor.top);
-	}
-	uint32 getMonitorWidth() const override
-	{
-		MONITORINFO info = { };
-		info.cbSize = sizeof(MONITORINFO);
-		GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
-		return info.rcMonitor.right - info.rcMonitor.left;
-	}
-	uint32 getMonitorHeight() const override
-	{
-		MONITORINFO info = { };
-		info.cbSize = sizeof(MONITORINFO);
-		GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
-		return info.rcMonitor.bottom - info.rcMonitor.top;
+		return m_maxSize.y;
 	}
 
 	//------------------------------
 
-	Avo::Rectangle<uint32> getWorkAreaBounds() const override
+private:
+	auto getMonitorInfo() const -> MONITORINFO
 	{
-		MONITORINFO info = { };
+		auto info = MONITORINFO{};
 		info.cbSize = sizeof(MONITORINFO);
 		GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
-		return Avo::Rectangle<uint32>(info.rcWork.left, info.rcWork.top, info.rcWork.right, info.rcWork.bottom);
+		return info;
 	}
-	Avo::Point<uint32> getWorkAreaPosition() const override
+
+public:
+	auto getMonitorBounds() const -> Avo::Rectangle<Avo::Pixels> override
 	{
-		MONITORINFO info = { };
-		info.cbSize = sizeof(MONITORINFO);
-		GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTONEAREST), &info);
-		return Avo::Point<uint32>(info.rcWork.left, info.rcWork.top);
+		auto const rect = getMonitorInfo().rcMonitor;
+		return {
+			rect.left, rect.top, 
+			rect.right, rect.bottom
+		};
 	}
-	Avo::Point<uint32> getWorkAreaSize() const override
+	auto getMonitorPosition() const -> Avo::Point<Avo::Pixels> override
 	{
-		MONITORINFO info = { };
-		info.cbSize = sizeof(MONITORINFO);
-		GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
-		return Avo::Point<uint32>(info.rcWork.right - info.rcWork.left, info.rcWork.bottom - info.rcWork.top);
+		auto const rect = getMonitorInfo().rcMonitor;
+		return {rect.left, rect.top};
 	}
-	uint32 getWorkAreaWidth() const override
+	auto getMonitorSize() const -> Avo::Size<Avo::Pixels> override
 	{
-		MONITORINFO info = { };
-		info.cbSize = sizeof(MONITORINFO);
-		GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
-		return info.rcWork.right - info.rcWork.left;
+		auto const rect = getMonitorInfo().rcMonitor;
+		return {
+			rect.right - rect.left, 
+			rect.bottom - rect.top
+		};
 	}
-	uint32 getWorkAreaHeight() const override
+	auto getMonitorWidth() const -> Avo::Pixels override
 	{
-		MONITORINFO info = { };
-		info.cbSize = sizeof(MONITORINFO);
-		GetMonitorInfo(MonitorFromWindow(m_windowHandle, MONITOR_DEFAULTTOPRIMARY), &info);
-		return info.rcWork.bottom - info.rcWork.top;
+		auto const rect = getMonitorInfo().rcMonitor;
+		return rect.right - rect.left;
+	}
+	auto getMonitorHeight() const -> Avo::Pixels override
+	{
+		auto const rect = getMonitorInfo().rcMonitor;
+		return rect.bottom - rect.top;
 	}
 
 	//------------------------------
 
-	bool getIsKeyDown(Avo::KeyboardKey p_key) const override
+	auto getWorkAreaBounds() const -> Avo::Rectangle<Avo::Pixels> override
+	{
+		auto const rect = getMonitorInfo().rcWork;
+		return {
+			rect.left, rect.top, 
+			rect.right, rect.bottom 
+		};
+	}
+	auto getWorkAreaPosition() const -> Avo::Point<Avo::Pixels> override
+	{
+		auto const rect = getMonitorInfo().rcWork;
+		return {rect.left, rect.top};
+	}
+	auto getWorkAreaSize() const -> Avo::Size<Avo::Pixels> override
+	{
+		auto const rect = getMonitorInfo().rcWork;
+		return {
+			rect.right - rect.left, 
+			rect.bottom - rect.top
+		};
+	}
+	auto getWorkAreaWidth() const -> Avo::Pixels override
+	{
+		auto const rect = getMonitorInfo().rcWork;
+		return rect.right - rect.left;
+	}
+	auto getWorkAreaHeight() const -> Avo::Pixels override
+	{
+		auto const rect = getMonitorInfo().rcWork;
+		return rect.bottom - rect.top;
+	}
+
+	//------------------------------
+
+private:
+	static auto getIsVirtualKeyDown(int const p_key) -> bool
+	{
+		return GetAsyncKeyState(p_key) & (1 << 16);
+	}
+
+public:
+	auto getIsKeyDown(Avo::KeyboardKey const p_key) const -> bool override
 	{
 		switch (p_key)
 		{
 			case Avo::KeyboardKey::A:
-				return GetAsyncKeyState(0x41) & (1 << 16);
+				return getIsVirtualKeyDown(0x41);
 			case Avo::KeyboardKey::B:
-				return GetAsyncKeyState(0x42) & (1 << 16);
+				return getIsVirtualKeyDown(0x42);
 			case Avo::KeyboardKey::C:
-				return GetAsyncKeyState(0x43) & (1 << 16);
+				return getIsVirtualKeyDown(0x43);
 			case Avo::KeyboardKey::D:
-				return GetAsyncKeyState(0x44) & (1 << 16);
+				return getIsVirtualKeyDown(0x44);
 			case Avo::KeyboardKey::E:
-				return GetAsyncKeyState(0x45) & (1 << 16);
+				return getIsVirtualKeyDown(0x45);
 			case Avo::KeyboardKey::F:
-				return GetAsyncKeyState(0x46) & (1 << 16);
+				return getIsVirtualKeyDown(0x46);
 			case Avo::KeyboardKey::G:
-				return GetAsyncKeyState(0x47) & (1 << 16);
+				return getIsVirtualKeyDown(0x47);
 			case Avo::KeyboardKey::H:
-				return GetAsyncKeyState(0x48) & (1 << 16);
+				return getIsVirtualKeyDown(0x48);
 			case Avo::KeyboardKey::I:
-				return GetAsyncKeyState(0x49) & (1 << 16);
+				return getIsVirtualKeyDown(0x49);
 			case Avo::KeyboardKey::J:
-				return GetAsyncKeyState(0x4A) & (1 << 16);
+				return getIsVirtualKeyDown(0x4A);
 			case Avo::KeyboardKey::K:
-				return GetAsyncKeyState(0x4B) & (1 << 16);
+				return getIsVirtualKeyDown(0x4B);
 			case Avo::KeyboardKey::L:
-				return GetAsyncKeyState(0x4C) & (1 << 16);
+				return getIsVirtualKeyDown(0x4C);
 			case Avo::KeyboardKey::M:
-				return GetAsyncKeyState(0x4D) & (1 << 16);
+				return getIsVirtualKeyDown(0x4D);
 			case Avo::KeyboardKey::N:
-				return GetAsyncKeyState(0x4E) & (1 << 16);
+				return getIsVirtualKeyDown(0x4E);
 			case Avo::KeyboardKey::O:
-				return GetAsyncKeyState(0x4F) & (1 << 16);
+				return getIsVirtualKeyDown(0x4F);
 			case Avo::KeyboardKey::P:
-				return GetAsyncKeyState(0x50) & (1 << 16);
+				return getIsVirtualKeyDown(0x50);
 			case Avo::KeyboardKey::Q:
-				return GetAsyncKeyState(0x51) & (1 << 16);
+				return getIsVirtualKeyDown(0x51);
 			case Avo::KeyboardKey::R:
-				return GetAsyncKeyState(0x52) & (1 << 16);
+				return getIsVirtualKeyDown(0x52);
 			case Avo::KeyboardKey::S:
-				return GetAsyncKeyState(0x53) & (1 << 16);
+				return getIsVirtualKeyDown(0x53);
 			case Avo::KeyboardKey::T:
-				return GetAsyncKeyState(0x54) & (1 << 16);
+				return getIsVirtualKeyDown(0x54);
 			case Avo::KeyboardKey::U:
-				return GetAsyncKeyState(0x55) & (1 << 16);
+				return getIsVirtualKeyDown(0x55);
 			case Avo::KeyboardKey::V:
-				return GetAsyncKeyState(0x56) & (1 << 16);
+				return getIsVirtualKeyDown(0x56);
 			case Avo::KeyboardKey::W:
-				return GetAsyncKeyState(0x57) & (1 << 16);
+				return getIsVirtualKeyDown(0x57);
 			case Avo::KeyboardKey::X:
-				return GetAsyncKeyState(0x58) & (1 << 16);
+				return getIsVirtualKeyDown(0x58);
 			case Avo::KeyboardKey::Y:
-				return GetAsyncKeyState(0x59) & (1 << 16);
+				return getIsVirtualKeyDown(0x59);
 			case Avo::KeyboardKey::Z:
-				return GetAsyncKeyState(0x5A) & (1 << 16);
+				return getIsVirtualKeyDown(0x5A);
 			case Avo::KeyboardKey::Alt:
-				return GetAsyncKeyState(VK_MENU) & (1 << 16);
+				return getIsVirtualKeyDown(VK_MENU);
 			case Avo::KeyboardKey::Backspace:
-				return GetAsyncKeyState(VK_BACK) & (1 << 16);
+				return getIsVirtualKeyDown(VK_BACK);
 			case Avo::KeyboardKey::CapsLock:
-				return GetAsyncKeyState(VK_CAPITAL) & (1 << 16);
+				return getIsVirtualKeyDown(VK_CAPITAL);
 			case Avo::KeyboardKey::Clear:
-				return GetAsyncKeyState(VK_CLEAR) & (1 << 16);
+				return getIsVirtualKeyDown(VK_CLEAR);
 			case Avo::KeyboardKey::Control:
-				return GetAsyncKeyState(VK_CONTROL) & (1 << 16);
+				return getIsVirtualKeyDown(VK_CONTROL);
 			case Avo::KeyboardKey::Decimal:
-				return GetAsyncKeyState(VK_DECIMAL) & (1 << 16);
+				return getIsVirtualKeyDown(VK_DECIMAL);
 			case Avo::KeyboardKey::Delete:
-				return GetAsyncKeyState(VK_DELETE) & (1 << 16);
+				return getIsVirtualKeyDown(VK_DELETE);
 			case Avo::KeyboardKey::Down:
-				return GetAsyncKeyState(VK_DOWN) & (1 << 16);
+				return getIsVirtualKeyDown(VK_DOWN);
 			case Avo::KeyboardKey::End:
-				return GetAsyncKeyState(VK_END) & (1 << 16);
+				return getIsVirtualKeyDown(VK_END);
 			case Avo::KeyboardKey::Enter:
-				return GetAsyncKeyState(VK_RETURN) & (1 << 16);
+				return getIsVirtualKeyDown(VK_RETURN);
 			case Avo::KeyboardKey::Escape:
-				return GetAsyncKeyState(VK_ESCAPE) & (1 << 16);
+				return getIsVirtualKeyDown(VK_ESCAPE);
 			case Avo::KeyboardKey::F1:
-				return GetAsyncKeyState(VK_F1) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F1);
 			case Avo::KeyboardKey::F2:
-				return GetAsyncKeyState(VK_F2) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F2);
 			case Avo::KeyboardKey::F3:
-				return GetAsyncKeyState(VK_F3) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F3);
 			case Avo::KeyboardKey::F4:
-				return GetAsyncKeyState(VK_F4) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F4);
 			case Avo::KeyboardKey::F5:
-				return GetAsyncKeyState(VK_F5) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F5);
 			case Avo::KeyboardKey::F6:
-				return GetAsyncKeyState(VK_F6) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F6);
 			case Avo::KeyboardKey::F7:
-				return GetAsyncKeyState(VK_F7) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F7);
 			case Avo::KeyboardKey::F8:
-				return GetAsyncKeyState(VK_F8) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F8);
 			case Avo::KeyboardKey::F9:
-				return GetAsyncKeyState(VK_F9) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F9);
 			case Avo::KeyboardKey::F10:
-				return GetAsyncKeyState(VK_F10) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F10);
 			case Avo::KeyboardKey::F11:
-				return GetAsyncKeyState(VK_F11) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F11);
 			case Avo::KeyboardKey::F12:
-				return GetAsyncKeyState(VK_F12) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F12);
 			case Avo::KeyboardKey::F13:
-				return GetAsyncKeyState(VK_F13) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F13);
 			case Avo::KeyboardKey::F14:
-				return GetAsyncKeyState(VK_F14) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F14);
 			case Avo::KeyboardKey::F15:
-				return GetAsyncKeyState(VK_F15) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F15);
 			case Avo::KeyboardKey::F16:
-				return GetAsyncKeyState(VK_F16) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F16);
 			case Avo::KeyboardKey::F17:
-				return GetAsyncKeyState(VK_F17) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F17);
 			case Avo::KeyboardKey::F18:
-				return GetAsyncKeyState(VK_F18) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F18);
 			case Avo::KeyboardKey::F19:
-				return GetAsyncKeyState(VK_F19) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F19);
 			case Avo::KeyboardKey::F20:
-				return GetAsyncKeyState(VK_F20) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F20);
 			case Avo::KeyboardKey::F21:
-				return GetAsyncKeyState(VK_F21) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F21);
 			case Avo::KeyboardKey::F22:
-				return GetAsyncKeyState(VK_F22) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F22);
 			case Avo::KeyboardKey::F23:
-				return GetAsyncKeyState(VK_F23) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F23);
 			case Avo::KeyboardKey::F24:
-				return GetAsyncKeyState(VK_F24) & (1 << 16);
+				return getIsVirtualKeyDown(VK_F24);
 			case Avo::KeyboardKey::Help:
-				return GetAsyncKeyState(VK_HELP) & (1 << 16);
+				return getIsVirtualKeyDown(VK_HELP);
 			case Avo::KeyboardKey::Home:
-				return GetAsyncKeyState(VK_HOME) & (1 << 16);
+				return getIsVirtualKeyDown(VK_HOME);
 			case Avo::KeyboardKey::Insert:
-				return GetAsyncKeyState(VK_INSERT) & (1 << 16);
+				return getIsVirtualKeyDown(VK_INSERT);
 			case Avo::KeyboardKey::Left:
-				return GetAsyncKeyState(VK_LEFT) & (1 << 16);
+				return getIsVirtualKeyDown(VK_LEFT);
 			case Avo::KeyboardKey::Menu:
-				return GetAsyncKeyState(VK_APPS) & (1 << 16);
+				return getIsVirtualKeyDown(VK_APPS);
 			case Avo::KeyboardKey::Number0:
-				return GetAsyncKeyState(0x30) & (1 << 16);
+				return getIsVirtualKeyDown(0x30);
 			case Avo::KeyboardKey::Number1:
-				return GetAsyncKeyState(0x31) & (1 << 16);
+				return getIsVirtualKeyDown(0x31);
 			case Avo::KeyboardKey::Number2:
-				return GetAsyncKeyState(0x32) & (1 << 16);
+				return getIsVirtualKeyDown(0x32);
 			case Avo::KeyboardKey::Number3:
-				return GetAsyncKeyState(0x33) & (1 << 16);
+				return getIsVirtualKeyDown(0x33);
 			case Avo::KeyboardKey::Number4:
-				return GetAsyncKeyState(0x34) & (1 << 16);
+				return getIsVirtualKeyDown(0x34);
 			case Avo::KeyboardKey::Number5:
-				return GetAsyncKeyState(0x35) & (1 << 16);
+				return getIsVirtualKeyDown(0x35);
 			case Avo::KeyboardKey::Number6:
-				return GetAsyncKeyState(0x36) & (1 << 16);
+				return getIsVirtualKeyDown(0x36);
 			case Avo::KeyboardKey::Number7:
-				return GetAsyncKeyState(0x37) & (1 << 16);
+				return getIsVirtualKeyDown(0x37);
 			case Avo::KeyboardKey::Number8:
-				return GetAsyncKeyState(0x38) & (1 << 16);
+				return getIsVirtualKeyDown(0x38);
 			case Avo::KeyboardKey::Number9:
-				return GetAsyncKeyState(0x39) & (1 << 16);
+				return getIsVirtualKeyDown(0x39);
 			case Avo::KeyboardKey::NumLock:
-				return GetAsyncKeyState(VK_NUMLOCK) & (1 << 16);
+				return getIsVirtualKeyDown(VK_NUMLOCK);
 			case Avo::KeyboardKey::Numpad0:
-				return GetAsyncKeyState(VK_NUMPAD0) & (1 << 16);
+				return getIsVirtualKeyDown(VK_NUMPAD0);
 			case Avo::KeyboardKey::Numpad1:
-				return GetAsyncKeyState(VK_NUMPAD1) & (1 << 16);
+				return getIsVirtualKeyDown(VK_NUMPAD1);
 			case Avo::KeyboardKey::Numpad2:
-				return GetAsyncKeyState(VK_NUMPAD2) & (1 << 16);
+				return getIsVirtualKeyDown(VK_NUMPAD2);
 			case Avo::KeyboardKey::Numpad3:
-				return GetAsyncKeyState(VK_NUMPAD3) & (1 << 16);
+				return getIsVirtualKeyDown(VK_NUMPAD3);
 			case Avo::KeyboardKey::Numpad4:
-				return GetAsyncKeyState(VK_NUMPAD4) & (1 << 16);
+				return getIsVirtualKeyDown(VK_NUMPAD4);
 			case Avo::KeyboardKey::Numpad5:
-				return GetAsyncKeyState(VK_NUMPAD5) & (1 << 16);
+				return getIsVirtualKeyDown(VK_NUMPAD5);
 			case Avo::KeyboardKey::Numpad6:
-				return GetAsyncKeyState(VK_NUMPAD6) & (1 << 16);
+				return getIsVirtualKeyDown(VK_NUMPAD6);
 			case Avo::KeyboardKey::Numpad7:
-				return GetAsyncKeyState(VK_NUMPAD7) & (1 << 16);
+				return getIsVirtualKeyDown(VK_NUMPAD7);
 			case Avo::KeyboardKey::Numpad8:
-				return GetAsyncKeyState(VK_NUMPAD8) & (1 << 16);
+				return getIsVirtualKeyDown(VK_NUMPAD8);
 			case Avo::KeyboardKey::Numpad9:
-				return GetAsyncKeyState(VK_NUMPAD9) & (1 << 16);
+				return getIsVirtualKeyDown(VK_NUMPAD9);
 			case Avo::KeyboardKey::Add:
-				return GetAsyncKeyState(VK_ADD) & (1 << 16);
+				return getIsVirtualKeyDown(VK_ADD);
 			case Avo::KeyboardKey::Subtract:
-				return GetAsyncKeyState(VK_SUBTRACT) & (1 << 16);
+				return getIsVirtualKeyDown(VK_SUBTRACT);
 			case Avo::KeyboardKey::Multiply:
-				return GetAsyncKeyState(VK_MULTIPLY) & (1 << 16);
+				return getIsVirtualKeyDown(VK_MULTIPLY);
 			case Avo::KeyboardKey::Divide:
-				return GetAsyncKeyState(VK_DIVIDE) & (1 << 16);
+				return getIsVirtualKeyDown(VK_DIVIDE);
 			case Avo::KeyboardKey::PageDown:
-				return GetAsyncKeyState(VK_NEXT) & (1 << 16);
+				return getIsVirtualKeyDown(VK_NEXT);
 			case Avo::KeyboardKey::PageUp:
-				return GetAsyncKeyState(VK_PRIOR) & (1 << 16);
+				return getIsVirtualKeyDown(VK_PRIOR);
 			case Avo::KeyboardKey::Pause:
-				return GetAsyncKeyState(VK_PAUSE) & (1 << 16);
+				return getIsVirtualKeyDown(VK_PAUSE);
 			case Avo::KeyboardKey::PrintScreen:
-				return GetAsyncKeyState(VK_SNAPSHOT) & (1 << 16);
+				return getIsVirtualKeyDown(VK_SNAPSHOT);
 			case Avo::KeyboardKey::Comma:
-				return GetAsyncKeyState(VK_OEM_COMMA) & (1 << 16);
+				return getIsVirtualKeyDown(VK_OEM_COMMA);
 			case Avo::KeyboardKey::Period:
-				return GetAsyncKeyState(VK_OEM_PERIOD) & (1 << 16);
+				return getIsVirtualKeyDown(VK_OEM_PERIOD);
 			case Avo::KeyboardKey::Plus:
-				return GetAsyncKeyState(VK_OEM_PLUS) & (1 << 16);
+				return getIsVirtualKeyDown(VK_OEM_PLUS);
 			case Avo::KeyboardKey::Minus:
-				return GetAsyncKeyState(VK_OEM_MINUS) & (1 << 16);
+				return getIsVirtualKeyDown(VK_OEM_MINUS);
 			case Avo::KeyboardKey::Regional1:
-				return GetAsyncKeyState(VK_OEM_1) & (1 << 16);
+				return getIsVirtualKeyDown(VK_OEM_1);
 			case Avo::KeyboardKey::Regional2:
-				return GetAsyncKeyState(VK_OEM_2) & (1 << 16);
+				return getIsVirtualKeyDown(VK_OEM_2);
 			case Avo::KeyboardKey::Regional3:
-				return GetAsyncKeyState(VK_OEM_3) & (1 << 16);
+				return getIsVirtualKeyDown(VK_OEM_3);
 			case Avo::KeyboardKey::Regional4:
-				return GetAsyncKeyState(VK_OEM_4) & (1 << 16);
+				return getIsVirtualKeyDown(VK_OEM_4);
 			case Avo::KeyboardKey::Regional5:
-				return GetAsyncKeyState(VK_OEM_5) & (1 << 16);
+				return getIsVirtualKeyDown(VK_OEM_5);
 			case Avo::KeyboardKey::Regional6:
-				return GetAsyncKeyState(VK_OEM_6) & (1 << 16);
+				return getIsVirtualKeyDown(VK_OEM_6);
 			case Avo::KeyboardKey::Regional7:
-				return GetAsyncKeyState(VK_OEM_7) & (1 << 16);
+				return getIsVirtualKeyDown(VK_OEM_7);
 			case Avo::KeyboardKey::Right:
-				return GetAsyncKeyState(VK_RIGHT) & (1 << 16);
+				return getIsVirtualKeyDown(VK_RIGHT);
 			case Avo::KeyboardKey::Separator:
-				return GetAsyncKeyState(VK_SEPARATOR) & (1 << 16);
+				return getIsVirtualKeyDown(VK_SEPARATOR);
 			case Avo::KeyboardKey::Shift:
-				return GetAsyncKeyState(VK_SHIFT) & (1 << 16);
+				return getIsVirtualKeyDown(VK_SHIFT);
 			case Avo::KeyboardKey::Spacebar:
-				return GetAsyncKeyState(VK_SPACE) & (1 << 16);
+				return getIsVirtualKeyDown(VK_SPACE);
 			case Avo::KeyboardKey::Tab:
-				return GetAsyncKeyState(VK_TAB) & (1 << 16);
+				return getIsVirtualKeyDown(VK_TAB);
 			case Avo::KeyboardKey::Up:
-				return GetAsyncKeyState(VK_UP) & (1 << 16);
+				return getIsVirtualKeyDown(VK_UP);
 		}
 		return false;
 	}
-	bool getIsMouseButtonDown(Avo::MouseButton p_button) const override
+	auto getIsMouseButtonDown(Avo::MouseButton const p_button) const -> bool override
 	{
 		switch (p_button)
 		{
 			case Avo::MouseButton::Left:
-				return GetAsyncKeyState(VK_LBUTTON) & (1 << 16);
+				return getIsVirtualKeyDown(VK_LBUTTON);
 			case Avo::MouseButton::Middle:
-				return GetAsyncKeyState(VK_MBUTTON) & (1 << 16);
+				return getIsVirtualKeyDown(VK_MBUTTON);
 			case Avo::MouseButton::Right:
-				return GetAsyncKeyState(VK_RBUTTON) & (1 << 16);
+				return getIsVirtualKeyDown(VK_RBUTTON);
 			case Avo::MouseButton::X0:
-				return GetAsyncKeyState(VK_XBUTTON1) & (1 << 16);
+				return getIsVirtualKeyDown(VK_XBUTTON1);
 			case Avo::MouseButton::X1:
-				return GetAsyncKeyState(VK_XBUTTON2) & (1 << 16);
+				return getIsVirtualKeyDown(VK_XBUTTON2);
 		}
 		return false;
 	}
 
 private:
-	Avo::Point<int32> m_mousePosition{ -1, -1 };
+	Avo::Point<int32> m_mousePosition{-1, -1};
 public:
-	Avo::Point<> getMousePosition() const override
+	auto getMousePosition() const -> Avo::Point<> override
 	{
-		return m_mousePosition / m_dipToPixelFactor;
+		return m_mousePosition/m_dipToPixelFactor;
 	}
 
 	//------------------------------
 
 private:
-	HCURSOR m_cursorHandle = nullptr;
-	Avo::Cursor m_cursorType = (Avo::Cursor) - 1;
+	std::unordered_map<wchar_t const*, HCURSOR> m_cursors;
+	Avo::Cursor m_cursorType = Avo::Cursor::Unknown;
+	HCURSOR m_cursorHandle;
+
 public:
-	void setCursor(Avo::Cursor p_cursor) override
+	auto setCursor(Avo::Cursor const p_cursor) -> void override
 	{
 		if (p_cursor == m_cursorType) return;
 
-		wchar_t const* name = 0;
+		wchar_t const* name = nullptr;
 		switch (p_cursor)
 		{
 			case Avo::Cursor::Arrow:
@@ -2688,18 +2798,29 @@ public:
 				name = IDC_WAIT;
 				break;
 		}
+		
+		if (auto const position = m_cursors.find(name);
+		    position == m_cursors.end())
+		{
+			auto const newCursor = LoadCursorW(nullptr, name);
+			m_cursors.insert({name, newCursor});
+			m_cursorHandle = newCursor;
+			if (!m_isMouseOutsideClientArea)
+			{
+				SetCursor(m_cursorHandle);
+			}
+		}
+		else
+		{
+			m_cursorHandle = position->second;
+			if (!m_isMouseOutsideClientArea)
+			{
+				SetCursor(m_cursorHandle);
+			}
+		}
 		m_cursorType = p_cursor;
-		if (m_cursorHandle)
-		{
-			DestroyCursor(m_cursorHandle);
-		}
-		m_cursorHandle = LoadCursorW(0, name);
-		if (!m_isMouseOutsideClientArea)
-		{
-			SetCursor(m_cursorHandle);
-		}
 	}
-	Avo::Cursor getCursor() const override
+	auto getCursor() const -> Avo::Cursor override
 	{
 		return m_cursorType;
 	}
@@ -2707,77 +2828,64 @@ public:
 	//------------------------------
 
 private:
-	float m_dipToPixelFactor = 1.f;
-public:
-	float getDipToPixelFactor() const override
+	ComReference<OleDropSource> m_oleDropSource;
+	ComReference<OleDropTarget> m_oleDropTarget;
+
+	CLIPFORMAT m_clipboardFormat_fileContents{};
+	CLIPFORMAT m_clipboardFormat_fileGroupDescriptor{};
+	CLIPFORMAT m_clipboardFormat_additionalData{};
+
+	/*
+		Assumes that p_medium is zero-initialized.
+	*/
+	auto createAdditionalData(FORMATETC& p_format, STGMEDIUM& p_medium, uint64 const p_data) const -> void
 	{
-		return m_dipToPixelFactor;
-	}
-
-	//------------------------------
-
-private:
-	OleDropSource* m_oleDropSource = nullptr;
-	OleDropTarget* m_oleDropTarget = nullptr;
-
-	uint32 m_clipboardFormat_fileContents = 0u;
-	uint32 m_clipboardFormat_fileGroupDescriptor = 0u;
-	uint32 m_clipboardFormat_additionalData = 0u;
-
-	void createAdditionalData(FORMATETC& p_format, STGMEDIUM& p_medium, uint64 p_data) const
-	{
-		p_format.cfFormat = m_clipboardFormat_additionalData;
-		p_format.ptd = nullptr;
-		p_format.lindex = -1;
-		p_format.dwAspect = DVASPECT_CONTENT;
-		p_format.tymed = TYMED_HGLOBAL;
-
+		p_format = {
+			/*.cfFormat = */m_clipboardFormat_additionalData,
+			/*.ptd = */nullptr,
+			/*.dwAspect = */DVASPECT_CONTENT,
+			/*.lindex = */-1,
+			/*.tymed = */TYMED_HGLOBAL
+		};
 		p_medium.tymed = TYMED_HGLOBAL;
-		p_medium.pUnkForRelease = nullptr;
 		p_medium.hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(p_data));
 		*static_cast<uint64*>(p_medium.hGlobal) = p_data;
 	}
-	OleDataObject* createStringOleDataObject(std::u16string_view p_string, uint64 p_additionalData) const
+	auto createStringOleDataObject(std::u16string_view const p_string, uint64 const p_additionalData) const -> ComReference<OleDataObject>
 	{
-		FORMATETC format[2];
-		format[0].cfFormat = CF_UNICODETEXT;
-		format[0].tymed = TYMED_HGLOBAL;
-		format[0].dwAspect = DVASPECT_CONTENT;
-		format[0].lindex = -1;
-		format[0].ptd = 0;
+		auto formats = std::array<FORMATETC, 2>{};
+		formats[0].cfFormat = CF_UNICODETEXT;
+		formats[0].tymed = TYMED_HGLOBAL;
+		formats[0].dwAspect = DVASPECT_CONTENT;
+		formats[0].lindex = -1;
 
-		STGMEDIUM medium[2];
-		medium[0].tymed = TYMED_HGLOBAL;
-		medium[0].pUnkForRelease = 0;
+		auto mediums = std::array<STGMEDIUM, 2>{};
+		mediums[0].tymed = TYMED_HGLOBAL;
 
 		//------------------------------
 
-		auto const stringSize = (p_string.size() + 1) * sizeof(wchar_t);
-		medium[0].hGlobal = GlobalAlloc(GMEM_FIXED, stringSize);
-		memcpy(medium[0].hGlobal, p_string.data(), stringSize);
+		auto const stringSize = (p_string.size() + 1)*sizeof(wchar_t);
+		mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, stringSize);
+		memcpy(mediums[0].hGlobal, p_string.data(), stringSize);
 
 		//------------------------------
 
-		createAdditionalData(format[1], medium[1], p_additionalData);
+		createAdditionalData(formats[1], mediums[1], p_additionalData);
 
-		return new OleDataObject{ format, medium, 2 };
+		return makeComReference<OleDataObject>(formats, mediums);
 	}
-	OleDataObject* createImageOleDataObject(Avo::Image const& p_image, uint64 p_additionalData) const
+	auto createImageOleDataObject(Avo::Image const& p_image, uint64 const p_additionalData) const -> ComReference<OleDataObject>
 	{
-		FORMATETC formats[3];
-		STGMEDIUM mediums[3];
-
-		auto bitmap = static_cast<ID2D1Bitmap1*>(p_image.getHandle());
+		auto formats = std::array<FORMATETC, 3>{};
+		auto mediums = std::array<STGMEDIUM, 3>{};
 
 		formats[0].cfFormat = m_clipboardFormat_fileContents;
 		formats[0].tymed = TYMED_ISTREAM;
 		formats[0].dwAspect = DVASPECT_CONTENT;
 		formats[0].lindex = -1;
-		formats[0].ptd = 0;
 
 		mediums[0].tymed = TYMED_ISTREAM;
-		mediums[0].pUnkForRelease = 0;
-		mediums[0].pstm = (IStream*)m_gui->getDrawingContext()->createImageFileDataNativeStream(p_image);
+		mediums[0].pstm = static_cast<IStream*>(m_gui->getDrawingContext()->createImageFileDataNativeStream(p_image));
 
 		//------------------------------
 
@@ -2785,10 +2893,8 @@ private:
 		formats[1].tymed = TYMED_HGLOBAL;
 		formats[1].dwAspect = DVASPECT_CONTENT;
 		formats[1].lindex = -1;
-		formats[1].ptd = 0;
 
 		mediums[1].tymed = TYMED_HGLOBAL;
-		mediums[1].pUnkForRelease = 0;
 		mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
 
 		auto groupDescriptor = static_cast<FILEGROUPDESCRIPTORW*>(mediums[1].hGlobal);
@@ -2800,23 +2906,25 @@ private:
 
 		createAdditionalData(formats[2], mediums[2], p_additionalData);
 
-		return new OleDataObject{ formats, mediums, 3 };
+		return makeComReference<OleDataObject>(formats, mediums);
 	}
-	OleDataObject* createFileOleDataObject(PointerRange<uint8 const> p_data, std::u16string_view p_name, uint64 p_additionalData) const
+	auto createFileOleDataObject(
+		Avo::DataView const p_data, 
+		std::u16string_view const p_name, 
+		uint64 const p_additionalData
+	) const -> ComReference<OleDataObject>
 	{
-		FORMATETC formats[4];
-		STGMEDIUM mediums[4];
+		auto formats = std::array<FORMATETC, 4>{};
+		auto mediums = std::array<STGMEDIUM, 4>{};
 
 		formats[0].cfFormat = CF_UNICODETEXT;
 		formats[0].tymed = TYMED_HGLOBAL;
 		formats[0].dwAspect = DVASPECT_CONTENT;
 		formats[0].lindex = -1;
-		formats[0].ptd = 0;
 
 		mediums[0].tymed = TYMED_HGLOBAL;
-		mediums[0].pUnkForRelease = 0;
 
-		auto const stringSize = (p_name.size() + 1) * sizeof(wchar_t);
+		auto const stringSize = (p_name.size() + 1)*sizeof(wchar_t);
 		mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, stringSize);
 		memcpy(mediums[0].hGlobal, p_name.data(), stringSize);
 
@@ -2826,11 +2934,9 @@ private:
 		formats[1].tymed = TYMED_ISTREAM;
 		formats[1].dwAspect = DVASPECT_CONTENT;
 		formats[1].lindex = -1;
-		formats[1].ptd = 0;
 
-		mediums[1].pUnkForRelease = 0;
 		mediums[1].tymed = TYMED_ISTREAM;
-		mediums[1].pstm = SHCreateMemStream(static_cast<BYTE const*>(p_data.data()), p_data.size());
+		mediums[1].pstm = SHCreateMemStream(reinterpret_cast<BYTE const*>(p_data.data()), p_data.size());
 
 		//------------------------------
 
@@ -2838,10 +2944,8 @@ private:
 		formats[2].tymed = TYMED_HGLOBAL;
 		formats[2].dwAspect = DVASPECT_CONTENT;
 		formats[2].lindex = -1;
-		formats[2].ptd = 0;
 
 		mediums[2].tymed = TYMED_HGLOBAL;
-		mediums[2].pUnkForRelease = 0;
 		mediums[2].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
 
 		auto groupDescriptor = static_cast<FILEGROUPDESCRIPTORW*>(mediums[2].hGlobal);
@@ -2853,24 +2957,22 @@ private:
 
 		createAdditionalData(formats[3], mediums[3], p_additionalData);
 
-		return new OleDataObject{ formats, mediums, 4 };
+		return makeComReference<OleDataObject>(formats, mediums);
 	}
-	OleDataObject* createFileOleDataObject(std::u16string_view p_path, uint64 p_additionalData) const
+	auto createFileOleDataObject(std::u16string_view const p_path, uint64 const p_additionalData) const -> ComReference<OleDataObject>
 	{
-		filesystem::path path(p_path);
-		auto widePathStringSize = (p_path.size() + 1) * sizeof(wchar_t);
+		auto const path = filesystem::path{p_path};
+		auto const widePathStringSize = (p_path.size() + 1)*sizeof(wchar_t);
 
-		FORMATETC formats[6];
-		STGMEDIUM mediums[6];
+		auto formats = std::array<FORMATETC, 6>{};
+		auto mediums = std::array<STGMEDIUM, 6>{};
 
 		formats[0].cfFormat = CF_UNICODETEXT;
 		formats[0].tymed = TYMED_HGLOBAL;
 		formats[0].dwAspect = DVASPECT_CONTENT;
 		formats[0].lindex = -1;
-		formats[0].ptd = nullptr;
 
 		mediums[0].tymed = TYMED_HGLOBAL;
-		mediums[0].pUnkForRelease = 0;
 		mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, widePathStringSize);
 		memcpy(mediums[0].hGlobal, p_path.data(), widePathStringSize);
 
@@ -2880,13 +2982,11 @@ private:
 		formats[1].tymed = TYMED_HGLOBAL;
 		formats[1].dwAspect = DVASPECT_CONTENT;
 		formats[1].lindex = -1;
-		formats[1].ptd = 0;
 
 		mediums[1].tymed = TYMED_HGLOBAL;
-		mediums[1].pUnkForRelease = 0;
 		mediums[1].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + widePathStringSize + sizeof(wchar_t));
 
-		DROPFILES* filenameStructure = (DROPFILES*)mediums[1].hGlobal;
+		auto filenameStructure = static_cast<DROPFILES*>(mediums[1].hGlobal);
 		filenameStructure->fNC = true;
 		filenameStructure->fWide = true;
 		filenameStructure->pt.x = 0;
@@ -2902,17 +3002,14 @@ private:
 
 		//------------------------------
 
-		OleDataObject* dataObject = nullptr;
 		if (filesystem::is_regular_file(path))
 		{
 			formats[3].cfFormat = m_clipboardFormat_fileContents;
 			formats[3].tymed = TYMED_ISTREAM;
 			formats[3].dwAspect = DVASPECT_CONTENT;
 			formats[3].lindex = -1;
-			formats[3].ptd = nullptr;
 
 			mediums[3].tymed = TYMED_ISTREAM;
-			mediums[3].pUnkForRelease = 0;
 			SHCreateStreamOnFileEx(reinterpret_cast<LPCWSTR>(p_path.data()), STGM_READ | STGM_SHARE_DENY_WRITE, 0, false, 0, &mediums[3].pstm);
 
 			//------------------------------
@@ -2921,10 +3018,8 @@ private:
 			formats[4].tymed = TYMED_HGLOBAL;
 			formats[4].dwAspect = DVASPECT_CONTENT;
 			formats[4].lindex = -1;
-			formats[4].ptd = 0;
 
 			mediums[4].tymed = TYMED_HGLOBAL;
-			mediums[4].pUnkForRelease = 0;
 			mediums[4].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(FILEGROUPDESCRIPTORW));
 
 			auto groupDescriptor = static_cast<FILEGROUPDESCRIPTORW*>(mediums[4].hGlobal);
@@ -2933,69 +3028,73 @@ private:
 
 			memcpy(groupDescriptor->fgd[0].cFileName, p_path.data(), widePathStringSize);
 
-			return new OleDataObject{ formats, mediums, 5 };
+			return makeComReference<OleDataObject>(formats, mediums);
 		}
-		return new OleDataObject{ formats, mediums, 3 };
+		return makeComReference<OleDataObject>(formats, mediums);
 	}
-	OleDataObject* createFilesOleDataObject(PointerRange<std::u16string> p_pathStrings, uint64 p_additionalData) const
+	auto createFilesOleDataObject(
+		Range<std::u16string*> const p_pathStrings, 
+		uint64 const p_additionalData
+	) const -> ComReference<OleDataObject>
 	{
-		FORMATETC format[2];
-		STGMEDIUM medium[2];
+		auto formats = std::array<FORMATETC, 2>{};
+		auto mediums = std::array<STGMEDIUM, 2>{};
 
 		//------------------------------
 		// Create an HDROP format, which is just the paths of all items.
 
-		format[0].cfFormat = CF_HDROP;
-		format[0].tymed = TYMED_HGLOBAL;
-		format[0].dwAspect = DVASPECT_CONTENT;
-		format[0].lindex = -1;
-		format[0].ptd = 0;
+		formats[0].cfFormat = CF_HDROP;
+		formats[0].tymed = TYMED_HGLOBAL;
+		formats[0].dwAspect = DVASPECT_CONTENT;
+		formats[0].lindex = -1;
 
-		uint32 pathsStringSize = 0;
-		for (auto pathString : p_pathStrings)
+		auto pathsStringSize = Count{};
+		for (auto const& pathString : p_pathStrings)
 		{
 			pathsStringSize += pathString.size() + 1;
 		}
 		pathsStringSize++;
 
-		medium[0].tymed = TYMED_HGLOBAL;
-		medium[0].pUnkForRelease = 0;
-		medium[0].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + pathsStringSize * sizeof(wchar_t));
+		mediums[0].tymed = TYMED_HGLOBAL;
+		mediums[0].hGlobal = GlobalAlloc(GMEM_FIXED, sizeof(DROPFILES) + pathsStringSize*sizeof(wchar_t));
 
-		DROPFILES* filenameStructure = (DROPFILES*)medium[0].hGlobal;
+		auto filenameStructure = static_cast<DROPFILES*>(mediums[0].hGlobal);
 		filenameStructure->fNC = true;
 		filenameStructure->fWide = true;
 		filenameStructure->pt.x = 0;
 		filenameStructure->pt.y = 0;
 		filenameStructure->pFiles = sizeof(DROPFILES);
 
-		auto pathsString = reinterpret_cast<wchar_t*>(reinterpret_cast<char*>(medium[0].hGlobal) + sizeof(DROPFILES));
+		auto pathsString = reinterpret_cast<wchar_t*>(reinterpret_cast<char*>(mediums[0].hGlobal) + sizeof(DROPFILES));
 		auto pathsStringPosition = pathsString;
-		for (auto pathString : p_pathStrings)
+		for (auto const& pathString : p_pathStrings)
 		{
 			std::copy(pathString.cbegin(), pathString.cend(), pathsStringPosition);
 			pathsStringPosition[pathString.size()] = 0;
-			//memcpy(pathsStringPosition, pathString.data(), (pathString.size() + 1) * sizeof(wchar_t));
+			//memcpy(pathsStringPosition, pathString.data(), (pathString.size() + 1)*sizeof(wchar_t));
 			pathsStringPosition += pathString.size() + 1;
 		}
 		pathsString[pathsStringSize - 1] = 0;
 
 		//------------------------------
 
-		createAdditionalData(format[1], medium[1], p_additionalData);
+		createAdditionalData(formats[1], mediums[1], p_additionalData);
 
 		//------------------------------
 
-		return new OleDataObject{ format, medium, 2 };
+		return makeComReference<OleDataObject>(formats, mediums);
 	}
 
-	uint32 doDragDrop(OleDataObject* p_dataObject, Avo::Image const& p_dragImage, Avo::Point<> p_dragImageCursorPosition)
+	auto doDragDrop(
+		OleDataObject* const p_dataObject, 
+		Avo::Image const& p_dragImage, 
+		Avo::Point<> const p_dragImageCursorPosition
+	) -> DWORD
 	{
-		auto mousePositionBefore = m_mousePosition;
+		auto const mousePositionBefore = m_mousePosition;
 
-		Avo::MouseEvent event;
-		event.x = m_mousePosition.x / m_dipToPixelFactor;
-		event.y = m_mousePosition.y / m_dipToPixelFactor;
+		auto event = Avo::MouseEvent{};
+		event.xy = m_mousePosition/m_dipToPixelFactor;
 		if (getIsMouseButtonDown(Avo::MouseButton::Left))
 		{
 			event.mouseButton = Avo::MouseButton::Left;
@@ -3027,21 +3126,20 @@ private:
 		}
 
 		m_gui->unlockThreads();
-		DWORD dropOperation = DROPEFFECT_NONE;
+		auto dropOperation = DWORD{DROPEFFECT_NONE};
 		DoDragDrop(p_dataObject, m_oleDropSource, DROPEFFECT_MOVE | DROPEFFECT_COPY | DROPEFFECT_LINK, &dropOperation);
 		m_gui->lockThreads();
 
-		event.x = m_mousePosition.x / m_dipToPixelFactor;
-		event.y = m_mousePosition.y / m_dipToPixelFactor;
-		event.movementX = (m_mousePosition.x - mousePositionBefore.x) / m_dipToPixelFactor;
-		event.movementY = (m_mousePosition.y - mousePositionBefore.y) / m_dipToPixelFactor;
+		event.xy = pixelsToDips(m_mousePosition);
+		event.movement = Avo::Vector2d{(m_mousePosition - mousePositionBefore)/m_dipToPixelFactor};
 		event.mouseButton = Avo::MouseButton::None;
 		m_gui->handleGlobalMouseMove(event);
 
 		return dropOperation;
 	}
 
-	auto convertNativeDropEffectToDragDropOperation(uint32 p_dropEffect)
+	auto convertNativeDropEffectToDragDropOperation(uint32 const p_dropEffect) 
+		-> Avo::DragDropOperation
 	{
 		switch (p_dropEffect)
 		{
@@ -3056,173 +3154,194 @@ private:
 	}
 
 public:
-	Avo::DragDropOperation dragAndDropString(std::string_view p_string, Avo::Image const& p_dragImage, 
-		Avo::Point<> p_dragImageCursorPosition, uint64 p_additionalData) override
+	auto dragAndDropString(
+		std::string_view const p_string, Avo::Image const& p_dragImage, 
+		Avo::Point<> const p_dragImageCursorPosition, uint64 const p_additionalData
+	) -> Avo::DragDropOperation override
 	{
 		return dragAndDropString(Avo::convertUtf8ToUtf16(p_string), p_dragImage, p_dragImageCursorPosition, p_additionalData);
 	}
-	Avo::DragDropOperation dragAndDropString(std::u16string_view p_string, Avo::Image const& p_dragImage, 
-		Avo::Point<> p_dragImageCursorPosition, uint64 p_additionalData) override
+	auto dragAndDropString(
+		std::u16string_view const p_string, Avo::Image const& p_dragImage, 
+		Avo::Point<> const p_dragImageCursorPosition, uint64 const p_additionalData
+	) -> Avo::DragDropOperation override
 	{
-		auto dataObject = createStringOleDataObject(p_string, p_additionalData);
-		auto dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
+		auto const dataObject = createStringOleDataObject(p_string, p_additionalData);
+		auto const dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
 
 		return convertNativeDropEffectToDragDropOperation(dropOperation);
 	}
 
-	Avo::DragDropOperation dragAndDropImage(Avo::Image const& p_image, Avo::Image const& p_dragImage, 
-		Avo::Point<> p_dragImageCursorPosition, uint64 p_additionalData) override
+	auto dragAndDropImage(
+		Avo::Image const& p_image, Avo::Image const& p_dragImage, 
+		Avo::Point<> const p_dragImageCursorPosition, uint64 const p_additionalData
+	) -> Avo::DragDropOperation override
 	{
-		auto dataObject = createImageOleDataObject(p_image, p_additionalData);
-		auto dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
+		auto const dataObject = createImageOleDataObject(p_image, p_additionalData);
+		auto const dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
 
-		switch (dropOperation)
-		{
-			case DROPEFFECT_COPY:
-				return Avo::DragDropOperation::Copy;
-			case DROPEFFECT_MOVE:
-				return Avo::DragDropOperation::Move;
-			case DROPEFFECT_LINK:
-				return Avo::DragDropOperation::Link;
-		}
-		return Avo::DragDropOperation::None;
+		return convertNativeDropEffectToDragDropOperation(dropOperation);
 	}
 
-	Avo::DragDropOperation dragAndDropFile(PointerRange<uint8 const> p_data, std::string_view p_name, 
-		Avo::Image const& p_dragImage, Avo::Point<> p_dragImageCursorPosition, uint64 p_additionalData) override
+	auto dragAndDropFile(
+		Avo::DataView const p_data, std::string_view const p_name, 
+		Avo::Image const& p_dragImage, Avo::Point<> const p_dragImageCursorPosition, 
+		uint64 const p_additionalData
+	) -> Avo::DragDropOperation override
 	{
 		return dragAndDropFile(p_data, Avo::convertUtf8ToUtf16(p_name), p_dragImage, p_dragImageCursorPosition, p_additionalData);
 	}
-	Avo::DragDropOperation dragAndDropFile(PointerRange<uint8 const> p_data, std::u16string_view p_name, 
-		Avo::Image const& p_dragImage, Avo::Point<> p_dragImageCursorPosition, uint64 p_additionalData) override
+	auto dragAndDropFile(
+		Avo::DataView const p_data, std::u16string_view const p_name, 
+		Avo::Image const& p_dragImage, Avo::Point<> const p_dragImageCursorPosition, 
+		uint64 const p_additionalData
+	) -> Avo::DragDropOperation override
 	{
-		auto dataObject = createFileOleDataObject(p_data, p_name, p_additionalData);
-		auto dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
+		auto const dataObject = createFileOleDataObject(p_data, p_name, p_additionalData);
+		auto const dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
 
 		return convertNativeDropEffectToDragDropOperation(dropOperation);
 	}
 
-	Avo::DragDropOperation dragAndDropFile(std::string_view p_path, Avo::Image const& p_dragImage, 
-		Avo::Point<> p_dragImageCursorPosition, uint64 p_additionalData)
+	auto dragAndDropFile(
+		std::string_view const p_path, Avo::Image const& p_dragImage, 
+		Avo::Point<> const p_dragImageCursorPosition, uint64 const p_additionalData
+	) -> Avo::DragDropOperation override
 	{
 		return dragAndDropFile(Avo::convertUtf8ToUtf16(p_path), p_dragImage, p_dragImageCursorPosition, p_additionalData);
 	}
-	Avo::DragDropOperation dragAndDropFile(std::u16string_view p_path, Avo::Image const& p_dragImage, 
-		Avo::Point<> p_dragImageCursorPosition, uint64 p_additionalData)
+	auto dragAndDropFile(
+		std::u16string_view const p_path, Avo::Image const& p_dragImage, 
+		Avo::Point<> const p_dragImageCursorPosition, uint64 const p_additionalData
+	) -> Avo::DragDropOperation override
 	{
-		auto dataObject = createFileOleDataObject(p_path, p_additionalData);
-		auto dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
+		auto const dataObject = createFileOleDataObject(p_path, p_additionalData);
+		auto const dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
 
 		return convertNativeDropEffectToDragDropOperation(dropOperation);
 	}
 
-	Avo::DragDropOperation dragAndDropFiles(PointerRange<std::string> p_pathStrings, Avo::Image const& p_dragImage, 
-		Avo::Point<> p_dragImageCursorPosition, uint64 p_additionalData)
+	auto dragAndDropFiles(
+		Range<std::string*> const p_pathStrings, Avo::Image const& p_dragImage, 
+		Avo::Point<> const p_dragImageCursorPosition, uint64 const p_additionalData
+	) -> Avo::DragDropOperation override
 	{
-		std::vector<std::u16string> widePathStrings(p_pathStrings.length);
-		for (auto a : Indices{ p_pathStrings })
+		auto widePathStrings = std::vector<std::u16string>(p_pathStrings.size());
+		for (auto const a : Indices{p_pathStrings})
 		{
 			widePathStrings[a] = Avo::convertUtf8ToUtf16(p_pathStrings[a]);
 		}
 
-		return dragAndDropFiles(PointerRange<std::u16string>{ widePathStrings }, p_dragImage, p_dragImageCursorPosition, p_additionalData);
+		return dragAndDropFiles(Range{widePathStrings}, p_dragImage, p_dragImageCursorPosition, p_additionalData);
 	}
-	Avo::DragDropOperation dragAndDropFiles(PointerRange<std::u16string> p_pathStrings, Avo::Image const& p_dragImage, 
-		Avo::Point<> p_dragImageCursorPosition, uint64 p_additionalData)
+	auto dragAndDropFiles(
+		Range<std::u16string*> const p_pathStrings, Avo::Image const& p_dragImage, 
+		Avo::Point<> const p_dragImageCursorPosition, uint64 const p_additionalData
+	) -> Avo::DragDropOperation override
 	{
-		auto dataObject = createFilesOleDataObject(p_pathStrings, p_additionalData);
-		auto dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
-		dataObject->Release();
+		auto const dataObject = createFilesOleDataObject(p_pathStrings, p_additionalData);
+		auto const dropOperation = doDragDrop(dataObject, p_dragImage, p_dragImageCursorPosition);
 
 		return convertNativeDropEffectToDragDropOperation(dropOperation);
 	}
 
 	//------------------------------
 
-	void setClipboardString(std::string_view p_string, uint64 p_additionalData) const override
+	auto setClipboardString(std::string_view const p_string, uint64 const p_additionalData) const -> void override
 	{
 		setClipboardString(Avo::convertUtf8ToUtf16(p_string), p_additionalData);
 	}
-	void setClipboardString(std::u16string_view p_string, uint64 p_additionalData) const override
+	auto setClipboardString(std::u16string_view const p_string, uint64 const p_additionalData) const -> void override
 	{
-		auto dataObject = createStringOleDataObject(p_string, p_additionalData);
+		auto const dataObject = createStringOleDataObject(p_string, p_additionalData);
 		OleSetClipboard(dataObject);
-		dataObject->Release();
 	}
 
-	void setClipboardImage(Avo::Image const& p_image, uint64 p_additionalData) const override
+	auto setClipboardImage(Avo::Image const& p_image, uint64 const p_additionalData) const -> void override
 	{
-		auto dataObject = createImageOleDataObject(p_image, p_additionalData);
+		auto const dataObject = createImageOleDataObject(p_image, p_additionalData);
 		OleSetClipboard(dataObject);
-		dataObject->Release();
 	}
 
-	void setClipboardFile(PointerRange<uint8 const> p_data, std::string_view p_name, uint64 p_additionalData) const override
+	auto setClipboardFile(Avo::DataView const p_data, std::string_view const p_name, uint64 const p_additionalData) const -> void override
 	{
-		auto dataObject = createFileOleDataObject(p_data, Avo::convertUtf8ToUtf16(p_name), p_additionalData);
+		auto const dataObject = createFileOleDataObject(p_data, Avo::convertUtf8ToUtf16(p_name), p_additionalData);
 		OleSetClipboard(dataObject);
-		dataObject->Release();
 	}
-	void setClipboardFile(PointerRange<uint8 const> p_data, std::u16string_view p_name, uint64 p_additionalData) const override
+	auto setClipboardFile(Avo::DataView const p_data, std::u16string_view const p_name, uint64 const p_additionalData) const -> void override
 	{
-		auto dataObject = createFileOleDataObject(p_data, p_name, p_additionalData);
+		auto const dataObject = createFileOleDataObject(p_data, p_name, p_additionalData);
 		OleSetClipboard(dataObject);
-		dataObject->Release();
 	}
 
-	void setClipboardFile(std::string_view p_path, uint64 p_additionalData) const override
+	auto setClipboardFile(std::string_view const p_path, uint64 const p_additionalData) const -> void override
 	{
-		auto dataObject = createFileOleDataObject(Avo::convertUtf8ToUtf16(p_path), p_additionalData);
+		auto const dataObject = createFileOleDataObject(Avo::convertUtf8ToUtf16(p_path), p_additionalData);
 		OleSetClipboard(dataObject);
-		dataObject->Release();
 	}
-	void setClipboardFile(std::u16string_view p_path, uint64 p_additionalData) const override
+	auto setClipboardFile(std::u16string_view const p_path, uint64 const p_additionalData) const -> void override
 	{
-		auto dataObject = createFileOleDataObject(p_path, p_additionalData);
+		auto const dataObject = createFileOleDataObject(p_path, p_additionalData);
 		OleSetClipboard(dataObject);
-		dataObject->Release();
 	}
 
-	void setClipboardFiles(PointerRange<std::string> p_paths, uint64 p_additionalData) const override
+	auto setClipboardFiles(Range<std::string*> const p_paths, uint64 const p_additionalData) const -> void override
 	{
-		std::vector<std::u16string> widePathStrings(p_paths.size());
-		for (uint32 a = 0; a < p_paths.size(); a++)
+		auto widePathStrings = std::vector<std::u16string>(p_paths.size());
+		for (auto const a : Indices{p_paths})
 		{
 			widePathStrings[a] = Avo::convertUtf8ToUtf16(p_paths[a]);
 		}
 
-		auto dataObject = createFilesOleDataObject(widePathStrings, p_additionalData);
+		auto const dataObject = createFilesOleDataObject(widePathStrings, p_additionalData);
 		OleSetClipboard(dataObject);
-		dataObject->Release();
 	}
-	void setClipboardFiles(PointerRange<std::u16string> p_paths, uint64 p_additionalData) const override
+	auto setClipboardFiles(Range<std::u16string*> const p_paths, uint64 const p_additionalData) const -> void override
 	{
-		auto dataObject = createFilesOleDataObject(p_paths, p_additionalData);
+		auto const dataObject = createFilesOleDataObject(p_paths, p_additionalData);
 		OleSetClipboard(dataObject);
-		dataObject->Release();
 	}
 
-	std::unique_ptr<Avo::ClipboardData> getClipboardData() const override
+	auto getClipboardData() const -> std::unique_ptr<Avo::ClipboardData> override
 	{
-		IDataObject* dataObject = nullptr;
+		auto dataObject = ComReference<IDataObject>{};
 		OleGetClipboard(&dataObject);
-		auto clipboardData = new OleClipboardData{ m_gui };
+
+		auto clipboardData = std::make_unique<OleClipboardData>(m_gui);
 		clipboardData->setOleDataObject(dataObject);
-		return std::unique_ptr<Avo::ClipboardData>(static_cast<Avo::ClipboardData*>(clipboardData));
+		return clipboardData;
 	}
 
 	//------------------------------
 
 private:
-	bool m_hasGottenInitialSizeMessageForCustomBorderWindows = false;
+	bool m_hasGottenInitialSizeMessageForCustomBorderWindows{};
 	bool m_isMouseOutsideClientArea = true;
+	bool m_isDoubleClicking{};
+
+	auto createMouseButtonEvent(
+		WPARAM const p_wparam, LPARAM const p_lparam, 
+		Avo::MouseButton const p_button,
+		bool const p_isDoubleClick = false
+	) -> Avo::MouseEvent
+	{
+		Avo::MouseEvent mouseEvent;
+		mouseEvent.xy = pixelsToDips(Avo::Point{GET_X_LPARAM(p_lparam), GET_Y_LPARAM(p_lparam)});
+		mouseEvent.mouseButton = p_button;
+		mouseEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(p_wparam);
+		return mouseEvent;
+	}
+	static auto getIsKeyRepeated(LPARAM const p_lparam) -> bool
+	{
+		return p_lparam & (1 << 30);
+	}
+	
 public:
 	// Returns true if the event was handled
-	long long handleEvent(UINT p_message, WPARAM p_data_a, LPARAM p_data_b)
+	auto handleEvent(
+		UINT const p_message, 
+		WPARAM const p_data_a, LPARAM const p_data_b
+	) -> long long
 	{
 		switch (p_message)
 		{
@@ -3230,11 +3349,9 @@ public:
 			{
 				OleInitialize(0);
 
-				m_oleDropSource = new OleDropSource{ m_gui };
-				m_oleDropTarget = new OleDropTarget{ m_gui };
-				RegisterDragDrop(m_windowHandle, m_oleDropTarget);
-
-				
+				m_oleDropSource = makeComReference<OleDropSource>(m_gui);
+				m_oleDropTarget = makeComReference<OleDropTarget>(m_gui);
+				RegisterDragDrop(m_windowHandle, *m_oleDropTarget);
 
 				m_clipboardFormat_fileContents = RegisterClipboardFormatW(CFSTR_FILECONTENTS);
 				m_clipboardFormat_fileGroupDescriptor = RegisterClipboardFormatW(CFSTR_FILEDESCRIPTORW);
@@ -3249,19 +3366,20 @@ public:
 					color to be consistent with the colors of Direct2D and other potential graphics APIs 
 					so it is changed to the sRGB color space.
 				*/
-				LOGCOLORSPACEW colorSpaceSettings;
-				colorSpaceSettings.lcsSignature = LCS_SIGNATURE;
-				colorSpaceSettings.lcsVersion = 0x400;
-				colorSpaceSettings.lcsSize = sizeof(colorSpaceSettings);
-				colorSpaceSettings.lcsCSType = LCS_sRGB;
-				colorSpaceSettings.lcsIntent = LCS_GM_ABS_COLORIMETRIC;
+				auto colorSpaceSettings = LOGCOLORSPACEW{
+					/*.lcsSignature = */LCS_SIGNATURE,
+					/*.lcsVersion = */0x400,
+					/*.lcsSize = */sizeof(LOGCOLORSPACEW),
+					/*.lcsCSType = */LCS_sRGB,
+					/*.lcsIntent = */LCS_GM_ABS_COLORIMETRIC
+				};
 
 				auto colorSpace = CreateColorSpaceW(&colorSpaceSettings);
 				SetColorSpace(GetDC(m_windowHandle), colorSpace);
 
 				m_isOpen = true;
 
-				windowCreateListeners(Avo::WindowEvent{ this, m_size.x / m_dipToPixelFactor, m_size.y / m_dipToPixelFactor });
+				windowCreateListeners(Avo::WindowEvent{this, m_size/m_dipToPixelFactor});
 
 				return 0;
 			}
@@ -3285,10 +3403,8 @@ public:
 				}
 				else if (m_hasGottenInitialSizeMessageForCustomBorderWindows || !getHasCustomBorder())
 				{
-					m_size.x = p_data_b & 0xffff;
-					m_size.y = p_data_b >> 16 & 0xffff;
-					windowEvent.width = m_size.x / m_dipToPixelFactor;
-					windowEvent.height = m_size.y / m_dipToPixelFactor;
+					m_size = {p_data_b & 0xffff, p_data_b >> 16 & 0xffff};
+					windowEvent.size = pixelsToDips(m_size);
 
 					if (p_data_a == SIZE_MAXIMIZED)
 					{
@@ -3336,12 +3452,12 @@ public:
 			}
 			case WM_ERASEBKGND:
 			{
-				auto deviceContext = (HDC)p_data_a;
+				auto deviceContext = reinterpret_cast<HDC>(p_data_a);
 
-				RECT rectangle;
+				auto rectangle = RECT{};
 				GetUpdateRect(m_windowHandle, &rectangle, false);
 				auto color = m_gui->getDrawingContext()->getBackgroundColor(); // Thread safe I think?
-				FillRect(deviceContext, &rectangle, CreateSolidBrush(RGB(color.red * 255, color.green * 255, color.blue * 255)));
+				FillRect(deviceContext, &rectangle, CreateSolidBrush(RGB(color.red*255, color.green*255, color.blue*255)));
 
 				return 1; // We erased it.
 			}
@@ -3351,8 +3467,8 @@ public:
 				{
 					if (IsMaximized(m_windowHandle))
 					{
-						auto parameters = (NCCALCSIZE_PARAMS*)p_data_b;
-						MONITORINFO info{ };
+						auto const parameters = reinterpret_cast<NCCALCSIZE_PARAMS*>(p_data_b);
+						auto info = MONITORINFO{};
 						info.cbSize = sizeof(MONITORINFO);
 						GetMonitorInfo(MonitorFromRect(parameters->rgrc, MONITOR_DEFAULTTONEAREST), &info);
 
@@ -3366,14 +3482,14 @@ public:
 			{
 				if (getHasCustomBorder() && GetCapture() != m_windowHandle)
 				{
-					POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
+					auto mousePosition = POINT{GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b)};
 					ScreenToClient(m_windowHandle, &mousePosition);
 
 					bool wasMousePositionInsideWindow = m_mousePosition.x >= 0 && m_mousePosition.y >= 0 
 					                                 && m_mousePosition.x < m_size.x && m_mousePosition.y < m_size.y;
 					if (!m_isMouseOutsideClientArea || m_isMouseOutsideClientArea && !wasMousePositionInsideWindow) // Is was outside of the nonclient area before this mousemove.
 					{
-						TRACKMOUSEEVENT trackStructure = { };
+						auto trackStructure = TRACKMOUSEEVENT{};
 						trackStructure.dwFlags = TME_LEAVE | TME_NONCLIENT;
 						trackStructure.cbSize = sizeof(TRACKMOUSEEVENT);
 						trackStructure.hwndTrack = m_windowHandle;
@@ -3392,18 +3508,14 @@ public:
 					// because it is in this case part of the GUI (since the CustomBorder style flag is true).
 					if (mousePosition.x >= 0 && mousePosition.y >= 0 && mousePosition.x < m_size.x && mousePosition.y < m_size.y)
 					{
-						Avo::MouseEvent mouseEvent;
-						mouseEvent.x = mousePosition.x;
-						mouseEvent.y = mousePosition.y;
-						mouseEvent.movementX = mousePosition.x - m_mousePosition.x;
-						mouseEvent.movementY = mousePosition.y - m_mousePosition.y;
+						auto mouseEvent = Avo::MouseEvent{};
+						mouseEvent.xy = pixelsToDips(Avo::Point<Avo::Pixels>{mousePosition.x, mousePosition.y});
+						mouseEvent.movement = Avo::Vector2d{mouseEvent.xy - pixelsToDips(m_mousePosition)};
 
-						m_mousePosition.x = mousePosition.x;
-						m_mousePosition.y = mousePosition.y;
+						m_mousePosition = {mousePosition.x, mousePosition.y};
 
-						m_gui->lockThreads();
+						auto lock = m_gui->createThreadLock();
 						m_gui->handleGlobalMouseMove(mouseEvent);
-						m_gui->unlockThreads();
 					}
 					return 0;
 				}
@@ -3411,22 +3523,18 @@ public:
 			}
 			case WM_MOUSEMOVE:
 			{
-				int32 x = GET_X_LPARAM(p_data_b);
-				int32 y = GET_Y_LPARAM(p_data_b);
+				auto xy = Avo::Point<Avo::Pixels>{GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b)};
 
-				if (x == m_mousePosition.x && y == m_mousePosition.y)
+				if (xy == m_mousePosition)
 				{
 					return 0;
 				}
 
 				Avo::MouseEvent mouseEvent;
-				mouseEvent.x = x / m_dipToPixelFactor;
-				mouseEvent.y = y / m_dipToPixelFactor;
-				mouseEvent.movementX = (x - m_mousePosition.x) / m_dipToPixelFactor;
-				mouseEvent.movementY = (y - m_mousePosition.y) / m_dipToPixelFactor;
+				mouseEvent.xy = xy/m_dipToPixelFactor;
+				mouseEvent.movement = Avo::Vector2d{(xy - m_mousePosition)/m_dipToPixelFactor};
 
-				m_mousePosition.x = x;
-				m_mousePosition.y = y;
+				m_mousePosition = xy;
 
 				m_gui->lockThreads();
 				m_gui->handleGlobalMouseMove(mouseEvent);
@@ -3437,7 +3545,7 @@ public:
 					SetCursor(m_cursorHandle);
 
 					// This is to make the window recieve WM_MOUSELEAVE.
-					TRACKMOUSEEVENT trackStructure = { };
+					auto trackStructure = TRACKMOUSEEVENT{};
 					trackStructure.dwFlags = TME_LEAVE;
 					trackStructure.cbSize = sizeof(TRACKMOUSEEVENT);
 					trackStructure.hwndTrack = m_windowHandle;
@@ -3453,19 +3561,21 @@ public:
 			{
 				if (GetCapture() != m_windowHandle)
 				{
-					POINT mousePosition;
-					GetCursorPos(&mousePosition);
+					POINT winMousePosition;
+					GetCursorPos(&winMousePosition);
 
-					bool isMouseOverWindow = WindowFromPoint(mousePosition) == m_windowHandle;
+					bool const isMouseOverWindow = WindowFromPoint(winMousePosition) == m_windowHandle;
 
-					ScreenToClient(m_windowHandle, &mousePosition);
+					ScreenToClient(m_windowHandle, &winMousePosition);
 
-					if (mousePosition.x >= 0 && mousePosition.y >= 0 && 
-						mousePosition.x < m_size.x && mousePosition.y < m_size.y && isMouseOverWindow)
+					auto const mousePosition = Avo::Point<Avo::Pixels>{winMousePosition.x, winMousePosition.y};
+					if (m_size.getIsContaining(mousePosition) && isMouseOverWindow)
 					{
-						// If it's a WM_MOUSELEAVE message, then it has entered the nonclient area if the new mouse position still is inside the window.
-						// If it's a WM_NCMOUSELEAVE message, then it has entered the client area.
-						// Note that both these cases would mean that the window has the CustomBorder style flag set.
+						/*
+							If it's a WM_MOUSELEAVE message, then it has entered the nonclient area if the new mouse position still is inside the 
+							window. If it's a WM_NCMOUSELEAVE message, then it has entered the client area. Note that both these cases would mean 
+							that the window has the CustomBorder style flag set.
+						*/
 						m_isMouseOutsideClientArea = p_message == WM_MOUSELEAVE;
 						return 0;
 					}
@@ -3473,18 +3583,17 @@ public:
 					m_isMouseOutsideClientArea = true;
 
 					Avo::MouseEvent mouseEvent;
-					mouseEvent.x = mousePosition.x / m_dipToPixelFactor;
-					mouseEvent.y = mousePosition.y / m_dipToPixelFactor;
-					mouseEvent.movementX = (mousePosition.x - m_mousePosition.x) / m_dipToPixelFactor;
-					mouseEvent.movementY = (mousePosition.y - m_mousePosition.y) / m_dipToPixelFactor;
+					mouseEvent.xy = mousePosition/m_dipToPixelFactor;
+					mouseEvent.movement = Avo::Vector2d{(mousePosition - m_mousePosition)/m_dipToPixelFactor};
 
-					m_mousePosition.x = mousePosition.x;
-					m_mousePosition.y = mousePosition.y;
+					m_mousePosition = mousePosition;
 
-					m_gui->lockThreads();
-					m_gui->handleGlobalMouseMove(mouseEvent);
-					m_gui->handleGlobalMouseLeave(mouseEvent);
-					m_gui->unlockThreads();
+					{
+						auto const lock = m_gui->createThreadLock();
+						m_gui->handleGlobalMouseMove(mouseEvent);
+						m_gui->handleGlobalMouseLeave(mouseEvent);
+					}
+					m_cursorType = Avo::Cursor::Unknown;
 				}
 				return 0;
 			}
@@ -3494,36 +3603,38 @@ public:
 				{
 					if (p_data_b)
 					{
-						POINT mousePosition = { GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b) };
+						auto mousePosition = POINT{GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b)};
 						ScreenToClient(m_windowHandle, &mousePosition);
 
-						auto area = m_gui->getWindowBorderAreaAtPosition(mousePosition.x / m_dipToPixelFactor, mousePosition.y / m_dipToPixelFactor);
+						auto const area = m_gui->getWindowBorderAreaAtPosition(
+							pixelsToDips(Avo::Point<Avo::Pixels>{mousePosition.x, mousePosition.y})
+						);
 						if (IsMaximized(m_windowHandle) && area != Avo::WindowBorderArea::Dragging && area != Avo::WindowBorderArea::None)
 						{
 							return HTCLIENT;
 						}
 						switch (area)
 						{
-						case Avo::WindowBorderArea::TopLeftResize:
-							return HTTOPLEFT;
-						case Avo::WindowBorderArea::TopResize:
-							return HTTOP;
-						case Avo::WindowBorderArea::TopRightResize:
-							return HTTOPRIGHT;
-						case Avo::WindowBorderArea::LeftResize:
-							return HTLEFT;
-						case Avo::WindowBorderArea::RightResize:
-							return HTRIGHT;
-						case Avo::WindowBorderArea::BottomLeftResize:
-							return HTBOTTOMLEFT;
-						case Avo::WindowBorderArea::BottomResize:
-							return HTBOTTOM;
-						case Avo::WindowBorderArea::BottomRightResize:
-							return HTBOTTOMRIGHT;
-						case Avo::WindowBorderArea::Dragging:
-							return HTCAPTION;
-						case Avo::WindowBorderArea::None:
-							return HTCLIENT;
+							case Avo::WindowBorderArea::TopLeftResize:
+								return HTTOPLEFT;
+							case Avo::WindowBorderArea::TopResize:
+								return HTTOP;
+							case Avo::WindowBorderArea::TopRightResize:
+								return HTTOPRIGHT;
+							case Avo::WindowBorderArea::LeftResize:
+								return HTLEFT;
+							case Avo::WindowBorderArea::RightResize:
+								return HTRIGHT;
+							case Avo::WindowBorderArea::BottomLeftResize:
+								return HTBOTTOMLEFT;
+							case Avo::WindowBorderArea::BottomResize:
+								return HTBOTTOM;
+							case Avo::WindowBorderArea::BottomRightResize:
+								return HTBOTTOMRIGHT;
+							case Avo::WindowBorderArea::Dragging:
+								return HTCAPTION;
+							case Avo::WindowBorderArea::None:
+								return HTCLIENT;
 						}
 					}
 					return 0;
@@ -3532,9 +3643,9 @@ public:
 			}
 			case WM_DPICHANGED:
 			{
-				m_gui->getDrawingContext()->setDpi(float(HIWORD(p_data_a)));
-				m_dipToPixelFactor = HIWORD(p_data_a) / (float)USER_DEFAULT_SCREEN_DPI;
-				RECT* newRectangle = (RECT*)p_data_b;
+				m_gui->getDrawingContext()->setDpi(static_cast<float>(HIWORD(p_data_a)));
+				m_dipToPixelFactor = HIWORD(p_data_a)/static_cast<float>(USER_DEFAULT_SCREEN_DPI);
+				auto newRectangle = reinterpret_cast<RECT*>(p_data_b);
 				SetWindowPos(
 					m_windowHandle, 0, 
 					newRectangle->left, newRectangle->top, 
@@ -3545,9 +3656,9 @@ public:
 			}
 			case WM_GETMINMAXINFO:
 			{
-				auto minMaxInfo = (MINMAXINFO*)p_data_b;
+				auto minMaxInfo = reinterpret_cast<MINMAXINFO*>(p_data_b);
 
-				RECT rect{ 0, 0, (int)m_minSize.x, (int)m_minSize.y };
+				auto rect = RECT{0, 0, m_minSize.x, m_minSize.y};
 				AdjustWindowRect(&rect, m_styles, 0);
 				if (m_minSize.x > 0U || m_minSize.y > 0U)
 				{
@@ -3555,7 +3666,7 @@ public:
 					minMaxInfo->ptMinTrackSize.y = rect.bottom - rect.top;
 				}
 
-				rect = { 0, 0, (int)m_maxSize.x, (int)m_maxSize.y };
+				rect = {0, 0, m_maxSize.x, m_maxSize.y};
 				AdjustWindowRect(&rect, m_styles, 0);
 				if (m_maxSize.x > 0U || m_maxSize.y > 0U)
 				{
@@ -3568,27 +3679,19 @@ public:
 			{
 				RECT rect;
 				GetWindowRect(m_windowHandle, &rect);
-				m_position.set(rect.left, rect.top);
+				m_position = {rect.left, rect.top};
 
 				return 0;
 			}
 			case WM_MOUSEWHEEL:
 			{
-				POINT mousePosition;
-				mousePosition.x = GET_X_LPARAM(p_data_b);
-				mousePosition.y = GET_Y_LPARAM(p_data_b);
-				
+				auto mousePosition = POINT{GET_X_LPARAM(p_data_b), GET_Y_LPARAM(p_data_b)};				
 				ScreenToClient(m_windowHandle, &mousePosition);
 
-				float delta = float(GET_WHEEL_DELTA_WPARAM(p_data_a)) / 120.f;
-
-				auto modifierKeyFlags = convertWindowsKeyStateToModifierKeyFlags(GET_KEYSTATE_WPARAM(p_data_a));
-
 				Avo::MouseEvent mouseEvent;
-				mouseEvent.x = mousePosition.x / m_dipToPixelFactor;
-				mouseEvent.y = mousePosition.y / m_dipToPixelFactor;
-				mouseEvent.scrollDelta = delta;
-				mouseEvent.modifierKeys = modifierKeyFlags;
+				mouseEvent.xy = Avo::Point{mousePosition.x, mousePosition.y}/m_dipToPixelFactor;
+				mouseEvent.scrollDelta = GET_WHEEL_DELTA_WPARAM(p_data_a)/120.f;
+				mouseEvent.modifierKeys = convertWindowsKeyStateToModifierKeyFlags(GET_KEYSTATE_WPARAM(p_data_a));
 
 				m_gui->lockThreads();
 				m_gui->handleGlobalMouseScroll(mouseEvent);
@@ -3598,19 +3701,8 @@ public:
 			}
 			case WM_LBUTTONDOWN:
 			{
-				int32 x = GET_X_LPARAM(p_data_b);
-				int32 y = GET_Y_LPARAM(p_data_b);
-
-				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-				Avo::MouseEvent mouseEvent;
-				mouseEvent.x = x / m_dipToPixelFactor;
-				mouseEvent.y = y / m_dipToPixelFactor;
-				mouseEvent.mouseButton = Avo::MouseButton::Left;
-				mouseEvent.modifierKeys = modifierFlags;
-
 				m_gui->lockThreads();
-				m_gui->handleGlobalMouseDown(mouseEvent);
+				m_gui->handleGlobalMouseDown(createMouseButtonEvent(p_data_a, p_data_b, Avo::MouseButton::Left));
 				m_gui->unlockThreads();
 
 				SetCapture(m_windowHandle);
@@ -3619,20 +3711,11 @@ public:
 			}
 			case WM_LBUTTONUP:
 			{
-				int32 x = GET_X_LPARAM(p_data_b);
-				int32 y = GET_Y_LPARAM(p_data_b);
-
-				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-				Avo::MouseEvent mouseEvent;
-				mouseEvent.x = x / m_dipToPixelFactor;
-				mouseEvent.y = y / m_dipToPixelFactor;
-				mouseEvent.mouseButton = Avo::MouseButton::Left;
-				mouseEvent.modifierKeys = modifierFlags;
-
 				m_gui->lockThreads();
-				m_gui->handleGlobalMouseUp(mouseEvent);
+				m_gui->handleGlobalMouseUp(createMouseButtonEvent(p_data_a, p_data_b, Avo::MouseButton::Left, m_isDoubleClicking));
 				m_gui->unlockThreads();
+
+				m_isDoubleClicking = false;
 
 				ReleaseCapture();
 
@@ -3640,141 +3723,75 @@ public:
 			}
 			case WM_LBUTTONDBLCLK:
 			{
-				int32 x = GET_X_LPARAM(p_data_b);
-				int32 y = GET_Y_LPARAM(p_data_b);
-
-				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-				Avo::MouseEvent mouseEvent;
-				mouseEvent.x = x / m_dipToPixelFactor;
-				mouseEvent.y = y / m_dipToPixelFactor;
-				mouseEvent.mouseButton = Avo::MouseButton::Left;
-				mouseEvent.modifierKeys = modifierFlags;
 				m_gui->lockThreads();
-				m_gui->handleGlobalMouseDoubleClick(mouseEvent);
+				m_gui->handleGlobalMouseDown(createMouseButtonEvent(p_data_a, p_data_b, Avo::MouseButton::Left, true));
 				m_gui->unlockThreads();
+
+				m_isDoubleClicking = true;
 
 				return 0;
 			}
 			case WM_RBUTTONDOWN:
 			{
-				int32 x = GET_X_LPARAM(p_data_b);
-				int32 y = GET_Y_LPARAM(p_data_b);
-
-				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-				Avo::MouseEvent mouseEvent;
-				mouseEvent.x = x / m_dipToPixelFactor;
-				mouseEvent.y = y / m_dipToPixelFactor;
-				mouseEvent.mouseButton = Avo::MouseButton::Right;
-				mouseEvent.modifierKeys = modifierFlags;
 				m_gui->lockThreads();
-				m_gui->handleGlobalMouseDown(mouseEvent);
+				m_gui->handleGlobalMouseDown(createMouseButtonEvent(p_data_a, p_data_b, Avo::MouseButton::Right));
 				m_gui->unlockThreads();
 
 				return 0;
 			}
 			case WM_RBUTTONUP:
 			{
-				int32 x = GET_X_LPARAM(p_data_b);
-				int32 y = GET_Y_LPARAM(p_data_b);
-
-				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-				Avo::MouseEvent mouseEvent;
-				mouseEvent.x = x / m_dipToPixelFactor;
-				mouseEvent.y = y / m_dipToPixelFactor;
-				mouseEvent.mouseButton = Avo::MouseButton::Right;
-				mouseEvent.modifierKeys = modifierFlags;
 				m_gui->lockThreads();
-				m_gui->handleGlobalMouseUp(mouseEvent);
+				m_gui->handleGlobalMouseUp(createMouseButtonEvent(p_data_a, p_data_b, Avo::MouseButton::Right, m_isDoubleClicking));
 				m_gui->unlockThreads();
+
+				m_isDoubleClicking = false;
 
 				return 0;
 			}
 			case WM_RBUTTONDBLCLK:
 			{
-				int32 x = GET_X_LPARAM(p_data_b);
-				int32 y = GET_Y_LPARAM(p_data_b);
-
-				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-				Avo::MouseEvent mouseEvent;
-				mouseEvent.x = x / m_dipToPixelFactor;
-				mouseEvent.y = y / m_dipToPixelFactor;
-				mouseEvent.mouseButton = Avo::MouseButton::Right;
-				mouseEvent.modifierKeys = modifierFlags;
 				m_gui->lockThreads();
-				m_gui->handleGlobalMouseDoubleClick(mouseEvent);
+				m_gui->handleGlobalMouseDown(createMouseButtonEvent(p_data_a, p_data_b, Avo::MouseButton::Right, true));
 				m_gui->unlockThreads();
 
+				m_isDoubleClicking = true;
+				
 				return 0;
 			}
 			case WM_MBUTTONDOWN:
 			{
-				int32 x = GET_X_LPARAM(p_data_b);
-				int32 y = GET_Y_LPARAM(p_data_b);
-
-				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-				Avo::MouseEvent mouseEvent;
-				mouseEvent.x = x / m_dipToPixelFactor;
-				mouseEvent.y = y / m_dipToPixelFactor;
-				mouseEvent.mouseButton = Avo::MouseButton::Middle;
-				mouseEvent.modifierKeys = modifierFlags;
 				m_gui->lockThreads();
-				m_gui->handleGlobalMouseDown(mouseEvent);
+				m_gui->handleGlobalMouseDown(createMouseButtonEvent(p_data_a, p_data_b, Avo::MouseButton::Middle));
 				m_gui->unlockThreads();
 
 				return 0;
 			}
 			case WM_MBUTTONUP:
 			{
-				int32 x = GET_X_LPARAM(p_data_b);
-				int32 y = GET_Y_LPARAM(p_data_b);
-
-				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-				Avo::MouseEvent mouseEvent;
-				mouseEvent.x = x / m_dipToPixelFactor;
-				mouseEvent.y = y / m_dipToPixelFactor;
-				mouseEvent.mouseButton = Avo::MouseButton::Middle;
-				mouseEvent.modifierKeys = modifierFlags;
 				m_gui->lockThreads();
-				m_gui->handleGlobalMouseUp(mouseEvent);
+				m_gui->handleGlobalMouseUp(createMouseButtonEvent(p_data_a, p_data_b, Avo::MouseButton::Middle, m_isDoubleClicking));
 				m_gui->unlockThreads();
+
+				m_isDoubleClicking = false;
 
 				return 0;
 			}
 			case WM_MBUTTONDBLCLK:
 			{
-				int32 x = GET_X_LPARAM(p_data_b);
-				int32 y = GET_Y_LPARAM(p_data_b);
-
-				auto modifierFlags = convertWindowsKeyStateToModifierKeyFlags(p_data_a);
-
-				Avo::MouseEvent mouseEvent;
-				mouseEvent.x = x / m_dipToPixelFactor;
-				mouseEvent.y = y / m_dipToPixelFactor;
-				mouseEvent.mouseButton = Avo::MouseButton::Middle;
-				mouseEvent.modifierKeys = modifierFlags;
 				m_gui->lockThreads();
-				m_gui->handleGlobalMouseDoubleClick(mouseEvent);
+				m_gui->handleGlobalMouseDown(createMouseButtonEvent(p_data_a, p_data_b, Avo::MouseButton::Middle, true));
 				m_gui->unlockThreads();
+
+				m_isDoubleClicking = true;
 
 				return 0;
 			}
 			case WM_SYSKEYDOWN:
 			case WM_KEYDOWN:
 			{
-				bool isRepeated = p_data_b & (1 << 30);
-				auto key = convertWindowsDataToKeyboardKey(p_data_a);
-
-				Avo::KeyboardEvent keyboardEvent;
-				keyboardEvent.key = key;
-				keyboardEvent.isRepeated = isRepeated;
 				m_gui->lockThreads();
-				m_gui->sendGlobalKeyboardKeyDownEvents(keyboardEvent);
+				m_gui->sendGlobalKeyboardKeyDownEvents({convertWindowsDataToKeyboardKey(p_data_a), getIsKeyRepeated(p_data_b)});
 				m_gui->unlockThreads();
 
 				return 0;
@@ -3782,29 +3799,20 @@ public:
 			case WM_SYSKEYUP:
 			case WM_KEYUP:
 			{
-				auto key = convertWindowsDataToKeyboardKey(p_data_a);
-
-				Avo::KeyboardEvent keyboardEvent;
-				keyboardEvent.key = key;
 				m_gui->lockThreads();
-				m_gui->sendGlobalKeyboardKeyUpEvents(keyboardEvent);
+				m_gui->sendGlobalKeyboardKeyUpEvents({convertWindowsDataToKeyboardKey(p_data_a)});
 				m_gui->unlockThreads();
 
 				return 0;
 			}
 			case WM_CHAR:
 			{
-				bool isRepeated = p_data_b & (1 << 30);
-
 				// Length is 5 because 4 is the max number of bytes in a utf-8 encoded character, and the null terminator is included
 				char character[5];
-				Avo::convertUtf16ToUtf8(reinterpret_cast<char16 const*>(&p_data_a), { character, 5 });
+				Avo::convertUtf16ToUtf8(reinterpret_cast<char16 const*>(&p_data_a), {character, 5});
 
-				Avo::KeyboardEvent keyboardEvent;
-				keyboardEvent.character = character;
-				keyboardEvent.isRepeated = isRepeated;
 				m_gui->lockThreads();
-				m_gui->sendGlobalCharacterInputEvents(keyboardEvent);
+				m_gui->sendGlobalCharacterInputEvents({character, getIsKeyRepeated(p_data_b)});
 				m_gui->unlockThreads();
 				return 0;
 			}
@@ -3818,8 +3826,8 @@ public:
 				{
 					DeleteColorSpace(GetColorSpace(GetDC(m_windowHandle)));
 					
-					m_oleDropTarget->Release();
-					m_oleDropSource->Release();
+					m_oleDropTarget = nullptr;
+					m_oleDropSource = nullptr;
 					RevokeDragDrop(m_windowHandle);
 					OleUninitialize();
 
@@ -3828,7 +3836,7 @@ public:
 				}
 				else
 				{
-					m_willClose = sendWindowCloseEvents({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
+					m_willClose = sendWindowCloseEvents({this, m_size/m_dipToPixelFactor});
 				}
 
 				return 0;
@@ -3849,23 +3857,26 @@ public:
 		return ~0LL;
 	}
 
-	static LRESULT CALLBACK handleGlobalEvents(HWND p_windowHandle, UINT p_message, WPARAM p_data_a, LPARAM p_data_b)
+	static auto CALLBACK handleGlobalEvents(
+		HWND const p_windowHandle, UINT const p_message, 
+		WPARAM const p_data_a, LPARAM const p_data_b
+	) -> LRESULT
 	{
 		WindowsWindow* window;
 		if (p_message == WM_CREATE)
 		{
-			window = (WindowsWindow*)((CREATESTRUCT*)p_data_b)->lpCreateParams;
-			SetWindowLongPtr(p_windowHandle, GWLP_USERDATA, (LONG_PTR)window);
+			window = static_cast<WindowsWindow*>(reinterpret_cast<CREATESTRUCT*>(p_data_b)->lpCreateParams);
+			SetWindowLongPtr(p_windowHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window));
 			window->setNativeHandle(p_windowHandle);
 		}
 		else
 		{
-			window = (WindowsWindow*)GetWindowLongPtr(p_windowHandle, GWLP_USERDATA);
+			window = reinterpret_cast<WindowsWindow*>(GetWindowLongPtr(p_windowHandle, GWLP_USERDATA));
 		}
 		if (window)
 		{
-			long long result = window->handleEvent(p_message, p_data_a, p_data_b);
-			if (result != ~0LL)
+			if (auto result = window->handleEvent(p_message, p_data_a, p_data_b);
+			    result != ~0LL)
 			{
 				return result;
 			}
@@ -3879,20 +3890,19 @@ private:
 	Avo::Gui* m_gui;
 public:
 	WindowsWindow(Avo::Gui* p_gui) :
-		m_gui(p_gui), 
-		m_crossPlatformStyles((Avo::WindowStyleFlags)0)
+		m_gui{p_gui} 
 	{
 		setCursor(Avo::Cursor::Arrow);
 	}
-	WindowsWindow(Avo::Gui* p_gui, std::string_view p_title, float p_width, float p_height,
-		Avo::WindowStyleFlags p_styleFlags = Avo::WindowStyleFlags::Default, Avo::Window* p_parent = 0) :
-		m_gui(p_gui), 
-		m_crossPlatformStyles(p_styleFlags)
-	{
-		create(p_title, p_width, p_height, p_styleFlags, p_parent);
+	// WindowsWindow(Avo::Gui* p_gui, std::string_view p_title, Avo::Size<> p_size,
+	//               Avo::WindowStyleFlags p_styleFlags = Avo::WindowStyleFlags::Default, Avo::Window* p_parent = 0) :
+	// 	m_gui(p_gui), 
+	// 	m_crossPlatformStyles(p_styleFlags)
+	// {
+	// 	Window::create(p_title, p_size, p_styleFlags, p_parent);
 
-		setCursor(Avo::Cursor::Arrow);
-	}
+	// 	setCursor(Avo::Cursor::Arrow);
+	// }
 	~WindowsWindow()
 	{
 		m_messageThread.join();
@@ -4400,7 +4410,7 @@ private:
 
 		auto displayWidth = (float)XDisplayWidth(m_server, 0);
 		auto displayHeight = (float)XDisplayHeight(m_server, 0);
-		m_dipToPixelFactor = displayWidth / (float)XDisplayWidthMM(m_server, 0) * 25.4f / NORMAL_DPI;
+		m_dipToPixelFactor = displayWidth/(float)XDisplayWidthMM(m_server, 0)*25.4f/NORMAL_DPI;
 		m_size.set(p_width*m_dipToPixelFactor, p_height*m_dipToPixelFactor);
 
 		//------------------------------
@@ -4432,7 +4442,7 @@ private:
 		// Create window
 
 		m_colormap = XCreateColormap(m_server, RootWindow(m_server, visualInfo->screen), visualInfo->visual, 0);
-		XSetWindowAttributes windowAttributes = { };
+		XSetWindowAttributes windowAttributes = {};
 		windowAttributes.colormap = m_colormap;
 		windowAttributes.event_mask =
 			ExposureMask |
@@ -4460,7 +4470,7 @@ private:
 
 		setTitle(p_title);
 		XMapWindow(m_server, m_windowHandle); // Show the window
-		setPosition(p_x * (displayWidth - p_width*m_dipToPixelFactor), p_y * (displayHeight - p_height*m_dipToPixelFactor));
+		setPosition(p_x*(displayWidth - p_width*m_dipToPixelFactor), p_y*(displayHeight - p_height*m_dipToPixelFactor));
 
 		//------------------------------
 		// Open keyboard input
@@ -4532,7 +4542,7 @@ private:
 							}
 							else
 							{
-								m_willClose = sendWindowCloseEvents({ this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor });
+								m_willClose = sendWindowCloseEvents({this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor});
 							}
 						}
 					}
@@ -4562,7 +4572,7 @@ private:
 				{
 					if (!m_hasCreatedWindow)
 					{
-						Avo::WindowEvent windowEvent = { this, p_width, p_height };
+						Avo::WindowEvent windowEvent = {this, p_width, p_height};
 						windowCreateListeners(windowEvent);
 
 						windowSizeChangeListeners(windowEvent);
@@ -4575,7 +4585,7 @@ private:
 					else if (m_size.x != event.xconfigure.width || m_size.y != event.xconfigure.height)
 					{
 						m_size.set(event.xconfigure.width, event.xconfigure.height);
-						windowSizeChangeListeners(Avo::WindowEvent{ this, m_size.x / m_dipToPixelFactor, m_size.y / m_dipToPixelFactor });
+						windowSizeChangeListeners(Avo::WindowEvent{this, m_size.x/m_dipToPixelFactor, m_size.y/m_dipToPixelFactor});
 					}
 					break;
 				}
@@ -4841,20 +4851,20 @@ public:
 	}
 	Avo::Point<> getSize() const override
 	{
-		return m_size / m_dipToPixelFactor;
+		return m_size/m_dipToPixelFactor;
 	}
 	float getWidth() const override
 	{
-		return m_size.x / m_dipToPixelFactor;
+		return m_size.x/m_dipToPixelFactor;
 	}
 	float getHeight() const override
 	{
-		return m_size.y / m_dipToPixelFactor;
+		return m_size.y/m_dipToPixelFactor;
 	}
 
 	void setMinSize(float p_minWidth, float p_minHeight) override 
 	{
-		XSizeHints sizeHints = { };
+		XSizeHints sizeHints = {};
 		sizeHints.flags = PMinSize;
 		sizeHints.min_width = p_minWidth*m_dipToPixelFactor;
 		sizeHints.min_height = p_minHeight*m_dipToPixelFactor; 
@@ -4876,7 +4886,7 @@ public:
 
 	void setMaxSize(float p_maxWidth, float p_maxHeight) override 
 	{
-		XSizeHints sizeHints = { };
+		XSizeHints sizeHints = {};
 		sizeHints.flags = PMaxSize;
 		sizeHints.max_width = p_maxWidth*m_dipToPixelFactor;
 		sizeHints.max_height = p_maxHeight*m_dipToPixelFactor;
@@ -4943,18 +4953,18 @@ public:
 		XQueryKeymap(m_server, keymap);
 		if (keyCode)
 		{
-			bool result = keymap[keyCode / 8] & 1 << keyCode % 8; // Look up operator precedence ;)
+			bool result = keymap[keyCode/8] & 1 << keyCode % 8; // Look up operator precedence ;)
 			if (!result && keySym == XK_Control_L)
 			{
-				return keymap[XKeysymToKeycode(m_server, XK_Control_R) / 8] & 1 << keyCode % 8;
+				return keymap[XKeysymToKeycode(m_server, XK_Control_R)/8] & 1 << keyCode % 8;
 			}
 			if (!result && keySym == XK_Shift_L)
 			{
-				return keymap[XKeysymToKeycode(m_server, XK_Shift_R) / 8] & 1 << keyCode % 8;
+				return keymap[XKeysymToKeycode(m_server, XK_Shift_R)/8] & 1 << keyCode % 8;
 			}
 			if (!result && keySym == XK_Alt_L)
 			{
-				return keymap[XKeysymToKeycode(m_server, XK_Alt_R) / 8] & 1 << keyCode % 8;
+				return keymap[XKeysymToKeycode(m_server, XK_Alt_R)/8] & 1 << keyCode % 8;
 			}
 			return result;
 		}
@@ -5093,166 +5103,195 @@ public:
 #endif
 
 #ifdef _WIN32
+auto convertRectangleToRectf(Avo::Rectangle<> const p_rectangle) -> D2D1_RECT_F
+{
+	return {p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom};
+}
+auto convertSizefToSize(D2D1_SIZE_F const p_size) -> Avo::Size<>
+{
+	return {p_size.width, p_size.height};
+}
+auto convertSizefToSize(Avo::Size<> const p_size) -> D2D1_SIZE_F
+{
+	return {p_size.width, p_size.height};
+}
+
+
 class Direct2dImage : public Avo::Image
 {
 private:
-	ID2D1Bitmap1* m_image;
-
-	Avo::ImageScalingMethod m_scalingMethod;
-	Avo::ImageBoundsSizing m_boundsSizing;
-	Avo::Point<> m_boundsPositioning;
-
 	Avo::Rectangle<> m_cropRectangle;
-	float m_opacity;
-
 public:
-	Direct2dImage(ID2D1Bitmap1* p_image) :
-		m_image(p_image), 
-		m_scalingMethod(Avo::ImageScalingMethod::Smooth), m_boundsSizing(Avo::ImageBoundsSizing::Stretch), m_boundsPositioning(0.5f, 0.5f),
-		m_cropRectangle(0.f, 0.f, p_image->GetSize().width, p_image->GetSize().height), m_opacity(1.f)
-	{
-		m_bounds = m_cropRectangle;
-	}
-	~Direct2dImage()
-	{
-		m_image->Release();
-	}
-
-	//------------------------------
-
-	void setCropRectangle(Avo::Rectangle<> p_rectangle) override
+	auto setCropRectangle(Avo::Rectangle<> p_rectangle) -> void override
 	{
 		m_cropRectangle = p_rectangle;
 	}
-	Avo::Rectangle<> getCropRectangle() const override
+	auto getCropRectangle() const -> Avo::Rectangle<> override
 	{
 		return m_cropRectangle;
 	}
 
-	Avo::Point<uint32> getOriginalSize() const override
-	{
-		return Avo::Point<uint32>(m_image->GetSize().width, m_image->GetSize().height);
-	}
-	uint32 getOriginalWidth() const override
-	{
-		return m_image->GetSize().width;
-	}
-	uint32 getOriginalHeight() const override
-	{
-		return m_image->GetSize().height;
-	}
-
 	//------------------------------
 
-	void setBoundsSizing(Avo::ImageBoundsSizing p_sizeMode) override
+private:
+	Avo::ImageBoundsSizing m_boundsSizing = Avo::ImageBoundsSizing::Stretch;
+public:
+	auto setBoundsSizing(Avo::ImageBoundsSizing p_sizeMode) -> void override
 	{
 		m_boundsSizing = p_sizeMode;
 	}
-	Avo::ImageBoundsSizing getBoundsSizing() const override
+	auto getBoundsSizing() const -> Avo::ImageBoundsSizing override
 	{
 		return m_boundsSizing;
 	}
 
-	void setBoundsPositioning(float p_x, float p_y) override
+private:
+	Avo::Point<> m_boundsPositioning{0.5f, 0.5f};
+public:
+	auto setBoundsPositioning(Avo::Point<Avo::Factor> p_position) -> void override
 	{
-		m_boundsPositioning.set(p_x, p_y);
+		m_boundsPositioning = p_position;
 	}
-	void setBoundsPositioningX(float p_x) override
+	auto setBoundsPositioningX(Avo::Factor p_x) -> void override
 	{
 		m_boundsPositioning.x = p_x;
 	}
-	void setBoundsPositioningY(float p_y) override
+	auto setBoundsPositioningY(Avo::Factor p_y) -> void override
 	{
 		m_boundsPositioning.y = p_y;
 	}
-	Avo::Point<> getBoundsPositioning() const override
+	auto getBoundsPositioning() const -> Avo::Point<Avo::Factor> override
 	{
 		return m_boundsPositioning;
 	}
-	float getBoundsPositioningX() const override
+	auto getBoundsPositioningX() const -> float override
 	{
 		return m_boundsPositioning.x;
 	}
-	float getBoundsPositioningY() const override
+	auto getBoundsPositioningY() const -> float override
 	{
 		return m_boundsPositioning.x;
 	}
 
 	//------------------------------
 
-	void setScalingMethod(Avo::ImageScalingMethod p_scalingMethod) override
+private:
+	Avo::ImageScalingMethod m_scalingMethod = Avo::ImageScalingMethod::Smooth;
+public:
+	auto setScalingMethod(Avo::ImageScalingMethod p_scalingMethod) -> void override
 	{
 		m_scalingMethod = p_scalingMethod;
 	}
-	Avo::ImageScalingMethod getScalingMethod() const override
+	auto getScalingMethod() const -> Avo::ImageScalingMethod override
 	{
 		return m_scalingMethod;
 	}
 
 	//------------------------------
 
-	void setOpacity(float p_opacity) override
+private:
+	float m_opacity = 1.f;
+public:
+	auto setOpacity(Avo::Factor p_opacity) -> void override
 	{
 		m_opacity = p_opacity;
 	}
-	float getOpacity() const override
+	auto getOpacity() const -> Avo::Factor override
 	{
 		return m_opacity;
 	}
 
 	//------------------------------
 
-	float getInnerWidth() const override
+private:
+	ComReference<ID2D1Bitmap1> m_image;
+public:
+	auto getD2dBitmap() const -> ID2D1Bitmap1*
+	{
+		return m_image;
+	}
+
+	auto getOriginalSize() const -> Avo::Size<> override
+	{
+		auto const size = m_image->GetSize();
+		return {size.width, size.height};
+	}
+	auto getOriginalWidth() const -> Avo::Dip override
+	{
+		return m_image->GetSize().width;
+	}
+	auto getOriginalHeight() const -> Avo::Dip override
+	{
+		return m_image->GetSize().height;
+	}
+
+	auto getOriginalPixelSize() const -> Avo::Size<Avo::Pixels> override
+	{
+		auto const size = m_image->GetPixelSize();
+		return {static_cast<Avo::Pixels>(size.width), static_cast<Avo::Pixels>(size.height)};
+	}
+	auto getOriginalPixelWidth() const -> Avo::Pixels override
+	{
+		return m_image->GetPixelSize().width;
+	}
+	auto getOriginalPixelHeight() const -> Avo::Pixels override
+	{
+		return m_image->GetPixelSize().height;
+	}
+
+	auto getInnerWidth() const -> float override
 	{
 		if (m_boundsSizing != Avo::ImageBoundsSizing::Stretch &&
-			m_boundsSizing == Avo::ImageBoundsSizing::Contain != m_bounds.getWidth() / m_bounds.getHeight() < m_image->GetSize().width / m_image->GetSize().height)
+		    m_boundsSizing == Avo::ImageBoundsSizing::Contain != 
+		    m_bounds.getWidth()/m_bounds.getHeight() < m_image->GetSize().width/m_image->GetSize().height)
 		{
-			return m_bounds.getHeight() * m_image->GetSize().width / m_image->GetSize().height;
+			return m_bounds.getHeight()*m_image->GetSize().width/m_image->GetSize().height;
 		}
 		return m_bounds.getWidth();
 	}
-	float getInnerHeight() const override
+	auto getInnerHeight() const -> float override
 	{
 		if (m_boundsSizing != Avo::ImageBoundsSizing::Stretch &&
-			m_boundsSizing == Avo::ImageBoundsSizing::Contain != m_bounds.getWidth() / m_bounds.getHeight() > m_image->GetSize().width / m_image->GetSize().height)
+		    m_boundsSizing == Avo::ImageBoundsSizing::Contain != 
+		    m_bounds.getWidth()/m_bounds.getHeight() > m_image->GetSize().width/m_image->GetSize().height)
 		{
-			return m_bounds.getWidth() * m_image->GetSize().height / m_image->GetSize().width;
+			return m_bounds.getWidth()*m_image->GetSize().height/m_image->GetSize().width;
 		}
 		return m_bounds.getHeight();
 	}
-	Avo::Point<> getInnerSize() const override
+	auto getInnerSize() const -> Avo::Point<> override
 	{
-		return Avo::Point<>(getInnerWidth(), getInnerHeight());
+		return {getInnerWidth(), getInnerHeight()};
 	}
-	Avo::Rectangle<> getInnerBounds() const override
+	auto getInnerBounds() const -> Avo::Rectangle<> override
 	{
 		if (m_boundsSizing == Avo::ImageBoundsSizing::Stretch)
 		{
 			return m_bounds;
 		}
 
-		Avo::Rectangle<> innerBounds = m_bounds;
+		auto innerBounds = m_bounds;
 
-		bool areBoundsProportionallyWider = m_bounds.getWidth() / m_bounds.getHeight() > m_image->GetSize().width / m_image->GetSize().height;
+		auto const areBoundsProportionallyWider = m_bounds.getWidth()/m_bounds.getHeight() > m_image->GetSize().width/m_image->GetSize().height;
 		if (m_boundsSizing == Avo::ImageBoundsSizing::Fill != areBoundsProportionallyWider)
 		{
-			innerBounds.setWidth(m_bounds.getHeight() * m_image->GetSize().width / m_image->GetSize().height);
+			innerBounds.setWidth(m_bounds.getHeight()*m_image->GetSize().width/m_image->GetSize().height);
 		}
 		else if (m_boundsSizing == Avo::ImageBoundsSizing::Contain != areBoundsProportionallyWider)
 		{
-			innerBounds.setHeight(m_bounds.getWidth() * m_image->GetSize().height / m_image->GetSize().width);
+			innerBounds.setHeight(m_bounds.getWidth()*m_image->GetSize().height/m_image->GetSize().width);
 		}
 
-		innerBounds.move(m_boundsPositioning.x * (m_bounds.getWidth() - innerBounds.getWidth()), m_boundsPositioning.y * (m_bounds.getHeight() - innerBounds.getHeight()));
-
-		return innerBounds;
+		return innerBounds += Avo::Vector2d{m_boundsPositioning*(m_bounds.getSize() - innerBounds.getSize())};
 	}
 
 	//------------------------------
 
-	void* getHandle() const override
+	Direct2dImage(ID2D1Bitmap1* p_image) :
+		m_image{p_image},
+		m_cropRectangle{0.f, 0.f, p_image->GetSize().width, p_image->GetSize().height}
 	{
-		return m_image;
+		m_bounds = m_cropRectangle;
 	}
 };
 
@@ -5261,23 +5300,19 @@ public:
 class DirectWriteText : public Avo::Text
 {
 private:
-	IDWriteTextLayout1* m_handle;
-	std::u16string m_wideString;
-	std::string m_string;
-	bool m_isTopTrimmed = false;
-
-	DWRITE_TEXT_RANGE convertTextRange(Range const& p_range)
+	auto convertTextRange(TextRange const& p_range) -> DWRITE_TEXT_RANGE
 	{
-		DWRITE_TEXT_RANGE textRange{};
-		textRange.startPosition = p_range.length > 0 ? p_range.startPosition : Avo::max(Index(0), p_range.startPosition - p_range.length);
-		textRange.length = p_range.length > 0 ? p_range.length : (p_range.length == 0 ? m_string.size() : -p_range.length);
-		return textRange;
+		return DWRITE_TEXT_RANGE{
+			/*.startPosition =*/static_cast<UINT32>(p_range.length > 0 ? p_range.startPosition : 
+		    	std::max(static_cast<Index>(0), p_range.startPosition - p_range.length)),
+			/*.length =*/static_cast<UINT32>(p_range.length > 0 ? p_range.length : (p_range.length == 0 ? m_string.size() : -p_range.length))
+		};
 	}
 
 protected:
-	void handleProtectedRectangleChange(Avo::Rectangle<> p_old) override
+	auto handleProtectedRectangleChange(Avo::Rectangle<> p_old) -> void override
 	{
-		auto size = m_bounds.getSize();
+		auto const size = m_bounds.getSize();
 		if (size.x != p_old.getWidth())
 		{
 			m_handle->SetMaxWidth(size.x);
@@ -5289,151 +5324,133 @@ protected:
 	}
 
 public:
-	DirectWriteText(IDWriteTextLayout1* p_handle, std::u16string_view p_wideString, std::string_view p_string, Avo::Rectangle<float> const& p_bounds) :
-		m_handle{ p_handle },
-		m_wideString{ p_wideString },
-		m_string{ p_string }
-	{
-		m_bounds = p_bounds;
-		if (!m_bounds.right && !m_bounds.bottom)
-		{
-			m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_NO_WRAP);
-			fitSizeToText();
-		}
-		else
-		{
-			m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_EMERGENCY_BREAK);
-		}
-	}
-	~DirectWriteText()
-	{
-		m_handle->Release();
-	}
-
-	//------------------------------
-
-	void setWordWrapping(Avo::WordWrapping p_wordWrapping) override
+	auto setWordWrapping(Avo::WordWrapping p_wordWrapping) -> void override
 	{
 		switch (p_wordWrapping)
 		{
 			case Avo::WordWrapping::Always:
-				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_WRAP);
+				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING_WRAP);
 				break;
 			case Avo::WordWrapping::Emergency:
-				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_EMERGENCY_BREAK);
+				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING_EMERGENCY_BREAK);
 				break;
 			case Avo::WordWrapping::Never:
-				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_NO_WRAP);
+				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
 				break;
 			case Avo::WordWrapping::WholeWord:
-				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_WHOLE_WORD);
+				m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING_WHOLE_WORD);
 		}
 	}
-	Avo::WordWrapping getWordWrapping() const override
+	auto getWordWrapping() const -> Avo::WordWrapping override
 	{
 		switch (m_handle->GetWordWrapping())
 		{
-			case DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_WRAP:
+			case DWRITE_WORD_WRAPPING_WRAP:
 				return Avo::WordWrapping::Always;
-			case DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_EMERGENCY_BREAK:
+			case DWRITE_WORD_WRAPPING_EMERGENCY_BREAK:
 				return Avo::WordWrapping::Emergency;
-			case DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_NO_WRAP:
+			case DWRITE_WORD_WRAPPING_NO_WRAP:
 				return Avo::WordWrapping::Never;
-			case DWRITE_WORD_WRAPPING::DWRITE_WORD_WRAPPING_WHOLE_WORD:
+			case DWRITE_WORD_WRAPPING_WHOLE_WORD:
 				return Avo::WordWrapping::WholeWord;
 		}
-		return Avo::WordWrapping::Never;
+		return Avo::WordWrapping::Unknown;
 	}
 
-	void fitSizeToText() override
+	auto fitSizeToText() -> void override
 	{
-		DWRITE_TEXT_METRICS metrics{};
+		DWRITE_TEXT_METRICS metrics;
 		m_handle->GetMetrics(&metrics);
 
-		DWRITE_OVERHANG_METRICS overhangMetrics{};
+		DWRITE_OVERHANG_METRICS overhangMetrics;
 		m_handle->GetOverhangMetrics(&overhangMetrics);
 
-		ProtectedRectangle::setSize(metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed*overhangMetrics.top);
+		ProtectedRectangle::setSize({metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed*overhangMetrics.top});
 	}
-	void fitWidthToText() override
+	auto fitWidthToText() -> void override
 	{
-		DWRITE_TEXT_METRICS metrics{};
+		DWRITE_TEXT_METRICS metrics;
 		m_handle->GetMetrics(&metrics);
 		ProtectedRectangle::setWidth(metrics.width);
 	}
-	void fitHeightToText() override
+	auto fitHeightToText() -> void override
 	{
-		DWRITE_OVERHANG_METRICS overhangMetrics{};
+		DWRITE_OVERHANG_METRICS overhangMetrics;
 		m_handle->GetOverhangMetrics(&overhangMetrics);
 
-		ProtectedRectangle::setHeight(m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed * overhangMetrics.top);
+		ProtectedRectangle::setHeight(m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed*overhangMetrics.top);
 	}
-	Avo::Point<> getMinimumSize() const override
+	auto getMinimumSize() const -> Avo::Point<> override
 	{
-		DWRITE_TEXT_METRICS metrics{};
+		DWRITE_TEXT_METRICS metrics;
 		m_handle->GetMetrics(&metrics);
 
-		DWRITE_OVERHANG_METRICS overhangMetrics{};
+		DWRITE_OVERHANG_METRICS overhangMetrics;
 		m_handle->GetOverhangMetrics(&overhangMetrics);
 
-		return { metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed * overhangMetrics.top };
+		return {metrics.width, m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed*overhangMetrics.top};
 	}
-	float getMinimumWidth() const override
+	auto getMinimumWidth() const -> float override
 	{
-		DWRITE_TEXT_METRICS metrics{};
+		DWRITE_TEXT_METRICS metrics;
 		m_handle->GetMetrics(&metrics);
 		return metrics.width;
 	}
-	float getMinimumHeight() const override
+	auto getMinimumHeight() const -> float override
 	{
-		DWRITE_OVERHANG_METRICS overhangMetrics{};
+		DWRITE_OVERHANG_METRICS overhangMetrics;
 		m_handle->GetOverhangMetrics(&overhangMetrics);
 
-		return m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed * overhangMetrics.top;
+		return m_handle->GetMaxHeight() + overhangMetrics.bottom + m_isTopTrimmed*overhangMetrics.top;
 	}
 
 	//------------------------------
 
-	void setIsTopTrimmed(bool p_isTopTrimmed)
+private:
+	bool m_isTopTrimmed = false;
+public:
+	auto setIsTopTrimmed(bool p_isTopTrimmed) -> void override
 	{
 		m_isTopTrimmed = p_isTopTrimmed;
 	}
-	bool getIsTopTrimmed()
+	auto getIsTopTrimmed() const -> bool override
 	{
 		return m_isTopTrimmed;
 	}
 
 	//------------------------------
 
-	Avo::Point<> getCharacterPosition(Index p_characterIndex, bool p_isRelativeToOrigin) const override
+	auto getCharacterPosition(Index p_characterIndex, bool p_isRelativeToOrigin) const -> Avo::Point<> override
 	{
 		Avo::Point<> result;
-		DWRITE_HIT_TEST_METRICS metrics{};
+		DWRITE_HIT_TEST_METRICS metrics;
 		m_handle->HitTestTextPosition(
-			Avo::getUtf16UnitIndexFromCharacterIndex(m_wideString, p_characterIndex), 
+			Avo::getUnitIndexFromCharacterIndex(std::u16string_view{m_wideString}, p_characterIndex), 
 			false, &result.x, &result.y, &metrics
 		);
 		if (p_isRelativeToOrigin)
 		{
-			result.x += m_bounds.left;
-			result.y += m_bounds.top;
+			result += m_bounds.getTopLeft();
 		}
 		return result;
 	}
-	Avo::Point<> getCharacterSize(Index p_characterIndex) const override
+	auto getCharacterSize(Index p_characterIndex) const -> Avo::Point<> override
 	{
 		float x;
 		float y;
-		DWRITE_HIT_TEST_METRICS metrics{};
-		m_handle->HitTestTextPosition(Avo::getUtf16UnitIndexFromCharacterIndex(m_wideString, p_characterIndex), false, &x, &y, &metrics);
-		return Avo::Point<>(metrics.width, metrics.height);
+		DWRITE_HIT_TEST_METRICS metrics;
+		m_handle->HitTestTextPosition(
+			Avo::getUnitIndexFromCharacterIndex(std::u16string_view{m_wideString}, p_characterIndex), 
+			false, &x, &y, &metrics
+		);
+		return {metrics.width, metrics.height};
 	}
-	Avo::Rectangle<> getCharacterBounds(Index p_characterIndex, bool p_isRelativeToOrigin) const override
+	auto getCharacterBounds(Index p_characterIndex, bool p_isRelativeToOrigin) const -> Avo::Rectangle<> override
 	{
 		Avo::Rectangle<> result;
-		DWRITE_HIT_TEST_METRICS metrics{};
+		DWRITE_HIT_TEST_METRICS metrics;
 		m_handle->HitTestTextPosition(
-			Avo::getUtf16UnitIndexFromCharacterIndex(m_wideString, p_characterIndex), 
+			Avo::getUnitIndexFromCharacterIndex(std::u16string_view{m_wideString}, p_characterIndex), 
 			false, &result.left, &result.top, &metrics
 		);
 		if (p_isRelativeToOrigin)
@@ -5445,163 +5462,183 @@ public:
 		result.bottom = result.top + metrics.height;
 		return result;
 	}
-	Index getNearestCharacterIndex(float p_pointX, float p_pointY, bool p_isRelativeToOrigin) const override
+	auto getNearestCharacterIndex(Avo::Point<> p_point, bool p_isRelativeToOrigin) const -> Index override
 	{
 		int isTrailingHit;
 		int isInside;
-		DWRITE_HIT_TEST_METRICS metrics{};
+		DWRITE_HIT_TEST_METRICS metrics;
+
+		if (p_isRelativeToOrigin)
+		{
+			p_point -= m_bounds.getTopLeft();
+		}
 		m_handle->HitTestPoint(
-			p_pointX - p_isRelativeToOrigin * m_bounds.left, p_pointY - p_isRelativeToOrigin * m_bounds.top, 
+			p_point.x, p_point.y, 
 			&isTrailingHit, &isInside, &metrics
 		);
-		return Avo::getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition) + isTrailingHit;// *isInside;
+		return Avo::getCharacterIndexFromUnitIndex(std::u16string_view{m_wideString}, metrics.textPosition) + isTrailingHit;// *isInside;
 	}
-	std::tuple<Index, Avo::Point<>> getNearestCharacterIndexAndPosition(float p_pointX, float p_pointY, bool p_isRelativeToOrigin) const override
+	auto getNearestCharacterIndexAndPosition(Avo::Point<> p_point, bool p_isRelativeToOrigin) const -> std::pair<Index, Avo::Point<>> override
 	{
 		int isTrailingHit;
 		int isInside;
-		DWRITE_HIT_TEST_METRICS metrics{};
+		DWRITE_HIT_TEST_METRICS metrics;
+
+		if (p_isRelativeToOrigin)
+		{
+			p_point -= m_bounds.getTopLeft();
+		}
 		m_handle->HitTestPoint(
-			p_pointX - p_isRelativeToOrigin * m_bounds.left, p_pointY - p_isRelativeToOrigin * m_bounds.top, 
+			p_point.x, p_point.y, 
 			&isTrailingHit, &isInside, &metrics
 		);
 		return {
-			Avo::getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition) + isTrailingHit,// *isInside,
+			Avo::getCharacterIndexFromUnitIndex(std::u16string_view{m_wideString}, metrics.textPosition) + isTrailingHit,// *isInside,
 			Avo::Point<>{
-				metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * m_bounds.left, 
-				metrics.top + p_isRelativeToOrigin * m_bounds.top
+				metrics.left + isTrailingHit*metrics.width + p_isRelativeToOrigin*m_bounds.left, 
+				metrics.top + p_isRelativeToOrigin*m_bounds.top
 			}
 		};
 	}
-	std::tuple<Index, Avo::Rectangle<>> getNearestCharacterIndexAndBounds(float p_pointX, float p_pointY, bool p_isRelativeToOrigin) const override
+	auto getNearestCharacterIndexAndBounds(Avo::Point<> p_point, bool p_isRelativeToOrigin) const 
+		-> std::pair<Index, Avo::Rectangle<>> override
 	{
 		int isTrailingHit;
 		int isInside;
-		DWRITE_HIT_TEST_METRICS metrics{};
+		DWRITE_HIT_TEST_METRICS metrics;
+
+		if (p_isRelativeToOrigin)
+		{
+			p_point -= m_bounds.getTopLeft();
+		}
 		m_handle->HitTestPoint(
-			p_pointX - p_isRelativeToOrigin * m_bounds.left, 
-			p_pointY - p_isRelativeToOrigin * m_bounds.top, 
+			p_point.x, p_point.y, 
 			&isTrailingHit, &isInside, &metrics
 		);
 
-		Avo::Rectangle<> bounds;
-		bounds.left = metrics.left + isTrailingHit * metrics.width + p_isRelativeToOrigin * m_bounds.left;
-		bounds.top = metrics.top + p_isRelativeToOrigin * m_bounds.top;
+		auto bounds = Avo::Rectangle<>{
+			metrics.left + isTrailingHit*metrics.width + p_isRelativeToOrigin*m_bounds.left,
+			metrics.top + p_isRelativeToOrigin*m_bounds.top
+		};
 		bounds.right = bounds.left + metrics.width;
 		bounds.bottom = bounds.top + metrics.height;
 
 		return {
-			Avo::getCharacterIndexFromUtf16UnitIndex(m_wideString, metrics.textPosition) + isTrailingHit,
+			Avo::getCharacterIndexFromUnitIndex(std::u16string_view{m_wideString}, metrics.textPosition) + isTrailingHit,
 			bounds
 		};
 	}
 
 	//------------------------------
 
-	void setTextAlign(Avo::TextAlign p_textAlign) override
+	static auto convertTextAlignToDirectWrite(Avo::TextAlign p_textAlign)
 	{
 		switch (p_textAlign)
 		{
 			case Avo::TextAlign::Left:
-				m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING);
-				break;
+				return DWRITE_TEXT_ALIGNMENT_LEADING;
 			case Avo::TextAlign::Center:
-				m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_CENTER);
-				break;
+				return DWRITE_TEXT_ALIGNMENT_CENTER;
 			case Avo::TextAlign::Right:
-				m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_TRAILING);
-				break;
+				return DWRITE_TEXT_ALIGNMENT_TRAILING;
 			case Avo::TextAlign::Fill:
-				m_handle->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED);
-				break;
+				return DWRITE_TEXT_ALIGNMENT_JUSTIFIED;
 		}
+		return static_cast<DWRITE_TEXT_ALIGNMENT>(-1);
 	}
-	Avo::TextAlign getTextAlign() const override
+
+	auto setTextAlign(Avo::TextAlign p_textAlign) -> void override
+	{
+		m_handle->SetTextAlignment(convertTextAlignToDirectWrite(p_textAlign));
+	}
+	auto getTextAlign() const -> Avo::TextAlign override
 	{
 		switch (m_handle->GetTextAlignment())
 		{
-			case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING:
+			case DWRITE_TEXT_ALIGNMENT_LEADING:
 				return Avo::TextAlign::Left;
-			case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_CENTER:
+			case DWRITE_TEXT_ALIGNMENT_CENTER:
 				return Avo::TextAlign::Center;
-			case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_TRAILING:
+			case DWRITE_TEXT_ALIGNMENT_TRAILING:
 				return Avo::TextAlign::Right;
-			case DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED:
+			case DWRITE_TEXT_ALIGNMENT_JUSTIFIED:
 				return Avo::TextAlign::Fill;
 		}
-		return Avo::TextAlign{ 0 };
+		return Avo::TextAlign::Unknown;
 	}
 
-	void setReadingDirection(Avo::ReadingDirection p_readingDirection) override
+	static auto convertReadingDirectionToDirectWrite(Avo::ReadingDirection p_readingDirection)
 	{
 		switch (p_readingDirection)
 		{
 			case Avo::ReadingDirection::LeftToRight:
-				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_LEFT_TO_RIGHT);
-				break;
+				return DWRITE_READING_DIRECTION_LEFT_TO_RIGHT;
 			case Avo::ReadingDirection::RightToLeft:
-				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
-				break;
+				return DWRITE_READING_DIRECTION_RIGHT_TO_LEFT;
 			case Avo::ReadingDirection::TopToBottom:
-				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM);
-				break;
+				return DWRITE_READING_DIRECTION_TOP_TO_BOTTOM;
 			case Avo::ReadingDirection::BottomToTop:
-				m_handle->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP);
-				break;
+				return DWRITE_READING_DIRECTION_BOTTOM_TO_TOP;
 		}
+		return static_cast<DWRITE_READING_DIRECTION>(-1);
 	}
-	Avo::ReadingDirection getReadingDirection() const override
+
+	auto setReadingDirection(Avo::ReadingDirection p_readingDirection) -> void override
+	{
+		m_handle->SetReadingDirection(convertReadingDirectionToDirectWrite(p_readingDirection));
+	}
+	auto getReadingDirection() const -> Avo::ReadingDirection override
 	{
 		switch (m_handle->GetReadingDirection())
 		{
-			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_LEFT_TO_RIGHT:
+			case DWRITE_READING_DIRECTION_LEFT_TO_RIGHT:
 				return Avo::ReadingDirection::LeftToRight;
-			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT:
+			case DWRITE_READING_DIRECTION_RIGHT_TO_LEFT:
 				return Avo::ReadingDirection::RightToLeft;
-			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM:
+			case DWRITE_READING_DIRECTION_TOP_TO_BOTTOM:
 				return Avo::ReadingDirection::TopToBottom;
-			case DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP:
+			case DWRITE_READING_DIRECTION_BOTTOM_TO_TOP:
 				return Avo::ReadingDirection::BottomToTop;
 		}
-		return Avo::ReadingDirection{ 0 };
+		return Avo::ReadingDirection::Unknown;
 	}
 
 	//------------------------------
 
-	void setFontFamily(std::string_view p_name, Range const& p_range) override
+	auto setFontFamily(std::string_view const p_name, TextRange const p_range) -> void override
 	{
 		char16 wideName[100];
-		Avo::convertUtf8ToUtf16(p_name, { wideName, 100 });
+		Avo::convertUtf8ToUtf16(p_name, wideName);
 
 		m_handle->SetFontFamilyName(reinterpret_cast<wchar_t const*>(wideName), convertTextRange(p_range));
 	}
 
 	//------------------------------
 
-	void setCharacterSpacing(float p_leading, float p_trailing, Range const& p_range) override
+	auto setCharacterSpacing(float const p_leading, float const p_trailing, TextRange const p_range) -> void override
 	{
 		m_handle->SetCharacterSpacing(p_leading, p_trailing, 0.f, convertTextRange(p_range));
 	}
-	float getLeadingCharacterSpacing(Index p_characterIndex) const override
+	auto getLeadingCharacterSpacing(Index const p_characterIndex) const -> float override
 	{
-		float leadingSpacing = 0.f;
+		float leadingSpacing;
 		m_handle->GetCharacterSpacing(p_characterIndex, &leadingSpacing, 0, 0);
 		return leadingSpacing;
 	}
-	float getTrailingCharacterSpacing(Index p_characterIndex) const override
+	auto getTrailingCharacterSpacing(Index const p_characterIndex) const -> float override
 	{
-		float trailingSpacing = 0.f;
+		float trailingSpacing;
 		m_handle->GetCharacterSpacing(p_characterIndex, 0, &trailingSpacing, 0);
 		return trailingSpacing;
 	}
 
 	//------------------------------
 
-	void setLineHeight(float p_lineHeight) override
+	auto setLineHeight(float const p_lineHeight) -> void override
 	{
-		m_handle->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_lineHeight, p_lineHeight * 0.8f);
+		m_handle->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_lineHeight, p_lineHeight*0.8f);
 	}
-	float getLineHeight() const override
+	auto getLineHeight() const -> float override
 	{
 		DWRITE_LINE_SPACING_METHOD method;
 		float height;
@@ -5612,11 +5649,11 @@ public:
 
 	//------------------------------
 
-	void setFontWeight(Avo::FontWeight p_fontWeight, Range const& p_range) override
+	auto setFontWeight(Avo::FontWeight const p_fontWeight, TextRange const p_range) -> void override
 	{
 		m_handle->SetFontWeight(static_cast<DWRITE_FONT_WEIGHT>(p_fontWeight), convertTextRange(p_range));
 	}
-	Avo::FontWeight getFontWeight(Index p_characterPosition) const override
+	auto getFontWeight(Index const p_characterPosition) const -> Avo::FontWeight override
 	{
 		DWRITE_FONT_WEIGHT fontWeight;
 		m_handle->GetFontWeight(p_characterPosition, &fontWeight);
@@ -5625,11 +5662,11 @@ public:
 
 	//------------------------------
 
-	void setFontStyle(Avo::FontStyle p_fontStyle, Range const& p_range) override
+	auto setFontStyle(Avo::FontStyle const p_fontStyle, TextRange const p_range) -> void override
 	{
 		m_handle->SetFontStyle(static_cast<DWRITE_FONT_STYLE>(p_fontStyle), convertTextRange(p_range));
 	}
-	Avo::FontStyle getFontStyle(Index p_characterPosition) const override
+	auto getFontStyle(Index const p_characterPosition) const -> Avo::FontStyle override
 	{
 		DWRITE_FONT_STYLE directwriteFontStyle;
 		m_handle->GetFontStyle(p_characterPosition, &directwriteFontStyle);
@@ -5638,11 +5675,11 @@ public:
 
 	//------------------------------
 
-	void setFontStretch(Avo::FontStretch p_fontStretch, Range const& p_range) override
+	auto setFontStretch(Avo::FontStretch const p_fontStretch, TextRange const p_range) -> void override
 	{
 		m_handle->SetFontStretch(static_cast<DWRITE_FONT_STRETCH>(p_fontStretch), convertTextRange(p_range));
 	}
-	Avo::FontStretch getFontStretch(Index p_characterPosition)
+	auto getFontStretch(Index const p_characterPosition) -> Avo::FontStretch
 	{
 		DWRITE_FONT_STRETCH fontStretch;
 		m_handle->GetFontStretch(p_characterPosition, &fontStretch);
@@ -5651,29 +5688,58 @@ public:
 
 	//------------------------------
 
-	void setFontSize(float p_fontSize, Range const& p_range) override
+	auto setFontSize(float const p_fontSize, TextRange const p_range) -> void override
 	{
 		m_handle->SetFontSize(p_fontSize, convertTextRange(p_range));
 	}
-	float getFontSize(Index p_characterPosition) const override
+	auto getFontSize(Index const p_characterPosition) const -> float override
 	{
-		float fontSize = 0.f;
+		float fontSize;
 		m_handle->GetFontSize(p_characterPosition, &fontSize);
 		return fontSize;
 	}
 
 	//------------------------------
 
-	std::string_view getString() const override
+private:
+	std::u16string m_wideString;
+	std::string m_string;
+public:
+	auto getString() const -> std::string_view override
 	{
 		return m_string;
 	}
 
 	//------------------------------
 
-	void* getHandle() const override
+private:
+	ComReference<IDWriteTextLayout1> m_handle;
+public:
+	auto getDWriteTextLayout() const -> IDWriteTextLayout1*
 	{
 		return m_handle;
+	}
+
+	//------------------------------
+
+	DirectWriteText(
+		IDWriteTextLayout1* const p_handle, std::u16string_view const p_wideString, 
+	    std::string_view const p_string, Avo::Rectangle<float> const p_bounds
+	) : 
+		m_handle{p_handle},
+		m_wideString{p_wideString},
+		m_string{p_string}
+	{
+		m_bounds = p_bounds; // Belongs to ProtectedRectangle
+		if (!m_bounds.right && !m_bounds.bottom)
+		{
+			m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+			fitSizeToText();
+		}
+		else
+		{
+			m_handle->SetWordWrapping(DWRITE_WORD_WRAPPING_EMERGENCY_BREAK);
+		}
 	}
 };
 
@@ -5685,9 +5751,9 @@ public:
 //
 //	FontData(void const* p_data, uint32 p_dataSize) :
 //		data(p_data), dataSize(p_dataSize)
-//	{ }
+//	{}
 //};
-using FontData = std::shared_ptr<std::vector<uint8>>;
+using FontData = std::shared_ptr<Avo::DataVector>;
 
 class FontFileStream : public IDWriteFontFileStream
 {
@@ -5698,37 +5764,40 @@ class FontFileStream : public IDWriteFontFileStream
 private:
 	FontData m_fontData;
 public:
-	HRESULT __stdcall ReadFileFragment(void const** p_fragment, UINT64 p_fileOffset, UINT64 p_fragmentSize, void** p_fragmentContext) override
+	auto __stdcall ReadFileFragment(
+		void const** const p_fragment, UINT64 const p_fileOffset, 
+	    UINT64 const p_fragmentSize, void** const p_fragmentContext
+	) -> HRESULT override
 	{
 		if (p_fileOffset + p_fragmentSize > m_fontData->size() || !p_fragmentSize)
 		{
-			*p_fragment = 0;
-			*p_fragmentContext = 0;
+			*p_fragment = nullptr;
+			*p_fragmentContext = nullptr;
 			return E_FAIL;
 		}
 
-		*p_fragment = (char const*)m_fontData->data() + p_fileOffset;
-		*p_fragmentContext = 0;
+		*p_fragment = m_fontData->data() + p_fileOffset;
+		*p_fragmentContext = nullptr;
 
 		return S_OK;
 	}
-	void __stdcall ReleaseFileFragment(void* p_fragmentContext) override { }
+	auto __stdcall ReleaseFileFragment(void* const p_fragmentContext) -> void override {}
 
-	HRESULT __stdcall GetFileSize(UINT64* p_fileSize) override
+	auto __stdcall GetFileSize(UINT64* const p_fileSize) -> HRESULT override
 	{
 		*p_fileSize = m_fontData->size();
 		return S_OK;
 	}
-	HRESULT __stdcall GetLastWriteTime(UINT64* p_lastWriteTime) override
+	auto __stdcall GetLastWriteTime(UINT64* const p_lastWriteTime) -> HRESULT override
 	{
-		*p_lastWriteTime = 0;
+		*p_lastWriteTime = {};
 		return E_NOTIMPL;
 	}
 
 	//------------------------------
 
-	FontFileStream(FontData p_fontData) :
-		m_fontData{ p_fontData }
+	FontFileStream(FontData const& p_fontData) :
+		m_fontData{p_fontData}
 	{
 	}
 };
@@ -5739,14 +5808,16 @@ class FontFileLoader : public IDWriteFontFileLoader
 
 	//------------------------------
 
-	HRESULT __stdcall CreateStreamFromKey(void const* p_data, UINT32 p_dataSize, IDWriteFontFileStream** p_stream)
+	auto __stdcall CreateStreamFromKey(
+		void const* const p_data, UINT32 const p_dataSize, 
+	    IDWriteFontFileStream** const p_stream) -> HRESULT override
 	{
 		if (p_dataSize != sizeof(FontData) || !p_data)
 		{
-			*p_stream = 0;
+			*p_stream = nullptr;
 			return E_INVALIDARG;
 		}
-		*p_stream = new FontFileStream{ *(FontData*)p_data };
+		*p_stream = new FontFileStream{*static_cast<FontData const*>(p_data)};
 		return S_OK;
 	}
 };
@@ -5759,7 +5830,7 @@ class FontFileEnumerator : public IDWriteFontFileEnumerator
 private:
 	IDWriteFontFile* m_currentFontFile = nullptr;
 public:
-	HRESULT __stdcall GetCurrentFontFile(IDWriteFontFile** p_fontFile) override
+	auto __stdcall GetCurrentFontFile(IDWriteFontFile** const p_fontFile) -> HRESULT override
 	{
 		*p_fontFile = m_currentFontFile;
 		if (m_currentFontFile)
@@ -5773,53 +5844,65 @@ private:
 	IDWriteFactory* m_factory;
 	FontFileLoader* m_fontFileLoader;
 
-	std::vector<FontData>* m_fontData;
-	int32 m_currentFontFileIndex = -1;
+	std::vector<FontData> const* m_fontData;
+	Index m_currentFontFileIndex = -1;
 public:
-	HRESULT __stdcall MoveNext(BOOL* p_hasCurrentFile) override
+	auto __stdcall MoveNext(BOOL* const p_hasCurrentFile) -> HRESULT override
 	{
 		m_currentFontFileIndex++;
 
 		if (m_currentFontFileIndex >= m_fontData->size())
 		{
-			*p_hasCurrentFile = 0;
-			m_currentFontFile = 0;
+			*p_hasCurrentFile = false;
+			m_currentFontFile = nullptr;
 		}
 		else
 		{
 			*p_hasCurrentFile = 1;
 			m_factory->CreateCustomFontFileReference(
-				(void const*)(m_fontData->data() + m_currentFontFileIndex), sizeof(FontData), m_fontFileLoader, &m_currentFontFile
+				static_cast<void const*>(m_fontData->data() + m_currentFontFileIndex), 
+				sizeof(FontData), m_fontFileLoader, &m_currentFontFile
 			);
 		}
 		return S_OK;
 	}
 
 public:
-	FontFileEnumerator(IDWriteFactory* p_factory, FontFileLoader* p_fontFileLoader, std::vector<FontData>* p_data) :
-		m_factory{ p_factory },
-		m_fontFileLoader{ p_fontFileLoader },
-		m_fontData{ p_data }
-	{
-	}
+	FontFileEnumerator(
+		IDWriteFactory* const p_factory, 
+		FontFileLoader* const p_fontFileLoader, 
+		std::vector<FontData> const* const p_data
+	) :
+		m_factory{p_factory},
+		m_fontFileLoader{p_fontFileLoader},
+		m_fontData{p_data}
+	{}
 };
+
 class FontCollectionLoader : public IDWriteFontCollectionLoader
 {
 	IUnknownDefinition(IDWriteFontCollectionLoader)
 
 	//------------------------------
 
-	HRESULT __stdcall CreateEnumeratorFromKey(IDWriteFactory* p_factory, void const* p_data, UINT32 p_dataSize, IDWriteFontFileEnumerator** p_fontFileEnumerator)
+	auto __stdcall CreateEnumeratorFromKey(
+		IDWriteFactory* const p_factory, 
+		void const* const p_data, UINT32 const p_dataSize, 
+	    IDWriteFontFileEnumerator** const p_fontFileEnumerator
+	) -> HRESULT
 	{
-		*p_fontFileEnumerator = new FontFileEnumerator{ p_factory, m_fontFileLoader, (std::vector<FontData>*)p_data };
+		*p_fontFileEnumerator = new FontFileEnumerator{
+			p_factory, m_fontFileLoader, 
+			static_cast<std::vector<FontData> const*>(p_data)
+		};
 		return S_OK;
 	}
 
 private:
 	FontFileLoader* m_fontFileLoader;
 public:
-	FontCollectionLoader(FontFileLoader* p_fontFileLoader) :
-		m_fontFileLoader{ p_fontFileLoader }
+	FontCollectionLoader(FontFileLoader* const p_fontFileLoader) :
+		m_fontFileLoader{p_fontFileLoader}
 	{
 	}
 };
@@ -5829,279 +5912,242 @@ public:
 class Direct2dGeometry : public Avo::Geometry
 {
 private:
-	ID2D1Geometry* m_geometry;
-	ID2D1GeometryRealization* m_strokedRealization = nullptr;
-	ID2D1GeometryRealization* m_filledRealization = nullptr;
+	ComReference<ID2D1GeometryRealization> m_strokedRealization;
 
 public:
-	Direct2dGeometry(ID2D1Geometry* p_geometry) :
-		m_geometry(p_geometry)
-	{
-	}
-	~Direct2dGeometry()
-	{
-		if (m_strokedRealization)
-		{
-			m_strokedRealization->Release();
-		}
-		if (m_filledRealization)
-		{
-			m_filledRealization->Release();
-		}
-		if (m_geometry)
-		{
-			m_geometry->Release();
-		}
-	}
-
-	void setStrokedRealization(ID2D1GeometryRealization* p_realization)
+	auto setStrokedRealization(ComReference<ID2D1GeometryRealization> const& p_realization) -> void
 	{
 		m_strokedRealization = p_realization;
 	}
-	void setFilledRealization(ID2D1GeometryRealization* p_realization)
-	{
-		m_filledRealization = p_realization;
-	}
-
-	ID2D1Geometry* getGeometry()
-	{
-		return m_geometry;
-	}
-	ID2D1GeometryRealization* getStrokedRealization()
+	auto getStrokedRealization() const -> ID2D1GeometryRealization*
 	{
 		return m_strokedRealization;
 	}
-	ID2D1GeometryRealization* getFilledRealization()
+
+private:
+	ComReference<ID2D1GeometryRealization> m_filledRealization;
+public:
+	auto setFilledRealization(ComReference<ID2D1GeometryRealization> const& p_realization) -> void
+	{
+		m_filledRealization = p_realization;
+	}
+	auto getFilledRealization() const -> ID2D1GeometryRealization*
 	{
 		return m_filledRealization;
+	}
+
+private:
+	ComReference<ID2D1Geometry> m_geometry;
+public:
+	auto getGeometry() const -> ID2D1Geometry*
+	{
+		return m_geometry;
+	}
+
+	Direct2dGeometry(ComReference<ID2D1Geometry> const& p_geometry) :
+		m_geometry{p_geometry}
+	{
 	}
 };
 
 //------------------------------
 
-class Direct2dLinearGradient : public Avo::LinearGradient
+struct Direct2dLinearGradient : public Avo::LinearGradient
 {
-private:
-	ID2D1LinearGradientBrush* m_brush;
-
-public:
-	Direct2dLinearGradient(ID2D1LinearGradientBrush* p_brush) :
-		m_brush{ p_brush }
-	{
-	}
-	~Direct2dLinearGradient()
-	{
-		m_brush->Release();
-	}
-
-	//------------------------------
-
-	void* getHandle() const override
-	{
-		return m_brush;
-	}
-
-	//------------------------------
-
-	void setOffset(Avo::Point<> p_offset) override
+	auto setOffset(Avo::Point<> const p_offset) -> void override
 	{
 		m_brush->SetTransform(D2D1::Matrix3x2F::Translation(p_offset.x, p_offset.y));
 	}
-	void setOffset(float p_x, float p_y) override
-	{
-		m_brush->SetTransform(D2D1::Matrix3x2F::Translation(p_x, p_y));
-	}
-	void setOffsetX(float p_x) override
+	auto setOffsetX(Avo::Dip const p_x) -> void override
 	{
 		m_brush->SetTransform(D2D1::Matrix3x2F::Translation(p_x, getOffsetY()));
 	}
-	void setOffsetY(float p_y) override
+	auto setOffsetY(Avo::Dip const p_y) -> void override
 	{
 		m_brush->SetTransform(D2D1::Matrix3x2F::Translation(getOffsetX(), p_y));
 	}
-	Avo::Point<> getOffset() const override
+	auto getOffset() const -> Avo::Point<> override
 	{
 		D2D1::Matrix3x2F matrix;
 		m_brush->GetTransform(&matrix);
 		return Avo::Point<>(matrix._31, matrix._32);
 	}
-	float getOffsetX() const override
+	auto getOffsetX() const -> float override
 	{
 		D2D1::Matrix3x2F matrix;
 		m_brush->GetTransform(&matrix);
 		return matrix._31;
 	}
-	float getOffsetY() const override
+	auto getOffsetY() const -> float override
 	{
 		D2D1::Matrix3x2F matrix;
 		m_brush->GetTransform(&matrix);
 		return matrix._32;
 	}
 
-	void setStartPosition(float p_x, float p_y) override
+	auto setStartPosition(Avo::Point<> const p_position) -> void override
 	{
-		m_brush->SetStartPoint(D2D1::Point2F(p_x, p_y));
+		m_brush->SetStartPoint({p_position.x, p_position.y});
 	}
-	Avo::Point<> getStartPosition() const override
+	auto getStartPosition() const -> Avo::Point<> override
 	{
-		return Avo::Point<>(m_brush->GetStartPoint().x, m_brush->GetStartPoint().y);
+		return {m_brush->GetStartPoint().x, m_brush->GetStartPoint().y};
 	}
-	float getStartPositionX() const override
+	auto getStartPositionX() const -> Avo::Dip override
 	{
 		return m_brush->GetStartPoint().x;
 	}
-	float getStartPositionY() const override
+	auto getStartPositionY() const -> Avo::Dip override
 	{
 		return m_brush->GetStartPoint().y;
 	}
 
-	void setEndPosition(float p_x, float p_y) override
+	auto setEndPosition(Avo::Point<> const p_position) -> void override
 	{
-		m_brush->SetEndPoint(D2D1::Point2F(p_x, p_y));
+		m_brush->SetEndPoint({p_position.x, p_position.y});
 	}
-	Avo::Point<> getEndPosition() const override
+	auto getEndPosition() const -> Avo::Point<> override
 	{
-		return Avo::Point<>(m_brush->GetEndPoint().x, m_brush->GetEndPoint().y);
+		return {m_brush->GetEndPoint().x, m_brush->GetEndPoint().y};
 	}
-	float getEndPositionX() const override
+	auto getEndPositionX() const -> float override
 	{
 		return m_brush->GetEndPoint().x;
 	}
-	float getEndPositionY() const override
+	auto getEndPositionY() const -> float override
 	{
 		return m_brush->GetEndPoint().y;
+	}
+
+private:
+	ComReference<ID2D1LinearGradientBrush> m_brush;
+
+public:
+	auto getD2dBrush() const -> ID2D1LinearGradientBrush*
+	{
+		return m_brush;
+	}
+
+	Direct2dLinearGradient(ComReference<ID2D1LinearGradientBrush> const& p_brush) :
+		m_brush{p_brush}
+	{
 	}
 };
 
 //------------------------------
 
-class Direct2DRadialGradient : public Avo::RadialGradient
+struct Direct2dRadialGradient : public Avo::RadialGradient
 {
-private:
-	ID2D1RadialGradientBrush* m_brush;
-
-public:
-	Direct2DRadialGradient(ID2D1RadialGradientBrush* p_brush) :
-		m_brush{ p_brush }
+	auto setOffset(Avo::Point<> const p_offset) -> void override
 	{
+		m_brush->SetTransform(D2D1::Matrix3x2F::Translation(p_offset.x, p_offset.y));
 	}
-	~Direct2DRadialGradient()
-	{
-		m_brush->Release();
-	}
-
-	//------------------------------
-
-	void* getHandle() const override
-	{
-		return m_brush;
-	}
-
-	//------------------------------
-
-	void setOffset(float p_x, float p_y) override
-	{
-		m_brush->SetTransform(D2D1::Matrix3x2F::Translation(p_x, p_y));
-	}
-	void setOffsetX(float p_x) override
+	auto setOffsetX(Avo::Dip const p_x) -> void override
 	{
 		m_brush->SetTransform(D2D1::Matrix3x2F::Translation(p_x, getOffsetY()));
 	}
-	void setOffsetY(float p_y) override
+	auto setOffsetY(Avo::Dip const p_y) -> void override
 	{
 		m_brush->SetTransform(D2D1::Matrix3x2F::Translation(getOffsetX(), p_y));
 	}
-	Avo::Point<> getOffset() const override
+	auto getOffset() const -> Avo::Point<> override
 	{
 		D2D1::Matrix3x2F matrix;
 		m_brush->GetTransform(&matrix);
-		return Avo::Point<>(matrix._31, matrix._32);
+		return {matrix._31, matrix._32};
 	}
-	float getOffsetX() const override
+	auto getOffsetX() const -> float override
 	{
 		D2D1::Matrix3x2F matrix;
 		m_brush->GetTransform(&matrix);
 		return matrix._31;
 	}
-	float getOffsetY() const override
+	auto getOffsetY() const -> float override
 	{
 		D2D1::Matrix3x2F matrix;
 		m_brush->GetTransform(&matrix);
 		return matrix._32;
 	}
 
-	void setStartPosition(float p_x, float p_y) override
+	auto setStartPosition(Avo::Point<> const p_offset) -> void override
 	{
-		m_brush->SetCenter(D2D1::Point2F(p_x, p_y));
+		m_brush->SetCenter({p_offset.x, p_offset.y});
 	}
-	Avo::Point<> getStartPosition() const override
+	auto getStartPosition() const -> Avo::Point<> override
 	{
-		return Avo::Point<>(m_brush->GetCenter().x, m_brush->GetCenter().y);
+		return {m_brush->GetCenter().x, m_brush->GetCenter().y};
 	}
-	float getStartPositionX() const override
+	auto getStartPositionX() const -> Avo::Dip override
 	{
 		return m_brush->GetCenter().x;
 	}
-	float getStartPositionY() const override
+	auto getStartPositionY() const -> Avo::Dip override
 	{
 		return m_brush->GetCenter().y;
 	}
 
-	void setRadius(float p_radiusX, float p_radiusY) override
+	auto setRadius(Avo::Size<> const p_radius) -> void override
 	{
-		m_brush->SetRadiusX(p_radiusX);
-		m_brush->SetRadiusY(p_radiusY);
+		m_brush->SetRadiusX(p_radius.x);
+		m_brush->SetRadiusY(p_radius.y);
 	}
-	Avo::Point<> getRadius() const override
+	auto getRadius() const -> Avo::Size<> override
 	{
-		return Avo::Point<>(m_brush->GetRadiusX(), m_brush->GetRadiusY());
+		return {m_brush->GetRadiusX(), m_brush->GetRadiusY()};
 	}
-	float getRadiusX() const override
+	auto getRadiusX() const -> float override
 	{
 		return m_brush->GetRadiusX();
 	}
-	float getRadiusY() const override
+	auto getRadiusY() const -> float override
 	{
 		return m_brush->GetRadiusY();
 	}
+
+private:
+	ComReference<ID2D1RadialGradientBrush> m_brush;
+public:
+	auto getD2dBrush() const -> ID2D1RadialGradientBrush*
+	{
+		return m_brush;
+	}
+
+	Direct2dRadialGradient(ComReference<ID2D1RadialGradientBrush> const& p_brush) :
+		m_brush{p_brush}
+	{}
 };
 
 //------------------------------
 
-class Direct2DDrawingState : Avo::DrawingState
+struct Direct2DDrawingState : public Avo::DrawingState
 {
 private:
-	ID2D1DrawingStateBlock1* m_drawingState;
+	ComReference<ID2D1DrawingStateBlock1> m_drawingState;
 
 public:
-	Direct2DDrawingState(ID2D1DrawingStateBlock1* p_drawingState) :
-		m_drawingState{ p_drawingState }
-	{
-	}
-	~Direct2DDrawingState()
-	{
-		m_drawingState->Release();
-	}
-
-	ID2D1DrawingStateBlock1* getHandle()
+	auto getD2dStateBlock() -> ID2D1DrawingStateBlock1*
 	{
 		return m_drawingState;
 	}
+
+	Direct2DDrawingState(ComReference<ID2D1DrawingStateBlock1> const& p_drawingState) :
+		m_drawingState{p_drawingState}
+	{}
 };
 
 //------------------------------
 
-class Direct2DDrawingContext : public Avo::DrawingContext
+class Direct2dDrawingContext : public Avo::DrawingContext
 {
 public:
-	static IWICImagingFactory2* s_imagingFactory;
-	static ID2D1Factory2* s_direct2DFactory;
-	static IDWriteFactory1* s_directWriteFactory;
+	static ComReference<IWICImagingFactory2> s_imagingFactory;
+	static ComReference<ID2D1Factory2> s_direct2DFactory;
+	static ComReference<IDWriteFactory1> s_directWriteFactory;
 
-	static FontCollectionLoader* s_fontCollectionLoader;
-	static FontFileLoader* s_fontFileLoader;
+	static ComReference<FontCollectionLoader> s_fontCollectionLoader;
+	static ComReference<FontFileLoader> s_fontFileLoader;
 
-	static void createStaticResources()
+	static auto createStaticResources() -> void
 	{
 		if (!s_imagingFactory)
 		{
@@ -6115,7 +6161,7 @@ public:
 		{
 #ifdef _DEBUG
 			D2D1_FACTORY_OPTIONS options;
-			options.debugLevel = D2D1_DEBUG_LEVEL::D2D1_DEBUG_LEVEL_INFORMATION;
+			options.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
 			D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, options, &s_direct2DFactory);
 #else
 			D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, &s_direct2DFactory);
@@ -6125,82 +6171,83 @@ public:
 		if (!s_directWriteFactory)
 		{
 			DWriteCreateFactory(
-				DWRITE_FACTORY_TYPE::DWRITE_FACTORY_TYPE_SHARED,
-				__uuidof(s_directWriteFactory), (IUnknown**)&s_directWriteFactory
+				DWRITE_FACTORY_TYPE_SHARED,
+				__uuidof(s_directWriteFactory), 
+				reinterpret_cast<IUnknown**>(&s_directWriteFactory)
 			);
 
-			s_fontFileLoader = new FontFileLoader;
+			s_fontFileLoader = makeComReference<FontFileLoader>();
 			s_directWriteFactory->RegisterFontFileLoader(s_fontFileLoader);
 
-			s_fontCollectionLoader = new FontCollectionLoader{ s_fontFileLoader };
+			s_fontCollectionLoader = makeComReference<FontCollectionLoader>(s_fontFileLoader);
 			s_directWriteFactory->RegisterFontCollectionLoader(s_fontCollectionLoader);
 		}
 	}
-	static void destroyStaticResources()
+	static auto destroyStaticResources() -> void
 	{
 		if (!WindowsWindow::s_numberOfWindows)
 		{
-			if (s_fontCollectionLoader)
-			{
-				if (s_directWriteFactory)
-				{
-					s_directWriteFactory->UnregisterFontCollectionLoader(s_fontCollectionLoader);
-				}
-				s_fontCollectionLoader->Release();
-				s_fontCollectionLoader = 0;
-			}
-
-			if (s_fontFileLoader)
-			{
-				if (s_directWriteFactory)
-				{
-					s_directWriteFactory->UnregisterFontFileLoader(s_fontFileLoader);
-				}
-				s_fontFileLoader->Release();
-				s_fontFileLoader = 0;
-			}
-
 			if (s_directWriteFactory)
 			{
-				s_directWriteFactory->Release();
-				s_directWriteFactory = 0;
+				s_directWriteFactory->UnregisterFontCollectionLoader(s_fontCollectionLoader);
+				s_directWriteFactory->UnregisterFontFileLoader(s_fontFileLoader);
 			}
-			if (s_direct2DFactory)
-			{
-				s_direct2DFactory->Release();
-				s_direct2DFactory = 0;
-			}
-			if (s_imagingFactory)
-			{
-				s_imagingFactory->Release();
-				s_imagingFactory = 0;
-			}
+			s_fontFileLoader = nullptr;
+			s_fontCollectionLoader = nullptr;
+			s_directWriteFactory = nullptr;
+			s_direct2DFactory = nullptr;
+			s_imagingFactory = nullptr;
 		}
 	}
+
+	struct Direct2dLock
+	{
+		ComReference<ID2D1Multithread> multithreader;
+		Direct2dLock()
+		{
+			s_direct2DFactory->QueryInterface(IID_PPV_ARGS(&multithreader));
+			multithreader->Enter();
+		}
+		~Direct2dLock()
+		{
+			multithreader->Leave();
+		}
+		
+		Direct2dLock(Direct2dLock const&) = delete;
+		Direct2dLock(Direct2dLock&&) = delete;
+		auto operator=(Direct2dLock const&) -> auto& = delete;
+		auto operator=(Direct2dLock&&) -> auto& = delete;
+	};
 
 private:
 	Avo::Window* m_window = nullptr;
 
-	ID2D1DeviceContext1* m_context = nullptr;
-	IDXGISwapChain1* m_swapChain = nullptr;
-	ID2D1Bitmap1* m_targetWindowBitmap = nullptr;
+	ComReference<ID2D1DeviceContext1> m_context;
+	ComReference<IDXGISwapChain1> m_swapChain;
 
-	ID2D1SolidColorBrush* m_solidColorBrush = nullptr;
-	ID2D1Brush* m_currentBrush = nullptr;
+	ComReference<ID2D1SolidColorBrush> m_solidColorBrush;
+	ComReference<ID2D1Brush> m_currentBrush;
 	float m_brushOpacity = 1.f;
-
-	D2D1_STROKE_STYLE_PROPERTIES1 m_strokeStyleProperties;
-	ID2D1StrokeStyle1* m_strokeStyle = nullptr;
 
 	//------------------------------
 
-	void createCornerRectangleGeometry(ID2D1PathGeometry1* p_geometry, float p_left, float p_top, float p_right, float p_bottom, Avo::RectangleCorners const& p_corners, bool p_isFilled)
+	auto createCornerRectanglePathGeometry(
+		Avo::Rectangle<> const p_rectangle, 
+		Avo::RectangleCorners const& p_corners, 
+		bool const p_isFilled
+	) -> ComReference<ID2D1PathGeometry1>
 	{
-		ID2D1GeometrySink* sink;
-		p_geometry->Open(&sink);
+		ComReference<ID2D1PathGeometry1> geometry;
+		s_direct2DFactory->CreatePathGeometry(&geometry);
 
-		sink->SetFillMode(D2D1_FILL_MODE::D2D1_FILL_MODE_WINDING);
-		sink->BeginFigure(D2D1::Point2F(p_left, p_top + p_corners.topLeftSizeY), p_isFilled ? D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_FILLED : D2D1_FIGURE_BEGIN_HOLLOW);
+		ComReference<ID2D1GeometrySink> sink;
+		geometry->Open(&sink);
+
+		sink->SetFillMode(D2D1_FILL_MODE_WINDING);
+		sink->BeginFigure(
+			{p_rectangle.left, p_rectangle.top + p_corners.topLeftSizeY}, 
+			p_isFilled ? D2D1_FIGURE_BEGIN_FILLED : D2D1_FIGURE_BEGIN_HOLLOW
+		);
 
 		if (p_corners.topLeftSizeX && p_corners.topLeftSizeY)
 		{
@@ -6208,127 +6255,127 @@ private:
 			{
 				sink->AddArc(
 					D2D1::ArcSegment(
-						D2D1::Point2F(p_left + p_corners.topLeftSizeX, p_top), D2D1::SizeF(p_corners.topLeftSizeX, p_corners.topLeftSizeY), 
-						0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL
+						{p_rectangle.left + p_corners.topLeftSizeX, p_rectangle.top}, 
+						{p_corners.topLeftSizeX, p_corners.topLeftSizeY}, 
+						0.f, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL
 					)
 				);
 			}
 			else
 			{
-				sink->AddLine(D2D1::Point2F(p_left + p_corners.topLeftSizeX, p_top));
+				sink->AddLine({p_rectangle.left + p_corners.topLeftSizeX, p_rectangle.top});
 			}
 		}
-		sink->AddLine(D2D1::Point2F(p_right - p_corners.topRightSizeX, p_top));
+		sink->AddLine({p_rectangle.right - p_corners.topRightSizeX, p_rectangle.top});
 		if (p_corners.topRightSizeX && p_corners.topRightSizeY)
 		{
 			if (p_corners.topRightType == Avo::RectangleCornerType::Round)
 			{
 				sink->AddArc(
 					D2D1::ArcSegment(
-						D2D1::Point2F(p_right, p_top + p_corners.topRightSizeY), D2D1::SizeF(p_corners.topRightSizeX, p_corners.topRightSizeY), 
-						0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL
+						{p_rectangle.right, p_rectangle.top + p_corners.topRightSizeY}, 
+						{p_corners.topRightSizeX, p_corners.topRightSizeY}, 
+						0.f, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL
 					)
 				);
 			}
 			else
 			{
-				sink->AddLine(D2D1::Point2F(p_right, p_top + p_corners.topRightSizeY));
+				sink->AddLine({p_rectangle.right, p_rectangle.top + p_corners.topRightSizeY});
 			}
 		}
-		sink->AddLine(D2D1::Point2F(p_right, p_bottom - p_corners.bottomRightSizeY));
+		sink->AddLine({p_rectangle.right, p_rectangle.bottom - p_corners.bottomRightSizeY});
 		if (p_corners.bottomRightSizeX && p_corners.bottomRightSizeY)
 		{
 			if (p_corners.bottomRightType == Avo::RectangleCornerType::Round)
 			{
 				sink->AddArc(
 					D2D1::ArcSegment(
-						D2D1::Point2F(p_right - p_corners.bottomRightSizeX, p_bottom), D2D1::SizeF(p_corners.bottomRightSizeX, p_corners.bottomRightSizeY), 
-						0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL
+						{p_rectangle.right - p_corners.bottomRightSizeX, p_rectangle.bottom}, 
+						{p_corners.bottomRightSizeX, p_corners.bottomRightSizeY}, 
+						0.f, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL
 					)
 				);
 			}
 			else
 			{
-				sink->AddLine(D2D1::Point2F(p_right - p_corners.bottomRightSizeX, p_bottom));
+				sink->AddLine({p_rectangle.right - p_corners.bottomRightSizeX, p_rectangle.bottom});
 			}
 		}
-		sink->AddLine(D2D1::Point2F(p_left + p_corners.bottomLeftSizeX, p_bottom));
+		sink->AddLine({p_rectangle.left + p_corners.bottomLeftSizeX, p_rectangle.bottom});
 		if (p_corners.bottomLeftSizeX && p_corners.bottomLeftSizeY)
 		{
 			if (p_corners.bottomLeftType == Avo::RectangleCornerType::Round)
 			{
 				sink->AddArc(
 					D2D1::ArcSegment(
-						D2D1::Point2F(p_left, p_bottom - p_corners.bottomLeftSizeY), D2D1::SizeF(p_corners.bottomLeftSizeX, p_corners.bottomLeftSizeY), 
-						0.f, D2D1_SWEEP_DIRECTION::D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE::D2D1_ARC_SIZE_SMALL
+						{p_rectangle.left, p_rectangle.bottom - p_corners.bottomLeftSizeY}, 
+						{p_corners.bottomLeftSizeX, p_corners.bottomLeftSizeY}, 
+						0.f, D2D1_SWEEP_DIRECTION_CLOCKWISE, D2D1_ARC_SIZE_SMALL
 					)
 				);
 			}
 			else
 			{
-				sink->AddLine(D2D1::Point2F(p_left, p_bottom - p_corners.bottomLeftSizeY));
+				sink->AddLine({p_rectangle.left, p_rectangle.bottom - p_corners.bottomLeftSizeY});
 			}
 		}
-		sink->AddLine(D2D1::Point2F(p_left, p_top + p_corners.topLeftSizeY));
+		sink->AddLine({p_rectangle.left, p_rectangle.top + p_corners.topLeftSizeY});
 
-		sink->EndFigure(D2D1_FIGURE_END::D2D1_FIGURE_END_CLOSED);
+		sink->EndFigure(D2D1_FIGURE_END_CLOSED);
 		sink->Close();
-		sink->Release();
+
+		return geometry;
 	}
-	void updateStrokeStyle()
+
+	D2D1_STROKE_STYLE_PROPERTIES1 m_strokeStyleProperties;
+	ComReference<ID2D1StrokeStyle1> m_strokeStyle;
+	auto updateStrokeStyle() -> void
 	{
-		if (m_strokeStyle)
-		{
-			m_strokeStyle->Release();
-		}
+		m_strokeStyle = nullptr; // Releases, important
 		s_direct2DFactory->CreateStrokeStyle(m_strokeStyleProperties, 0, 0, &m_strokeStyle);
 	}
 
 	//------------------------------
 
-	IDWriteFontCollection* m_fontCollection = nullptr;
-	std::vector<FontData> m_fontData;
-
-	void updateFontCollection()
-	{
-		if (m_fontCollection)
-		{
-			m_fontCollection->Release();
-		}
-		//std::vector<FontData>* fontDataPointer = &m_fontData;
-		s_directWriteFactory->CreateCustomFontCollection(s_fontCollectionLoader, &m_fontData, sizeof(std::vector<FontData>), &m_fontCollection);
-	}
-
-	void realizeStrokedGeometry(Direct2dGeometry* p_geometry, float p_strokeWidth)
+	auto realizeStrokedGeometry(Direct2dGeometry* const p_geometry, float const p_strokeWidth) -> void
 	{
 		if (!p_geometry->getStrokedRealization())
 		{
 			D2D1_MATRIX_3X2_F transform;
 			m_context->GetTransform(&transform);
 
-			float dpiX = USER_DEFAULT_SCREEN_DPI;
-			float dpiY = USER_DEFAULT_SCREEN_DPI;
+			auto dpiX = float{USER_DEFAULT_SCREEN_DPI};
+			auto dpiY = float{USER_DEFAULT_SCREEN_DPI};
 			m_context->GetDpi(&dpiX, &dpiY);
 
-			ID2D1GeometryRealization* geometryRealization = nullptr;
-			m_context->CreateStrokedGeometryRealization(p_geometry->getGeometry(), D2D1::ComputeFlatteningTolerance(transform, dpiX, dpiY), p_strokeWidth, m_strokeStyle, &geometryRealization);
+			auto geometryRealization = ComReference<ID2D1GeometryRealization>{};
+			m_context->CreateStrokedGeometryRealization(
+				p_geometry->getGeometry(), 
+				D2D1::ComputeFlatteningTolerance(transform, dpiX, dpiY), 
+				p_strokeWidth, m_strokeStyle, &geometryRealization
+			);
 
 			p_geometry->setStrokedRealization(geometryRealization);
 		}
 	}
-	void realizeFilledGeometry(Direct2dGeometry* p_geometry)
+	auto realizeFilledGeometry(Direct2dGeometry* const p_geometry) -> void
 	{
 		if (!p_geometry->getFilledRealization())
 		{
 			D2D1_MATRIX_3X2_F transform;
 			m_context->GetTransform(&transform);
 
-			float dpiX = USER_DEFAULT_SCREEN_DPI;
-			float dpiY = USER_DEFAULT_SCREEN_DPI;
+			auto dpiX = float{USER_DEFAULT_SCREEN_DPI};
+			auto dpiY = float{USER_DEFAULT_SCREEN_DPI};
 			m_context->GetDpi(&dpiX, &dpiY);
 
-			ID2D1GeometryRealization* geometryRealization = nullptr;
-			m_context->CreateFilledGeometryRealization(p_geometry->getGeometry(), D2D1::ComputeFlatteningTolerance(transform, dpiX, dpiY), &geometryRealization);
+			auto geometryRealization = ComReference<ID2D1GeometryRealization>{};
+			m_context->CreateFilledGeometryRealization(
+				p_geometry->getGeometry(), 
+				D2D1::ComputeFlatteningTolerance(transform, dpiX, dpiY), 
+				&geometryRealization
+			);
 
 			p_geometry->setFilledRealization(geometryRealization);
 		}
@@ -6336,59 +6383,52 @@ private:
 
 	std::recursive_mutex m_targetMutex;
 public:
-	void beginDrawing() override
+	auto beginDrawing() -> void override
 	{
 		m_targetMutex.lock();
 		m_context->BeginDraw();
 	}
-	void finishDrawing(PointerRange<Avo::Rectangle<>> p_updatedRectangles) override
+	auto finishDrawing(Range<Avo::Rectangle<>*> const p_updatedRectangles) -> void override
 	{
+		m_context->EndDraw();
+		m_targetMutex.unlock();
+
 		if (p_updatedRectangles.size())
 		{
-			m_context->EndDraw();
-
-			DXGI_PRESENT_PARAMETERS presentParameters;
+			auto presentParameters = DXGI_PRESENT_PARAMETERS{};
 			presentParameters.DirtyRectsCount = p_updatedRectangles.size();
 
-			//RECT* updatedRects = new RECT[p_updatedRectangles.size()];
-			RECT updatedRects[500]; // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
+			//std::vector<RECT> updatedRects(p_updatedRectangles.size());
+			auto updatedRects = std::array<RECT, 512>(); // This is more efficient than dynamic allocation... But it does feel dangerous to have an upper limit like this.
 
-			float dpiFactor = getDpi() / USER_DEFAULT_SCREEN_DPI;
+			auto const dpiFactor = getDpi()/USER_DEFAULT_SCREEN_DPI;
 
-			D2D1_SIZE_U size = m_context->GetPixelSize();
-			m_targetMutex.unlock();
+			auto const size = m_context->GetPixelSize();
 
 			// If you're getting an exception below, you have three options; 
 			// 1. don't invalidate so damn many rectangles
 			// 2. increase the size of the static array above
 			// 3. make the array above dynamic (see the commented line above there), also don't forget to free it.
-			for (auto a : Indices{ p_updatedRectangles })
+			for (auto const a : Indices{p_updatedRectangles})
 			{
-				updatedRects[a].left = Avo::max(0.f, floor(p_updatedRectangles[a].left*dpiFactor));
-				updatedRects[a].top = Avo::max(0.f, floor(p_updatedRectangles[a].top*dpiFactor));
-				updatedRects[a].right = Avo::min(size.width, (uint32)ceil(p_updatedRectangles[a].right*dpiFactor));
-				updatedRects[a].bottom = Avo::min(size.height, (uint32)ceil(p_updatedRectangles[a].bottom*dpiFactor));
+				updatedRects[a].left = std::max(0.f, floor(p_updatedRectangles[a].left*dpiFactor));
+				updatedRects[a].top = std::max(0.f, floor(p_updatedRectangles[a].top*dpiFactor));
+				updatedRects[a].right = std::min(size.width, static_cast<UINT32>(ceil(p_updatedRectangles[a].right*dpiFactor)));
+				updatedRects[a].bottom = std::min(size.height, static_cast<UINT32>(ceil(p_updatedRectangles[a].bottom*dpiFactor)));
 			}
 
-			presentParameters.pDirtyRects = updatedRects;
-			presentParameters.pScrollOffset = 0;
-			presentParameters.pScrollRect = 0;
+			presentParameters.pDirtyRects = updatedRects.data();
+			presentParameters.pScrollOffset = {};
+			presentParameters.pScrollRect = {};
 
-			ID2D1Multithread* multithreader;
-			s_direct2DFactory->QueryInterface(IID_PPV_ARGS(&multithreader));
-
-			multithreader->Enter();
+			auto const lock = Direct2dLock{};
 			m_swapChain->Present1(1, m_isVsyncEnabled ? 0 : (DXGI_PRESENT_DO_NOT_WAIT | DXGI_PRESENT_RESTART), &presentParameters);
-			multithreader->Leave();
-			multithreader->Release();
-
-			//delete[] updatedRects;
 		}
 		//else
 		//{
 		//	// Just triggers a buffer swap.
 
-		//	RECT rect = { 0, 0, 1, 1 };
+		//	RECT rect = {0, 0, 1, 1};
 		//	DXGI_PRESENT_PARAMETERS presentParameters;
 		//	presentParameters.DirtyRectsCount = 1;
 		//	presentParameters.pDirtyRects = &rect;
@@ -6400,32 +6440,32 @@ public:
 
 	}
 
-	Avo::DrawingState* createDrawingState() override
+	auto createDrawingState() -> Avo::DrawingState override
 	{
-		ID2D1DrawingStateBlock1* drawingState = nullptr;
+		auto drawingState = ComReference<ID2D1DrawingStateBlock1>{};
 		s_direct2DFactory->CreateDrawingStateBlock(&drawingState);
-		return (Avo::DrawingState*)(new Direct2DDrawingState{ drawingState });
+		return createDrawingStateFromImplementation(std::make_shared<Direct2DDrawingState>(drawingState));
 	}
-	void saveDrawingState(Avo::DrawingState* p_drawingState) override
+	auto saveDrawingState(Avo::DrawingState const& p_drawingState) -> void override
 	{
-		m_context->SaveDrawingState(((Direct2DDrawingState*)p_drawingState)->getHandle());
+		m_context->SaveDrawingState(static_cast<Direct2DDrawingState*>(p_drawingState.getImplementation())->getD2dStateBlock());
 	}
-	void restoreDrawingState(Avo::DrawingState* p_drawingState) override
+	auto restoreDrawingState(Avo::DrawingState const& p_drawingState) -> void override
 	{
-		m_context->RestoreDrawingState(((Direct2DDrawingState*)p_drawingState)->getHandle());
+		m_context->RestoreDrawingState(static_cast<Direct2DDrawingState*>(p_drawingState.getImplementation())->getD2dStateBlock());
 	}
 
 	//------------------------------
 
-	void setIsFullscreen(bool p_isFullscreen) override
+	auto setIsFullscreen(bool p_isFullscreen) -> void override
 	{
 		m_window->setIsFullscreen(p_isFullscreen);
 	}
-	void switchFullscreen() override
+	auto switchFullscreen() -> void override
 	{
 		m_window->switchFullscreen();
 	}
-	bool getIsFullscreen() override
+	auto getIsFullscreen() -> bool override
 	{
 		return m_window->getIsFullscreen();
 	}
@@ -6435,221 +6475,180 @@ public:
 private:
 	bool m_isVsyncEnabled = true;
 public:
-	void enableVsync()
+	auto enableVsync() -> void override
 	{
 		m_isVsyncEnabled = true;
 	}
-	void disableVsync()
+	auto disableVsync() -> void override 
 	{
 		m_isVsyncEnabled = false;
 	}
-	bool getIsVsyncEnabled()
+	auto getIsVsyncEnabled() -> bool override 
 	{
 		return m_isVsyncEnabled;
 	}
 
 	//------------------------------
 
-	void setBackgroundColor(Avo::Color p_color) override
+	auto setBackgroundColor(Avo::Color const p_color) -> void override
 	{
 		if (m_swapChain)
 		{
-			DXGI_RGBA dxgiColor;
-			dxgiColor.r = p_color.red;
-			dxgiColor.g = p_color.green;
-			dxgiColor.b = p_color.blue;
-			dxgiColor.a = p_color.alpha;
+			auto const dxgiColor = DXGI_RGBA{
+				p_color.red,
+				p_color.green,
+				p_color.blue,
+				p_color.alpha
+			};
 
-			ID2D1Multithread* multithreader;
-			s_direct2DFactory->QueryInterface(IID_PPV_ARGS(&multithreader));
-
-			multithreader->Enter();
+			auto const lock = Direct2dLock{};
 			m_swapChain->SetBackgroundColor(&dxgiColor);
-			multithreader->Leave();
-			multithreader->Release();
 		}
 	}
-	Avo::Color getBackgroundColor()
+	auto getBackgroundColor() -> Avo::Color override
 	{
 		if (m_swapChain)
 		{
-			ID2D1Multithread* multithreader;
-			s_direct2DFactory->QueryInterface(IID_PPV_ARGS(&multithreader));
+			auto const lock = Direct2dLock{};
 
-			multithreader->Enter();
-			DXGI_RGBA dxgiColor;
+			auto dxgiColor = DXGI_RGBA{};
 			m_swapChain->GetBackgroundColor(&dxgiColor);
-			multithreader->Leave();
-			multithreader->Release();
 
-			return { dxgiColor.r, dxgiColor.g, dxgiColor.b, dxgiColor.a };
+			return {dxgiColor.r, dxgiColor.g, dxgiColor.b, dxgiColor.a};
 		}
-		return { 0.5f };
+		return 0.5f;
 	}
 
 	//------------------------------
 
-	float getDpi() override
-	{
-		float DPIX = 0.f;
-		float DPIY = 0.f;
-		m_context->GetDpi(&DPIX, &DPIY);
-		return DPIX;
-	}
-	void setDpi(float p_dpi)
+	auto setDpi(float const p_dpi) -> void override
 	{
 		m_context->SetDpi(p_dpi, p_dpi);
 	}
-
-	//------------------------------
-
-	void moveOrigin(Avo::Point<> p_offset) override
+	auto getDpi() -> float override
 	{
-		D2D1_MATRIX_3X2_F transform;
-		m_context->GetTransform(&transform);
-		transform.dx += p_offset.x;
-		transform.dy += p_offset.y;
-		m_context->SetTransform(transform);
-	}
-	void moveOrigin(float p_offsetX, float p_offsetY) override
-	{
-		D2D1_MATRIX_3X2_F transform;
-		m_context->GetTransform(&transform);
-		transform.dx += p_offsetX;
-		transform.dy += p_offsetY;
-		m_context->SetTransform(transform);
-	}
-	void setOrigin(Avo::Point<> p_origin) override
-	{
-		D2D1_MATRIX_3X2_F transform;
-		m_context->GetTransform(&transform);
-		transform.dx = p_origin.x;
-		transform.dy = p_origin.y;
-		m_context->SetTransform(transform);
-	}
-	void setOrigin(float p_x, float p_y) override
-	{
-		D2D1_MATRIX_3X2_F transform;
-		m_context->GetTransform(&transform);
-		transform.dx = p_x;
-		transform.dy = p_y;
-		m_context->SetTransform(transform);
-	}
-	Avo::Point<> getOrigin() override
-	{
-		D2D1_MATRIX_3X2_F transform;
-		m_context->GetTransform(&transform);
-		return { transform.dx, transform.dy };
+		auto DPIX = float{};
+		auto DPIY = float{};
+		m_context->GetDpi(&DPIX, &DPIY);
+		return DPIX;
 	}
 
 	//------------------------------
 
 private:
-	Avo::Point<float> m_scale{ 1.f, 1.f };
+	auto getD2dTransform() -> D2D1_MATRIX_3X2_F
+	{
+		D2D1_MATRIX_3X2_F transform;
+		m_context->GetTransform(&transform);
+		return transform;
+	}
+
+	template<typename Lambda>
+	auto changeD2dTransform(Lambda p_change) -> void
+	{
+		D2D1_MATRIX_3X2_F transform;
+		m_context->GetTransform(&transform);
+		p_change(transform);
+		m_context->SetTransform(transform);
+	}
+	
+	//------------------------------
+
 public:
-	void scale(float p_scale) override
+	auto moveOrigin(Avo::Vector2d<> const p_offset) -> void override
 	{
-		scale(p_scale, p_scale);
+		changeD2dTransform([&](D2D1_MATRIX_3X2_F& transform){
+			transform.dx += p_offset.x;
+			transform.dy += p_offset.y;
+		});
 	}
-	void scale(float p_scaleX, float p_scaleY) override
+	auto setOrigin(Avo::Point<> const p_origin) -> void override
 	{
-		D2D1::Matrix3x2F transform;
-		m_context->GetTransform(&transform);
-		transform.m11 *= p_scaleX;
-		transform.m22 *= p_scaleY;
-		transform.m21 *= p_scaleX;
-		transform.m12 *= p_scaleY;
-		m_scale.x *= p_scaleX;
-		m_scale.y *= p_scaleY;
-		m_context->SetTransform(transform);
+		changeD2dTransform([&](D2D1_MATRIX_3X2_F& transform){
+			transform.dx = p_origin.x;
+			transform.dy = p_origin.y;
+		});
 	}
-	void scale(float p_scale, Avo::Point<> p_origin) override
+	auto getOrigin() -> Avo::Point<> override
 	{
-		scale(p_scale, p_scale, p_origin.x, p_origin.y);
+		auto const transform = getD2dTransform();
+		return {transform.dx, transform.dy};
 	}
-	void scale(float p_scaleX, float p_scaleY, Avo::Point<> p_origin) override
+
+	//------------------------------
+
+private:
+	Avo::Vector2d<Avo::Factor> m_scale = 1.f;
+public:
+	auto scale(Avo::Vector2d<Avo::Factor> const p_scale) -> void override
 	{
-		scale(p_scaleX, p_scaleY, p_origin.x, p_origin.y);
+		changeD2dTransform([&](D2D1_MATRIX_3X2_F& transform){
+			transform.m11 *= p_scale.x;
+			transform.m22 *= p_scale.y;
+			transform.m21 *= p_scale.x;
+			transform.m12 *= p_scale.y;
+			m_scale.x *= p_scale.x;
+			m_scale.y *= p_scale.y;
+		});
 	}
-	void scale(float p_scale, float p_originX, float p_originY) override
+	auto scale(Avo::Vector2d<Avo::Factor> const p_scale, Avo::Point<> const p_origin) -> void override
 	{
-		scale(p_scale, p_scale, p_originX, p_originY);
+		changeD2dTransform([&](D2D1_MATRIX_3X2_F& transform){
+			transform.m11 *= p_scale.x;
+			transform.m22 *= p_scale.y;
+			transform.m21 *= p_scale.x;
+			transform.m12 *= p_scale.y;
+			m_scale.x *= p_scale.x;
+			m_scale.y *= p_scale.y;
+			transform.dx += (p_origin.x - transform.dx)*(1.f - p_scale.x);
+			transform.dy += (p_origin.y - transform.dy)*(1.f - p_scale.y);
+		});
 	}
-	void scale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) override
+	auto setScale(Avo::Vector2d<Avo::Factor> const p_scale) -> void override
 	{
-		D2D1::Matrix3x2F transform;
-		m_context->GetTransform(&transform);
-		transform.m11 *= p_scaleX;
-		transform.m22 *= p_scaleY;
-		transform.m21 *= p_scaleX;
-		transform.m12 *= p_scaleY;
-		m_scale.x *= p_scaleX;
-		m_scale.y *= p_scaleY;
-		transform.dx += (p_originX - transform.dx) * (1.f - p_scaleX);
-		transform.dy += (p_originY - transform.dy) * (1.f - p_scaleY);
-		m_context->SetTransform(transform);
+		scale(p_scale/m_scale);	
 	}
-	void setScale(float p_scale) override
+	auto setScale(Avo::Vector2d<Avo::Factor> const p_scale, Avo::Point<> const p_origin) -> void override
 	{
-		scale(p_scale / m_scale.x, p_scale / m_scale.x);
+		scale(p_scale/m_scale, p_origin);
 	}
-	void setScale(float p_scaleX, float p_scaleY) override
-	{
-		scale(p_scaleX / m_scale.x, p_scaleY / m_scale.x);
-	}
-	void setScale(float p_scale, Avo::Point<> p_origin) override
-	{
-		scale(p_scale / m_scale.x, p_scale / m_scale.y, p_origin.x, p_origin.y);
-	}
-	void setScale(float p_scaleX, float p_scaleY, Avo::Point<> p_origin) override
-	{
-		scale(p_scaleX / m_scale.x, p_scaleY / m_scale.y, p_origin.x, p_origin.y);
-	}
-	void setScale(float p_scale, float p_originX, float p_originY) override
-	{
-		scale(p_scale / m_scale.x, p_scale / m_scale.y, p_originX, p_originY);
-	}
-	void setScale(float p_scaleX, float p_scaleY, float p_originX, float p_originY) override
-	{
-		scale(p_scaleX / m_scale.x, p_scaleY / m_scale.y, p_originX, p_originY);
-	}
-	Avo::Point<> getScale() override
+	auto getScale() -> Avo::Vector2d<Avo::Factor> override
 	{
 		return m_scale;
 	}
-	float getScaleX() override
+	auto getScaleX() -> Avo::Factor override
 	{
 		return m_scale.x;
 	}
-	float getScaleY() override
+	auto getScaleY() -> Avo::Factor override
 	{
 		return m_scale.y;
 	}
 
 	//------------------------------
 
-	void rotate(float p_radians) override
+	auto rotate(Avo::Arithmetic<float, Avo::Radians> const p_radians) -> void override
 	{
-		D2D1::Matrix3x2F transform;
-		m_context->GetTransform(&transform);
-		m_context->SetTransform(transform * D2D1::Matrix3x2F::Rotation(p_radians * 180.f / Avo::PI));
+		rotate(Avo::Degrees{p_radians});
 	}
-	void rotate(float p_radians, Avo::Point<> p_origin) override
+	auto rotate(Avo::Arithmetic<float, Avo::Degrees> const p_degrees) -> void override
 	{
-		D2D1::Matrix3x2F transform;
-		m_context->GetTransform(&transform);
-		m_context->SetTransform(transform * D2D1::Matrix3x2F::Rotation(p_radians * 180.f / Avo::PI, D2D1::Point2F(p_origin.x, p_origin.y)));
+		m_context->SetTransform(getD2dTransform()*D2D1::Matrix3x2F::Rotation(p_degrees.value));
 	}
-	void rotate(float p_radians, float p_originX, float p_originY) override
+	auto rotate(Avo::Arithmetic<float, Avo::Radians> const p_radians, Avo::Point<> const p_origin) -> void override
 	{
-		D2D1::Matrix3x2F transform;
-		m_context->GetTransform(&transform);
-		m_context->SetTransform(transform * D2D1::Matrix3x2F::Rotation(p_radians * 180.f / Avo::PI, D2D1::Point2F(p_originX, p_originY)));
+		rotate(Avo::Degrees{p_radians}, p_origin);
+	}
+	auto rotate(Avo::Arithmetic<float, Avo::Degrees> const p_degrees, Avo::Point<> const p_origin) -> void override
+	{
+		m_context->SetTransform(
+			getD2dTransform()*D2D1::Matrix3x2F::Rotation(p_degrees.value, {p_origin.x, p_origin.y})
+		);
 	}
 
 	//------------------------------
 
-	void resetTransformations() override
+	auto resetTransformations() -> void override
 	{
 		m_context->SetTransform(D2D1::Matrix3x2F::Identity());
 		m_scale.x = 1.f;
@@ -6658,308 +6657,174 @@ public:
 
 	//------------------------------
 
-	void setSize(Avo::Point<> p_size) override
+private:
+	ComReference<ID2D1Bitmap1> m_targetWindowBitmap;
+	
+	auto createTargetWindowBitmapFromDxgiBackBuffer(IDXGISurface* const p_backBuffer, float const p_dpi) -> void
 	{
-		setSize(p_size.x, p_size.y);
+		m_context->CreateBitmapFromDxgiSurface(
+			p_backBuffer,
+			D2D1::BitmapProperties1(
+				D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE),
+				p_dpi, p_dpi
+			),
+			&m_targetWindowBitmap
+		);
 	}
-	void setSize(float p_width, float p_height) override
+
+public:
+	auto setSize(Avo::Size<> const p_size) -> void override
 	{
-		auto oldSize = m_context->GetSize();
-		//if (oldSize.width >= p_width && oldSize.width < p_width + 200 &&
-			//oldSize.height >= p_height && oldSize.height < p_height + 200)
-		if (oldSize.width == p_width && oldSize.height == p_height)
+		if (auto const oldSize = m_context->GetSize();
+		    oldSize.width == p_size.x && oldSize.height == p_size.y)
 		{
 			return;
 		}
 
-		std::scoped_lock targetLock{ m_targetMutex };
+		auto const targetLock = std::scoped_lock{m_targetMutex};
 
-		ID2D1Image* oldTarget = nullptr;
-		m_context->GetTarget(&oldTarget);
-
-		bool wasOldTargetWindow = oldTarget == m_targetWindowBitmap;
+		auto const wasOldTargetWindow = [&]() -> bool {
+			ComReference<ID2D1Image> oldTarget;
+			m_context->GetTarget(&oldTarget); // Adds a reference which will be removed by ~ComReference()
+			return oldTarget == m_targetWindowBitmap;
+		}();
 		if (wasOldTargetWindow)
 		{
+			// Need to temporarily remove the window bitmap as the target for drawing, because otherwise it 
+			// won't be deleted when DXGISwapChain1::ResizeBuffers is called (which is required).
 			m_context->SetTarget(nullptr);
 		}
-		oldTarget->Release();
+		m_targetWindowBitmap = nullptr; // Releases our reference
 
-		// Release the old window bitmap
-		m_targetWindowBitmap->Release();
+		auto const dpi = getDpi();
 
-		float dpi = getDpi();
+		auto newDxgiBackBuffer = ComReference<IDXGISurface>{};
+		{
+			// We'll be doing DXGI calls which aren't automatically protected by Direct2D. 
+			auto const lock = Direct2dLock{}; 
 
-		Avo::Point<> newSize{ p_width * dpi / USER_DEFAULT_SCREEN_DPI, p_height* dpi / USER_DEFAULT_SCREEN_DPI };
+			// Resize buffers, creating new ones
+			auto const newSize = p_size*(dpi/USER_DEFAULT_SCREEN_DPI);
+			m_swapChain->ResizeBuffers(0, newSize.x, newSize.y, DXGI_FORMAT_UNKNOWN, 0);
 
-		ID2D1Multithread* multithreader;
-		s_direct2DFactory->QueryInterface(IID_PPV_ARGS(&multithreader));
+			// Get the new back buffer
+			m_swapChain->GetBuffer(0, IID_PPV_ARGS(&newDxgiBackBuffer));
+		}
 
-		multithreader->Enter();
-
-		// Resize buffers, creating new ones
-		m_swapChain->ResizeBuffers(0, p_width*dpi / USER_DEFAULT_SCREEN_DPI, p_height*dpi / USER_DEFAULT_SCREEN_DPI, DXGI_FORMAT_UNKNOWN, 0);
-
-		// Get the new back buffer and create new bitmap connected to it
-		IDXGISurface* dxgiBackBuffer = nullptr;
-		m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
-
-		multithreader->Leave();
-		multithreader->Release();
-
-		m_context->CreateBitmapFromDxgiSurface(
-			dxgiBackBuffer,
-			D2D1::BitmapProperties1(
-				D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE::D2D1_ALPHA_MODE_IGNORE),
-				dpi, dpi
-			),
-			&m_targetWindowBitmap
-		);
-
-		dxgiBackBuffer->Release();
+		createTargetWindowBitmapFromDxgiBackBuffer(newDxgiBackBuffer, dpi);
 
 		if (wasOldTargetWindow)
 		{
 			m_context->SetTarget(m_targetWindowBitmap);
 		}
 	}
-	Avo::Point<> getSize() override
+	auto getSize() -> Avo::Size<> override
 	{
-		return { m_context->GetSize().width, m_context->GetSize().height };
+		auto const size = m_context->GetSize();
+		return {size.width, size.height};
 	}
 
 	//------------------------------
 
-	void clear(Avo::Color p_color) override
+	auto clear(Avo::Color const p_color) -> void override
 	{
-		m_context->Clear({ p_color.red, p_color.green, p_color.blue, p_color.alpha });
+		m_context->Clear({p_color.red, p_color.green, p_color.blue, p_color.alpha});
 	}
-	void clear() override
+	auto clear() -> void override
 	{
-		m_context->Clear({ 0.f, 0.f, 0.f, 0.f });
+		m_context->Clear({});
 	}
 
 	//------------------------------
 
-	void fillRectangle(Avo::Rectangle<> p_rectangle) override
-	{
-		fillRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
-	}
-	void fillRectangle(Avo::Point<> p_position, Avo::Point<> p_size) override
-	{
-		fillRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y);
-	}
-	void fillRectangle(float p_left, float p_top, float p_right, float p_bottom) override
+	auto fillRectangle(Avo::Rectangle<> const p_rectangle) -> void override
 	{
 		m_currentBrush->SetOpacity(m_brushOpacity);
-		m_context->FillRectangle(
-			D2D1::RectF(
-				p_left, p_top,
-				p_right, p_bottom
-			), m_currentBrush
-		);
+		m_context->FillRectangle(convertRectangleToRectf(p_rectangle), m_currentBrush);
 	}
-	void fillRectangle(Avo::Point<> p_size) override
+	auto fillRectangle(Avo::Rectangle<> const p_rectangle, Avo::RectangleCorners const& p_corners) -> void override
 	{
-		m_currentBrush->SetOpacity(m_brushOpacity);
-		m_context->FillRectangle(D2D1::RectF(0, 0, p_size.x, p_size.y), m_currentBrush);
-	}
-	void fillRectangle(float p_width, float p_height) override
-	{
-		m_currentBrush->SetOpacity(m_brushOpacity);
-		m_context->FillRectangle(D2D1::RectF(0, 0, p_width, p_height), m_currentBrush);
-	}
-
-	void fillRectangle(Avo::Rectangle<> p_rectangle, Avo::RectangleCorners const& p_corners) override
-	{
-		fillRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners);
-	}
-	void fillRectangle(Avo::Point<> p_position, Avo::Point<> p_size, Avo::RectangleCorners const& p_corners) override
-	{
-		fillRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_corners);
-	}
-	void fillRectangle(float p_left, float p_top, float p_right, float p_bottom, Avo::RectangleCorners const& p_corners) override
-	{
-		ID2D1PathGeometry1* pathGeometry;
-		s_direct2DFactory->CreatePathGeometry(&pathGeometry);
-		createCornerRectangleGeometry(pathGeometry, p_left, p_top, p_right, p_bottom, p_corners, true);
+		auto const pathGeometry = createCornerRectanglePathGeometry(p_rectangle, p_corners, true);
 
 		m_currentBrush->SetOpacity(m_brushOpacity);
 		m_context->FillGeometry(pathGeometry, m_currentBrush);
-
-		pathGeometry->Release();
 	}
-
-	void fillRectangle(Avo::Point<> p_size, Avo::RectangleCorners const& p_corners) override
-	{
-		fillRectangle(0.f, 0.f, p_size.x, p_size.y, p_corners);
-	}
-	void fillRectangle(float p_width, float p_height, Avo::RectangleCorners const& p_corners) override
-	{
-		fillRectangle(0.f, 0.f, p_width, p_height, p_corners);
-	}
-
-	void fillRoundedRectangle(Avo::Rectangle<> p_rectangle, float p_radius) override
-	{
-		fillRoundedRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius);
-	}
-	void fillRoundedRectangle(Avo::Point<> p_position, Avo::Point<> p_size, float p_radius) override
-	{
-		fillRoundedRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_radius);
-	}
-	void fillRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius) override
+	auto fillRoundedRectangle(Avo::Rectangle<> const p_rectangle, Avo::Size<> const p_radius) -> void override
 	{
 		m_currentBrush->SetOpacity(m_brushOpacity);
 		m_context->FillRoundedRectangle(
-			D2D1::RoundedRect(
-				D2D1::RectF(
-					p_left, p_top,
-					p_right, p_bottom
-				), p_radius, p_radius
-			), m_currentBrush
+			D2D1::RoundedRect(convertRectangleToRectf(p_rectangle), p_radius.width, p_radius.height), 
+			m_currentBrush
 		);
-	}
-	void fillRoundedRectangle(Avo::Point<> p_size, float p_radius) override
-	{
-		fillRoundedRectangle(p_size.x, p_size.y, p_radius);
-	}
-	void fillRoundedRectangle(float p_width, float p_height, float p_radius) override
-	{
-		fillRoundedRectangle(0.f, 0.f, p_width, p_height, p_radius);
 	}
 
 	//------------------------------
 
-	void strokeRectangle(Avo::Rectangle<> p_rectangle, float p_strokeWidth = 1.f) override
-	{
-		strokeRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom);
-	}
-	void strokeRectangle(Avo::Point<> p_position, Avo::Point<> p_size, float p_strokeWidth = 1.f) override
-	{
-		strokeRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_strokeWidth);
-	}
-	void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_strokeWidth = 1.f) override
+	auto strokeRectangle(Avo::Rectangle<> const p_rectangle, float const p_strokeWidth) -> void override
 	{
 		m_currentBrush->SetOpacity(m_brushOpacity);
 		m_context->DrawRectangle(
-			D2D1::RectF(
-				p_left, p_top, p_right, p_bottom
-			), m_currentBrush,
-			p_strokeWidth, m_strokeStyle
+			convertRectangleToRectf(p_rectangle), 
+			m_currentBrush, p_strokeWidth, m_strokeStyle
 		);
 	}
-	void strokeRectangle(Avo::Point<> p_size, float p_strokeWidth = 1.f) override
+	auto strokeRectangle(
+		Avo::Rectangle<> const p_rectangle, 
+		Avo::RectangleCorners const& p_corners, 
+		float const p_strokeWidth
+	) -> void override
 	{
-		strokeRectangle(p_size.x, p_size.y, p_strokeWidth);
-	}
-	void strokeRectangle(float p_width, float p_height, float p_strokeWidth = 1.f) override
-	{
-		strokeRectangle(0.f, 0.f, p_width, p_height, p_strokeWidth);
-	}
-
-	void strokeRoundedRectangle(Avo::Rectangle<> p_rectangle, float p_radius, float p_strokeWidth = 1.f) override
-	{
-		strokeRoundedRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius, p_strokeWidth);
-	}
-	void strokeRoundedRectangle(Avo::Point<> p_position, Avo::Point<> p_size, float p_radius, float p_strokeWidth = 1.f) override
-	{
-		strokeRoundedRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_radius, p_strokeWidth);
-	}
-	void strokeRoundedRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_strokeWidth = 1.f) override
-	{
-		m_currentBrush->SetOpacity(m_brushOpacity);
-		m_context->DrawRoundedRectangle(
-			D2D1::RoundedRect(
-				D2D1::RectF(
-					p_left, p_top,
-					p_right, p_bottom
-				), p_radius, p_radius
-			), m_currentBrush,
-			p_strokeWidth, m_strokeStyle
-		);
-	}
-	void strokeRoundedRectangle(Avo::Point<> p_size, float p_radius, float p_strokeWidth = 1.f) override
-	{
-		strokeRoundedRectangle(p_size.x, p_size.y, p_radius, p_strokeWidth);
-	}
-	void strokeRoundedRectangle(float p_width, float p_height, float p_radius, float p_strokeWidth = 1.f) override
-	{
-		strokeRoundedRectangle(0.f, 0.f, p_width, p_height, p_radius, p_strokeWidth);
-	}
-
-	void strokeRectangle(Avo::Rectangle<> p_rectangle, Avo::RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
-	{
-		strokeRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners, p_strokeWidth);
-	}
-	void strokeRectangle(Avo::Point<> p_position, Avo::Point<> p_size, Avo::RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
-	{
-		strokeRectangle(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_corners, p_strokeWidth);
-	}
-	void strokeRectangle(float p_left, float p_top, float p_right, float p_bottom, Avo::RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
-	{
-		ID2D1PathGeometry1* pathGeometry;
-		s_direct2DFactory->CreatePathGeometry(&pathGeometry);
-		createCornerRectangleGeometry(pathGeometry, p_left, p_top, p_right, p_bottom, p_corners, false);
+		auto const pathGeometry = createCornerRectanglePathGeometry(p_rectangle, p_corners, false);
 
 		m_currentBrush->SetOpacity(m_brushOpacity);
 		m_context->DrawGeometry(pathGeometry, m_currentBrush, p_strokeWidth, m_strokeStyle);
-
-		pathGeometry->Release();
 	}
-	void strokeRectangle(Avo::Point<> p_size, Avo::RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
+	auto strokeRoundedRectangle(Avo::Rectangle<> const p_rectangle, Avo::Size<> const p_radius, Avo::Dip const p_strokeWidth) -> void override
 	{
-		strokeRectangle(0.f, 0.f, p_size.x, p_size.y, p_corners, p_strokeWidth);
-	}
-	void strokeRectangle(float p_width, float p_height, Avo::RectangleCorners const& p_corners, float p_strokeWidth = 1.f) override
-	{
-		strokeRectangle(0.f, 0.f, p_width, p_height, p_corners, p_strokeWidth);
+		m_currentBrush->SetOpacity(m_brushOpacity);
+		m_context->DrawRoundedRectangle(
+			D2D1::RoundedRect(convertRectangleToRectf(p_rectangle), p_radius.width, p_radius.height), 
+			m_currentBrush, p_strokeWidth, m_strokeStyle
+		);
 	}
 
 	//------------------------------
 
-	void fillCircle(Avo::Point<> p_position, float p_radius) override
+	auto fillCircle(Avo::Point<> p_center, Avo::Dip p_radius) -> void override
 	{
-		fillCircle(p_position.x, p_position.y, p_radius);
+		fillEllipse(p_center, p_radius);
 	}
-	void fillCircle(float p_x, float p_y, float p_radius) override
+	auto fillEllipse(Avo::Point<> p_center, Avo::Size<> p_radius) -> void override
 	{
 		m_currentBrush->SetOpacity(m_brushOpacity);
 		m_context->FillEllipse(
-			D2D1::Ellipse(
-				D2D1::Point2F(p_x, p_y),
-				p_radius, p_radius
-			), m_currentBrush
+			D2D1::Ellipse({p_center.x, p_center.y}, p_radius.width, p_radius.height), 
+			m_currentBrush
 		);
 	}
 
-	void strokeCircle(Avo::Point<> p_position, float p_radius, float p_strokeWidth = 1.f)
+	auto strokeCircle(Avo::Point<> p_center, Avo::Dip p_radius, Avo::Dip p_strokeWidth) -> void override
 	{
-		strokeCircle(p_position.x, p_position.y, p_radius, p_strokeWidth);
-	};
-	void strokeCircle(float p_x, float p_y, float p_radius, float p_strokeWidth = 1.f)
+		strokeEllipse(p_center, p_radius, p_strokeWidth);
+	}
+	auto strokeEllipse(Avo::Point<> p_center, Avo::Size<> p_radius, Avo::Dip p_strokeWidth) -> void override
 	{
 		m_currentBrush->SetOpacity(m_brushOpacity);
 		m_context->DrawEllipse(
-			D2D1::Ellipse(
-				D2D1::Point2F(p_x, p_y),
-				p_radius, p_radius
-			), m_currentBrush,
-			p_strokeWidth, m_strokeStyle
+			D2D1::Ellipse({p_center.x, p_center.y}, p_radius.x, p_radius.y), 
+			m_currentBrush, p_strokeWidth, m_strokeStyle
 		);
 	}
 
 	//------------------------------
 
-	void drawLine(Avo::Point<> p_point_0, Avo::Point<> p_point_1, float p_thickness = 1.f) override
-	{
-		drawLine(p_point_0.x, p_point_0.y, p_point_1.x, p_point_1.y, p_thickness);
-	}
-	void drawLine(float p_x0, float p_y0, float p_x1, float p_y1, float p_thickness = 1.f) override
+	auto drawLine(Avo::Point<> p_0, Avo::Point<> p_1, Avo::Dip p_thickness) -> void override
 	{
 		m_currentBrush->SetOpacity(m_brushOpacity);
 		m_context->DrawLine(
-			D2D1::Point2F(p_x0, p_y0),
-			D2D1::Point2F(p_x1, p_y1),
+			{p_0.x, p_0.y},
+			{p_1.x, p_1.y},
 			m_currentBrush,
 			p_thickness, m_strokeStyle
 		);
@@ -6967,75 +6832,59 @@ public:
 
 	//------------------------------
 
-	void strokeShape(Avo::Point<> const* p_vertices, uint32 p_numberOfVertices, float p_lineThickness, bool p_isClosed) override
+private:
+	static auto createPathGeometry(Range<Avo::Point<> const*> const p_vertices, bool const p_isStroked, bool const p_isClosed)
+		-> ComReference<ID2D1PathGeometry1>
 	{
-		if (!p_numberOfVertices)
+		auto path = ComReference<ID2D1PathGeometry1>{};
+		s_direct2DFactory->CreatePathGeometry(&path);
+
+		auto sink = ComReference<ID2D1GeometrySink>{};
+		path->Open(&sink);
+
+		sink->BeginFigure({p_vertices[0].x, p_vertices[0].y}, p_isStroked ? D2D1_FIGURE_BEGIN_HOLLOW : D2D1_FIGURE_BEGIN_FILLED);
+		for (auto const a : Indices{1, p_vertices})
+		{
+			sink->AddLine({p_vertices[a].x, p_vertices[a].y});
+		}
+		sink->EndFigure(p_isClosed ? D2D1_FIGURE_END_CLOSED : D2D1_FIGURE_END_OPEN);
+
+		sink->Close();
+		return path;
+	}
+	static auto getD2dGeometryFromGeometry(Avo::Geometry const& p_geometry) -> Direct2dGeometry*
+	{
+		return static_cast<Direct2dGeometry*>(p_geometry.getImplementation());
+	}
+
+public:
+	auto strokeShape(Range<Avo::Point<>*> const p_vertices, float const p_lineThickness, bool const p_isClosed) -> void override
+	{
+		if (!p_vertices.size())
 		{
 			return;
 		}
 
-		ID2D1PathGeometry1* path;
-		s_direct2DFactory->CreatePathGeometry(&path);
-		ID2D1GeometrySink* sink;
-		path->Open(&sink);
-
-		sink->BeginFigure(D2D1::Point2F(p_vertices[0].x, p_vertices[0].y), D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_HOLLOW);
-		for (uint32 a = 1; a < p_numberOfVertices; a++)
-		{
-			sink->AddLine(D2D1::Point2F(p_vertices[a].x, p_vertices[a].y));
-		}
-		sink->EndFigure(p_isClosed ? D2D1_FIGURE_END::D2D1_FIGURE_END_CLOSED : D2D1_FIGURE_END::D2D1_FIGURE_END_OPEN);
-
-		sink->Close();
-
 		m_currentBrush->SetOpacity(m_brushOpacity);
-		m_context->DrawGeometry(path, m_currentBrush, p_lineThickness, m_strokeStyle);
-
-		sink->Release();
-		path->Release();
-	}
-	void strokeShape(std::vector<Avo::Point<>> const& p_vertices, float p_lineThickness, bool p_isClosed) override
-	{
-		strokeShape(p_vertices.data(), p_vertices.size(), p_lineThickness, p_isClosed);
+		m_context->DrawGeometry(createPathGeometry(p_vertices, true, p_isClosed), m_currentBrush, p_lineThickness, m_strokeStyle);
 	}
 
-	void fillShape(Avo::Point<> const* p_vertices, uint32 p_numberOfVertices) override
+	auto fillShape(Range<Avo::Point<>*> const p_vertices) -> void override
 	{
-		if (!p_numberOfVertices)
+		if (!p_vertices.size())
 		{
 			return;
 		}
 
-		ID2D1PathGeometry1* path;
-		s_direct2DFactory->CreatePathGeometry(&path);
-		ID2D1GeometrySink* sink;
-		path->Open(&sink);
-
-		sink->BeginFigure(D2D1::Point2F(p_vertices[0].x, p_vertices[0].y), D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_FILLED);
-		for (uint32 a = 1; a < p_numberOfVertices; a++)
-		{
-			sink->AddLine(D2D1::Point2F(p_vertices[a].x, p_vertices[a].y));
-		}
-		sink->EndFigure(D2D1_FIGURE_END::D2D1_FIGURE_END_CLOSED);
-
-		sink->Close();
-
 		m_currentBrush->SetOpacity(m_brushOpacity);
-		m_context->FillGeometry(path, m_currentBrush);
-
-		sink->Release();
-		path->Release();
-	}
-	void fillShape(std::vector<Avo::Point<>> const& p_vertices) override
-	{
-		fillShape(p_vertices.data(), p_vertices.size());
+		m_context->FillGeometry(createPathGeometry(p_vertices, false, true), m_currentBrush);
 	}
 
 	//------------------------------
 
-	void strokeGeometry(Avo::Geometry const& p_geometry, float p_strokeWidth) override
+	auto strokeGeometry(Avo::Geometry const& p_geometry, float const p_strokeWidth) -> void override
 	{
-		auto implementation = (Direct2dGeometry*)getGeometryImplementation(p_geometry);
+		auto* const implementation = getD2dGeometryFromGeometry(p_geometry);
 		if (!implementation->getStrokedRealization())
 		{
 			realizeStrokedGeometry(implementation, p_strokeWidth);
@@ -7043,9 +6892,9 @@ public:
 		m_currentBrush->SetOpacity(m_brushOpacity);
 		m_context->DrawGeometryRealization(implementation->getStrokedRealization(), m_currentBrush);
 	}
-	void fillGeometry(Avo::Geometry const& p_geometry) override
+	auto fillGeometry(Avo::Geometry const& p_geometry) -> void override
 	{
-		auto implementation = (Direct2dGeometry*)getGeometryImplementation(p_geometry);
+		auto* const implementation = getD2dGeometryFromGeometry(p_geometry);
 		if (!implementation->getFilledRealization())
 		{
 			realizeFilledGeometry(implementation);
@@ -7056,174 +6905,123 @@ public:
 
 	//------------------------------
 
-	Avo::Geometry createRoundedRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, float p_radius, bool p_isStroked) override
+	auto createRoundedRectangleGeometry(Avo::Rectangle<> const p_rectangle, Avo::Dip const p_radius, bool const p_isStroked) -> Avo::Geometry override
 	{
-		ID2D1RoundedRectangleGeometry* geometry;
+		auto geometry = ComReference<ID2D1RoundedRectangleGeometry>{};
 		s_direct2DFactory->CreateRoundedRectangleGeometry(
-			D2D1::RoundedRect(
-				D2D1::RectF(p_left, p_top, p_right, p_bottom),
-				p_radius, p_radius
-			), &geometry
+			D2D1::RoundedRect(convertRectangleToRectf(p_rectangle), p_radius, p_radius), &geometry
 		);
 
-		return createGeometryFromImplementation(new Direct2dGeometry{ (ID2D1Geometry*)geometry });
-	}
-	Avo::Geometry createRoundedRectangleGeometry(Avo::Point<> p_position, Avo::Point<> p_size, float p_radius, bool p_isStroked) override
-	{
-		return createRoundedRectangleGeometry(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_radius, p_isStroked);
-	}
-	Avo::Geometry createRoundedRectangleGeometry(Avo::Rectangle<> p_rectangle, float p_radius, bool p_isStroked) override
-	{
-		return createRoundedRectangleGeometry(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius, p_isStroked);
-	}
-	Avo::Geometry createRoundedRectangleGeometry(float p_width, float p_height, float p_radius, bool p_isStroked) override
-	{
-		return createRoundedRectangleGeometry(0.f, 0.f, p_width, p_height, p_radius, p_isStroked);
-	}
-	Avo::Geometry createRoundedRectangleGeometry(Avo::Point<> p_size, float p_radius, bool p_isStroked) override
-	{
-		return createRoundedRectangleGeometry(0.f, 0.f, p_size.x, p_size.y, p_radius, p_isStroked);
+		return createGeometryFromImplementation(std::make_shared<Direct2dGeometry>(geometry.as<ID2D1Geometry>()));
 	}
 
-	Avo::Geometry createCornerRectangleGeometry(float p_left, float p_top, float p_right, float p_bottom, Avo::RectangleCorners const& p_corners, bool p_isStroked) override
+	auto createCornerRectangleGeometry(Avo::Rectangle<> p_rectangle, Avo::RectangleCorners const& p_corners, bool p_isStroked) -> Avo::Geometry override
 	{
-		ID2D1PathGeometry1* pathGeometry = nullptr;
-		s_direct2DFactory->CreatePathGeometry(&pathGeometry);
-		createCornerRectangleGeometry(pathGeometry, p_left, p_top, p_right, p_bottom, p_corners, true);
-
-		return createGeometryFromImplementation(new Direct2dGeometry{ (ID2D1Geometry*)pathGeometry });
-	}
-	Avo::Geometry createCornerRectangleGeometry(Avo::Point<> p_position, Avo::Point<> p_size, Avo::RectangleCorners const& p_corners, bool p_isStroked) override
-	{
-		return createCornerRectangleGeometry(p_position.x, p_position.y, p_position.x + p_size.x, p_position.y + p_size.y, p_corners, p_isStroked);
-	}
-	Avo::Geometry createCornerRectangleGeometry(Avo::Rectangle<> p_rectangle, Avo::RectangleCorners const& p_corners, bool p_isStroked) override
-	{
-		return createCornerRectangleGeometry(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners, p_isStroked);
-	}
-	Avo::Geometry createCornerRectangleGeometry(float p_width, float p_height, Avo::RectangleCorners const& p_corners, bool p_isStroked) override
-	{
-		return createCornerRectangleGeometry(0.f, 0.f, p_width, p_height, p_corners, p_isStroked);
-	}
-	Avo::Geometry createCornerRectangleGeometry(Avo::Point<> p_size, Avo::RectangleCorners const& p_corners, bool p_isStroked) override
-	{
-		return createCornerRectangleGeometry(0.f, 0.f, p_size.x, p_size.y, p_corners, p_isStroked);
+		return createGeometryFromImplementation(std::make_shared<Direct2dGeometry>(
+			createCornerRectanglePathGeometry(p_rectangle, p_corners, true).as<ID2D1Geometry>()
+		));
 	}
 
 	//------------------------------
 
-	Avo::Geometry createPolygonGeometry(Avo::Point<> const* p_vertices, uint32 p_numberOfVertices, bool p_isStroked, bool p_isClosed) override
+	auto createPolygonGeometry(Range<Avo::Point<> const*> p_vertices, bool p_isStroked, bool p_isClosed) -> Avo::Geometry override
 	{
-		if (!p_numberOfVertices)
+		if (!p_vertices.size())
 		{
-			return Avo::Geometry{};
+			return {};
 		}
 
-		ID2D1PathGeometry1* path;
-		s_direct2DFactory->CreatePathGeometry(&path);
-		
-		ID2D1GeometrySink* sink;
-		path->Open(&sink);
-
-		sink->BeginFigure(D2D1::Point2F(p_vertices[0].x, p_vertices[0].y), D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_FILLED);
-		for (uint32 a = 1; a < p_numberOfVertices; a++)
-		{
-			sink->AddLine(D2D1::Point2F(p_vertices[a].x, p_vertices[a].y));
-		}
-		sink->EndFigure(p_isClosed ? D2D1_FIGURE_END::D2D1_FIGURE_END_CLOSED : D2D1_FIGURE_END::D2D1_FIGURE_END_OPEN);
-
-		sink->Close();
-		sink->Release();
-
-		return createGeometryFromImplementation(new Direct2dGeometry{ path });
+		return createGeometryFromImplementation(std::make_shared<Direct2dGeometry>(
+			createPathGeometry(p_vertices, p_isStroked, p_isClosed).as<ID2D1Geometry>()
+		));
 	}
 
 	//------------------------------
 
-	void setLineCap(Avo::LineCap p_lineCap) override
+	auto setLineCap(Avo::LineCap p_lineCap) -> void override
 	{
 		switch (p_lineCap)
 		{
 			case Avo::LineCap::Flat:
-				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
-				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE_FLAT;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE_FLAT;
 				break;
 			case Avo::LineCap::Round:
-				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
-				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE_ROUND;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE_ROUND;
 				break;
 			case Avo::LineCap::Square:
-				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
-				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE_SQUARE;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE_SQUARE;
 				break;
 			case Avo::LineCap::Triangle:
-				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
-				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE_TRIANGLE;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE_TRIANGLE;
 		}
 		updateStrokeStyle();
 	}
-	void setStartLineCap(Avo::LineCap p_lineCap) override
+	auto setStartLineCap(Avo::LineCap p_lineCap) -> void override
 	{
 		switch (p_lineCap)
 		{
 			case Avo::LineCap::Flat:
-				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE_FLAT;
 				break;
 			case Avo::LineCap::Round:
-				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE_ROUND;
 				break;
 			case Avo::LineCap::Square:
-				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE_SQUARE;
 				break;
 			case Avo::LineCap::Triangle:
-				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+				m_strokeStyleProperties.startCap = D2D1_CAP_STYLE_TRIANGLE;
 		}
 		updateStrokeStyle();
 	}
-	void setEndLineCap(Avo::LineCap p_lineCap) override
+	auto setEndLineCap(Avo::LineCap p_lineCap) -> void override
 	{
 		switch (p_lineCap)
 		{
 			case Avo::LineCap::Flat:
-				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE_FLAT;
 				break;
 			case Avo::LineCap::Round:
-				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE_ROUND;
 				break;
 			case Avo::LineCap::Square:
-				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE_SQUARE;
 				break;
 			case Avo::LineCap::Triangle:
-				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+				m_strokeStyleProperties.endCap = D2D1_CAP_STYLE_TRIANGLE;
 		}
 		updateStrokeStyle();
 	}
-	Avo::LineCap getStartLineCap() override
+	auto getStartLineCap() -> Avo::LineCap override
 	{
 		switch (m_strokeStyleProperties.startCap)
 		{
-			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT:
+			case D2D1_CAP_STYLE_FLAT:
 				return Avo::LineCap::Flat;
-			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND:
+			case D2D1_CAP_STYLE_ROUND:
 				return Avo::LineCap::Round;
-			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE:
+			case D2D1_CAP_STYLE_SQUARE:
 				return Avo::LineCap::Square;
-			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE:
+			case D2D1_CAP_STYLE_TRIANGLE:
 				return Avo::LineCap::Triangle;
 		}
 		return Avo::LineCap::Triangle;
 	}
-	Avo::LineCap getEndLineCap() override
+	auto getEndLineCap() -> Avo::LineCap override
 	{
 		switch (m_strokeStyleProperties.endCap)
 		{
-			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT:
+			case D2D1_CAP_STYLE_FLAT:
 				return Avo::LineCap::Flat;
-			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND:
+			case D2D1_CAP_STYLE_ROUND:
 				return Avo::LineCap::Round;
-			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE:
+			case D2D1_CAP_STYLE_SQUARE:
 				return Avo::LineCap::Square;
-			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE:
+			case D2D1_CAP_STYLE_TRIANGLE:
 				return Avo::LineCap::Triangle;
 		}
 		return Avo::LineCap::Triangle;
@@ -7231,190 +7029,169 @@ public:
 
 	//------------------------------
 
-	void setLineJoin(Avo::LineJoin p_lineJoin) override
+	auto setLineJoin(Avo::LineJoin p_lineJoin) -> void override
 	{
 		switch (p_lineJoin)
 		{
 			case Avo::LineJoin::Bevel:
-				m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_BEVEL;
+				m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN_BEVEL;
 				break;
 			case Avo::LineJoin::Miter:
-				m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_MITER;
+				m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN_MITER;
 				break;
 			case Avo::LineJoin::Round:
-				m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN::D2D1_LINE_JOIN_ROUND;
+				m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN_ROUND;
 				break;
 		}
 		updateStrokeStyle();
 	}
-	Avo::LineJoin getLineJoin() override
+	auto getLineJoin() -> Avo::LineJoin override
 	{
 		switch (m_strokeStyleProperties.lineJoin)
 		{
-			case D2D1_LINE_JOIN::D2D1_LINE_JOIN_BEVEL:
+			case D2D1_LINE_JOIN_BEVEL:
 				return Avo::LineJoin::Bevel;
-			case D2D1_LINE_JOIN::D2D1_LINE_JOIN_MITER:
+			case D2D1_LINE_JOIN_MITER:
 				return Avo::LineJoin::Miter;
-			case D2D1_LINE_JOIN::D2D1_LINE_JOIN_ROUND:
+			case D2D1_LINE_JOIN_ROUND:
 				return Avo::LineJoin::Round;
 		}
 		return Avo::LineJoin::Miter;
 	}
 
-	void setLineJoinMiterLimit(float p_miterLimit) override
+	auto setLineJoinMiterLimit(float p_miterLimit) -> void override
 	{
 		m_strokeStyleProperties.miterLimit = p_miterLimit;
 		updateStrokeStyle();
 	}
-	float getLineJoinMiterLimit() override
+	auto getLineJoinMiterLimit() -> float override
 	{
 		return m_strokeStyleProperties.miterLimit;
 	}
 
 	//------------------------------
 
-	void setLineDashStyle(Avo::LineDashStyle p_dashStyle) override
+	auto setLineDashStyle(Avo::LineDashStyle p_dashStyle) -> void override
 	{
 		switch (p_dashStyle)
 		{
 			case Avo::LineDashStyle::Solid:
-				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_SOLID;
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE_SOLID;
 				break;
 			case Avo::LineDashStyle::Dash:
-				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH;
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE_DASH;
 				break;
 			case Avo::LineDashStyle::Dot:
-				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DOT;
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE_DOT;
 				break;
 			case Avo::LineDashStyle::DashDot:
-				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT;
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE_DASH_DOT;
 				break;
 			case Avo::LineDashStyle::DashDotDot:
-				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT_DOT;
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE_DASH_DOT_DOT;
 				break;
 			case Avo::LineDashStyle::Custom:
-				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE::D2D1_DASH_STYLE_CUSTOM;
+				m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE_CUSTOM;
 		}
 		updateStrokeStyle();
 	}
-	Avo::LineDashStyle getLineDashStyle() override
+	auto getLineDashStyle() -> Avo::LineDashStyle override
 	{
 		switch (m_strokeStyleProperties.dashStyle)
 		{
-			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_SOLID:
+			case D2D1_DASH_STYLE_SOLID:
 				return Avo::LineDashStyle::Solid;
-			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH:
+			case D2D1_DASH_STYLE_DASH:
 				return Avo::LineDashStyle::Dash;
-			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DOT:
+			case D2D1_DASH_STYLE_DOT:
 				return Avo::LineDashStyle::Dot;
-			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT:
+			case D2D1_DASH_STYLE_DASH_DOT:
 				return Avo::LineDashStyle::DashDot;
-			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_DASH_DOT_DOT:
+			case D2D1_DASH_STYLE_DASH_DOT_DOT:
 				return Avo::LineDashStyle::DashDotDot;
-			case D2D1_DASH_STYLE::D2D1_DASH_STYLE_CUSTOM:
+			case D2D1_DASH_STYLE_CUSTOM:
 				return Avo::LineDashStyle::Custom;
 		}
-		return Avo::LineDashStyle{ 0 };
+		return Avo::LineDashStyle::Unknown;
 	}
 
-	void setLineDashOffset(float p_dashOffset) override
+	auto setLineDashOffset(float p_dashOffset) -> void override
 	{
 		m_strokeStyleProperties.dashOffset = p_dashOffset;
 		updateStrokeStyle();
 	}
-	float getLineDashOffset() override
+	auto getLineDashOffset() -> float override
 	{
 		return m_strokeStyleProperties.dashOffset;
 	}
 
-	void setLineDashCap(Avo::LineCap p_dashCap) override
+	auto setLineDashCap(Avo::LineCap p_dashCap) -> void override
 	{
 		switch (p_dashCap)
 		{
 			case Avo::LineCap::Flat:
-				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT;
+				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE_FLAT;
 				break;
 			case Avo::LineCap::Round:
-				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND;
+				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE_ROUND;
 				break;
 			case Avo::LineCap::Square:
-				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE;
+				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE_SQUARE;
 				break;
 			case Avo::LineCap::Triangle:
-				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE;
+				m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE_TRIANGLE;
 		}
 		updateStrokeStyle();
 	}
-	Avo::LineCap getLineDashCap() override
+	auto getLineDashCap() -> Avo::LineCap override
 	{
 		switch (m_strokeStyleProperties.dashCap)
 		{
-			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_FLAT:
+			case D2D1_CAP_STYLE_FLAT:
 				return Avo::LineCap::Flat;
-			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_ROUND:
+			case D2D1_CAP_STYLE_ROUND:
 				return Avo::LineCap::Round;
-			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_SQUARE:
+			case D2D1_CAP_STYLE_SQUARE:
 				return Avo::LineCap::Square;
-			case D2D1_CAP_STYLE::D2D1_CAP_STYLE_TRIANGLE:
+			case D2D1_CAP_STYLE_TRIANGLE:
 				return Avo::LineCap::Triangle;
 		}
-		return Avo::LineCap{ 0 };
+		return Avo::LineCap::Unknown;
 	}
 
 	//------------------------------
 
 private:
 	std::stack<bool> m_clipTypeStack;
-public:
-	void pushClipGeometry(Avo::Geometry const& p_geometry, float p_opacity) override
+
+	auto pushGeometryLayer(ID2D1Geometry* const p_geometry, float const p_opacity) -> void
 	{
 		m_context->PushLayer(
 			D2D1::LayerParameters1(
-				D2D1::InfiniteRect(), ((Direct2dGeometry*)getGeometryImplementation(p_geometry))->getGeometry(), D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, 
-				D2D1::IdentityMatrix(), p_opacity, nullptr, D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND | D2D1_LAYER_OPTIONS1_IGNORE_ALPHA // Improves performance :^)
+				D2D1::InfiniteRect(), p_geometry, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
+				D2D1::IdentityMatrix(), p_opacity, nullptr, 
+				D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND | D2D1_LAYER_OPTIONS1_IGNORE_ALPHA // Improves performance :^)
 			), nullptr
 		);
 		m_clipTypeStack.push(true);
 	}
-
-	void pushClipShape(std::vector<Avo::Point<>> const& p_points, float p_opacity) override
+	
+public:
+	auto pushClipGeometry(Avo::Geometry const& p_geometry, float const p_opacity) -> void override
 	{
-		pushClipShape(p_points.data(), p_points.size(), p_opacity);
+		pushGeometryLayer(static_cast<Direct2dGeometry*>(p_geometry.getImplementation())->getGeometry(), p_opacity);
 	}
-	void pushClipShape(Avo::Point<> const* p_points, uint32 p_numberOfPoints, float p_opacity) override
+
+	auto pushClipShape(Range<Avo::Point<> const*> const p_points, float const p_opacity) -> void override
 	{
-		if (!p_numberOfPoints)
+		if (!p_points.size())
 		{
 			return;
 		}
 
-		ID2D1PathGeometry1* geometry;
-		s_direct2DFactory->CreatePathGeometry(&geometry);
-
-		ID2D1GeometrySink* sink;
-		geometry->Open(&sink);
-
-		sink->BeginFigure(D2D1::Point2F(p_points[0].x, p_points[0].y), D2D1_FIGURE_BEGIN::D2D1_FIGURE_BEGIN_FILLED);
-		for (uint32 a = 1; a < p_numberOfPoints; a++)
-		{
-			sink->AddLine(D2D1::Point2F(p_points[a].x, p_points[a].y));
-		}
-		sink->EndFigure(D2D1_FIGURE_END::D2D1_FIGURE_END_CLOSED);
-
-		sink->Close();
-		sink->Release();
-
-		m_context->PushLayer(
-			D2D1::LayerParameters1(
-				D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
-				D2D1::IdentityMatrix(), p_opacity, nullptr, D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND | D2D1_LAYER_OPTIONS1_IGNORE_ALPHA // Improves performance :^)
-			), nullptr
-		);
-		m_clipTypeStack.push(true);
-
-		geometry->Release();
+		pushGeometryLayer(createPathGeometry(p_points, false, true), p_opacity);
 	}
-	void popClipShape() override
+	auto popClipShape() -> void override
 	{
 		if (m_clipTypeStack.size())
 		{
@@ -7430,251 +7207,74 @@ public:
 		}
 	}
 
-	void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_opacity) override
+	auto pushClipRectangle(Avo::Rectangle<> const p_rectangle, float const p_opacity) -> void override
 	{
-		constexpr auto opaqueThreshold = 254. / 255.;
+		auto const rectangle = convertRectangleToRectf(p_rectangle);
+
+		constexpr auto opaqueThreshold = 254./255.;
 		if (p_opacity > opaqueThreshold)
 		{
-			m_context->PushAxisAlignedClip(
-				D2D1::RectF(p_left, p_top, p_right, p_bottom), 
-				D2D1_ANTIALIAS_MODE::D2D1_ANTIALIAS_MODE_PER_PRIMITIVE
-			);
+			m_context->PushAxisAlignedClip(rectangle, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
 			m_clipTypeStack.push(false);
 		}
 		else
 		{
-			ID2D1RectangleGeometry* geometry = nullptr;
-			s_direct2DFactory->CreateRectangleGeometry(D2D1::RectF(p_left, p_top, p_right, p_bottom), &geometry);
-			m_context->PushLayer(
-				D2D1::LayerParameters1(
-					D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
-					D2D1::IdentityMatrix(), p_opacity, nullptr, D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND | D2D1_LAYER_OPTIONS1_IGNORE_ALPHA // Improves performance :^)
-				), nullptr
-			);
-			geometry->Release();
-			m_clipTypeStack.push(true);
+			auto geometry = ComReference<ID2D1RectangleGeometry>{};
+			s_direct2DFactory->CreateRectangleGeometry(rectangle, &geometry);
+			pushGeometryLayer(geometry, p_opacity);
 		}
 	}
-	void pushClipRectangle(Avo::Rectangle<> p_rectangle, float p_opacity) override
+
+	auto pushClipRectangle(
+		Avo::Rectangle<> const p_rectangle, Avo::RectangleCorners const& p_corners, float const p_opacity
+	) -> void override
 	{
-		pushClipRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_opacity);
-	}
-	void pushClipRectangle(Avo::Point<> p_size, float p_opacity) override
-	{
-		pushClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_opacity);
+		pushGeometryLayer(createCornerRectanglePathGeometry(p_rectangle, p_corners, true), p_opacity);
 	}
 
-	void pushClipRectangle(float p_left, float p_top, float p_right, float p_bottom, Avo::RectangleCorners const& p_corners, float p_opacity)
+	auto pushRoundedClipRectangle(Avo::Rectangle<> const p_rectangle, float const p_radius, float const p_opacity) -> void override
 	{
-		ID2D1PathGeometry1* geometry;
-		s_direct2DFactory->CreatePathGeometry(&geometry);
-
-		createCornerRectangleGeometry(geometry, p_left, p_top, p_right, p_bottom, p_corners, true);
-
-		m_context->PushLayer(
-			D2D1::LayerParameters1(
-				D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
-				D2D1::IdentityMatrix(), p_opacity, nullptr, D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND | D2D1_LAYER_OPTIONS1_IGNORE_ALPHA // Improves performance :^)
-			), nullptr
-		);
-		geometry->Release();
-		m_clipTypeStack.push(true);
-	}
-	void pushClipRectangle(Avo::Rectangle<> p_rectangle, Avo::RectangleCorners const& p_corners, float p_opacity)
-	{
-		pushClipRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_corners, p_opacity);
-	}
-	void pushClipRectangle(Avo::Point<> p_size, Avo::RectangleCorners const& p_corners, float p_opacity)
-	{
-		pushClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_corners, p_opacity);
-	}
-
-	void pushRoundedClipRectangle(float p_left, float p_top, float p_right, float p_bottom, float p_radius, float p_opacity) override
-	{
-		ID2D1RoundedRectangleGeometry* geometry;
+		auto geometry = ComReference<ID2D1RoundedRectangleGeometry>{};
 		s_direct2DFactory->CreateRoundedRectangleGeometry(
 			D2D1::RoundedRect(
-				D2D1::RectF(p_left, p_top, p_right, p_bottom),
+				convertRectangleToRectf(p_rectangle),
 				p_radius, p_radius
 			), &geometry
 		);
 
-		m_context->PushLayer(
-			D2D1::LayerParameters1(
-				D2D1::InfiniteRect(), geometry, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
-				D2D1::IdentityMatrix(), p_opacity, nullptr, D2D1_LAYER_OPTIONS1_INITIALIZE_FROM_BACKGROUND | D2D1_LAYER_OPTIONS1_IGNORE_ALPHA // Improves performance :^)
-			), nullptr
-		);
-		geometry->Release();
-		m_clipTypeStack.push(true);
-	}
-	void pushRoundedClipRectangle(Avo::Rectangle<> p_rectangle, float p_radius, float p_opacity) override
-	{
-		pushRoundedClipRectangle(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom, p_radius, p_opacity);
-	}
-	void pushRoundedClipRectangle(Avo::Point<> p_size, float p_radius, float p_opacity) override
-	{
-		pushRoundedClipRectangle(0.f, 0.f, p_size.x, p_size.y, p_radius, p_opacity);
+		pushGeometryLayer(geometry, p_opacity);
 	}
 
 	//------------------------------
 
-	Avo::Image createRectangleShadowImage(Avo::Point<> p_size, float p_blur, Avo::Color p_color) override
+private:
+	template<typename Lambda>
+	auto createShadowImage(
+		Avo::Size<> const p_size, float p_blur, 
+		Avo::Color const p_color, Lambda const& p_drawShape
+	) -> Avo::Image
 	{
-		return createRectangleShadowImage(p_size.x, p_size.y, p_blur, p_color);
-	}
-	Avo::Image createRectangleShadowImage(float p_width, float p_height, float p_blur, Avo::Color p_color) override
-	{
-		// I am proud of this algorithm I came up with when I was
-		// trying to make a GUI library using SDL, so why not use it here
+		if (!p_size || !p_color.alpha) return {};
 
-		// Me in the future: because it doesn't look similar enough to shadows made with the shadow effect in direct2d,
-		// which is used in the createRoundedRectangleShadowImage() method. I also don't know which method is faster (mine probably hehe)
+		p_blur *= 2.f/3.f;
 
-		// Here is the code anyways, it is pretty fun:
+		auto const targetLock = std::scoped_lock{m_targetMutex};
 
-		/*
-		if (p_width*p_height == 0) return 0;
-
-		float blurCeiled = std::ceil(p_blur);
-		int32 edgeWidth = (int32)blurCeiled << 1;
-
-		p_width += edgeWidth;
-		p_height += edgeWidth;
-
-		//------------------------------
-
-		if (p_color & 0xff000000)
-		{
-			premultiplyColor(p_color);
-		}
-		else
-		{
-			p_color |= 0xff000000;
-		}
-
-		uint32* pixels = new uint32[p_width*p_height];
-		for (uint32 a = 0; a < p_width*p_height; a++)
-		{
-			pixels[a] = p_color;
-		}
-
-		int32 x = 0, y = 0;
-		float distance = (p_blur - (int32)p_blur) / (p_blur*2.f + 1.f);
-		float alphaFactor = 2.f*distance*distance;
-
-		if (p_width > p_height)
-		{
-			while (y < edgeWidth)
-			{
-				pixels[x + y * p_width] = getMultipliedColor(pixels[x + y * p_width], alphaFactor);
-				pixels[x + (p_height - y - 1)*p_width] = getMultipliedColor(pixels[x + (p_height - y - 1)*p_width], alphaFactor);
-				if (x < p_height)
-				{
-					pixels[y + x * p_width] = getMultipliedColor(pixels[y + x * p_width], alphaFactor);
-					pixels[p_width - 1 - y + x * p_width] = getMultipliedColor(pixels[p_width - 1 - y + x * p_width], alphaFactor);
-				}
-
-				//------------------------------
-
-				x++;
-				if (x == p_width)
-				{
-					x = 0;
-					y++;
-
-					// I know this looks really weird, but this is a way of calculating
-					// the appropriate distance even when p_elevation is a decimal value,
-					// to achieve anti-aliasing, essentially.
-					// Also, 0 < distance < 1, which means it doesn't bother with fully transparent or
-					// fully opaque pixels.
-
-					// I needed to sit down with pen and paper for like half an hour to figure this out lol
-
-					distance = ((float)y + p_blur - (int32)p_blur) / (p_blur*2.f + 1.f);
-
-					if (y < blurCeiled)
-					{
-						alphaFactor = 2.f*distance*distance;
-					}
-					else
-					{
-						alphaFactor = 4.f*distance - 2.f*distance*distance - 1.f;
-					}
-				}
-			}
-		}
-		else
-		{
-			while (x < edgeWidth)
-			{
-				pixels[x + y * p_width] = getMultipliedColor(pixels[x + y * p_width], alphaFactor);
-				pixels[p_width - x - 1 + y * p_width] = getMultipliedColor(pixels[p_height - x - 1 + y * p_width], alphaFactor);
-				if (y < p_width)
-				{
-					pixels[y + x * p_width] = getMultipliedColor(pixels[y + x * p_width], alphaFactor);
-					pixels[y + (p_height - x - 1) * p_width] = getMultipliedColor(pixels[y + (p_height - x - 1) * p_width], alphaFactor);
-				}
-
-				//------------------------------
-
-				y++;
-				if (y == p_height)
-				{
-					y = 0;
-					x++;
-
-					distance = ((float)x + p_blur - (int32)p_blur) / (p_blur*2.f + 1.f);
-
-					if (x < blurCeiled)
-					{
-						alphaFactor = 2.f*distance*distance;
-					}
-					else
-					{
-						alphaFactor = 4.f*distance - 2.f*distance*distance - 1.f;
-					}
-				}
-			}
-		}
-
-		//------------------------------
-
-		ID2D1Bitmap1* outputBitmap;
-		m_context->CreateBitmap(
-			D2D1::SizeU(p_width, p_height),
-			pixels, 4*p_width,
-			D2D1::BitmapProperties(
-				D2D1::PixelFormat(DXGI_FORMAT::DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE::D2D1_ALPHA_MODE_PREMULTIPLIED)
-			), &outputBitmap
-		);
-
-		delete[] pixels;
-
-		return new Direct2dImage(outputBitmap);
-		*/
-
-		if (!p_width || !p_height || !p_color.alpha) return Avo::Image();
-
-		p_blur *= 2.f / 3.f;
-
-		m_targetMutex.lock();
-
-		float dpiX = 0;
-		float dpiY = 0;
+		auto dpiX = float{};
+		auto dpiY = float{};
 		m_context->GetDpi(&dpiX, &dpiY);
-		float dipToPixelFactor = dpiX / USER_DEFAULT_SCREEN_DPI;
+		auto const dipToPixelFactor = dpiX/USER_DEFAULT_SCREEN_DPI;
 
-		ID2D1Image* targetBefore = nullptr;
+		auto targetBefore = ComReference<ID2D1Image>{};
 		m_context->GetTarget(&targetBefore);
 		m_context->SetDpi(USER_DEFAULT_SCREEN_DPI, USER_DEFAULT_SCREEN_DPI);
 
-		ID2D1Bitmap1* inputBitmap;
+		auto inputBitmap = ComReference<ID2D1Bitmap1>{};
 		m_context->CreateBitmap(
-			D2D1::SizeU(p_width, p_height),
-			nullptr, p_width * 4,
+			D2D1::SizeU(p_size.width, p_size.height),
+			nullptr, 0,
 			D2D1::BitmapProperties1(
-				D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_TARGET,
+				D2D1_BITMAP_OPTIONS_TARGET,
 				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
 			), &inputBitmap
 		);
@@ -7682,34 +7282,34 @@ public:
 		m_context->SetTarget(inputBitmap);
 
 		m_context->BeginDraw();
-		clear(Avo::Color(0.f));
+		p_drawShape();
 		m_context->EndDraw();
 		m_context->SetDpi(dpiX, dpiY);
 
 		//------------------------------
 		// Apply effect
 
-		ID2D1Effect* shadowEffect;
+		auto shadowEffect = ComReference<ID2D1Effect>{};
 		m_context->CreateEffect(CLSID_D2D1Shadow, &shadowEffect);
 
 		shadowEffect->SetInput(0, inputBitmap);
 		shadowEffect->SetValue(
-			D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_COLOR,
+			D2D1_SHADOW_PROP_COLOR,
 			D2D1::Vector4F(p_color.red, p_color.green, p_color.blue, p_color.alpha)
 		);
-		shadowEffect->SetValue(D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, p_blur / dipToPixelFactor);
+		shadowEffect->SetValue(D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, p_blur/dipToPixelFactor);
 
 		//------------------------------
 		// Convert to bitmap
 
-		ID2D1Bitmap1* outputBitmap;
-		D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur, p_height + 6.f * p_blur);
+		auto outputBitmap = static_cast<ID2D1Bitmap1*>(nullptr);
+		auto const outputSize = Avo::Size<UINT32>{p_size + 6.f*p_blur};
 
 		m_context->CreateBitmap(
-			outputSize,
-			0, outputSize.width * 4,
+			{outputSize.x, outputSize.y},
+			0, outputSize.width*4,
 			D2D1::BitmapProperties1(
-				D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_CPU_READ,
+				D2D1_BITMAP_OPTIONS_TARGET,
 				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
 			), &outputBitmap
 		);
@@ -7717,337 +7317,177 @@ public:
 		m_context->SetTarget(outputBitmap);
 		m_context->BeginDraw();
 		clear();
-		m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f / dipToPixelFactor, p_blur * 3.f / dipToPixelFactor));
+		m_context->DrawImage(shadowEffect, {p_blur*3.f/dipToPixelFactor, p_blur*3.f/dipToPixelFactor});
 		m_context->EndDraw();
 		m_context->SetTarget(targetBefore);
 
-		m_targetMutex.unlock();
-
-		shadowEffect->Release();
-		inputBitmap->Release();
-		targetBefore->Release();
-
-		return createImageFromImplementation(new Direct2dImage{ outputBitmap });
-	}
-	Avo::Image createRectangleShadowImage(Avo::Point<> p_size, Avo::RectangleCorners const& p_corners, 
-		float p_blur, Avo::Color p_color) override
-	{
-		return createRectangleShadowImage(p_size.x, p_size.y, p_corners, p_blur, p_color);
-	}
-	Avo::Image createRectangleShadowImage(float p_width, float p_height, Avo::RectangleCorners const& p_corners, 
-		float p_blur, Avo::Color p_color) override
-	{
-		if (!p_width || !p_height || !p_color.alpha) return Avo::Image();
-
-		p_blur *= 2.f / 3.f;
-
-		m_targetMutex.lock();
-
-		float dpiX = 0;
-		float dpiY = 0;
-		m_context->GetDpi(&dpiX, &dpiY);
-		float dipToPixelFactor = dpiX / USER_DEFAULT_SCREEN_DPI;
-
-		ID2D1Image* targetBefore = 0;
-		m_context->GetTarget(&targetBefore);
-		m_context->SetDpi(USER_DEFAULT_SCREEN_DPI, USER_DEFAULT_SCREEN_DPI);
-		
-		ID2D1Bitmap1* inputBitmap;
-		m_context->CreateBitmap(
-			D2D1::SizeU(p_width, p_height),
-			0, 0,
-			D2D1::BitmapProperties1(
-				D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_TARGET,
-				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
-			), &inputBitmap
-		);
-
-		m_context->SetTarget(inputBitmap);
-
-		m_context->BeginDraw();
-		clear();
-		setColor(Avo::Color(0.f));
-		fillRectangle(p_width, p_height, p_corners);
-		m_context->EndDraw();
-		m_context->SetDpi(dpiX, dpiY);
-
-		//------------------------------
-		// Appy effect
-
-		ID2D1Effect* shadowEffect;
-		m_context->CreateEffect(CLSID_D2D1Shadow, &shadowEffect);
-
-		shadowEffect->SetInput(0, inputBitmap);
-		shadowEffect->SetValue(
-			D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_COLOR,
-			D2D1::Vector4F(p_color.red, p_color.green, p_color.blue, p_color.alpha)
-		);
-		shadowEffect->SetValue(D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, p_blur / dipToPixelFactor);
-
-		//------------------------------
-		// Convert to bitmap
-
-		ID2D1Bitmap1* outputBitmap;
-		D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f*p_blur, p_height + 6.f * p_blur);
-
-		m_context->CreateBitmap(
-			outputSize,
-			0, outputSize.width * 4,
-			D2D1::BitmapProperties1(
-				D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_TARGET,
-				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
-			), &outputBitmap
-		);
-
-		m_context->SetTarget(outputBitmap);
-		m_context->BeginDraw();
-		clear();
-		m_context->DrawImage(shadowEffect, D2D1::Point2F(3.f * p_blur / dipToPixelFactor, 3.f * p_blur / dipToPixelFactor));
-		m_context->EndDraw();
-		m_context->SetTarget(targetBefore);
-
-		m_targetMutex.unlock();
-
-		shadowEffect->Release();
-		inputBitmap->Release();
-		targetBefore->Release();
-
-		return createImageFromImplementation(new Direct2dImage{ outputBitmap });
+		return createImageFromImplementation(std::make_shared<Direct2dImage>(outputBitmap));
 	}
 
-	Avo::Image createRoundedRectangleShadowImage(Avo::Point<> p_size, float p_radius, float p_blur, Avo::Color p_color)
+public:
+	auto createRectangleShadowImage(Avo::Size<> p_size, float p_blur, Avo::Color p_color) -> Avo::Image override
 	{
-		return createRoundedRectangleShadowImage(p_size.x, p_size.y, p_radius, p_blur, p_color);
+		return createShadowImage(p_size, p_blur, p_color, [&]{ clear(0.f); });
 	}
-	Avo::Image createRoundedRectangleShadowImage(float p_width, float p_height, float p_radius, float p_blur, Avo::Color p_color)
+	auto createRectangleShadowImage(Avo::Size<> p_size, Avo::RectangleCorners const& p_corners, 
+	                                float p_blur, Avo::Color p_color) -> Avo::Image override
 	{
-		if (!p_width || !p_height || !p_color.alpha) return Avo::Image();
-
-		p_blur *= 2.f / 3.f;
-
-		m_targetMutex.lock();
-
-		float dpiX = 0;
-		float dpiY = 0;
-		m_context->GetDpi(&dpiX, &dpiY);
-		float dipToPixelFactor = dpiX / USER_DEFAULT_SCREEN_DPI;
-
-		ID2D1Image* targetBefore = 0;
-		m_context->GetTarget(&targetBefore);
-		m_context->SetDpi(USER_DEFAULT_SCREEN_DPI, USER_DEFAULT_SCREEN_DPI);
-
-		ID2D1Bitmap1* inputBitmap;
-		m_context->CreateBitmap(
-			D2D1::SizeU(p_width, p_height),
-			0, 0,
-			D2D1::BitmapProperties1(
-				D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_TARGET,
-				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
-			), &inputBitmap
-		);
-
-		m_context->SetTarget(inputBitmap);
-
-		m_context->BeginDraw();
-		clear();
-		setColor(Avo::Color(0.f));
-		fillRoundedRectangle(0, 0, p_width, p_height, p_radius);
-		m_context->EndDraw();
-		m_context->SetDpi(dpiX, dpiY);
-
-		//------------------------------
-		// Appy effect
-
-		ID2D1Effect* shadowEffect;
-		m_context->CreateEffect(CLSID_D2D1Shadow, &shadowEffect);
-
-		shadowEffect->SetInput(0, inputBitmap);
-		shadowEffect->SetValue(
-			D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_COLOR,
-			D2D1::Vector4F(p_color.red, p_color.green, p_color.blue, p_color.alpha)
-		);
-		shadowEffect->SetValue(D2D1_SHADOW_PROP::D2D1_SHADOW_PROP_BLUR_STANDARD_DEVIATION, p_blur / dipToPixelFactor);
-
-		//------------------------------
-		// Convert to bitmap
-
-		ID2D1Bitmap1* outputBitmap;
-		D2D1_SIZE_U outputSize = D2D1::SizeU(p_width + 6.f * p_blur, p_height + 6.f * p_blur);
-
-		m_context->CreateBitmap(
-			outputSize,
-			0, outputSize.width * 4,
-			D2D1::BitmapProperties1(
-				D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_TARGET,
-				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
-			), &outputBitmap
-		);
-
-		m_context->SetTarget(outputBitmap);
-		m_context->BeginDraw();
-		clear();
-		m_context->DrawImage(shadowEffect, D2D1::Point2F(p_blur * 3.f / dipToPixelFactor, p_blur * 3.f / dipToPixelFactor));
-		m_context->EndDraw();
-		m_context->SetTarget(targetBefore);
-
-		m_targetMutex.unlock();
-
-		shadowEffect->Release();
-		inputBitmap->Release();
-		targetBefore->Release();
-
-		return createImageFromImplementation(new Direct2dImage{ outputBitmap });
+		return createShadowImage(p_size, p_blur, p_color, [&]{
+			clear();
+			setColor(0.f);
+			fillRectangle(p_size, p_corners);
+		});
+	}
+	auto createRoundedRectangleShadowImage(Avo::Size<> p_size, float p_radius, float p_blur, Avo::Color p_color) -> Avo::Image override
+	{
+		return createShadowImage(p_size, p_blur, p_color, [&]{
+			clear();
+			setColor(0.f);
+			fillRoundedRectangle(p_size, p_radius);
+		});
 	}
 
 	//------------------------------
 
-	Avo::Image createImage(uint8 const* p_pixelData, uint32 p_width, uint32 p_height) override
+	auto createImage(std::byte const* p_pixelData, Avo::Size<Avo::Pixels> p_size) -> Avo::Image override
 	{
-		ID2D1Bitmap1* bitmap = 0;
+		auto bitmap = static_cast<ID2D1Bitmap1*>(nullptr);
 		m_context->CreateBitmap(
-			D2D1::Size(p_width, p_height),
-			p_pixelData, p_width * 4,
+			{static_cast<UINT32>(p_size.width), static_cast<UINT32>(p_size.height)},
+			p_pixelData, p_size.width*4,
 			D2D1::BitmapProperties1(
 				D2D1_BITMAP_OPTIONS::D2D1_BITMAP_OPTIONS_NONE,
 				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
 			), &bitmap
 		);
-		return createImageFromImplementation(new Direct2dImage{ bitmap });
+		return createImageFromImplementation(std::make_shared<Direct2dImage>(bitmap));
 	}
-	Avo::Image createImage(PointerRange<uint8 const> p_imageData) override
+	auto createImage(Avo::DataView p_imageData) -> Avo::Image override
 	{
-		IWICStream* stream = nullptr;
+		auto stream = ComReference<IWICStream>{};
 		s_imagingFactory->CreateStream(&stream);
+		if (!stream) return {};
 
 		// The stream won't modify p_imageData.
 		stream->InitializeFromMemory(const_cast<BYTE*>(reinterpret_cast<BYTE const*>(p_imageData.data())), p_imageData.size());
 
-		IWICBitmapDecoder* decoder = nullptr;
+		auto decoder = ComReference<IWICBitmapDecoder>{};
 		s_imagingFactory->CreateDecoderFromStream(stream, 0, WICDecodeMetadataCacheOnDemand, &decoder);
+		if (!decoder) return {};
 
-		Direct2dImage* result = nullptr;
-		if (decoder)
-		{
-			IWICBitmapFrameDecode* frame = nullptr;
-			decoder->GetFrame(0, &frame);
-
-			if (frame)
-			{
-				IWICFormatConverter* formatConverter = nullptr;
-				s_imagingFactory->CreateFormatConverter(&formatConverter);
-				formatConverter->Initialize(frame, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, nullptr, 0.f, WICBitmapPaletteTypeMedianCut);
-
-				ID2D1Bitmap1* bitmap;
-				m_context->CreateBitmapFromWicBitmap(formatConverter, 0, &bitmap);
-				if (bitmap)
-				{
-					result = new Direct2dImage{ bitmap };
-				}
-
-				formatConverter->Release();
-				frame->Release();
-			}
-			decoder->Release();
-		}
-		stream->Release();
-
-		return createImageFromImplementation(result);
-	}
-	Avo::Image createImage(std::string_view p_filePath) override
-	{
-		char16 wideFilePath[MAX_PATH];
-		Avo::convertUtf8ToUtf16(p_filePath, { wideFilePath, MAX_PATH });
-
-		IWICBitmapDecoder* decoder = nullptr;
-		s_imagingFactory->CreateDecoderFromFilename(reinterpret_cast<LPCWSTR>(wideFilePath), 0, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &decoder);
-		if (!decoder)
-		{
-			return Avo::Image{};
-		}
-
-		IWICBitmapFrameDecode* frame = nullptr;
+		auto frame = ComReference<IWICBitmapFrameDecode>{};
 		decoder->GetFrame(0, &frame);
+		if (!frame) return {};
 
-		Direct2dImage* result = nullptr;
-		if (frame)
-		{
-			IWICFormatConverter* formatConverter = nullptr;
-			s_imagingFactory->CreateFormatConverter(&formatConverter);
-			formatConverter->Initialize(frame, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, nullptr, 0.f, WICBitmapPaletteTypeMedianCut);
+		auto formatConverter = ComReference<IWICFormatConverter>{};
+		s_imagingFactory->CreateFormatConverter(&formatConverter);
+		formatConverter->Initialize(
+			frame, 
+			GUID_WICPixelFormat32bppPBGRA, 
+			WICBitmapDitherTypeNone, 
+			nullptr, 0.f, 
+			WICBitmapPaletteTypeMedianCut
+		);
 
-			ID2D1Bitmap1* bitmap;
-			m_context->CreateBitmapFromWicBitmap(formatConverter, nullptr, &bitmap);
-			if (bitmap)
-			{
-				result = new Direct2dImage{ bitmap };
-			}
+		auto bitmap = static_cast<ID2D1Bitmap1*>(nullptr);
+		m_context->CreateBitmapFromWicBitmap(formatConverter, 0, &bitmap);
+		if (!bitmap) return {};
 
-			formatConverter->Release();
-			frame->Release();
-		}
-
-		decoder->Release();
-
-		return createImageFromImplementation(result);
+		return createImageFromImplementation(std::make_shared<Direct2dImage>(bitmap));
 	}
-	Avo::Image createImageFromHandle(void* p_handle) override
+	auto createImage(std::string_view p_filePath) -> Avo::Image override
 	{
-		IWICBitmap* wicBitmap = nullptr;
-		HRESULT result = s_imagingFactory->CreateBitmapFromHICON(static_cast<HICON>(p_handle), &wicBitmap);
+		auto wideFilePath = std::array<char16, MAX_PATH>{};
+		Avo::convertUtf8ToUtf16(p_filePath, wideFilePath);
 
-		if (result < 0)
+		auto decoder = ComReference<IWICBitmapDecoder>{};
+		s_imagingFactory->CreateDecoderFromFilename(
+			reinterpret_cast<LPCWSTR>(wideFilePath.data()), 
+			nullptr, GENERIC_READ, 
+			WICDecodeMetadataCacheOnLoad, 
+			&decoder
+		);
+		if (!decoder) return {};
+
+		auto frame = ComReference<IWICBitmapFrameDecode>{};
+		decoder->GetFrame(0, &frame);
+		if (!frame) return {};
+
+		auto formatConverter = ComReference<IWICFormatConverter>{};
+		s_imagingFactory->CreateFormatConverter(&formatConverter);
+		formatConverter->Initialize(
+			frame, 
+			GUID_WICPixelFormat32bppPBGRA, 
+			WICBitmapDitherTypeNone, 
+			nullptr, 0.f, 
+			WICBitmapPaletteTypeMedianCut
+		);
+		if (!formatConverter) return {};
+
+		auto bitmap = static_cast<ID2D1Bitmap1*>(nullptr);
+		m_context->CreateBitmapFromWicBitmap(formatConverter, nullptr, &bitmap);
+		if (!bitmap) return {};
+
+		return createImageFromImplementation(std::make_shared<Direct2dImage>(bitmap));
+	}
+	auto createImageFromHandle(void* p_handle) -> Avo::Image override
+	{
+		auto wicBitmap = ComReference<IWICBitmap>{};
+
+		if (auto result = s_imagingFactory->CreateBitmapFromHICON(static_cast<HICON>(p_handle), &wicBitmap);
+		    result < 0)
 		{
-			if (wicBitmap)
-			{
-				wicBitmap->Release();
-			}
-			result = s_imagingFactory->CreateBitmapFromHBITMAP(static_cast<HBITMAP>(p_handle), nullptr, WICBitmapAlphaChannelOption::WICBitmapUseAlpha, &wicBitmap);
+			wicBitmap = nullptr;
+			s_imagingFactory->CreateBitmapFromHBITMAP(static_cast<HBITMAP>(p_handle), nullptr, WICBitmapAlphaChannelOption::WICBitmapUseAlpha, &wicBitmap);
 		}
 
-		IWICFormatConverter* formatConverter = nullptr;
+		auto formatConverter = ComReference<IWICFormatConverter>{};
 		s_imagingFactory->CreateFormatConverter(&formatConverter);
 		formatConverter->Initialize(wicBitmap, GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, nullptr, 0.f, WICBitmapPaletteTypeMedianCut);
+		if (!formatConverter) return {};
 
-		ID2D1Bitmap1* bitmap;
+		auto bitmap = ComReference<ID2D1Bitmap1>{};
 		m_context->CreateBitmapFromWicBitmap(formatConverter, &bitmap);
+		if (!bitmap) return {};
 
-		formatConverter->Release();
-		wicBitmap->Release();
-
-		return createImageFromImplementation(new Direct2dImage{ bitmap });
+		return createImageFromImplementation(std::make_shared<Direct2dImage>(bitmap));
 	}
 
 	//------------------------------
 
-	void drawImage(Avo::Image const& p_image, float p_multiplicativeOpacity) override
+private:
+	static auto getD2dBitmapFromImage(Avo::Image const& p_image) -> ID2D1Bitmap1*
 	{
-		if (!p_image)
-		{
-			return;
-		}
+		return dynamic_cast<Direct2dImage*>(p_image.getImplementation())->getD2dBitmap();
+	}
 
-		auto cropRectangle = p_image.getCropRectangle(),
-		     innerBounds = p_image.getInnerBounds();
+public:
+	auto drawImage(Avo::Image const& p_image, float p_multiplicativeOpacity) -> void override
+	{
+		if (!p_image) return;
+
+		auto const cropRectangle = p_image.getCropRectangle(),
+		           innerBounds = p_image.getInnerBounds();
 
 		m_currentBrush->SetOpacity(m_brushOpacity);
-		m_context->DrawBitmap(
-			static_cast<ID2D1Bitmap1*>(p_image.getHandle()),
-			{ innerBounds.left, innerBounds.top, innerBounds.right, innerBounds.bottom },
-			p_image.getOpacity()* m_currentBrush->GetOpacity() * p_multiplicativeOpacity,
-			p_image.getScalingMethod() == Avo::ImageScalingMethod::Pixelated ? D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR : D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
-			{ cropRectangle.left, cropRectangle.top, cropRectangle.right, cropRectangle.bottom }
+		m_context->DrawBitmap( // SO MANY PARAMETERS
+			getD2dBitmapFromImage(p_image),
+			{innerBounds.left, innerBounds.top, innerBounds.right, innerBounds.bottom},
+			p_image.getOpacity()*m_currentBrush->GetOpacity()*p_multiplicativeOpacity,
+			p_image.getScalingMethod() == Avo::ImageScalingMethod::Pixelated ? 
+				D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR : D2D1_BITMAP_INTERPOLATION_MODE_LINEAR,
+			{cropRectangle.left, cropRectangle.top, cropRectangle.right, cropRectangle.bottom}
 		);
 	}
 
 	//------------------------------
 
-	std::vector<uint8> createImageFileData(Avo::Image const& p_image, Avo::ImageFormat p_format) override
+private:
+	auto writeImageFileDataToStream(Avo::Image const& p_image, Avo::ImageFormat p_format, IStream* p_stream) -> bool
 	{
-		auto direct2dBitmap = static_cast<ID2D1Bitmap1*>(p_image.getHandle());
+		auto direct2dBitmap = getD2dBitmapFromImage(p_image);
 
-		auto outputStream = SHCreateMemStream(0, 0);
-
-		GUID formatGuid;
+		auto formatGuid = GUID{};
 		switch (p_format)
 		{
 			case Avo::ImageFormat::Jpeg:
@@ -8061,178 +7501,110 @@ public:
 				break;
 			case Avo::ImageFormat::Ico:
 				formatGuid = GUID_ContainerFormatIco;
-				break;
 		}
 
-		IWICBitmapEncoder* bitmapEncoder = nullptr;
-		s_imagingFactory->CreateEncoder(formatGuid, 0, &bitmapEncoder);
-		bitmapEncoder->Initialize(outputStream, WICBitmapEncoderNoCache);
+		auto bitmapEncoder = ComReference<IWICBitmapEncoder>{};
+		s_imagingFactory->CreateEncoder(formatGuid, nullptr, &bitmapEncoder);
+		if (!bitmapEncoder) return false;
+		
+		bitmapEncoder->Initialize(p_stream, WICBitmapEncoderNoCache);
 
-		IWICBitmapFrameEncode* frameEncoder = nullptr;
+		auto frameEncoder = ComReference<IWICBitmapFrameEncode>{};
 		bitmapEncoder->CreateNewFrame(&frameEncoder, nullptr);
+		if (!frameEncoder) return false;
+
 		frameEncoder->Initialize(nullptr);
 
-		ID2D1Device* device = nullptr;
+		auto device = ComReference<ID2D1Device>{};
 		m_context->GetDevice(&device);
+		if (!device) return false;
 
-		IWICImageEncoder* imageEncoder = nullptr;
+		auto imageEncoder = ComReference<IWICImageEncoder>{};
 		s_imagingFactory->CreateImageEncoder(device, &imageEncoder);
+		if (!imageEncoder) return false;
 
 		imageEncoder->WriteFrame(direct2dBitmap, frameEncoder, nullptr);
 
 		frameEncoder->Commit();
 		bitmapEncoder->Commit();
 
-		imageEncoder->Release();
-		device->Release();
-		frameEncoder->Release();
-		bitmapEncoder->Release();
+		return true;
+	}
+	
+public:
+	auto createImageFileData(Avo::Image const& p_image, Avo::ImageFormat p_format) -> Avo::DataVector override
+	{
+		auto outputStream = ComReference{static_cast<IStream*>(createImageFileDataNativeStream(p_image, p_format))};
 
-		//------------------------------
+		STATSTG streamInfo;
+		outputStream->Stat(&streamInfo, STATFLAG_NONAME);
 
-		STATSTG stats;
-		outputStream->Stat(&stats, STATFLAG_NONAME);
+		auto buffer = Avo::DataVector(streamInfo.cbSize.QuadPart);
 
-		std::vector<uint8> buffer;
-		buffer.resize(stats.cbSize.QuadPart);
+		ULONG numberOfBytesWritten;
+		outputStream->Seek({}, SEEK_SET, nullptr);
+		outputStream->Read(buffer.data(), buffer.size(), &numberOfBytesWritten);
 
-		ULONG numberOfBytesWritten = 0;
-		outputStream->Seek({ 0 }, SEEK_SET, nullptr);
-		outputStream->Write(buffer.data(), buffer.size(), &numberOfBytesWritten);
-
-		if (numberOfBytesWritten != buffer.size())
+		if (numberOfBytesWritten < buffer.size())
 		{
 			buffer.resize(numberOfBytesWritten);
 		}
 
 		return buffer;
 	}
-	void* createImageFileDataNativeStream(Avo::Image const& p_image, Avo::ImageFormat p_format) override
+	auto createImageFileDataNativeStream(Avo::Image const& p_image, Avo::ImageFormat p_format) -> void* override
 	{
-		auto direct2dBitmap = static_cast<ID2D1Bitmap1*>(p_image.getHandle());
-
-		auto outputStream = SHCreateMemStream(0, 0);
-
-		GUID formatGuid;
-		switch (p_format)
+		if (auto outputStream = ComReference{SHCreateMemStream(0, 0)}; 
+		    writeImageFileDataToStream(p_image, p_format, outputStream))
 		{
-			case Avo::ImageFormat::Jpeg:
-				formatGuid = GUID_ContainerFormatJpeg;
-				break;
-			case Avo::ImageFormat::Png:
-				formatGuid = GUID_ContainerFormatPng;
-				break;
-			case Avo::ImageFormat::Bmp:
-				formatGuid = GUID_ContainerFormatBmp;
-				break;
-			case Avo::ImageFormat::Ico:
-				formatGuid = GUID_ContainerFormatIco;
+			return outputStream.steal();
 		}
-
-		IWICBitmapEncoder* bitmapEncoder = nullptr;
-		s_imagingFactory->CreateEncoder(formatGuid, nullptr, &bitmapEncoder);
-		bitmapEncoder->Initialize(outputStream, WICBitmapEncoderNoCache);
-
-		IWICBitmapFrameEncode* frameEncoder = nullptr;
-		bitmapEncoder->CreateNewFrame(&frameEncoder, nullptr);
-		frameEncoder->Initialize(nullptr);
-
-		ID2D1Device* device = nullptr;
-		m_context->GetDevice(&device);
-
-		IWICImageEncoder* imageEncoder = nullptr;
-		s_imagingFactory->CreateImageEncoder(device, &imageEncoder);
-
-		imageEncoder->WriteFrame(direct2dBitmap, frameEncoder, nullptr);
-
-		frameEncoder->Commit();
-		bitmapEncoder->Commit();
-
-		imageEncoder->Release();
-		device->Release();
-		frameEncoder->Release();
-		bitmapEncoder->Release();
-
-		return outputStream;
+		return {};
 	}
-	void saveImageToFile(Avo::Image const& p_image, std::string_view p_filePath, Avo::ImageFormat p_format) override
+	auto saveImageToFile(Avo::Image const& p_image, std::string_view p_filePath, Avo::ImageFormat p_format) -> bool override
 	{
-		auto direct2dBitmap = static_cast<ID2D1Bitmap1*>(p_image.getHandle());
+		auto filePath = std::array<char16, MAX_PATH>{};
+		Avo::convertUtf8ToUtf16(p_filePath, filePath);
+		
+		auto outputStream = ComReference<IStream>{};
+		SHCreateStreamOnFileW(reinterpret_cast<LPCWSTR>(filePath.data()), STGM_CREATE | STGM_WRITE, &outputStream);
 
-		IStream* outputStream = nullptr;
-		SHCreateStreamOnFileW(reinterpret_cast<LPCWSTR>(Avo::convertUtf8ToUtf16(p_filePath).c_str()), STGM_CREATE | STGM_WRITE, &outputStream);
-
-		GUID formatGuid;
-		switch (p_format)
-		{
-			case Avo::ImageFormat::Jpeg:
-				formatGuid = GUID_ContainerFormatJpeg;
-				break;
-			case Avo::ImageFormat::Png:
-				formatGuid = GUID_ContainerFormatPng;
-				break;
-			case Avo::ImageFormat::Bmp:
-				formatGuid = GUID_ContainerFormatBmp;
-				break;
-			case Avo::ImageFormat::Ico:
-				formatGuid = GUID_ContainerFormatIco;
-		}
-
-		IWICBitmapEncoder* bitmapEncoder = nullptr;
-		s_imagingFactory->CreateEncoder(formatGuid, nullptr, &bitmapEncoder);
-		bitmapEncoder->Initialize(outputStream, WICBitmapEncoderNoCache);
-
-		IWICBitmapFrameEncode* frameEncoder = nullptr;
-		bitmapEncoder->CreateNewFrame(&frameEncoder, nullptr);
-		frameEncoder->Initialize(nullptr);
-
-		ID2D1Device* device = nullptr;
-		m_context->GetDevice(&device);
-
-		IWICImageEncoder* imageEncoder;
-		s_imagingFactory->CreateImageEncoder(device, &imageEncoder);
-
-		imageEncoder->WriteFrame(direct2dBitmap, frameEncoder, nullptr);
-
-		frameEncoder->Commit();
-		bitmapEncoder->Commit();
-
-		imageEncoder->Release();
-		device->Release();
-		frameEncoder->Release();
-		bitmapEncoder->Release();
-
-		outputStream->Release();
+		return writeImageFileDataToStream(p_image, p_format, outputStream);
 	}
 
 	//------------------------------
 
-	void* createNativeImageFromImage(Avo::Image const& p_image) override
+	auto createNativeImageFromImage(Avo::Image const& p_image) -> void* override
 	{
-		auto sourceBitmap = static_cast<ID2D1Bitmap1*>(p_image.getHandle());
+		auto sourceBitmap = getD2dBitmapFromImage(p_image);
 		auto size = sourceBitmap->GetPixelSize();
 
-		ID2D1Bitmap1* cpuBitmap = nullptr;
+		auto cpuBitmap = ComReference<ID2D1Bitmap1>{};
 		if (sourceBitmap->GetOptions() & D2D1_BITMAP_OPTIONS_CPU_READ)
 		{
 			cpuBitmap = sourceBitmap;
-			cpuBitmap->AddRef();
 		}
 		else
 		{
-			m_context->CreateBitmap(size, 0, 0, D2D1::BitmapProperties1(D2D1_BITMAP_OPTIONS_CPU_READ | D2D1_BITMAP_OPTIONS_CANNOT_DRAW, 
-				sourceBitmap->GetPixelFormat()), &cpuBitmap);
+			m_context->CreateBitmap(
+				size, nullptr, 0, 
+				D2D1::BitmapProperties1(
+					D2D1_BITMAP_OPTIONS_CPU_READ | D2D1_BITMAP_OPTIONS_CANNOT_DRAW, 
+					sourceBitmap->GetPixelFormat()
+				), 
+				&cpuBitmap
+			);
 		}
 
-		D2D1_POINT_2U destinationPoint{ 0, 0 };
-		D2D1_RECT_U sourceRectangle{ 0, 0, size.width, size.height };
+		auto destinationPoint = D2D1_POINT_2U{0, 0};
+		auto sourceRectangle = D2D1_RECT_U{0, 0, size.width, size.height};
 		cpuBitmap->CopyFromBitmap(&destinationPoint, sourceBitmap, &sourceRectangle);
 
 		// Pixel data
-		D2D1_MAPPED_RECT mappedRectangle;
+		auto mappedRectangle = D2D1_MAPPED_RECT{};
 		cpuBitmap->Map(D2D1_MAP_OPTIONS_READ, &mappedRectangle);
-		
-		BITMAPINFOHEADER bitmapInfoHeader{};
+
+		auto bitmapInfoHeader = BITMAPINFOHEADER{};		
 		bitmapInfoHeader.biSize = sizeof(BITMAPINFOHEADER);
 		bitmapInfoHeader.biWidth = ceil(size.width/16.f)*16;
 		bitmapInfoHeader.biHeight = -(long)size.height;
@@ -8240,218 +7612,192 @@ public:
 		bitmapInfoHeader.biCompression = BI_RGB;
 		bitmapInfoHeader.biPlanes = 1;
 
-		auto result = CreateDIBitmap(GetDC(static_cast<HWND>(m_window->getNativeHandle())), &bitmapInfoHeader, CBM_INIT, mappedRectangle.bits,
-			reinterpret_cast<BITMAPINFO*>(&bitmapInfoHeader), DIB_RGB_COLORS);
+		auto result = CreateDIBitmap(
+			GetDC(static_cast<HWND>(m_window->getNativeHandle())), 
+			&bitmapInfoHeader, CBM_INIT, mappedRectangle.bits,
+			reinterpret_cast<BITMAPINFO*>(&bitmapInfoHeader), DIB_RGB_COLORS
+		);
 
 		cpuBitmap->Unmap();
-		cpuBitmap->Release();
 
 		return result;
 	}
 
 	//------------------------------
 
-	Avo::LinearGradient createLinearGradient(PointerRange<Avo::GradientStop> p_gradientStops, float p_startX, float p_startY, 
-		float p_endX, float p_endY) override
+private:
+	auto createGradientStopCollection(Range<Avo::GradientStop*> p_stops)
 	{
-		std::vector<D2D1_GRADIENT_STOP> gradientStops(p_gradientStops.size());
-		for (auto a : Indices{ p_gradientStops })
+		auto gradientStops = std::vector<D2D1_GRADIENT_STOP>(p_stops.size());
+		for (auto a : Indices{p_stops})
 		{
-			auto const& color = p_gradientStops[a].color;
-			gradientStops[a].color = { color.red, color.green, color.blue, color.alpha };
-			gradientStops[a].position = p_gradientStops[a].position;
+			auto const& color = p_stops[a].color;
+			gradientStops[a].color = {color.red, color.green, color.blue, color.alpha};
+			gradientStops[a].position = p_stops[a].position;
 		}
 
-		ID2D1GradientStopCollection* stopCollection = nullptr;
-		m_context->CreateGradientStopCollection(gradientStops.data(), p_gradientStops.size(), &stopCollection);
-
-		ID2D1LinearGradientBrush* brush = nullptr;
-		m_context->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties({ p_startX, p_startY }, { p_endX, p_endY }),
-			stopCollection, &brush);
-
-		stopCollection->Release();
-
-		return createLinearGradientFromImplementation(new Direct2dLinearGradient{ brush });
-	}
-	Avo::LinearGradient createLinearGradient(PointerRange<Avo::GradientStop> p_gradientStops, Avo::Point<> p_startPosition, 
-		Avo::Point<> p_endPosition) override
-	{
-		return createLinearGradient(p_gradientStops, p_startPosition.x, p_startPosition.y, p_endPosition.x, p_endPosition.y);
+		auto stopCollection = ComReference<ID2D1GradientStopCollection>{};
+		m_context->CreateGradientStopCollection(gradientStops.data(), p_stops.size(), &stopCollection);
+		return stopCollection;
 	}
 
-	Avo::RadialGradient createRadialGradient(PointerRange<Avo::GradientStop> p_gradientStops, float p_startX, float p_startY, float p_radiusX,
-		float p_radiusY) override
+public:
+	auto createLinearGradient(Range<Avo::GradientStop*> p_gradientStops, 
+	                          Avo::Point<> p_start, Avo::Point<> p_end) 
+		-> Avo::LinearGradient override
 	{
-		std::vector<D2D1_GRADIENT_STOP> gradientStops(p_gradientStops.size());
-		for (auto a : Indices{ p_gradientStops })
-		{
-			auto const& color = p_gradientStops[a].color;
-			gradientStops[a].color = { color.red, color.green, color.blue, color.alpha };
-			gradientStops[a].position = p_gradientStops[a].position;
-		}
+		auto stopCollection = createGradientStopCollection(p_gradientStops);
 
-		ID2D1GradientStopCollection* stopCollection = nullptr;
-		m_context->CreateGradientStopCollection(gradientStops.data(), p_gradientStops.size(), &stopCollection);
+		auto brush = ComReference<ID2D1LinearGradientBrush>{};
+		m_context->CreateLinearGradientBrush(
+			D2D1::LinearGradientBrushProperties({p_start.x, p_start.y}, {p_end.x, p_end.y}),
+			stopCollection, &brush
+		);
 
-		ID2D1RadialGradientBrush* brush = nullptr;
-		m_context->CreateRadialGradientBrush(D2D1::RadialGradientBrushProperties({ p_startX, p_startY }, {}, p_radiusX, p_radiusY), stopCollection, &brush);
+		return createLinearGradientFromImplementation(std::make_shared<Direct2dLinearGradient>(brush));
+	}
+	auto createRadialGradient(Range<Avo::GradientStop*> p_gradientStops, 
+	                          Avo::Point<> p_start, Avo::Point<> p_radius) 
+		-> Avo::RadialGradient override
+	{
+		auto stopCollection = createGradientStopCollection(p_gradientStops);
 
-		stopCollection->Release();
+		auto brush = ComReference<ID2D1RadialGradientBrush>{};
+		m_context->CreateRadialGradientBrush(
+			D2D1::RadialGradientBrushProperties({p_start.x, p_start.y}, {}, p_radius.x, p_radius.y), 
+			stopCollection, &brush
+		);
 
-		return createRadialGradientFromImplementation(new Direct2DRadialGradient{ brush });
-	}
-	Avo::RadialGradient createRadialGradient(PointerRange<Avo::GradientStop> p_gradientStops, float p_startX, float p_startY, float p_radius) override
-	{
-		return createRadialGradient(p_gradientStops, p_startX, p_startY, p_radius, p_radius);
-	}
-	Avo::RadialGradient createRadialGradient(PointerRange<Avo::GradientStop> p_gradientStops, Avo::Point<> p_startPosition, float p_radiusX, float p_radiusY) override
-	{
-		return createRadialGradient(p_gradientStops, p_startPosition.x, p_startPosition.y, p_radiusX, p_radiusY);
-	}
-	Avo::RadialGradient createRadialGradient(PointerRange<Avo::GradientStop> p_gradientStops, Avo::Point<> p_startPosition, float p_radius) override
-	{
-		return createRadialGradient(p_gradientStops, p_startPosition.x, p_startPosition.y, p_radius, p_radius);
-	}
-	Avo::RadialGradient createRadialGradient(PointerRange<Avo::GradientStop> p_gradientStops, Avo::Point<> p_startPosition, Avo::Point<> p_radius) override
-	{
-		return createRadialGradient(p_gradientStops, p_startPosition.x, p_startPosition.y, p_radius.x, p_radius.y);
+		return createRadialGradientFromImplementation(std::make_shared<Direct2dRadialGradient>(brush));
 	}
 
-	void setGradient(Avo::LinearGradient const& p_gradient) override
+	auto setGradient(Avo::LinearGradient const& p_gradient) -> void override
 	{
-		m_currentBrush = static_cast<ID2D1Brush*>(p_gradient.getHandle());
+		m_currentBrush = dynamic_cast<Direct2dLinearGradient*>(p_gradient.getImplementation())->getD2dBrush();
 	}
-	void setGradient(Avo::RadialGradient const& p_gradient) override
+	auto setGradient(Avo::RadialGradient const& p_gradient) -> void override
 	{
-		m_currentBrush = static_cast<ID2D1Brush*>(p_gradient.getHandle());
+		m_currentBrush = dynamic_cast<Direct2dRadialGradient*>(p_gradient.getImplementation())->getD2dBrush();
 	}
 
-	void setColor(Avo::Color p_color) override
+	auto setColor(Avo::Color p_color) -> void override
 	{
-		m_solidColorBrush->SetColor({ p_color.red, p_color.green, p_color.blue, p_color.alpha });
+		m_solidColorBrush->SetColor({p_color.red, p_color.green, p_color.blue, p_color.alpha});
 		m_currentBrush = m_solidColorBrush;
 	}
-	void setOpacity(float p_opacity) override
+	auto setOpacity(float p_opacity) -> void override
 	{
 		m_brushOpacity = p_opacity;
 	}
 
 	//------------------------------
 
-	void addFont(std::string_view p_filePath) override
+private:
+	ComReference<IDWriteFontCollection> m_fontCollection;
+	std::vector<FontData> m_fontData;
+
+	auto updateFontCollection() -> void
 	{
-		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(Avo::readFile(p_filePath)));
+		m_fontCollection = nullptr; // Releases, important.
+		s_directWriteFactory->CreateCustomFontCollection(s_fontCollectionLoader, &m_fontData, sizeof(m_fontData), &m_fontCollection);
+	}
+
+public:
+	auto addFont(std::string_view p_filePath) -> void override
+	{
+		m_fontData.emplace_back(std::make_shared<Avo::DataVector>(Avo::readFile(p_filePath)));
 		updateFontCollection();
 	}
 
-	void addFont(std::vector<uint8>&& p_data) override
+	auto addFont(Avo::DataVector&& p_data) -> void override
 	{
-		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(std::move(p_data)));
+		m_fontData.emplace_back(std::make_shared<Avo::DataVector>(std::move(p_data)));
 		updateFontCollection();
 	}
-	void addFont(PointerRange<uint8 const> p_data) override
+	auto addFont(Avo::DataView p_data) -> void override
 	{
-		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(p_data.begin(), p_data.end()));
+		m_fontData.emplace_back(std::make_shared<Avo::DataVector>(p_data.data(), p_data.data() + p_data.size()));
 		updateFontCollection();
 	}
 
 	//------------------------------
 
 private:
-	IDWriteTextFormat* m_textFormat = nullptr;
+	ComReference<IDWriteTextFormat> m_textFormat;
+	static constexpr auto MAX_FONT_FAMILY_NAME_SIZE = 200;
 public:
-	void setDefaultTextProperties(Avo::TextProperties const& p_textProperties) override
+	auto setDefaultTextProperties(Avo::TextProperties const& p_textProperties) -> void override
 	{
-		if (m_textFormat)
-		{
-			m_textFormat->Release();
-		}
+		auto fontFamily = std::array<char16, MAX_FONT_FAMILY_NAME_SIZE>{};
+		Avo::convertUtf8ToUtf16(p_textProperties.fontFamilyName, fontFamily);
 
-		char16 fontFamily[200];
-		Avo::convertUtf8ToUtf16(p_textProperties.fontFamilyName, { fontFamily, 200 });
-
-		auto fontStyle = DWRITE_FONT_STYLE_NORMAL;
-		if (p_textProperties.fontStyle == Avo::FontStyle::Italic)
-		{
-			fontStyle = DWRITE_FONT_STYLE_ITALIC;
-		}
-		else if (p_textProperties.fontStyle == Avo::FontStyle::Oblique)
-		{
-			fontStyle = DWRITE_FONT_STYLE_OBLIQUE;
-		}
-
+		m_textFormat = nullptr; // Releases, important.
 		s_directWriteFactory->CreateTextFormat(
-			reinterpret_cast<WCHAR const*>(fontFamily), m_fontCollection, static_cast<DWRITE_FONT_WEIGHT>(p_textProperties.fontWeight),
-			fontStyle, static_cast<DWRITE_FONT_STRETCH>(p_textProperties.fontStretch),
+			reinterpret_cast<WCHAR const*>(fontFamily.data()), 
+			m_fontCollection, 
+			static_cast<DWRITE_FONT_WEIGHT>(p_textProperties.fontWeight),
+			static_cast<DWRITE_FONT_STYLE>(p_textProperties.fontStyle), 
+			static_cast<DWRITE_FONT_STRETCH>(p_textProperties.fontStretch),
 			p_textProperties.fontSize, L"", &m_textFormat
 		);
-
-		switch (p_textProperties.textAlign)
-		{
-			case Avo::TextAlign::Left:
-				m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_LEADING);
-				break;
-			case Avo::TextAlign::Center:
-				m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_CENTER);
-				break;
-			case Avo::TextAlign::Right:
-				m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_TRAILING);
-				break;
-			case Avo::TextAlign::Fill:
-				m_textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT::DWRITE_TEXT_ALIGNMENT_JUSTIFIED);
-		}
-
-		switch (p_textProperties.readingDirection)
-		{
-			case Avo::ReadingDirection::RightToLeft:
-				m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_RIGHT_TO_LEFT);
-				break;
-			case Avo::ReadingDirection::TopToBottom:
-				m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_TOP_TO_BOTTOM);
-				break;
-			case Avo::ReadingDirection::BottomToTop:
-				m_textFormat->SetReadingDirection(DWRITE_READING_DIRECTION::DWRITE_READING_DIRECTION_BOTTOM_TO_TOP);
-		}
-		m_textFormat->SetLineSpacing(DWRITE_LINE_SPACING_METHOD::DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, p_textProperties.lineHeight, p_textProperties.lineHeight * 0.8f);
-
+		m_textFormat->SetTextAlignment(DirectWriteText::convertTextAlignToDirectWrite(p_textProperties.textAlign));
+		m_textFormat->SetReadingDirection(DirectWriteText::convertReadingDirectionToDirectWrite(p_textProperties.readingDirection));
+		m_textFormat->SetLineSpacing(
+			DWRITE_LINE_SPACING_METHOD_PROPORTIONAL, 
+			p_textProperties.lineHeight, p_textProperties.lineHeight*0.8f
+		);
 		m_textProperties = p_textProperties;
 	}
-	Avo::TextProperties getDefaultTextProperties() override
+	auto getDefaultTextProperties() -> Avo::TextProperties override
 	{
 		return m_textProperties;
 	}
 
 	//------------------------------
 
-	Avo::Text createText(std::string_view p_string, float p_fontSize, Avo::Rectangle<> p_bounds) override
+private:
+	auto getDWriteTextLayoutFromText(Avo::Text const& p_text) -> IDWriteTextLayout1*
+	{
+		return dynamic_cast<DirectWriteText*>(p_text.getImplementation())->getDWriteTextLayout();
+	}
+
+public:
+	auto createText(std::string_view p_string, float p_fontSize, Avo::Rectangle<> p_bounds) -> Avo::Text override
 	{
 		p_bounds.clipNegativeSpace();
 
-		std::u16string wideString = Avo::convertUtf8ToUtf16(p_string);
+		auto wideString = Avo::convertUtf8ToUtf16(p_string);
 
-		IDWriteTextLayout1* textLayout;
-		s_directWriteFactory->CreateTextLayout(reinterpret_cast<WCHAR const*>(wideString.data()), wideString.size(), m_textFormat, p_bounds.getWidth(), p_bounds.getHeight(), reinterpret_cast<IDWriteTextLayout**>(&textLayout));
+		auto textLayout = static_cast<IDWriteTextLayout1*>(nullptr);
+		s_directWriteFactory->CreateTextLayout( // So many parameters...
+			reinterpret_cast<WCHAR const*>(wideString.data()), wideString.size(), 
+			m_textFormat, 
+			p_bounds.getWidth(), p_bounds.getHeight(), 
+			reinterpret_cast<IDWriteTextLayout**>(&textLayout)
+		);
 		
-		DWRITE_TEXT_RANGE textRange;
-		textRange.startPosition = 0;
-		textRange.length = wideString.size();
+		auto textRange = DWRITE_TEXT_RANGE{0, static_cast<UINT32>(wideString.size())};
 		textLayout->SetFontSize(p_fontSize, textRange);
-		textLayout->SetCharacterSpacing(m_textProperties.characterSpacing * 0.5f, m_textProperties.characterSpacing * 0.5f, 0.f, textRange);
+		textLayout->SetCharacterSpacing(
+			m_textProperties.characterSpacing/2, 
+			m_textProperties.characterSpacing/2, 
+			0.f, textRange
+		);
 
-		return createTextFromImplementation(new DirectWriteText{ textLayout, wideString, p_string, p_bounds });
+		return createTextFromImplementation(std::make_shared<DirectWriteText>(textLayout, wideString, p_string, p_bounds));
 	}
-	void drawText(Avo::Text const& p_text) override
+	auto drawText(Avo::Text const& p_text) -> void override
 	{
 		if (!p_text)
 		{
 			return;
 		}
-		auto textLayout = static_cast<IDWriteTextLayout1*>(p_text.getHandle());
+		auto* const textLayout = getDWriteTextLayoutFromText(p_text);
 
-		WCHAR name[100];
-		textLayout->GetFontFamilyName(name, 100u);
+		auto name = std::array<WCHAR, MAX_FONT_FAMILY_NAME_SIZE>{};
+		textLayout->GetFontFamilyName(name.data(), name.size());
 
-		DWRITE_OVERHANG_METRICS overhangMetrics{};
+		auto overhangMetrics = DWRITE_OVERHANG_METRICS{};
 		if (p_text.getIsTopTrimmed())
 		{
 			textLayout->GetOverhangMetrics(&overhangMetrics);
@@ -8459,188 +7805,177 @@ public:
 		m_currentBrush->SetOpacity(m_brushOpacity);
 		m_context->DrawTextLayout(
 			D2D1::Point2F(p_text.getLeft(), p_text.getTop() + overhangMetrics.top),
-			textLayout, m_currentBrush, D2D1_DRAW_TEXT_OPTIONS::D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT
+			textLayout, m_currentBrush, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT
 		);
 	}
-	void drawText(std::string_view p_string, Avo::Rectangle<> p_rectangle) override
+	auto drawText(std::string_view p_string, Avo::Rectangle<> p_rectangle) -> void override
 	{
 		if (p_string == "") return;
 
-		std::u16string wideString = Avo::convertUtf8ToUtf16(p_string);
+		auto wideString = Avo::convertUtf8ToUtf16(p_string);
 
 		m_currentBrush->SetOpacity(m_brushOpacity);
 		m_context->DrawTextW(
-			reinterpret_cast<WCHAR const*>(wideString.data()), wideString.size(), m_textFormat,
-			D2D1::RectF(p_rectangle.left, p_rectangle.top, p_rectangle.right, p_rectangle.bottom),
+			reinterpret_cast<WCHAR const*>(wideString.data()), wideString.size(), 
+			m_textFormat, convertRectangleToRectf(p_rectangle),
 			m_currentBrush, D2D1_DRAW_TEXT_OPTIONS::D2D1_DRAW_TEXT_OPTIONS_NONE
 		);
 	}
-	void drawText(std::string_view p_string, float p_left, float p_top, float p_right, float p_bottom) override
+	auto drawText(std::string_view p_string, Avo::Point<> p_position) -> void override
 	{
-		drawText(p_string, Avo::Rectangle<>(p_left, p_top, p_right, p_bottom));
-	}
-	void drawText(std::string_view p_string, Avo::Point<> p_position, Avo::Point<> p_size) override
-	{
-		drawText(p_string, Avo::Rectangle<>(p_position, p_size));
-	}
-	void drawText(std::string_view p_string, float p_x, float p_y) override
-	{
-		drawText(p_string, Avo::Rectangle<>(p_x, p_y, m_context->GetSize().width, m_context->GetSize().height));
-	}
-	void drawText(std::string_view p_string, Avo::Point<> p_position) override
-	{
-		drawText(p_string, Avo::Rectangle<>(p_position.x, p_position.y, m_context->GetSize().width * 2, m_context->GetSize().height * 2));
+		drawText(p_string, Avo::Rectangle{p_position, convertSizefToSize(m_context->GetSize())*2});
 	}
 
 	//------------------------------
 
-	Direct2DDrawingContext(Avo::Window* p_window) :
-		m_window{ p_window }
+private:
+	/*
+		This is all pretty hard to follow. It's DirectX's fault. Such a cluttered API. 
+		Maybe also because of their use of COM interfaces which are a painful blend of C and C++.
+	*/
+	auto createSwapChainAndDrawingContext(float p_dpi) -> void
 	{
-		// Create temporary Direct3D device
-
-		ID3D11Device* d3dDevice;
-		ID3D11DeviceContext* d3dDeviceContext;
-
-		D3D_FEATURE_LEVEL featureLevels[] =
+		/*
+			Create the Direct3D device, which will be used later to create the Direct2D drawing 
+			context used for drawing as well as the swap chain used for swapping front and back 
+			buffers and acts as DirectX's interface to the window.
+		*/
+		auto d3dDevice = ComReference<ID3D11Device>{};
 		{
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_12_1,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_12_0,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_11_1,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_11_0,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_10_1,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_10_0,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_9_3,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_9_2,
-			D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_9_1,
+			auto d3dDeviceContext = ComReference<ID3D11DeviceContext>{};
+
+			auto featureLevels = std::array{
+				D3D_FEATURE_LEVEL_12_1,
+				D3D_FEATURE_LEVEL_12_0,
+				D3D_FEATURE_LEVEL_11_1,
+				D3D_FEATURE_LEVEL_11_0,
+				D3D_FEATURE_LEVEL_10_1,
+				D3D_FEATURE_LEVEL_10_0,
+				D3D_FEATURE_LEVEL_9_3,
+				D3D_FEATURE_LEVEL_9_2,
+				D3D_FEATURE_LEVEL_9_1,
+			};
+			auto featureLevel = D3D_FEATURE_LEVEL{};
+			D3D11CreateDevice(
+				0,
+				D3D_DRIVER_TYPE_HARDWARE,
+				0,
+				D3D11_CREATE_DEVICE_BGRA_SUPPORT
+	#ifdef _DEBUG 
+				| D3D11_CREATE_DEVICE_DEBUG
+	#endif
+				,
+				featureLevels.data(),
+				featureLevels.size(),
+				D3D11_SDK_VERSION,
+				&d3dDevice,
+				&featureLevel,
+				&d3dDeviceContext
+			);
+		}
+
+
+		//------------------------------
+		// Get dxgi factory from the Direct3D device.
+		// Both of those will be used afterwards to create the dxgi swap chain.
+
+		auto dxgiFactory = ComReference<IDXGIFactory2>{};
+		{
+			/*
+				First we obtain the DXGI device from the Direct3D device.
+				This will first be used to create a Direct2D device, which 
+				in turn is used to create our Direct2D drawing context.
+				Afterwards, we obtain the DXGI factory from the DXGI device,
+				which will be needed next outside this scope to create the 
+				DXGI swap chain.
+			*/
+			
+			auto dxgiDevice = ComReference<IDXGIDevice1>{};
+			d3dDevice->QueryInterface(&dxgiDevice);
+			dxgiDevice->SetMaximumFrameLatency(1U);
+
+			{
+				// Create the Direct2D device and context.
+				auto direct2DDevice = ComReference<ID2D1Device1>{}; 
+				s_direct2DFactory->CreateDevice(dxgiDevice, &direct2DDevice);
+				direct2DDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_ENABLE_MULTITHREADED_OPTIMIZATIONS, &m_context);
+				m_context->SetDpi(p_dpi, p_dpi);
+			}
+
+			// Obtain DXGI factory from DXGI device.
+			auto dxgiAdapter = ComReference<IDXGIAdapter>{};
+			dxgiDevice->GetAdapter(&dxgiAdapter);
+			dxgiAdapter->GetParent(IID_PPV_ARGS(&dxgiFactory));
+		}
+
+		// We don't want DXGI changing the fullscreen state using its own key bindings...
+		auto windowHandle = static_cast<HWND>(m_window->getNativeHandle());
+		dxgiFactory->MakeWindowAssociation(windowHandle, DXGI_MWA_NO_WINDOW_CHANGES);
+
+		//------------------------------
+		// Create swap chain, which holds the front and back buffers and is connected to the window.
+
+		auto size = Avo::Size<UINT>{m_window->getSize()*p_dpi/USER_DEFAULT_SCREEN_DPI};
+		auto swapChainDescription = DXGI_SWAP_CHAIN_DESC1{
+			/*.Width = */size.width,
+			/*.Height = */size.height,
+			/*.Format = */DXGI_FORMAT_B8G8R8A8_UNORM,
+			/*.Stereo = */false,
+			/*.SampleDesc = */{1, 0},
+			/*.BufferUsage = */DXGI_USAGE_RENDER_TARGET_OUTPUT,
+			/*.BufferCount = */2,
+			/*.Scaling = */DXGI_SCALING::DXGI_SCALING_NONE,
+			/*.SwapEffect = */DXGI_SWAP_EFFECT::DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL
 		};
-		D3D_FEATURE_LEVEL featureLevel;
-		D3D11CreateDevice(
-			0,
-			D3D_DRIVER_TYPE_HARDWARE,
-			0,
-			D3D11_CREATE_DEVICE_BGRA_SUPPORT
-#ifdef _DEBUG 
-			| D3D11_CREATE_DEVICE_DEBUG
-#endif
-			,
-			featureLevels,
-			sizeof(featureLevels) / sizeof(D3D_FEATURE_LEVEL),
-			D3D11_SDK_VERSION,
-			&d3dDevice,
-			&featureLevel,
-			&d3dDeviceContext
-		);
-
-		//------------------------------
-		// Get dxgi factory from the Direct3D device
-
-		IDXGIDevice1* dxgiDevice = nullptr;
-		d3dDevice->QueryInterface(&dxgiDevice);
-		dxgiDevice->SetMaximumFrameLatency(1U);
-
-		IDXGIAdapter* dxgiAdapter = nullptr;
-		dxgiDevice->GetAdapter(&dxgiAdapter);
-
-		IDXGIFactory2* dxgiFactory = nullptr;
-		dxgiAdapter->GetParent(IID_PPV_ARGS(&dxgiFactory));
-
-		//------------------------------
-		// Create Direct2D device and device context.
-
-		ID2D1Device1* direct2DDevice = nullptr;
-		s_direct2DFactory->CreateDevice(dxgiDevice, &direct2DDevice);
-		direct2DDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_ENABLE_MULTITHREADED_OPTIMIZATIONS, &m_context);
-
-		float dpi = GetDpiForSystem();
-
-		//------------------------------
-		// Create swap chain, which holds the back buffer and is connected to the window.
-
-		DXGI_SWAP_CHAIN_DESC1 swapChainDescription{};
-		swapChainDescription.Width = m_window->getWidth() * dpi / USER_DEFAULT_SCREEN_DPI;
-		swapChainDescription.Height = m_window->getHeight() * dpi / USER_DEFAULT_SCREEN_DPI;
-		swapChainDescription.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-		swapChainDescription.Stereo = false;
-		swapChainDescription.SampleDesc.Count = 1;
-		swapChainDescription.SampleDesc.Quality = 0;
-		swapChainDescription.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		swapChainDescription.BufferCount = 2;
-		swapChainDescription.Scaling = DXGI_SCALING::DXGI_SCALING_NONE;
-		swapChainDescription.SwapEffect = DXGI_SWAP_EFFECT::DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
-		swapChainDescription.Flags = 0;
 
 		dxgiFactory->CreateSwapChainForHwnd(
-			d3dDevice, (HWND)p_window->getNativeHandle(),
+			d3dDevice, windowHandle,
 			&swapChainDescription, nullptr,
 			nullptr, &m_swapChain
 		);
+	}
+	auto initializeContext() -> void
+	{
+		float dpi = GetDpiForSystem();
 
-		dxgiFactory->MakeWindowAssociation((HWND)p_window->getNativeHandle(), DXGI_MWA_NO_WINDOW_CHANGES);
+		createSwapChainAndDrawingContext(dpi);
+
+		//------------------------------
+		// Initialize the background color of the swap chain's buffers.
+
+		auto color = DXGI_RGBA{0.5f, 0.5f, 0.5f, 1.f};
+		m_swapChain->SetBackgroundColor(&color);
 
 		//------------------------------
 		// Create a target bitmap which is connected to the back buffer of the window.
 
-		IDXGISurface* dxgiBackBuffer;
-		m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
+		{
+			auto lock = Direct2dLock{};
+			
+			ComReference<IDXGISurface> dxgiBackBuffer;
+			m_swapChain->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
 
-		m_context->CreateBitmapFromDxgiSurface(
-			dxgiBackBuffer,
-			D2D1::BitmapProperties1(
-				D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-				D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE::D2D1_ALPHA_MODE_IGNORE),
-				dpi, dpi
-			),
-			&m_targetWindowBitmap
-		);
+			createTargetWindowBitmapFromDxgiBackBuffer(dxgiBackBuffer, dpi);
+		}
 
 		m_context->SetTarget(m_targetWindowBitmap);
-
-		m_context->SetDpi(dpi, dpi);
-
-		DXGI_RGBA color;
-		color.r = 0.5f;
-		color.g = 0.5f;
-		color.b = 0.5f;
-		color.a = 1.f;
-		m_swapChain->SetBackgroundColor(&color);
-
-		//------------------------------
-
-		dxgiBackBuffer->Release();
-		direct2DDevice->Release();
-		dxgiFactory->Release();
-		dxgiAdapter->Release();
-		dxgiDevice->Release();
-		d3dDeviceContext->Release();
-		d3dDevice->Release();
-
-		//------------------------------
-
-		m_context->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), &m_solidColorBrush);
-		m_currentBrush = m_solidColorBrush;
-
-		m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE_FLAT;
-		m_strokeStyleProperties.dashOffset = 1.f;
-		m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE_SOLID;
-		m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN_ROUND;
-		m_strokeStyleProperties.miterLimit = 0.f;
-		m_strokeStyleProperties.startCap = D2D1_CAP_STYLE_FLAT;
-		m_strokeStyleProperties.endCap = D2D1_CAP_STYLE_FLAT;
-		m_strokeStyleProperties.transformType = D2D1_STROKE_TRANSFORM_TYPE::D2D1_STROKE_TRANSFORM_TYPE_NORMAL;
-
-		updateStrokeStyle();
-
-		//------------------------------
-		// Create text stuff
+	}
+	auto initializeFonts() -> void
+	{
+		auto addData = [&](auto data, auto size) {
+			auto const start = reinterpret_cast<std::byte const*>(data);
+			m_fontData.emplace_back(std::make_shared<Avo::DataVector>(start, start + size));
+		};
 
 		m_fontData.reserve(8);
-		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_LIGHT, FONT_DATA_ROBOTO_LIGHT + FONT_DATA_SIZE_ROBOTO_LIGHT));
-		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_ROBOTO_REGULAR + FONT_DATA_SIZE_ROBOTO_REGULAR));
-		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_MEDIUM, FONT_DATA_ROBOTO_MEDIUM + FONT_DATA_SIZE_ROBOTO_MEDIUM));
-		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_ROBOTO_BOLD, FONT_DATA_ROBOTO_BOLD + FONT_DATA_SIZE_ROBOTO_BOLD));
-		m_fontData.emplace_back(std::make_shared<std::vector<uint8>>(FONT_DATA_MATERIAL_ICONS, FONT_DATA_MATERIAL_ICONS + FONT_DATA_SIZE_MATERIAL_ICONS));
+		addData(FONT_DATA_ROBOTO_LIGHT, FONT_DATA_SIZE_ROBOTO_LIGHT);
+		addData(FONT_DATA_ROBOTO_REGULAR, FONT_DATA_SIZE_ROBOTO_REGULAR);
+		addData(FONT_DATA_ROBOTO_MEDIUM, FONT_DATA_SIZE_ROBOTO_MEDIUM);
+		addData(FONT_DATA_ROBOTO_BOLD, FONT_DATA_SIZE_ROBOTO_BOLD);
+		addData(FONT_DATA_MATERIAL_ICONS, FONT_DATA_SIZE_MATERIAL_ICONS);
 		updateFontCollection();
+
+		setDefaultTextProperties(m_textProperties);
 
 		// Just for debugging...
 		//std::vector<wchar_t*> fontFamilyNames;
@@ -8655,41 +7990,45 @@ public:
 		//	fontFamilyNames.push_back(buffer);
 		//}
 
-		setDefaultTextProperties(m_textProperties);
-
 		//m_context->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE::D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
 	}
-	~Direct2DDrawingContext()
+	auto initializeDrawing() -> void
 	{
-		if (m_solidColorBrush)
-		{
-			m_solidColorBrush->Release();
-		}
-		if (m_strokeStyle)
-		{
-			m_strokeStyle->Release();
-		}
-		if (m_targetWindowBitmap)
-		{
-			m_targetWindowBitmap->Release();
-		}
-		if (m_swapChain)
-		{
-			m_swapChain->Release();
-		}
-		if (m_context)
-		{
-			m_context->Release();
-		}
+		// Initial color doesn't matter, it'll be changed afterwards.
+		m_context->CreateSolidColorBrush({}, &m_solidColorBrush);
+		m_currentBrush = m_solidColorBrush;
 
+		m_strokeStyleProperties.dashCap = D2D1_CAP_STYLE_FLAT;
+		m_strokeStyleProperties.dashOffset = 1.f;
+		m_strokeStyleProperties.dashStyle = D2D1_DASH_STYLE_SOLID;
+		m_strokeStyleProperties.lineJoin = D2D1_LINE_JOIN_ROUND;
+		m_strokeStyleProperties.miterLimit = 0.f;
+		m_strokeStyleProperties.startCap = D2D1_CAP_STYLE_FLAT;
+		m_strokeStyleProperties.endCap = D2D1_CAP_STYLE_FLAT;
+		m_strokeStyleProperties.transformType = D2D1_STROKE_TRANSFORM_TYPE::D2D1_STROKE_TRANSFORM_TYPE_NORMAL;
+		updateStrokeStyle();
+	}
+
+public:
+	Direct2dDrawingContext(Avo::Window* p_window) :
+		m_window{p_window}
+	{
+		initializeContext();
+		
+		initializeDrawing();
+
+		initializeFonts();
+	}
+	~Direct2dDrawingContext()
+	{
 		destroyStaticResources();
 	}
 };
-ID2D1Factory2* Direct2DDrawingContext::s_direct2DFactory{nullptr};
-IDWriteFactory1* Direct2DDrawingContext::s_directWriteFactory{nullptr};
-FontCollectionLoader* Direct2DDrawingContext::s_fontCollectionLoader{nullptr};
-FontFileLoader* Direct2DDrawingContext::s_fontFileLoader{nullptr};
-IWICImagingFactory2* Direct2DDrawingContext::s_imagingFactory{nullptr};
+ComReference<ID2D1Factory2> Direct2dDrawingContext::s_direct2DFactory;
+ComReference<IDWriteFactory1> Direct2dDrawingContext::s_directWriteFactory;
+ComReference<FontCollectionLoader> Direct2dDrawingContext::s_fontCollectionLoader;
+ComReference<FontFileLoader> Direct2dDrawingContext::s_fontFileLoader;
+ComReference<IWICImagingFactory2> Direct2dDrawingContext::s_imagingFactory;
 #endif
 #ifdef __linux__
 
@@ -8823,7 +8162,7 @@ public:
 	}
 
 	void setVertexDataOrder(uint32* p_indices, uint32 p_indexCount, GLenum p_usage = GL_STATIC_DRAW)
-    {
+	{
         glBindVertexArray(m_vertexArrayObjectID);
 
 	    glGenBuffers(1, &m_indexBufferID);
@@ -8831,12 +8170,12 @@ public:
 	    glBufferData(GL_ELEMENT_ARRAY_BUFFER, p_indexCount, p_indices, p_usage);
 
 	    m_indexBufferSize = p_indexCount;
-    }
+	}
 
     void setUniformValue(char const* p_name, float p_value)
-    {
+	{
 		glUniform1f(glGetUniformLocation(m_programID, p_name), p_value);
-    }
+	}
 	void setUniformVector(char const* p_name, float p_value_0, float p_value_1)
 	{
 		glUniform2f(glGetUniformLocation(m_programID, p_name), p_value_0, p_value_1);
@@ -8868,7 +8207,7 @@ public:
     void setUniformColor(char const* p_name, Avo::Color p_color)
     {
 		glUniform4f(glGetUniformLocation(m_programID, p_name), p_color.red, p_color.green, p_color.blue, p_color.alpha);
-    }
+	}
 	/*
 		Sets a matrix uniform with 2 rows and 3 columns.
 		The values are in column-major order.
@@ -8893,12 +8232,12 @@ public:
         if (m_indexBufferID)
         {
             glDrawElements(p_mode, p_numberOfVerticesToDraw == -1 ? m_indexBufferSize : p_numberOfVerticesToDraw, GL_UNSIGNED_INT, nullptr);
-        }
+		}
         else
         {
             glDrawArrays(p_mode, p_startVertexIndex, p_numberOfVerticesToDraw == -1 ? m_vertexBufferSize/m_vertexSize : p_numberOfVerticesToDraw);
-        }
-    }
+		}
+	}
 };
 
 //------------------------------
@@ -9052,18 +8391,18 @@ public:
 	float getInnerWidth() const override
 	{
 		if (m_boundsSizing != Avo::ImageBoundsSizing::Stretch &&
-		    m_boundsSizing == Avo::ImageBoundsSizing::Contain != m_bounds.getWidth() / m_bounds.getHeight() < m_originalSize.x / (float)m_originalSize.y)
+		    m_boundsSizing == Avo::ImageBoundsSizing::Contain != m_bounds.getWidth()/m_bounds.getHeight() < m_originalSize.x/(float)m_originalSize.y)
 		{
-			return m_bounds.getHeight() * m_originalSize.x / (float)m_originalSize.y;
+			return m_bounds.getHeight()*m_originalSize.x/(float)m_originalSize.y;
 		}
 		return m_bounds.getWidth();
 	}
 	float getInnerHeight() const override
 	{
 		if (m_boundsSizing != Avo::ImageBoundsSizing::Stretch &&
-		    m_boundsSizing == Avo::ImageBoundsSizing::Contain != m_bounds.getWidth() / m_bounds.getHeight() > m_originalSize.x / (float)m_originalSize.y)
+		    m_boundsSizing == Avo::ImageBoundsSizing::Contain != m_bounds.getWidth()/m_bounds.getHeight() > m_originalSize.x/(float)m_originalSize.y)
 		{
-			return m_bounds.getWidth() * m_originalSize.y / (float)m_originalSize.x;
+			return m_bounds.getWidth()*m_originalSize.y/(float)m_originalSize.x;
 		}
 		return m_bounds.getHeight();
 	}
@@ -9080,17 +8419,17 @@ public:
 
 		Avo::Rectangle<> innerBounds = m_bounds;
 
-		bool areBoundsProportionallyWider = m_bounds.getWidth() / m_bounds.getHeight() > m_originalSize.x / (float)m_originalSize.y;
+		bool areBoundsProportionallyWider = m_bounds.getWidth()/m_bounds.getHeight() > m_originalSize.x/(float)m_originalSize.y;
 		if (m_boundsSizing == Avo::ImageBoundsSizing::Fill != areBoundsProportionallyWider)
 		{
-			innerBounds.setWidth(m_bounds.getHeight() * m_originalSize.x / (float)m_originalSize.y);
+			innerBounds.setWidth(m_bounds.getHeight()*m_originalSize.x/(float)m_originalSize.y);
 		}
 		else if (m_boundsSizing == Avo::ImageBoundsSizing::Contain != areBoundsProportionallyWider)
 		{
-			innerBounds.setHeight(m_bounds.getWidth() * m_originalSize.y / (float)m_originalSize.x);
+			innerBounds.setHeight(m_bounds.getWidth()*m_originalSize.y/(float)m_originalSize.x);
 		}
 
-		innerBounds.move(m_boundsPositioning.x * (m_bounds.getWidth() - innerBounds.getWidth()), m_boundsPositioning.y * (m_bounds.getHeight() - innerBounds.getHeight()));
+		innerBounds.move(m_boundsPositioning.x*(m_bounds.getWidth() - innerBounds.getWidth()), m_boundsPositioning.y*(m_bounds.getHeight() - innerBounds.getHeight()));
 
 		return innerBounds;
 	}
@@ -9147,7 +8486,6 @@ private:
 	Avo::LineJoin m_lineJoin{Avo::LineJoin::Miter};
 	Avo::LineCap m_lineCap{Avo::LineCap::Round};
 
-	float m_dipToPixelFactor{1.f};
 	Avo::Point<> m_size;
 
 	//------------------------------
@@ -9206,7 +8544,7 @@ private:
 		drawCall.vertexBufferStartIndex = uint32(m_vertexBuffer.size()/VERTEX_DATA_LENGTH - p_numberOfVertices);
 		drawCall.numberOfVertices = p_numberOfVertices;
 		drawCall.primitiveType = p_primitiveType;
-		drawCall.color = { m_currentColor, p_opacity };
+		drawCall.color = {m_currentColor, p_opacity};
 		drawCall.renderMode = bool(p_texture) + 1;
 		drawCall.texture = p_texture;
 		m_drawCalls.push_back(drawCall);
@@ -9297,7 +8635,7 @@ private:
 
 		if (p_corners.topLeftType == Avo::RectangleCornerType::Cut)
 		{
-			Avo::Point<> normal{ -p_corners.topLeftSizeY, -p_corners.topLeftSizeX };
+			Avo::Point<> normal{-p_corners.topLeftSizeY, -p_corners.topLeftSizeX};
 			normal.normalize();
 			p_buffer.insert(
 				p_buffer.end(),
@@ -9313,7 +8651,7 @@ private:
 		}
 		else
 		{
-			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.topLeftSizeX * p_corners.topLeftSizeY);
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.topLeftSizeX*p_corners.topLeftSizeY);
 			float lastX = p_corners.topLeftSizeX;
 			float lastY = 0.f;
 			Avo::Point<> lastNormal(-lastX, -lastY);
@@ -9322,7 +8660,7 @@ private:
 			{
 				float x = p_corners.topLeftSizeX*s_unitCirclePoints[a].x;
 				float y = p_corners.topLeftSizeY*s_unitCirclePoints[a].y;
-				Avo::Point<> normal{ -x, -y };
+				Avo::Point<> normal{-x, -y};
 				normal.normalizeFast();
 				p_buffer.insert(
 					p_buffer.end(),
@@ -9356,7 +8694,7 @@ private:
 		}
 		if (p_corners.topLeftType == Avo::RectangleCornerType::Cut)
 		{
-			Avo::Point<> normal{ p_corners.topRightSizeY, -p_corners.topRightSizeX };
+			Avo::Point<> normal{p_corners.topRightSizeY, -p_corners.topRightSizeX};
 			normal.normalize();
 			p_buffer.insert(
 				p_buffer.end(),
@@ -9372,16 +8710,16 @@ private:
 		}
 		else
 		{
-			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.topRightSizeX * p_corners.topRightSizeY);
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.topRightSizeX*p_corners.topRightSizeY);
 			float lastX = p_corners.topRightSizeX;
 			float lastY = 0.f;
-			Avo::Point<> lastNormal{ lastX, -lastY };
+			Avo::Point<> lastNormal{lastX, -lastY};
 			lastNormal.normalizeFast();
 			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
 			{
 				float x = p_corners.topRightSizeX*s_unitCirclePoints[a].x;
 				float y = p_corners.topRightSizeY*s_unitCirclePoints[a].y;
-				Avo::Point<> normal{ x, -y };
+				Avo::Point<> normal{x, -y};
 				normal.normalizeFast();
 				p_buffer.insert(
 					p_buffer.end(),
@@ -9415,7 +8753,7 @@ private:
 		}
 		if (p_corners.topLeftType == Avo::RectangleCornerType::Cut)
 		{
-			Avo::Point<> normal{ -p_corners.bottomLeftSizeY, p_corners.bottomLeftSizeX };
+			Avo::Point<> normal{-p_corners.bottomLeftSizeY, p_corners.bottomLeftSizeX};
 			normal.normalize();
 			p_buffer.insert(
 				p_buffer.end(),
@@ -9431,16 +8769,16 @@ private:
 		}
 		else
 		{
-			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.bottomLeftSizeX * p_corners.bottomLeftSizeY);
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.bottomLeftSizeX*p_corners.bottomLeftSizeY);
 			float lastX = p_corners.bottomLeftSizeX;
 			float lastY = 0.f;
-			Avo::Point<> lastNormal{ -lastX, lastY };
+			Avo::Point<> lastNormal{-lastX, lastY};
 			lastNormal.normalizeFast();
 			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
 			{
 				float x = p_corners.topLeftSizeX*s_unitCirclePoints[a].x;
 				float y = p_corners.topLeftSizeY*s_unitCirclePoints[a].y;
-				Avo::Point<> normal{ -x, y };
+				Avo::Point<> normal{-x, y};
 				normal.normalizeFast();
 				p_buffer.insert(
 					p_buffer.end(),
@@ -9474,7 +8812,7 @@ private:
 		}
 		if (p_corners.topLeftType == Avo::RectangleCornerType::Cut)
 		{
-			Avo::Point<> normal{ p_corners.bottomLeftSizeY, p_corners.bottomLeftSizeX };
+			Avo::Point<> normal{p_corners.bottomLeftSizeY, p_corners.bottomLeftSizeX};
 			normal.normalize();
 			p_buffer.insert(
 				p_buffer.end(),
@@ -9490,16 +8828,16 @@ private:
 		}
 		else
 		{
-			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.bottomRightSizeX * p_corners.bottomRightSizeY);
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.bottomRightSizeX*p_corners.bottomRightSizeY);
 			float lastX = p_corners.bottomRightSizeX;
 			float lastY = 0.f;
-			Avo::Point<> lastNormal{ lastX, lastY };
+			Avo::Point<> lastNormal{lastX, lastY};
 			lastNormal.normalizeFast();
 			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
 			{
 				float x = p_corners.topRightSizeX*s_unitCirclePoints[a].x;
 				float y = p_corners.topRightSizeY*s_unitCirclePoints[a].y;
-				Avo::Point<> normal{ x, y };
+				Avo::Point<> normal{x, y};
 				normal.normalizeFast();
 				p_buffer.insert(
 					p_buffer.end(),
@@ -9612,7 +8950,7 @@ private:
 		}
 		else
 		{
-			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.topLeftSizeX * p_corners.topLeftSizeY);
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.topLeftSizeX*p_corners.topLeftSizeY);
 			float lastX = p_corners.topLeftSizeX;
 			float lastY = 0.f;
 			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
@@ -9658,7 +8996,7 @@ private:
 		}
 		else
 		{
-			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.topRightSizeX * p_corners.topRightSizeY);
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.topRightSizeX*p_corners.topRightSizeY);
 			float lastX = p_corners.topRightSizeX;
 			float lastY = 0.f;
 			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
@@ -9704,7 +9042,7 @@ private:
 		}
 		else
 		{
-			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.bottomLeftSizeX * p_corners.bottomLeftSizeY);
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.bottomLeftSizeX*p_corners.bottomLeftSizeY);
 			float lastX = p_corners.bottomLeftSizeX;
 			float lastY = 0.f;
 			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
@@ -9750,7 +9088,7 @@ private:
 		}
 		else
 		{
-			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.bottomRightSizeX * p_corners.bottomRightSizeY);
+			uint32 stride = getCirclePointStrideForRadiusSquared(p_corners.bottomRightSizeX*p_corners.bottomRightSizeY);
 			float lastX = p_corners.bottomRightSizeX;
 			float lastY = 0.f;
 			for (uint32 a = 1; a <= CIRCLE_RESOLUTION/4; a += stride)
@@ -10026,9 +9364,9 @@ void main()
 		//event.type = ClientMessage;
 		//event.xclient.message_type = m_window->getBackgroundColorMessageType();
 		//event.xclient.format = 32; // Using data.l, 32 bits per data item
-		//event.xclient.data.l[0] = long(p_color.red * 65535);
-		//event.xclient.data.l[1] = long(p_color.green * 65535);
-		//event.xclient.data.l[2] = long(p_color.blue * 65535);
+		//event.xclient.data.l[0] = long(p_color.red*65535);
+		//event.xclient.data.l[1] = long(p_color.green*65535);
+		//event.xclient.data.l[2] = long(p_color.blue*65535);
 		//event.xclient.display = server;
 		//event.xclient.window = m_windowHandle;
 		//event.xclient.send_event = true;
@@ -10038,9 +9376,9 @@ void main()
 		//XUnlockDisplay(server);
 
 		//XColor xColor;
-		//xColor.red = (unsigned short)(p_color.red * 65535);
-		//xColor.green = (unsigned short)(p_color.green * 65535);
-		//xColor.blue = (unsigned short)(p_color.blue * 65535);
+		//xColor.red = (unsigned short)(p_color.red*65535);
+		//xColor.green = (unsigned short)(p_color.green*65535);
+		//xColor.blue = (unsigned short)(p_color.blue*65535);
 		//xColor.flags = DoRed | DoGreen | DoBlue;
 		//XAllocColor(m_server, m_window->getColormap(), &xColor);
 		//XSetWindowBackground(m_server, m_windowHandle, xColor.pixel);
@@ -10085,7 +9423,7 @@ void main()
 	}
 	Avo::Point<> getOrigin() override
 	{
-		return { -m_transformMatrix[7], -m_transformMatrix[8] };
+		return {-m_transformMatrix[7], -m_transformMatrix[8]};
 	}
 
 	//------------------------------
@@ -10176,7 +9514,7 @@ void main()
 		/*
 			Matrix multiplication:
 			[cos -sin  0]   [m[0] m[3] m[6]]   [m[0]cos - m[1]sin  m[3]cos - m[4]sin  m[6]cos - m[7]sin]
-			[sin  cos  0] * [m[1] m[4] m[7]] = [m[0]sin + m[1]cos  m[3]sin + m[4]cos  m[6]sin + m[7]cos]
+			[sin  cos  0]*[m[1] m[4] m[7]] = [m[0]sin + m[1]cos  m[3]sin + m[4]cos  m[6]sin + m[7]cos]
 			[0    0    1]   [0    0    1   ]   [0                  0                  1                ]
 		*/
 		m_transformMatrix[0] = cos*previousMatrix[0] - sin*previousMatrix[1];
@@ -10203,7 +9541,7 @@ void main()
 		/*
 			Matrix multiplication:
 			[cos -sin  0]   [m[0] m[3] m[6]]   [m[0]cos - m[1]sin  m[3]cos - m[4]sin  m[6]cos - m[7]sin]
-			[sin  cos  0] * [m[1] m[4] m[7]] = [m[0]sin + m[1]cos  m[3]sin + m[4]cos  m[6]sin + m[7]cos]
+			[sin  cos  0]*[m[1] m[4] m[7]] = [m[0]sin + m[1]cos  m[3]sin + m[4]cos  m[6]sin + m[7]cos]
 			[0    0    1]   [0    0    1   ]   [0                  0                  1                ]
 		*/
 		m_transformMatrix[0] = cos*previousMatrix[0] - sin*previousMatrix[1];
@@ -10479,10 +9817,10 @@ void main()
 	void fillCircle(float p_x, float p_y, float p_radius) override
 	{
 		p_radius += 0.5f;
-		m_vertexBuffer.insert(m_vertexBuffer.end(), { p_x, p_y, 0.5f, p_radius*2.f, 0.5f, 2.f, 0.f, 0.f }); // Only want anti-aliasing on the outer edges of the triangles.
+		m_vertexBuffer.insert(m_vertexBuffer.end(), {p_x, p_y, 0.5f, p_radius*2.f, 0.5f, 2.f, 0.f, 0.f}); // Only want anti-aliasing on the outer edges of the triangles.
 		for (uint32 a = 0; a <= CIRCLE_RESOLUTION; a++)
 		{
-			m_vertexBuffer.insert(m_vertexBuffer.end(), { s_unitCirclePoints[a].x*p_radius + p_x, s_unitCirclePoints[a].y*p_radius + p_y, 0.f, p_radius*2.f, 0.5f, 2.f, 0.f, 0.f, });
+			m_vertexBuffer.insert(m_vertexBuffer.end(), {s_unitCirclePoints[a].x*p_radius + p_x, s_unitCirclePoints[a].y*p_radius + p_y, 0.f, p_radius*2.f, 0.5f, 2.f, 0.f, 0.f,});
 		}
 		addDrawCall(CIRCLE_RESOLUTION + 2, 0u, (GLenum)GL_TRIANGLE_FAN);
 	}
@@ -10497,10 +9835,10 @@ void main()
 		p_radius += p_strokeWidth*0.5f;
 
 		float innerAntiAliasingStart = 1.f - p_radius/p_strokeWidth;
-		m_vertexBuffer.insert(m_vertexBuffer.end(), { p_x, p_y, innerAntiAliasingStart, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f });
+		m_vertexBuffer.insert(m_vertexBuffer.end(), {p_x, p_y, innerAntiAliasingStart, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f});
 		for (uint32 a = 0; a <= CIRCLE_RESOLUTION; a++)
 		{
-			m_vertexBuffer.insert(m_vertexBuffer.end(), { s_unitCirclePoints[a].x*p_radius + p_x, s_unitCirclePoints[a].y*p_radius + p_y, 1.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f });
+			m_vertexBuffer.insert(m_vertexBuffer.end(), {s_unitCirclePoints[a].x*p_radius + p_x, s_unitCirclePoints[a].y*p_radius + p_y, 1.f, p_strokeWidth, 0.5f, 2.f, 0.f, 0.f});
 		}
 		addDrawCall(CIRCLE_RESOLUTION + 2, 0u, (GLenum)GL_TRIANGLE_FAN);
 	}
@@ -10816,7 +10154,7 @@ void main()
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, p_width, p_height, 0, GL_BGRA, GL_UNSIGNED_BYTE, p_pixelData);
 		glGenerateMipmap(GL_TEXTURE_2D);
 
-		return createImageFromImplementation(new OpenGlImage{ texture, p_width, p_height, m_dipToPixelFactor });
+		return createImageFromImplementation(new OpenGlImage{texture, p_width, p_height, m_dipToPixelFactor});
 	}
 	Avo::Image createImage(uint8 const* p_imageData, uint32 p_size) override
 	{
@@ -10867,7 +10205,7 @@ void main()
 			}
 			case Avo::ImageFormat::Jpeg:
 			{
-				FILE* file{ fopen(p_filePath.data(), "rb") };
+				FILE* file{fopen(p_filePath.data(), "rb")};
 				if (!file)
 				{
 					return Avo::Image{};
@@ -10888,7 +10226,7 @@ void main()
 				decompressor.out_color_space = JCS_EXT_BGRA;
 				jpeg_start_decompress(&decompressor);
 
-				uint32 rowStride = decompressor.output_width * decompressor.output_components;
+				uint32 rowStride = decompressor.output_width*decompressor.output_components;
 				JSAMPARRAY rowBuffer = (*decompressor.mem->alloc_sarray)((j_common_ptr)&decompressor, JPOOL_IMAGE, rowStride, 1);
 
 				std::vector<png_byte> data(rowStride*decompressor.output_height);
@@ -11059,33 +10397,33 @@ Avo::Point<> OpenGlDrawingContext::s_unitCirclePoints[OpenGlDrawingContext::CIRC
 // class GUI
 //------------------------------
 
-std::vector<Avo::View*> Avo::Gui::getTopMouseListenersAt(Avo::Point<> p_coordinates)
+auto Avo::Gui::getTopMouseListenersAt(Avo::Point<> const p_coordinates) -> std::vector<Avo::View*>
 {
 	std::vector<Avo::View*> result;
 	if (getAreMouseEventsEnabled())
 	{
 		remember();
-		result = { this };
+		result = {this};
 	}
 	else
 	{
-		result = { };
+		result = {};
 	}
 	result.reserve(10);
 
 	Avo::View* container = this;
-	int32 startIndex = getNumberOfChildViews() - 1;
+	Index startIndex = getNumberOfChildViews() - 1;
 
 	bool hasFoundTopView = false;
 
 	while (true)
 	{
 	loopStart:
-		for (int32 a = startIndex; a >= 0; a--)
+		for (Index a = startIndex; a >= 0; a--)
 		{
 			auto child = container->getChildView(a);
 			// Invisible views and their children do not receive mouse events.
-			if (child->getIsVisible() && child->getIsContainingAbsolute(p_coordinates.x, p_coordinates.y))
+			if (child->getIsVisible() && child->getIsContainingAbsolute(p_coordinates))
 			{
 				bool hasChildren = child->getNumberOfChildViews();
 
@@ -11125,22 +10463,23 @@ std::vector<Avo::View*> Avo::Gui::getTopMouseListenersAt(Avo::Point<> p_coordina
 	}
 	return result;
 }
-std::vector<Avo::View*> Avo::Gui::getTopMouseListenersAt(float p_x, float p_y)
-{
-	return getTopMouseListenersAt({p_x, p_y});
-}
 
-void Avo::Gui::thread_runAnimationLoop()
+auto Avo::Gui::thread_runAnimationLoop() -> void
 {	
-	int32 syncInterval = 16666667;
-	auto timeBefore = std::chrono::steady_clock::now();
+	using namespace std::chrono;
+	using namespace std::chrono_literals;
+
+	using _Duration = duration<double, std::nano>;
+	auto syncInterval = _Duration{1.s/60.};
+
+	auto timeBefore = steady_clock::now();
 
 	bool wasLastFrameDrawn = false;
 
 	while (!m_window->getWillClose())
 	{
 		lockThreads();
-		for (auto a : Indices{ m_viewAnimationUpdateQueue })
+		for (auto a : Indices{m_viewAnimationUpdateQueue})
 		{
 			m_viewAnimationUpdateQueue.front()->m_isInAnimationUpdateQueue = false;
 			m_viewAnimationUpdateQueue.front()->updateAnimations();
@@ -11150,7 +10489,7 @@ void Avo::Gui::thread_runAnimationLoop()
 		unlockThreads();
 
 		lockThreads();
-		for (auto a : Indices{ m_animationUpdateQueue })
+		for (auto a : Indices{m_animationUpdateQueue})
 		{
 			m_animationUpdateQueue.front()->update();
 			m_animationUpdateQueue.pop_front();
@@ -11165,25 +10504,26 @@ void Avo::Gui::thread_runAnimationLoop()
 
 			if (!getDrawingContext()->getIsVsyncEnabled())
 			{
-				std::this_thread::sleep_for(std::chrono::nanoseconds{ syncInterval });
+				std::this_thread::sleep_for(syncInterval);
 			}
 		}
 		else
 		{
-			if (wasLastFrameDrawn)
-			{
-				// Just to force a buffer swap.
-				invalidateRectangle(0, 0, 1, 1);
-				drawViews();
-				wasLastFrameDrawn = false;
-			}
-			else
-			{
-				std::this_thread::sleep_for(std::chrono::nanoseconds{ syncInterval });
-			}
+			//if (wasLastFrameDrawn)
+			//{
+			//	// Just to force a buffer swap.
+			//	invalidateRectangle(0, 0, 1, 1);
+			//	drawViews();
+			//	wasLastFrameDrawn = false;
+			//}
+			//else
+			//{
+				std::this_thread::sleep_for(syncInterval);
+			//}
 		}
-		auto timeAfter = std::chrono::steady_clock::now();
-		syncInterval = max(1000000, int32(syncInterval + 0.5 * (16666667 - (timeAfter - timeBefore).count())));
+		auto timeAfter = steady_clock::now();
+		syncInterval = std::max(_Duration{1.ms}, syncInterval + (1.s/60. - (timeAfter - timeBefore))/2);
+		//syncInterval = std::max(1000000, int32(syncInterval + 0.5*(16666667 - (timeAfter - timeBefore).count())));
 		timeBefore = timeAfter;
 	}
 	if (m_viewAnimationUpdateQueue.size())
@@ -11201,19 +10541,19 @@ void Avo::Gui::thread_runAnimationLoop()
 	forget();
 }
 
-uint32 Avo::Gui::s_numberOfInstances = 0u;
+Count Avo::Gui::s_numberOfInstances = 0u;
 
 Avo::Gui::Gui() :
-	Avo::View{ nullptr }
+	Avo::View{nullptr}
 {
-	s_numberOfInstances++;
+	++s_numberOfInstances;
 
 #ifdef _WIN32
-	Direct2DDrawingContext::createStaticResources();
-	m_window = new WindowsWindow{ this };
+	Direct2dDrawingContext::createStaticResources();
+	m_window = std::make_unique<WindowsWindow>(this);
 #endif
 #ifdef __linux__
-	m_window = new LinuxWindow{ this };
+	m_window = std::make_unique<LinuxWindow>(this);
 #endif
 
 	m_window->windowCreateListeners += Avo::bind(&Gui::handleWindowCreate, this);
@@ -11222,101 +10562,104 @@ Avo::Gui::Gui() :
 
 	m_gui = this;
 }
-Avo::Gui::Gui(Component* p_parent) :
+Avo::Gui::Gui(Component* const p_parent) :
 	Gui{}
 {
-	((Component*)this)->setParent(p_parent);
+	Component::setParent(p_parent);
 }
 Avo::Gui::~Gui()
 {
-	s_numberOfInstances--;
-	if (m_window)
-	{
-		m_window->forget();
-		m_window = nullptr;
-	}
-	if (m_drawingContextState)
-	{
-		m_drawingContextState->forget();
-		m_drawingContextState = nullptr;
-	}
-	if (m_drawingContext)
-	{
-		m_drawingContext->forget();
-		m_drawingContext = nullptr;
-	}
+	--s_numberOfInstances;
 }
 
-void Avo::Gui::create(std::string_view p_title, float p_x, float p_y, float p_width, float p_height, WindowStyleFlags p_windowFlags, Gui* p_parent)
+auto Avo::Gui::create(
+	std::string_view const p_title, 
+	Avo::Point<Avo::Factor> const p_position, 
+	Avo::Size<> const p_size, 
+	WindowStyleFlags const p_windowFlags, 
+	Gui* const p_parent
+) -> void
 {
 	if (p_parent)
 	{
 		m_parent = p_parent;
 	}
 
-	m_absolutePosition.set(0, 0);
-	m_window->create(p_title, p_x, p_y, p_width, p_height, p_windowFlags, p_parent ? p_parent->getWindow() : nullptr);
-}
-void Avo::Gui::create(std::string_view p_title, float p_width, float p_height, WindowStyleFlags p_windowFlags, Gui* p_parent)
-{
-	create(p_title, 0.5f, 0.5f, p_width, p_height, p_windowFlags, p_parent);
+	m_absolutePosition = 0;
+	m_window->create(p_title, p_position, p_size, p_windowFlags, p_parent ? p_parent->getWindow() : nullptr);
 }
 
 //------------------------------
 
-Avo::View* Avo::Gui::getViewAt(Avo::Point<> p_coordinates)
+auto Avo::Gui::getViewAt(Avo::Point<> const p_coordinates) -> Avo::View*
 {
-	Avo::View* currentContainer = this;
-
+	auto currentContainer = static_cast<Avo::View*>(this);
 	while (true)
 	{
-		for (int32 a = currentContainer->getNumberOfChildViews() - 1; a >= 0; a--)
+		if (auto const hitViewIterator = std::find_if(
+				currentContainer->rbegin(), currentContainer->rend(), 
+				[&](View* const view){
+					return view->getIsVisible() && !view->getIsOverlay() && view->getIsContainingAbsolute(p_coordinates);
+				}
+			); hitViewIterator == currentContainer->rend())
 		{
-			Avo::View* view = currentContainer->getChildView(a);
-			if (view->getIsVisible() && !view->getIsOverlay() && view->getIsContainingAbsolute(p_coordinates))
+			return currentContainer;
+		}
+		else
+		{
+			auto* const view = *hitViewIterator;
+			if (view->getHasChildViews())
 			{
-				if (view->getNumberOfChildViews())
-				{
-					currentContainer = view;
-					break;
-				}
-				else
-				{
-					return view;
-				}
+				currentContainer = view;
 			}
-			else if (!a)
+			else
 			{
-				return currentContainer;
+				return view;
 			}
 		}
 	}
-}
-Avo::View* Avo::Gui::getViewAt(float p_x, float p_y)
-{
-	return getViewAt({ p_x, p_y });
+
+	// while (true)
+	// {
+	// 	for (auto a = currentContainer->getNumberOfChildViews() - 1; a >= 0; a--)
+	// 	{
+	// 		auto* const view = currentContainer->getChildView(a);
+	// 		if (view->getIsVisible() && !view->getIsOverlay() && view->getIsContainingAbsolute(p_coordinates))
+	// 		{
+	// 			if (view->getNumberOfChildViews())
+	// 			{
+	// 				currentContainer = view;
+	// 				break;
+	// 			}
+	// 			else
+	// 			{
+	// 				return view;
+	// 			}
+	// 		}
+	// 		else if (!a)
+	// 		{
+	// 			return currentContainer;
+	// 		}
+	// 	}
+	// }
 }
 
 //------------------------------
 
-void Avo::Gui::handleWindowCreate(WindowEvent const& p_event)
+auto Avo::Gui::handleWindowCreate(WindowEvent const& p_event) -> void
 {
-	if (m_drawingContext)
-	{
-		m_drawingContext->forget();
-	}
 #ifdef _WIN32
-	m_drawingContext = new Direct2DDrawingContext{ m_window };
+	m_drawingContext = std::make_unique<Direct2dDrawingContext>(m_window.get());
 #elif __linux__
-	m_drawingContext = new OpenGlDrawingContext{ m_window };
+	m_drawingContext = std::make_unique<OpenGlDrawingContext>(m_window.get());
 #endif
 	m_drawingContextState = m_drawingContext->createDrawingState();
 
-	m_bounds.set(0.f, 0.f, p_event.width, p_event.height);
+	m_bounds = p_event.size;
 	m_shadowBounds = m_bounds;
-	m_lastUpdatedWindowSize.set(p_event.width, p_event.height);
+	m_lastUpdatedWindowSize = p_event.size;
 }
-void Avo::Gui::handleWindowDestroy(WindowEvent const& p_event)
+auto Avo::Gui::handleWindowDestroy(WindowEvent const& p_event) -> void
 {
 	lockThreads();
 	if (!m_viewAnimationUpdateQueue.empty())
@@ -11337,17 +10680,17 @@ void Avo::Gui::handleWindowDestroy(WindowEvent const& p_event)
 	}
 	unlockThreads();
 }
-void Avo::Gui::handleWindowSizeChange(WindowEvent const& p_event)
+auto Avo::Gui::handleWindowSizeChange(WindowEvent const& p_event) -> void
 {
 	lockThreads();
-	m_drawingContext->setSize(p_event.width, p_event.height);
+	m_drawingContext->setSize(p_event.size);
 
-	m_bounds.set(0, 0, p_event.width, p_event.height);
+	m_bounds = p_event.size;
 	m_shadowBounds = m_bounds;
 
-	sendBoundsChangeEvents({0.f, 0.f, m_lastUpdatedWindowSize.x, m_lastUpdatedWindowSize.y});
+	sendBoundsChangeEvents(m_lastUpdatedWindowSize);
 
-	m_lastUpdatedWindowSize.set(p_event.width, p_event.height);
+	m_lastUpdatedWindowSize = p_event.size;
 	m_invalidRectangles.clear();
 
 	invalidate();
@@ -11356,19 +10699,21 @@ void Avo::Gui::handleWindowSizeChange(WindowEvent const& p_event)
 
 //------------------------------
 
-void Avo::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
+auto Avo::Gui::handleGlobalDragDropMove(DragDropEvent& p_event) -> void
 {
-	Avo::View* container = this;
-	Index startIndex = m_childViews.size() - 1;
+	auto container = static_cast<Avo::View*>(this);
+	auto startIndex = static_cast<Avo::Index>(m_childViews.size()) - 1;
 
-	std::stack<bool> wasHoveringStack;
-	wasHoveringStack.push(((Avo::View*)this)->m_isDraggingOver);
+	auto* const thisView = static_cast<Avo::View*>(this);
 
-	if (getIsContaining(p_event.x, p_event.y))
+	auto wasHoveringStack = std::stack<bool>{};
+	wasHoveringStack.push(thisView->m_isDraggingOver);
+
+	if (getIsContaining(p_event.xy))
 	{
 		if (m_areDragDropEventsEnabled)
 		{
-			if (((Avo::View*)this)->m_isDraggingOver)
+			if (thisView->m_isDraggingOver)
 			{
 				dragDropMoveListeners(p_event);
 			}
@@ -11382,9 +10727,9 @@ void Avo::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 				}
 			}
 		}
-		((Avo::View*)this)->m_isDraggingOver = true;
+		thisView->m_isDraggingOver = true;
 	}
-	else if (((Avo::View*)this)->m_isDraggingOver)
+	else if (thisView->m_isDraggingOver)
 	{
 		if (m_areDragDropEventsEnabled)
 		{
@@ -11395,33 +10740,32 @@ void Avo::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 				dragDropBackgroundLeaveListeners(p_event);
 			}
 		}
-		((Avo::View*)this)->m_isDraggingOver = false;
+		thisView->m_isDraggingOver = false;
 	}
 
-	float absoluteX = p_event.x;
-	float absoluteY = p_event.y;
+	auto absolute = p_event.xy;
 	if (startIndex >= 0)
 	{
-		bool hasInvisibleParent = false;
-		bool hasOverlayParent = false;
-		bool hasFoundEnterViews = false;
-		bool hasFoundLeaveViews = false;
+		auto hasInvisibleParent = bool{};
+		auto hasOverlayParent = bool{};
+		auto hasFoundEnterViews = bool{};
+		auto hasFoundLeaveViews = bool{};
 		while (true)
 		{
 		loopStart:
-			for (Index a = startIndex; a >= 0; a--)
+			for (auto a = startIndex; a >= 0; a--)
 			{
-				Avo::View* child = container->m_childViews[a];
+				auto* const child = container->m_childViews[a];
 
-				if (container->m_isDraggingOver && child->getIsContainingAbsolute(absoluteX, absoluteY) && child->getIsVisible() && !hasInvisibleParent && !hasFoundEnterViews)
+				if (container->m_isDraggingOver && child->getIsContainingAbsolute(absolute) && 
+				    child->getIsVisible() && !hasInvisibleParent && !hasFoundEnterViews)
 				{
 					if (child->m_areDragDropEventsEnabled)
 					{
-						p_event.x = absoluteX - child->getAbsoluteLeft();
-						p_event.y = absoluteY - child->getAbsoluteTop();
+						p_event.xy = absolute - child->getAbsoluteTopLeft();
 					}
 
-					bool isContainer = !child->m_childViews.empty();
+					auto isContainer = !child->m_childViews.empty();
 
 					if (child->m_isDraggingOver)
 					{
@@ -11475,12 +10819,11 @@ void Avo::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 				}
 				else if (child->m_isDraggingOver && !hasFoundLeaveViews)
 				{
-					bool isContainer = child->getNumberOfChildViews();
+					auto isContainer = static_cast<bool>(child->getNumberOfChildViews());
 
 					if (child->m_areDragDropEventsEnabled)
 					{
-						p_event.x = absoluteX - child->getAbsoluteLeft();
-						p_event.y = absoluteY - child->getAbsoluteTop();
+						p_event.xy = absolute - child->getAbsoluteTopLeft();
 						child->dragDropLeaveListeners(p_event);
 						if (!isContainer)
 						{
@@ -11526,8 +10869,7 @@ void Avo::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 				hasFoundEnterViews = true;
 				if (container->m_areDragDropEventsEnabled)
 				{
-					p_event.x = absoluteX - container->getAbsoluteLeft();
-					p_event.y = absoluteY - container->getAbsoluteTop();
+					p_event.xy = absolute - container->getAbsoluteTopLeft();
 					container->dragDropBackgroundEnterListeners(p_event);
 				}
 			}
@@ -11537,8 +10879,7 @@ void Avo::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 				hasFoundLeaveViews = true;
 				if (container->m_areDragDropEventsEnabled)
 				{
-					p_event.x = absoluteX - container->getAbsoluteLeft();
-					p_event.y = absoluteY - container->getAbsoluteTop();
+					p_event.xy = absolute - container->getAbsoluteTopLeft();
 					container->dragDropBackgroundLeaveListeners(p_event);
 				}
 			}
@@ -11584,10 +10925,9 @@ void Avo::Gui::handleGlobalDragDropMove(DragDropEvent& p_event)
 			}
 		}
 	}
-	p_event.x = absoluteX;
-	p_event.y = absoluteY;
+	p_event.xy = absolute;
 }
-void Avo::Gui::handleGlobalDragDropLeave(DragDropEvent& p_event)
+auto Avo::Gui::handleGlobalDragDropLeave(DragDropEvent& p_event) -> void
 {
 	if (m_isDraggingOver)
 	{
@@ -11599,8 +10939,7 @@ void Avo::Gui::handleGlobalDragDropLeave(DragDropEvent& p_event)
 		m_isDraggingOver = false;
 	}
 
-	float absoluteX = p_event.x;
-	float absoluteY = p_event.y;
+	auto const absolute = p_event.xy;
 
 	Avo::View* container = this;
 	Index startIndex = m_childViews.size() - 1;
@@ -11616,8 +10955,7 @@ void Avo::Gui::handleGlobalDragDropLeave(DragDropEvent& p_event)
 			{
 				if (child->m_areDragDropEventsEnabled)
 				{
-					p_event.x = absoluteX - child->getAbsoluteLeft();
-					p_event.y = absoluteY - child->getAbsoluteTop();
+					p_event.xy = absolute - child->getAbsoluteTopLeft();
 					child->dragDropLeaveListeners(p_event);
 					child->dragDropBackgroundLeaveListeners(p_event);
 				}
@@ -11672,23 +11010,21 @@ void Avo::Gui::handleGlobalDragDropLeave(DragDropEvent& p_event)
 
 //------------------------------
 
-void Avo::Gui::handleGlobalMouseMove(MouseEvent& p_event)
+auto Avo::Gui::handleGlobalMouseMove(MouseEvent& p_event) -> void
 {
 	// This is false if it's called from a view just to send mouse leave and mouse enter events,
 	// if a view has been moved from the mouse for example.
-	bool wasMouseReallyMoved = p_event.movementX || p_event.movementY;
+	auto const wasMouseReallyMoved = bool{p_event.movement};
 
-	float absoluteX = p_event.x;
-	float absoluteY = p_event.y;
+	auto const absolute = p_event.xy;
 
 	if (!m_pressedMouseEventListeners.empty())
 	{
 		if (wasMouseReallyMoved)
 		{
-			for (auto pressedView : m_pressedMouseEventListeners)
+			for (auto* const pressedView : m_pressedMouseEventListeners)
 			{
-				p_event.x = absoluteX - pressedView->getAbsoluteLeft();
-				p_event.y = absoluteY - pressedView->getAbsoluteTop();
+				p_event.xy = absolute - pressedView->getAbsoluteTopLeft();
 				pressedView->mouseMoveListeners(p_event);
 			}
 		}
@@ -11698,14 +11034,16 @@ void Avo::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 		Avo::View* container = this;
 		Index startIndex = m_childViews.size() - 1;
 
-		std::stack<bool> wasHoveringStack;
-		wasHoveringStack.push(((Avo::View*)this)->m_isMouseHovering);
+		auto* const thisView = static_cast<View*>(this);
 
-		if (getIsContaining(p_event.x, p_event.y))
+		std::stack<bool> wasHoveringStack;
+		wasHoveringStack.push(thisView->m_isMouseHovering);
+
+		if (getIsContaining(p_event.xy))
 		{
 			if (m_areMouseEventsEnabled)
 			{
-				if (((Avo::View*)this)->m_isMouseHovering)
+				if (thisView->m_isMouseHovering)
 				{
 					if (wasMouseReallyMoved)
 					{
@@ -11722,9 +11060,9 @@ void Avo::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 					}
 				}
 			}
-			((Avo::View*)this)->m_isMouseHovering = true;
+			thisView->m_isMouseHovering = true;
 		}
-		else if (((Avo::View*)this)->m_isMouseHovering)
+		else if (thisView->m_isMouseHovering)
 		{
 			if (getAreMouseEventsEnabled())
 			{
@@ -11735,7 +11073,7 @@ void Avo::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 					mouseBackgroundLeaveListeners(p_event);
 				}
 			}
-			((Avo::View*)this)->m_isMouseHovering = false;
+			thisView->m_isMouseHovering = false;
 		}
 
 		if (startIndex >= 0)
@@ -11751,12 +11089,12 @@ void Avo::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 				{
 					auto child = container->m_childViews[a];
 
-					if (container->m_isMouseHovering && child->getIsContainingAbsolute(absoluteX, absoluteY) && child->m_isVisible && !hasInvisibleParent && !hasFoundEnterViews)
+					if (container->m_isMouseHovering && child->getIsContainingAbsolute(absolute) && 
+					    child->m_isVisible && !hasInvisibleParent && !hasFoundEnterViews)
 					{
 						if (child->m_areMouseEventsEnabled)
 						{
-							p_event.x = absoluteX - child->getAbsoluteLeft();
-							p_event.y = absoluteY - child->getAbsoluteTop();
+							p_event.xy = absolute - child->getAbsoluteTopLeft();
 						}
 
 						bool isContainer = !child->m_childViews.empty();
@@ -11817,8 +11155,7 @@ void Avo::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 
 						if (child->m_areMouseEventsEnabled)
 						{
-							p_event.x = absoluteX - child->getAbsoluteLeft();
-							p_event.y = absoluteY - child->getAbsoluteTop();
+							p_event.xy = absolute - child->getAbsoluteTopLeft();
 							child->mouseLeaveListeners(p_event);
 							if (!isContainer)
 							{
@@ -11864,8 +11201,7 @@ void Avo::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 					hasFoundEnterViews = true;
 					if (container->m_areMouseEventsEnabled)
 					{
-						p_event.x = absoluteX - container->getAbsoluteLeft();
-						p_event.y = absoluteY - container->getAbsoluteTop();
+						p_event.xy = absolute - container->getAbsoluteTopLeft();
 						container->mouseBackgroundEnterListeners(p_event);
 					}
 				}
@@ -11875,8 +11211,7 @@ void Avo::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 					hasFoundLeaveViews = true;
 					if (container->m_areMouseEventsEnabled)
 					{
-						p_event.x = absoluteX - container->getAbsoluteLeft();
-						p_event.y = absoluteY - container->getAbsoluteTop();
+						p_event.xy = absolute - container->getAbsoluteTopLeft();
 						container->mouseBackgroundLeaveListeners(p_event);
 					}
 				}
@@ -11924,7 +11259,7 @@ void Avo::Gui::handleGlobalMouseMove(MouseEvent& p_event)
 		}
 	}
 }
-void Avo::Gui::handleGlobalMouseLeave(MouseEvent& p_event)
+auto Avo::Gui::handleGlobalMouseLeave(MouseEvent& p_event) -> void
 {
 	if (!m_pressedMouseEventListeners.empty())
 	{
@@ -11941,8 +11276,7 @@ void Avo::Gui::handleGlobalMouseLeave(MouseEvent& p_event)
 		m_isMouseHovering = false;
 	}
 
-	float const absoluteX = p_event.x;
-	float const absoluteY = p_event.y;
+	auto const absolute = p_event.xy;
 
 	Avo::View* container = this;
 	Index startIndex = m_childViews.size() - 1;
@@ -11958,8 +11292,7 @@ void Avo::Gui::handleGlobalMouseLeave(MouseEvent& p_event)
 			{
 				if (child->m_areMouseEventsEnabled)
 				{
-					p_event.x = absoluteX - child->getAbsoluteLeft();
-					p_event.y = absoluteY - child->getAbsoluteTop();
+					p_event.xy = absolute - child->getAbsoluteTopLeft();
 					child->mouseLeaveListeners(p_event);
 					child->mouseBackgroundLeaveListeners(p_event);
 				}
@@ -12014,7 +11347,7 @@ void Avo::Gui::handleGlobalMouseLeave(MouseEvent& p_event)
 
 //------------------------------
 
-void Avo::Gui::invalidateRectangle(Avo::Rectangle<> p_rectangle)
+auto Avo::Gui::invalidateRectangle(Avo::Rectangle<> p_rectangle) -> void
 {
 	p_rectangle.bound(m_bounds);
 
@@ -12027,10 +11360,12 @@ void Avo::Gui::invalidateRectangle(Avo::Rectangle<> p_rectangle)
 	// Here, we're rounding the coordinates to whole device pixels so that anti aliased clipping doesn't leave traces at the edges.
 
 	float const dipToPixelFactor = m_window->getDipToPixelFactor();
-	p_rectangle.left = floor(p_rectangle.left * dipToPixelFactor) / dipToPixelFactor;
-	p_rectangle.top = floor(p_rectangle.top * dipToPixelFactor) / dipToPixelFactor;
-	p_rectangle.right = ceil(p_rectangle.right * dipToPixelFactor) / dipToPixelFactor;
-	p_rectangle.bottom = ceil(p_rectangle.bottom * dipToPixelFactor) / dipToPixelFactor;
+	p_rectangle = {
+		floor(p_rectangle.left*dipToPixelFactor)/dipToPixelFactor,
+		floor(p_rectangle.top*dipToPixelFactor)/dipToPixelFactor,
+		ceil(p_rectangle.right*dipToPixelFactor)/dipToPixelFactor,
+		ceil(p_rectangle.bottom*dipToPixelFactor)/dipToPixelFactor
+	};
 
 	//------------------------------
 
@@ -12044,8 +11379,8 @@ void Avo::Gui::invalidateRectangle(Avo::Rectangle<> p_rectangle)
 		if (rectangle)
 		{
 			isDone = true;
-			std::scoped_lock lock{ m_invalidRectanglesMutex };
-			for (auto a : Indices{ m_invalidRectangles })
+			auto lock = std::scoped_lock{m_invalidRectanglesMutex};
+			for (auto a : Indices{m_invalidRectangles})
 			{
 				if (a != rectangleIndex)
 				{
@@ -12068,8 +11403,8 @@ void Avo::Gui::invalidateRectangle(Avo::Rectangle<> p_rectangle)
 		else
 		{
 			isDone = true;
-			std::scoped_lock lock{ m_invalidRectanglesMutex };
-			for (auto a : Indices{ m_invalidRectangles })
+			auto lock = std::scoped_lock{m_invalidRectanglesMutex};
+			for (auto a : Indices{m_invalidRectangles})
 			{
 				if (m_invalidRectangles[a].getIsIntersecting(p_rectangle))
 				{
@@ -12085,17 +11420,17 @@ void Avo::Gui::invalidateRectangle(Avo::Rectangle<> p_rectangle)
 	}
 	if (willAdd)
 	{
-		std::scoped_lock lock{ m_invalidRectanglesMutex };
+		auto lock = std::scoped_lock{m_invalidRectanglesMutex};
 		m_invalidRectangles.push_back(p_rectangle);
 	}
 }
 
-void Avo::Gui::drawViews()
+auto Avo::Gui::drawViews() -> void
 {
 	if (!m_invalidRectangles.empty())
 	{
 		m_invalidRectanglesMutex.lock();
-		auto invalidRectangles{ std::move(m_invalidRectangles) };
+		auto invalidRectangles = std::move(m_invalidRectangles);
 		m_invalidRectangles = std::vector<Avo::Rectangle<>>();
 		m_invalidRectanglesMutex.unlock();
 
@@ -12105,8 +11440,8 @@ void Avo::Gui::drawViews()
 
 		for (auto const& targetRectangle : invalidRectangles)
 		{
-			Avo::View* currentContainer = this;
-			Index startPosition = 0;
+			auto currentContainer = static_cast<Avo::View*>(this);
+			auto startPosition = Index{};
 
 			m_drawingContext->resetTransformations();
 			m_drawingContext->setOpacity(1.f);
@@ -12114,25 +11449,25 @@ void Avo::Gui::drawViews()
 
 			m_drawingContext->clear(m_theme->colors[ThemeColors::background]);
 
-			draw(m_drawingContext, targetRectangle);
+			draw(m_drawingContext.get(), targetRectangle);
 
 			while (true)
 			{
 				bool isDoneWithContainer = true;
-				for (auto a : Indices{ startPosition, currentContainer->getNumberOfChildViews() })
+				for (auto a : Indices{startPosition, currentContainer->getNumberOfChildViews()})
 				{
 					auto view = currentContainer->getChildView(a);
 
-					if (view->getWidth() > 0.f && view->getHeight() > 0.f && view->getIsVisible())
+					if (view->getSize() > 0.f && view->getIsVisible())
 					{
 						if (view->getAbsoluteBounds().getIsIntersecting(targetRectangle) && 
-							view->getIsIntersecting(0.f, 0.f, currentContainer->getWidth(), currentContainer->getHeight()))
+							view->getIsIntersecting(currentContainer->getSize()))
 						{
 							m_drawingContext->resetTransformations();
 							m_drawingContext->setOrigin(view->getAbsoluteTopLeft());
 							m_drawingContext->setOpacity(1.f);
 
-							view->drawShadow(m_drawingContext);
+							view->drawShadow(m_drawingContext.get());
 
 							auto& corners = view->getCorners();
 							if (view->getHasCornerStyles())
@@ -12144,7 +11479,7 @@ void Avo::Gui::drawViews()
 								m_drawingContext->pushClipRectangle(view->getSize(), view->m_opacity);
 							}
 
-							view->draw(m_drawingContext, targetRectangle);
+							view->draw(m_drawingContext.get(), targetRectangle);
 
 							if (view->getNumberOfChildViews())
 							{
@@ -12158,7 +11493,7 @@ void Avo::Gui::drawViews()
 								m_drawingContext->resetTransformations();
 								m_drawingContext->setOrigin(view->getAbsoluteTopLeft());
 								m_drawingContext->setOpacity(1.f);
-								view->drawOverlay(m_drawingContext, targetRectangle);
+								view->drawOverlay(m_drawingContext.get(), targetRectangle);
 
 								m_drawingContext->popClipShape();
 							}
@@ -12168,7 +11503,7 @@ void Avo::Gui::drawViews()
 							m_drawingContext->resetTransformations();
 							m_drawingContext->setOrigin(view->getAbsoluteTopLeft());
 							m_drawingContext->setOpacity(1.f);
-							view->drawShadow(m_drawingContext);
+							view->drawShadow(m_drawingContext.get());
 						}
 					}
 				}
@@ -12182,7 +11517,7 @@ void Avo::Gui::drawViews()
 					m_drawingContext->resetTransformations();
 					m_drawingContext->setOrigin(currentContainer->getAbsoluteTopLeft());
 					m_drawingContext->setOpacity(1.f);
-					currentContainer->drawOverlay(m_drawingContext, targetRectangle);
+					currentContainer->drawOverlay(m_drawingContext.get(), targetRectangle);
 
 					m_drawingContext->popClipShape();
 
@@ -12193,7 +11528,7 @@ void Avo::Gui::drawViews()
 
 			m_drawingContext->resetTransformations();
 			m_drawingContext->setOpacity(1.f);
-			drawOverlay(m_drawingContext, targetRectangle);
+			drawOverlay(m_drawingContext.get(), targetRectangle);
 			m_drawingContext->popClipShape();
 		}
 		unlockThreads();
@@ -12206,31 +11541,34 @@ void Avo::Gui::drawViews()
 // class Avo::OpenFileDialog
 //------------------------------
 
-std::vector<std::string> Avo::OpenFileDialog::open()
+auto Avo::OpenFileDialog::open() -> std::vector<std::string>
 {
 #ifdef _WIN32
-	IFileOpenDialog* dialog;
+	auto dialog = ComReference<IFileOpenDialog>{};
 	CoCreateInstance(CLSID_FileOpenDialog, 0, CLSCTX_ALL, IID_IFileOpenDialog, reinterpret_cast<void**>(&dialog));
 
-	char16 wideTitle[200];
-	convertUtf8ToUtf16(m_title, { wideTitle, 200 });
-	dialog->SetTitle(reinterpret_cast<LPCWSTR>(wideTitle));
+	auto wideTitle = std::array<char16, 256>{};
+	convertUtf8ToUtf16(m_title, wideTitle);
+	dialog->SetTitle(reinterpret_cast<LPCWSTR>(wideTitle.data()));
 
 	//------------------------------
 	// Create the extension filters that the user will choose from.
 
-	std::vector<COMDLG_FILTERSPEC> filters(m_fileExtensions.size());
+	auto filters = std::vector<COMDLG_FILTERSPEC>(m_fileExtensions.size());
+
+	constexpr auto maxFilterStringLength = 100;
+	constexpr auto halfMaxFilterStringLength = maxFilterStringLength/2;
 
 	// I made 1 big string buffer to decrease the number of allocations.
-	std::vector<wchar_t> filterStringBuffer(100 * m_fileExtensions.size());
-	for (uint32 a = 0; a < m_fileExtensions.size(); a++)
+	auto filterStringBuffer = std::vector<wchar_t>(maxFilterStringLength*m_fileExtensions.size());
+	for (auto a : Indices{m_fileExtensions})
 	{
-		auto start = filterStringBuffer.data() + a * 100;
-		convertUtf8ToUtf16(m_fileExtensions[a].name, { reinterpret_cast<char16*>(start), 50 });
+		auto start = filterStringBuffer.data() + a*maxFilterStringLength;
+		convertUtf8ToUtf16(m_fileExtensions[a].name, {reinterpret_cast<char16*>(start), halfMaxFilterStringLength});
 		filters[a].pszName = start;
 
-		start = filterStringBuffer.data() + a * 100 + 50;
-		convertUtf8ToUtf16(m_fileExtensions[a].extensions, { reinterpret_cast<char16*>(start), 50 });
+		start = filterStringBuffer.data() + a*maxFilterStringLength + 50;
+		convertUtf8ToUtf16(m_fileExtensions[a].extensions, {reinterpret_cast<char16*>(start), halfMaxFilterStringLength});
 		filters[a].pszSpec = start;
 	}
 	dialog->SetFileTypes(m_fileExtensions.size(), filters.data());
@@ -12239,55 +11577,54 @@ std::vector<std::string> Avo::OpenFileDialog::open()
 
 	if (m_canSelectMultipleFiles)
 	{
-		FILEOPENDIALOGOPTIONS options;
+		auto options = FILEOPENDIALOGOPTIONS{};
 		dialog->GetOptions(&options);
 		dialog->SetOptions(options | FOS_ALLOWMULTISELECT);
 	}
 
 	//------------------------------
 
-	HRESULT errorCode = dialog->Show(HWND(m_gui ? m_gui->getWindow()->getNativeHandle() : 0));
-
-	std::vector<std::string> result;
-	if (SUCCEEDED(errorCode))
+	auto result = std::vector<std::string>();
+	if (SUCCEEDED(dialog->Show(m_gui ? static_cast<HWND>(m_gui->getWindow()->getNativeHandle()) : nullptr)))
 	{
 		if (m_canSelectMultipleFiles)
 		{
-			IShellItemArray* items;
+			auto items = ComReference<IShellItemArray>{};
 			dialog->GetResults(&items);
 
-			DWORD numberOfResults = 0;
+			auto numberOfResults = DWORD{};
 			items->GetCount(&numberOfResults);
 			result.resize(numberOfResults);
 
-			for (uint32 a = 0; a < numberOfResults; a++)
+			for (auto resultIndex : Range{numberOfResults})
 			{
-				IShellItem* item;
-				items->GetItemAt(a, &item);
+				auto item = ComReference<IShellItem>{};
+				items->GetItemAt(resultIndex, &item);
 
-				LPWSTR name;
-				item->GetDisplayName(SIGDN::SIGDN_FILESYSPATH, &name);
-				result[a] = Avo::convertUtf16ToUtf8(reinterpret_cast<char16 const*>(name));
-
-				item->Release();
+				auto name = LPWSTR{};
+				item->GetDisplayName(SIGDN_FILESYSPATH, &name);
+				if (name)
+				{
+					result[resultIndex] = Avo::convertUtf16ToUtf8(reinterpret_cast<char16 const*>(name));
+					CoTaskMemFree(name);
+				}
 			}
-			items->Release();
 		}
 		else
 		{
-			IShellItem* item;
+			auto item = ComReference<IShellItem>{};
 			dialog->GetResult(&item);
 
-			LPWSTR name;
-			item->GetDisplayName(SIGDN::SIGDN_FILESYSPATH, &name);
+			auto name = LPWSTR{};
+			item->GetDisplayName(SIGDN_FILESYSPATH, &name);
 			result.resize(1);
-			result[0] = Avo::convertUtf16ToUtf8(reinterpret_cast<char16 const*>(name));
-
-			item->Release();
+			if (name)
+			{
+				result[0] = Avo::convertUtf16ToUtf8(reinterpret_cast<char16 const*>(name));
+				CoTaskMemFree(name);
+			}
 		}
 	}
-
-	dialog->Release();
 	return result;
 #endif
 }

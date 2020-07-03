@@ -12,34 +12,9 @@ class ImageViewer : public Avo::Gui
 {
 private:
 	Avo::Image m_image;
-	std::string_view m_filePath;
-
 	Avo::Rectangle<float> m_targetImageBounds;
-
 public:
-	ImageViewer(std::string_view p_filePath) :
-		m_filePath{ p_filePath }
-	{
-		create("Image viewer", 600, 500, Avo::WindowStyleFlags::Default);
-
-		getWindow()->setMinSize(250, 200);
-		enableMouseEvents();
-		setKeyboardFocus(this);
-
-		setThemeColor(Avo::ThemeColors::background, 0.3f);
-
-		m_image = getDrawingContext()->createImage(m_filePath);
-		m_image.setCenter(getCenter());
-		m_targetImageBounds = m_image.getBounds();
-
-		queueAnimationUpdate();
-
-		run();
-	}
-
-	//------------------------------
-
-	void handleSizeChange() override
+	auto handleSizeChange() -> void override
 	{
 		m_targetImageBounds.setCenter(getCenter());
 		queueAnimationUpdate();
@@ -47,7 +22,73 @@ public:
 
 	//------------------------------
 
-	void handleKeyboardKeyDown(Avo::KeyboardEvent const& p_event) override
+	auto handleMouseScroll(Avo::MouseEvent const& p_event) -> void override
+	{
+		auto factor = 1.f;
+		if (p_event.scrollDelta > 0.f)
+		{
+			factor = 1.f + p_event.scrollDelta*0.1f;
+		}
+		else
+		{
+			factor = 1.f / (1.f - p_event.scrollDelta*0.1f);
+		}
+		m_targetImageBounds.setSize(m_targetImageBounds.getSize()*factor);
+		if (m_targetImageBounds.getWidth() > getWidth() || m_targetImageBounds.getHeight() > getHeight())
+		{
+			m_targetImageBounds += (p_event.xy - m_targetImageBounds.getTopLeft())*(1.f - factor);
+		}
+		else
+		{
+			m_targetImageBounds.setCenter(getCenter());
+		}
+		queueAnimationUpdate();
+	}
+	auto handleMouseMove(Avo::MouseEvent const& p_event) -> void override
+	{
+		if (getWindow()->getIsMouseButtonDown(Avo::MouseButton::Left))
+		{
+			m_targetImageBounds += p_event.movement;
+			queueAnimationUpdate();
+		}
+	}
+
+	auto updateAnimations() -> void override
+	{
+		if (auto const offset = m_targetImageBounds - m_image.getBounds();
+		    std::abs(offset.left) > 0.1f || std::abs(offset.top) > 0.1f || 
+		    std::abs(offset.right) > 0.1f || std::abs(offset.bottom) > 0.1f)
+		{
+			m_image.setBounds(m_image.getBounds() + offset*ANIMATION_SPEED);
+			invalidate();
+			queueAnimationUpdate();
+		}
+	}
+
+	//------------------------------
+
+	auto draw(Avo::DrawingContext* p_context) -> void override
+	{
+		constexpr auto tileColor = Avo::Color{0.7f};
+		auto const width = static_cast<Avo::Count>(std::ceil(getWidth() / BACKGROUND_TILE_WIDTH));
+		auto const height = static_cast<Avo::Count>(std::ceil(getHeight() / BACKGROUND_TILE_WIDTH));
+		for (auto const a : Avo::Indices{width})
+		{
+			for (Avo::Index b = a & 1; b < height; b += 2)
+			{
+				p_context->setColor(tileColor);
+				p_context->fillRectangle({
+					Avo::Point{static_cast<float>(a), static_cast<float>(b)}*BACKGROUND_TILE_WIDTH, 
+					Avo::Size{BACKGROUND_TILE_WIDTH}
+				});
+			}
+		}
+		p_context->drawImage(m_image);
+	}
+
+	//------------------------------
+
+	auto handleKeyboardKeyDown(Avo::KeyboardEvent const& p_event) -> void override
 	{
 		if (p_event.isRepeated)
 		{
@@ -62,94 +103,47 @@ public:
 			getWindow()->switchFullscreen();
 		}
 	}
-
+	
 	//------------------------------
 
-	void handleMouseScroll(Avo::MouseEvent const& p_event) override
+	ImageViewer(std::string_view p_filePath)
 	{
-		float factor = 1.f;
-		if (p_event.scrollDelta > 0.f)
-		{
-			factor = 1.f + p_event.scrollDelta*0.1f;
-		}
-		else
-		{
-			factor = 1.f / (1.f - p_event.scrollDelta*0.1f);
-		}
-		m_targetImageBounds.setSize(m_targetImageBounds.getSize()*factor);
-		if (m_targetImageBounds.getWidth() > getWidth() || m_targetImageBounds.getHeight() > getHeight())
-		{
-			m_targetImageBounds.move((p_event.x - m_targetImageBounds.left)*(1.f - factor), (p_event.y - m_targetImageBounds.top)*(1.f - factor));
-		}
-		else
-		{
-			m_targetImageBounds.setCenter(getCenter());
-		}
+		create("Image viewer", {600, 500}, Avo::WindowStyleFlags::Default);
+
+		getWindow()->setMinSize({250, 200});
+		enableMouseEvents();
+		setKeyboardFocus(this);
+
+		setThemeColor(Avo::ThemeColors::background, 0.3f);
+
+		m_image = getDrawingContext()->createImage(m_filePath);
+		m_image.setCenter(getCenter());
+		m_targetImageBounds = m_image.getBounds();
+
 		queueAnimationUpdate();
-	}
-	void handleMouseMove(Avo::MouseEvent const& p_event) override
-	{
-		if (getWindow()->getIsMouseButtonDown(Avo::MouseButton::Left))
-		{
-			m_targetImageBounds.move(p_event.movementX, p_event.movementY);
-			queueAnimationUpdate();
-		}
-	}
 
-	void updateAnimations() override
-	{
-		float offsetLeft = m_targetImageBounds.left - m_image.getLeft();
-		float offsetTop = m_targetImageBounds.top - m_image.getTop();
-		float offsetRight = m_targetImageBounds.right - m_image.getRight();
-		float offsetBottom = m_targetImageBounds.bottom - m_image.getBottom();
-		if (std::abs(offsetLeft) > 0.1f || std::abs(offsetTop) > 0.1f || std::abs(offsetRight) > 0.1f || std::abs(offsetBottom) > 0.1f)
-		{
-			m_image.setBounds(
-				m_image.getLeft() + offsetLeft * ANIMATION_SPEED,
-				m_image.getTop() + offsetTop * ANIMATION_SPEED,
-				m_image.getRight() + offsetRight * ANIMATION_SPEED,
-				m_image.getBottom() + offsetBottom * ANIMATION_SPEED
-			);
-			invalidate();
-			queueAnimationUpdate();
-		}
-	}
-
-	//------------------------------
-
-	void draw(Avo::DrawingContext* p_context) override
-	{
-		Count width = ceil(getWidth() / BACKGROUND_TILE_WIDTH);
-		Count height = ceil(getHeight() / BACKGROUND_TILE_WIDTH);
-		Avo::Color tileColor = 0.7f;
-		for (auto a : Indices{ width })
-		{
-			for (Index b = a & 1; b < height; b += 2)
-			{
-				p_context->setColor(tileColor);
-				p_context->fillRectangle(Avo::Point{ a * BACKGROUND_TILE_WIDTH, b * BACKGROUND_TILE_WIDTH }, Avo::Point{ BACKGROUND_TILE_WIDTH, BACKGROUND_TILE_WIDTH });
-			}
-		}
-		p_context->drawImage(m_image);
+		run();
 	}
 };
 
 //------------------------------
 
-int main(int p_numberOfArguments, char** p_arguments)
+auto main(int p_numberOfArguments, char** p_arguments) -> int
 {
 	if (p_numberOfArguments > 1)
 	{
-		new ImageViewer{ p_arguments[1] };
+		new ImageViewer{p_arguments[1]};
 	}
 	else
 	{
-		auto messageBox = new Avo::Gui;
-		messageBox->create("No image!", 400, 0, Avo::WindowStyleFlags::DefaultNoResize);
-
+		auto* const messageBox = new Avo::Gui;
+		messageBox->create("No image!", {400, 0}, Avo::WindowStyleFlags::DefaultNoResize);
 		messageBox->enableMouseEvents();
 
-		auto messageText = new Avo::TextView{ messageBox, 16.f, u8"No image was given the image viewer. Please open an image using the viewer as the opener." };
+		auto* const messageText = new Avo::TextView{
+			messageBox, 16.f, 
+			"No image was given the image viewer. Please open an image using the viewer as the opener."
+		};
 		messageText->getText().setWordWrapping(Avo::WordWrapping::WholeWord);
 		messageText->getText().setFontWeight(Avo::FontWeight::Regular);
 		messageText->getText().setCharacterSpacing(0.3f);
@@ -160,10 +154,10 @@ int main(int p_numberOfArguments, char** p_arguments)
 		messageText->setCenterX(messageBox->getWidth()/2);
 		messageText->setTop(20.f);
 		
-		auto okButton = new Avo::Button{ messageBox, u8"OK" };
+		auto* const okButton = new Avo::Button{messageBox, "OK"};
 		okButton->setCenterX(messageText->getCenterX());
 		okButton->setTop(messageText->getBottom() + 20.f, true);
-		okButton->buttonClickListeners += [=](auto) { messageBox->getWindow()->close(); };
+		okButton->buttonClickListeners += [messageBox](auto) { messageBox->getWindow()->close(); };
 
 		messageBox->setHeight(okButton->getBottom() + 15.f);
 

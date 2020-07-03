@@ -1,7 +1,7 @@
 #include "TimeoutScreen.hpp"
 #include "Timer.hpp"
 
-void TimeoutScreen::updateAnimations()
+auto TimeoutScreen::updateAnimations() -> void
 {
 	if (m_willStopSound)
 	{

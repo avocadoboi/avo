@@ -1,6 +1,6 @@
 #include "App.hpp"
 
-int main()
+auto main() -> int
 {
-	new App();
+	new App{};
 }

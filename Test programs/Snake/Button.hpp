@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Theme.hpp"
+#include "Strings.hpp"
 
 namespace Avo::ThemeValues
 {
@@ -10,83 +11,89 @@ namespace Avo::ThemeValues
 class Button : public Avo::View
 {
 public:
-	static constexpr float THICKNESS = 5.f;
-	static constexpr float CORNER_RADIUS = 5.f;
-	static constexpr float WIDTH = 1.f;
-	static constexpr float HEIGHT = 2.f;
+	static constexpr auto thickness = 5.f;
+	static constexpr auto cornerRadius = 5.f;
+	static constexpr auto sizeFactor = Avo::Size<>{1.f, 2.f};
 
 	Avo::EventListeners<void()> clickListeners;
 
 private:
+	float m_hoverValue{};
+	Avo::Animation m_hoverAnimation{
+		getGui(), getThemeEasing(ThemeEasings::out), 200ms,
+		[this](float const p_value) {
+			m_hoverValue = p_value;
+			invalidate();
+		}
+	};
+	Avo::Initializer m_init_hover = [this]{
+		mouseEnterListeners += [this](auto const&){ m_hoverAnimation.play(false); };
+		mouseLeaveListeners += [this](auto const&){ m_hoverAnimation.play(true); };
+	};
+	
+	//------------------------------
+
+	float m_pressValue{};
+	Avo::Animation m_pressAnimation{
+		getGui(), getThemeEasing(ThemeEasings::out), 200ms,
+		[this](float const p_value) {
+			m_pressValue = p_value;
+			invalidate();
+		}
+	};
+	auto handleMouseDown(Avo::MouseEvent const&) -> void
+	{
+		m_pressAnimation.play(false);
+	}
+	auto handleMouseUp(Avo::MouseEvent const& p_event) -> void
+	{
+		m_pressAnimation.play(true);
+
+		if (getSize().getIsContaining(p_event.xy) && p_event.mouseButton == Avo::MouseButton::Left) 
+		{
+			clickListeners();
+		}
+	}
+
+	//------------------------------
+
 	Avo::Text m_text;
 
-	float m_hoverValue = 0.f;
-	float m_pressValue = 0.f;
-
 public:
-	void draw(Avo::DrawingContext* p_context) override
+	auto draw(Avo::DrawingContext* const p_context) -> void override
 	{
-		Avo::Color primary = getThemeColor(ThemeColors::primary);
+		auto const primary = getThemeColor(ThemeColors::primary);
+
+		// Background button
 		p_context->setColor(primary * 0.7f);
-		p_context->fillRoundedRectangle({ 0.f, THICKNESS, getWidth(), getHeight() }, CORNER_RADIUS);
+		p_context->fillRoundedRectangle({0.f, thickness, getWidth(), getHeight()}, cornerRadius);
 
-		p_context->moveOrigin(0.f, m_pressValue*THICKNESS);
+		// Foreground button
+		p_context->moveOrigin({0.f, m_pressValue*thickness});
 		p_context->setColor(primary);
-		p_context->fillRoundedRectangle(getWidth(), getHeight() - THICKNESS, CORNER_RADIUS);
+		p_context->fillRoundedRectangle({getWidth(), getHeight() - thickness}, cornerRadius);
 
+		// Button text
 		p_context->setColor(getThemeColor(ThemeColors::onPrimary));
 		p_context->drawText(m_text);
 
-		p_context->setColor({ getThemeColor(ThemeColors::onBackground), 0.2f*m_hoverValue });
-		p_context->fillRoundedRectangle(getSize(), CORNER_RADIUS);
-		p_context->moveOrigin(0.f, -m_pressValue * THICKNESS);
+		// Hover highlight
+		p_context->setColor({getThemeColor(ThemeColors::onBackground), 0.2f*m_hoverValue});
+		p_context->fillRoundedRectangle(getSize(), cornerRadius);
 	}
 
-	Button(View* p_parent, std::string const& p_string) :
-		View{ p_parent }
+	Button(View* const p_parent, std::string_view const p_string) :
+		View{p_parent}
 	{
 		initializeThemeValue(ThemeValues::buttonSize, 12.f);
 
-		setCornerRadius(CORNER_RADIUS);
-
-		auto size = getThemeValue(ThemeValues::buttonSize);
-		m_text = getDrawingContext()->createText(p_string, size);
-
-		setSize(m_text.getWidth() + size * WIDTH, size * HEIGHT);
-
-		m_text.setCenter(getSize() * 0.5f);
-		
-		auto pressAnimation = createAnimation(ThemeEasings::out, 200.f);
-		pressAnimation->updateListeners += [=](float p_value) {
-			m_pressValue = p_value;
-			invalidate();
-		};
-
+		setCornerRadius(cornerRadius);
 		enableMouseEvents();
 		setCursor(Avo::Cursor::Hand);
-		mouseDownListeners += [=](Avo::MouseEvent const&) {
-			pressAnimation->play(false);
-		};
-		mouseUpListeners += [=](Avo::MouseEvent const& p_event) {
-			pressAnimation->play(true);
 
-			if (getSize().getIsContaining(p_event.x, p_event.y) && p_event.mouseButton == Avo::MouseButton::Left)
-			{
-				clickListeners();
-			}
-		};
-
-		auto hoverAnimation = createAnimation(ThemeEasings::out, 200.f);
-		hoverAnimation->updateListeners += [=](float p_value) {
-			m_hoverValue = p_value;
-			invalidate();
-		};
-
-		mouseEnterListeners += [=](Avo::MouseEvent const&) {
-			hoverAnimation->play(false);
-		};
-		mouseLeaveListeners += [=](Avo::MouseEvent const&) {
-			hoverAnimation->play(true);
-		};
+		auto const size = getThemeValue(ThemeValues::buttonSize);
+		m_text = getDrawingContext()->createText(p_string, size);
+		setSize(Avo::Size{m_text.getWidth(), 0.f} + size * sizeFactor);
+		m_text.setCenter(Avo::Point{getSize()/2});
 	}
 };

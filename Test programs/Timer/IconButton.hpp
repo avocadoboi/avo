@@ -9,21 +9,21 @@ public:
 
 private:
 	Avo::Text m_text;
-	float m_size;
+	float m_size{};
 public:
-	void setIcon(std::string const& p_icon)
+	auto setIcon(std::string_view const p_icon) -> void
 	{
 		m_text = getDrawingContext()->createText(p_icon, m_size);
 		m_text.setFontFamily(Avo::FONT_FAMILY_MATERIAL_ICONS);
 		m_text.setIsTopTrimmed(true);
 		m_text.fitSizeToText();
-		m_text.setCenter(getSize() * 0.5f);
+		m_text.setCenter(Avo::Point{getSize() * 0.5f});
 		invalidate();
 	}
 
 	//------------------------------
 
-	void draw(Avo::DrawingContext* p_context) override
+	auto draw(Avo::DrawingContext* const p_context) -> void override
 	{
 		if (m_text)
 		{
@@ -31,9 +31,9 @@ public:
 			p_context->drawText(m_text);
 		}
 	}
-	void drawOverlay(Avo::DrawingContext* p_context) override
+	auto drawOverlay(Avo::DrawingContext* const p_context) -> void override
 	{
-		p_context->setColor({ getThemeColor(Avo::ThemeColors::onBackground), 0.2f });
+		p_context->setColor({getThemeColor(Avo::ThemeColors::onBackground), 0.2f});
 		p_context->strokeRectangle(getSize(), getCorners(), 2.f);
 	}
 
@@ -42,35 +42,35 @@ public:
 private:
 	std::string m_tooltipString;
 public:
-	void setTooltip(std::string const& p_string)
+	auto setTooltip(std::string_view const p_string) -> void
 	{
 		m_tooltipString = p_string;
 	}
 
-	void handleMouseEnter(Avo::MouseEvent const&) override;
-	void handleMouseLeave(Avo::MouseEvent const&) override;
+	auto handleMouseEnter(Avo::MouseEvent const&) -> void override;
+	auto handleMouseLeave(Avo::MouseEvent const&) -> void override;
 
 	//------------------------------
 
 	Avo::EventListeners<void()> buttonClickListeners;
 
-	void handleMouseUp(Avo::MouseEvent const& p_event) override
+	auto handleMouseUp(Avo::MouseEvent const& p_event) -> void override
 	{
-		if (getSize().getIsContaining(p_event.x, p_event.y) && p_event.mouseButton == Avo::MouseButton::Left)
+		if (getSize().getIsContaining(p_event.xy) && p_event.mouseButton == Avo::MouseButton::Left)
 		{
 			buttonClickListeners();
 		}
 	}
 
 public:
-	IconButton(Avo::View* p_parent, float p_size) :
-		View{ p_parent, { 0.f, 0.f, p_size * (1.f + PADDING), p_size * (1.f + PADDING) } },
-		m_size{ p_size }
+	IconButton(Avo::View* const p_parent, float const p_size) :
+		View{p_parent, Avo::Size{p_size * (1.f + PADDING)}},
+		m_size{p_size}
 	{
 		enableMouseEvents();
 		setCornerRadius(getWidth()*0.5f);
 		setCursor(Avo::Cursor::Hand);
 
-		new Avo::Ripple{ this, Avo::Color{ getThemeColor(Avo::ThemeColors::primaryOnBackground), 0.4f } };
+		new Avo::Ripple{this, Avo::Color{getThemeColor(Avo::ThemeColors::primaryOnBackground), 0.4f}};
 	}
 };

@@ -5,145 +5,179 @@
 
 #include "../../AvoGUI.hpp"
 #include <fstream>
+#include <filesystem>
 
 //------------------------------
 
 class SoundOpener : public Avo::View
 {
 private:
-	void updateCurrentSoundFileNameText()
+	auto updateCurrentSoundFileNameText() -> void
 	{
-		if (m_soundFilePath.size())
-		{
-			std::string fileName = m_soundFilePath;
-			for (int32 a = fileName.size() - 1; a > 0; a--)
-			{
-				if (fileName[a] == '\\' || fileName[a] == '/')
-				{
-					fileName = fileName.substr((size_t)a + 1);
-					break;
-				}
-			}
-			if (fileName.size() > 13)
-			{
-				fileName = fileName.substr(0, 10) + "...";
-			}
-			m_text_currentSoundFileName = getDrawingContext()->createText(fileName.c_str(), 12.f);
-		}
-		else
+		if (m_soundFilePath.empty())
 		{
 			m_text_currentSoundFileName = getDrawingContext()->createText("(none)", 12.f);
 		}
+		else
+		{
+			auto filename = m_soundFilePath.filename().u8string();
+			if (Avo::getNumberOfCharactersInString(std::string_view{filename}) > 13)
+			{
+				filename = filename.substr(0, Avo::getUnitIndexFromCharacterIndex(std::string_view{filename}, 10)) + "...";
+			}
+			m_text_currentSoundFileName = getDrawingContext()->createText(filename, 12.f);
+		}
 		m_text_currentSoundFileName.setLeft(m_text_sound.getRight() + 2.f);
 		m_text_currentSoundFileName.setFontWeight(Avo::FontWeight::Regular);
-		m_button_open->setLeft(m_text_currentSoundFileName.getRight() + 8.f);
 		m_text_currentSoundFileName.setCenterY(m_button_open->getCenterY() - 0.5f);
-		setSize(m_button_open->getBottomRight());
+		m_button_open->setLeft(m_text_currentSoundFileName.getRight() + 8.f);
+		setSize(Avo::Size{m_button_open->getBottomRight()});
 	}	
-	bool getIsSoundFileMp3()
+	auto getIsSoundFileMp3() -> bool
 	{
-		return m_soundFilePath.substr(m_soundFilePath.size() - 3, 3) == "mp3";
+		// return m_soundFilePath.substr(m_soundFilePath.size() - 3, 3) == "mp3";
+		return m_soundFilePath.extension() == ".mp3";
 	}
 
 public:
-	void playSound();
-	void stopSound();
-
-	//------------------------------
-
-	void handleSizeChange() override
-	{
-		setCenterX(getParent<View>()->getWidth() * 0.5f);
-	}
+	auto playSound() -> void;
+	auto stopSound() -> void;
 
 	//------------------------------
 
 private:
-	Avo::Text m_text_sound{ getDrawingContext()->createText("Sound: ", 12.f) };
-	Avo::Text m_text_currentSoundFileName{ getDrawingContext()->createText("(none)", 12.f) };
+	Avo::Text m_text_sound = getDrawingContext()->createText("Sound: ", 12.f);
+	Avo::Text m_text_currentSoundFileName = getDrawingContext()->createText("(none)", 12.f);
 public:
-	void draw(Avo::DrawingContext* p_drawingContext) override
+	auto draw(Avo::DrawingContext* const p_drawingContext) -> void override
 	{
-		p_drawingContext->setColor(Avo::Color(0.9f));
+		p_drawingContext->setColor(0.9f);
 		p_drawingContext->drawText(m_text_sound);
-		p_drawingContext->setColor(Avo::Color(0.8f));
+		p_drawingContext->setColor(0.8f);
 		p_drawingContext->drawText(m_text_currentSoundFileName);
 	}
 
 	//------------------------------
 
 private:
-	Avo::Button* m_button_open{ new Avo::Button(this, "OPEN", Avo::Button::Emphasis::Medium) };
-	Avo::OpenFileDialog m_openFileDialog;
-	std::string m_soundFilePath;
-public:
-	SoundOpener(Avo::View* p_parent) :
-		View(p_parent, Ids::soundOpener)
+	// Avo::Button* m_button_open = addView<Avo::Button>("OPEN", Avo::Button::Emphasis::Medium);
+	Avo::Button* m_button_open = new Avo::Button{this, "OPEN", Avo::Button::Emphasis::Medium};
+	auto createLayout() -> void
 	{
-		enableMouseEvents();
-
-		m_openFileDialog.setFileExtensions({ { "Audio files", "*.mp3;*.wav" } });
-
 		m_text_currentSoundFileName.setLeft(m_text_sound.getRight() + 2.f);
 		m_text_currentSoundFileName.setFontWeight(Avo::FontWeight::Regular);
 
 		m_button_open->setLeft(m_text_currentSoundFileName.getRight() + 8.f);
-		m_button_open->buttonClickListeners += [this](auto) {
-			std::vector<std::string> filenames = m_openFileDialog.open();
-			if (filenames.size())
-			{
-				m_soundFilePath = filenames[0];
 
-				std::ofstream file;
-				file.open("soundpath", std::ios::binary);
-				file.write(m_soundFilePath.data(), m_soundFilePath.size());
-				file.close();
+		m_text_sound.setCenterY(m_button_open->getCenterY() - 0.5f);
+
+		sizeChangeListeners += [this](auto){
+			setCenterX(getParent<View>()->getWidth() * 0.5f);
+		};
+	}
+
+	//------------------------------
+
+	std::filesystem::path m_soundFilePath;
+	auto loadSavedFile() -> void
+	{
+		if (auto file = std::ifstream{"soundpath", std::ios::binary | std::ios::ate})
+		{
+			auto pathString = std::wstring(file.tellg()/sizeof(wchar_t), L'\0');
+			file.seekg(0);
+			file.read(reinterpret_cast<char*>(pathString.data()), pathString.size()*sizeof(wchar_t));
+			m_soundFilePath = std::move(pathString);
+		}
+		updateCurrentSoundFileNameText();
+	}
+
+	//------------------------------
+
+	Avo::OpenFileDialog m_openFileDialog;
+	auto initializeSoundOpen() -> void
+	{
+		m_openFileDialog.setFileExtensions({{"Audio files", "*.mp3;*.wav"}});
+		m_button_open->buttonClickListeners += [this](auto) {
+			if (auto const filenames = m_openFileDialog.open(); !filenames.empty())
+			{
+				m_soundFilePath = std::filesystem::u8path(filenames[0]);
+				auto pathString = m_soundFilePath.wstring();
+
+				auto file = std::ofstream{"soundpath", std::ios::binary};
+				file.write(reinterpret_cast<char const*>(pathString.data()), pathString.size()*sizeof(wchar_t));
 
 				updateCurrentSoundFileNameText();
 				invalidate();
 			}
 		};
+	}
 
-		m_text_sound.setCenterY(m_button_open->getCenterY() - 0.5f);
+public:
+	SoundOpener(Avo::View* const p_parent) :
+		View{p_parent, Ids::soundOpener}
+	{
+		enableMouseEvents();
+		createLayout();
+		initializeSoundOpen();
+		loadSavedFile();
+	}
+};
 
-		//------------------------------
+struct ClockTime
+{
+	Hours<int> hours{};
+	Minutes<int> minutes{};
+	Seconds<int> seconds{};
 
-		std::ifstream file;
-		file.open("soundpath", std::ios::binary | std::ios::ate);
-		if (file.is_open())
-		{
-			m_soundFilePath.resize(file.tellg());
-			file.seekg(0);
-			file.read((char*)m_soundFilePath.data(), m_soundFilePath.size());
-		}
-		file.close();
-
-		updateCurrentSoundFileNameText();
+	auto operator=(Hours<> p_hours) noexcept -> ClockTime&
+	{
+		auto totalSeconds = std::chrono::ceil<Seconds<int>>(p_hours);
+		hours = std::chrono::floor<Hours<int>>(totalSeconds);
+		minutes = std::chrono::floor<Minutes<int>>(totalSeconds - hours);
+		seconds = std::chrono::floor<Seconds<int>>(totalSeconds - hours - minutes);
+		
+		return *this;
+	}
+	template<typename DurationType>
+	auto getTotal() noexcept -> DurationType
+	{
+		return DurationType{hours + minutes + seconds};
+	}
+	operator bool() noexcept
+	{
+		return hours.count() || minutes.count() || seconds.count();
+	}
+	
+	ClockTime() = default;
+	ClockTime(Hours<> p_hours) noexcept
+	{
+		operator=(p_hours);
 	}
 };
 
 class TimePlayer : public Avo::View
 {
 public:
-	bool willRestart{ false };
-	bool isPlaying{ false };
+	bool willRestart = false;
+	bool isPlaying = false;
 
 private:
-	Avo::TextView* m_text_timeLeft{ new Avo::TextView(this, 23.f) };
-	IconButton* m_button_restart;
-	IconButton* m_button_playPause;
+	Avo::TextView* m_text_timeLeft = new Avo::TextView{this, 23.f};
 public:
-	void setTimeLeft(double p_angle)
+	auto setTimeLeft(ClockTime p_timeLeft) -> void
 	{
-		if (p_angle)
+		if (p_timeLeft)
 		{
-			double totalSeconds = std::ceil(p_angle * 3600.);
-			uint32 hours = totalSeconds/3600.;
-			uint32 minutes = totalSeconds/60. - hours*60.;
-			uint32 seconds = totalSeconds - hours*3600. - minutes*60.;
-			m_text_timeLeft->setString((hours < 10 ? "0" : "") + Avo::convertNumberToString(hours)
-				                     + (minutes < 10 ? ":0" : ":") + Avo::convertNumberToString(minutes) 
-				                     + (seconds < 10u ? ":0" : ":") + Avo::convertNumberToString(seconds));
+			// auto totalSeconds = std::ceil(Seconds<>{p_angle});
+			// auto hours = Hours<int>{totalSeconds};
+			// auto minutes = Minutes<int>{totalSeconds - hours};
+			// auto seconds = Seconds<int>{totalSeconds - hours - minutes};
+			// auto const timeLeft = splitHours(p_hours);
+			m_text_timeLeft->setString(
+				(p_timeLeft.hours.count() < 10 ? "0" : "") + Avo::numberToString(p_timeLeft.hours.count())
+			  + (p_timeLeft.minutes.count() < 10 ? ":0" : ":") + Avo::numberToString(p_timeLeft.minutes.count()) 
+			  + (p_timeLeft.seconds.count() < 10u ? ":0" : ":") + Avo::numberToString(p_timeLeft.seconds.count())
+			);
 		}
 		else
 		{
@@ -161,57 +195,71 @@ public:
 	}
 
 private:
-	std::chrono::time_point<std::chrono::steady_clock> m_timeStart{ std::chrono::steady_clock::now() };
-	std::chrono::time_point<std::chrono::steady_clock> m_lastPauseTime{ std::chrono::steady_clock::now() };
+	std::chrono::time_point<Clock> m_timeStart = Clock::now();
+	std::chrono::time_point<Clock> m_lastPauseTime = Clock::now();
 public:
-	void reset()
+	auto reset() -> void
 	{
-		m_timeStart = std::chrono::steady_clock::now();
+		m_timeStart = Clock::now();
 		m_lastPauseTime = m_timeStart;
 	}
-	auto getTimeStart()
+	auto getTimeStart() const
 	{
 		return m_timeStart;
 	}
 
-	TimePlayer(Avo::View* p_parent) :
-		View(p_parent)
+	//------------------------------
+private:
+	static constexpr auto iconButtonSize = 14.f;
+
+	IconButton* m_button_restart{};
+	auto createRestartButton() -> void
 	{
-		enableMouseEvents();
-		setHeight(35.f);
+		m_button_restart = new IconButton{this, iconButtonSize};
+		m_button_restart->setIcon(MaterialIcons::REPLAY);
+		m_button_restart->setCenterY(getHeight()*0.5f);
+		m_button_restart->setTooltip("Restart timer");
+		m_button_restart->buttonClickListeners += [this]{ willRestart = true; };
+	}
 
-		auto const ICON_BUTTON_SIZE = 14.f;
+	//------------------------------
 
-		m_button_playPause = new IconButton(this, ICON_BUTTON_SIZE);
+	IconButton* m_button_playPause{};
+	auto createPlayPauseButton() -> void
+	{
+		m_button_playPause = new IconButton{this, iconButtonSize};
 		m_button_playPause->setIcon(MaterialIcons::PLAY_ARROW);
 		m_button_playPause->setCenterY(getHeight()*0.5f);
 		m_button_playPause->setTooltip("Play timer");
 		m_button_playPause->buttonClickListeners += [&]() {
-			isPlaying = !isPlaying;
-			if (isPlaying)
+			if (isPlaying = !isPlaying)
 			{
 				m_button_playPause->setIcon(MaterialIcons::PAUSE);
-				m_timeStart += std::chrono::steady_clock::now() - m_lastPauseTime;
+				m_timeStart += Clock::now() - m_lastPauseTime;
 			}
 			else
 			{
 				m_button_playPause->setIcon(MaterialIcons::PLAY_ARROW);
-				m_lastPauseTime = std::chrono::steady_clock::now();
+				m_lastPauseTime = Clock::now();
 			}
 		};
-
-		m_button_restart = new IconButton(this, ICON_BUTTON_SIZE);
-		m_button_restart->setIcon(MaterialIcons::REPLAY);
-		m_button_restart->setCenterY(getHeight()*0.5f);
-		m_button_restart->setTooltip("Restart timer");
-		m_button_restart->buttonClickListeners += [&]() { willRestart = true; };
-
-		getGui()->globalKeyboardKeyUpListeners += [&](Avo::KeyboardEvent p_event) { 
+		getGui()->globalKeyboardKeyUpListeners += [this](Avo::KeyboardEvent const& p_event) { 
 			if (p_event.key == Avo::KeyboardKey::Spacebar)
 			{
 				m_button_playPause->buttonClickListeners(); 
 			}
 		};
+	}
+
+public:
+	TimePlayer(Avo::View* const p_parent) :
+		View{p_parent}
+	{
+		enableMouseEvents();
+		setHeight(35.f);
+
+		createPlayPauseButton();
+		createRestartButton();
 	}
 };
 
@@ -222,34 +270,47 @@ class TimerApp;
 class MainScreen : public Avo::View
 {
 private:
-	Avo::Point<float>* m_spiralVertices{ nullptr };
-	uint32 m_numberOfSpiralVerticesInTotal{ 0 };
-	double m_startAngle{ 0.f };
-	double m_currentAngle{ 0.f };
-	bool m_isDraggingSpiral{ false };
-	bool m_hasDraggedSpiral{ false };
+	std::array<
+		Avo::Point<float>, 
+		static_cast<std::size_t>(timerSpiralResolution*timerMaxNumberOfHours.count())
+	> m_spiralVertices;
 
-	Avo::TextField* m_textField_hours{ nullptr };
-	Avo::TextField* m_textField_minutes{ nullptr };
-	Avo::TextField* m_textField_seconds{ nullptr };
+	auto createSpiral() -> void
+	{
+		for (auto const a : Avo::Indices{m_spiralVertices})
+		{
+			auto const angle = Avo::Radians{(static_cast<float>(a)/timerSpiralResolution - 0.25f)*Avo::TAU<float>};
+			auto const magnitude = timerSpiralRadius*(1.f - timerSpiralSteepness*a/m_spiralVertices.size());
+			m_spiralVertices[a] = Avo::Point{getSize()/2 + Avo::Vector2d<>::fromPolar(angle, magnitude)};
+		}
+		m_startTime = Hours<>{1.};
+		m_timeLeft = m_startTime;
+	}
 
-	TimePlayer* m_timePlayer{ nullptr };
-	SoundOpener* m_soundOpener{ nullptr };
+	ClockTime m_startTime{};
+	ClockTime m_timeLeft{};
+	bool m_isDraggingSpiral{};
+	bool m_hasDraggedSpiral{};
+
+	Avo::TextField* m_textField_hours{};
+	Avo::TextField* m_textField_minutes{};
+	Avo::TextField* m_textField_seconds{};
+
+	TimePlayer* m_timePlayer{};
+	SoundOpener* m_soundOpener{};
 
 public:
-	MainScreen(View* p_app);
-
-	void handleMouseDown(Avo::MouseEvent const& p_event) override
+	auto handleMouseDown(Avo::MouseEvent const& p_event) -> void override
 	{
 		getGui()->setKeyboardFocus(0);
-		if (Avo::Point<>::getLengthSquared(p_event.x - getWidth() * 0.5f, p_event.y - getHeight() * 0.5f) >
-			Avo::Point<>::getLengthSquared(m_spiralVertices[m_numberOfSpiralVerticesInTotal - 1].x - getWidth() * 0.5f, m_spiralVertices[m_numberOfSpiralVerticesInTotal - 1].y - getHeight() * 0.5f))
+		if ((p_event.xy - getSize()/2).getLengthSquared() >
+		    (m_spiralVertices.back() - getSize()/2).getLengthSquared())
 		{
 			m_isDraggingSpiral = true;
 			m_hasDraggedSpiral = false;
 		}
 	}
-	void handleMouseUp(Avo::MouseEvent const& p_event) override
+	auto handleMouseUp(Avo::MouseEvent const& p_event) -> void override
 	{
 		if (m_hasDraggedSpiral)
 		{
@@ -258,48 +319,52 @@ public:
 		}
 		m_isDraggingSpiral = false;
 	}
-	void handleMouseMove(Avo::MouseEvent const& p_event) override
+	auto handleMouseMove(Avo::MouseEvent const& p_event) -> void override
 	{
-		if (m_isDraggingSpiral && (p_event.x != getWidth() * 0.5f || p_event.y != getHeight() * 0.5f))
+		if (m_isDraggingSpiral && p_event.xy != getSize()/2)
 		{
 			m_hasDraggedSpiral = true;
 
-			float normalizedCurrentAngle = m_currentAngle - floor(m_currentAngle);
-			float normalizedCursorAngle = std::atan2(p_event.y - getHeight() * 0.5f, p_event.x - getWidth() * 0.5f) / Avo::TAU + 0.25;
-			normalizedCursorAngle -= floor(normalizedCursorAngle);
+			auto normalizedHoursLeft = Hours<>{m_timeLeft.minutes + m_timeLeft.seconds};
+			// normalizedHoursLeft -= std::chrono::floor<Hours<int>>(normalizedHoursLeft);
 
-			float nextAngle = m_currentAngle;
-			if (normalizedCurrentAngle > normalizedCursorAngle)
+			auto normalizedCursorHours = Hours<>{
+				std::atan2(p_event.y - getHeight()/2, p_event.x - getWidth()/2) / Avo::TAU<double> + 0.25
+			};
+			normalizedCursorHours -= std::chrono::floor<Hours<int>>(normalizedCursorHours);
+
+			auto nextHours = m_timeLeft.getTotal<Hours<>>();
+			if (normalizedHoursLeft > normalizedCursorHours)
 			{
-				if (normalizedCurrentAngle - normalizedCursorAngle < 0.5f)
+				if (normalizedHoursLeft - normalizedCursorHours < Hours<>{0.5})
 				{
-					nextAngle += normalizedCursorAngle - normalizedCurrentAngle;
+					nextHours += normalizedCursorHours - normalizedHoursLeft;
 				}
 				else
 				{
-					nextAngle += 1.f - (normalizedCurrentAngle - normalizedCursorAngle);
+					nextHours += Hours<>{1.} - (normalizedHoursLeft - normalizedCursorHours);
 				}
 			}
 			else
 			{
-				if (normalizedCursorAngle - normalizedCurrentAngle < 0.5f)
+				if (normalizedCursorHours - normalizedHoursLeft < Hours<>{0.5})
 				{
-					nextAngle += normalizedCursorAngle - normalizedCurrentAngle;
+					nextHours += normalizedCursorHours - normalizedHoursLeft;
 				}
 				else
 				{
-					nextAngle -= 1.f - (normalizedCursorAngle - normalizedCurrentAngle);
+					nextHours -= Hours<>{1.} - (normalizedCursorHours - normalizedHoursLeft);
 				}
 			}
-			nextAngle = Avo::constrain(nextAngle, 0.f, TIMER_MAX_NUMBER_OF_HOURS);
+			nextHours = Avo::constrain(nextHours, Avo::Range{Hours<>{0.}, timerMaxNumberOfHours});
 
-			m_textField_hours->setValue((int)nextAngle);
-			float minutes = (nextAngle - (int)nextAngle) * 60.f;
-			m_textField_minutes->setValue((int)minutes);
-			m_textField_seconds->setValue(std::round((minutes - (int)minutes) * 60.f));
+			auto const newTime = ClockTime{nextHours};
+			m_textField_hours->setValue(newTime.hours.count());
+			m_textField_minutes->setValue(newTime.minutes.count());
+			m_textField_seconds->setValue(newTime.seconds.count());
 
-			m_startAngle = nextAngle;
-			m_currentAngle = nextAngle;
+			m_startTime = newTime;
+			m_timeLeft = newTime;
 
 			invalidate();
 		}
@@ -307,21 +372,28 @@ public:
 
 	//------------------------------
 
-	void updateAnimations() override;
+	auto updateAnimations() -> void override;
 
-	void draw(Avo::DrawingContext* p_context, Avo::Rectangle<float> const& p_targetRectangle) override
+	auto draw(Avo::DrawingContext* const p_context, Avo::Rectangle<> const p_targetRectangle) -> void override
 	{
 		p_context->clear(getThemeColor(Avo::ThemeColors::background));
 		if (p_targetRectangle == getBounds())
 		{
-			p_context->setColor(Avo::Color(1.f, 0.5f, 0.7f, 0.9f));
-			p_context->strokeShape(m_spiralVertices, (uint32)round(m_currentAngle * TIMER_SPIRAL_RESOLUTION), 3.f);
+			auto const hoursLeft = m_timeLeft.getTotal<Hours<>>().count();
+			
+			p_context->setColor({1.f, 0.5f, 0.7f, 0.9f});
+			p_context->strokeShape({m_spiralVertices.data(), static_cast<std::size_t>(round(hoursLeft * timerSpiralResolution))}, 3.f);
 
-			float magnitude = TIMER_SPIRAL_RADIUS * (1.f - TIMER_SPIRAL_STEEPNESS * m_currentAngle / TIMER_MAX_NUMBER_OF_HOURS);
-			Avo::Point<float> point(getWidth() * 0.5f + std::cos((m_currentAngle - 0.25f) * Avo::TAU) * magnitude, getHeight() * 0.5f + std::sin((m_currentAngle - 0.25f) * Avo::TAU) * magnitude);
+			auto const angle = Avo::Radians{(hoursLeft - 0.25f) * Avo::TAU<float>};
+			auto const magnitude = timerSpiralRadius * (1.f - timerSpiralSteepness * hoursLeft / timerMaxNumberOfHours.count());
+			auto const point = Avo::Point{getSize()/2 + Avo::Vector2d<>::fromPolar(angle, magnitude)};
 			p_context->fillCircle(point, 5);
-			p_context->setColor(Avo::Color(0.f));
+			p_context->setColor(0.f);
 			p_context->strokeCircle(point, 5, 2.f);
 		}
 	}
+
+	//------------------------------
+
+	MainScreen(View* p_app);
 };

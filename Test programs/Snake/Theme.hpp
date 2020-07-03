@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../AvoGUI.hpp"
+#include <AvoGUI.hpp>
 
 namespace ThemeColors = Avo::ThemeColors;
 namespace ThemeValues = Avo::ThemeValues;

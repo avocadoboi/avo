@@ -1,55 +1,66 @@
 #include "Mandelbrot set.hpp"
+#include <complex>
 
 //------------------------------
 
 void MandelbrotRenderer::render()
 {
+	auto const verticalRange = Avo::Range{m_partIndex * heightPerThread, (m_partIndex + 1) * heightPerThread};
 	while (m_viewer->getIsRunning())
 	{
 		m_needsRendering = false;
-		for (uint32 x = 0; x < WIDTH; x++)
+		for (auto x : Avo::Range{width})
 		{
-			for (uint32 y = m_partIndex * HEIGHT_PER_THREAD; y < m_partIndex * HEIGHT_PER_THREAD + HEIGHT_PER_THREAD; y++)
+			for (auto y : verticalRange)
 			{
-				if (!m_viewer->getPixels() || !m_viewer->getIsRunning())
+				if (!m_viewer->getIsRunning())
 				{
 					return;
 				}
-				uint8* pixel = m_viewer->getPixels() + 4 * (x + (uint32)WIDTH * y);
+				auto* const pixel = m_viewer->getPixels().data() + static_cast<std::size_t>(4 * (x + width * y));
 
-				double translatedX = x / m_viewer->getWidth() * GLOBAL_SCALE_X * m_viewer->getScale() + m_viewer->getOffsetX();
-				double translatedY = y / m_viewer->getHeight() * GLOBAL_SCALE_Y * m_viewer->getScale() + m_viewer->getOffsetY();
+				auto const translated = 
+					Avo::Point<Unit>{static_cast<Unit>(x), static_cast<Unit>(y)} / 
+					m_viewer->getSize() * globalScale * m_viewer->getScale() + m_viewer->getOffset();
+				auto const c = std::complex{translated.x, translated.y};
 
-				double real = 0.;
-				double imaginary = 0.;
+				auto z = std::complex{static_cast<Unit>(0), static_cast<Unit>(0)};
 
-				uint32 iteration = 0;
-				while (iteration < m_viewer->getMaxNumberOfIterations() && real * real + imaginary * imaginary <= 4.)
+				auto iteration = Avo::Index{};
+				for (auto const maxIterations = m_viewer->getMaxNumberOfIterations();
+				     iteration < maxIterations && std::norm(z) <= static_cast<Unit>(4);
+					 ++iteration)
 				{
 					// z^2 + c = (a + ib)^2 + c = (a^2 - b^2 + 2iab) + (x + iy)
-					double realBefore = real;
-					real = translatedX + real * real - imaginary * imaginary;
-					imaginary = translatedY + 2. * realBefore * imaginary;
-					iteration++;
+					z = z*z + c;
+					// auto const realBefore = real;
+					// real = translated.x + real * real - imaginary * imaginary;
+					// imaginary = translated.y + 2. * realBefore * imaginary;
 				}
 
-				Avo::Color color;
-				color.setHSB(iteration / (float)m_viewer->getMaxNumberOfIterations() * 1.5f, 1.f, iteration == m_viewer->getMaxNumberOfIterations() ? 0.f : 1.f);//(1.f - Avo::square(1.f - 2.f * iteration / (double)MAX_NUMBER_OF_ITERATIONS)));
+				auto const color = Avo::Color::hsb(
+					static_cast<float>(iteration) / m_viewer->getMaxNumberOfIterations() * 1.5f, 
+					1.f, 
+					iteration == m_viewer->getMaxNumberOfIterations() ? 0.f : 1.f
+				);
 
 				// Red
-				pixel[2] = color.red * 255;
+				pixel[2] = static_cast<std::byte>(color.red * 255);
 				// Green
-				pixel[1] = color.green * 255;
+				pixel[1] = static_cast<std::byte>(color.green * 255);
 				// Blue
-				pixel[0] = color.blue * 255;
+				pixel[0] = static_cast<std::byte>(color.blue * 255);
 				// Alpha
-				pixel[3] = 255;
+				pixel[3] = static_cast<std::byte>(255);
 			}
 		}
 
 		m_imageMutex.lock();
-		m_image = m_viewer->getDrawingContext()->createImage(m_viewer->getPixels() + m_partIndex * HEIGHT_PER_THREAD * WIDTH * 4, m_viewer->getWidth(), HEIGHT_PER_THREAD);
-		m_image.setTop(m_partIndex * HEIGHT_PER_THREAD);
+		m_image = m_viewer->getDrawingContext()->createImage(
+			m_viewer->getPixels().data() + static_cast<std::size_t>(m_partIndex * heightPerThread * width * 4),
+			{static_cast<Avo::Pixels>(m_viewer->getWidth()), heightPerThread}
+		);
+		m_image.setTop(m_partIndex * heightPerThread);
 		m_imageMutex.unlock();
 
 		m_viewer->invalidateRectangle(m_image.getBounds());
@@ -63,7 +74,7 @@ void MandelbrotRenderer::render()
 
 		if (!m_needsRendering)
 		{
-			std::unique_lock<std::mutex> lock{ m_needsRenderingMutex };
+			auto lock = std::unique_lock<std::mutex>{m_needsRenderingMutex};
 			m_needsRenderingConditionVariable.wait(lock, [this]() { return m_needsRendering; });
 		}
 	}

@@ -3,15 +3,15 @@
 /*
 	Usage of Console namespace.
 */
-void example_console()
+auto example_console() -> void
 {
 	Console::println(u8"Write something! Maybe unicode Åå Ää Öö Ññ Üü α δ λ μ π τ")
 	        .println("You wrote: \"", Console::read<std::string>(), "\".");
 
 	Console::io << "\nNow write a number between 1 and 4: ";
 
-	auto number = Console::readValidated<int>(
-		[](int number) {
+	auto const number = Console::readValidated<int>(
+		[](int const number) {
 			return number >= 1 && number <= 4;
 		},
 		"That's outside of the range. Try again.",
@@ -29,86 +29,116 @@ void example_console()
 	Console::println("How nice!");
 }
 
+//------------------------------
+
 /*
 	Usage of Avo::Indices class.
 */
-void example_indices()
+auto example_indices() -> void
 {
 	float someArray[5]; // Or any container that std::data and std::size can be called on, or a null-terminated string.
 
 	// i goes from 0 to std::size(someArray) - 1.
-	for (auto i : Avo::Indices{ someArray }) 
+	for (auto const i : Avo::Indices{someArray}) 
 	{
 		someArray[i] = i / 3.f;
 	}
 
 	// End offset, i goes from 0 to std::size(someArray) - 2.
-	for (auto i : Avo::Indices{ someArray, -1 }) 
+	for (auto const i : Avo::Indices{someArray, -1}) 
 	{
 		someArray[i] = someArray[i + 1];
 	}
 
 	// Start offset, i goes from 2 to std::size(someArray) - 1.
-	for (auto i : Avo::Indices{ 2, someArray })
+	for (auto const i : Avo::Indices{2, someArray})
 	{
 		someArray[i] = someArray[i + 1];
 	}
 
 	// Start and end offset, i goes from 2 to std::size(someArray) - 2.
-	for (auto i : Avo::Indices{ someArray, 2, -1 })
+	for (auto const i : Avo::Indices{someArray, 2, -1})
 	{
 		someArray[i] = someArray[i + 1];
 	}
 
 	// i goes from 0 to 7.
-	for (auto i : Avo::Indices{ 8 })
+	for (auto const i : Avo::Indices{8}) // Range{8} does the same
 	{
 		Console::io << i << ' ';
 	}
 	Console::io << '\n';
 
 	// i goes from 4 to 89.
-	for (auto i : Avo::Indices{ 4, 10 })
+	for (auto const i : Avo::Indices{4, 10}) // Range{4, 10} does the same
 	{
 		Console::io << i << ' ';
 	}
 }
 
+//------------------------------
+
 /*
-	Usage of the Avo::PointerRange class.
+	Usage of the Avo::Range class.
 */
-void example_pointerRange()
+auto example_range() -> void
 {
-	// Pretend this is just some API that wants a sequence of pointers. 
-	// Replace all data-and-length parameters in functions by a PointerRange. Inspired by the cpp core guidelines.
-	auto printBuffer = [](Avo::PointerRange<char> const& p_buffer) {
+	/*
+		Pretend this is just some API that wants a sequence of pointers. 
+		Replace all pointer-and-length parameters in functions by a Range of pointers. 
+		Inspired by the cpp core guidelines.
+	*/
+	auto const printBuffer = [](Avo::Range<std::byte const*> p_buffer) {
 		for (auto byte : p_buffer)
 		{
-			std::cout << byte << ' ';
+			Console::io << static_cast<char>(byte) << ' ';
 		}
+		Console::println();
 	};
 
-	// String literal:
-	printBuffer("Pointer range");
-
 	// Static array:
-	char buffer[] = "Pointer range";
+	std::byte buffer[] = {std::byte{'b'}, std::byte{'o'}, std::byte{'n'}, std::byte{'k'}, std::byte{'!'}};
 	printBuffer(buffer);
 
+	// Iterators:
+	printBuffer({std::begin(buffer), std::end(buffer) - 1});
+
 	// Any object that std::data and std::size can be called on:
-	printBuffer(std::vector{ 'P', 'o', 'i', 'n', 't', 'e', 'r', 's', '!' });
-	printBuffer(std::string{ "Pointer range" });
+	printBuffer(std::array{std::byte{'h'}, std::byte{'i'}});
 
 	// Dynamic array:
 	// (Pretty bad, but may happen if data comes from some C API)
 
-	Avo::Count cBufferSize = 30;
-	auto* cBuffer = new char[cBufferSize];
+	auto const cBufferSize = std::size_t{26};
+	auto* const cBuffer = new std::byte[cBufferSize];
+	std::generate_n(cBuffer, cBufferSize, [c = 'a']() mutable { return std::byte{c++}; });
 
-	printBuffer({ cBuffer, cBufferSize });
+	printBuffer({cBuffer, cBufferSize});
 	
 	delete[] cBuffer;
+
+	// An Avo::Range can also be used for ranges of integers.
 }
+
+//------------------------------
+
+/*
+	Just to make you aware of this class.
+*/
+auto example_cleanup() -> int
+{
+	Avo::Cleanup const cleanup = [] {
+		Console::println("Scope ended!!");
+	};
+
+	// Just do demonstrate that cleanup happens after the return statement.
+	return [] {
+		Console::println("I'm doing some things");
+		return 33;
+	}();
+}
+
+//------------------------------
 
 /*
 	Initialization order demonstration.
@@ -120,43 +150,49 @@ void example_pointerRange()
 	Member construct 2
 	Test construct
 */
-
-class Base
+namespace example_initialization
 {
-public:
-	Base()
+	class Base
 	{
-		Console::println("Base construct");
-	}
-};
-class Member
-{
-public:
-	Member(int p_count)
-	{
-		Console::println("Member construct ", p_count);
-	}
-};
-class Test : public Base
-{
-private:
-	Member m_firstMember;
-
-	Avo::Initializer init_test = [=] {
-		Console::println("Test initializer");
+	public:
+		Base()
+		{
+			Console::println("Base construct");
+		}
 	};
-
-	Member m_secondMember = 3; // Does nothing because it is initialized in the constructor initializer list.
-
-public:
-	Test() :
-		m_firstMember{ 1 },
-		m_secondMember{ 2 }
+	class Member
 	{
-		Console::println("Test construct");
-	}
-};
+	public:
+		Member(int const p_count)
+		{
+			Console::println("Member construct ", p_count);
+		}
+	};
+	class Test : public Base
+	{
+	private:
+		Member m_firstMember;
 
-int main()
+		Avo::Initializer init_test = [=] {
+			Console::println("Test initializer");
+		};
+
+		Member m_secondMember = 3; // Does nothing because it is initialized in the constructor initializer list.
+
+	public:
+		Test() :
+			m_firstMember{1},
+			m_secondMember{2}
+		{
+			Console::println("Test construct");
+		}
+	};
+} // example_initialization
+
+
+auto main() -> int
 {
+	// example_initialization::Test{};
+	// example_range();
+	example_console();
 }

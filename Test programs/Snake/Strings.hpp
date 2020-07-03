@@ -1,10 +1,10 @@
 #pragma once
 
-#include <string>
+#include <string_view>
 
 namespace Strings
 {
-	inline std::string const leaderboard{ "Leaderboard" };
-	inline std::string const play{ "Play" };
-	inline std::string const title{ "Snake" };
+	inline constexpr std::string_view leaderboard = "Leaderboard";
+	inline constexpr std::string_view play = "Play";
+	inline constexpr std::string_view title = "Snake";
 }

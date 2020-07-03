@@ -2,7 +2,7 @@
 
 //------------------------------
 
-int main()
+auto main() -> int
 {
-	new TimerApp();
+	new TimerApp{};
 }

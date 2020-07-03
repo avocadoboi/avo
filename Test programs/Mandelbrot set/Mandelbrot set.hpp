@@ -3,14 +3,17 @@
 
 //------------------------------
 
-uint32 const MAX_NUMBER_OF_ITERATIONS_START = 100;
-double const MAX_NUMBER_OF_ITERATIONS_SCALE_INCREASE = 30.;
-double const GLOBAL_SCALE_X = 3.;
-double const GLOBAL_SCALE_Y = 2.5;
+inline constexpr auto maxNumberOfIterationsStart = 100;
+inline constexpr auto maxNumberOfIterationsScaleIncrease = 30.;
+inline constexpr auto globalScale = Avo::Vector2d{3., 2.5};
 
-uint32 const WIDTH = 700;
-uint32 const HEIGHT_PER_THREAD = 60;
-uint32 const NUMBER_OF_DRAWING_THREADS = 10;
+inline constexpr auto width = 700ll;
+inline constexpr auto heightPerThread = 60ll;
+inline constexpr auto numberOfDrawingThreads = 10;
+
+//------------------------------
+
+using Unit = long double;
 
 //------------------------------
 
@@ -19,18 +22,18 @@ class MandelbrotViewer;
 class MandelbrotRenderer
 {
 private:
-	MandelbrotViewer* m_viewer;
-	uint32 m_partIndex;
+	MandelbrotViewer* m_viewer{};
+	Avo::Index m_partIndex{};
 
-	bool m_needsRendering = false;
+	bool m_needsRendering{};
 	std::condition_variable m_needsRenderingConditionVariable;
 	std::mutex m_needsRenderingMutex;
 	std::thread m_renderingThread;
 
-	void render();
+	auto render() -> void;
 
 public:
-	void startRender()
+	auto startRender() -> void
 	{
 		m_needsRenderingMutex.lock();
 		m_needsRendering = true;
@@ -42,7 +45,7 @@ private:
 	Avo::Image m_image;
 	std::mutex m_imageMutex;
 public:
-	void draw(Avo::DrawingContext* p_context, Avo::Rectangle<float> const& p_targetRectangle)
+	auto draw(Avo::DrawingContext* const p_context, Avo::Rectangle<> p_targetRectangle) -> void
 	{
 		m_imageMutex.lock();
 		if (m_image && m_image.getIsIntersecting(p_targetRectangle))
@@ -52,11 +55,11 @@ public:
 		m_imageMutex.unlock();
 	}
 
-	MandelbrotRenderer(MandelbrotViewer* p_app, uint32 p_partIndex) :
-		m_viewer{ p_app }, 
-		m_partIndex{ p_partIndex }
+	MandelbrotRenderer(MandelbrotViewer* const p_app, Avo::Index const p_partIndex) :
+		m_viewer{p_app}, 
+		m_partIndex{p_partIndex}
 	{
-		m_renderingThread = std::thread{ &MandelbrotRenderer::render, this };
+		m_renderingThread = std::thread{&MandelbrotRenderer::render, this};
 	}
 	~MandelbrotRenderer()
 	{
@@ -72,73 +75,70 @@ class MandelbrotViewer : public Avo::Gui
 private:
 	Avo::Text m_infoText;
 
-	void updateInfoText()
+	auto updateInfoText() -> void
 	{
-		m_infoText = getDrawingContext()->createText("Max iterations: " + Avo::convertNumberToString(m_maxNumberOfIterations) + " Scale: " + Avo::convertNumberToString(m_scale), 13.f);
-		m_infoText.setTopLeft(10.f, 10.f);
+		m_infoText = getDrawingContext()->createText(
+			"Max iterations: " + Avo::numberToString(m_maxNumberOfIterations) + 
+			" Scale: " + Avo::numberToString(m_scale), 
+			13.f
+		);
+		m_infoText.setTopLeft(10.f);
 	}
 
-	uint8 m_pixels[WIDTH * HEIGHT_PER_THREAD * NUMBER_OF_DRAWING_THREADS * 4];
+	std::array<std::byte, width * heightPerThread * numberOfDrawingThreads * 4> m_pixels;
 public:
-	uint8* getPixels()
+	auto getPixels() -> auto&
 	{
 		return m_pixels;
 	}
 
 private:
-	std::vector<std::unique_ptr<MandelbrotRenderer>> m_renderers;
+	std::array<std::shared_ptr<MandelbrotRenderer>, numberOfDrawingThreads> m_renderers;
 public:
-	void renderImage()
+	auto renderImage() -> void
 	{
-		for (uint32 a = 0; a < m_renderers.size(); a++)
+		for (auto const& renderer : m_renderers)
 		{
-			m_renderers[a]->startRender();
+			renderer->startRender();
 		}
 	}
 
 private:
 	bool m_isRunning = true;
 public:
-	bool getIsRunning()
+	auto getIsRunning() const -> bool 
 	{
 		return m_isRunning;
 	}
 
-	double m_scale = 1.;
-
 private:
+	Unit m_scale = 1.;
 public:
-	double getScale()
+	auto getScale() const -> Unit
 	{
 		return m_scale;
 	}
+
 private:
-	double m_offsetX = -2.2;
+	Avo::Vector2d<Unit> m_offset{-2.2, -1.25};
 public:
-	double getOffsetX()
+	auto getOffset() const -> Avo::Vector2d<Unit>
 	{
-		return m_offsetX;
-	}
-private:
-	double m_offsetY = -1.25;
-public:
-	double getOffsetY()
-	{
-		return m_offsetY;
+		return m_offset;
 	}
 
 private:
-	uint32 m_maxNumberOfIterations = MAX_NUMBER_OF_ITERATIONS_START;
+	Avo::Count m_maxNumberOfIterations = maxNumberOfIterationsStart;
 public:
-	uint32 getMaxNumberOfIterations()
+	auto getMaxNumberOfIterations() -> Avo::Count
 	{
 		return m_maxNumberOfIterations;
 	}
 
 private:
-	double m_newScale = 1.;
+	Unit m_newScale = 1.l;
 public:
-	void handleMouseScroll(Avo::MouseEvent const& p_event) override
+	auto handleMouseScroll(Avo::MouseEvent const& p_event) -> void override
 	{
 		if (p_event.scrollDelta > 0.)
 		{
@@ -148,14 +148,12 @@ public:
 		{
 			m_newScale *= 1. - p_event.scrollDelta * 0.1;
 		}
-		if (abs(m_newScale / m_scale - 1.) > 0.2)
+		if (std::abs(m_newScale / m_scale - 1.) > 0.2)
 		{
-			m_offsetX -= p_event.x / getWidth() * (m_newScale - m_scale) * GLOBAL_SCALE_X;
-			m_offsetY -= p_event.y / getHeight() * (m_newScale - m_scale) * GLOBAL_SCALE_Y;
-			m_newOffsetX = m_offsetX;
-			m_newOffsetY = m_offsetY;
+			m_offset -= p_event.xy / getSize() * (m_newScale - m_scale) * globalScale;
+			m_newOffset = m_offset;
 			m_scale = m_newScale;
-			m_maxNumberOfIterations = MAX_NUMBER_OF_ITERATIONS_START * Avo::max(1., std::log10(1. / m_scale)* MAX_NUMBER_OF_ITERATIONS_SCALE_INCREASE + 1.);
+			m_maxNumberOfIterations = maxNumberOfIterationsStart * Avo::max(1., std::log10(1. / m_scale)* maxNumberOfIterationsScaleIncrease + 1.);
 			updateInfoText();
 			renderImage();
 		}
@@ -164,39 +162,36 @@ public:
 private:
 	bool m_isDragging = false;
 public:
-	void handleMouseDown(Avo::MouseEvent const& p_event) override
+	auto handleMouseDown(Avo::MouseEvent const& p_event) -> void override
 	{
 		m_isDragging = true;
 	}
-	void handleMouseUp(Avo::MouseEvent const& p_event) override
+	auto handleMouseUp(Avo::MouseEvent const& p_event) -> void override
 	{
 		m_isDragging = false;
 	}
 
 private:
-	double m_newOffsetX = -2.2;
-	double m_newOffsetY = -1.25;
+	Avo::Vector2d<Unit> m_newOffset{-2.2, -1.25};
 public:
-	void handleMouseMove(Avo::MouseEvent const& p_event) override
+	auto handleMouseMove(Avo::MouseEvent const& p_event) -> void override
 	{
 		if (m_isDragging)
 		{
-			m_newOffsetX -= p_event.movementX / getWidth() * m_scale * GLOBAL_SCALE_X;
-			m_newOffsetY -= p_event.movementY / getHeight() * m_scale * GLOBAL_SCALE_Y;
-			if (Avo::square(m_newOffsetX - m_offsetX) + Avo::square(m_newOffsetY - m_offsetY) > Avo::square(m_scale * 0.2))
+			m_newOffset -= p_event.movement / getSize() * m_scale * globalScale;
+			if ((m_newOffset - m_offset).getLengthSquared() > Avo::square(m_scale * 0.2))
 			{
-				m_offsetX = m_newOffsetX;
-				m_offsetY = m_newOffsetY;
+				m_offset = m_newOffset;
 				renderImage();
 			}
 		}
 	}
 
-	void draw(Avo::DrawingContext* p_context, Avo::Rectangle<float> p_targetRectangle) override
+	auto draw(Avo::DrawingContext* const p_context, Avo::Rectangle<> const p_targetRectangle) -> void override
 	{
-		for (uint32 a = 0; a < m_renderers.size(); a++)
+		for (auto const& renderer : m_renderers)
 		{
-			m_renderers[a]->draw(p_context, p_targetRectangle);
+			renderer->draw(p_context, p_targetRectangle);
 		}
 
 		if (m_infoText && m_infoText.getIsIntersecting(p_targetRectangle))
@@ -208,12 +203,11 @@ public:
 
 	MandelbrotViewer()
 	{
-		create("Mandelbrot set", WIDTH, HEIGHT_PER_THREAD * NUMBER_OF_DRAWING_THREADS, Avo::WindowStyleFlags::DefaultNoResize);
+		create("Mandelbrot set", {width, heightPerThread * numberOfDrawingThreads}, Avo::WindowStyleFlags::DefaultNoResize);
 
 		enableMouseEvents();
 
-		m_renderers.resize(NUMBER_OF_DRAWING_THREADS);
-		for (uint32 a = 0; a < NUMBER_OF_DRAWING_THREADS; a++)
+		for (auto a : Avo::Indices{m_renderers})
 		{
 			m_renderers[a] = std::make_unique<MandelbrotRenderer>(this, a);
 		}
