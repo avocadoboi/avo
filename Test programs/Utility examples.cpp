@@ -1,11 +1,11 @@
-﻿#include "../AvoGUI.hpp"
+#include "../AvoGUI.hpp"
 
 /*
 	Usage of Console namespace.
 */
 auto example_console() -> void
 {
-	Console::println(u8"Write something! Maybe unicode Åå Ää Öö Ññ Üü α δ λ μ π τ")
+	Console::println("Write something! Maybe unicode Åå Ää Öö Ññ Üü α δ λ μ π τ")
 	        .println("You wrote: \"", Console::read<std::string>(), "\".");
 
 	Console::io << "\nNow write a number between 1 and 4: ";
@@ -189,10 +189,19 @@ namespace example_initialization
 	};
 } // example_initialization
 
+auto example_formatting() -> void
+{
+	auto const formattedString = Avo::createFormattedString(
+		"I have {1} {}, {} {} and {} {}. Here are {{curly} {{braces} änd söme ünïcödê. Pi: {0}",
+		Avo::PI<float>, 2, "cats", 0, "dogs", 10, "fingers"
+	);
+	Console::println(formattedString);
+}
 
 auto main() -> int
 {
 	// example_initialization::Test{};
 	// example_range();
-	example_console();
+	// example_console();
+	example_formatting();
 }

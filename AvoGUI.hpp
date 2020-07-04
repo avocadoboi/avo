@@ -397,6 +397,10 @@ namespace Avo
 			{
 				return m_value;
 			}
+			constexpr operator _Value() const 
+			{
+				return m_value;
+			}
 
 			constexpr auto operator=(Iterator const p_other) noexcept -> Iterator&
 			{
@@ -443,6 +447,11 @@ namespace Avo
 				++m_value;
 				return *this;
 			}
+			constexpr auto operator--() noexcept -> Iterator&
+			{
+				--m_value;
+				return *this;
+			}
 
 			constexpr auto operator+(Iterator const p_other) const noexcept -> Iterator
 			{
@@ -470,6 +479,7 @@ namespace Avo
 		};
 
 	private:
+	
 		Iterator m_start;
 	public:
 		/*
@@ -482,11 +492,17 @@ namespace Avo
 
 		/*
 			Returns the first pointer in the range or the first number in the range.
-			Equivalent to begin().getValue().
 		*/
 		[[nodiscard]] constexpr auto data() const noexcept -> _Value
 		{
-			return m_start.getValue();
+			if constexpr (std::is_pointer_v<_Value>)
+			{
+				return m_start;
+			}
+			else
+			{
+				return m_start.getValue();
+			}
 		}
 
 		/*
@@ -955,6 +971,8 @@ namespace Avo
 		Nearest
 	};
 
+	// TODO: write our own stringToNumber function because only MSVC has implemented std::from_chars for floating point numbers...
+
 	/*
 		Converts a string to a number if possible.
 	*/
@@ -972,10 +990,11 @@ namespace Avo
 
 	/*
 		Converts a number to a string, using . (dot) for the decimal point.
-		It's about 7x faster than using std::ostringstream.
+		This overload takes a buffer as input and returns a string_view pointing 
+		to the range within the input buffer where the output was written.
 	*/
-	template<int precision = 5, typename T, typename = std::enable_if_t<std::is_arithmetic_v<T>>>
-	[[nodiscard]] auto numberToString(T p_number) -> std::string
+	template<int precision = 6, typename T>
+	[[nodiscard]] auto numberToString(Range<char8*> p_buffer, ArithmeticType<T> p_number) -> std::string_view
 	{
 		if (!p_number)
 		{
@@ -985,8 +1004,7 @@ namespace Avo
 		constexpr auto maxNumberOfIntegerDigits = 39;
 		if constexpr (std::is_integral_v<T>)
 		{
-			auto buffer = std::array<char, 1 + maxNumberOfIntegerDigits>();
-			auto position = buffer.end();
+			auto position = p_buffer.end();
 			
 			auto const writeTheDigits = [&]{
 				while (p_number)
@@ -1013,18 +1031,17 @@ namespace Avo
 				writeTheDigits();
 			}
 
-			return {position, buffer.end()};
+			return {position, static_cast<std::string_view::size_type>(p_buffer.end() - position)};
 		}
 		else
 		{
-			auto buffer = std::array<char, maxNumberOfIntegerDigits + 1 + precision + 1>();
-			auto position = buffer.begin() + maxNumberOfIntegerDigits;
+			auto position = p_buffer.begin() + maxNumberOfIntegerDigits;
 
 			auto const isNegative = p_number < 0;
-			auto number = static_cast<long double>(std::abs(p_number));
+			auto decimalPart = static_cast<long double>(std::abs(p_number));
 
 			long double integerPart_double;
-			number = std::modf(number, &integerPart_double);
+			decimalPart = std::modf(decimalPart, &integerPart_double);
 
 			auto integerPart_int = static_cast<int64>(integerPart_double);
 			do
@@ -1039,12 +1056,12 @@ namespace Avo
 				*--startPosition = '-';
 			}
 
-			*(position = buffer.begin() + maxNumberOfIntegerDigits) = '.';
+			*(position = p_buffer.begin() + maxNumberOfIntegerDigits) = '.';
 
-			auto const last = buffer.end() - 1;
+			auto const last = p_buffer.end() - 1;
 			while (position != last)
 			{
-				number = std::modf(number*10.l, &integerPart_double);
+				decimalPart = std::modf(decimalPart*10.l, &integerPart_double);
 				*++position = '0' + static_cast<int64>(integerPart_double) % 10;
 			}
 
@@ -1056,7 +1073,6 @@ namespace Avo
 					--position;
 				}
 				++*position;
-				return {startPosition, position + 1};
 			}
 			else
 			{
@@ -1069,9 +1085,21 @@ namespace Avo
 				{
 					*position += *position != '9' && *(position + 1) >= '5';
 				}
-				return {startPosition, position + 1};
 			}
+			return std::string_view{startPosition, static_cast<std::string_view::size_type>(position + 1 - startPosition)};
 		}
+	}
+	/*
+		Converts a number to a string, using . (dot) for the decimal point.
+		It's about 8x faster than using std::ostringstream for floating point numbers
+		and 10x faster for integers.
+	*/
+	template<int precision = 5, typename T>
+	[[nodiscard]] auto numberToString(ArithmeticType<T> p_number) -> std::string
+	{
+		constexpr auto maxNumberOfIntegerDigits = 39;
+		auto buffer = std::array<char8, maxNumberOfIntegerDigits + 1 + (std::is_floating_point_v<T> ? precision + 1 : 0)>();
+		return std::string{numberToString<precision>(buffer, p_number)};
 	}
 
 	/*
@@ -1107,6 +1135,57 @@ namespace Avo
 		to directly write alternating format string views and p_objects to one string.
 	*/
 
+	template<typename T>
+	inline auto toString(ArithmeticType<T> p_number) -> std::string
+	{
+		return numberToString(p_number);
+	}
+	inline auto toString(std::string const& p_string) -> std::string const&
+	{
+		return p_string;
+	}
+	inline auto toString(std::string&& p_string) -> std::string&&
+	{
+		return std::move(p_string);
+	}
+	inline auto toString(std::string_view p_string) -> std::string
+	{
+		return std::string{p_string};
+	}
+    template<std::size_t size>
+    auto toString(char8 const (&p_array)[size]) -> std::string
+    {
+        return p_array;
+    }
+	inline auto toString(std::u16string const& p_string) -> std::string
+	{
+		return convertUtf16ToUtf8(p_string);
+	}
+	inline auto toString(std::u16string_view p_string) -> std::string
+	{
+		return convertUtf16ToUtf8(p_string);
+	}
+	inline auto toString(std::wstring const& p_string) -> std::string
+	{
+		static_assert(
+			sizeof(wchar_t) == sizeof(char16), 
+			"A std::wstring can only be converted to a std::string if the size of wchar_t" 
+			"is the same as char16. It is then assumed to be encoded in UTF-16, as on Windows."
+			"AvoGUI does not support the UTF-32 encoding."
+		);
+		return convertUtf16ToUtf8({reinterpret_cast<char16 const*>(p_string.data()), p_string.size()});
+	}
+	inline auto toString(std::wstring_view const& p_string) -> std::string
+	{
+		static_assert(
+			sizeof(wchar_t) == sizeof(char16), 
+			"A std::wstring can only be converted to a std::string if the size of wchar_t" 
+			"is the same as char16. It is then assumed to be encoded in UTF-16, as on Windows."
+			"AvoGUI does not support the UTF-32 encoding."
+		);
+		return convertUtf16ToUtf8({reinterpret_cast<char16 const*>(p_string.data()), p_string.size()});
+	}
+
 	/*
 		Simple function to format a string by replacing placeholders in p_format with p_objects.
 		p_objects can be any objects which have a std::ostring << operator defined.
@@ -1125,29 +1204,97 @@ namespace Avo
 	[[nodiscard]] auto createFormattedString(std::string_view const p_format, FormattableType&& ... p_objects)
 		-> std::string
 	{
-		auto stringifiedObjects = std::vector<std::ostringstream>(sizeof...(p_objects));
+		auto const objectStrings = std::array{toString(std::forward<FormattableType>(p_objects))...};
+		auto result = std::string();
+		
+		auto position = Index{};
+		auto objectIndex = 0;
+		while (true)
 		{
-			auto objectIndex = Index{}; 
-			((stringifiedObjects[objectIndex++] << p_objects), ...);
-		}
+			/*
+				For every iteration we will first append a slice of 
+				text from p_format onto the result, then an object string.
+			*/
+			
+			// This is the position of the first text character in p_format to be appended.
+			auto const formatSliceStart = position;
 
-		auto stream = std::ostringstream{};
-		stream.precision(10);
+			// Find where to insert the next object
 
-		auto lastPlaceholderEndIndex = Index{};
-		for (auto a : Indices{p_format, -2})
-		{
-			// Utf-8 is backwards-compatible with ASCII so this should work fine.
-			if (p_format[a] == '{' && p_format[++a] >= '0' && p_format[a] <= '9' && p_format[a + 1] == '}')
+			auto const openBracePosition = p_format.find('{', formatSliceStart);
+			if (openBracePosition == std::string_view::npos)
 			{
-				stream.write(p_format.data() + lastPlaceholderEndIndex, a - 1 - lastPlaceholderEndIndex);
-				stream << stringifiedObjects[p_format[a] - '0'].str();
-				lastPlaceholderEndIndex = a += 2;
+				// We're done with formatting.
+				break;
 			}
-		}
-		stream.write(p_format.data() + lastPlaceholderEndIndex, p_format.size() - lastPlaceholderEndIndex);
+			
+			auto const closeBracePosition = p_format.find('}', openBracePosition + 1);
+			if (closeBracePosition == std::string_view::npos)
+			{
+				// We're done with formatting.
+				break;
+			}
+			
+			// Choose the object string to append from what is between the '{' and the '}'.
+			// There are some different possible cases.
 
-		return stream.str();
+			auto* objectString = static_cast<std::string const*>(nullptr);
+			if (closeBracePosition == openBracePosition + 1)
+			{
+				// There was a {} sequence. Just insert the next object.
+				if (++objectIndex == objectStrings.size())
+				{
+					// We're done with formatting.
+					break;
+				}
+				else
+				{
+					objectString = &objectStrings[objectIndex];
+				}
+			}
+			else if (p_format[openBracePosition + 1] == '{')
+			{
+				// Two { were after each other. 
+				// Insert single { and start the next iteration after the {{.
+				result += p_format.substr(formatSliceStart, openBracePosition + 1 - formatSliceStart);
+				position = openBracePosition + 2; // Here we put the next position after the {{
+				continue;
+			}
+			else
+			{
+				if (
+					std::optional<Index> const index = stringToNumber<Index>(
+						p_format.substr(
+							openBracePosition + 1, 
+							closeBracePosition - openBracePosition - 1
+						)
+					)
+				)
+				{
+					objectString = &objectStrings[*index];
+					objectIndex = *index;
+				}
+				else
+				{
+					// There was no valid index between '{' and '}'.
+					// Just write the slice including the { and continue after the { in the next iteration.
+					position = openBracePosition + 1;
+					result += p_format.substr(formatSliceStart, position - formatSliceStart);
+					continue;
+				}
+			}
+			
+			// Append both the text slice and the object string.
+			(result += p_format.substr(formatSliceStart, openBracePosition - formatSliceStart)) += *objectString;
+
+			// Will become the start of the next text slice.
+			position = closeBracePosition + 1;
+		}
+		if (position < p_format.size() - 1)
+		{
+			result += p_format.substr(position);
+		}
+		return result;
 	}
 
 	//------------------------------
