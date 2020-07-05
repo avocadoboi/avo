@@ -495,14 +495,7 @@ namespace Avo
 		*/
 		[[nodiscard]] constexpr auto data() const noexcept -> _Value
 		{
-			if constexpr (std::is_pointer_v<_Value>)
-			{
-				return m_start;
-			}
-			else
-			{
-				return m_start.getValue();
-			}
+			return m_start.getValue();
 		}
 
 		/*
@@ -8946,6 +8939,47 @@ namespace Avo
 
 	private:
 		std::vector<View*> m_childViews;
+
+		/*
+			Applies an operation to all child views within this view, 
+			and to the child views of those child views and so on.
+			This is done in determined sequential order, the same
+			order as the child views appear in their vector container.
+		*/
+		template<typename Callable>
+		auto applyToAllChildViewsRecursively(Callable&& p_apply) -> void
+		{
+			auto const* currentContainer = this;
+			auto startIndex = Index{0};
+			while (true)
+			{
+				auto const nextContainer = std::find_if(
+					currentContainer->begin() + startIndex, currentContainer->end(),
+					[&](View* const childView){
+						std::forward<Callable>(p_apply)(childView);
+						return childView->getHasChildViews();
+					}
+				);
+				if (nextContainer == currentContainer->end())
+				{
+					if (currentContainer == this)
+					{
+						break;
+					}
+					else
+					{
+						startIndex = currentContainer->getIndex() + 1;
+						currentContainer = currentContainer->getParent<View>();
+					}
+				}
+				else
+				{
+					currentContainer = *nextContainer;
+					startIndex = 0;
+				}
+			}
+		}
+
 	public:
 		/*
 			LIBRARY IMPLEMENTED
@@ -9465,7 +9499,7 @@ namespace Avo
 		auto setTopPadding(Dip const p_topPadding) -> void
 		{
 			auto const offset = p_topPadding - calculateContentTop();
-			for (auto& child : m_childViews)
+			for (auto* const child : m_childViews)
 			{
 				child->moveY(offset);
 			}
@@ -9544,28 +9578,9 @@ namespace Avo
 		{
 			if (p_willAffectChildren)
 			{
-				View* view = this;
-				Index startIndex = 0;
-				while (true)
-				{
-				loopStart:
-					for (Index a = startIndex; a < view->m_childViews.size(); ++a)
-					{
-						(view->m_childViews[a]->*p_function)(p_id, std::forward<U>(p_property), false);
-						if (view->m_childViews[a]->m_childViews.size())
-						{
-							view = view->m_childViews[a];
-							startIndex = 0;
-							goto loopStart;
-						}
-					}
-					if (view == this)
-					{
-						break;
-					}
-					startIndex = view->m_index + 1;
-					view = view->m_parent;
-				}
+				applyToAllChildViewsRecursively([&](View* const view){
+					(childView->*p_function)(p_id, std::forward<U>(p_property), false);
+				});
 			}
 
 			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
@@ -9619,7 +9634,7 @@ namespace Avo
 		template<typename Pairs = std::initializer_list<std::pair<Id, Color>>>
 		auto setThemeColors(Pairs const& p_pairs, bool const p_willAffectChildren = true) -> void
 		{
-			for (auto& [id, color] : p_pairs)
+			for (auto const& [id, color] : p_pairs)
 			{
 				setThemeColor(id, color, p_willAffectChildren);
 			}
@@ -9677,7 +9692,7 @@ namespace Avo
 		template<typename Pairs = std::initializer_list<std::pair<Id, Easing>>>
 		auto setThemeEasings(Pairs const& p_pairs, bool const p_willAffectChildren = true) -> void
 		{
-			for (auto& [id, easing] pair : p_pairs)
+			for (auto const& [id, easing] pair : p_pairs)
 			{
 				setThemeEasing(id, easing, p_willAffectChildren);
 			}
@@ -9735,7 +9750,7 @@ namespace Avo
 		template<typename Pairs = std::initializer_list<std::pair<Id, float>>>
 		auto setThemeValues(Pairs const& p_pairs, bool const p_willAffectChildren = true) -> void
 		{
-			for (auto& [id, value] : p_pairs)
+			for (auto const& [id, value] : p_pairs)
 			{
 				setThemeValue(id, value, p_willAffectChildren);
 			}
@@ -9772,29 +9787,9 @@ namespace Avo
 
 			if (p_willUpdateChildren && !m_childViews.empty())
 			{
-				View* currentContainer = this;
-				Index startIndex = 0;
-				while (true)
-				{
-				loopBody:
-					for (Index a = startIndex; a < currentContainer->getNumberOfChildViews(); a++)
-					{
-						auto const child = currentContainer->getChildView(a);
-						child->moveAbsolutePositions(p_offset, false);
-						if (child->getNumberOfChildViews())
-						{
-							currentContainer = child;
-							startIndex = 0;
-							goto loopBody; // THIS IS GOOD USE OF GOTO OK
-						}
-					}
-					if (currentContainer == this)
-					{
-						return;
-					}
-					startIndex = currentContainer->getIndex() + 1;
-					currentContainer = currentContainer->getParent<View>();
-				}
+				applyToAllChildViewsRecursively([&](View* const view){
+					view->moveAbsolutePositions(p_offset, false);
+				});
 			}
 		}
 		auto calculateAbsolutePositionRelativeTo(Point<> p_position) const -> Point<>;
