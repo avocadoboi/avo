@@ -397,7 +397,7 @@ namespace Avo
 			{
 				return m_value;
 			}
-			constexpr operator _Value() const 
+			constexpr explicit operator _Value() const 
 			{
 				return m_value;
 			}
@@ -1024,7 +1024,7 @@ namespace Avo
 				writeTheDigits();
 			}
 
-			return {position, static_cast<std::string_view::size_type>(p_buffer.end() - position)};
+			return {position.getValue(), static_cast<std::string_view::size_type>(p_buffer.end() - position)};
 		}
 		else
 		{
@@ -1079,7 +1079,7 @@ namespace Avo
 					*position += *position != '9' && *(position + 1) >= '5';
 				}
 			}
-			return std::string_view{startPosition, static_cast<std::string_view::size_type>(position + 1 - startPosition)};
+			return std::string_view{startPosition.getValue(), static_cast<std::string_view::size_type>(position + 1 - startPosition)};
 		}
 	}
 	/*
