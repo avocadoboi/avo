@@ -2970,8 +2970,8 @@ namespace Avo
 		constexpr auto operator*(Vector2dBase<T, C> p_vector) const noexcept -> Vector2dBase<T, C>
 		{
 			return {
-				xToX*p_point.x + yToX*p_point.y + offsetX, 
-				yToY*p_point.y + xToY*p_point.x + offsetY
+				xToX*p_vector.x + yToX*p_vector.y + offsetX, 
+				yToY*p_vector.y + xToY*p_vector.x + offsetY
 			};
 		}
 		/*
@@ -8796,7 +8796,7 @@ namespace Avo
 		) -> Animation*
 		{
 			return m_animations.emplace_back(
-				std::make_unique<Animation>(getGui(), p_easing, p_milliseconds)
+				std::make_unique<Animation>(getGui(), p_easing, p_duration)
 			).get();
 		}
 		/*
@@ -8813,7 +8813,7 @@ namespace Avo
 		) -> Animation*
 		{
 			return m_animations.emplace_back(
-				std::make_unique<Animation>(getGui(), getThemeEasing(p_easingId), p_milliseconds)
+				std::make_unique<Animation>(getGui(), getThemeEasing(p_easingId), p_duration)
 			).get();
 		}
 		/*
@@ -9579,7 +9579,7 @@ namespace Avo
 			if (p_willAffectChildren)
 			{
 				applyToAllChildViewsRecursively([&](View* const view){
-					(childView->*p_function)(p_id, std::forward<U>(p_property), false);
+					(view->*p_function)(p_id, std::forward<U>(p_property), false);
 				});
 			}
 
@@ -9634,9 +9634,9 @@ namespace Avo
 		template<typename Pairs = std::initializer_list<std::pair<Id, Color>>>
 		auto setThemeColors(Pairs const& p_pairs, bool const p_willAffectChildren = true) -> void
 		{
-			for (auto const& [id, color] : p_pairs)
+			for (auto const& pair : p_pairs)
 			{
-				setThemeColor(id, color, p_willAffectChildren);
+				setThemeColor(pair.first, pair.second, p_willAffectChildren);
 			}
 		}
 		/*
@@ -9692,9 +9692,9 @@ namespace Avo
 		template<typename Pairs = std::initializer_list<std::pair<Id, Easing>>>
 		auto setThemeEasings(Pairs const& p_pairs, bool const p_willAffectChildren = true) -> void
 		{
-			for (auto const& [id, easing] pair : p_pairs)
+			for (auto const& pair : p_pairs)
 			{
-				setThemeEasing(id, easing, p_willAffectChildren);
+				setThemeEasing(pair.first, pair.second, p_willAffectChildren);
 			}
 		}
 		/*
@@ -9750,9 +9750,9 @@ namespace Avo
 		template<typename Pairs = std::initializer_list<std::pair<Id, float>>>
 		auto setThemeValues(Pairs const& p_pairs, bool const p_willAffectChildren = true) -> void
 		{
-			for (auto const& [id, value] : p_pairs)
+			for (auto const& pair : p_pairs)
 			{
-				setThemeValue(id, value, p_willAffectChildren);
+				setThemeValue(pair.first, pair.second, p_willAffectChildren);
 			}
 		}
 		/*
@@ -11163,7 +11163,7 @@ namespace Avo
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		auto handleGlobalMouseDown(MouseEvent& p_event) -> void
+		auto handleGlobalMouseDown(MouseEvent p_event) -> void
 		{
 			auto const targets = getTopMouseListenersAt(p_event.xy);
 
@@ -11185,7 +11185,7 @@ namespace Avo
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		auto handleGlobalMouseUp(MouseEvent& p_event) -> void
+		auto handleGlobalMouseUp(MouseEvent p_event) -> void
 		{
 			auto const absolute = p_event.xy;
 			if (!m_pressedMouseEventListeners.empty())
@@ -11212,15 +11212,15 @@ namespace Avo
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		auto handleGlobalMouseMove(MouseEvent& p_event) -> void;
+		auto handleGlobalMouseMove(MouseEvent p_event) -> void;
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		auto handleGlobalMouseLeave(MouseEvent& p_event) -> void;
+		auto handleGlobalMouseLeave(MouseEvent p_event) -> void;
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		auto handleGlobalMouseScroll(MouseEvent& p_event) -> void
+		auto handleGlobalMouseScroll(MouseEvent p_event) -> void
 		{
 			auto const targets = getTopMouseListenersAt(p_event.xy);
 

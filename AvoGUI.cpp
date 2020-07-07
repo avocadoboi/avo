@@ -11010,7 +11010,7 @@ auto Avo::Gui::handleGlobalDragDropLeave(DragDropEvent& p_event) -> void
 
 //------------------------------
 
-auto Avo::Gui::handleGlobalMouseMove(MouseEvent& p_event) -> void
+auto Avo::Gui::handleGlobalMouseMove(MouseEvent p_event) -> void
 {
 	// This is false if it's called from a view just to send mouse leave and mouse enter events,
 	// if a view has been moved from the mouse for example.
@@ -11259,7 +11259,7 @@ auto Avo::Gui::handleGlobalMouseMove(MouseEvent& p_event) -> void
 		}
 	}
 }
-auto Avo::Gui::handleGlobalMouseLeave(MouseEvent& p_event) -> void
+auto Avo::Gui::handleGlobalMouseLeave(MouseEvent p_event) -> void
 {
 	if (!m_pressedMouseEventListeners.empty())
 	{
