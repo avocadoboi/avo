@@ -1,11 +1,11 @@
-﻿#include "../AvoGUI.hpp"
+#include <AvoGUI.hpp>
 
 #include <algorithm>
 
 //------------------------------
 
-constexpr auto NUMBER_OF_DIGITS = 7.0L;
-constexpr auto START_VELOCITY = 1.0L;
+constexpr auto numberOfDigits = 7.0L;
+constexpr auto startVelocity = 1.0L;
 constexpr auto windowWidth = 800.f;
 constexpr auto windowHeight = 350.f;
 
@@ -26,16 +26,16 @@ public:
 	{
 		p_context->setColor(color);
 		p_context->fillRectangle({
-			static_cast<float>(position), static_cast<float>(windowHeight - width), 
+			static_cast<float>(position), static_cast<float>(windowHeight - width),
 			static_cast<float>(position + width), static_cast<float>(windowHeight)
-		});
+			});
 	}
 
 	Block() = default;
 	Block(Unit p_position, Unit p_velocity, Unit p_inverseMass, Unit p_width) :
-		position{p_position}, 
-		velocity{p_velocity}, 
-		inverseMass{p_inverseMass}, 
+		position{p_position},
+		velocity{p_velocity},
+		inverseMass{p_inverseMass},
 		width{p_width}
 	{
 	}
@@ -48,15 +48,15 @@ struct PiDay : public Avo::Gui
 private:
 	Block m_firstBlock;
 	Block m_secondBlock;
-	
+
 	// Avo::Text m_text_numberOfDigits;
 	Avo::Text m_text_numberOfCollisions;
-	Count m_numberOfCollisions{};
+	Avo::Count m_numberOfCollisions{};
 public:
 	auto startSimulation() -> void
 	{
 		m_firstBlock = Block{500.0L, 0.0L, 1.0L, 70.0L};
-		m_secondBlock = Block{600.0L, -START_VELOCITY, m_secondBlock.inverseMass, 200.0L};
+		m_secondBlock = Block{600.0L, -startVelocity, m_secondBlock.inverseMass, 200.0L};
 		m_numberOfCollisions = 0U;
 		queueAnimationUpdate();
 		invalidate();
@@ -67,7 +67,7 @@ public:
 		m_firstBlock.position += m_firstBlock.velocity;
 		m_secondBlock.position += m_secondBlock.velocity;
 
-		Count const numberOfCollisionsBefore = m_numberOfCollisions;
+		Avo::Count const numberOfCollisionsBefore = m_numberOfCollisions;
 
 		// Trace back and resolve all collisions that have happened in the last timestep/frame.
 		while (true)
@@ -81,7 +81,7 @@ public:
 			}
 			else if (m_secondBlock.position < m_firstBlock.position + m_firstBlock.width)
 			{
-				auto const blockCollisionTime = m_firstBlock.velocity == m_secondBlock.velocity ? 0.0L : 
+				auto const blockCollisionTime = m_firstBlock.velocity == m_secondBlock.velocity ? 0.0L :
 					((m_firstBlock.position + m_firstBlock.width - m_secondBlock.position) / (m_secondBlock.velocity - m_firstBlock.velocity));
 				auto const impulse = 2.0L*(m_secondBlock.velocity - m_firstBlock.velocity) / (m_firstBlock.inverseMass + m_secondBlock.inverseMass);
 				m_firstBlock.position += m_firstBlock.velocity*blockCollisionTime; // Move the position back to where it collided
@@ -133,7 +133,7 @@ public:
 		restartButton->buttonClickListeners += [this](auto) { startSimulation(); };
 
 		//------------------------------
-		
+
 		setThemeValue(Avo::ThemeValues::textFieldHeight, 2.f);
 		setThemeValue(Avo::ThemeValues::textFieldFontSize, 16.f);
 
@@ -141,8 +141,8 @@ public:
 		textField_numberOfDigits->setTextAlign(Avo::TextAlign::Center);
 		textField_numberOfDigits->setWidth(40.f);
 		textField_numberOfDigits->setTopRight({restartButton->getLeft() - 20.f, 5.f});
-		textField_numberOfDigits->getEditableText()->editableTextChangeListeners += 
-		[this](Avo::EditableText* p_editableText, std::string& p_string, Index& p_caretIndex) -> bool {
+		textField_numberOfDigits->getEditableText()->editableTextChangeListeners +=
+			[this](Avo::EditableText* p_editableText, std::string& p_string, Avo::Index& p_caretIndex) -> bool {
 			if (!std::all_of(p_string.begin(), p_string.end(), [](char character) { return character >= '0' && character <= '9'; }))
 			{
 				return false;
@@ -161,9 +161,9 @@ public:
 			startSimulation();
 			return true;
 		};
-		textField_numberOfDigits->setString(Avo::numberToString(NUMBER_OF_DIGITS));
+		textField_numberOfDigits->setString(Avo::numberToString(numberOfDigits));
 
-		mouseDownListeners += [this](auto){ setKeyboardFocus(nullptr); };
+		mouseDownListeners += [this](auto) { setKeyboardFocus(nullptr); };
 
 		//------------------------------
 
@@ -187,13 +187,13 @@ public:
 	}
 	~PiDay()
 	{
-		
+
 	}
 };
 
 //------------------------------
 
 int main()
-{ 
+{
 	new PiDay;
 }
