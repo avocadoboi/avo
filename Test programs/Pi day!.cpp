@@ -28,7 +28,7 @@ public:
 		p_context->fillRectangle({
 			static_cast<float>(position), static_cast<float>(windowHeight - width),
 			static_cast<float>(position + width), static_cast<float>(windowHeight)
-			});
+		});
 	}
 
 	Block() = default;
@@ -142,7 +142,7 @@ public:
 		textField_numberOfDigits->setWidth(40.f);
 		textField_numberOfDigits->setTopRight({restartButton->getLeft() - 20.f, 5.f});
 		textField_numberOfDigits->getEditableText()->editableTextChangeListeners +=
-			[this](Avo::EditableText* p_editableText, std::string& p_string, Avo::Index& p_caretIndex) -> bool {
+		[this](Avo::EditableText* p_editableText, std::string& p_string, Avo::Index& p_caretIndex) -> bool {
 			if (!std::all_of(p_string.begin(), p_string.end(), [](char character) { return character >= '0' && character <= '9'; }))
 			{
 				return false;
@@ -185,15 +185,11 @@ public:
 
 		run();
 	}
-	~PiDay()
-	{
-
-	}
 };
 
 //------------------------------
 
-int main()
+auto main() -> int
 {
 	new PiDay;
 }
