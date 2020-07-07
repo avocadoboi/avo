@@ -1,7 +1,5 @@
 #include <AvoGUI.hpp>
 
-#include <algorithm>
-
 //------------------------------
 
 constexpr auto numberOfDigits = 7.0L;
