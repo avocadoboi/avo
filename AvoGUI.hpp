@@ -163,8 +163,8 @@ namespace Console
 			{
 				// A number was expected but the user wrote characters, so we need to ignore the 
 				// trailing newline character and clear the error state of std::cin.
-				std::cin.clear();
 				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+				std::cin.clear();
 			}
 			return *this;
 		}
@@ -656,33 +656,6 @@ namespace Avo
 		{}
 	};
 
-	// template<typename _Type>
-	// class OrderedSequentialVector
-	// {
-	// private:
-	// 	_Type* m_data;
-	// public:
-	// 	constexpr auto data() const noexcept -> _Type*
-	// 	{
-	// 		return m_data;
-	// 	}
-	
-	// private:
-	// 	std::size_t m_size;
-	// public:
-	// 	constexpr auto size() const noexcept -> std::size_t
-	// 	{
-	// 		return m_size;
-	// 	}
-
-	// public:
-	// 	OrderedVector(std::initializer_list<_Type> p_initializer) :
-	// 		m_vector(p_initializer)
-	// 	{
-
-	// 	}
-	// }
-
 	template<typename T>
 	constexpr T E =       static_cast<T>(2.71828182845904523l);
 	template<typename T>
@@ -1051,7 +1024,7 @@ namespace Avo
 				writeTheDigits();
 			}
 
-			return {position, static_cast<std::string_view::size_type>(p_buffer.end() - position)};
+			return {position.getValue(), static_cast<std::string_view::size_type>(p_buffer.end() - position)};
 		}
 		else
 		{
@@ -1106,7 +1079,7 @@ namespace Avo
 					*position += *position != '9' && *(position + 1) >= '5';
 				}
 			}
-			return std::string_view{startPosition, static_cast<std::string_view::size_type>(position + 1 - startPosition)};
+			return std::string_view{startPosition.getValue(), static_cast<std::string_view::size_type>(position + 1 - startPosition)};
 		}
 	}
 	/*
@@ -1149,15 +1122,16 @@ namespace Avo
 		}
 	}
 
+	/*
+		TODO: rewrite createFormattedString to avoid creating a vector of std::ostringstream. 
+		Instead split p_format into array of std::string_view and use parameter pack expansion 
+		to directly write alternating format string views and p_objects to one string.
+	*/
+
 	template<typename T>
-	inline auto toString(ArithmeticType<T> const p_number) -> std::string
+	inline auto toString(ArithmeticType<T> p_number) -> std::string
 	{
 		return numberToString(p_number);
-	}
-
-	inline auto toString(char8 const p_character) -> std::string
-	{
-		return std::string{1, p_character};
 	}
 	inline auto toString(std::string const& p_string) -> std::string const&
 	{
@@ -1167,7 +1141,7 @@ namespace Avo
 	{
 		return std::move(p_string);
 	}
-	inline auto toString(std::string_view const p_string) -> std::string
+	inline auto toString(std::string_view p_string) -> std::string
 	{
 		return std::string{p_string};
 	}
@@ -1176,11 +1150,6 @@ namespace Avo
     {
         return p_array;
     }
-
-	inline auto toString(char16 const p_character) -> std::string
-	{
-		return convertUtf16ToUtf8({&p_character, 1});
-	}
 	inline auto toString(std::u16string const& p_string) -> std::string
 	{
 		return convertUtf16ToUtf8(p_string);
@@ -1188,23 +1157,6 @@ namespace Avo
 	inline auto toString(std::u16string_view p_string) -> std::string
 	{
 		return convertUtf16ToUtf8(p_string);
-	}
-    template<std::size_t size>
-    auto toString(char16 const (&p_array)[size]) -> std::string
-    {
-        return convertUtf16ToUtf8(p_array);
-    }
-
-	inline auto toString(wchar_t const p_character) -> std::string
-	{
-		static_assert(
-			sizeof(wchar_t) == sizeof(char16), 
-			"A wchar_t character can only be converted to a std::string if the size of wchar_t" 
-			"is the same as char16. It is then assumed to be encoded in UTF-16, as on Windows."
-			"AvoGUI does not support the UTF-32 encoding."
-		);
-
-		return convertUtf16ToUtf8({reinterpret_cast<char16 const*>(&p_character), 1});
 	}
 	inline auto toString(std::wstring const& p_string) -> std::string
 	{
@@ -1220,41 +1172,36 @@ namespace Avo
 	{
 		static_assert(
 			sizeof(wchar_t) == sizeof(char16), 
-			"A std::wstring_view can only be converted to a std::string if the size of wchar_t" 
+			"A std::wstring can only be converted to a std::string if the size of wchar_t" 
 			"is the same as char16. It is then assumed to be encoded in UTF-16, as on Windows."
 			"AvoGUI does not support the UTF-32 encoding."
 		);
 		return convertUtf16ToUtf8({reinterpret_cast<char16 const*>(p_string.data()), p_string.size()});
 	}
-    template<std::size_t size>
-    auto toString(wchar_t const (&p_array)[size]) -> std::string
-    {
-		static_assert(
-			sizeof(wchar_t) == sizeof(char16), 
-			"A wchar_t string literal can only be converted to a std::string if the size of wchar_t" 
-			"is the same as char16. It is then assumed to be encoded in UTF-16, as on Windows."
-			"AvoGUI does not support the UTF-32 encoding."
-		);
-		return convertUtf16ToUtf8({reinterpret_cast<char16 const (&)[size]>(p_array)});
-    }
 
 	/*
-		Function to format a string by replacing placeholders in p_format with p_objects.
-		p_objects can be any objects which Avo::toString can be called on.
+		Simple function to format a string by replacing placeholders in p_format with p_objects.
+		p_objects can be any objects which have a std::ostring << operator defined.
 
 		The placeholders are in the form of {index} where index is the index of the argument to be inserted.
 		Writing {0} will insert the first item, {1} will insert the second item.
-		The index can also be omitted, writing only {}. In that case the next object will be inserted.
+		Only values of [0, 9] are allowed as the indicies, meaning max 10 objects can be inserted in one call.
+
+		Example:
+		std::string formattedString = createFormattedString(
+			"I have {1} {2} and {3} {4} and {5} {6}. Pi: {0}",
+			PI, 2, "cats", 0, "dogs", 10, "fingers"
+		);
 	*/
 	template<typename ... FormattableType>
-	[[nodiscard]] auto formatString(std::string_view const p_format, FormattableType&& ... p_objects)
+	[[nodiscard]] auto createFormattedString(std::string_view const p_format, FormattableType&& ... p_objects)
 		-> std::string
 	{
 		auto const objectStrings = std::array{toString(std::forward<FormattableType>(p_objects))...};
 		auto result = std::string();
 		
 		auto position = Index{};
-		auto objectIndex = Index{-1};
+		auto objectIndex = 0;
 		while (true)
 		{
 			/*
@@ -1284,7 +1231,7 @@ namespace Avo
 			// Choose the object string to append from what is between the '{' and the '}'.
 			// There are some different possible cases.
 
-			auto objectString = static_cast<std::string const*>(nullptr);
+			auto* objectString = static_cast<std::string const*>(nullptr);
 			if (closeBracePosition == openBracePosition + 1)
 			{
 				// There was a {} sequence. Just insert the next object.
@@ -1378,15 +1325,12 @@ namespace Avo
 	*/
 	class Id
 	{
-	public:
-		using ValueType = uint64;
-		
 	private:
-		static ValueType s_counter;
-		ValueType m_count;
+		static Count s_counter;
+		Count m_count;
 
 	public:
-		constexpr operator ValueType() const noexcept
+		constexpr operator Count() const noexcept
 		{
 			return m_count;
 		}
@@ -1399,7 +1343,16 @@ namespace Avo
 			return p_id.m_count != m_count;
 		}
 
-		constexpr Id(ValueType p_id) noexcept :
+		constexpr auto operator=(Id const& p_id) noexcept -> Id&
+		{
+			m_count = p_id;
+			return *this;
+		}
+
+		constexpr Id(Count p_id) noexcept :
+			m_count{p_id}
+		{}
+		constexpr Id(Id const& p_id) noexcept :
 			m_count{p_id}
 		{}
 		constexpr Id() noexcept :
@@ -1570,6 +1523,21 @@ namespace Avo
 			_Clock::time_point endTime;
 			Id id = 0;
 
+			auto operator=(Timeout const& p_other) -> Timeout&
+			{
+				callback = p_other.callback;
+				endTime = p_other.endTime;
+				id = p_other.id;
+				return *this;
+			}
+			auto operator=(Timeout&& p_other) noexcept -> Timeout&
+			{
+				callback = std::move(p_other.callback);
+				endTime = p_other.endTime;
+				id = p_other.id;
+				return *this;
+			}
+
 			template<typename Callable, typename DurationType, typename DurationPeriod>
 			Timeout(Callable const& p_callback, chrono::duration<DurationType, DurationPeriod> p_duration, Id p_id) :
 				callback{p_callback},
@@ -1578,6 +1546,8 @@ namespace Avo
 			{
 				static_assert(std::is_invocable_r_v<void, Callable>, "TimerThread::Timeout error: Timeout callback must be of type void().");
 			}
+			Timeout(Timeout const& p_other) = default;
+			Timeout(Timeout&& p_other) noexcept = default;
 		};
 
 		std::vector<Timeout> m_timeouts;
@@ -1591,51 +1561,9 @@ namespace Avo
 		// The timeouts have their own IDs and this is used to generate new ones
 		std::atomic<Count> m_idCounter = 1;
 
-		//------------------------------
-
-		auto waitForNewTimeout() -> void
-		{
-			m_idCounter = 0;
-			if (!m_needsToWake)
-			{
-				auto lock = std::unique_lock{m_wakeMutex};
-				m_wakeConditionVariable.wait(lock, [&] { return static_cast<bool>(m_needsToWake); });
-			}
-			m_needsToWake = false;
-		}
-		auto waitForTimeoutToEnd() -> void
-		{
-			if (!m_needsToWake)
-			{
-				auto lock = std::unique_lock{m_wakeMutex};
-				m_wakeConditionVariable.wait_until(lock, m_timeouts.begin()->endTime, [&] { return static_cast<bool>(m_needsToWake); });
-			}
-			m_needsToWake = false;
-		}
-		auto notifyEndedTimeouts() -> void
-		{
-			auto const nextTimeout = std::find_if(
-				m_timeouts.begin(), m_timeouts.end(), 
-				[&](Timeout& timeout) {
-					if (timeout.endTime >= _Clock::now())
-					{
-						return true;
-					}
-					if (m_callbackMutex)
-					{
-						auto const lock = std::scoped_lock{*m_callbackMutex};
-						timeout();
-					}
-					else
-					{
-						timeout();
-					}
-					return false;
-				}
-			);
-			auto const lock = std::scoped_lock{m_timeoutsMutex};
-			m_timeouts.erase(m_timeouts.begin(), nextTimeout);
-		}
+		std::atomic<bool> m_needsToWake = false;
+		std::condition_variable m_wakeConditionVariable;
+		std::mutex m_wakeMutex;
 
 		std::atomic<bool> m_isRunning = false;
 		std::thread m_thread;
@@ -1647,27 +1575,78 @@ namespace Avo
 			{
 				if (m_timeouts.empty())
 				{
-					waitForNewTimeout();
+					// Just wait until a timeout is added.
+
+					m_idCounter = 0;
+					if (!m_needsToWake)
+					{
+						auto lock = std::unique_lock{m_wakeMutex};
+						m_wakeConditionVariable.wait(lock, [&] { return static_cast<bool>(m_needsToWake); });
+					}
+					m_needsToWake = false;
 				}
 				else
 				{
-					waitForTimeoutToEnd();
-					
+					// Wait until either a timeout is added or the timeout nearest in the future has ended.
+					if (!m_needsToWake)
+					{
+						auto lock = std::unique_lock{m_wakeMutex};
+						m_wakeConditionVariable.wait_until(lock, m_timeouts.begin()->endTime, [&] { return static_cast<bool>(m_needsToWake); });
+					}
+					m_needsToWake = false;
+
 					if (m_timeouts.empty())
 					{
 						continue;
 					}
 
-					notifyEndedTimeouts();
+					// Clear all of the timeouts that have ended and invoke their callbacks.
+
+					auto const nextTimeout = std::find_if(
+						m_timeouts.begin(), m_timeouts.end(), 
+						[&](Timeout& timeout) {
+							if (timeout.endTime >= _Clock::now())
+							{
+								return true;
+							}
+							if (m_callbackMutex)
+							{
+								auto const lock = std::scoped_lock{*m_callbackMutex};
+								timeout();
+							}
+							else
+							{
+								timeout();
+							}
+							return false;
+						}
+					);
+					auto const lock = std::scoped_lock{m_timeoutsMutex};
+					m_timeouts.erase(m_timeouts.begin(), nextTimeout);
+
+					// auto timeout = m_timeouts.begin();
+					
+					// while (timeout->endTime < _Clock::now())
+					// {
+					// 	if (m_callbackMutex)
+					// 	{
+					// 		auto const lock = std::scoped_lock{*m_callbackMutex};
+					// 		(*timeout)();
+					// 	}
+					// 	else
+					// 	{
+					// 		(*timeout)();
+					// 	}
+
+					// 	if (++timeout == m_timeouts.end())
+					// 	{
+					// 		break;
+					// 	}
+					// }
+
 				}
 			}
 		}
-
-		//------------------------------
-
-		std::atomic<bool> m_needsToWake = false;
-		std::condition_variable m_wakeConditionVariable;
-		std::mutex m_wakeMutex;
 
 		auto wake() -> void
 		{
@@ -1679,8 +1658,6 @@ namespace Avo
 				m_wakeConditionVariable.notify_one();
 			}
 		}
-
-		//------------------------------
 
 		auto run() -> void
 		{
@@ -1761,28 +1738,175 @@ namespace Avo
 	//------------------------------
 
 	/*
+		An object that inherits RefernceCounted doesn't get deleted until every remember() has a forget().
+		The constructor is the first remember(), meaning m_referenceCount is initialized with 1.
+		Don't use the delete operator with objects that are ReferenceCounted, use forget() instead.
+
+		The use of this interface is 100% optional in AvoGUI, and should only be used in rare cases. 
+		The idea is that if you want your own control over the lifetime of for example a view, 
+		then you can use remember() and forget(). Everything allocated by the framework is managed by 
+		the framework otherwise.
+	*/
+	class ReferenceCounted
+	{
+	private:
+		std::atomic<Count> m_referenceCount = 1;
+
+	public:
+		ReferenceCounted() {}
+		virtual ~ReferenceCounted() = default;
+
+		/*
+			Increments the reference count and returns the new reference count. Remembers a pointer reference.
+		*/
+		auto remember() -> Count
+		{
+			return ++m_referenceCount;
+		}
+
+		/*
+			Decrements the reference count, returns the new reference count and deletes the object if the reference
+			count has reached 0. Forgets a pointer reference.
+		*/
+		auto forget() -> Count
+		{
+			if (!--m_referenceCount)
+			{
+				delete this;
+				return 0;
+			}
+			return m_referenceCount;
+		}
+
+		/*
+			Returns the number of pointer references to the dynamically allocated object that have been remembered.
+		*/
+		auto getReferenceCount() -> Count
+		{
+			return m_referenceCount;
+		}
+	};
+
+	/*
+		Only used in the framework.
+	*/
+	// template<typename T>
+	// class ProtectedReferenceCounted : protected ReferenceCounted
+	// {
+	// public:
+	// 	virtual auto operator=(ProtectedReferenceCounted<T> const& p_other) -> ProtectedReferenceCounted<T>&
+	// 	{
+	// 		if (m_implementation)
+	// 		{
+	// 			m_implementation->forget();
+	// 		}
+	// 		m_implementation = p_other.m_implementation;
+	// 		if (m_implementation)
+	// 		{
+	// 			m_implementation->remember();
+	// 		}
+	// 		return *this;
+	// 	}
+	// 	virtual auto operator=(ProtectedReferenceCounted<T>&& p_other) -> ProtectedReferenceCounted<T>&
+	// 	{
+	// 		if (m_implementation)
+	// 		{
+	// 			m_implementation->forget();
+	// 		}
+	// 		m_implementation = p_other.m_implementation;
+	// 		p_other.m_implementation = nullptr;
+	// 		return *this;
+	// 	}
+
+	// 	auto operator==(ProtectedReferenceCounted<T> const& p_other) const -> bool
+	// 	{
+	// 		return m_implementation == p_other.m_implementation;
+	// 	}
+	// 	auto operator!=(ProtectedReferenceCounted<T> const& p_other) const -> bool
+	// 	{
+	// 		return m_implementation != p_other.m_implementation;
+	// 	}
+
+	// 	auto getIsValid() const -> bool
+	// 	{
+	// 		return m_implementation;
+	// 	}
+	// 	operator bool() const
+	// 	{
+	// 		return m_implementation;
+	// 	}
+
+	// 	auto destroy() -> void
+	// 	{
+	// 		if (m_implementation)
+	// 		{
+	// 			m_implementation->forget();
+	// 			m_implementation = nullptr;
+	// 		}
+	// 	}
+
+	// protected:
+	// 	T* m_implementation = nullptr;
+	// public:
+	// 	auto getImplementation() const noexcept -> T*
+	// 	{
+	// 		return m_implementation;
+	// 	}
+
+	// protected:
+	// 	ProtectedReferenceCounted(T* p_implementation) noexcept :
+	// 		m_implementation{p_implementation}
+	// 	{
+	// 	}
+
+	// public:
+	// 	ProtectedReferenceCounted() = default;
+	// 	ProtectedReferenceCounted(ProtectedReferenceCounted<T> const& p_other) :
+	// 		m_implementation{p_other.m_implementation}
+	// 	{
+	// 		if (m_implementation)
+	// 		{
+	// 			m_implementation->remember();
+	// 		}
+	// 	}
+	// 	ProtectedReferenceCounted(ProtectedReferenceCounted<T>&& p_other) noexcept :
+	// 		m_implementation{p_other.m_implementation}
+	// 	{
+	// 		p_other.m_implementation = nullptr;
+	// 	}
+	// 	~ProtectedReferenceCounted()
+	// 	{
+	// 		if (m_implementation)
+	// 		{
+	// 			m_implementation->forget();
+	// 		}
+	// 	}
+	// };
+
+	//------------------------------
+
+	// TODO: Remove manual reference counting from Component and make parent own a unique_ptr for every child instead.
+
+	/*
 		A component is an essential building block in an application.
 		An application consists of a hierarchy of components.
 		These components can be Views, however they don't need to be.
 		Every component has its own responsibility, and using non-view components as well as view 
 		components can help separate the concerns of an application.
 		
-		A child component is created using the addComponent member function. The lifetime of a 
-		component is managed by its parent component. The root component, however, doesn't have 
-		a parent and could be simply allocated on the stack. Every component is required to have 
-		a constructor which takes a parent Component as its first parameter.
+		All components which have a parent require being dynamically allocated with the new keyword,
+		and their memory is automatically managed by their parent so there is no need to call forget.
+		The root component, however, doesn't have a parent and could be allocated on the stack.
 
 		See View and Gui for more information.
 	*/
-	class Component
+	class Component : public ReferenceCounted
 	{
 	private:
-		Component* m_root{};
+		Component* m_root;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
-			Returns the root component of the component 
-			tree this object is part of.
 		*/
 		auto getRoot() const -> Component*
 		{
@@ -1790,19 +1914,33 @@ namespace Avo
 		}
 
 	private:
-		Component* m_parent{};
+		Component* m_parent = nullptr;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
-			Sets the parent component of this component.
 		*/
 		auto setParent(Component* p_parent) -> void
 		{
-			p_parent->addComponent(m_parent->stealComponent(this));
+			if (m_parent == p_parent)
+			{
+				return;
+			}
+
+			if (m_parent)
+			{
+				remember();
+				m_parent->removeChild(this);
+			}
+
+			m_parent = p_parent;
+			if (p_parent)
+			{
+				m_root = m_parent->getRoot();
+				m_parent->m_children.push_back(this);
+			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Returns the parent component of this component.
 		*/
 		auto getParent() const -> Component*
 		{
@@ -1810,8 +1948,6 @@ namespace Avo
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Returns the parent component of this component, 
-			dynamically casted to T*.
 		*/
 		template<typename T>
 		auto getParent() const -> T*
@@ -1820,128 +1956,75 @@ namespace Avo
 		}
 
 	private:
-		std::vector<std::unique_ptr<Component>> m_children;
+		std::vector<Component*> m_children;
 	public:
 		/*
 			LIBRARY IMPLEMENTED
-			Returns the child components of this component.
 		*/
-		auto getComponents() const -> auto const&
+		auto getChildren() const -> auto const&
 		{
 			return m_children;
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Returns the number of child components of this component.
 		*/
-		auto getNumberOfComponents() const -> std::size_t
+		auto getNumberOfChildren() const
 		{
 			return m_children.size();
 		}
 		/*
 			LIBRARY IMPLEMENTED
-			Returns whether this component has any children.
 		*/
-		auto getHasComponents() const -> bool
+		template<typename T>
+		auto getChild(Index p_index) const -> T*
 		{
-			return !m_children.empty();
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Returns a child of this component.
-		*/
-		template<typename T, typename = std::enable_if_t<std::is_base_of_v<Component, T>>>
-		auto getComponent(Index const p_index) const -> T*
-		{
-			return dynamic_cast<T*>(m_children[p_index].get());
-		}
-
-		/*
-			LIBRARY IMPLEMENTED
-			Alternative name: kidnap
-			Removes a child from this component and returns it.
-		*/
-		auto stealComponent(decltype(m_children)::iterator p_childIterator) -> std::unique_ptr<Component>
-		{
-			auto child = std::move(*p_childIterator);
-
-			*p_childIterator = std::move(m_children.back());
-			m_children.pop_back();
-
-			return child;
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Alternative name: kidnap
-			Removes a child from this component and returns it.
-		*/
-		auto stealComponent(Index const p_childIndex) -> std::unique_ptr<Component>
-		{
-			return stealComponent(m_children.begin() + p_childIndex);
-		}
-		/*
-			LIBRARY IMPLEMENTED
-			Alternative name: kidnap
-			Removes a child from this component and returns it.
-		*/
-		auto stealComponent(Component* const p_child) -> std::unique_ptr<Component>
-		{
-			return stealComponent(std::find(m_children.begin(), m_children.end(), p_child));
+			return dynamic_cast<T*>(m_children[p_index]);
 		}
 
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		template<
-			typename T, typename ... _Arguments, 
-			typename = std::enable_if_t<std::is_base_of_v<Component, T>>
-		>
-		auto addComponent(_Arguments&& ... p_arguments) -> T*
+		auto addChild(Component* p_child) -> void
 		{
-			return m_children.emplace_back(std::make_unique<T>(this, std::forward<_Arguments>(p_arguments)...)).get();
+			p_child->setParent(this);
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		template<typename T, typename = std::enable_if_t<std::is_base_of_v<Component, T>>>
-		auto addComponent(std::unique_ptr<T>&& p_component) -> T*
-		{
-			return m_children.emplace_back(std::move(p_component)).get();
-		}
-		/*
-			LIBRARY IMPLEMENTED
-		*/
-		auto removeComponent(Index p_index) -> void
+		auto removeChild(Index p_index) -> void
 		{
 			auto& child = m_children[p_index];
 			child->m_parent = nullptr;
 			child->parentChangeListeners(this);
+			child->forget();
 
-			child = std::move(m_children.back());
+			child = m_children.back();
 			m_children.pop_back();
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		auto removeComponent(Component* p_child) -> void
+		auto removeChild(Component* p_child) -> void
 		{
 			if (auto const position = std::find(m_children.begin(), m_children.end(), p_child);
 			    position != m_children.end())
 			{
-				removeComponent(position - m_children.begin());
+				removeChild(position - m_children.begin());
 			}
 		}
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		auto removeAllComponents() -> void
+		auto removeAllChildren() -> void
 		{
-			for (auto const& child : m_children)
+			while (!m_children.empty())
 			{
+				auto const child = m_children.back();
 				child->m_parent = nullptr;
 				child->parentChangeListeners(this);
+				child->forget();
+				m_children.pop_back();
 			}
-			m_children.clear();
 		}
 
 		/*
@@ -1981,8 +2064,8 @@ namespace Avo
 		virtual auto handleParentChange(Component* p_oldParent) -> void {}
 
 	private:
-		std::unordered_map<Id, Component*> m_componentsById;
-		Component* m_idScope;
+		std::unordered_map<Count, Component*> m_componentsById;
+		Component* m_idScope = nullptr;
 		Id m_id = 0;
 	public:
 		/*
@@ -2046,13 +2129,26 @@ namespace Avo
 	public:
 		Component() :
 			m_root{this}
-		{}
+		{
+		}
 		Component(Component* p_parent) :
 			m_root{p_parent ? p_parent->getRoot() : this}
 		{
 			if (p_parent && p_parent != this)
 			{
 				setParent(p_parent);
+			}
+		}
+		~Component()
+		{
+			removeAllChildren();
+
+			setId(0);
+
+			if (m_parent)
+			{
+				remember();
+				setParent(nullptr);
 			}
 		}
 	};
@@ -2874,8 +2970,8 @@ namespace Avo
 		constexpr auto operator*(Vector2dBase<T, C> p_vector) const noexcept -> Vector2dBase<T, C>
 		{
 			return {
-				xToX*p_point.x + yToX*p_point.y + offsetX, 
-				yToY*p_point.y + xToY*p_point.x + offsetY
+				xToX*p_vector.x + yToX*p_vector.y + offsetX, 
+				yToY*p_vector.y + xToY*p_vector.x + offsetY
 			};
 		}
 		/*
@@ -4345,8 +4441,7 @@ namespace Avo
 
 	/*
 		Object representing a color. A Color object stores the channels as 32-bit floats with a range of [0, 1].
-		This means that a Color object is 4 times as big as a packed 32-bit color, but allows for more 
-		precise and efficient operations.
+		This means that a Color object is 4 times as big as a packed 32-bit color.
 	*/
 	struct Color
 	{
@@ -4909,11 +5004,8 @@ namespace Avo
 	// Font family names
 	//
 
-	namespace FontFamilies
-	{
-		inline constexpr auto roboto = std::string_view{"Roboto"};
-		inline constexpr auto materialIcons = std::string_view{"Material Icons"};
-	}
+	inline constexpr std::string_view FONT_FAMILY_ROBOTO = "Roboto";
+	inline constexpr std::string_view FONT_FAMILY_MATERIAL_ICONS = "Material Icons";
 
 	//------------------------------
 
@@ -4962,7 +5054,7 @@ namespace Avo
 		Can be used for changing and accessing any values, colors and easings.
 		All the default IDs are in ThemeColors, ThemeEasings and ThemeValues.
 	*/
-	struct Theme
+	struct Theme : public ReferenceCounted
 	{
 		std::unordered_map<uint64, Color> colors;
 		std::unordered_map<uint64, Easing> easings;
@@ -6646,7 +6738,7 @@ namespace Avo
 
 	struct TextProperties
 	{
-		std::string fontFamilyName = std::string{fontFamily_roboto};
+		std::string fontFamilyName = std::string{FONT_FAMILY_ROBOTO};
 
 		FontWeight fontWeight = FontWeight::Medium;
 		FontStyle fontStyle = FontStyle::Normal;
@@ -6776,7 +6868,7 @@ namespace Avo
 		/*
 			Finishes the drawing and shows it. The GUI calls this for you.
 		*/
-		virtual auto finishDrawing(Range<Rectangle<> const*> p_updatedRectangles) -> void = 0;
+		virtual auto finishDrawing(Range<Rectangle<>*> p_updatedRectangles) -> void = 0;
 
 		//------------------------------
 
@@ -8704,7 +8796,7 @@ namespace Avo
 		) -> Animation*
 		{
 			return m_animations.emplace_back(
-				std::make_unique<Animation>(getGui(), p_easing, p_milliseconds)
+				std::make_unique<Animation>(getGui(), p_easing, p_duration)
 			).get();
 		}
 		/*
@@ -8721,7 +8813,7 @@ namespace Avo
 		) -> Animation*
 		{
 			return m_animations.emplace_back(
-				std::make_unique<Animation>(getGui(), getThemeEasing(p_easingId), p_milliseconds)
+				std::make_unique<Animation>(getGui(), getThemeEasing(p_easingId), p_duration)
 			).get();
 		}
 		/*
@@ -8768,63 +8860,8 @@ namespace Avo
 		/*
 			LIBRARY IMPLEMENTED
 			Makes sure the view is drawn at the correct time, according to elevation.
-			Re-sorts a child view according to elevation.
 		*/
-		auto updateViewDrawingIndex(Avo::View* const p_view) -> void
-		{
-			auto const numberOfViews = getNumberOfViews();
-			if (numberOfViews <= 1 || p_view->getParent<View>() != this)
-			{
-				// Nothing we can do!
-				return;
-			}
-
-			auto const elevation = p_view->getElevation();
-			auto const previousIndex = p_view->getIndex();
-
-			auto const isOrderedWithViewBefore = !previousIndex || elevation > m_childViews[previousIndex - 1]->getElevation();
-			auto const isOrderedWithViewAfter = previousIndex >= numberOfViews - 1 || elevation < m_childViews[previousIndex + 1]->getElevation();
-
-			if (isOrderedWithViewBefore && isOrderedWithViewAfter)
-			{
-				// Nothing we can do!
-				return;
-			}
-			else if (!isOrderedWithViewBefore)
-			{	
-				for (auto a = previousIndex; a >= 0; a--)
-				{
-					if (!a || m_childViews[a - 1]->getElevation() <= elevation)
-					{
-						m_childViews[a] = p_view;
-						p_view->m_index = a;
-						return;
-					}
-					else
-					{
-						m_childViews[a] = m_childViews[a - 1];
-						m_childViews[a]->m_index = a;
-					}
-				}
-			}
-			else //!isOrderedWithViewAfter
-			{
-				for (auto a = previousIndex; a < numberOfViews; a++)
-				{
-					if (a == numberOfViews - 1 || m_childViews[a + 1]->getElevation() >= elevation)
-					{
-						m_childViews[a] = p_view;
-						p_view->m_index = a;
-						return;
-					}
-					else
-					{
-						m_childViews[a] = m_childViews[a + 1];
-						m_childViews[a]->m_index = a;
-					}
-				}
-			}
-		}
+		auto updateViewDrawingIndex(View* p_view) -> void;
 
 		Index m_index = 0;
 	public:
@@ -8855,7 +8892,7 @@ namespace Avo
 	public:
 		/*
 			LIBRARY IMPLEMENTED
-			Attaches this view to a new parent, which will manage the lifetime of the view.
+			Attaches this view to a new parent, which will manage the lifetime of the view unless you've called remember() on it.
 			If the parameter is 0, the view is only detached from its old parent, and is left alone with no parents :^(.
 		*/
 		auto setParent(View* const p_container) -> void
@@ -8869,14 +8906,16 @@ namespace Avo
 
 			if (m_parent)
 			{
-				m_parent->removeView(this);
+				m_parent->removeChildView(this);
 			}
 
-			if (m_parent = p_container)
+			m_parent = p_container;
+			if (p_container)
 			{
 				m_gui = m_parent->m_gui;
 
-				if (dynamic_cast<View*>(m_gui) == this)
+				m_index = m_parent->m_childViews.size();
+				if (reinterpret_cast<View*>(m_gui) == this)
 				{
 					m_layerIndex = 0;
 				}
@@ -8886,12 +8925,10 @@ namespace Avo
 				}
 				m_absolutePosition = m_parent->getAbsoluteTopLeft() + m_bounds.getTopLeft();
 
-				m_parent->insertView(this);
-				// m_index = m_parent->m_childViews.size();
-				// m_parent->m_childViews.push_back(this);
+				m_parent->m_childViews.push_back(this);
 
 				m_parent->childViewAttachmentListeners(this);
-				// m_parent->updateViewDrawingIndex(this);
+				m_parent->updateViewDrawingIndex(this);
 			}
 			else
 			{
@@ -8902,21 +8939,6 @@ namespace Avo
 
 	private:
 		std::vector<View*> m_childViews;
-
-		auto insertView(View* const p_childView) -> void
-		{
-			auto const position = std::lower_bound(
-				m_childViews.begin(), m_childViews.end(), p_childView, 
-				[](View* const a, View* const b){
-					return a->getElevation() < b->getElevation();
-				}
-			);
-			m_childViews.insert(position, p_childView);
-			for (auto* const view : Range{position + 1, end()})
-			{
-				++view->m_index;
-			}
-		}
 
 		/*
 			Applies an operation to all child views within this view, 
@@ -8935,7 +8957,7 @@ namespace Avo
 					currentContainer->begin() + startIndex, currentContainer->end(),
 					[&](View* const childView){
 						std::forward<Callable>(p_apply)(childView);
-						return childView->getHasViews();
+						return childView->getHasChildViews();
 					}
 				);
 				if (nextContainer == currentContainer->end())
@@ -8959,26 +8981,16 @@ namespace Avo
 		}
 
 	public:
-		template<
-			typename T, typename ... _Arguments, 
-			typename = std::enable_if_t<std::is_base_of_v<View, T>>
-		>
-		auto addView(_Arguments&& ... p_arguments) -> T*
-		{
-			auto const newView = static_cast<View*>(addComponent<T>(std::forward<_Arguments>(p_arguments)...));
-			insertView(newView);
-			return newView;
-		}
 		/*
 			LIBRARY IMPLEMENTED
-			Removes a child view from this view. This deletes the view being removed.
-			If you want to steal the child instead of just killing it, use stealView instead.
+			Removes a child view from this view. This forgets the view being removed.
+			If you haven't remembered it yourself, it will get deleted.
 		*/
-		auto removeView(View* const p_view) -> void
+		auto removeChildView(View* const p_view) -> void
 		{
 			if (p_view && p_view->m_parent == this)
 			{
-				removeView(p_view->m_index);
+				removeChildView(p_view->m_index);
 			}
 		}
 		/*
@@ -8986,44 +8998,44 @@ namespace Avo
 			Removes a child view from this view. This forgets the view being removed.
 			If you haven't remembered it yourself, it will get deleted.
 		*/
-		auto removeView(Index const p_viewIndex) -> void
+		auto removeChildView(Index const p_viewIndex) -> void
 		{
-			auto const viewIterator = begin() + p_viewIndex;
-			
-			auto* const viewToRemove = *viewIterator;
-			viewToRemove->m_parent = nullptr;
+			auto const childToRemove = m_childViews[p_viewIndex];
+			childViewDetachmentListeners(childToRemove);
 
-			childViewDetachmentListeners(viewToRemove);
+			childToRemove->m_parent = nullptr;
 
-			m_childViews.erase(viewIterator);
-			for (auto* const child : Range{viewIterator, end()})
+			for (auto const a : Indices{p_viewIndex, m_childViews})
 			{
-				--child->m_index;
+				m_childViews[a] = m_childViews[a + 1];
+				m_childViews[a]->m_index = a;
 			}
+			m_childViews.pop_back();
 
-			removeComponent(viewToRemove);
+			removeChild(childToRemove);
 		}
 		/*
 			LIBRARY IMPLEMENTED
 			Forgets the children views and empties this view from children.
 		*/
-		auto removeAllViews() -> void
+		auto removeAllChildViews() -> void
 		{
-			for (auto* const child : m_childViews)
+			while (!m_childViews.empty()) // That function naming, ew... Why didn't they call it getIsEmpty? empty() should be emptying something >:^(
 			{
-				child->m_parent = nullptr;
+				auto const child = m_childViews.back();
 				childViewDetachmentListeners(child);
-			}
-			m_childViews.clear();
+				child->m_parent = nullptr;
+				m_childViews.pop_back();
 
-			removeAllComponents();
+				removeChild(child);
+			}
 		}
 
 		/*
 			LIBRARY IMPLEMENTED
 			Returns the child view at an index.
 		*/
-		auto getView(Index const p_viewIndex) const -> View*
+		auto getChildView(Index const p_viewIndex) const -> View*
 		{
 			return m_childViews[p_viewIndex];
 		}
@@ -9032,7 +9044,7 @@ namespace Avo
 			Returns the child view at an index, casted to a pointer of another type.
 		*/
 		template<typename T>
-		auto getView(Index const p_viewIndex) const -> T*
+		auto getChildView(Index const p_viewIndex) const -> T*
 		{
 			return dynamic_cast<T*>(m_childViews[p_viewIndex]);
 		}
@@ -9040,7 +9052,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Returns a vector containing the child views that are attached to this view.
 		*/
-		auto getViews() const -> std::vector<View*> const&
+		auto getChildViews() const -> std::vector<View*> const&
 		{
 			return m_childViews;
 		}
@@ -9048,7 +9060,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Returns the number of child views that are attached to this view.
 		*/
-		auto getNumberOfViews() const -> Count
+		auto getNumberOfChildViews() const -> Count
 		{
 			return static_cast<Count>(m_childViews.size());
 		}
@@ -9056,7 +9068,7 @@ namespace Avo
 			LIBRARY IMPLEMENTED
 			Returns whether the view has any child views.
 		*/
-		auto getHasViews() const noexcept -> bool
+		auto getHasChildViews() const noexcept -> bool
 		{
 			return !m_childViews.empty();
 		}
@@ -9544,7 +9556,16 @@ namespace Avo
 		//------------------------------
 
 	private:
-		std::shared_ptr<Theme> m_theme;
+		Theme* m_theme = nullptr;
+	public:
+		/*
+			LIBRARY IMPLEMENTED
+			Returns a pointer to the theme that is used by this view.
+		*/
+		auto getTheme() const -> Theme const*
+		{
+			return m_theme;
+		}
 
 	private:
 		template<typename T, typename U>
@@ -9557,18 +9578,21 @@ namespace Avo
 		{
 			if (p_willAffectChildren)
 			{
-				applyToAllChildViewsRecursively([&](View* const childView){
-					(childView->*p_function)(p_id, std::forward<U>(p_property), false);
+				applyToAllChildViewsRecursively([&](View* const view){
+					(view->*p_function)(p_id, std::forward<U>(p_property), false);
 				});
 			}
 
+			// This is done afterwards because the children should have updated themselves when it's time for the parent to update itself.
+			// It's not the other way around because the parent lays out the children and the size of the children may changed in the handler.
 			if (!m_theme)
 			{
-				m_theme = std::make_shared<Theme>();
+				m_theme = new Theme;
 			}
-			else if (m_theme.use_count() > 1)
+			else if (m_theme->getReferenceCount() > 1)
 			{
-				m_theme = std::make_shared<Theme>(*m_theme);
+				m_theme->forget();
+				m_theme = new Theme{*m_theme};
 			}
 		}
 
@@ -9610,9 +9634,9 @@ namespace Avo
 		template<typename Pairs = std::initializer_list<std::pair<Id, Color>>>
 		auto setThemeColors(Pairs const& p_pairs, bool const p_willAffectChildren = true) -> void
 		{
-			for (auto const& [id, color] : p_pairs)
+			for (auto const& pair : p_pairs)
 			{
-				setThemeColor(id, color, p_willAffectChildren);
+				setThemeColor(pair.first, pair.second, p_willAffectChildren);
 			}
 		}
 		/*
@@ -9620,15 +9644,7 @@ namespace Avo
 		*/
 		auto getThemeColor(Id const p_id) const -> Color
 		{
-			if (auto result = m_theme->colors.find(p_id);
-			    result == m_theme->colors.end())
-			{
-				return {};
-			}
-			else
-			{
-				return result->second;
-			}
+			return m_theme->colors[p_id];
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -9676,9 +9692,9 @@ namespace Avo
 		template<typename Pairs = std::initializer_list<std::pair<Id, Easing>>>
 		auto setThemeEasings(Pairs const& p_pairs, bool const p_willAffectChildren = true) -> void
 		{
-			for (auto const& [id, easing] pair : p_pairs)
+			for (auto const& pair : p_pairs)
 			{
-				setThemeEasing(id, easing, p_willAffectChildren);
+				setThemeEasing(pair.first, pair.second, p_willAffectChildren);
 			}
 		}
 		/*
@@ -9686,15 +9702,7 @@ namespace Avo
 		*/
 		auto getThemeEasing(Id const p_id) const -> Easing
 		{
-			if (auto result = m_theme->easings.find(p_id);
-			    result == m_theme->easings.end())
-			{
-				return {};
-			}
-			else
-			{
-				return result->second;
-			}
+			return m_theme->easings[p_id];
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -9742,9 +9750,9 @@ namespace Avo
 		template<typename Pairs = std::initializer_list<std::pair<Id, float>>>
 		auto setThemeValues(Pairs const& p_pairs, bool const p_willAffectChildren = true) -> void
 		{
-			for (auto const& [id, value] : p_pairs)
+			for (auto const& pair : p_pairs)
 			{
-				setThemeValue(id, value, p_willAffectChildren);
+				setThemeValue(pair.first, pair.second, p_willAffectChildren);
 			}
 		}
 		/*
@@ -9752,15 +9760,7 @@ namespace Avo
 		*/
 		auto getThemeValue(Id const p_id) const -> float
 		{
-			if (auto result = m_theme->values.find(p_id);
-			    result == m_theme->values.end())
-			{
-				return {};
-			}
-			else
-			{
-				return result->second;
-			}
+			return m_theme->values[p_id];
 		}
 		/*
 			LIBRARY IMPLEMENTED
@@ -11098,7 +11098,7 @@ namespace Avo
 			auto const absolute = p_event.xy;
 
 			View* container = this;
-			Index startIndex = getNumberOfViews() - 1;
+			Index startIndex = getNumberOfChildViews() - 1;
 
 			bool hasFoundTopView = false;
 
@@ -11107,7 +11107,7 @@ namespace Avo
 			loopStart:
 				for (Index a = startIndex; a >= 0; a--)
 				{
-					if (auto const child = container->getView(a);
+					if (auto const child = container->getChildView(a);
 					    child->getIsVisible() && child->getIsContainingAbsolute(absolute))
 					{
 						auto const sendEventsIfTheyAreEnabled = [&]{
@@ -11117,7 +11117,7 @@ namespace Avo
 								child->dragDropFinishListeners(p_event);
 							}
 						};
-						if (auto const childCount = child->getNumberOfViews())
+						if (auto const childCount = child->getNumberOfChildViews())
 						{
 							sendEventsIfTheyAreEnabled();
 							container = child;
@@ -11163,7 +11163,7 @@ namespace Avo
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		auto handleGlobalMouseDown(MouseEvent& p_event) -> void
+		auto handleGlobalMouseDown(MouseEvent p_event) -> void
 		{
 			auto const targets = getTopMouseListenersAt(p_event.xy);
 
@@ -11185,7 +11185,7 @@ namespace Avo
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		auto handleGlobalMouseUp(MouseEvent& p_event) -> void
+		auto handleGlobalMouseUp(MouseEvent p_event) -> void
 		{
 			auto const absolute = p_event.xy;
 			if (!m_pressedMouseEventListeners.empty())
@@ -11212,15 +11212,15 @@ namespace Avo
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		auto handleGlobalMouseMove(MouseEvent& p_event) -> void;
+		auto handleGlobalMouseMove(MouseEvent p_event) -> void;
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		auto handleGlobalMouseLeave(MouseEvent& p_event) -> void;
+		auto handleGlobalMouseLeave(MouseEvent p_event) -> void;
 		/*
 			LIBRARY IMPLEMENTED
 		*/
-		auto handleGlobalMouseScroll(MouseEvent& p_event) -> void
+		auto handleGlobalMouseScroll(MouseEvent p_event) -> void
 		{
 			auto const targets = getTopMouseListenersAt(p_event.xy);
 
@@ -13525,8 +13525,8 @@ namespace Avo
 			Filled
 		};
 
-		static constexpr float outlinedPaddingLabel = 5.f;
 	private:
+		static constexpr float OUTLINED_PADDING_LABEL = 5.f;
 		Type m_type;
 
 		EditableText* m_editableText = new EditableText{this};
@@ -13561,7 +13561,7 @@ namespace Avo
 			if (p_id == ThemeValues::textFieldFontSize || p_id == ThemeValues::textFieldHeight)
 			{
 				// Text positions will be updated in handleSizeChange()
-				setHeight(getThemeValue(ThemeValues::textFieldFontSize)*1.2f*getThemeValue(ThemeValues::textFieldHeight) + outlinedPaddingLabel*(m_type == Type::Outlined));
+				setHeight(getThemeValue(ThemeValues::textFieldFontSize)*1.2f*getThemeValue(ThemeValues::textFieldHeight) + OUTLINED_PADDING_LABEL*(m_type == Type::Outlined));
 			}
 			if (p_id == ThemeValues::textFieldPaddingLeft)
 			{
@@ -13637,7 +13637,7 @@ namespace Avo
 			}
 			else
 			{
-				auto const centerY = outlinedPaddingLabel + (getHeight() - outlinedPaddingLabel)*0.5f;
+				auto const centerY = OUTLINED_PADDING_LABEL + (getHeight() - OUTLINED_PADDING_LABEL)*0.5f;
 				if (m_labelText)
 				{
 					m_labelText.setCenterY(centerY);
@@ -13683,7 +13683,7 @@ namespace Avo
 				}
 				else if (m_type == Type::Outlined)
 				{
-					m_labelText.setCenterY(outlinedPaddingLabel + (getHeight() - outlinedPaddingLabel)*0.5f);
+					m_labelText.setCenterY(OUTLINED_PADDING_LABEL + (getHeight() - OUTLINED_PADDING_LABEL)*0.5f);
 				}
 				queueAnimationUpdate();
 			}
@@ -13780,7 +13780,7 @@ namespace Avo
 			}
 			else if (m_type == Type::Outlined)
 			{
-				m_editableText->setCenterY(outlinedPaddingLabel + (getHeight() - outlinedPaddingLabel)*0.5f);
+				m_editableText->setCenterY(OUTLINED_PADDING_LABEL + (getHeight() - OUTLINED_PADDING_LABEL)*0.5f);
 			}
 		}
 		auto getString() const -> std::string_view
@@ -13972,14 +13972,14 @@ namespace Avo
 			else if (m_type == Type::Outlined)
 			{
 				p_context->setColor(m_labelColor);
-				p_context->strokeRectangle({1.f, 1.f + outlinedPaddingLabel, getWidth() - 1.f, getHeight() - 1.f}, getCorners(), m_focusAnimationValue + 1.f);
+				p_context->strokeRectangle({1.f, 1.f + OUTLINED_PADDING_LABEL, getWidth() - 1.f, getHeight() - 1.f}, getCorners(), m_focusAnimationValue + 1.f);
 
 				if (m_labelText)
 				{
 					Factor labelAnimationValue = m_editableText->getString().empty() ? m_focusAnimationValue : 1.f;
 					p_context->moveOrigin({
 						getThemeValue(ThemeValues::textFieldPaddingLeft) + 2.f*labelAnimationValue, 
-						-(getHeight() - outlinedPaddingLabel)*0.3f*labelAnimationValue
+						-(getHeight() - OUTLINED_PADDING_LABEL)*0.3f*labelAnimationValue
 					});
 					p_context->setScale(1.f - labelAnimationValue*0.3f);
 
@@ -14045,7 +14045,7 @@ namespace Avo
 			setSize({
 				p_width, 
 				getThemeValue(ThemeValues::textFieldFontSize)*1.2f*getThemeValue(ThemeValues::textFieldHeight) + 
-				outlinedPaddingLabel*(m_type == Type::Outlined)
+				OUTLINED_PADDING_LABEL*(m_type == Type::Outlined)
 			});
 
 			if (p_type == Type::Filled)

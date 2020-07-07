@@ -105,7 +105,7 @@ namespace Console
 		// Because we use utf-8, convert it from UTF-16 to UTF-8 and store that in the output.
 		auto outputSize = WideCharToMultiByte(CP_UTF8, 0, buffer, bufferSize, 0, 0, 0, 0);
 		p_string.resize(outputSize);
-		WideCharToMultiByte(CP_UTF8, 0, buffer, bufferSize, p_string.data(), outputSize, 0, 0);
+		WideCharToMultiByte(CP_UTF8, 0, buffer, bufferSize, (char*)p_string.data(), outputSize, 0, 0);
 #else
 		// Most other platforms use UTF-8 by default.
 		std::cin >> p_string;
@@ -243,7 +243,7 @@ auto Avo::Animation::cancelAllUpdates() -> void
 // class Id
 //------------------------------
 
-Avo::Id::ValueType Avo::Id::s_counter = {};
+Count Avo::Id::s_counter = {};
 
 //------------------------------
 // class Avo::View
@@ -263,6 +263,51 @@ auto Avo::View::calculateAbsolutePositionRelativeTo(Avo::Point<> p_position) con
 	}
 
 	return p_position;
+}
+
+auto Avo::View::updateViewDrawingIndex(Avo::View* const p_view) -> void
+{
+	auto const numberOfViews = static_cast<Count>(m_childViews.size());
+	if (numberOfViews <= 1 || p_view->getParent<View>() != this)
+	{
+		return;
+	}
+
+	auto const elevation = p_view->getElevation();
+	if (!p_view->getIndex() || (p_view->getIndex() < numberOfViews - 1 && m_childViews[p_view->getIndex() + 1]->getElevation() < elevation))
+	{
+		for (auto a = p_view->getIndex(); a < numberOfViews; a++)
+		{
+			if (a == numberOfViews - 1 || m_childViews[a + 1]->getElevation() >= elevation)
+			{
+				m_childViews[a] = p_view;
+				p_view->m_index = a;
+				return;
+			}
+			else
+			{
+				m_childViews[a] = m_childViews[a + 1];
+				m_childViews[a]->m_index = a;
+			}
+		}
+	}
+	else
+	{
+		for (auto a = p_view->getIndex(); a >= 0; a--)
+		{
+			if (!a || m_childViews[a - 1]->getElevation() <= elevation)
+			{
+				m_childViews[a] = p_view;
+				p_view->m_index = a;
+				return;
+			}
+			else
+			{
+				m_childViews[a] = m_childViews[a - 1];
+				m_childViews[a]->m_index = a;
+			}
+		}
+	}
 }
 
 auto Avo::View::updateShadow() -> void
@@ -374,11 +419,14 @@ Avo::View::View(Avo::View* const p_parent, Avo::Rectangle<> const p_bounds) :
 
 		m_gui = m_parent->getGui();
 
-		m_theme = m_parent->m_theme;
+		// No undefined behavior because getTheme converts Theme* to Theme const*.
+		// We're just casting back to Theme*.
+		m_theme = const_cast<Theme*>(m_parent->getTheme());
+		m_theme->remember();
 	}
 	else
 	{
-		m_theme = std::make_shared<Theme>();
+		m_theme = new Theme;
 	}
 }
 Avo::View::View(Avo::View* const p_parent, Avo::Id const p_id, Avo::Rectangle<> const p_bounds) :
@@ -388,6 +436,7 @@ Avo::View::View(Avo::View* const p_parent, Avo::Id const p_id, Avo::Rectangle<> 
 }
 Avo::View::~View()
 {
+	m_theme->forget();
 	removeAllChildViews();
 	if (m_parent)
 	{
@@ -6339,7 +6388,7 @@ public:
 		m_targetMutex.lock();
 		m_context->BeginDraw();
 	}
-	auto finishDrawing(Range<Avo::Rectangle<> const*> const p_updatedRectangles) -> void override
+	auto finishDrawing(Range<Avo::Rectangle<>*> const p_updatedRectangles) -> void override
 	{
 		m_context->EndDraw();
 		m_targetMutex.unlock();
@@ -7675,11 +7724,11 @@ public:
 
 private:
 	ComReference<IDWriteTextFormat> m_textFormat;
-	static constexpr auto maxFontFamilyNameSize = 200;
+	static constexpr auto MAX_FONT_FAMILY_NAME_SIZE = 200;
 public:
 	auto setDefaultTextProperties(Avo::TextProperties const& p_textProperties) -> void override
 	{
-		auto fontFamily = std::array<char16, maxFontFamilyNameSize>{};
+		auto fontFamily = std::array<char16, MAX_FONT_FAMILY_NAME_SIZE>{};
 		Avo::convertUtf8ToUtf16(p_textProperties.fontFamilyName, fontFamily);
 
 		m_textFormat = nullptr; // Releases, important.
@@ -7745,7 +7794,7 @@ public:
 		}
 		auto* const textLayout = getDWriteTextLayoutFromText(p_text);
 
-		auto name = std::array<WCHAR, maxFontFamilyNameSize>{};
+		auto name = std::array<WCHAR, MAX_FONT_FAMILY_NAME_SIZE>{};
 		textLayout->GetFontFamilyName(name.data(), name.size());
 
 		auto overhangMetrics = DWRITE_OVERHANG_METRICS{};
@@ -10547,29 +10596,52 @@ auto Avo::Gui::getViewAt(Avo::Point<> const p_coordinates) -> Avo::View*
 	auto currentContainer = static_cast<Avo::View*>(this);
 	while (true)
 	{
-		auto const hitViewIterator = std::find_if(
-			currentContainer->rbegin(), currentContainer->rend(), 
-			[&](View* const view){
-				return view->getIsVisible() && !view->getIsOverlay() && view->getIsContainingAbsolute(p_coordinates);
-			}
-		);
-		if (hitViewIterator == currentContainer->rend())
+		if (auto const hitViewIterator = std::find_if(
+				currentContainer->rbegin(), currentContainer->rend(), 
+				[&](View* const view){
+					return view->getIsVisible() && !view->getIsOverlay() && view->getIsContainingAbsolute(p_coordinates);
+				}
+			); hitViewIterator == currentContainer->rend())
 		{
 			return currentContainer;
 		}
 		else
 		{
-			auto* const hitView = *hitViewIterator;
-			if (hitView->getHasChildViews())
+			auto* const view = *hitViewIterator;
+			if (view->getHasChildViews())
 			{
-				currentContainer = hitView;
+				currentContainer = view;
 			}
 			else
 			{
-				return hitView;
+				return view;
 			}
 		}
 	}
+
+	// while (true)
+	// {
+	// 	for (auto a = currentContainer->getNumberOfChildViews() - 1; a >= 0; a--)
+	// 	{
+	// 		auto* const view = currentContainer->getChildView(a);
+	// 		if (view->getIsVisible() && !view->getIsOverlay() && view->getIsContainingAbsolute(p_coordinates))
+	// 		{
+	// 			if (view->getNumberOfChildViews())
+	// 			{
+	// 				currentContainer = view;
+	// 				break;
+	// 			}
+	// 			else
+	// 			{
+	// 				return view;
+	// 			}
+	// 		}
+	// 		else if (!a)
+	// 		{
+	// 			return currentContainer;
+	// 		}
+	// 	}
+	// }
 }
 
 //------------------------------
@@ -10938,7 +11010,7 @@ auto Avo::Gui::handleGlobalDragDropLeave(DragDropEvent& p_event) -> void
 
 //------------------------------
 
-auto Avo::Gui::handleGlobalMouseMove(MouseEvent& p_event) -> void
+auto Avo::Gui::handleGlobalMouseMove(MouseEvent p_event) -> void
 {
 	// This is false if it's called from a view just to send mouse leave and mouse enter events,
 	// if a view has been moved from the mouse for example.
@@ -11187,7 +11259,7 @@ auto Avo::Gui::handleGlobalMouseMove(MouseEvent& p_event) -> void
 		}
 	}
 }
-auto Avo::Gui::handleGlobalMouseLeave(MouseEvent& p_event) -> void
+auto Avo::Gui::handleGlobalMouseLeave(MouseEvent p_event) -> void
 {
 	if (!m_pressedMouseEventListeners.empty())
 	{
@@ -11358,7 +11430,7 @@ auto Avo::Gui::drawViews() -> void
 	if (!m_invalidRectangles.empty())
 	{
 		m_invalidRectanglesMutex.lock();
-		auto const invalidRectangles = std::move(m_invalidRectangles);
+		auto invalidRectangles = std::move(m_invalidRectangles);
 		m_invalidRectangles = std::vector<Avo::Rectangle<>>();
 		m_invalidRectanglesMutex.unlock();
 
@@ -11375,7 +11447,7 @@ auto Avo::Gui::drawViews() -> void
 			m_drawingContext->setOpacity(1.f);
 			m_drawingContext->pushClipRectangle(targetRectangle);
 
-			m_drawingContext->clear(getThemeColor(ThemeColors::background));
+			m_drawingContext->clear(m_theme->colors[ThemeColors::background]);
 
 			draw(m_drawingContext.get(), targetRectangle);
 
