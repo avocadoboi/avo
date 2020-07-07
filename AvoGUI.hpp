@@ -2876,7 +2876,7 @@ namespace Avo
 		// 	Vector2dBase<T, Vector2d>{p_vector}
 		// {}
         template<typename T, template<typename>typename C>
-        constexpr explicit Vector2d(C<T> p_other) :
+        constexpr explicit Vector2d(C<T> p_other) noexcept :
             Vector2dBase<_Type, Vector2d>{p_other}
         {}
 	};
@@ -11583,11 +11583,11 @@ namespace Avo
 		/*
 			If this is true, the user can select more than 1 file to open.
 		*/
-		void setCanSelectMultipleFiles(bool p_canSelectMultipleFiles)
+		auto setCanSelectMultipleFiles(bool p_canSelectMultipleFiles) -> void
 		{
 			m_canSelectMultipleFiles = p_canSelectMultipleFiles;
 		}
-		bool getCanSelectMultipleFiles()
+		auto getCanSelectMultipleFiles() -> bool
 		{
 			return m_canSelectMultipleFiles;
 		}
@@ -11598,14 +11598,14 @@ namespace Avo
 		/*
 			Sets the title shown in the top border of the open file dialog.
 		*/
-		void setTitle(std::string_view p_title)
+		auto setTitle(std::string_view p_title) -> void
 		{
 			m_title = p_title;
 		}
 		/*
 			Returns the title shown in the thop border of the open file dialog.
 		*/
-		std::string_view getTitle()
+		auto getTitle() -> std::string_view
 		{
 			return m_title;
 		}
@@ -11624,9 +11624,9 @@ namespace Avo
 				{"Sound files", "*.mp3;*.wav;*.ogg"}
 			}
 		*/
-		void setFileExtensions(std::vector<FileExtensionFilter>& p_fileExtensions)
+		auto setFileExtensions(Range<FileExtensionFilter*> p_fileExtensions) -> void
 		{
-			m_fileExtensions = std::move(p_fileExtensions);
+			std::copy(p_fileExtensions.begin(), p_fileExtensions.end(), m_fileExtensions.begin());
 		}
 		/*
 			These are the file extensions of the files that the user can open with the dialog.
@@ -11639,14 +11639,14 @@ namespace Avo
 				{"Sound files", "*.mp3;*.wav;*.ogg"}
 			}
 		*/
-		void setFileExtensions(std::vector<FileExtensionFilter>&& p_fileExtensions)
+		auto setFileExtensions(std::vector<FileExtensionFilter>&& p_fileExtensions) -> void
 		{
-			m_fileExtensions = p_fileExtensions;
+			m_fileExtensions = std::move(p_fileExtensions);
 		}
 		/*
 			Returns the file extension filters that can be selected in the dialog.
 		*/
-		std::vector<FileExtensionFilter> const& getFileExtensions()
+		auto getFileExtensions() -> std::vector<FileExtensionFilter> const&
 		{
 			return m_fileExtensions;
 		}
@@ -11656,7 +11656,7 @@ namespace Avo
 			Returns a vector which contains the file paths in UTF-8 format of the files the user has selected to open.
 			It can be empty if the user closed the window without selecting any files.
 		*/
-		std::vector<std::string> open();
+		[[nodiscard]] auto open() -> std::vector<std::string>;
 
 	private:
 		Gui* m_gui;
