@@ -96,12 +96,12 @@ int main()
 
 	auto textField_firstName = new Avo::TextField{viewContainer, Avo::TextField::Type::Outlined, "First name", 150.f};
 	textField_firstName->setLeft(button_no->getRight() + 15.f);
-	textField_firstName->setCenterY(button_readMore->getBottom() * 0.5f - 22.f - Avo::TextField::OUTLINED_PADDING_LABEL * 0.5f);
+	textField_firstName->setCenterY(button_readMore->getBottom() * 0.5f - 22.f - Avo::TextField::outlinedPaddingLabel * 0.5f);
 
 	// auto textField_lastName = viewContainer->addView<Avo::TextField>(Avo::TextField::Type::Outlined, "Last name", 150.f);
 	auto textField_lastName = new Avo::TextField{viewContainer, Avo::TextField::Type::Outlined, "Last name", 150.f};
 	textField_lastName->setLeft(button_no->getRight() + 15.f);
-	textField_lastName->setCenterY(button_readMore->getBottom() * 0.5f + 22.f - Avo::TextField::OUTLINED_PADDING_LABEL * 0.5f);
+	textField_lastName->setCenterY(button_readMore->getBottom() * 0.5f + 22.f - Avo::TextField::outlinedPaddingLabel * 0.5f);
 
 	viewContainer->setPadding(5.f);
 

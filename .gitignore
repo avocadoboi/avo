@@ -1,6 +1,8 @@
 *
 !*.hpp
 !*.cpp
+!*.md
+!*.txt
 !*/
 
 build

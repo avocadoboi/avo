@@ -191,11 +191,15 @@ namespace example_initialization
 
 auto example_formatting() -> void
 {
-	auto const formattedString = Avo::createFormattedString(
-		"I have {1} {}, {} {} and {} {}. Here are {{curly} {{braces} änd söme ünïcödê. Pi: {0}",
-		Avo::PI<float>, 2, "cats", 0, "dogs", 10, "fingers"
-	);
-	Console::println(formattedString);
+	Console::println(Avo::formatString("{}{}{}{}", "Hello", ' ', "world", '!'));
+
+	Console::println(Avo::formatString(
+		"I have {1} {}, {} {} and {} {}. Here are {{curly} {{{{{}}} änd söme ünïcödê. Pi: {0}",
+		Avo::PI<float>, 2, "cats", 0, "dogs", 10, "fingers", "braces"
+	));
+
+	Console::println("What is your age?");
+	Console::println(Avo::formatString("You are {} years old!", Console::readValidated<int>("That is not a valid age!")));
 }
 
 auto main() -> int

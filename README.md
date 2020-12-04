@@ -1,8 +1,8 @@
 # AvoGUI
 
-AvoGUI is a light, modern framework for desktop applications. Written in c++17, but will be updated for c++20 when it has been fully implemented by compilers.
+AvoGUI is a light, modern framework for desktop applications written in c++20.
 
-The project was started because I wanted a graphical framework designed from the user's perspective. The goal is a modern design that allows creative coding and interactive programs yet is scalable for writing larger applications. The API should be intuitive with documentation that explains things clearly and doesn't assume much knowledge.
+The project was started because I wanted a graphical framework designed from the user's perspective. The goal is a modern design that allows creative coding and interactive programs yet is scalable for writing larger applications. The API should be intuitive with documentation that explains things clearly and doesn't assume too much knowledge.
 
 The project was inspired by Google's Material Design guidelines and includes some Material Design controls to help you make good looking applications quickly.
 

@@ -1,11 +1,10 @@
 #include <AvoGUI.hpp>
 
-class Card : public Avo::View
-{
+class Card : public Avo::View {
 private:
-	Avo::TextView* m_text = new Avo::TextView{this, 15.f, u8"Hover or\nclick me!"};
+	Avo::TextView* m_text = addView<Avo::TextView>(15.f, u8"Hover or\nclick me!");
 
-	Avo::Initializer m_init_layout = [this]{
+	Avo::Initializer m_init_layout = [this] {
 		m_text->getText().setTextAlign(Avo::TextAlign::Center);
 		auto const center = [this](auto) {
 			setCenter(getParent<View>()->getCenter());
@@ -39,7 +38,7 @@ private:
 		getGui(), getThemeEasing(Avo::ThemeEasings::inOut), 300ms,
 		[this](float const p_value) {
 			setCornerRadius(p_value * getWidth() * 0.5f);
-			m_color = Avo::interpolate(getThemeColor(Avo::ThemeColors::background), Avo::Color(1.f, 0.4f, 0.8f), p_value);
+			m_color = Avo::interpolate(getThemeColor(Avo::ThemeColors::background), Avo::Color{1.f, 0.4f, 0.8f}, p_value);
 			m_text->setColor(Avo::interpolate(
 				getThemeColor(Avo::ThemeColors::onBackground), 
 				getThemeColor(Avo::ThemeColors::background), 
@@ -58,8 +57,7 @@ private:
 	Avo::Color m_color = getThemeColor(Avo::ThemeColors::background);
 
 public:
-	void draw(Avo::DrawingContext* const p_context) override
-	{
+	void draw(Avo::DrawingContext* const p_context) override {
 		p_context->setColor(m_color);
 		p_context->fillRectangle(getSize());
 	}
@@ -71,12 +69,9 @@ public:
 	}
 };
 
-int main()
-{
-	auto* const gui = new Avo::Gui;
-	gui->create("New animation system!", {500, 400});
-
-	new Card{gui};
-
-	gui->run();
+int main() {
+	auto gui = Avo::Gui{};
+	gui.create("New animation system!", Avo::Size{500, 400});
+	gui.addView<Card>();
+	gui.run();
 }
