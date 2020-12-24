@@ -118,25 +118,25 @@ public:
 	}
 
 private:
-	bool m_was_last_input_valid{true};
+	bool _was_last_input_valid{true};
 public:
 	/*
 		Returns whether the last input read from the console was the correct type.
 	*/
 	auto get_was_last_input_valid() const noexcept -> bool {
-		return m_was_last_input_valid;
+		return _was_last_input_valid;
 	}
 	/*
 		Same as getWasLastInputValid().
 	*/
 	operator bool() const noexcept {
-		return m_was_last_input_valid;
+		return _was_last_input_valid;
 	}
 	/*
 		Same as !getWasLastInputValid().
 	*/
 	auto operator!() const noexcept -> bool {
-		return !m_was_last_input_valid;
+		return !_was_last_input_valid;
 	}
 
 	/*
@@ -147,8 +147,8 @@ public:
 	template<typename T>
 	auto operator>>(T& object) -> Console& {
 		std::cin >> object;
-		m_was_last_input_valid = static_cast<bool>(std::cin);
-		if (!m_was_last_input_valid) {
+		_was_last_input_valid = static_cast<bool>(std::cin);
+		if (!_was_last_input_valid) {
 			// A number was expected but the user wrote characters, so we need to ignore the 
 			// trailing newline character and clear the error state of std::cin.
 			std::cin.clear();
@@ -159,7 +159,7 @@ public:
 
 private:
 #ifdef _WIN32
-	void* m_input_handle; // Used to read unicode from console in the method below
+	void* _input_handle; // Used to read unicode from console in the method below
 #endif
 	auto read_string(std::string&) -> void;
 
@@ -171,6 +171,7 @@ public:
 		but a simpler interface.
 	*/
 	template<typename T>
+    [[nodiscard]]
 	auto read() -> T {
 		T output;
 		operator>>(output);
@@ -204,7 +205,7 @@ public:
 		while (true) {
 			operator>>(result);
 
-			if (m_was_last_input_valid && get_is_valid(result)) {
+			if (_was_last_input_valid && get_is_valid(result)) {
 				return result;
 			}
 			else {
@@ -310,8 +311,32 @@ namespace Avo {
 
 namespace chrono = std::chrono;
 
+template<typename T, typename ... U>
+concept IsAnyOf = std::same_as<T, U> || ...;
+
 template<typename T>
 concept IsNumber = std::integral<T> || std::floating_point<T>;
+
+template<typename T>
+concept IsRatio = requires (T ratio) { std::ratio{ratio}; };
+
+/*
+	Evaluates to true if T meets the "Mutex" named requirements.
+	https://en.cppreference.com/w/cpp/named_req/Mutex
+*/
+template<typename T>
+concept IsMutex = 
+	!std::copyable<T> && !std::movable<T> && 
+	std::default_initializable<T> &&
+	std::destructible<T> &&
+	requires (T mutex) {
+		{ mutex.lock() } -> std::same_as<void>;
+		{ mutex.unlock() } -> std::same_as<void>;
+		{ mutex.try_lock() } -> std::same_as<bool>;
+	};
+
+template<typename _Invocable, typename _Return, typename ... _Args>
+concept IsInvocableWithReturn = std::is_invocable_r_v<_Return, _Invocable, _Args...>;
 
 // Represents an index, position in some sort of list or array.
 using Index = int64;
@@ -343,266 +368,262 @@ using Factor = float;
 		// The resulting type is Range<int>.
 		// The range includes values 3 to 7.
 */
-template<std::movable _Value>
+
+template<std::integral _Value, bool is_reverse = false>
 class Range {
 public:
-	class Iterator {
-	public:
-		using difference_type = std::ptrdiff_t;
-		using value_type = std::remove_pointer_t<_Value>;
-		using pointer = std::conditional_t<std::is_pointer_v<_Value>, _Value, _Value*>;
-		using reference = std::add_lvalue_reference_t<value_type>;
-		using iterator_category = std::random_access_iterator_tag;
-		
-	private:
-		_Value m_value{};
-	public:
-		constexpr auto get_value() const -> _Value {
-			return m_value;
-		}
-		constexpr explicit operator _Value() const {
-			return m_value;
-		}
+    class Iterator {
+    public:
+        using value_type = std::remove_cv_t<_Value>;
+        using reference = value_type&;
+        using pointer = value_type*;
+        using iterator_category = std::bidirectional_iterator_tag;
+        using iterator_concept = std::bidirectional_iterator_tag;
+        using difference_type = value_type;
 
-		constexpr auto operator=(Iterator const other) noexcept -> Iterator& {
-			m_value = other.m_value;
-			return *this;
-		}
-		constexpr auto operator=(_Value const value) noexcept -> Iterator& {
-			m_value = value;
-			return *this;
-		}
+    private:
+        value_type _current_value;
 
-		constexpr auto operator<=>(Iterator const other) const noexcept = default;
+    public:
+        constexpr auto operator++(int) noexcept -> Iterator {
+            if constexpr (is_reverse) {
+                return Iterator{_current_value--};
+            }
+            else {
+                return Iterator{_current_value++};
+            }
+        }
+        constexpr auto operator++() noexcept -> Iterator& {
+            if constexpr (is_reverse) {
+                --_current_value;
+            }
+            else {
+                ++_current_value;
+            }
+            return *this;
+        }
 
-		constexpr auto operator*() const noexcept -> auto& {
-			if constexpr (std::is_pointer_v<_Value>) {
-				return *m_value;
-			}
-			else {
-				return m_value;
-			}
-		}
-		
-		constexpr auto operator++() noexcept -> Iterator& {
-			++m_value;
-			return *this;
-		}
-		constexpr auto operator--() noexcept -> Iterator& {
-			--m_value;
-			return *this;
-		}
+        [[nodiscard]]
+        constexpr auto operator+(difference_type const offset) const noexcept -> Iterator {
+            if constexpr (is_reverse) {
+                return _current_value - offset;
+            }
+            else {
+                return _current_value + offset;
+            }
+        }
+        constexpr auto operator+=(difference_type const offset) noexcept -> Iterator& {
+            if constexpr (is_reverse) {
+                _current_value -= offset;
+            }
+            else {
+                _current_value += offset;
+            }
+            return *this;
+        }
 
-		constexpr auto operator+(Iterator const other) const noexcept -> Iterator {
-			return {m_value + other.m_value};
-		}
-		constexpr auto operator+(std::size_t const offset) const noexcept -> Iterator {
-			return {m_value + offset};
-		}
-		constexpr auto operator-(Iterator const other) const noexcept -> std::ptrdiff_t {
-			return m_value - other.m_value;
-		}
-		constexpr auto operator-(std::size_t const offset) const noexcept -> Iterator {
-			return {m_value - offset};
-		}
+        constexpr auto operator--(int) noexcept -> Iterator {
+            if constexpr (is_reverse) {
+                return Iterator{_current_value++};
+            }
+            else {
+                return Iterator{_current_value--};
+            }
+        }
+        constexpr auto operator--() noexcept -> Iterator& {
+            if constexpr (is_reverse) {
+                ++_current_value;
+            }
+            else {
+                --_current_value;
+            }
+            return *this;
+        }
 
-		constexpr Iterator(Iterator const&) noexcept = default;
-		constexpr Iterator(Iterator&&) noexcept = default;
-		constexpr Iterator() noexcept = default;
-		constexpr Iterator(_Value value) noexcept :
-			m_value{value}
-		{}
-	};
+        [[nodiscard]]
+        constexpr auto operator-(difference_type const offset) const noexcept -> Iterator {
+            if constexpr (is_reverse) {
+                return _current_value + offset;
+            }
+            else {
+                return _current_value - offset;
+            }        
+        }
+        constexpr auto operator-=(difference_type const offset) noexcept -> Iterator& {
+            if constexpr (is_reverse) {
+                _current_value += offset;
+            }
+            else {
+                _current_value -= offset;
+            }
+            return *this;
+        }
+
+        [[nodiscard]]
+        constexpr auto operator*() const noexcept -> value_type const& {
+            return _current_value;
+        }
+        [[nodiscard]]
+        constexpr auto operator*() noexcept -> value_type& {
+            return _current_value;
+        }
+
+        [[nodiscard]]
+        constexpr auto operator<=>(Iterator const& other) const noexcept = default;
+
+        constexpr Iterator() noexcept = default;
+        constexpr Iterator(_Value const value) noexcept :
+            _current_value{value}
+        {}
+    };
 
 private:
-	Iterator m_start;
+    Iterator _start;
+    Iterator _end;
 
 public:
-	/*
-		Returns the first iterator in the range.
-	*/
-	[[nodiscard]] constexpr auto begin() const noexcept -> Iterator {
-		return m_start;
-	}
+    [[nodiscard]]
+    constexpr auto reverse() const noexcept -> Range<_Value, !is_reverse> {
+        return {*(_end - 1), *_start};
+    }
 
-	/*
-		Returns the first pointer in the range or the first number in the range.
-	*/
-	[[nodiscard]] constexpr auto data() const noexcept -> _Value {
-		return m_start.getValue();
-	}
+    [[nodiscard]]
+    constexpr auto begin() const noexcept -> Iterator {
+        return _start;
+    }
 
-	/*
-		Returns the value in the range at index position.
-	*/
-	[[nodiscard]]
-	constexpr auto operator[](std::size_t const position) const noexcept 
-		-> auto& 
-	{
-		assert(("Range error: index out of bounds.", position < size()));
-		return *(m_start + position);
-	}
-	
-private:
-	Iterator m_end;
-public:
-	/*
-		Returns the last iterator in the range.
-	*/
-	[[nodiscard]] constexpr auto end() const noexcept -> Iterator {
-		return m_end;
-	}
+    [[nodiscard]]
+    constexpr auto end() const noexcept -> Iterator {
+        return _end;
+    }
 
-	/*
-		Returns the number of values in the range.
-	*/
-	[[nodiscard]] constexpr auto size() const noexcept -> std::size_t {
-		// m_end is always >= m_start.
-		return static_cast<std::size_t>(m_end - m_start);
-	}
+    /*
+        Creates a range of integers starting with start and ending with inclusive_end.
+    */
+    constexpr Range(_Value const start, _Value const inclusive_end) noexcept requires (!is_reverse) :
+        _start{start},
+        _end{inclusive_end + 1}
+    {}
+    constexpr Range(_Value const start, _Value const inclusive_end) noexcept requires is_reverse :
+        _start{start},
+        _end{inclusive_end - 1}
+    {}
+    /*
+        Creates a range of integers starting with 0 and ending with count - 1.
+    */
+    constexpr Range(_Value const count) noexcept :
+        _start{0},
+        _end{count}
+    {}
 
-	/*
-		Constructs a range including values start to end - 1.
-	*/
-	constexpr Range(_Value const start, _Value const end) noexcept :
-		m_start{start},
-		m_end{end}
-	{
-		checkBounds();
-	}
-	/*
-		Constructs a range from begin and end random access iterators.
-	*/
-	template<typename _Iterator, typename = std::enable_if_t<std::is_class_v<_Iterator>>>
-	constexpr Range(_Iterator const start, _Iterator const end) noexcept :
-		m_start{&*start},
-		m_end{&*end}
-	{
-
-		checkBounds();
-	}
-	/*
-		Constructs a range from a start value and a length.
-	*/
-	template<typename _Integer, typename = std::enable_if_t<!std::is_integral_v<_Value> && std::is_integral_v<_Integer>>>
-	constexpr Range(_Value const start, _Integer const p_length) noexcept :
-		m_start{start},
-		m_end{start + p_length}
-	{
-		checkBounds();
-	}
-	/*
-		Constructs a range from a static array.
-	*/
-	template<typename T, std::size_t size>
-	constexpr Range(T (&p_array)[size]) noexcept :
-		m_start{p_array},
-		m_end{p_array + size}
-	{
-	}
-	/*
-		Constructs a range from an integer, where 
-		the range goes from 0 to value - 1
-	*/
-	template<typename T>
-	constexpr Range(IntegerType<T> const value) noexcept :
-		m_end{value}
-	{
-		checkBounds();
-	}
-	/*
-		Constructs a range from any container that std::data and std::size can be called on.
-	*/
-	template<typename _Container, typename = std::enable_if_t<std::is_class_v<_Container>>>
-	constexpr Range(_Container& container) noexcept :
-		m_start{std::data(container)},
-		m_end{m_start + std::size(container)}
-	{
-		static_assert(
-			std::is_convertible_v<decltype(std::data(container)), _Value>, 
-			"Range error: Container value type is not convertible to the value type of the range."
-		);
-	}
-
-private:
-	constexpr auto checkBounds() noexcept -> void {
-		if (m_end < m_start) {
-			m_end = m_start;
-		}
-	}
+    constexpr Range() noexcept = default;
 };
 
-template<typename _Iterator, typename = std::enable_if_t<std::is_class_v<_Iterator>>>
-Range(_Iterator start, _Iterator end) -> Range<decltype(&*start)>;
-
-template<typename T, std::size_t size>
-Range(T (&p_array)[size]) -> Range<T*>;
-template<typename T, typename = std::enable_if_t<std::is_pointer_v<T> || std::is_integral_v<T>>>
-Range(T value) -> Range<T>;
-template<typename _Container>
-Range(_Container& container) -> Range<decltype(std::data(container))>;
-
-/*
-	Used to iterate over the indices of some container or array, or iterate through a range of integers.
-	Use it together with range-based for loops like this:
-		for (auto i : Indices{array})
-	or this:
-		for (auto i : Indices{100})
-	This is a zero runtime-overhead abstraction and yields identical assembly to an equivalent regular for loop. (with optimizations turned on)
-*/
-class Indices : public Range<std::size_t> {
-public:
-	template<typename _Container, typename = std::enable_if_t<!std::is_integral_v<_Container>>>
-	constexpr Indices(_Container& container) noexcept :
-		Range{std::size(container)}
-	{}
-	template<
-		typename _Container, typename _Integer, 
-		typename = std::enable_if_t<!std::is_integral_v<_Container> && std::is_integral_v<_Integer>>
-	>
-	constexpr Indices(_Integer const startOffset, _Container& container) noexcept :
-		Range{startOffset, std::size(container)}
-	{}
-	template<
-		typename _Container, typename _Integer, 
-		typename = std::enable_if_t<!std::is_integral_v<_Container> && std::is_integral_v<_Integer>>
-	>
-	constexpr Indices(_Container& container, _Integer const endOffset) noexcept :
-		Range{0, std::size(container) + endOffset}
-	{}
-	template<
-		typename _Container, typename _Integer, 
-		typename = std::enable_if_t<!std::is_integral_v<_Container> && std::is_integral_v<_Integer>>
-	>
-	constexpr Indices(_Container& container, _Integer const startOffset, _Integer const endOffset) noexcept :
-		Range{startOffset, std::size(container) + endOffset}
-	{}
-	template<typename _Integer, typename = std::enable_if_t<std::is_integral_v<_Integer>>>
-	constexpr Indices(_Integer const p_n) noexcept :
-		Range{p_n}
-	{}
-	template<typename _Integer, typename = std::enable_if_t<std::is_integral_v<_Integer>>>
-	constexpr Indices(_Integer const start, _Integer const end) noexcept :
-		Range{start, end}
-	{}
-};
+[[nodiscard]]
+constexpr auto indices(std::ranges::sized_range auto const&& range) -> Range<std::size_t> {
+    return std::size(range);
+}
 
 template<typename T>
+struct EnumeratedElement {
+    std::size_t index;
+    T& element;
+};
+
+[[nodiscard]]
+constexpr auto enumerate(std::ranges::range auto& range) 
+    -> std::ranges::view auto 
+{
+    return range | std::views::transform([i = std::size_t{}](auto& element) mutable {
+        return EnumeratedElement{i++, element};
+    });
+}
+
+template<std::ranges::range T> requires std::movable<T> || std::copyable<T>
+class EnumeratedRange {
+private:
+    using _BaseIterator = std::ranges::iterator_t<T const>;
+    T _range;
+
+public:
+    class Iterator {
+    public:
+        using value_type = EnumeratedElement<std::ranges::range_value_t<T> const>;
+        using reference = value_type&;
+        using pointer = value_type*;
+        using iterator_category = std::input_iterator_tag;
+        using iterator_concept = std::input_iterator_tag;
+        using difference_type = std::ptrdiff_t;
+
+    private:
+        _BaseIterator _base_iterator;
+        std::size_t _index;
+		
+    public:
+        constexpr auto operator++(int) -> Iterator {
+            return Iterator{++_base_iterator, ++_index};
+        }
+        constexpr auto operator++() -> Iterator& {
+            ++_base_iterator;
+            ++_index;
+            return *this;
+        }
+
+		[[nodiscard]]
+        constexpr auto operator==(Iterator const& other) const noexcept -> bool {
+            return _base_iterator == other._base_iterator;
+        }
+
+		[[nodiscard]]
+        constexpr auto operator*() const -> value_type {
+            return EnumeratedElement{_index, *_base_iterator};
+        }
+
+        constexpr Iterator() = default;
+        constexpr Iterator(_BaseIterator const base_iterator, std::size_t const index) :
+            _base_iterator{base_iterator},
+            _index{index}
+        {}
+    };
+
+    [[nodiscard]]
+    constexpr auto begin() const -> Iterator {
+        return Iterator{std::begin(_range), std::size_t{}};
+    }
+    [[nodiscard]]
+    constexpr auto end() const -> Iterator {
+        return Iterator{std::end(_range), std::size_t{}};
+    }
+
+    constexpr EnumeratedRange(T&& range) noexcept :
+        _range{std::forward<T>(range)}
+    {}
+    constexpr EnumeratedRange() = default;
+};
+
+[[nodiscard]]
+constexpr auto enumerate(std::ranges::range auto&& range)
+    -> std::ranges::range auto
+{
+    return EnumeratedRange{std::move(range)};
+}
+
+template<IsNumber T>
 constexpr T E =       static_cast<T>(2.71828182845904523l);
-template<typename T>
+template<IsNumber T>
 constexpr T HALF_PI = static_cast<T>(1.57079632679489661l);
-template<typename T>
+template<IsNumber T>
 constexpr T PI =      static_cast<T>(3.14159265358979323l);
-template<typename T>
+template<IsNumber T>
 constexpr T TWO_PI =  static_cast<T>(6.28318530717958647l);
-template<typename T>
+template<IsNumber T>
 constexpr T TAU = TWO_PI<T>;
 
 /*
 	Returns a number multiplied by itself (x to the 2nd power, meaning x^2, meaning x*x).
 	Can be useful if you want to quickly square a longer expression.
 */
-template<typename T>
+template<IsNumber T>
 [[nodiscard]]
 constexpr auto square(T const x) noexcept -> T {
 	return x*x;
@@ -613,21 +634,21 @@ constexpr auto square(T const x) noexcept -> T {
 	It is about 8% to 15% faster than 1.f/std::sqrt(x) with gcc -O3 on my computer.
 */
 [[nodiscard]]
-inline auto fast_inverse_sqrt(float const p_input) noexcept -> float
+inline auto fast_inverse_sqrt(float const input) noexcept -> float
 {
 	static_assert(std::numeric_limits<float>::is_iec559, "fast_inverse_sqrt error: float type must follow IEEE 754-1985 standard.");
 	static_assert(sizeof(float) == 4, "fast_inverse_sqrt error: sizeof(float) must be 4.");
 
 	// Only way to do type punning without undefined behavior it seems.
 	uint32 bits;
-	std::memcpy(&bits, &p_input, 4);
+	std::memcpy(&bits, &input, 4);
 
 	bits = 0x5f3759df - bits/2;
 
 	float approximation;
 	std::memcpy(&approximation, &bits, 4);
 
-	return approximation*(1.5f - 0.5f*p_input*approximation*approximation);
+	return approximation*(1.5f - 0.5f*input*approximation*approximation);
 }
 
 /*
@@ -649,26 +670,25 @@ auto random_normal() -> long double;
 	Returns a value somewhere within range depending on position. This is linear interpolation.
 	If position is below 0 or above 1, the returned value will not be within range.
 */
-template<typename T>
+template<IsNumber T>
 [[nodiscard]]
-constexpr auto interpolate(Range<T> const range, Factor const position) noexcept -> T
+constexpr auto interpolate(std::pair<T, T> const range, Factor const position) noexcept -> T
 {
-	if constexpr (std::is_integral_v<T>) {
-		return static_cast<T>(range.begin().getValue()*(1.f - position) + range.end().getValue()*position + 0.5f);
+	if constexpr (std::integral<T>) {
+		return static_cast<T>(range.first*(1.f - position) + range.second*position + 0.5f);
 	}
-	return static_cast<T>(range.begin().getValue()*(1.f - position) + range.end().getValue()*position);
+	return static_cast<T>(range.first*(1.f - position) + range.second*position);
 }
 /*
 	Clips value so that the returned value is never outside range.
 */
-template<typename T0, typename T1>
+template<IsNumber T0, IsNumber T1>
 [[nodiscard]]
-constexpr auto constrain(T0 const value, Range<T1> const range) noexcept -> T0
+constexpr auto constrain(T0 const value, std::pair<T1, T1> const range) noexcept -> T0
 {
+	auto const [min, max] = std::ranges::minmax({range.first, range.second});
 	// If this is true then we need to round "inwards" in case the value is outside of the bounds.
-	auto const min = range.begin().getValue(),
-				max = range.end().getValue();
-	if constexpr (std::is_integral_v<T0> && std::is_floating_point_v<T1>) {
+	if constexpr (std::integral<T0> && std::floating_point<T1>) {
 		return value < min ? std::ceil(min) : 
 				value > max ? std::floor(max) : value;
 	}
@@ -678,10 +698,10 @@ constexpr auto constrain(T0 const value, Range<T1> const range) noexcept -> T0
 	Clips value so that the returned value is never below 0 or above 1.
 	If 0 <= value <= 1, then the returned value is equal to value.
 */
-template<typename T>
+template<IsNumber T>
 [[nodiscard]]
 constexpr auto constrain(T const value) noexcept -> T {
-	return constrain<T>(value, Range{static_cast<T>(0), static_cast<T>(1)});
+	return constrain<T>(value, std::pair{T{}, T{}});
 }
 
 //------------------------------
@@ -699,12 +719,12 @@ constexpr auto sign(T const number) noexcept -> int {
 
 template<typename T>
 [[nodiscard]]
-constexpr auto max(T&& value) noexcept {
+constexpr auto max(T&& value) noexcept -> auto&& {
 	return std::forward<T>(value);
 }
 template<typename T0, typename T1, typename ... T2>
 [[nodiscard]]
-constexpr auto max(T0&& p_first, T1&& p_second, T2&& ... p_arguments) noexcept {
+constexpr auto max(T0&& p_first, T1&& p_second, T2&& ... p_arguments) noexcept -> auto&& {
 	return (p_first > p_second) ? 
 		max(std::forward<T0>(p_first), std::forward<T2>(p_arguments)...) : 
 		max(std::forward<T1>(p_second), std::forward<T2>(p_arguments)...);
@@ -712,30 +732,15 @@ constexpr auto max(T0&& p_first, T1&& p_second, T2&& ... p_arguments) noexcept {
 
 template<typename T>
 [[nodiscard]]
-constexpr auto min(T&& value) noexcept
-{
+constexpr auto min(T&& value) noexcept -> auto&& {
 	return std::forward<T>(value);
 }
 template<typename T0, typename T1, typename ... T2>
 [[nodiscard]]
-constexpr auto min(T0&& p_first, T1&& p_second, T2&& ... p_arguments) noexcept
-{
+constexpr auto min(T0&& p_first, T1&& p_second, T2&& ... p_arguments) noexcept -> auto&& {
 	return (p_first < p_second) ? 
 		min(std::forward<T0>(p_first), std::forward<T2>(p_arguments)...) : 
 		min(std::forward<T1>(p_second), std::forward<T2>(p_arguments)...);
-}
-
-//------------------------------
-
-template<typename T>
-[[nodiscard]]
-constexpr auto floor(FloatingPointType<T> number) -> int64 {
-	return static_cast<int64>(number) - (number < T{});
-}
-template<typename T>
-[[nodiscard]]
-constexpr auto ceil(FloatingPointType<T> number) -> int64 {
-	return static_cast<int64>(number) + (number > T{});
 }
 
 //------------------------------
@@ -744,7 +749,7 @@ constexpr auto ceil(FloatingPointType<T> number) -> int64 {
 	Removes an element from a vector. The function returns true if the element existed in the vector and was removed.
 */
 template<typename T>
-auto removeVectorElementWhileKeepingOrder(std::vector<T>& vector, T const& element) -> bool
+auto remove_vector_element_while_keeping_order(std::vector<T>& vector, T const& element) -> bool
 {
 	if (auto const position = std::ranges::find(vector, element);
 		position != vector.cend())
@@ -780,28 +785,28 @@ auto remove_vector_element_without_keeping_order(std::vector<T>& vector, T const
 /*
 	Converts a UTF-8 encoded char string to a UTF-16 encoded char16 string.
 */
-auto convert_utf8_to_utf16(std::string_view p_input, Range<char16*> p_output) -> void;
+auto convert_utf8_to_utf16(std::string_view input, std::span<char16> output) -> void;
 /*
 	Converts a UTF-8 encoded string to a UTF-16 encoded std::u16string.
 */
-auto convert_utf8_to_utf16(std::string_view p_input) -> std::u16string;
+auto convert_utf8_to_utf16(std::string_view input) -> std::u16string;
 /*
 	Returns the number of UTF-16 encoded char16 units that would be used to represent the same characters in a UTF-8 encoded char string.
 */
-auto get_number_of_units_in_utf_converted_string(std::string_view p_input) -> Count;
+auto get_number_of_units_in_utf_converted_string(std::string_view input) -> Count;
 
 /*
 	Converts a UTF-16 encoded char16 string to a UTF-8 encoded char string.
 */
-void convert_utf16_to_utf8(std::u16string_view p_input, Range<char8*> p_output);
+void convert_utf16_to_utf8(std::u16string_view input, std::span<char8> output);
 /*
 	Converts a UTF-16 char16 string to a UTF-8 encoded std::string.
 */
-auto convert_utf16_to_utf8(std::u16string_view p_input) -> std::string;
+auto convert_utf16_to_utf8(std::u16string_view input) -> std::string;
 /*
 	Returns the number of UTF-8 encoded char units that would be used to represent the same characters in a UTF-16 encoded char16 string.
 */
-auto get_number_of_units_in_utf_converted_string(std::u16string_view p_input) -> Count;
+auto get_number_of_units_in_utf_converted_string(std::u16string_view input) -> Count;
 
 //------------------------------
 
@@ -901,7 +906,7 @@ auto getCharacterIndexFromUnitIndex(std::basic_string_view<T> const string, Inde
 	);
 }
 template<typename T>
-inline auto getNumberOfCharactersInString(std::basic_string_view<T> const string) -> Index
+inline auto get_number_of_characters_in_string(std::basic_string_view<T> const string) -> Index
 {
 	return getCharacterIndexFromUnitIndex(string, string.size()) + 1;
 }
@@ -1242,8 +1247,8 @@ auto format_string(std::string_view const format_string, FormattableType&& ... o
 //------------------------------
 
 using DataVector = std::vector<std::byte>;
-using DataView = Range<std::byte const*>;
-using DataRange = Range<std::byte*>;
+using DataView = std::span<std::byte const>;
+using DataRange = std::span<std::byte>;
 
 [[nodiscard]] 
 inline auto read_file(std::string_view const path) -> DataVector {
@@ -1277,19 +1282,19 @@ public:
 	
 private:
 	static ValueType s_counter;
-	ValueType m_count;
+	ValueType _count;
 
 public:
 	constexpr operator ValueType() const noexcept {
-		return m_count;
+		return _count;
 	}
-	constexpr auto operator==(Id const& p_id) const noexcept -> bool = default;
+	constexpr auto operator==(Id const& id) const noexcept -> bool = default;
 
-	constexpr Id(ValueType p_id) noexcept :
-		m_count{p_id}
+	constexpr Id(ValueType id) noexcept :
+		_count{id}
 	{}
 	constexpr Id() noexcept :
-		m_count{++s_counter}
+		_count{++s_counter}
 	{}
 };
 
@@ -1312,39 +1317,39 @@ template<typename ReturnType, typename Class, typename ... Arguments>
 template<typename FunctionalType>
 class EventListeners {
 private:
-	std::recursive_mutex m_mutex;
-	std::vector<std::function<FunctionalType>> m_listeners;
+	std::recursive_mutex _mutex;
+	std::vector<std::function<FunctionalType>> _listeners;
 
 public:
 	[[nodiscard]] auto begin() noexcept {
-		return m_listeners.begin();
+		return _listeners.begin();
 	}
 	[[nodiscard]] auto end() noexcept {
-		return m_listeners.end();
+		return _listeners.end();
 	}
 
-	template<typename Callable>
-	auto add(Callable const& p_listener) -> void {
-		std::scoped_lock const lock{m_mutex};
-		m_listeners.emplace_back(p_listener);
+	template<typename _Callback>
+	auto add(_Callback const& p_listener) -> void {
+		std::scoped_lock const lock{_mutex};
+		_listeners.emplace_back(p_listener);
 	}
-	template<typename Callable>
-	auto operator+=(Callable const& p_listener) -> EventListeners& {
+	template<typename _Callback>
+	auto operator+=(_Callback const& p_listener) -> EventListeners& {
 		add(p_listener);
 		return *this;
 	}
 
 	auto remove(std::function<FunctionalType> const& p_listener) -> void {
-		auto const lock = std::scoped_lock{m_mutex};
+		auto const lock = std::scoped_lock{_mutex};
 		auto const& listenerType = p_listener.target_type();
-		for (auto& listener : m_listeners) {
+		for (auto& listener : _listeners) {
 			if (listenerType == listener.target_type()) {
 				// template keyword is used to expicitly tell the compiler that target is a template method for
 				// std::function<FunctionalType> and < shouldn't be parsed as the less-than operator
 				if (*(p_listener.template target<FunctionalType>()) == *(listener.template target<FunctionalType>()))
 				{
-					listener = m_listeners.back();
-					m_listeners.pop_back();
+					listener = _listeners.back();
+					_listeners.pop_back();
 					break;
 				}
 			}
@@ -1356,8 +1361,8 @@ public:
 	}
 
 	auto clear() -> void {
-		auto const lock = std::scoped_lock{m_mutex};
-		m_listeners.clear();
+		auto const lock = std::scoped_lock{_mutex};
+		_listeners.clear();
 	}
 
 	/*
@@ -1366,8 +1371,8 @@ public:
 	template<typename ... T>
 	auto notifyAll(T&& ... p_eventArguments) -> void {
 		// The explicit template argument is required here.
-		auto const lock = std::scoped_lock<std::recursive_mutex>{m_mutex};
-		auto listenersCopy = m_listeners;
+		auto const lock = std::scoped_lock<std::recursive_mutex>{_mutex};
+		auto listenersCopy = _listeners;
 		for (auto& listener : listenersCopy) {
 			listener(std::forward<T>(p_eventArguments)...);
 		}
@@ -1378,14 +1383,14 @@ public:
 	}
 
 	auto operator=(EventListeners&& other) noexcept -> EventListeners& {
-		m_listeners = std::move(other.m_listeners);
+		_listeners = std::move(other._listeners);
 		return *this;
 	}
 	auto operator=(EventListeners const& other) -> EventListeners& = delete;
 
 	EventListeners() = default;
 	EventListeners(EventListeners&& p_listeners) noexcept {
-		m_listeners = std::move(p_listeners.m_listeners);
+		_listeners = std::move(p_listeners._listeners);
 	}
 	EventListeners(EventListeners const&) = delete;
 };
@@ -1403,88 +1408,89 @@ public:
 	auto& operator=(Cleanup&&) = delete;
 
 private:
-	T m_callback;
+	T _callback;
 
 public:
 	Cleanup(T const& callback) :
-		m_callback{callback}
+		_callback{callback}
 	{}
 	Cleanup(T&& callback) :
-		m_callback{std::move(callback)}
+		_callback{std::move(callback)}
 	{}
 	~Cleanup() {
-		m_callback();
+		_callback();
 	}
 };
 
 //------------------------------
 
+template<typename T>
+concept IsTimerThreadCallback = IsInvocableWithReturn<T, void>;
+
 /*
 	A TimerThread is used for timer callbacks. 
 	The first time a callback is added, it spawns a thread that sleeps until the next callback should be called.
 */
-template<typename MutexType = std::mutex>
+template<IsMutex _Mutex = std::mutex>
 class TimerThread {
 	using _Clock = chrono::steady_clock;
 
 	class Timeout {
 	private:
-		std::function<void()> m_callback;
+		std::function<void()> _callback;
 	public:
 		auto operator()() const -> void {
-			m_callback();
+			_callback();
 		}
 		
 		_Clock::time_point end_time;
 		Id id = 0;
 
-		template<typename Callable, typename DurationType, typename DurationPeriod>
-		Timeout(Callable const& callback, chrono::duration<DurationType, DurationPeriod> duration, Id p_id) :
-			m_callback{callback},
+		template<IsTimerThreadCallback _Callback, IsNumber _DurationType, IsRatio _DurationPeriod>
+		Timeout(_Callback const& callback, chrono::duration<_DurationType, _DurationPeriod> const duration, Id const p_id) :
+			_callback{callback},
 			end_time{_Clock::now() + chrono::duration_cast<_Clock::duration>(duration)},
 			id{p_id}
-		{
-			static_assert(std::is_invocable_r_v<void, Callable>, "TimerThread::Timeout error: Timeout callback must be of type void().");
-		}
+		{}
 	};
 
-	std::vector<Timeout> m_timeouts;
+	std::vector<Timeout> _timeouts;
 
-	// Protects the m_timeouts vector because it is modified in different threads
-	std::mutex m_timeouts_mutex;
+	// Protects the _timeouts vector because it is modified in different threads
+	std::mutex _timeouts_mutex;
 
 	// This is a pointer to a user-provided mutex that should be locked during all timeout callbacks.
-	MutexType* m_callback_mutex = nullptr;
+	_Mutex* _callback_mutex = nullptr;
 
 	// The timeouts have their own IDs and this is used to generate new ones
-	std::atomic<Count> m_id_counter = 1;
+	std::atomic<Count> _id_counter = 1;
 
 	//------------------------------
 
-	auto waitForNewTimeout() -> void {
-		m_id_counter = 0;
-		if (!m_needsToWake) {
-			auto const lock = std::unique_lock{m_wakeMutex};
-			m_wakeConditionVariable.wait(lock, [&] { return static_cast<bool>(m_needsToWake); });
+	auto wait_for_new_timeout() -> void {
+		_id_counter = 0;
+		if (!_needs_to_wake) {
+			auto const lock = std::unique_lock{_wakeMutex};
+			_wake_condition_variable.wait(lock, [&] { return static_cast<bool>(_needs_to_wake); });
 		}
-		m_needsToWake = false;
+		_needs_to_wake = false;
 	}
-	auto waitForTimeoutToEnd() -> void {
-		if (!m_needsToWake) {
-			auto const lock = std::unique_lock{m_wakeMutex};
-			m_wakeConditionVariable.wait_until(lock, m_timeouts.begin()->end_time, [&] { return static_cast<bool>(m_needsToWake); });
+	auto wait_for_timeout_to_end() -> void {
+		if (!_needs_to_wake) {
+			auto const lock = std::unique_lock{_wakeMutex};
+			_wake_condition_variable.wait_until(lock, _timeouts.begin()->end_time, [&] { return static_cast<bool>(_needs_to_wake); });
 		}
-		m_needsToWake = false;
+		_needs_to_wake = false;
 	}
-	auto notifyEndedTimeouts() -> void {
+	auto notify_ended_timeouts() -> void {
 		auto const nextTimeout = std::find_if(
-			m_timeouts.begin(), m_timeouts.end(), 
+			_timeouts.begin(), _timeouts.end(), 
 			[&](Timeout& timeout) {
 				if (timeout.end_time >= _Clock::now()) {
 					return true;
 				}
-				if (m_callback_mutex) {
-					auto const lock = std::scoped_lock{*m_callback_mutex};
+				if (_callback_mutex) {
+					auto const lock = std::scoped_lock{*_callback_mutex};
 					timeout();
 				}
 				else {
@@ -1493,99 +1499,99 @@ class TimerThread {
 				return false;
 			}
 		);
-		auto const lock = std::scoped_lock{m_timeouts_mutex};
-		m_timeouts.erase(m_timeouts.begin(), nextTimeout);
+		auto const lock = std::scoped_lock{_timeouts_mutex};
+		_timeouts.erase(_timeouts.begin(), nextTimeout);
 	}
 
-	std::atomic<bool> m_isRunning = false;
-	std::thread m_thread;
+	std::atomic<bool> _is_running = false;
+	std::thread _thread;
 
 	auto thread_run() -> void {
-		m_isRunning = true;
-		while (m_isRunning)  {
-			if (m_timeouts.empty()) {
-				waitForNewTimeout();
+		_is_running = true;
+		while (_is_running)  {
+			if (_timeouts.empty()) {
+				wait_for_new_timeout();
 			}
 			else {
-				waitForTimeoutToEnd();
+				wait_for_timeout_to_end();
 				
-				if (m_timeouts.empty()) {
+				if (_timeouts.empty()) {
 					continue;
 				}
 
-				notifyEndedTimeouts();
+				notify_ended_timeouts();
 			}
 		}
 	}
 
 	//------------------------------
 
-	std::atomic<bool> m_needsToWake = false;
-	std::condition_variable m_wakeConditionVariable;
-	std::mutex m_wakeMutex;
+	std::atomic<bool> _needs_to_wake = false;
+	std::condition_variable _wake_condition_variable;
+	std::mutex _wakeMutex;
 
 	auto wake() -> void {
-		if (!m_needsToWake) {
-			m_wakeMutex.lock();
-			m_needsToWake = true;
-			m_wakeMutex.unlock();
-			m_wakeConditionVariable.notify_one();
+		if (!_needs_to_wake) {
+			_wakeMutex.lock();
+			_needs_to_wake = true;
+			_wakeMutex.unlock();
+			_wake_condition_variable.notify_one();
 		}
 	}
 
 	//------------------------------
 
 	auto run() -> void {
-		m_thread = std::thread{&TimerThread::thread_run, this};
-		m_isRunning = true;
+		_thread = std::thread{&TimerThread::thread_run, this};
+		_is_running = true;
 	}
 
 public:
 	/*
 		Adds a function that will be called in duration from now.
 	*/
-	template<typename Callable, typename DurationType, typename DurationPeriod>
-	auto add_callback(Callable const& callback, chrono::duration<DurationType, DurationPeriod> const duration) 
+	template<IsTimerThreadCallback _Callback, IsNumber _DurationType, IsRatio _DurationPeriod>
+	auto add_callback(_Callback const& callback, chrono::duration<_DurationType, _DurationPeriod> const duration) 
 		-> Id
 	{
-		if (!m_isRunning) {
+		if (!_is_running) {
 			run();
 		}
 
-		auto timeout = Timeout{callback, duration, m_id_counter++};
+		auto timeout = Timeout{callback, duration, _id_counter++};
 		auto const id = timeout.id;
 		{
-			auto const lock = std::scoped_lock{m_timeouts_mutex};
+			auto const lock = std::scoped_lock{_timeouts_mutex};
 			// Find the right position to keep the vector sorted.
 			auto const position = std::ranges::lower_bound(
-				m_timeouts, timeout, 
+				_timeouts, timeout, 
 				[](Timeout const& p_a, Timeout const& p_b) {
 					return p_a.end_time < p_b.end_time; 
 				}
 			);
-			m_timeouts.insert(position, std::move(timeout));
+			_timeouts.insert(position, std::move(timeout));
 		}
 		wake();
 		return id;
 	}
-	template<typename Callable>
-	auto add_callback(Callable const& callback, float const milliseconds)
+	template<typename _Callback>
+	auto add_callback(_Callback const& callback, float const milliseconds)
 		-> Id
 	{
 		return add_callback(callback, chrono::duration<float, std::milli>{milliseconds});
 	}
 
-	auto cancelCallback(Id p_id) -> void {
-		auto const lock = std::scoped_lock{m_timeouts_mutex};
+	auto cancel_callback(Id id) -> void {
+		auto const lock = std::scoped_lock{_timeouts_mutex};
 
 		auto const position = std::ranges::find_if(
-			m_timeouts, 
+			_timeouts, 
 			[=](Timeout const& p_timeout) {
-				return p_timeout.id == p_id; 
+				return p_timeout.id == id; 
 			}
 		);
-		if (position != m_timeouts.end()) {
-			m_timeouts.erase(position);
+		if (position != _timeouts.end()) {
+			_timeouts.erase(position);
 		}
 	}
 
@@ -1593,15 +1599,14 @@ public:
 	/*
 		p_callbackMutex is a mutex that is locked every time a timer callback is called.
 	*/
-	TimerThread(MutexType& p_callbackMutex) :
-		m_callback_mutex{&p_callbackMutex}
-	{
-	}
+	TimerThread(_Mutex& p_callbackMutex) :
+		_callback_mutex{&p_callbackMutex}
+	{}
 	~TimerThread() {
-		if (m_isRunning) {
-			m_isRunning = false;
+		if (_is_running) {
+			_is_running = false;
 			wake();
-			m_thread.join();
+			_thread.join();
 		}
 	}
 };
@@ -1624,7 +1629,7 @@ public:
 */
 class Component {
 private:
-	Component* m_root{};
+	Component* _root{};
 public:
 	/*
 		LIBRARY IMPLEMENTED
@@ -1632,67 +1637,67 @@ public:
 		tree this object is part of.
 	*/
 	auto get_root() const -> Component* {
-		return m_root;
+		return _root;
 	}
 
 private:
-	Component* m_parent{};
+	Component* _parent{};
 public:
 	/*
 		LIBRARY IMPLEMENTED
 		Sets the parent component of this component.
 	*/
 	auto set_parent(Component* parent) -> void {
-		parent->add_component(m_parent->steal_component(this));
+		parent->add_component(_parent->steal_component(this));
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the parent component of this component.
 	*/
 	auto get_parent() const -> Component* {
-		return m_parent;
+		return _parent;
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the parent component of this component, 
 		dynamically casted to T*.
 	*/
-	template<typename T>
+	template<std::derived_from<Component> T>
 	auto get_parent() const -> T* {
-		return dynamic_cast<T*>(m_parent);
+		return dynamic_cast<T*>(_parent);
 	}
 
 private:
-	std::vector<std::unique_ptr<Component>> m_children;
+	std::vector<std::unique_ptr<Component>> _children;
 public:
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the child components of this component.
 	*/
 	auto get_components() const -> auto const& {
-		return m_children;
+		return _children;
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the number of child components of this component.
 	*/
 	auto get_number_of_components() const -> std::size_t {
-		return m_children.size();
+		return _children.size();
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns whether this component has any children.
 	*/
 	auto get_has_components() const -> bool {
-		return !m_children.empty();
+		return !_children.empty();
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns a child of this component.
 	*/
-	template<typename T, typename = std::enable_if_t<std::is_base_of_v<Component, T>>>
-	auto getComponent(Index const index) const -> T* {
-		return dynamic_cast<T*>(m_children[index].get());
+	template<std::derived_from<Component> T>
+	auto get_component(Index const index) const -> T* {
+		return dynamic_cast<T*>(_children[index].get());
 	}
 
 	/*
@@ -1700,13 +1705,13 @@ public:
 		Alternative name: kidnap
 		Removes a child from this component and returns it.
 	*/
-	auto steal_component(decltype(m_children)::iterator p_childIterator) 
+	auto steal_component(decltype(_children)::iterator child_iterator) 
 		-> std::unique_ptr<Component>
 	{
-		auto child = std::move(*p_childIterator);
+		auto child = std::move(*child_iterator);
 
-		*p_childIterator = std::move(m_children.back());
-		m_children.pop_back();
+		*child_iterator = std::move(_children.back());
+		_children.pop_back();
 
 		return child;
 	}
@@ -1715,16 +1720,16 @@ public:
 		Alternative name: kidnap
 		Removes a child from this component and returns it.
 	*/
-	auto steal_component(Index const p_childIndex) -> std::unique_ptr<Component> {
-		return steal_component(m_children.begin() + p_childIndex);
+	auto steal_component(Index const child_index) -> std::unique_ptr<Component> {
+		return steal_component(_children.begin() + child_index);
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Alternative name: kidnap
 		Removes a child from this component and returns it.
 	*/
-	auto steal_component(Component* const p_child) -> std::unique_ptr<Component> {
-		return steal_component(std::find(m_children.begin(), m_children.end(), p_child));
+	auto steal_component(Component* const child) -> std::unique_ptr<Component> {
+		return steal_component(std::find(_children.begin(), _children.end(), child));
 	}
 
 	/*
@@ -1736,45 +1741,45 @@ public:
 	>
 	auto add_component(_Arguments&& ... p_arguments) -> T*
 	{
-		return m_children.emplace_back(std::make_unique<T>(this, std::forward<_Arguments>(p_arguments)...)).get();
+		return _children.emplace_back(std::make_unique<T>(this, std::forward<_Arguments>(p_arguments)...)).get();
 	}
 	/*
 		LIBRARY IMPLEMENTED
 	*/
 	template<typename T, typename = std::enable_if_t<std::is_base_of_v<Component, T>>>
 	auto add_component(std::unique_ptr<T>&& p_component) -> T* {
-		return m_children.emplace_back(std::move(p_component)).get();
+		return _children.emplace_back(std::move(p_component)).get();
 	}
 	/*
 		LIBRARY IMPLEMENTED
 	*/
-	auto removeComponent(Index const index) -> void {
-		auto& child = m_children[index];
-		child->m_parent = nullptr;
+	auto remove_component(Index const index) -> void {
+		auto& child = _children[index];
+		child->_parent = nullptr;
 		child->parent_change_listeners(this);
 
-		child = std::move(m_children.back());
-		m_children.pop_back();
+		child = std::move(_children.back());
+		_children.pop_back();
 	}
 	/*
 		LIBRARY IMPLEMENTED
 	*/
-	auto removeComponent(Component* const p_child) -> void {
-		if (auto const position = std::find(m_children.begin(), m_children.end(), p_child);
-			position != m_children.end())
+	auto remove_component(Component* const child) -> void {
+		if (auto const position = std::find(_children.begin(), _children.end(), child);
+			position != _children.end())
 		{
-			removeComponent(position - m_children.begin());
+			remove_component(position - _children.begin());
 		}
 	}
 	/*
 		LIBRARY IMPLEMENTED
 	*/
-	auto removeAllComponents() -> void {
-		for (auto const& child : m_children) {
-			child->m_parent = nullptr;
+	auto remove_all_components() -> void {
+		for (auto const& child : _children) {
+			child->_parent = nullptr;
 			child->parent_change_listeners(this);
 		}
-		m_children.clear();
+		_children.clear();
 	}
 
 	/*
@@ -1814,74 +1819,70 @@ public:
 	virtual auto handle_parent_change(Component* old_parent) -> void {}
 
 private:
-	std::unordered_map<Id, Component*> m_components_by_id;
-	Component* m_id_scope;
-	Id m_id = 0;
+	std::unordered_map<Id, Component*> _components_by_id;
+	Component* _id_scope;
+	Id _id = 0;
 public:
 	/*
 		Sets an ID that can be used to retrieve the component from the hierarchy.
-		If p_id is 0, it is only removed from the scope.
-		p_scope is the component that manages the ID of this component and is the topmost component 
+		If id is 0, it is only removed from the scope.
+		scope is the component that manages the ID of this component and is the topmost component 
 		from which the ID of this component can be retrieved.
 	*/
-	auto set_id(Id const p_id, Component* const p_scope) -> void {
-		if (m_id_scope) {
-			if (auto const componentIterator = m_id_scope->m_components_by_id.find(m_id);
-				componentIterator != m_id_scope->m_components_by_id.end())
+	auto set_id(Id const id, Component* const scope) -> void {
+		if (_id_scope) {
+			if (auto const component_iterator = _id_scope->_components_by_id.find(_id);
+				component_iterator != _id_scope->_components_by_id.end())
 			{
-				m_id_scope->m_components_by_id.erase(componentIterator);
+				_id_scope->_components_by_id.erase(component_iterator);
 			}
 		}
-		if (p_id) {
-			p_scope->m_components_by_id[p_id] = this;
-			m_id_scope = p_scope;
+		if (id) {
+			scope->_components_by_id[id] = this;
+			_id_scope = scope;
 		}
 	}
-	auto set_id(Id p_id) -> void {
-		set_id(p_id, get_root());
+	auto set_id(Id const id) -> void {
+		set_id(id, get_root());
 	}
 	/*
 		Returns the ID that can be used to retrieve the component from the component hierarchy.
 		The ID is invalid by default and converts to 0.
 	*/
 	auto get_id() noexcept const -> Id {
-		return m_id;
+		return _id;
 	}
 
-	auto get_component_by_id(Id const p_id) -> Component* {
-		auto parent = this;
-		while (parent) {
-			if (auto const componentIterator = parent->m_components_by_id.find(p_id);
-				componentIterator == parent->m_components_by_id.end())
+	auto get_component_by_id(Id const id) -> Component* {
+		for (auto parent = this; parent;) {
+			if (auto const component_iterator = parent->_components_by_id.find(id);
+				component_iterator == parent->_components_by_id.end())
 			{
-				parent = parent->m_parent;
+				parent = parent->_parent;
 			}
 			else {
-				return componentIterator->second;
+				return component_iterator->second;
 			}
 		}
 		return nullptr;
 	}
-	template<typename T>
-	auto get_component_by_id(Id const p_id) -> T*
-	{
-		return dynamic_cast<T*>(get_component_by_id(p_id));
+	template<std::derived_from<Component> T>
+	auto get_component_by_id(Id const id) -> T* {
+		return dynamic_cast<T*>(get_component_by_id(id));
 	}
 
 	template<typename T>
-	auto get_member(T const p_memberPointer) noexcept -> auto&
-	{
+	auto get_member(T const p_memberPointer) noexcept -> auto& {
 		return this->*p_memberPointer;
 	}
 
 	Component() :
-		m_root{this}
+		_root{this}
 	{}
 	Component(Component* parent) :
-		m_root{parent ? parent->get_root() : this}
+		_root{parent ? parent->get_root() : this}
 	{
-		if (parent && parent != this)
-		{
+		if (parent && parent != this) {
 			set_parent(parent);
 		}
 	}
@@ -1889,7 +1890,7 @@ public:
 
 //------------------------------
 
-template<typename _Type, typename _Class>
+template<IsNumber _Type, typename _Class>
 struct Arithmetic {
 	_Type value = 0;
 
@@ -1950,7 +1951,7 @@ struct Radians : Arithmetic<float, Radians> {
 	/*
 		Returns the angle in normalized units where 360 degrees = tau radians = 1 normalized.
 	*/
-	constexpr auto get_normalized() noexcept -> float {
+	constexpr auto get_normalized() const noexcept -> float {
 		return value/TAU<float>;
 	}
 	/*
@@ -1960,14 +1961,13 @@ struct Radians : Arithmetic<float, Radians> {
 		value = p_value*TAU<float>;
 	}
 	
-	template<typename _Type, typename _Class>
-	constexpr Radians(Arithmetic<_Type, _Class> arithmetic) noexcept :
+	template<IsNumber _Type, typename _Class>
+	constexpr Radians(Arithmetic<_Type, _Class> const arithmetic) noexcept :
 		Arithmetic{static_cast<float>(arithmetic)}
 	{}
-	template<typename _Type>
-	constexpr Radians(Arithmetic<_Type, Degrees> arithmetic) noexcept;
-	template<typename T>
-	constexpr Radians(FloatingPointType<T> radians) noexcept :
+	template<IsNumber _Type>
+	constexpr Radians(Arithmetic<_Type, Degrees> const arithmetic) noexcept;
+	constexpr Radians(std::floating_point auto const radians) noexcept :
 		Arithmetic{static_cast<float>(radians)}
 	{}
 };
@@ -1975,7 +1975,7 @@ struct Degrees : Arithmetic<float, Degrees> {
 	/*
 		Returns the angle in normalized units where 360 degrees = tau radians = 1 normalized.
 	*/
-	constexpr auto get_normalized() noexcept -> float {
+	constexpr auto get_normalized() const noexcept -> float {
 		return value/360.f;
 	}
 	/*
@@ -1986,38 +1986,37 @@ struct Degrees : Arithmetic<float, Degrees> {
 	}
 	
 	template<typename _Type, typename _Class>
-	constexpr Degrees(Arithmetic<_Type, _Class> arithmetic) noexcept :
+	constexpr Degrees(Arithmetic<_Type, _Class> const arithmetic) noexcept :
 		Arithmetic{static_cast<float>(arithmetic)}
 	{}
 	template<typename _Type>
-	constexpr Degrees(Arithmetic<_Type, Radians> radians) noexcept :
+	constexpr Degrees(Arithmetic<_Type, Radians> const radians) noexcept :
 		Arithmetic{radians.value*180.f/PI<float>}
 	{}
-	template<typename T>
-	constexpr Degrees(FloatingPointType<T> degrees) noexcept :
+	constexpr Degrees(std::floating_point auto const degrees) noexcept :
 		Arithmetic{static_cast<float>(degrees)}
 	{}
 };
 template<typename _Type>
-constexpr Radians::Radians(Arithmetic<_Type, Degrees> degrees) noexcept :
+constexpr Radians::Radians(Arithmetic<_Type, Degrees> const degrees) noexcept :
 	Arithmetic{degrees.value/180.f*PI<float>}
 {}
 
-template<typename T, typename = std::enable_if_t<std::is_same_v<T, Degrees> || std::is_same_v<T, Radians>>>
-using Angle = T;
+template<typename T>
+concept IsAngle = IsAnyOf<T, Degrees, Radians>;
 
 inline namespace literals {
 
-constexpr auto operator"" _deg(long double value) noexcept -> Degrees {
+constexpr auto operator"" _deg(long double const value) noexcept -> Degrees {
 	return Degrees{static_cast<float>(value)};
 }
-constexpr auto operator"" _deg(unsigned long long value) noexcept -> Degrees {
+constexpr auto operator"" _deg(unsigned long long const value) noexcept -> Degrees {
 	return Degrees{static_cast<float>(value)};
 }
-constexpr auto operator"" _rad(long double value) noexcept -> Radians {
+constexpr auto operator"" _rad(long double const value) noexcept -> Radians {
 	return Radians{static_cast<float>(value)};
 }
-constexpr auto operator"" _rad(unsigned long long value) noexcept -> Radians {
+constexpr auto operator"" _rad(unsigned long long const value) noexcept -> Radians {
 	return Radians{static_cast<float>(value)};
 }
 
@@ -2025,22 +2024,20 @@ constexpr auto operator"" _rad(unsigned long long value) noexcept -> Radians {
 
 //------------------------------
 
-template<typename _ReturnType, typename _AngleType>
-auto cos_sin(Angle<_AngleType> const angle) -> std::pair<_ReturnType, _ReturnType> {
+template<IsNumber _Return>
+auto cos_sin(IsAngle auto const angle) -> std::pair<_Return, _Return> {
 	auto const radians = Radians{angle}.value;
-	return {std::cos(static_cast<_ReturnType>(radians)), std::sin(static_cast<_ReturnType>(radians))};
+	return {std::cos(static_cast<_Return>(radians)), std::sin(static_cast<_Return>(radians))};
 }
 
 //------------------------------
 
-template<typename _Type, template<typename> typename _Class>
+template<IsNumber _Type, template<IsNumber> typename _Class>
 struct Vector2dBase {
-	static_assert(std::is_arithmetic_v<_Type>, "Vector2dBase error: type must be arithmetic.");
-
 	_Type x{}, y{};
 
 	constexpr Vector2dBase() noexcept = default;
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	constexpr explicit Vector2dBase(Vector2dBase<T, C> const vector) noexcept :
 		x{static_cast<_Type>(vector.x)},
 		y{static_cast<_Type>(vector.y)}
@@ -2056,19 +2053,16 @@ struct Vector2dBase {
 
 	//------------------------------
 
-	template<typename T>
-	constexpr operator _Class<T>() const noexcept
-	{
+	template<IsNumber T>
+	constexpr operator _Class<T>() const noexcept {
 		return {static_cast<T>(x), static_cast<T>(y)};
 	}
 
-	constexpr explicit operator bool() const noexcept
-	{
+	constexpr explicit operator bool() const noexcept {
 		return x || y;
 	}
 
-	constexpr auto operator-() const noexcept -> _Class<_Type>
-	{
+	constexpr auto operator-() const noexcept -> _Class<_Type> {
 		return {-x, -y};
 	}
 
@@ -2077,28 +2071,24 @@ struct Vector2dBase {
 	/*
 		Sets the polar coordinates of the vector.
 		angle is the angle between the ray to the vector and the x-axis on the right-hand side, clockwise in our coordinate system.
-		p_length is the distance from the origin of the coordinates.
+		length is the distance from the origin of the coordinates.
 	*/
-	template<typename _AngleType>
-	static auto from_polar(Angle<_AngleType> const angle, double const p_length) noexcept -> _Class<_Type>
-	{
+	static auto from_polar(IsAngle auto const angle, double const length) noexcept -> _Class<_Type> {
 		auto const [x, y] = cos_sin(angle);
-		return {static_cast<_Type>(x*p_length), static_cast<_Type>(y*p_length)};
+		return {static_cast<_Type>(x*length), static_cast<_Type>(y*length)};
 	}
 	/*
 		Sets the polar coordinates of the vector, with length of 1.
 		angle is the angle between the ray to the vector and the x-axis on the right-hand side, clockwise in our coordinate system.
 	*/
-	template<typename _AngleType>
-	static auto from_polar(Angle<_AngleType> const angle) noexcept -> _Class<_Type>
-	{
+	static auto from_polar(IsAngle auto const angle) noexcept -> _Class<_Type> {
 		auto const [x, y] = cos_sin(angle);
 		return {static_cast<_Type>(x), static_cast<_Type>(y)};
 	}
 
 	//------------------------------
 
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	constexpr auto operator<=>(Vector2dBase<T, C> const vector) const noexcept 
 		-> std::partial_ordering
 	{
@@ -2114,40 +2104,9 @@ struct Vector2dBase {
 		return std::partial_ordering::unordered;
 	}
 
-	template<typename T>
-	constexpr auto operator==(ArithmeticType<T> const value) const noexcept -> bool
-	{
-		return x == value && y == value;
-	}
-	template<typename T>
-	constexpr auto operator!=(ArithmeticType<T> const value) const noexcept -> bool
-	{
-		return x != value || y != value;
-	}
-	template<typename T>
-	constexpr auto operator>=(ArithmeticType<T> const value) const noexcept -> bool
-	{
-		return x >= value && y >= value;
-	}
-	template<typename T>
-	constexpr auto operator>(ArithmeticType<T> const value) const noexcept -> bool
-	{
-		return x > value && y > value;
-	}
-	template<typename T>
-	constexpr auto operator<=(ArithmeticType<T> const value) const noexcept -> bool
-	{
-		return x <= value && y <= value;
-	}
-	template<typename T>
-	constexpr auto operator<(ArithmeticType<T> const value) const noexcept -> bool
-	{
-		return x < value && y < value;
-	}
-
 	//------------------------------
 
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	constexpr auto operator+(Vector2dBase<T, C> const value) const noexcept -> _Class<std::common_type_t<_Type, T>>
 	{
 		return {x + value.x, y + value.y};
@@ -2156,7 +2115,7 @@ struct Vector2dBase {
 	{
 		return {x + value, y + value};
 	}
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	constexpr auto operator+=(Vector2dBase<T, C> const value) noexcept -> _Class<_Type>&
 	{
 		x += value.x;
@@ -2175,7 +2134,7 @@ struct Vector2dBase {
 	/*
 		Returns a version of this vector that is offset negatively by the same amount on the x- and y-axis.
 	*/
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	constexpr auto operator-(Vector2dBase<T, C> const value) const noexcept -> _Class<std::common_type_t<_Type, T>> {
 		return {x - value.x, y - value.y};
 	}
@@ -2183,7 +2142,7 @@ struct Vector2dBase {
 		return {x - value, y - value};
 	}
 
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	constexpr auto operator-=(Vector2dBase<T, C> const value) noexcept -> _Class<_Type>& {
 		x -= value.x;
 		y -= value.y;
@@ -2197,23 +2156,23 @@ struct Vector2dBase {
 
 	//------------------------------
 
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	constexpr auto operator*(Vector2dBase<T, C> const factor) const noexcept -> _Class<std::common_type_t<_Type, T>> {
 		return {x*factor.x, y*factor.y};
 	}
-	template<typename T>
-	constexpr auto operator*(ArithmeticType<T> const factor) const noexcept -> _Class<std::common_type_t<_Type, T>> {
+	template<IsNumber T>
+	constexpr auto operator*(T const factor) const noexcept -> _Class<std::common_type_t<_Type, T>> {
 		return {x*factor, y*factor};
 	}
 
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber>typename C>
 	constexpr auto operator*=(Vector2dBase<T, C> const factor) noexcept -> _Class<_Type>& {
 		x *= factor.x;
 		y *= factor.y;
 		return static_cast<_Class<_Type>&>(*this);
 	}
-	template<typename T>
-	constexpr auto operator*=(ArithmeticType<T> const factor) noexcept -> _Class<_Type>& {
+	template<IsNumber T>
+	constexpr auto operator*=(T const factor) noexcept -> _Class<_Type>& {
 		x *= factor;
 		y *= factor;
 		return static_cast<_Class<_Type>&>(*this);
@@ -2221,23 +2180,23 @@ struct Vector2dBase {
 
 	//------------------------------
 
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	constexpr auto operator/(Vector2dBase<T, C> const divisor) const noexcept -> _Class<std::common_type_t<_Type, T>> {
 		return {x/divisor.x, y/divisor.y};
 	}
-	template<typename T>
-	constexpr auto operator/(ArithmeticType<T> const divisor) const noexcept -> _Class<std::common_type_t<_Type, T>> {
+	template<IsNumber T>
+	constexpr auto operator/(T const divisor) const noexcept -> _Class<std::common_type_t<_Type, T>> {
 		return {x/divisor, y/divisor};
 	}
 
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	constexpr auto operator/=(Vector2dBase<T, C> const divisor) noexcept -> _Class<_Type>& {
 		x /= divisor.x;
 		y /= divisor.y;
 		return static_cast<_Class<_Type>&>(*this);
 	}
-	template<typename T>
-	constexpr auto operator/=(ArithmeticType<T> const divisor) noexcept -> _Class<_Type>& {
+	template<IsNumber T>
+	constexpr auto operator/=(T const divisor) noexcept -> _Class<_Type>& {
 		x /= divisor;
 		y /= divisor;
 		return static_cast<_Class<_Type>&>(*this);
@@ -2245,12 +2204,12 @@ struct Vector2dBase {
 
 	//------------------------------
 
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	constexpr auto get_dot_product(Vector2dBase<T, C> const vector) const noexcept {
 		return x*vector.x + y*vector.y;
 	}
 
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	constexpr auto get_cross_product(Vector2dBase<T, C> const vector) const noexcept {
 		return x*vector.x - y*vector.x;
 	}
@@ -2275,14 +2234,14 @@ struct Vector2dBase {
 		Calculates the distance between this vector and another vector with pythagorean theorem.
 		This is faster than get_distance() since no square root is needed, so use this one when you can!
 	*/
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	constexpr auto get_distance_squared(Vector2dBase<T, C> const vector) const noexcept {
 		return (x - vector.x)*(x - vector.x) + (y - vector.y)*(y - vector.y);
 	}
 	/*
 		Uses an accurate but slower algorithm to calculate the distance between this vector and another vector with pythagorean theorem.
 	*/
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	auto get_distance(Vector2dBase<T, C> const vector) const noexcept -> double {
 		return std::hypot(x - vector.x, y - vector.y);
 	}
@@ -2293,14 +2252,14 @@ struct Vector2dBase {
 		Calculates the length of a 2d vector with pythagorean theorem.
 		This is faster than get_length() and getLengthFast() since no square root is needed, so use this one when you can!
 	*/
-	template<typename T0, typename T1>
+	template<IsNumber T0, IsNumber T1>
 	static constexpr auto get_length_squared(T0 const x, T1 const y) noexcept {
 		return x*x + y*y;
 	}
 	/*
 		Uses an accurate but slower algorithm to calculate the length of a 2d vector with pythagorean teorem.
 	*/
-	template<typename T0, typename T1>
+	template<IsNumber T0, IsNumber T1>
 	static auto get_length(T0 const x, T1 const y) noexcept -> double {
 		return std::hypot(x, y);
 	}
@@ -2309,14 +2268,14 @@ struct Vector2dBase {
 		Calculates the distance between two vectors with pythagorean theorem.
 		This is faster than get_distance() and getDistanceFast() since no square root is needed, so use this one when you can!
 	*/
-	template<typename T0, typename T1>
+	template<IsNumber T0, IsNumber T1>
 	static constexpr auto get_distance_squared(_Class<T0> const vector_0, _Class<T1> const vector_1) noexcept {
 		return (vector_1.x - vector_0.x)*(vector_1.x - vector_0.x) + (vector_1.y - vector_0.y)*(vector_1.y - vector_0.y);
 	}
 	/*
 		Uses an accurate but slower algorithm to calculate the distance between two vectors with pytagorean theorem.
 	*/
-	template<typename T0, typename T1>
+	template<IsNumber T0, IsNumber T1>
 	static auto get_distance(_Class<T0> const vector_0, _Class<T1> const vector_1) noexcept -> double {
 		return std::hypot(vector_1.x - vector_0.x, vector_1.y - vector_0.y);
 	}
@@ -2326,8 +2285,7 @@ struct Vector2dBase {
 	/*
 		Rotates the vector clockwise (our coordinate system) by angle so that it keeps its length.
 	*/
-	template<typename _AngleType>
-	auto rotate(Angle<_AngleType> const angle) noexcept -> _Class<_Type>& {
+	auto rotate(IsAngle auto const angle) noexcept -> _Class<_Type>& {
 		// A very small change in angle could result in a very big change in cartesian coordinates.
 		// Therefore we use long double for these calculations and not _Type.
 		auto const [cos, sin] = cos_sin<long double>(angle);
@@ -2339,8 +2297,8 @@ struct Vector2dBase {
 	/*
 		Rotates the vector clockwise (our coordinate system) relative to origin by angle so that it keeps its distance from origin.
 	*/
-	template<typename _AngleType, typename T, template<typename>typename C>
-	auto rotate(Angle<_AngleType> const angle, Vector2dBase<T, C> const origin) noexcept -> _Class<_Type>& {
+	template<IsNumber T, template<IsNumber> typename C>
+	auto rotate(IsAngle auto const angle, Vector2dBase<T, C> const origin) noexcept -> _Class<_Type>& {
 		auto const [cos, sin] = cos_sin<long double>(angle);
 		auto const x_before = x;
 		x = (x - origin.x)*cos - (y - origin.y)*sin + origin.x;
@@ -2350,8 +2308,7 @@ struct Vector2dBase {
 	/*
 		Rotates the vector so that its angle is equal to angle, clockwise and relative to the x-axis on the right-hand side.
 	*/
-	template<typename _AngleType>
-	auto set_angle(Angle<_AngleType> const angle) noexcept -> _Class<_Type>& {
+	auto set_angle(IsAngle auto const angle) noexcept -> _Class<_Type>& {
 		auto const [cos, sin] = cos_sin<long double>(angle);
 		auto const length = get_length();
 		x = cos*length;
@@ -2362,8 +2319,8 @@ struct Vector2dBase {
 		Rotates the vector so that its angle relative to origin is angle.
 		The angle is clockwise in our coordinate system and relative to the x-axis on the right-hand side.
 	*/
-	template<typename _AngleType, typename T, template<typename>typename C>
-	auto set_angle(Angle<_AngleType> const angle, Vector2dBase<T, C> const origin) noexcept -> _Class<_Type>& {
+	template<IsNumber T, template<IsNumber> typename C>
+	auto set_angle(IsAngle auto const angle, Vector2dBase<T, C> const origin) noexcept -> _Class<_Type>& {
 		auto const [cos, sin] = cos_sin<long double>(angle);
 		auto const length = get_distance(origin);
 		x = cos*length + origin.x;
@@ -2375,8 +2332,8 @@ struct Vector2dBase {
 		Returns the clockwise angle between the ray to the vector and the x-axis 
 		on the right-hand side, in the range [0, 2pi].
 	*/
-	template<typename _AngleType>
-	auto get_angle() const noexcept -> Angle<_AngleType> {
+	template<IsAngle _Angle>
+	auto get_angle() const noexcept -> _Angle {
 		if (!x && !y) {
 			return 0.;
 		}
@@ -2390,8 +2347,8 @@ struct Vector2dBase {
 		Returns the clockwise angle between the ray to the vector and the x-axis on the right hand side, relative to origin.
 		Angle is in the range [0, 2pi].
 	*/
-	template<typename _AngleType, typename T, template<typename>typename C>
-	auto get_angle(Vector2dBase<T, C> const origin) const noexcept -> Angle<_AngleType> {
+	template<IsAngle _Angle, IsNumber T, template<IsNumber> typename C>
+	auto get_angle(Vector2dBase<T, C> const origin) const noexcept -> _Angle {
 		if (x == origin.x && y == origin.y) {
 			return 0.;
 		}
@@ -2433,47 +2390,35 @@ struct Vector2dBase {
 	/*
 		Returns whether vector is inside the rectangle formed from the origin to this vector.
 	*/
-	template<typename T, template<typename>typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	constexpr auto get_is_containing(Vector2dBase<T, C> const vector) const noexcept -> bool {
 		return vector.x >= 0 && vector.y >= 0 && vector.x < x && vector.y < y;
 	}
 };
 
-template<
-	typename T0, typename T1, 
-	template<typename> typename _Vector, 
-	typename = std::enable_if_t<std::is_base_of_v<Vector2dBase<T1, _Vector>, _Vector<T1>>>
->
-constexpr auto operator*(ArithmeticType<T0> const factor, _Vector<T1> const vector) noexcept 
+template<IsNumber T0, IsNumber T1, template<IsNumber> typename _Vector> 
+	requires std::derived_from<_Vector<T1>, Vector2dBase<T1, _Vector>>
+constexpr auto operator*(T0 const factor, _Vector<T1> const vector) noexcept 
 	-> _Vector<std::common_type_t<T0, T1>> 
 {
 	return {vector.x*factor, vector.y*factor};
 }
-template<
-	typename T0, typename T1, 
-	template<typename> typename _Vector, 
-	typename = std::enable_if_t<std::is_base_of_v<Vector2dBase<T1, _Vector>, _Vector<T1>>>
->
-constexpr auto operator/(ArithmeticType<T0> const p_dividend, _Vector<T1> const vector) noexcept 
+template<IsNumber T0, IsNumber T1, template<IsNumber> typename _Vector> 
+	requires std::derived_from<_Vector<T1>, Vector2dBase<T1, _Vector>>
+constexpr auto operator/(T0 const p_dividend, _Vector<T1> const vector) noexcept 
 	-> _Vector<std::common_type_t<T0, T1>> 
 {
 	return {p_dividend/vector.x, p_dividend/vector.y};
 }
 
-template<
-	typename T0, typename T1, 
-	template<typename> typename _Vector, 
-	typename = std::enable_if_t<std::is_base_of_v<Vector2dBase<T1, _Vector>, _Vector<T1>>>
->
-constexpr auto operator<(ArithmeticType<T0> const p_coordinate, _Vector<T1> const vector) noexcept -> bool {
+template<IsNumber T0, IsNumber T1, template<IsNumber> typename _Vector> 
+	requires std::derived_from<_Vector<T1>, Vector2dBase<T1, _Vector>>
+constexpr auto operator<(T0 const p_coordinate, _Vector<T1> const vector) noexcept -> bool {
 	return p_coordinate < vector.x && p_coordinate < vector.y;
 }
-template<
-	typename T0, typename T1, 
-	template<typename> typename _Vector, 
-	typename = std::enable_if_t<std::is_base_of_v<Vector2dBase<T1, _Vector>, _Vector<T1>>>
->
-constexpr auto operator>(ArithmeticType<T0> const p_coordinate, _Vector<T1> const vector) noexcept -> bool {
+template<IsNumber T0, IsNumber T1, template<IsNumber> typename _Vector> 
+	requires std::derived_from<_Vector<T1>, Vector2dBase<T1, _Vector>>
+constexpr auto operator>(T0 const p_coordinate, _Vector<T1> const vector) noexcept -> bool {
 	return p_coordinate > vector.x && p_coordinate > vector.y;
 }
 /*
@@ -2482,12 +2427,9 @@ constexpr auto operator>(ArithmeticType<T0> const p_coordinate, _Vector<T1> cons
 	If progress is outside the range of [0, 1] then a vector on the line that is defined by the two vectors will still be returned,
 	but outside of the line segment between them.
 */
-template<
-	typename T0, typename T1, typename T2,
-	template<typename> typename _Vector, 
-	typename = std::enable_if_t<std::is_base_of_v<Vector2dBase<T0, _Vector>, _Vector<T0>>>
->
-constexpr auto interpolate(_Vector<T0> const start, _Vector<T1> const end, ArithmeticType<T2> const progress) noexcept
+template<IsNumber T0, IsNumber T1, IsNumber T2, template<IsNumber> typename _Vector>
+	requires std::derived_from<_Vector<T0>, Vector2dBase<T0, _Vector>>
+constexpr auto interpolate(_Vector<T0> const start, _Vector<T1> const end, T2 const progress) noexcept
 	-> _Vector<std::common_type_t<T0, T1, T2>>
 {
 	return start*(1 - progress) + end*progress;
@@ -2501,7 +2443,7 @@ constexpr auto interpolate(_Vector<T0> const start, _Vector<T1> const end, Arith
 	Can also be used for any two-dimensional number.
 	Use Point and Size instead of Vector2d if you need 2d coordinates or a size.
 */
-template<typename _Type = Dip>
+template<IsNumber _Type = Dip>
 struct Vector2d : Vector2dBase<_Type, Vector2d> {
 	constexpr Vector2d() noexcept = default;
 	constexpr Vector2d(_Type const p_x, _Type const p_y) noexcept :
@@ -2528,7 +2470,7 @@ struct Vector2d : Vector2dBase<_Type, Vector2d> {
 	The coordinate system used throughout AvoGUI is one where the positive 
 	y-direction is downwards and the positive x-direction is to the right.
 */
-template<typename _Type = Dip>
+template<IsNumber _Type = Dip>
 struct Point : Vector2dBase<_Type, Point> {
 	constexpr Point() noexcept = default;
 	constexpr Point(_Type const p_x, _Type const p_y) noexcept :
@@ -2554,7 +2496,7 @@ struct Point : Vector2dBase<_Type, Point> {
 	Use this instead of Vector2d or Point when it should represent a 
 	size and not point coordinates or a general 2D vector.
 */
-template<typename _Type = Dip>
+template<IsNumber _Type = Dip>
 struct Size : Vector2dBase<_Type, Size> {
 	constexpr Size() noexcept = default;
 	constexpr Size(_Type const p_width, _Type const p_height) noexcept :
@@ -2572,8 +2514,7 @@ struct Size : Vector2dBase<_Type, Size> {
 		Vector2dBase<_Type, Size>{other}
 	{}
 
-	constexpr auto operator=(Size<_Type> const other) noexcept -> Size&
-	{
+	constexpr auto operator=(Size<_Type> const other) noexcept -> Size& {
 		width = other.x;
 		height = other.y;
 		return *this;
@@ -2597,7 +2538,7 @@ struct Transform {
 	/*
 		Applies the transform to a vector.
 	*/
-	template<typename T, template<typename> typename C>
+	template<IsNumber T, template<IsNumber> typename C>
 	constexpr auto operator*(Vector2dBase<T, C> const vector) const noexcept -> Vector2dBase<T, C> {
 		return {
 			x_to_x*p_point.x + y_to_x*p_point.y + offset_x, 
@@ -2657,8 +2598,7 @@ struct Transform {
 	/*
 		Rotates transformed points around origin by an angle.
 	*/
-	template<typename T>
-	auto rotate(Angle<T> const angle, Point<> const origin) noexcept -> Transform& {
+	auto rotate(IsAngle auto const angle, Point<> const origin) noexcept -> Transform& {
 		offset_x -= origin.x;
 		offset_y -= origin.y;
 		rotate(angle);
@@ -2713,7 +2653,7 @@ class ProtectedRectangle;
 	Increasingly positive values for bottom and top will move the rectangle downwards and increasingly positive
 	values for left and right will move the rectangle to the right (when used in the AvoGUI framework).
 */
-template<typename _Type = Dip>
+template<IsNumber _Type = Dip>
 struct Rectangle {
 	_Type left{}, top{}, right{}, bottom{};
 
@@ -2728,9 +2668,9 @@ struct Rectangle {
 	/*
 		Initializes a rectangle from a width and a height.
 	*/
-	constexpr Rectangle(_Type const p_width, _Type const p_height) noexcept :
-		right{p_width},
-		bottom{p_height}
+	constexpr Rectangle(_Type const width, _Type const height) noexcept :
+		right{width},
+		bottom{height}
 	{}
 	constexpr Rectangle(Point<_Type> const position) noexcept :
 		left{position.x},
@@ -2748,7 +2688,7 @@ struct Rectangle {
 		right{position.x + size.width},
 		bottom{position.y + size.height}
 	{}
-	template<typename T>
+	template<IsNumber T>
 	constexpr Rectangle(Rectangle<T> const rectangle) noexcept :
 		left{static_cast<_Type>(rectangle.left)},
 		top{static_cast<_Type>(rectangle.top)},
@@ -2759,8 +2699,7 @@ struct Rectangle {
 
 	//------------------------------
 
-	constexpr auto operator=(Rectangle<_Type> const rectangle) noexcept -> auto&
-	{
+	constexpr auto operator=(Rectangle const rectangle) noexcept -> auto& {
 		left = rectangle.left;
 		top = rectangle.top;
 		right = rectangle.right;
@@ -2773,8 +2712,7 @@ struct Rectangle {
 		If right < left, right = left.
 		If bottom < top, bottom = top.
 	*/
-	constexpr auto clipNegativeSpace() noexcept -> Rectangle<_Type>&
-	{
+	constexpr auto clipNegativeSpace() noexcept -> Rectangle& {
 		if (right < left) right = left;
 		if (bottom < top) bottom = top;
 		return *this;
@@ -2785,46 +2723,40 @@ struct Rectangle {
 	/*
 		Offsets the position of the rectangle.
 	*/
-	constexpr auto operator+=(Vector2d<_Type> const offset) noexcept -> auto&
-	{
+	constexpr auto operator+=(Vector2d<_Type> const offset) noexcept -> auto& {
 		left += offset.x;
 		top += offset.y;
 		right += offset.x;
 		bottom += offset.y;
 		return *this;
 	}
-	constexpr auto operator+=(Point<_Type> const offset) noexcept -> auto&
-	{
+	constexpr auto operator+=(Point<_Type> const offset) noexcept -> auto& {
 		return operator+=(Vector2d<_Type>{offset});
 	}
 	/*
 		Offsets the position of the rectangle negatively.
 	*/
-	constexpr auto operator-=(Vector2d<_Type> const offset) noexcept -> auto&
-	{
+	constexpr auto operator-=(Vector2d<_Type> const offset) noexcept -> auto& {
 		left -= offset.x;
 		top -= offset.y;
 		right -= offset.x;
 		bottom -= offset.y;
 		return *this;
 	}
-	constexpr auto operator-=(Point<_Type> const offset) noexcept -> auto&
-	{
+	constexpr auto operator-=(Point<_Type> const offset) noexcept -> auto& {
 		return operator-=(Vector2d<_Type>{offset});
 	}
 
-	template<typename T>
-	constexpr auto operator+=(Rectangle<T> const other) noexcept -> auto&
-	{
+	template<IsNumber T>
+	constexpr auto operator+=(Rectangle<T> const other) noexcept -> auto& {
 		left += other.left;
 		top += other.top;
 		right += other.right;
 		bottom += other.bottom;
 		return *this;
 	}
-	template<typename T>
-	constexpr auto operator-=(Rectangle<T> const other) noexcept -> auto&
-	{
+	template<IsNumber T>
+	constexpr auto operator-=(Rectangle<T> const other) noexcept -> auto& {
 		left -= other.left;
 		top -= other.top;
 		right -= other.right;
@@ -2838,36 +2770,36 @@ struct Rectangle {
 	// Sizes because it would not be obvious to a user what they do.
 	// Offset only the size or interpret it as a vector and offset the position?
 
-	template<typename T>
+	template<IsNumber T>
 	constexpr auto operator+(Vector2d<T> const offset) const noexcept 
 		-> Rectangle<std::common_type_t<_Type, T>>
 	{
 		return {left + offset.x, top + offset.y, right + offset.x, bottom + offset.y};
 	}
-	template<typename T>
+	template<IsNumber T>
 	constexpr auto operator+(Point<T> const offset) const noexcept
 	{
 		return operator+(Vector2d<T>{offset});
 	}
-	template<typename T>
+	template<IsNumber T>
 	constexpr auto operator-(Vector2d<T> const offset) const noexcept 
 		-> Rectangle<std::common_type_t<_Type, T>>
 	{
 		return {left - offset.x, top - offset.y, right - offset.x, bottom - offset.y};
 	}
-	template<typename T>
+	template<IsNumber T>
 	constexpr auto operator-(Point<T> const offset) const noexcept
 	{
 		return operator-(Vector2d<T>{offset});
 	}
 
-	template<typename T>
+	template<IsNumber T>
 	constexpr auto operator+(Rectangle<T> const other) const noexcept 
 		-> Rectangle<std::common_type_t<_Type, T>>
 	{
 		return {left + other.left, top + other.top, right + other.right, bottom + other.bottom};
 	}
-	template<typename T>
+	template<IsNumber T>
 	constexpr auto operator-(Rectangle<T> const other) const noexcept -> 
 		Rectangle<std::common_type_t<_Type, T>>
 	{
@@ -2876,8 +2808,7 @@ struct Rectangle {
 
 	//------------------------------
 
-	template<typename T>
-	constexpr auto operator*=(ArithmeticType<T> const factor) const noexcept -> auto&
+	constexpr auto operator*=(IsNumber auto const factor) const noexcept -> auto&
 	{
 		left *= factor;
 		top *= factor;
@@ -2885,8 +2816,7 @@ struct Rectangle {
 		bottom *= factor;
 		return *this;
 	}
-	template<typename T>
-	constexpr auto operator/=(ArithmeticType<T> const divisor) const noexcept -> auto&
+	constexpr auto operator/=(IsNumber auto const divisor) const noexcept -> auto&
 	{
 		left /= divisor;
 		top /= divisor;
@@ -2916,23 +2846,23 @@ struct Rectangle {
 
 	//------------------------------
 
-	template<typename T>
-	constexpr auto operator*(ArithmeticType<T> const factor) const noexcept -> Rectangle<std::common_type_t<_Type, T>>
+	template<IsNumber T>
+	constexpr auto operator*(T const factor) const noexcept -> Rectangle<std::common_type_t<_Type, T>>
 	{
 		return {left*factor, top*factor, right*factor, bottom*factor};
 	}
-	template<typename T>
-	constexpr auto operator/(ArithmeticType<T> const divisor) const noexcept -> Rectangle<std::common_type_t<_Type, T>>
+	template<IsNumber T>
+	constexpr auto operator/(T const divisor) const noexcept -> Rectangle<std::common_type_t<_Type, T>>
 	{
 		return {left/divisor, top/divisor, right/divisor, bottom/divisor};
 	}
 	
-	template<typename T>
+	template<IsNumber T>
 	constexpr auto operator*(Vector2d<T> const factor) const noexcept -> Rectangle<std::common_type_t<_Type, T>>
 	{
 		return {left*factor.x, top*factor.y, right*factor.x, bottom*factor.y};
 	}		
-	template<typename T>
+	template<IsNumber T>
 	constexpr auto operator/(Vector2d<T> const divisor) const noexcept -> Rectangle<std::common_type_t<_Type, T>>
 	{
 		return {left/divisor.x, top/divisor.y, right/divisor.x, bottom/divisor.y};
@@ -2940,14 +2870,14 @@ struct Rectangle {
 	
 	//------------------------------
 
-	template<typename T>
+	template<IsNumber T>
 	constexpr auto operator==(Rectangle<T> const rectangle) const noexcept -> bool
 	{
 		return left == rectangle.left && right == rectangle.right
 			&& top == rectangle.top   && bottom == rectangle.bottom;
 	}
 
-	template<typename T>
+	template<IsNumber T>
 	constexpr auto operator!=(Rectangle<T> const rectangle) const noexcept -> bool
 	{
 		return left != rectangle.left || right != rectangle.right
@@ -2966,8 +2896,7 @@ struct Rectangle {
 		write this:
 			auto newRectangle = rectangle.copy().set_top_left(2, 3);
 	*/
-	constexpr auto copy() const noexcept -> Rectangle<_Type>
-	{
+	constexpr auto copy() const noexcept -> Rectangle {
 		return *this;
 	}
 
@@ -2977,10 +2906,9 @@ struct Rectangle {
 		Sets the top left coordinates of the rectangle.
 		If will_keep_size is true, the rectangle will only get moved, keeping its size.
 	*/
-	constexpr auto set_top_left(Point<_Type> const position, bool const will_keep_size = true) noexcept -> Rectangle<_Type>&
+	constexpr auto set_top_left(Point<_Type> const position, bool const will_keep_size = true) noexcept -> Rectangle&
 	{
-		if (will_keep_size)
-		{
+		if (will_keep_size) {
 			right += position.x - left;
 			bottom += position.y - top;
 		}
@@ -2991,8 +2919,7 @@ struct Rectangle {
 	/*
 		Returns the top left coordinates of the rectangle.
 	*/
-	constexpr auto get_top_left() const noexcept -> Point<_Type>
-	{
+	constexpr auto get_top_left() const noexcept -> Point<_Type> {
 		return {left, top};
 	}
 
@@ -3002,10 +2929,9 @@ struct Rectangle {
 		Sets the top right coordinates of the rectangle.
 		If will_keep_size is true, the rectangle will only get moved, keeping its size.
 	*/
-	constexpr auto setTopRight(Point<_Type> const position, bool const will_keep_size = true) noexcept -> Rectangle<_Type>&
+	constexpr auto set_top_right(Point<_Type> const position, bool const will_keep_size = true) noexcept -> Rectangle&
 	{
-		if (will_keep_size)
-		{
+		if (will_keep_size) {
 			left += position.x - right;
 			bottom += position.y - top;
 		}
@@ -3016,7 +2942,7 @@ struct Rectangle {
 	/*
 		Returns the top right coordinates of the rectangle.
 	*/
-	constexpr auto getTopRight() const noexcept -> Point<_Type> {
+	constexpr auto get_top_right() const noexcept -> Point<_Type> {
 		return {right, top};
 	}
 
@@ -3026,7 +2952,7 @@ struct Rectangle {
 		Sets the bottom left coordinates of the rectangle.
 		If will_keep_size is true, the rectangle will only get moved, keeping its size.
 	*/
-	constexpr auto set_bottom_left(Point<_Type> const position, bool const will_keep_size = true) noexcept -> Rectangle<_Type>& 
+	constexpr auto set_bottom_left(Point<_Type> const position, bool const will_keep_size = true) noexcept -> Rectangle& 
 	{
 		if (will_keep_size) {
 			right += position.x - left;
@@ -3049,10 +2975,9 @@ struct Rectangle {
 		Sets the bottom right coordinates of the rectangle.
 		If will_keep_size is true, the rectangle will only get moved, keeping its size.
 	*/
-	constexpr auto set_bottom_right(Point<_Type> const position, bool const will_keep_size = true) noexcept -> Rectangle<_Type>&
+	constexpr auto set_bottom_right(Point<_Type> const position, bool const will_keep_size = true) noexcept -> Rectangle&
 	{
-		if (will_keep_size)
-		{
+		if (will_keep_size) {
 			left += position.x - right;
 			top += position.y - bottom;
 		}
@@ -3073,7 +2998,7 @@ struct Rectangle {
 		Sets the left coordinate of the rectangle.
 		If will_keep_width is true, the right coordinate will be changed so that the width stays the same.
 	*/
-	constexpr auto set_left(_Type const p_left, bool const will_keep_width = true) noexcept -> Rectangle<_Type>&
+	constexpr auto set_left(_Type const p_left, bool const will_keep_width = true) noexcept -> Rectangle&
 	{
 		if (will_keep_width) {
 			right += p_left - left;
@@ -3085,7 +3010,7 @@ struct Rectangle {
 		Sets the top coordinate of the rectangle.
 		If will_keep_height is true, the bottom coordinate will be changed so that the height stays the same.
 	*/
-	constexpr auto set_top(_Type const p_top, bool const will_keep_height = true) noexcept -> Rectangle<_Type>&
+	constexpr auto set_top(_Type const p_top, bool const will_keep_height = true) noexcept -> Rectangle&
 	{
 		if (will_keep_height) {
 			bottom += p_top - top;
@@ -3097,10 +3022,9 @@ struct Rectangle {
 		Sets the right coordinate of the rectangle.
 		If will_keep_width is true, the left coordinate will be changed so that the width stays the same.
 	*/
-	constexpr auto set_right(_Type const p_right, bool const will_keep_width = true) noexcept -> Rectangle<_Type>&
+	constexpr auto set_right(_Type const p_right, bool const will_keep_width = true) noexcept -> Rectangle&
 	{
-		if (will_keep_width)
-		{
+		if (will_keep_width) {
 			left += p_right - right;
 		}
 		right = p_right;
@@ -3110,10 +3034,9 @@ struct Rectangle {
 		Sets the bottom coordinate of the rectangle.
 		If will_keep_width is true, the top coordinate will be changed so that the height stays the same.
 	*/
-	constexpr auto setBottom(_Type const p_bottom, bool const will_keep_height = true) noexcept -> Rectangle<_Type>&
+	constexpr auto set_bottom(_Type const p_bottom, bool const will_keep_height = true) noexcept -> Rectangle&
 	{
-		if (will_keep_height)
-		{
+		if (will_keep_height) {
 			top += p_bottom - bottom;
 		}
 		bottom = p_bottom;
@@ -3125,7 +3048,7 @@ struct Rectangle {
 	/*
 		Rounds the coordinates of the rectangle in the directions that expand the rectangle.
 	*/
-	constexpr auto roundCoordinatesOutwards() noexcept -> Rectangle<_Type>& {
+	constexpr auto round_coordinates_outwards() noexcept -> Rectangle& {
 		left = Avo::floor(left);
 		top = Avo::floor(top);
 		right = Avo::ceil(right);
@@ -3138,34 +3061,32 @@ struct Rectangle {
 	/*
 		Sets the center coordinates of the rectangle by moving it.
 	*/
-	template<typename T>
-	constexpr auto set_center(Point<T> const position) noexcept -> Rectangle<_Type>& 
+	template<IsNumber T>
+	constexpr auto set_center(Point<T> const position) noexcept -> Rectangle& 
 	{
-		auto const halfSize = Point<std::common_type_t<_Type, T>>{get_size()}/2;
-		left = position.x - halfSize.x;
-		top = position.y - halfSize.y;
-		right = position.x + halfSize.x;
-		bottom = position.y + halfSize.y;
+		auto const half_size = Point<std::common_type_t<_Type, T>>{get_size()}/2;
+		left = position.x - half_size.x;
+		top = position.y - half_size.y;
+		right = position.x + half_size.x;
+		bottom = position.y + half_size.y;
 		return *this;
 	}
 
 	/*
 		Sets the horizontal center coordinate of the rectangle by moving it.
 	*/
-	template<typename T>
-	constexpr auto setCenterX(T const x) noexcept -> Rectangle<_Type>&
-	{
-		auto const halfWidth = static_cast<std::common_type_t<_Type, T>>(get_width())/2;
-		left = x - halfWidth;
-		right = x + halfWidth;
+	template<IsNumber T>
+	constexpr auto set_center_x(T const x) noexcept -> Rectangle& {
+		auto const half_width = static_cast<std::common_type_t<_Type, T>>(get_width())/2;
+		left = x - half_width;
+		right = x + half_width;
 		return *this;
 	}
 	/*
 		Sets the vertical center coordinate of the rectangle by moving it.
 	*/
-	template<typename T>
-	constexpr auto setCenterY(T const y) noexcept -> Rectangle<_Type>&
-	{
+	template<IsNumber T>
+	constexpr auto set_center_y(T const y) noexcept -> Rectangle& {
 		auto const halfHeight = static_cast<std::common_type_t<_Type, T>>(get_height())/2;
 		top = y - halfHeight;
 		bottom = y + halfHeight;
@@ -3174,7 +3095,7 @@ struct Rectangle {
 	/*
 		Returns the center coordinates of the rectangle.
 	*/
-	constexpr auto getCenter() const noexcept -> Point<_Type> {
+	constexpr auto get_center() const noexcept -> Point<_Type> {
 		return {(left + right)/2, (top + bottom)/2};
 	}
 	/*
@@ -3195,7 +3116,7 @@ struct Rectangle {
 	/*
 		Moves the left and top coordinates of the rectangle without affecting the other two.
 	*/
-	constexpr auto move_top_left(Vector2d<_Type> const offset) noexcept -> Rectangle<_Type>&
+	constexpr auto move_top_left(Vector2d<_Type> const offset) noexcept -> Rectangle&
 	{
 		left += offset.x;
 		top += offset.y;
@@ -3204,7 +3125,7 @@ struct Rectangle {
 	/*
 		Moves the right and top coordinates of the rectangle without affecting the other two.
 	*/
-	constexpr auto moveTopRight(Vector2d<_Type> const offset) noexcept -> Rectangle<_Type>&
+	constexpr auto moveTopRight(Vector2d<_Type> const offset) noexcept -> Rectangle&
 	{
 		right += offset.x;
 		top += offset.y;
@@ -3213,7 +3134,7 @@ struct Rectangle {
 	/*
 		Moves the left and bottom coordinates of the rectangle without affecting the other two.
 	*/
-	constexpr auto moveBottomLeft(Vector2d<_Type> const offset) noexcept -> Rectangle<_Type>&
+	constexpr auto moveBottomLeft(Vector2d<_Type> const offset) noexcept -> Rectangle&
 	{
 		left += offset.x;
 		bottom += offset.y;
@@ -3222,7 +3143,7 @@ struct Rectangle {
 	/*
 		Moves the right and bottom coordinates of the rectangle without affecting the other two.
 	*/
-	constexpr auto move_bottom_right(Vector2d<_Type> const offset) noexcept -> Rectangle<_Type>&
+	constexpr auto move_bottom_right(Vector2d<_Type> const offset) noexcept -> Rectangle&
 	{
 		right += offset.x;
 		bottom += offset.y;
@@ -3234,8 +3155,7 @@ struct Rectangle {
 	/*
 		Offsets the left and right coordinates by an amount.
 	*/
-	constexpr auto move_x(_Type const offset_x) noexcept -> Rectangle<_Type>&
-	{
+	constexpr auto move_x(_Type const offset_x) noexcept -> Rectangle& {
 		left += offset_x;
 		right += offset_x;
 		return *this;
@@ -3243,8 +3163,7 @@ struct Rectangle {
 	/*
 		Offsets the top and bottom coordinates by an amount.
 	*/
-	constexpr auto move_y(_Type const p_offsetY) noexcept -> Rectangle<_Type>&
-	{
+	constexpr auto move_y(_Type const p_offsetY) noexcept -> Rectangle& {
 		top += p_offsetY;
 		bottom += p_offsetY;
 		return *this;
@@ -3255,8 +3174,7 @@ struct Rectangle {
 	/*
 		Sets the width and height of the rectangle, changing only the right and bottom coordinates.
 	*/
-	constexpr auto set_size(Size<_Type> const size) noexcept -> Rectangle<_Type>&
-	{
+	constexpr auto set_size(Size<_Type> const size) noexcept -> Rectangle& {
 		right = left + size.x;
 		bottom = top + size.y;
 		return *this;
@@ -3264,17 +3182,15 @@ struct Rectangle {
 	/*
 		Returns a point representing the size of the rectangle, where the x component is width and y is height.
 	*/
-	constexpr auto get_size() const noexcept -> Size<_Type>
-	{
+	constexpr auto get_size() const noexcept -> Size<_Type> {
 		return {right - left, bottom - top};
 	}
 
 	/*
 		Sets the width of the rectangle, changing only the right coordinate.
 	*/
-	constexpr auto setWidth(_Type const p_width) noexcept -> Rectangle<_Type>&
-	{
-		right = left + max(static_cast<_Type>(0), p_width);
+	constexpr auto set_width(_Type const width) noexcept -> Rectangle& {
+		right = left + max(static_cast<_Type>(0), width);
 		return *this;
 	}
 	/*
@@ -3288,9 +3204,9 @@ struct Rectangle {
 	/*
 		Sets the height of the rectangle, changing only the bottom coordinate.
 	*/
-	constexpr auto setHeight(_Type const p_height) noexcept -> Rectangle<_Type>&
+	constexpr auto set_height(_Type const height) noexcept -> Rectangle&
 	{
-		bottom = top + max(static_cast<_Type>(0), p_height);
+		bottom = top + max(static_cast<_Type>(0), height);
 		return *this;
 	}
 	/*
@@ -3307,7 +3223,7 @@ struct Rectangle {
 		Clips this rectangle to fit into the parameter rectangle.
 	*/
 	template<typename T>
-	constexpr auto bound(Rectangle<T> const p_bounds) noexcept -> Rectangle<_Type>&
+	constexpr auto bound(Rectangle<T> const p_bounds) noexcept -> Rectangle&
 	{
 		left = constrain(left, Range{p_bounds.left, p_bounds.right});
 		top = constrain(top, Range{p_bounds.top, p_bounds.bottom});
@@ -3320,8 +3236,8 @@ struct Rectangle {
 	/*
 		Extends the rectangle so that it contains the parameter rectangle.
 	*/
-	template<typename T>
-	constexpr auto contain(Rectangle<T> const rectangle) noexcept -> Rectangle<_Type>&
+	template<IsNumber T>
+	constexpr auto contain(Rectangle<T> const rectangle) noexcept -> Rectangle&
 	{
 		/*
 			If this is true then we need to round "outwards" so that this 
@@ -3350,7 +3266,7 @@ struct Rectangle {
 	/*
 		Returns whether a point lies within this rectangle.
 	*/
-	template<typename T>
+	template<IsNumber T>
 	constexpr auto get_is_containing(Point<T> p_point) const noexcept -> bool
 	{
 		return p_point.x >= left && p_point.x < right
@@ -3359,7 +3275,7 @@ struct Rectangle {
 	/*
 		Returns whether another rectangle is fully inside this rectangle.
 	*/
-	template<typename T>
+	template<IsNumber T>
 	constexpr auto get_is_containing(Rectangle<T> rectangle) const noexcept -> bool
 	{
 		return rectangle.left >= left && rectangle.right < right
@@ -3368,7 +3284,7 @@ struct Rectangle {
 	/*
 		Returns whether this rectangle intersects/overlaps/touches another rectangle.
 	*/
-	template<typename T>
+	template<IsNumber T>
 	constexpr auto get_is_intersecting(Rectangle<T> rectangle) const noexcept -> bool
 	{
 		return rectangle.right >= left && rectangle.bottom >= top
@@ -3381,40 +3297,40 @@ struct Rectangle {
 */
 class ProtectedRectangle {
 protected:
-	Rectangle<> m_bounds;
+	Rectangle<> _bounds;
 
 	virtual auto handle_protected_rectangle_change(Rectangle<> old_rectangle) -> void {};
 
 public:
 	ProtectedRectangle() = default;
 	ProtectedRectangle(Rectangle<> p_bounds) : 
-		m_bounds{p_bounds} 
+		_bounds{p_bounds} 
 	{}
 
 	virtual auto set_bounds(Rectangle<> const rectangle) -> void {
-		auto const old_rectangle = m_bounds;
-		m_bounds = rectangle;
+		auto const old_rectangle = _bounds;
+		_bounds = rectangle;
 		handle_protected_rectangle_change(old_rectangle);
 	}
 	virtual auto get_bounds() const noexcept -> Rectangle<> {
-		return m_bounds;
+		return _bounds;
 	}
 
 	//------------------------------
 
 	virtual auto move(Vector2d<> offset) -> void {
-		auto old_rectangle = m_bounds;
-		m_bounds += offset;
+		auto old_rectangle = _bounds;
+		_bounds += offset;
 		handle_protected_rectangle_change(old_rectangle);
 	}
 	virtual auto move_x(Dip offset_x) -> void {
-		auto old_rectangle = m_bounds;
-		m_bounds.move_x(offset_x);
+		auto old_rectangle = _bounds;
+		_bounds.move_x(offset_x);
 		handle_protected_rectangle_change(old_rectangle);
 	}
 	virtual auto move_y(Dip p_offsetY) -> void {
-		auto old_rectangle = m_bounds;
-		m_bounds.move_y(p_offsetY);
+		auto old_rectangle = _bounds;
+		_bounds.move_y(p_offsetY);
 		handle_protected_rectangle_change(old_rectangle);
 	}
 
@@ -3422,191 +3338,170 @@ public:
 
 	virtual auto set_top_left(Point<> position, bool will_keep_size = true) -> void
 	{
-		auto old_rectangle = m_bounds;
-		m_bounds.set_top_left(position, will_keep_size);
+		auto old_rectangle = _bounds;
+		_bounds.set_top_left(position, will_keep_size);
 		handle_protected_rectangle_change(old_rectangle);
 	}
 	virtual auto get_top_left() const noexcept -> Point<>
 	{
-		return m_bounds.get_top_left();
+		return _bounds.get_top_left();
 	}
 
-	virtual auto setTopRight(Point<> top_right, bool will_keep_size = true) -> void
+	virtual auto set_top_right(Point<> top_right, bool will_keep_size = true) -> void
 	{
-		auto old_rectangle = m_bounds;
-		m_bounds.setTopRight(top_right, will_keep_size);
+		auto old_rectangle = _bounds;
+		_bounds.set_top_right(top_right, will_keep_size);
 		handle_protected_rectangle_change(old_rectangle);
 	}
-	virtual auto getTopRight() const noexcept -> Point<>
+	virtual auto get_top_right() const noexcept -> Point<>
 	{
-		return m_bounds.getTopRight();
+		return _bounds.get_top_right();
 	}
 
 	virtual void set_bottom_left(Point<> p_bottomLeft, bool will_keep_size = true)
 	{
-		auto old_rectangle = m_bounds;
-		m_bounds.set_bottom_left(p_bottomLeft, will_keep_size);
+		auto old_rectangle = _bounds;
+		_bounds.set_bottom_left(p_bottomLeft, will_keep_size);
 		handle_protected_rectangle_change(old_rectangle);
 	}
 	virtual auto get_bottom_left() const noexcept -> Point<>
 	{
-		return m_bounds.get_bottom_left();
+		return _bounds.get_bottom_left();
 	}
 
 	virtual void set_bottom_right(Point<> p_bottomRight, bool will_keep_size = true)
 	{
-		auto old_rectangle = m_bounds;
-		m_bounds.set_bottom_right(p_bottomRight, will_keep_size);
+		auto old_rectangle = _bounds;
+		_bounds.set_bottom_right(p_bottomRight, will_keep_size);
 		handle_protected_rectangle_change(old_rectangle);
 	}
 	virtual auto get_bottom_right() const noexcept -> Point<>
 	{
-		return m_bounds.get_bottom_right();
+		return _bounds.get_bottom_right();
 	}
 
 	//------------------------------
 
-	virtual auto set_center(Point<> position)  -> void
-	{
-		auto old_rectangle = m_bounds;
-		m_bounds.set_center(position);
+	virtual auto set_center(Point<> position) -> void {
+		auto old_rectangle = _bounds;
+		_bounds.set_center(position);
 		handle_protected_rectangle_change(old_rectangle);
 	}
-	virtual auto setCenterX(Dip x)  -> void
-	{
-		auto old_rectangle = m_bounds;
-		m_bounds.setCenterX(x);
+	virtual auto set_center_x(Dip x) -> void {
+		auto old_rectangle = _bounds;
+		_bounds.set_center_x(x);
 		handle_protected_rectangle_change(old_rectangle);
 	}
-	virtual auto setCenterY(Dip y)  -> void
-	{
-		auto old_rectangle = m_bounds;
-		m_bounds.setCenterY(y);
+	virtual auto set_center_y(Dip y) -> void {
+		auto old_rectangle = _bounds;
+		_bounds.set_center_y(y);
 		handle_protected_rectangle_change(old_rectangle);
 	}
 
-	virtual auto getCenter() const noexcept -> Point<> {
-		return m_bounds.getCenter();
+	virtual auto get_center() const noexcept -> Point<> {
+		return _bounds.get_center();
 	}
 	virtual auto get_center_x() const noexcept -> Dip {
-		return m_bounds.get_center_x();
+		return _bounds.get_center_x();
 	}
 	virtual auto get_center_y() const noexcept -> Dip {
-		return m_bounds.get_center_y();
+		return _bounds.get_center_y();
 	}
 
 	//------------------------------
 
-	virtual auto set_left(Dip left, bool will_keep_width = true)  -> void
-	{
-		auto old_rectangle = m_bounds;
-		m_bounds.set_left(left, will_keep_width);
+	virtual auto set_left(Dip left, bool will_keep_width = true) -> void {
+		auto old_rectangle = _bounds;
+		_bounds.set_left(left, will_keep_width);
 		handle_protected_rectangle_change(old_rectangle);
 	}
-	virtual auto getLeft() const noexcept -> Dip
-	{
-		return m_bounds.left;
+	virtual auto getLeft() const noexcept -> Dip {
+		return _bounds.left;
 	}
 
-	virtual auto set_top(Dip p_top, bool will_keep_height = true)  -> void
-	{
-		auto old_rectangle = m_bounds;
-		m_bounds.set_top(p_top, will_keep_height);
+	virtual auto set_top(Dip p_top, bool will_keep_height = true) -> void {
+		auto old_rectangle = _bounds;
+		_bounds.set_top(p_top, will_keep_height);
 		handle_protected_rectangle_change(old_rectangle);
 	}
-	virtual auto getTop() const noexcept -> Dip
-	{
-		return m_bounds.top;
+	virtual auto getTop() const noexcept -> Dip {
+		return _bounds.top;
 	}
 
-	virtual auto set_right(Dip p_right, bool will_keep_width = true)  -> void
-	{
-		auto old_rectangle = m_bounds;
-		m_bounds.set_right(p_right, will_keep_width);
+	virtual auto set_right(Dip right, bool will_keep_width = true) -> void {
+		auto old_rectangle = _bounds;
+		_bounds.set_right(right, will_keep_width);
 		handle_protected_rectangle_change(old_rectangle);
 	}
-	virtual auto getRight() const noexcept -> Dip
-	{
-		return m_bounds.right;
+	virtual auto getRight() const noexcept -> Dip {
+		return _bounds.right;
 	}
 
-	virtual auto setBottom(Dip p_bottom, bool will_keep_height = true) -> void
-	{
-		auto old_rectangle = m_bounds;
-		m_bounds.setBottom(p_bottom, will_keep_height);
+	virtual auto set_bottom(Dip p_bottom, bool will_keep_height = true) -> void {
+		auto old_rectangle = _bounds;
+		_bounds.set_bottom(p_bottom, will_keep_height);
 		handle_protected_rectangle_change(old_rectangle);
 	}
-	virtual auto getBottom() const noexcept -> Dip
-	{
-		return m_bounds.bottom;
+	virtual auto getBottom() const noexcept -> Dip {
+		return _bounds.bottom;
 	}
 
 	//------------------------------
 
-	virtual auto setWidth(Dip p_width) -> void
-	{
-		auto old_rectangle = m_bounds;
-		m_bounds.setWidth(p_width);
+	virtual auto set_width(Dip const width) -> void {
+		auto old_rectangle = _bounds;
+		_bounds.set_width(width);
 		handle_protected_rectangle_change(old_rectangle);
 	}
-	virtual auto get_width() const noexcept -> Dip
-	{
-		return m_bounds.get_width();
+	virtual auto get_width() const noexcept -> Dip {
+		return _bounds.get_width();
 	}
 
-	virtual auto setHeight(Dip p_height) -> void
-	{
-		auto old_rectangle = m_bounds;
-		m_bounds.setHeight(p_height);
+	virtual auto set_height(Dip const height) -> void {
+		auto old_rectangle = _bounds;
+		_bounds.set_height(height);
 		handle_protected_rectangle_change(old_rectangle);
 	}
-	virtual auto get_height() const noexcept -> Dip
-	{
-		return m_bounds.get_height();
+	virtual auto get_height() const noexcept -> Dip {
+		return _bounds.get_height();
 	}
 
-	virtual auto set_size(Size<> size) -> void
-	{
-		auto old_rectangle = m_bounds;
-		m_bounds.set_size(size);
+	virtual auto set_size(Size<> const size) -> void {
+		auto old_rectangle = _bounds;
+		_bounds.set_size(size);
 		handle_protected_rectangle_change(old_rectangle);
 	}
 	virtual auto get_size() const noexcept -> Size<>
 	{
-		return m_bounds.get_size();
+		return _bounds.get_size();
 	}
 
 	//------------------------------
 
-	virtual auto get_is_intersecting(Rectangle<> rectangle) const noexcept -> bool
-	{
-		return m_bounds.get_is_intersecting(rectangle);
+	virtual auto get_is_intersecting(Rectangle<> rectangle) const noexcept -> bool {
+		return _bounds.get_is_intersecting(rectangle);
 	}
 
-	virtual auto get_is_containing(Rectangle<> rectangle) const noexcept -> bool
-	{
-		return m_bounds.get_is_containing(rectangle);
+	virtual auto get_is_containing(Rectangle<> rectangle) const noexcept -> bool {
+		return _bounds.get_is_containing(rectangle);
 	}
 
-	virtual auto get_is_containing(Point<> p_point) const -> bool
-	{
-		return m_bounds.get_is_containing(p_point);
+	virtual auto get_is_containing(Point<> p_point) const -> bool {
+		return _bounds.get_is_containing(p_point);
 	}
 };
 
 //------------------------------
 
-enum class RectangleCornerType
-{
+enum class RectangleCornerType {
 	Round,
 	Cut
 };
-struct RectangleCorners
-{
+struct RectangleCorners {
 	RectangleCornerType top_left_type;
-	RectangleCornerType topRightType;
-	RectangleCornerType bottomLeftType;
-	RectangleCornerType bottomRightType;
+	RectangleCornerType top_right_type;
+	RectangleCornerType bottom_left_type;
+	RectangleCornerType bottom_right_type;
 
 	Dip top_left_size_x;
 	Dip top_left_size_y;
@@ -3623,36 +3518,37 @@ struct RectangleCorners
 	RectangleCorners() :
 		top_left_size_x{0.f}, top_left_size_y{0.f}, top_right_size_x{0.f}, top_right_size_y{0.f},
 		bottom_left_size_x{0.f}, bottom_left_size_y{0.f}, bottom_right_size_x{0.f}, bottom_right_size_y{0.f},
-		top_left_type{RectangleCornerType::Round}, topRightType{RectangleCornerType::Round},
-		bottomLeftType{RectangleCornerType::Round}, bottomRightType{RectangleCornerType::Round}
+		top_left_type{RectangleCornerType::Round}, top_right_type{RectangleCornerType::Round},
+		bottom_left_type{RectangleCornerType::Round}, bottom_right_type{RectangleCornerType::Round}
+	{}
+	explicit RectangleCorners(Dip const corner_size, RectangleCornerType const corner_type = RectangleCornerType::Round) :
+		top_left_size_x{corner_size}, top_left_size_y{corner_size},
+		top_right_size_x{corner_size}, top_right_size_y{corner_size},
+		bottom_left_size_x{corner_size}, bottom_left_size_y{corner_size},
+		bottom_right_size_x{corner_size}, bottom_right_size_y{corner_size},
+		top_left_type{corner_type}, top_right_type{corner_type},
+		bottom_left_type{corner_type}, bottom_right_type{corner_type}
 	{
 	}
-	explicit RectangleCorners(Dip p_cornerSize, RectangleCornerType p_cornerType = RectangleCornerType::Round) :
-		top_left_size_x{p_cornerSize}, top_left_size_y{p_cornerSize},
-		top_right_size_x{p_cornerSize}, top_right_size_y{p_cornerSize},
-		bottom_left_size_x{p_cornerSize}, bottom_left_size_y{p_cornerSize},
-		bottom_right_size_x{p_cornerSize}, bottom_right_size_y{p_cornerSize},
-		top_left_type{p_cornerType}, topRightType{p_cornerType},
-		bottomLeftType{p_cornerType}, bottomRightType{p_cornerType}
-	{
-	}
-	RectangleCorners(Dip p_cornerSizeX, Dip p_cornerSizeY, RectangleCornerType p_cornerType = RectangleCornerType::Cut) :
-		top_left_size_x{p_cornerSizeX}, top_left_size_y{p_cornerSizeY},
-		top_right_size_x{p_cornerSizeX}, top_right_size_y{p_cornerSizeY},
-		bottom_left_size_x{p_cornerSizeX}, bottom_left_size_y{p_cornerSizeY},
-		bottom_right_size_x{p_cornerSizeX}, bottom_right_size_y{p_cornerSizeY},
-		top_left_type{p_cornerType}, topRightType{p_cornerType},
-		bottomLeftType{p_cornerType}, bottomRightType{p_cornerType}
+	RectangleCorners(Dip const corner_size_x, Dip const corner_size_y, RectangleCornerType const corner_type = RectangleCornerType::Cut) :
+		top_left_size_x{corner_size_x}, top_left_size_y{corner_size_y},
+		top_right_size_x{corner_size_x}, top_right_size_y{corner_size_y},
+		bottom_left_size_x{corner_size_x}, bottom_left_size_y{corner_size_y},
+		bottom_right_size_x{corner_size_x}, bottom_right_size_y{corner_size_y},
+		top_left_type{corner_type}, top_right_type{corner_type},
+		bottom_left_type{corner_type}, bottom_right_type{corner_type}
 	{
 	}
 
-	RectangleCorners(Dip p_topLeftSize, Dip p_topRightSize, Dip p_bottomLeftSize, Dip p_bottomRightSize, RectangleCornerType p_cornerType = RectangleCornerType::Round) :
-		top_left_size_x{p_topLeftSize}, top_left_size_y{p_topLeftSize},
-		top_right_size_x{p_topRightSize}, top_right_size_y{p_topRightSize},
-		bottom_left_size_x{p_bottomLeftSize}, bottom_left_size_y{p_bottomLeftSize},
-		bottom_right_size_x{p_bottomRightSize}, bottom_right_size_y{p_bottomRightSize},
-		top_left_type{p_cornerType}, topRightType{p_cornerType},
-		bottomLeftType{p_cornerType}, bottomRightType{p_cornerType}
+	RectangleCorners(Dip const top_left_size, Dip const top_right_size, 
+			Dip const bottom_left_size, Dip const bottom_right_size, 
+			RectangleCornerType const corner_type = RectangleCornerType::Round) :
+		top_left_size_x{top_left_size}, top_left_size_y{top_left_size},
+		top_right_size_x{top_right_size}, top_right_size_y{top_right_size},
+		bottom_left_size_x{bottom_left_size}, bottom_left_size_y{bottom_left_size},
+		bottom_right_size_x{bottom_right_size}, bottom_right_size_y{bottom_right_size},
+		top_left_type{corner_type}, top_right_type{corner_type},
+		bottom_left_type{corner_type}, bottom_right_type{corner_type}
 	{
 	}
 };
@@ -3684,11 +3580,11 @@ struct Easing
 		Initializes the control points of the bezier curve easing.
 		The parameters are the coordinates of the first and second control points, respectively.
 	*/
-	constexpr Easing(float p_x0, float p_y0, float p_x1, float p_y1) noexcept :
-		c0{p_x0, p_y0}, c1{p_x1, p_y1}
+	constexpr Easing(float const x0, float const y0, float const x1, float const y1) noexcept :
+		c0{x0, y0}, c1{x1, y1}
 	{}
-	constexpr Easing(Point<> p_firstControlPoint, Point<> p_secondControlPoint) noexcept :
-		c0{p_firstControlPoint}, c1{p_secondControlPoint}
+	constexpr Easing(Point<> first_control_point, Point<> second_control_point) noexcept :
+		c0{first_control_point}, c1{second_control_point}
 	{}
 
 	constexpr auto operator==(Easing easing) const noexcept -> bool = default;
@@ -3697,20 +3593,18 @@ struct Easing
 
 	/*
 		Transforms a normalized value according to a cubic bezier curve.
-		p_c0 is the first control point and p_c1 is the second one.
-		p_precision is the maximum amount of error in the output value.
+		c0 is the first control point and c1 is the second one.
+		precision is the maximum amount of error in the output value.
 
 		It calculates a quick newton's method estimation since the cubic bezier curve is defined as a calculation of points;
 		f(t) = (x, y) where 0 <= t <= 1, and we want to ease over x (value is x) and not t. This why we have a precision parameter.
 	*/
-	static auto ease_value(Point<> p_c0, Point<> p_c1, float value, float p_precision = 0.005f) noexcept -> float
+	static auto ease_value(Point<> const c0, Point<> const c1, float const value, float const precision = 0.005f) noexcept -> float
 	{
-		if (value <= 0.00001f)
-		{
+		if (value <= 0.00001f) {
 			return 0.f;
 		}
-		if (value >= 0.99999f)
-		{
+		if (value >= 0.99999f) {
 			return 1.f;
 		}
 
@@ -3724,173 +3618,169 @@ struct Easing
 		*/
 
 		auto error = 1.f;
-		while (std::abs(error) > p_precision)
-		{
-			error = value - t*((1.f - t)*(3.f*(1.f - t)*p_c0.x + 3.f*t*p_c1.x) + t*t);
-			//t += error/(p_x0*(3.f - 12.f*t + 9.f*t*t) + p_x1*(6.f*t - 9.f*t*t) + 3.f*t*t);
-			t += error/(p_c0.x*9.f*(t - 1.f)*(t - 1.f/3.f) + t*(p_c1.x*(6.f - 9.f*t) + 3.f*t));
+		while (std::abs(error) > precision) {
+			error = value - t*((1.f - t)*(3.f*(1.f - t)*c0.x + 3.f*t*c1.x) + t*t);
+			//t += error/(x0*(3.f - 12.f*t + 9.f*t*t) + x1*(6.f*t - 9.f*t*t) + 3.f*t*t);
+			t += error/(c0.x*9.f*(t - 1.f)*(t - 1.f/3.f) + t*(c1.x*(6.f - 9.f*t) + 3.f*t));
 		}
 
-		return t*((1.f - t)*(3.f*(1.f - t)*p_c0.y + 3.f*t*p_c1.y) + t*t);
+		return t*((1.f - t)*(3.f*(1.f - t)*c0.y + 3.f*t*c1.y) + t*t);
 	}
 	/*
 		Transforms a normalized value according to a cubic bezier curve.
-		(p_x0, p_y0) is the first control point and (p_x1, p_y1) is the second one.
-		p_precision is the maximum amount of error in the output value.
+		(x0, y0) is the first control point and (x1, y1) is the second one.
+		precision is the maximum amount of error in the output value.
 
 		It calculates a quick newton's method estimation since the cubic bezier curve is defined as a calculation of points;
 		f(t) = (x, y) where 0 <= t <= 1, and we want to ease over x (value is x) and not t. This why we have a precision parameter.
 	*/
-	static auto ease_value(float p_x0, float p_y0, float p_x1, float p_y1, float value, float p_precision = 0.005f) noexcept -> float
-	{
-		return ease_value(Point{p_x0, p_y0}, Point{p_x1, p_y1}, value, p_precision);
+	static auto ease_value(
+		float const x0, float const y0, 
+		float const x1, float const y1, 
+		float const value, float const precision = 0.005f
+	) noexcept -> float {
+		return ease_value(Point{x0, y0}, Point{x1, y1}, value, precision);
 	}
 	/*
 		Transforms a normalized value according to a cubic bezier curve.
-		p_precision is the maximum amount of error in the output value.
+		precision is the maximum amount of error in the output value.
 
 		It calculates a quick newton's method estimation since the cubic bezier curve is defined as a calculation of points;
 		f(t) = (x, y) where 0 <= t <= 1, and we want to ease over x (value is x) and not t. This why we have a precision parameter.
 	*/
-	auto ease_value(float value, float p_precision = 0.005f) const noexcept -> float
+	auto ease_value(float const value, float const precision = 0.005f) const noexcept -> float
 	{
-		return ease_value(c0, c1, value, p_precision);
+		return ease_value(c0, c1, value, precision);
 	}
 	/*
 		Transforms a normalized value according to the inverse of this cubic bezier curve,
 		so that easeValueInverse(ease_value(x)) = x (approximately)
-		p_precision is the maximum amount of error in the output value.
+		precision is the maximum amount of error in the output value.
 	*/
-	auto easeValueInverse(float value, float p_precision = 0.005f) const noexcept -> float
+	auto easeValueInverse(float value, float precision = 0.005f) const noexcept -> float
 	{
-		return ease_value(c0, c1, value, p_precision);
+		return ease_value(c0, c1, value, precision);
 	}
 };
 
 class View;
+
+template<typename T>
+concept IsAnimationCallback = IsInvocableWithReturn<T, void, float>;
 
 /*
 	Class used for making animations.
 	Preferrablý use the constructor directly, but there is also View::add_animation 
 	methods to dynamically create animations that have the same lifetime as a view.
 */
-class Animation
-{
+class Animation {
 	friend class Gui;
 
 private:
 	using _Clock = chrono::steady_clock;
 	using _Duration = chrono::duration<float, std::milli>;
 
-	_Duration m_duration;
+	_Duration _duration;
 public:
-	auto setDuration(float milliseconds) -> void
-	{
-		m_duration = _Duration{milliseconds};
+	auto set_duration(float const milliseconds) -> void {
+		_duration = _Duration{milliseconds};
 	}
 	/*
 		Returns the duration of the animation in milliseconds.
 	*/
-	auto getDuration() noexcept -> float
-	{
-		return m_duration.count();
+	auto get_duration() noexcept -> float {
+		return _duration.count();
 	}
 	/*
 		Sets the duration of the animation in any type from the standard chrono library.
 		Examples:
-			animation.setDuration(1min/5); // Minutes
-			animation.setDuration(2s); // Seconds
-			animation.setDuration(400ms); // Milliseconds
+			animation.set_duration(1min/5); // Minutes
+			animation.set_duration(2s); // Seconds
+			animation.set_duration(400ms); // Milliseconds
 	*/
-	template<typename DurationType, typename DurationPeriod>
-	auto setDuration(chrono::duration<DurationType, DurationPeriod> duration) -> void
-	{
-		m_duration = chrono::duration_cast<_Duration>(duration);
+	template<IsNumber _DurationType, IsRatio _DurationPeriod>
+	auto set_duration(chrono::duration<_DurationType, _DurationPeriod> const duration) -> void {
+		_duration = chrono::duration_cast<_Duration>(duration);
 	}
 	/*
 		Returns the duration of the animation in any duration type from the standard chrono library.
 		Example:
-			auto seconds = animation.getDuration<std::chrono::seconds>();
+			auto seconds = animation.get_duration<std::chrono::seconds>();
 	*/
-	template<typename DurationType>
-	auto getDuration() -> DurationType
-	{
-		return chrono::duration_cast<DurationType>(m_duration);
+	template<typename _DurationType>
+	auto get_duration() -> _DurationType {
+		return chrono::duration_cast<_DurationType>(_duration);
 	}
 
 private:
-	bool m_isReversed = false;
+	bool _is_reversed = false;
 public:
-	auto setIsReversed(bool p_isReversed) -> void
-	{
-		if (p_isReversed != m_isReversed)
-		{
-			float value = m_easing.ease_value(chrono::duration_cast<_Duration>(_Clock::now() - m_startTime)/m_duration, m_easingPrecision);
-			m_startTime = _Clock::now() - chrono::duration_cast<_Clock::duration>(m_easing.easeValueInverse(1.f - value)*m_duration);
-			m_isReversed = p_isReversed;
+	auto set_is_reversed(bool const is_reversed) -> void {
+		if (is_reversed != _is_reversed) {
+			auto const value = _easing.ease_value(chrono::duration_cast<_Duration>(_Clock::now() - _start_time)/_duration, _easing_precision);
+			_start_time = _Clock::now() - chrono::duration_cast<_Clock::duration>(_easing.easeValueInverse(1.f - value)*_duration);
+			_is_reversed = is_reversed;
 		}
 	}
-	auto getIsReversed() noexcept -> bool
-	{
-		return m_isReversed;
+	auto get_is_reversed() noexcept -> bool {
+		return _is_reversed;
 	}
 
 private:
-	bool m_isDone = true;
+	bool _is_done = true;
 public:
-	auto getIsDone() noexcept -> bool
-	{
-		return m_isDone;
+	auto get_is_done() noexcept -> bool {
+		return _is_done;
 	}
 
 private:
-	Easing m_easing;
+	Easing _easing;
 public:
-	auto setEasing(Easing easing) noexcept -> void {
-		m_easing = easing;
+	auto set_easing(Easing const easing) noexcept -> void {
+		_easing = easing;
 	}
-	auto getEasing() noexcept -> Easing {
-		return m_easing;
+	auto get_easing() noexcept -> Easing {
+		return _easing;
 	}
 
 private:
-	float m_easingPrecision = 0.005f;
+	float _easing_precision = 0.005f;
 public:
-	auto setEasingPrecision(float p_easingPrecision) -> void {
-		m_easingPrecision = p_easingPrecision;
+	auto set_easing_precision(float const easing_precision) -> void {
+		_easing_precision = easing_precision;
 	}
-	auto getEasingPrecision() -> float {
-		return m_easingPrecision;
+	auto get_easing_precision() -> float {
+		return _easing_precision;
 	}
 
 private:
-	Gui* m_gui = nullptr;
-	bool m_is_in_update_queue = false;
+	Gui* _gui = nullptr;
+	bool _is_in_update_queue = false;
 	auto queue_update() -> void;
 
-	bool m_areUpdatesCancelled = false;
+	bool _are_updates_cancelled = false;
 	auto update() -> void {
-		if (m_areUpdatesCancelled) {
-			m_is_in_update_queue = false;
+		if (_are_updates_cancelled) {
+			_is_in_update_queue = false;
 			return;
 		}
-		float value = m_easing.ease_value(chrono::duration_cast<_Duration>(_Clock::now() - m_startTime)/m_duration, m_easingPrecision);
+		auto value = _easing.ease_value(chrono::duration_cast<_Duration>(_Clock::now() - _start_time)/_duration, _easing_precision);
 		if (value >= 1.f) {
-			m_isDone = true;
+			_is_done = true;
 			value = 1.f;
 		}
-		if (m_isReversed) {
+		if (_is_reversed) {
 			value = 1.f - value;
 		}
 
-		updateListeners(value);
+		update_listeners(value);
 
-		m_is_in_update_queue = false;
-		if (!m_isDone) {
+		_is_in_update_queue = false;
+		if (!_is_done) {
 			queue_update();
 		}
 	}
-	auto cancelAllUpdates() -> void;
+	auto cancel_all_updates() -> void;
 
 public:
 	/*
@@ -3899,47 +3789,47 @@ public:
 		value is between 0 and 1.
 		At first the animation goes forward, but if you call reverse() the direction is switched.
 	*/
-	EventListeners<void(float)> updateListeners;
+	EventListeners<void(float)> update_listeners;
 
 private:
-	bool m_isPaused = false;
-	_Clock::time_point m_startTime;
-	_Clock::time_point m_pauseTime;
+	bool _is_paused = false;
+	_Clock::time_point _start_time;
+	_Clock::time_point _pauseTime;
 public:
-	auto play(bool p_isReversed) -> void {
-		setIsReversed(p_isReversed);
-		if (m_isPaused) {
-			m_startTime += _Clock::now() - m_pauseTime;
+	auto play(bool const is_reversed) -> void {
+		set_is_reversed(is_reversed);
+		if (_is_paused) {
+			_start_time += _Clock::now() - _pauseTime;
 		}
-		else if (m_isDone) {
-			m_startTime = _Clock::now();
+		else if (_is_done) {
+			_start_time = _Clock::now();
 		}
 		else return;
-		m_isDone = false;
+		_is_done = false;
 		queue_update();
 	}
 	auto play() -> void {
-		play(m_isReversed);
+		play(_is_reversed);
 	}
 	/*
-		If the animation is reversed then the animation value will start at 1 if startProgress is 0.
+		If the animation is reversed then the animation value will start at 1 if start_progress is 0.
 	*/
-	auto play(float const startProgress) -> void {
-		m_isDone = false;
-		if (m_isReversed) {
-			m_startTime = _Clock::now() - chrono::duration_cast<_Clock::duration>((1.f - startProgress)*m_duration);
+	auto play(float const start_progress) -> void {
+		_is_done = false;
+		if (_is_reversed) {
+			_start_time = _Clock::now() - chrono::duration_cast<_Clock::duration>((1.f - start_progress)*_duration);
 		}
 		else {
-			m_startTime = _Clock::now() - chrono::duration_cast<_Clock::duration>(startProgress*m_duration);
+			_start_time = _Clock::now() - chrono::duration_cast<_Clock::duration>(start_progress*_duration);
 		}
 	}
 	auto pause() -> void {
-		m_isPaused = true;
-		m_isDone = true;
+		_is_paused = true;
+		_is_done = true;
 	}
 	auto stop() -> void {
-		m_isPaused = false;
-		m_isDone = true;
+		_is_paused = false;
+		_is_done = true;
 	}
 	auto replay() -> void {
 		stop();
@@ -3948,31 +3838,26 @@ public:
 
 	//------------------------------
 
-	Animation(Gui* gui, Easing easing, float milliseconds) :
-		m_gui{gui},
-		m_easing{easing},
-		m_duration{milliseconds}
+	Animation(Gui* const gui, Easing const easing, float const milliseconds) :
+		_gui{gui},
+		_easing{easing},
+		_duration{milliseconds}
+	{}
+	Animation(Gui* const gui, Easing const easing, float const milliseconds, IsAnimationCallback auto const& callback) :
+		_gui{gui},
+		_easing{easing},
+		_duration{milliseconds}
 	{
+		update_listeners += callback;
 	}
-	template<typename Callback>
-	Animation(Gui* gui, Easing easing, float milliseconds, Callback const& callback) :
-		m_gui{gui},
-		m_easing{easing},
-		m_duration{milliseconds}
-	{
-		static_assert(std::is_invocable_r_v<void, Callback, float>, "Animation error: callback must be of type void (float).");
-		updateListeners += callback;
-	}
-	template<typename DurationType, typename DurationPeriod>
-	Animation(Gui* gui, Easing easing, chrono::duration<DurationType, DurationPeriod> const& duration) :
+	template<IsNumber _DurationType, IsRatio _DurationPeriod>
+	Animation(Gui* gui, Easing easing, chrono::duration<_DurationType, _DurationPeriod> const& duration) :
 		Animation{gui, easing, chrono::duration_cast<_Duration>(duration).count()}
-	{
-	}
-	template<typename DurationType, typename DurationPeriod, typename Callback>
-	Animation(Gui* gui, Easing easing, chrono::duration<DurationType, DurationPeriod> const& duration, Callback const& callback) :
+	{}
+	template<IsNumber _DurationType, IsRatio _DurationPeriod>
+	Animation(Gui* gui, Easing easing, chrono::duration<_DurationType, _DurationPeriod> const& duration, IsAnimationCallback auto const& callback) :
 		Animation{gui, easing, chrono::duration_cast<_Duration>(duration).count(), callback}
-	{
-	}
+	{}
 
 	auto operator=(Animation const&) -> Animation& = default;
 	auto operator=(Animation&& other) noexcept -> Animation& = default;
@@ -3981,7 +3866,7 @@ public:
 	Animation(Animation const&) = default;
 	Animation(Animation&&) noexcept = default;
 	~Animation() {
-		cancelAllUpdates();
+		cancel_all_updates();
 	}
 };
 
@@ -4006,19 +3891,19 @@ struct Initializer {
 using ColorInt = uint32;
 
 [[nodiscard]]
-constexpr inline auto get_red_channel(ColorInt color) noexcept -> uint8 {
+constexpr inline auto get_red_channel(ColorInt const color) noexcept -> uint8 {
 	return color >> 16 & 0xff;
 }
 [[nodiscard]]
-constexpr inline auto get_green_channel(ColorInt color) noexcept -> uint8 {
+constexpr inline auto get_green_channel(ColorInt const color) noexcept -> uint8 {
 	return color >> 8 & 0xff;
 }
 [[nodiscard]]
-constexpr inline auto get_blue_channel(ColorInt color) noexcept -> uint8 {
+constexpr inline auto get_blue_channel(ColorInt const color) noexcept -> uint8 {
 	return color & 0xff;
 }
 [[nodiscard]]
-constexpr inline auto get_alpha_channel(ColorInt color) noexcept -> uint8 {
+constexpr inline auto get_alpha_channel(ColorInt const color) noexcept -> uint8 {
 	return color >> 24 & 0xff;
 }
 
@@ -4069,46 +3954,43 @@ struct Color {
 		green{constrain(lightness)},
 		blue{constrain(lightness)},
 		alpha{constrain(p_alpha)}
-	{
-	}
+	{}
 	/*
 		Initializes the color with a grayscale value. The values are bytes in the range [0, 255].
 	*/
-	constexpr Color(uint8 lightness, uint8 p_alpha = 255u) noexcept :
+	constexpr Color(uint8 const lightness, uint8 const p_alpha = 255u) noexcept :
 		red{lightness/255.f},
 		green{red},
 		blue{red},
 		alpha{p_alpha/255.f}
-	{
-	}
+	{}
 	/*
 		Initializes the color with a grayscale value. The values are in the range [0, 255].
 	*/
-	template<typename T>
-	constexpr Color(IntegerType<T> lightness, IntegerType<T> p_alpha = static_cast<T>(255)) noexcept :
+	template<std::integral T>
+	constexpr Color(T const lightness, T const p_alpha = static_cast<T>(255)) noexcept :
 		red{constrain(lightness/255.f)},
 		green{red},
 		blue{red},
 		alpha{constrain(p_alpha/255.f)}
-	{
-	}
+	{}
 	/*
 		Creates a copy of another color but with a new alpha.
 	*/
-	constexpr Color(Color color, float p_alpha) noexcept :
+	constexpr Color(Color const color, float const p_alpha) noexcept :
 		red{color.red}, 
 		green{color.green}, 
 		blue{color.blue}, 
 		alpha{constrain(p_alpha)}
 	{}
-	constexpr Color(Color color, uint8 p_alpha) noexcept :
+	constexpr Color(Color const color, uint8 const p_alpha) noexcept :
 		red{color.red/255.f},
 		green{color.green/255.f},
 		blue{color.blue/255.f},
 		alpha{p_alpha/255.f}
 	{}
-	template<typename T>
-	constexpr Color(Color color, IntegerType<T> p_alpha) noexcept :
+	template<std::integral T>
+	constexpr Color(Color const color, T const p_alpha) noexcept :
 		red{color.red},
 		green{color.green},
 		blue{color.blue},
@@ -4118,16 +4000,14 @@ struct Color {
 	/*
 		Initializes with a 4-byte packed RGBA color.
 	*/
-	constexpr Color(ColorInt color) noexcept :
+	constexpr Color(ColorInt const color) noexcept :
 		alpha{(color >> 24u)/255.f},
 		red{(color >> 16u & 0xffu)/255.f},
 		green{(color >> 8u & 0xffu)/255.f},
 		blue{(color & 0xffu)/255.f}
-	{
-	}
+	{}
 
-	constexpr auto operator=(ColorInt color) noexcept -> Color&
-	{
+	constexpr auto operator=(ColorInt const color) noexcept -> Color& {
 		alpha = (color >> 24u)/255.f;
 		red = (color >> 16u & 0xffu)/255.f;
 		green = (color >> 8u & 0xffu)/255.f;
@@ -4135,71 +4015,61 @@ struct Color {
 		return *this;
 	}
 
-	constexpr auto operator*(float factor) const noexcept -> Color
-	{
+	constexpr auto operator*(float const factor) const noexcept -> Color {
 		return {red*factor, green*factor, blue*factor};
 	}
-	constexpr auto operator*=(float factor) noexcept -> Color&
-	{
+	constexpr auto operator*=(float const factor) noexcept -> Color& {
 		red *= factor;
 		green *= factor;
 		blue *= factor;
 		return *this;
 	}
-	constexpr auto operator/(float divisor) const noexcept -> Color
-	{
+	constexpr auto operator/(float const divisor) const noexcept -> Color {
 		return {red/divisor, green/divisor, blue/divisor};
 	}
-	constexpr auto operator/=(float divisor) noexcept -> Color&
-	{
+	constexpr auto operator/=(float const divisor) noexcept -> Color& {
 		red /= divisor;
 		green /= divisor;
 		blue /= divisor;
 		return *this;
 	}
 
-	constexpr auto operator+(float p_delta) const noexcept -> Color
-	{
-		return {red + p_delta, green + p_delta, blue + p_delta};
+	constexpr auto operator+(float const delta) const noexcept -> Color {
+		return {red + delta, green + delta, blue + delta};
 	}
-	constexpr auto operator+=(float p_delta) noexcept -> Color&
-	{
-		red += p_delta;
-		green += p_delta;
-		blue += p_delta;
+	constexpr auto operator+=(float const delta) noexcept -> Color& {
+		red += delta;
+		green += delta;
+		blue += delta;
 		return *this;
 	}
 
-	constexpr auto operator-(float p_delta) const noexcept -> Color
-	{
-		return {red - p_delta, green - p_delta, blue - p_delta};
+	constexpr auto operator-(float const delta) const noexcept -> Color {
+		return {red - delta, green - delta, blue - delta};
 	}
-	constexpr auto operator-=(float p_delta) noexcept -> Color&
-	{
-		red -= p_delta;
-		green -= p_delta;
-		blue -= p_delta;
+	constexpr auto operator-=(float const delta) noexcept -> Color& {
+		red -= delta;
+		green -= delta;
+		blue -= delta;
 		return *this;
 	}
 
 	//------------------------------
 
-	constexpr auto operator==(Color color) const noexcept -> bool
-	{
+	constexpr auto operator==(Color const color) const noexcept -> bool {
 		return red == color.red && green == color.green && blue == color.blue && alpha == color.alpha;
 	}
-	constexpr auto operator!=(Color color) const noexcept -> bool
-	{
+	constexpr auto operator!=(Color const color) const noexcept -> bool {
 		return red != color.red || green != color.green || blue != color.blue || alpha != color.alpha;
 	}
 
 	//------------------------------
 
-	static constexpr auto rgba(float p_red, float p_green, float p_blue, float p_alpha = 1.f) noexcept -> Color
+	static constexpr auto rgba(float const p_red, float const p_green, float const p_blue, float const p_alpha = 1.f) noexcept -> Color
 	{
 		return Color{p_red, p_green, p_blue, p_alpha};
 	}
-	static constexpr auto rgb(float p_red, float p_green, float p_blue) noexcept -> Color
+	static constexpr auto rgb(float const p_red, float const p_green, float const p_blue) noexcept -> Color
 	{
 		return Color{p_red, p_green, p_blue};
 	}
@@ -4211,41 +4081,37 @@ struct Color {
 		while brightness goes from black to full color brightness. 
 		HSB can only be white if saturation is 0 while HSL is white as long as lightness is 1.
 	*/
-	static constexpr auto hsba(float p_hue, float p_saturation, float p_brightness, float p_alpha = 1.f) noexcept -> Color
+	static constexpr auto hsba(float hue, float const saturation, float brightness, float p_alpha = 1.f) noexcept -> Color
 	{
-		p_hue -= Avo::floor(p_hue);
-		p_brightness = constrain(p_brightness);
-		auto const factor = p_brightness*constrain(p_saturation);
+		hue -= Avo::floor(hue);
+		brightness = constrain(brightness);
+		auto const factor = brightness*constrain(saturation);
 
 		return Color{
-			p_brightness + factor*(constrain(1.f - (p_hue - 1.f/6.f)*6.f) + constrain((p_hue - 4.f/6.f)*6.f) - 1.f),
-			p_brightness + factor*(Avo::min(1.f, p_hue*6.f) - constrain((p_hue - 3.f/6.f)*6.f) - 1.f),
-			p_brightness + factor*(constrain((p_hue - 2.f/6.f)*6.f) - constrain((p_hue - 5.f/6.f)*6.f) - 1.f)
+			brightness + factor*(constrain(1.f - (hue - 1.f/6.f)*6.f) + constrain((hue - 4.f/6.f)*6.f) - 1.f),
+			brightness + factor*(Avo::min(1.f, hue*6.f) - constrain((hue - 3.f/6.f)*6.f) - 1.f),
+			brightness + factor*(constrain((hue - 2.f/6.f)*6.f) - constrain((hue - 5.f/6.f)*6.f) - 1.f)
 		};
 	}
 	/*
 		Calls Color::hsba.
 	*/
-	static constexpr auto hsb(float p_hue, float p_saturation, float p_brightness) noexcept -> Color
-	{
-		return hsba(p_hue, p_saturation, p_brightness);
+	static constexpr auto hsb(float hue, float saturation, float brightness) noexcept -> Color {
+		return hsba(hue, saturation, brightness);
 	}
-	template<typename T>
-	static constexpr auto hsba(Angle<T> p_hue, float p_saturation, float p_brightness, float p_alpha = 1.f) noexcept -> Color
+	template<IsAngle _Angle>
+	static constexpr auto hsba(_Angle const hue, float const saturation, float const brightness, float const p_alpha = 1.f) noexcept -> Color
 	{
-		if constexpr (std::is_convertible_v<Angle<T>, Degrees>)
-		{
-			return hsba(p_hue.value/360.f, p_saturation, p_brightness, p_alpha);
+		if constexpr (std::same_as<_Angle, Degrees>) {
+			return hsba(hue.value/360.f, saturation, brightness, p_alpha);
 		}
-		else
-		{
-			return hsba(p_hue.value/TAU<float>, p_saturation, p_brightness, p_alpha);
+		else {
+			return hsba(hue.value/TAU<float>, saturation, brightness, p_alpha);
 		}
 	}
-	template<typename T>
-	static constexpr auto hsb(Angle<T> p_hue, float p_saturation, float p_brightness) noexcept -> Color
+	static constexpr auto hsb(IsAngle auto const hue, float const saturation, float const brightness) noexcept -> Color
 	{
-		return hsba(p_hue, p_saturation, p_brightness);
+		return hsba(hue, saturation, brightness);
 	}
 
 	/*
@@ -4255,24 +4121,24 @@ struct Color {
 		while brightness goes from black to full color brightness. 
 		HSB can only be white if saturation is 0 while HSL is white as long as lightness is 1.
 	*/
-	static constexpr auto hsla(float p_hue, float p_saturation, float lightness, float p_alpha = 1.f) noexcept -> Color
+	static constexpr auto hsla(float hue, float const saturation, float lightness, float const p_alpha = 1.f) noexcept -> Color
 	{
-		p_hue -= floor(p_hue);
+		hue -= floor(hue);
 		lightness = constrain(lightness);
-		float factor = 2.f*constrain(p_saturation)*(lightness < 0.5f ? lightness : (1.f - lightness));
+		float factor = 2.f*constrain(saturation)*(lightness < 0.5f ? lightness : (1.f - lightness));
 
 		return Color{
-			lightness + factor*(constrain(1.f - (p_hue - 1.f/6.f)*6.f) + constrain((p_hue - 4.f/6.f)*6.f) - 0.5f),
-			lightness + factor*(min(1.f, p_hue*6.f) - constrain((p_hue - 3.f/6.f)*6.f) - 0.5f),
-			lightness + factor*(constrain((p_hue - 2.f/6.f)*6.f) - constrain((p_hue - 5.f/6.f)*6.f) - 0.5f)
+			lightness + factor*(constrain(1.f - (hue - 1.f/6.f)*6.f) + constrain((hue - 4.f/6.f)*6.f) - 0.5f),
+			lightness + factor*(min(1.f, hue*6.f) - constrain((hue - 3.f/6.f)*6.f) - 0.5f),
+			lightness + factor*(constrain((hue - 2.f/6.f)*6.f) - constrain((hue - 5.f/6.f)*6.f) - 0.5f)
 		};
 	}
 	/*
 		Calls Color::hsla.
 	*/
-	static constexpr auto hsl(float p_hue, float p_saturation, float lightness) noexcept -> Color
+	static constexpr auto hsl(float hue, float saturation, float lightness) noexcept -> Color
 	{
-		return hsla(p_hue, p_saturation, lightness);
+		return hsla(hue, saturation, lightness);
 	}
 	/*
 		Creates a color from hue, saturation, lightness and alpha values.
@@ -4281,25 +4147,22 @@ struct Color {
 		while brightness goes from black to full color brightness. 
 		HSB can only be white if saturation is 0 while HSL is white as long as lightness is 1.
 	*/
-	template<typename T>
-	static constexpr auto hsla(Angle<T> p_hue, float p_saturation, float lightness, float p_alpha = 1.f) noexcept -> Color
+	static constexpr auto hsla(IsAngle auto const hue, float saturation, float lightness, float p_alpha = 1.f) noexcept -> Color
 	{
 		if constexpr (std::is_convertible_v<Angle<T>, Degrees>)
 		{
-			return hsla(p_hue.value/360.f, p_saturation, lightness, p_alpha);
+			return hsla(hue.value/360.f, saturation, lightness, p_alpha);
 		}
 		else
 		{
-			return hsla(p_hue.value/TAU<float>, p_saturation, lightness, p_alpha);
+			return hsla(hue.value/TAU<float>, saturation, lightness, p_alpha);
 		}
 	}
 	/*
 		Calls Color::hsla.
 	*/
-	template<typename T>
-	static constexpr auto hsl(Angle<T> p_hue, float p_saturation, float lightness) noexcept -> Color
-	{
-		return hsla(p_hue, p_saturation, lightness);
+	static constexpr auto hsl(IsAngle auto const hue, float const saturation, float const lightness) noexcept -> Color {
+		return hsla(hue, saturation, lightness);
 	}
 
 	//------------------------------
@@ -4308,14 +4171,13 @@ struct Color {
 	/*
 		Changes the hue of the color. The hue is a float in the range [0, 1].
 	*/
-	constexpr auto setHue(float p_hue) noexcept -> Color&
-	{
-		p_hue -= floor(p_hue);
+	constexpr auto set_hue(float hue) noexcept -> Color& {
+		hue -= floor(hue);
 		auto const minColor = min(red, green, blue);
 		auto const maxColor = max(red, green, blue);
-		red = minColor + (maxColor - minColor)*(constrain(1.f - (p_hue - 1.f/6.f)*6.f) + constrain((p_hue - 4.f/6.f)*6.f));
-		green = minColor + (maxColor - minColor)*(min(1.f, p_hue*6.f) - constrain((p_hue - 3.f/6.f)*6.f));
-		blue = minColor + (maxColor - minColor)*(constrain((p_hue - 2.f/6.f)*6.f) - constrain((p_hue - 5.f/6.f)*6.f));
+		red = minColor + (maxColor - minColor)*(constrain(1.f - (hue - 1.f/6.f)*6.f) + constrain((hue - 4.f/6.f)*6.f));
+		green = minColor + (maxColor - minColor)*(min(1.f, hue*6.f) - constrain((hue - 3.f/6.f)*6.f));
+		blue = minColor + (maxColor - minColor)*(constrain((hue - 2.f/6.f)*6.f) - constrain((hue - 5.f/6.f)*6.f));
 		return *this;
 	}
 	/*
@@ -4377,15 +4239,15 @@ struct Color {
 		HSB saturation can change lightness, and HSL saturation can change brightness.
 		Keep in mind that you can't change the saturation if the color is grayscale, because only RGBA values are stored.
 	*/
-	constexpr auto setSaturationHSB(float p_saturation) noexcept -> Color&
+	constexpr auto setSaturationHSB(float saturation) noexcept -> Color&
 	{
 		if (red == green && red == blue)
 		{
 			return *this;
 		}
 
-		p_saturation = constrain(p_saturation);
-		auto const factor = p_saturation/getSaturationHSB();
+		saturation = constrain(saturation);
+		auto const factor = saturation/getSaturationHSB();
 
 		auto const brightness = max(red, green, blue);
 		red = brightness + factor*(red - brightness);
@@ -4411,12 +4273,12 @@ struct Color {
 		HSB saturation can change lightness, and HSL saturation can change brightness.
 		Keep in mind that you can't change the saturation if the color is gray, since only RGBA values are stored.
 	*/
-	constexpr auto setSaturationHSL(float p_saturation) noexcept -> Color&
+	constexpr auto setSaturationHSL(float saturation) noexcept -> Color&
 	{
-		p_saturation = constrain(p_saturation);
+		saturation = constrain(saturation);
 
-		auto const factor = p_saturation/getSaturationHSL();
-		if (factor == p_saturation/0.f)
+		auto const factor = saturation/getSaturationHSL();
+		if (factor == saturation/0.f)
 		{
 			return *this;
 		}
@@ -4446,30 +4308,27 @@ struct Color {
 		Sets the brightness of the color. The brightness is a float in the range [0, 1]. A brightness of 0 makes the
 		color black, and a brightness of 1 makes the color fully bright. This only makes it white if saturation is at 0.
 	*/
-	constexpr auto setBrightness(float p_brightness) noexcept -> Color&
-	{
-		p_brightness = constrain(p_brightness);
+	constexpr auto set_brightness(float brightness) noexcept -> Color& {
+		brightness = constrain(brightness);
 
-		if (red == green && red == blue)
-		{
-			red = p_brightness;
-			green = p_brightness;
-			blue = p_brightness;
+		if (red == green && red == blue) {
+			red = brightness;
+			green = brightness;
+			blue = brightness;
 			return *this;
 		}
 
-		auto const brightness = max(red, green, blue);
-		red *= p_brightness/brightness;
-		green *= p_brightness/brightness;
-		blue *= p_brightness/brightness;
+		auto const old_brightness = max(red, green, blue);
+		red *= brightness/old_brightness;
+		green *= brightness/old_brightness;
+		blue *= brightness/old_brightness;
 
 		return *this;
 	}
 	/*
 		Returns the brightness of the color. The brightness is a float in the range [0, 1].
 	*/
-	constexpr auto getBrightness() const noexcept -> float
-	{
+	constexpr auto getBrightness() const noexcept -> float {
 		return max(red, green, blue);
 	}
 
@@ -4668,27 +4527,27 @@ public:
 	auto operator==(DrawingContextObject<T> const& other) const -> bool = default;
 
 	auto get_is_valid() const -> bool {
-		return m_implementation;
+		return _implementation;
 	}
 	operator bool() const {
-		return m_implementation.operator bool();
+		return _implementation.operator bool();
 	}
 	auto destroy() -> void {
-		m_implementation = nullptr;
+		_implementation = nullptr;
 	}
 
 protected:
-	std::shared_ptr<T> m_implementation;
+	std::shared_ptr<T> _implementation;
 	DrawingContextObject(std::shared_ptr<T>&& p_implementation) :
-		m_implementation{std::move(p_implementation)}
+		_implementation{std::move(p_implementation)}
 	{}
 	DrawingContextObject(std::shared_ptr<T> const& p_implementation) :
-		m_implementation{p_implementation}
+		_implementation{p_implementation}
 	{}
 
 public:
 	auto get_implementation() const -> T* {
-		return m_implementation.get();
+		return _implementation.get();
 	}
 
 	DrawingContextObject() = default;
@@ -4731,21 +4590,20 @@ enum class ImageFormat {
 	Notice that this is not a view but should be treated as a drawable object.
 	The memory of an image is automatically managed and reference counted.
 	Here:
-		Image image_0 = get_drawing_context()->createImage("image.png");
+		Image image_0 = get_drawing_context()->create_image("image.png");
 		Image image_1 = image_0;
 	image_1 and image_0 are referring to the same image, and the internal image object
 	is released once all references have been destroyed.
 */
-class Image : public ProtectedRectangle, public DrawingContextObject<Image>
-{
+class Image : public ProtectedRectangle, public DrawingContextObject<Image> {
 public:
 	/*
 		Sets a rectangle representing the portion of the image that will be drawn, relative to the top-left corner of the image.
 		This is in original image DIP coordinates, meaning sizing is not taken into account.
 	*/
 	virtual auto set_crop_rectangle(Rectangle<> rectangle) -> void {
-		if (m_implementation) {
-			m_implementation->set_crop_rectangle(rectangle);
+		if (_implementation) {
+			_implementation->set_crop_rectangle(rectangle);
 		}
 	}
 	/*
@@ -4753,8 +4611,8 @@ public:
 		This is in original image DIP coordinates, meaning sizing is not taken into account.
 	*/
 	virtual auto get_crop_rectangle() const -> Rectangle<> {
-		if (m_implementation) {
-			return m_implementation->get_crop_rectangle();
+		if (_implementation) {
+			return _implementation->get_crop_rectangle();
 		}
 		return {};
 	}
@@ -4763,8 +4621,8 @@ public:
 		Returns the DIP size of the actual image.
 	*/
 	virtual auto get_original_size() const -> Size<> {
-		if (m_implementation) {
-			return m_implementation->get_original_size();
+		if (_implementation) {
+			return _implementation->get_original_size();
 		}
 		return {};
 	}
@@ -4772,36 +4630,36 @@ public:
 		Returns the DIP width of the actual image.
 	*/
 	virtual auto get_original_width() const -> Dip {
-		if (m_implementation) {
-			return m_implementation->get_original_width();
+		if (_implementation) {
+			return _implementation->get_original_width();
 		}
 		return 0;
 	}
 	/*
 		Returns the DIP height of the actual image.
 	*/
-	virtual auto getOriginalHeight() const -> Dip {
-		if (m_implementation) {
-			return m_implementation->getOriginalHeight();
+	virtual auto get_original_height() const -> Dip {
+		if (_implementation) {
+			return _implementation->get_original_height();
 		}
 		return 0;
 	}
 
-	virtual auto getOriginalPixelSize() const -> Size<Pixels> {
-		if (m_implementation) {
-			return m_implementation->getOriginalPixelSize();
+	virtual auto get_original_pixel_size() const -> Size<Pixels> {
+		if (_implementation) {
+			return _implementation->get_original_pixel_size();
 		}
 		return {};
 	}
-	virtual auto getOriginalPixelWidth() const -> Pixels {
-		if (m_implementation) {
-			return m_implementation->getOriginalPixelWidth();
+	virtual auto get_original_pixel_width() const -> Pixels {
+		if (_implementation) {
+			return _implementation->get_original_pixel_width();
 		}
 		return {};
 	}
-	virtual auto getOriginalPixelHeight() const -> Pixels {
-		if (m_implementation) {
-			return m_implementation->getOriginalPixelHeight();
+	virtual auto get_original_pixel_height() const -> Pixels {
+		if (_implementation) {
+			return _implementation->get_original_pixel_height();
 		}
 		return {};
 	}
@@ -4811,17 +4669,17 @@ public:
 	/*
 		Sets the way the image is fit within its bounds.
 	*/
-	virtual auto set_bounds_sizing(ImageBoundsSizing p_sizeMode) -> void {
-		if (m_implementation) {
-			m_implementation->set_bounds_sizing(p_sizeMode);
+	virtual auto set_bounds_sizing(ImageBoundsSizing const size_mode) -> void {
+		if (_implementation) {
+			_implementation->set_bounds_sizing(size_mode);
 		}
 	}
 	/*
 		Returns the way the image is fit within its bounds.
 	*/
 	virtual auto getBoundsSizing() const -> ImageBoundsSizing {
-		if (m_implementation) {
-			return m_implementation->getBoundsSizing();
+		if (_implementation) {
+			return _implementation->getBoundsSizing();
 		}
 		return ImageBoundsSizing::Unknown;
 	}
@@ -4834,8 +4692,8 @@ public:
 		aligned with the bottom right corner of the bounds. 0.5 means the centers will be aligned.
 	*/
 	virtual auto setBoundsPositioning(Point<Factor> factor) -> void {
-		if (m_implementation) {
-			m_implementation->setBoundsPositioning(factor);
+		if (_implementation) {
+			_implementation->setBoundsPositioning(factor);
 		}
 	}
 	/*
@@ -4846,8 +4704,8 @@ public:
 		aligned with the right edge of the bounds. 0.5 means the centers will be aligned.
 	*/
 	virtual auto setBoundsPositioningX(Factor x) -> void {
-		if (m_implementation) {
-			m_implementation->setBoundsPositioningX(x);
+		if (_implementation) {
+			_implementation->setBoundsPositioningX(x);
 		}
 	}
 	/*
@@ -4858,16 +4716,16 @@ public:
 		aligned with the bottom edge of the bounds. 0.5 means the centers will be aligned.
 	*/
 	virtual auto setBoundsPositioningY(Factor y) -> void {
-		if (m_implementation) {
-			m_implementation->setBoundsPositioningY(y);
+		if (_implementation) {
+			_implementation->setBoundsPositioningY(y);
 		}
 	}
 	/*
 		Returns the way the image is positioned within its bounds. See setBoundsPositioning for more info.
 	*/
 	virtual auto getBoundsPositioning() const -> Point<Factor> {
-		if (m_implementation) {
-			return m_implementation->getBoundsPositioning();
+		if (_implementation) {
+			return _implementation->getBoundsPositioning();
 		}
 		return {};
 	}
@@ -4875,8 +4733,8 @@ public:
 		Returns the way the image is positioned within its bounds on the x-axis. See setBoundsPositioningX for more info.
 	*/
 	virtual auto getBoundsPositioningX() const -> Factor {
-		if (m_implementation) {
-			return m_implementation->getBoundsPositioningX();
+		if (_implementation) {
+			return _implementation->getBoundsPositioningX();
 		}
 		return 0.f;
 	}
@@ -4884,8 +4742,8 @@ public:
 		Returns the way the image is positioned within its bounds on the y-axis. See setBoundsPositioningY for more info.
 	*/
 	virtual auto getBoundsPositioningY() const -> Factor {
-		if (m_implementation) {
-			return m_implementation->getBoundsPositioningY();
+		if (_implementation) {
+			return _implementation->getBoundsPositioningY();
 		}
 		return 0.f;
 	}
@@ -4896,16 +4754,16 @@ public:
 		Sets how the pixels of the image are interpolated when the image is scaled.
 	*/
 	virtual auto setScalingMethod(ImageScalingMethod p_scalingMethod) -> void {
-		if (m_implementation) {
-			m_implementation->setScalingMethod(p_scalingMethod);
+		if (_implementation) {
+			_implementation->setScalingMethod(p_scalingMethod);
 		}
 	}
 	/*
 		Returns how the pixels of the image are interpolated when the image is scaled.
 	*/
 	virtual auto getScalingMethod() const -> ImageScalingMethod {
-		if (m_implementation) {
-			return m_implementation->getScalingMethod();
+		if (_implementation) {
+			return _implementation->getScalingMethod();
 		}
 		return ImageScalingMethod::Unknown;
 	}
@@ -4916,16 +4774,16 @@ public:
 		Sets how opaque the image is being drawn.
 	*/
 	virtual auto set_opacity(float opacity) -> void {
-		if (m_implementation) {
-			m_implementation->set_opacity(opacity);
+		if (_implementation) {
+			_implementation->set_opacity(opacity);
 		}
 	}
 	/*
 		Returns how opaque the image is being drawn.
 	*/
 	virtual auto get_opacity() const -> float {
-		if (m_implementation) {
-			return m_implementation->get_opacity();
+		if (_implementation) {
+			return _implementation->get_opacity();
 		}
 		return 0;
 	}
@@ -4936,8 +4794,8 @@ public:
 		Returns the drawn width of the image within the bounds, calculated using the sizing options and the crop rectangle.
 	*/
 	virtual auto get_inner_width() const -> Dip {
-		if (m_implementation) {
-			return m_implementation->get_inner_width();
+		if (_implementation) {
+			return _implementation->get_inner_width();
 		}
 		return 0;
 	}
@@ -4945,8 +4803,8 @@ public:
 		Returns the drawn height of the image within the bounds, calculated using the sizing options and the crop rectangle.
 	*/
 	virtual auto get_inner_height() const -> Dip {
-		if (m_implementation) {
-			return m_implementation->get_inner_height();
+		if (_implementation) {
+			return _implementation->get_inner_height();
 		}
 		return 0;
 	}
@@ -4954,8 +4812,8 @@ public:
 		Returns the drawn size of the image within the bounds, calculated using the sizing options and the crop rectangle.
 	*/
 	virtual auto get_inner_size() const -> Point<> {
-		if (m_implementation) {
-			return m_implementation->get_inner_size();
+		if (_implementation) {
+			return _implementation->get_inner_size();
 		}
 		return {};
 	}
@@ -4963,8 +4821,8 @@ public:
 		Returns the drawn inner bounds of the image within the outer bounds, calculated using the positioning options, sizing options and the crop rectangle.
 	*/
 	virtual auto get_inner_bounds() const -> Rectangle<> {
-		if (m_implementation) {
-			return m_implementation->get_inner_bounds();
+		if (_implementation) {
+			return _implementation->get_inner_bounds();
 		}
 		return {};
 	}
@@ -4973,25 +4831,25 @@ public:
 
 protected:
 	auto handle_protected_rectangle_change(Rectangle<> p_old) -> void override {
-		if (m_implementation) {
-			m_implementation->set_bounds(m_bounds);
+		if (_implementation) {
+			_implementation->set_bounds(_bounds);
 		}
 	}
 
 private:
 	void initialize_bounds_from_implementation() {
-		if (m_implementation) {
-			m_bounds = m_implementation->m_bounds;
+		if (_implementation) {
+			_bounds = _implementation->_bounds;
 		}
 	}
 public:
 	auto operator=(Image&& image) -> Image& {
-		m_implementation = std::move(image.m_implementation);
+		_implementation = std::move(image._implementation);
 		initialize_bounds_from_implementation();
 		return *this;
 	}
 	auto operator=(Image const& image) -> Image& {
-		m_implementation = image.m_implementation;
+		_implementation = image._implementation;
 		initialize_bounds_from_implementation();
 	}
 
@@ -5011,12 +4869,12 @@ public:
 	Image() = default;
 	~Image() = default;
 	Image(Image&& image) :
-		DrawingContextObject{std::move(image.m_implementation)}
+		DrawingContextObject{std::move(image._implementation)}
 	{
 		initialize_bounds_from_implementation();
 	}
 	Image(Image const& image) :
-		DrawingContextObject{image.m_implementation}
+		DrawingContextObject{image._implementation}
 	{
 		initialize_bounds_from_implementation();
 	}
@@ -5111,16 +4969,16 @@ public:
 		Sets the rules for inserting line breaks in the text to avoid overflow.
 	*/
 	virtual auto set_word_wrapping(WordWrapping p_wordWrapping) -> void {
-		if (m_implementation) {
-			m_implementation->set_word_wrapping(p_wordWrapping);
+		if (_implementation) {
+			_implementation->set_word_wrapping(p_wordWrapping);
 		}
 	}
 	/*
 		Returns the type of rules used for inserting line breaks in the text to avoid overflow.
 	*/
 	virtual auto get_word_wrapping() const -> WordWrapping {
-		if (m_implementation) {
-			return m_implementation->get_word_wrapping();
+		if (_implementation) {
+			return _implementation->get_word_wrapping();
 		}
 		return WordWrapping::Unknown;
 	}
@@ -5131,16 +4989,16 @@ public:
 		If you want the text to be positioned without any space on the top, call set_is_top_trimmed(true) before this.
 	*/
 	virtual auto fit_size_to_text() -> void {
-		if (m_implementation) {
-			m_implementation->fit_size_to_text();
+		if (_implementation) {
+			_implementation->fit_size_to_text();
 		}
 	}
 	/*
 		Sets the width of the bounding box to fit the text.
 	*/
 	virtual auto fit_width_to_text() -> void {
-		if (m_implementation) {
-			m_implementation->fit_width_to_text();
+		if (_implementation) {
+			_implementation->fit_width_to_text();
 		}
 	}
 	/*
@@ -5149,8 +5007,8 @@ public:
 		If you want the text to be positioned without any space on the top, call set_is_top_trimmed(true) before this.
 	*/
 	virtual auto fit_height_to_text() -> void {
-		if (m_implementation) {
-			m_implementation->fit_height_to_text();
+		if (_implementation) {
+			_implementation->fit_height_to_text();
 		}
 	}
 	/*
@@ -5159,8 +5017,8 @@ public:
 		and the top edge of the bounds.
 	*/
 	virtual auto get_minimum_size() const -> Point<> {
-		if (m_implementation) {
-			return m_implementation->get_minimum_size();
+		if (_implementation) {
+			return _implementation->get_minimum_size();
 		}
 		return {};
 	}
@@ -5168,8 +5026,8 @@ public:
 		Returns the smallest width to contain the actual text.
 	*/
 	virtual auto get_minimum_width() const -> Dip {
-		if (m_implementation) {
-			return m_implementation->get_minimum_width();
+		if (_implementation) {
+			return _implementation->get_minimum_width();
 		}
 		return {};
 	}
@@ -5179,8 +5037,8 @@ public:
 		and the top edge of the bounds.
 	*/
 	virtual auto get_minimum_height() const -> Dip {
-		if (m_implementation) {
-			return m_implementation->get_minimum_height();
+		if (_implementation) {
+			return _implementation->get_minimum_height();
 		}
 		return {};
 	}
@@ -5197,8 +5055,8 @@ public:
 		Setting this to true can be useful when you want to perfectly center text vertically.
 	*/
 	virtual auto set_is_top_trimmed(bool const is_top_trimmed) -> void {
-		if (m_implementation) {
-			m_implementation->set_is_top_trimmed(is_top_trimmed);
+		if (_implementation) {
+			_implementation->set_is_top_trimmed(is_top_trimmed);
 		}
 	}
 	/*
@@ -5206,8 +5064,8 @@ public:
 		character of the text and the top edge of the bounds. This is false by default.
 	*/
 	virtual auto get_is_top_trimmed() const -> bool {
-		if (m_implementation) {
-			return m_implementation->get_is_top_trimmed();
+		if (_implementation) {
+			return _implementation->get_is_top_trimmed();
 		}
 		return false;
 	}
@@ -5220,8 +5078,8 @@ public:
 		If not, it is relative to the bounds of the text.
 	*/
 	virtual auto get_character_position(Index const character_index, bool const is_relative_to_origin = false) const -> Point<> {
-		if (m_implementation) {
-			return m_implementation->get_character_position(character_index, is_relative_to_origin);
+		if (_implementation) {
+			return _implementation->get_character_position(character_index, is_relative_to_origin);
 		}
 		return {};
 	}
@@ -5229,8 +5087,8 @@ public:
 		Returns the width and height of a character in the text, specified by its index in the string.
 	*/
 	virtual auto get_character_size(Index const character_index) const -> Point<> {
-		if (m_implementation) {
-			return m_implementation->get_character_size(character_index);
+		if (_implementation) {
+			return _implementation->get_character_size(character_index);
 		}
 		return {};
 	}
@@ -5240,8 +5098,8 @@ public:
 		If not, it is relative to the bounds of the text.
 	*/
 	virtual auto get_character_bounds(Index const character_index, bool const is_relative_to_origin = false) const -> Rectangle<> {
-		if (m_implementation) {
-			return m_implementation->get_character_bounds(character_index, is_relative_to_origin);
+		if (_implementation) {
+			return _implementation->get_character_bounds(character_index, is_relative_to_origin);
 		}
 		return {};
 	}
@@ -5252,8 +5110,8 @@ public:
 		If not, it is relative to the bounds of the text.
 	*/
 	virtual auto get_nearest_character_index(Point<> p_point, bool is_relative_to_origin = false) const -> Index {
-		if (m_implementation) {
-			return m_implementation->get_nearest_character_index(p_point, is_relative_to_origin);
+		if (_implementation) {
+			return _implementation->get_nearest_character_index(p_point, is_relative_to_origin);
 		}
 		return {};
 	}
@@ -5266,8 +5124,8 @@ public:
 	virtual auto get_nearest_character_index_and_position(Point<> p_point, bool is_relative_to_origin = false) const 
 		-> std::pair<Index, Point<>>
 	{
-		if (m_implementation) {
-			return m_implementation->get_nearest_character_index_and_position(p_point, is_relative_to_origin);
+		if (_implementation) {
+			return _implementation->get_nearest_character_index_and_position(p_point, is_relative_to_origin);
 		}
 		return {};
 	}
@@ -5280,8 +5138,8 @@ public:
 	virtual auto get_nearest_character_index_and_bounds(Point<> point, bool is_relative_to_origin = false) const 
 		-> std::pair<Index, Rectangle<>>
 	{
-		if (m_implementation) {
-			return m_implementation->get_nearest_character_index_and_bounds(point, is_relative_to_origin);
+		if (_implementation) {
+			return _implementation->get_nearest_character_index_and_bounds(point, is_relative_to_origin);
 		}
 		return {};
 	}
@@ -5292,16 +5150,16 @@ public:
 		Sets how the text is placed within the bounds.
 	*/
 	virtual auto set_text_align(TextAlign text_align) -> void {
-		if (m_implementation) {
-			m_implementation->set_text_align(text_align);
+		if (_implementation) {
+			_implementation->set_text_align(text_align);
 		}
 	}
 	/*
 		Returns how the text is placed within the bounds.
 	*/
 	virtual auto get_text_align() const -> TextAlign {
-		if (m_implementation) {
-			return m_implementation->get_text_align();
+		if (_implementation) {
+			return _implementation->get_text_align();
 		}
 		return TextAlign::Unknown;
 	}
@@ -5313,9 +5171,9 @@ public:
 	*/
 	virtual auto setReadingDirection(ReadingDirection p_readingDirection) -> void
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->setReadingDirection(p_readingDirection);
+			_implementation->setReadingDirection(p_readingDirection);
 		}
 	}
 	/*
@@ -5323,9 +5181,9 @@ public:
 	*/
 	virtual auto getReadingDirection() const -> ReadingDirection
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getReadingDirection();
+			return _implementation->getReadingDirection();
 		}
 		return ReadingDirection::Unknown;
 	}
@@ -5357,8 +5215,8 @@ public:
 		name is the name of the font family.
 	*/
 	virtual auto set_font_family(std::string_view name, TextRange range = {}) -> void {
-		if (m_implementation) {
-			m_implementation->set_font_family(name, range);
+		if (_implementation) {
+			_implementation->set_font_family(name, range);
 		}
 	}
 
@@ -5377,8 +5235,8 @@ public:
 		trailing is the spacing after the characters of the text.
 	*/
 	virtual auto set_character_spacing(float leading, float trailing, TextRange range = {}) -> void {
-		if (m_implementation) {
-			m_implementation->set_character_spacing(leading, trailing, range);
+		if (_implementation) {
+			_implementation->set_character_spacing(leading, trailing, range);
 		}
 	}
 	/*
@@ -5386,9 +5244,9 @@ public:
 	*/
 	virtual auto get_leading_character_spacing(Index character_index = 0) const -> float
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->get_leading_character_spacing(character_index);
+			return _implementation->get_leading_character_spacing(character_index);
 		}
 		return 0.f;
 	}
@@ -5397,9 +5255,9 @@ public:
 	*/
 	virtual auto getTrailingCharacterSpacing(Index character_index = 0) const -> float
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getTrailingCharacterSpacing(character_index);
+			return _implementation->getTrailingCharacterSpacing(character_index);
 		}
 		return 0.f;
 	}
@@ -5411,9 +5269,9 @@ public:
 	*/
 	virtual auto setLineHeight(Factor p_lineHeight) -> void
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->setLineHeight(p_lineHeight);
+			_implementation->setLineHeight(p_lineHeight);
 		}
 	}
 	/*
@@ -5421,9 +5279,9 @@ public:
 	*/
 	virtual auto getLineHeight() const -> Factor
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getLineHeight();
+			return _implementation->getLineHeight();
 		}
 		return 0.f;
 	}
@@ -5435,9 +5293,9 @@ public:
 	*/
 	virtual auto set_font_weight(FontWeight p_fontWeight, TextRange range = {}) -> void
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->set_font_weight(p_fontWeight, range);
+			_implementation->set_font_weight(p_fontWeight, range);
 		}
 	}
 	/*
@@ -5445,9 +5303,9 @@ public:
 	*/
 	virtual auto getFontWeight(Index p_characterPosition = 0) const -> FontWeight
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getFontWeight(p_characterPosition);
+			return _implementation->getFontWeight(p_characterPosition);
 		}
 		return FontWeight::Unknown;
 	}
@@ -5459,9 +5317,9 @@ public:
 	*/
 	virtual auto setFontStyle(FontStyle p_fontStyle, TextRange range = {}) -> void
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->setFontStyle(p_fontStyle, range);
+			_implementation->setFontStyle(p_fontStyle, range);
 		}
 	}
 	/*
@@ -5469,9 +5327,9 @@ public:
 	*/
 	virtual auto getFontStyle(Index p_characterPosition = 0) const -> FontStyle
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getFontStyle(p_characterPosition);
+			return _implementation->getFontStyle(p_characterPosition);
 		}
 		return FontStyle::Unknown;
 	}
@@ -5483,9 +5341,9 @@ public:
 	*/
 	virtual auto setFontStretch(FontStretch p_fontStretch, TextRange range = {}) -> void
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->setFontStretch(p_fontStretch, range);
+			_implementation->setFontStretch(p_fontStretch, range);
 		}
 	}
 	/*
@@ -5493,9 +5351,9 @@ public:
 	*/
 	virtual auto getFontStretch(Index p_characterPosition = 0) const -> FontStretch
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getFontStretch(p_characterPosition);
+			return _implementation->getFontStretch(p_characterPosition);
 		}
 		return FontStretch::Unknown;
 	}
@@ -5506,16 +5364,16 @@ public:
 		Sets the font size in a section of the text.
 	*/
 	virtual auto set_font_size(float font_size, TextRange range = {}) -> void {
-		if (m_implementation) {
-			m_implementation->set_font_size(font_size, range);
+		if (_implementation) {
+			_implementation->set_font_size(font_size, range);
 		}
 	}
 	/*
 		Returns the size (height) of a character in the text.
 	*/
 	virtual auto get_font_size(Index p_characterPosition = 0) const -> float {
-		if (m_implementation) {
-			return m_implementation->get_font_size(p_characterPosition);
+		if (_implementation) {
+			return _implementation->get_font_size(p_characterPosition);
 		}
 		return {};
 	}
@@ -5523,8 +5381,8 @@ public:
 	//------------------------------
 
 	virtual auto get_string() const -> std::string_view {
-		if (m_implementation) {
-			return m_implementation->get_string();
+		if (_implementation) {
+			return _implementation->get_string();
 		}
 		return {};
 	}
@@ -5533,248 +5391,248 @@ public:
 
 	using ProtectedRectangle::set_bounds;
 	auto set_bounds(Rectangle<> rectangle) -> void override {
-		if (m_implementation) {
-			m_implementation->ProtectedRectangle::set_bounds(rectangle);
+		if (_implementation) {
+			_implementation->ProtectedRectangle::set_bounds(rectangle);
 		}
 	}
 	auto get_bounds() const noexcept -> Rectangle<> override {
-		if (m_implementation) {
-			return m_implementation->ProtectedRectangle::get_bounds();
+		if (_implementation) {
+			return _implementation->ProtectedRectangle::get_bounds();
 		}
 		return {};
 	}
 
 	using ProtectedRectangle::move;
 	auto move(Vector2d<> offset) -> void override {
-		if (m_implementation) {
-			m_implementation->ProtectedRectangle::move(offset);
+		if (_implementation) {
+			_implementation->ProtectedRectangle::move(offset);
 		}
 	}
 	auto move_x(Dip offset_x) -> void override {
-		if (m_implementation) {
-			m_implementation->ProtectedRectangle::move_x(offset_x);
+		if (_implementation) {
+			_implementation->ProtectedRectangle::move_x(offset_x);
 		}
 	}
 	auto move_y(Dip p_offsetY) -> void override {
-		if (m_implementation) {
-			m_implementation->ProtectedRectangle::move_y(p_offsetY);
+		if (_implementation) {
+			_implementation->ProtectedRectangle::move_y(p_offsetY);
 		}
 	}
 
 	using ProtectedRectangle::set_top_left;
 	auto set_top_left(Point<> top_left, bool will_keep_size = true) -> void override {
-		if (m_implementation) {
-			m_implementation->ProtectedRectangle::set_top_left(top_left, will_keep_size);
+		if (_implementation) {
+			_implementation->ProtectedRectangle::set_top_left(top_left, will_keep_size);
 		}
 	}
 	auto get_top_left() const noexcept -> Point<> override {
-		if (m_implementation) {
-			return m_implementation->ProtectedRectangle::get_top_left();
+		if (_implementation) {
+			return _implementation->ProtectedRectangle::get_top_left();
 		}
 		return {};
 	}
 
-	using ProtectedRectangle::setTopRight;
-	auto setTopRight(Point<> top_right, bool will_keep_size = true) -> void override {
-		if (m_implementation) {
-			m_implementation->ProtectedRectangle::setTopRight(top_right, will_keep_size);
+	using ProtectedRectangle::set_top_right;
+	auto set_top_right(Point<> top_right, bool will_keep_size = true) -> void override {
+		if (_implementation) {
+			_implementation->ProtectedRectangle::set_top_right(top_right, will_keep_size);
 		}
 	}
-	auto getTopRight() const noexcept -> Point<> override {
-		if (m_implementation) {
-			return m_implementation->ProtectedRectangle::getTopRight();
+	auto get_top_right() const noexcept -> Point<> override {
+		if (_implementation) {
+			return _implementation->ProtectedRectangle::get_top_right();
 		}
 		return {};
 	}
 
-	using ProtectedRectangle::set_bottom_left;
+	using ProtectedRectangle::set_botto_left;
 	auto set_bottom_left(Point<> p_bottomLeft, bool will_keep_size = true) -> void override {
-		if (m_implementation) {
-			m_implementation->ProtectedRectangle::set_bottom_left(p_bottomLeft, will_keep_size);
+		if (_implementation) {
+			_implementation->ProtectedRectangle::set_bottom_left(p_bottomLeft, will_keep_size);
 		}
 	}
 	auto get_bottom_left() const noexcept -> Point<> override {
-		if (m_implementation) {
-			return m_implementation->ProtectedRectangle::get_bottom_left();
+		if (_implementation) {
+			return _implementation->ProtectedRectangle::get_bottom_left();
 		}
 		return {};
 	}
 
 	using ProtectedRectangle::set_bottom_right;
 	auto set_bottom_right(Point<> p_bottomRight, bool will_keep_size = true) -> void override {
-		if (m_implementation) {
-			m_implementation->ProtectedRectangle::set_bottom_right(p_bottomRight, will_keep_size);
+		if (_implementation) {
+			_implementation->ProtectedRectangle::set_bottom_right(p_bottomRight, will_keep_size);
 		}
 	}
 	auto get_bottom_right() const noexcept -> Point<> override {
-		if (m_implementation) {
-			return m_implementation->ProtectedRectangle::get_bottom_right();
+		if (_implementation) {
+			return _implementation->ProtectedRectangle::get_bottom_right();
 		}
 		return {};
 	}
 
 	using ProtectedRectangle::set_center;
-	auto set_center(Point<> p_center) -> void override {
-		if (m_implementation) {
-			m_implementation->ProtectedRectangle::set_center(p_center);
+	auto set_center(Point<> circle) -> void override {
+		if (_implementation) {
+			_implementation->ProtectedRectangle::set_center(circle);
 		}
 	}
-	auto getCenter() const noexcept -> Point<> override {
-		if (m_implementation) {
-			return m_implementation->ProtectedRectangle::getCenter();
+	auto get_center() const noexcept -> Point<> override {
+		if (_implementation) {
+			return _implementation->ProtectedRectangle::get_center();
 		}
 		return {};
 	}
-	auto setCenterX(Dip x) -> void override {
-		if (m_implementation) {
-			m_implementation->ProtectedRectangle::setCenterX(x);
+	auto set_center_x(Dip x) -> void override {
+		if (_implementation) {
+			_implementation->ProtectedRectangle::set_center_x(x);
 		}
 	}
 	auto get_center_x() const noexcept -> Dip override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->ProtectedRectangle::get_center_x();
+			return _implementation->ProtectedRectangle::get_center_x();
 		}
 		return 0.f;
 	}
-	auto setCenterY(Dip y) -> void override 
+	auto set_center_y(Dip y) -> void override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->ProtectedRectangle::setCenterY(y);
+			_implementation->ProtectedRectangle::set_center_y(y);
 		}
 	}
 	auto get_center_y() const noexcept -> Dip override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->ProtectedRectangle::get_center_y();
+			return _implementation->ProtectedRectangle::get_center_y();
 		}
 		return 0.f;
 	}
 	auto set_left(Dip left, bool will_keep_width = true) -> void override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->ProtectedRectangle::set_left(left, will_keep_width);
+			_implementation->ProtectedRectangle::set_left(left, will_keep_width);
 		}
 	}
 	auto getLeft() const noexcept -> Dip override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->ProtectedRectangle::getLeft();
+			return _implementation->ProtectedRectangle::getLeft();
 		}
 		return 0.f;
 	}
 	auto set_top(Dip p_top, bool will_keep_height = true) -> void override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->ProtectedRectangle::set_top(p_top, will_keep_height);
+			_implementation->ProtectedRectangle::set_top(p_top, will_keep_height);
 		}
 	}
 	auto getTop() const noexcept -> Dip override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->ProtectedRectangle::getTop();
+			return _implementation->ProtectedRectangle::getTop();
 		}
 		return 0.f;
 	}
-	auto set_right(Dip p_right, bool will_keep_width = true) -> void override 
+	auto set_right(Dip right, bool will_keep_width = true) -> void override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->ProtectedRectangle::set_right(p_right, will_keep_width);
+			_implementation->ProtectedRectangle::set_right(right, will_keep_width);
 		}
 	}
 	auto getRight() const noexcept -> Dip override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->ProtectedRectangle::getRight();
+			return _implementation->ProtectedRectangle::getRight();
 		}
 		return 0.f;
 	}
-	auto setBottom(Dip p_bottom, bool will_keep_height = true) -> void override 
+	auto set_bottom(Dip p_bottom, bool will_keep_height = true) -> void override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->ProtectedRectangle::setBottom(p_bottom, will_keep_height);
+			_implementation->ProtectedRectangle::set_bottom(p_bottom, will_keep_height);
 		}
 	}
 	auto getBottom() const noexcept -> Dip override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->ProtectedRectangle::getBottom();
+			return _implementation->ProtectedRectangle::getBottom();
 		}
 		return 0.f;
 	}
-	auto setWidth(Dip p_width) -> void override 
+	auto set_width(Dip width) -> void override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->ProtectedRectangle::setWidth(p_width);
+			_implementation->ProtectedRectangle::set_width(width);
 		}
 	}
 	auto get_width() const noexcept -> Dip override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->ProtectedRectangle::get_width();
+			return _implementation->ProtectedRectangle::get_width();
 		}
 		return 0.f;
 	}
-	auto setHeight(Dip p_height) -> void override 
+	auto set_height(Dip height) -> void override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->ProtectedRectangle::setHeight(p_height);
+			_implementation->ProtectedRectangle::set_height(height);
 		}
 	}
 	auto get_height() const noexcept -> Dip override 
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->ProtectedRectangle::get_height();
+			return _implementation->ProtectedRectangle::get_height();
 		}
 		return 0.f;
 	}
 
 	using ProtectedRectangle::set_size;
 	auto set_size(Size<> size) -> void override {
-		if (m_implementation) {
-			m_implementation->ProtectedRectangle::set_size(size);
+		if (_implementation) {
+			_implementation->ProtectedRectangle::set_size(size);
 		}
 	}
 	auto get_size() const noexcept -> Size<> override {
-		if (m_implementation) {
-			return m_implementation->ProtectedRectangle::get_size();
+		if (_implementation) {
+			return _implementation->ProtectedRectangle::get_size();
 		}
 		return {};
 	}
 
 	using ProtectedRectangle::get_is_intersecting;
 	auto get_is_intersecting(Rectangle<> rectangle) const noexcept -> bool override {
-		if (m_implementation) {
-			return m_implementation->ProtectedRectangle::get_is_intersecting(rectangle);
+		if (_implementation) {
+			return _implementation->ProtectedRectangle::get_is_intersecting(rectangle);
 		}
 		return false;
 	}
 	auto get_is_containing(Rectangle<> rectangle) const noexcept -> bool override {
-		if (m_implementation) {
-			return m_implementation->ProtectedRectangle::get_is_containing(rectangle);
+		if (_implementation) {
+			return _implementation->ProtectedRectangle::get_is_containing(rectangle);
 		}
 		return false;
 	}
 
 	using ProtectedRectangle::get_is_containing;
 	auto get_is_containing(Point<> point) const noexcept -> bool override {
-		if (m_implementation) {
-			return m_implementation->ProtectedRectangle::get_is_containing(p_point);
+		if (_implementation) {
+			return _implementation->ProtectedRectangle::get_is_containing(p_point);
 		}
 		return false;
 	}
@@ -5789,16 +5647,16 @@ public:
 		Sets an offset in the start and end positions.
 	*/
 	virtual auto set_offset(Point<> offset) -> void {
-		if (m_implementation) {
-			m_implementation->set_offset(offset);
+		if (_implementation) {
+			_implementation->set_offset(offset);
 		}
 	}
 	/*
 		Sets the horizontal offset in the start position.
 	*/
 	virtual auto setOffsetX(Dip x) -> void {
-		if (m_implementation) {
-			m_implementation->setOffsetX(x);
+		if (_implementation) {
+			_implementation->setOffsetX(x);
 		}
 	}
 	/*
@@ -5806,9 +5664,9 @@ public:
 	*/
 	virtual auto setOffsetY(Dip y) -> void
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->setOffsetY(y);
+			_implementation->setOffsetY(y);
 		}
 	}
 
@@ -5817,9 +5675,9 @@ public:
 	*/
 	virtual auto getOffset() const -> Point<>
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getOffset();
+			return _implementation->getOffset();
 		}
 		return {};
 	}
@@ -5828,9 +5686,9 @@ public:
 	*/
 	virtual auto getOffsetX() const -> Dip
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getOffsetX();
+			return _implementation->getOffsetX();
 		}
 		return 0.f;
 	}
@@ -5839,9 +5697,9 @@ public:
 	*/
 	virtual auto getOffsetY() const -> Dip
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getOffsetY();
+			return _implementation->getOffsetY();
 		}
 		return 0.f;
 	}
@@ -5851,9 +5709,9 @@ public:
 	*/
 	virtual auto setStartPosition(Point<> start_position) -> void
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->setStartPosition(start_position);
+			_implementation->setStartPosition(start_position);
 		}
 	}
 	/*
@@ -5861,9 +5719,9 @@ public:
 	*/
 	virtual auto getStartPosition() const -> Point<>
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getStartPosition();
+			return _implementation->getStartPosition();
 		}
 		return {};
 	}
@@ -5872,9 +5730,9 @@ public:
 	*/
 	virtual auto getStartPositionX() const -> Dip
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getStartPositionX();
+			return _implementation->getStartPositionX();
 		}
 		return 0.f;
 	}
@@ -5883,9 +5741,9 @@ public:
 	*/
 	virtual auto getStartPositionY() const -> Dip
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getStartPositionY();
+			return _implementation->getStartPositionY();
 		}
 		return 0.f;
 	}
@@ -5895,9 +5753,9 @@ public:
 	*/
 	virtual auto setEndPosition(Point<> endPosition) -> void
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->setEndPosition(endPosition);
+			_implementation->setEndPosition(endPosition);
 		}
 	}
 	/*
@@ -5905,9 +5763,9 @@ public:
 	*/
 	virtual auto getEndPosition() const -> Point<>
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getEndPosition();
+			return _implementation->getEndPosition();
 		}
 		return {};
 	}
@@ -5916,9 +5774,9 @@ public:
 	*/
 	virtual auto getEndPositionX() const -> Dip
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getEndPositionX();
+			return _implementation->getEndPositionX();
 		}
 		return 0.f;
 	}
@@ -5927,9 +5785,9 @@ public:
 	*/
 	virtual auto getEndPositionY() const -> Dip
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getEndPositionY();
+			return _implementation->getEndPositionY();
 		}
 		return 0.f;
 	}
@@ -5946,9 +5804,9 @@ public:
 	*/
 	virtual auto set_offset(Point<> offset) -> void
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->set_offset(offset);
+			_implementation->set_offset(offset);
 		}
 	}
 	/*
@@ -5956,9 +5814,9 @@ public:
 	*/
 	virtual auto setOffsetX(Dip x) -> void
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->setOffsetX(x);
+			_implementation->setOffsetX(x);
 		}
 	}
 	/*
@@ -5966,9 +5824,9 @@ public:
 	*/
 	virtual auto setOffsetY(Dip y) -> void
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->setOffsetY(y);
+			_implementation->setOffsetY(y);
 		}
 	}
 	/*
@@ -5976,9 +5834,9 @@ public:
 	*/
 	virtual auto getOffset() const -> Point<>
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getOffset();
+			return _implementation->getOffset();
 		}
 		return {};
 	}
@@ -5987,9 +5845,9 @@ public:
 	*/
 	virtual auto getOffsetX() const -> Dip
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getOffsetX();
+			return _implementation->getOffsetX();
 		}
 		return 0.f;
 	}
@@ -5998,9 +5856,9 @@ public:
 	*/
 	virtual auto getOffsetY() const -> Dip
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getOffsetY();
+			return _implementation->getOffsetY();
 		}
 		return 0.f;
 	}
@@ -6010,9 +5868,9 @@ public:
 	*/
 	virtual auto setStartPosition(Point<> start_position) -> void
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->setStartPosition(start_position);
+			_implementation->setStartPosition(start_position);
 		}
 	}
 	/*
@@ -6020,9 +5878,9 @@ public:
 	*/
 	virtual auto getStartPosition() const -> Point<>
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getStartPosition();
+			return _implementation->getStartPosition();
 		}
 		return Point<>{};
 	}
@@ -6031,9 +5889,9 @@ public:
 	*/
 	virtual auto getStartPositionX() const -> Dip
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getStartPositionX();
+			return _implementation->getStartPositionX();
 		}
 		return 0.f;
 	}
@@ -6042,9 +5900,9 @@ public:
 	*/
 	virtual auto getStartPositionY() const -> Dip
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getStartPositionY();
+			return _implementation->getStartPositionY();
 		}
 		return 0.f;
 	}
@@ -6052,11 +5910,11 @@ public:
 	/*
 		Sets the horizontal and vertical size of the gradient.
 	*/
-	virtual auto setRadius(Size<> p_radius) -> void
+	virtual auto setRadius(Size<> radius) -> void
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			m_implementation->setRadius(p_radius);
+			_implementation->setRadius(radius);
 		}
 	}
 	/*
@@ -6064,9 +5922,9 @@ public:
 	*/
 	virtual auto getRadius() const -> Size<>
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getRadius();
+			return _implementation->getRadius();
 		}
 		return {};
 	}
@@ -6075,9 +5933,9 @@ public:
 	*/
 	virtual auto getRadiusX() const -> Dip
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getRadiusX();
+			return _implementation->getRadiusX();
 		}
 		return 0.f;
 	}
@@ -6086,9 +5944,9 @@ public:
 	*/
 	virtual auto getRadiusY() const -> Dip
 	{
-		if (m_implementation)
+		if (_implementation)
 		{
-			return m_implementation->getRadiusY();
+			return _implementation->getRadiusY();
 		}
 		return 0.f;
 	}
@@ -6180,7 +6038,7 @@ enum class LineDashStyle
 class DrawingContext
 {
 protected:
-	TextProperties m_textProperties;
+	TextProperties _textProperties;
 
 	static auto createImageFromImplementation(std::shared_ptr<Image>&& p_implementation) -> Image
 	{
@@ -6342,11 +6200,11 @@ public:
 	/*
 		Sets the screen position of the coordinate (0, 0).
 	*/
-	virtual auto setOrigin(Point<> origin) -> void = 0;
+	virtual auto set_origin(Point<> origin) -> void = 0;
 	/*
 		Returns the screen position of the coordinate (0, 0).
 	*/
-	virtual auto getOrigin() -> Point<> = 0;
+	virtual auto get_origin() -> Point<> = 0;
 
 	//------------------------------
 
@@ -6377,17 +6235,17 @@ public:
 		Returns the sizing factor which is transforming graphics drawing so that it is bigger or smaller.
 		If it is 2, graphics is drawn twice as big as normal. 0.5 is half as big as normal.
 	*/
-	virtual auto getScale() -> Vector2d<Factor> = 0;
+	virtual auto get_scale() -> Vector2d<Factor> = 0;
 	/*
 		Returns the sizing factor for the x-axis which is transforming graphics drawing so that it is bigger or smaller.
 		If it is 2, graphics is drawn twice as big as normal. 0.5 is half as big as normal.
 	*/
-	virtual auto getScaleX() -> Factor = 0;
+	virtual auto get_scale_x() -> Factor = 0;
 	/*
 		Returns the sizing factor for the y-axis which is transforming graphics drawing so that it is bigger or smaller.
 		If it is 2, graphics is drawn twice as big as normal. 0.5 is half as big as normal.
 	*/
-	virtual auto getScaleY() -> Factor = 0;
+	virtual auto get_scale_y() -> Factor = 0;
 
 	//------------------------------
 
@@ -6420,7 +6278,7 @@ public:
 		Resets all graphics drawing transformations, so that every coordinate used in any drawing 
 		operation is unaltered, and relative to the top-left corner of the target.
 	*/
-	virtual auto resetTransformations() -> void = 0;
+	virtual auto reset_transformations() -> void = 0;
 
 	//------------------------------
 
@@ -6457,13 +6315,13 @@ public:
 		Draws a filled rectangle with custom corners using the current color or gradient.
 		Change color being used with method set_color or gradient with setGradientBrush.
 	*/
-	virtual auto fill_rectangle(Rectangle<> rectangle, RectangleCorners const& p_rectangleCorners) -> void = 0;
+	virtual auto fill_rectangle(Rectangle<> rectangle, RectangleCorners const& rectangle_corners) -> void = 0;
 
 	/*
 		Draws a filled rounded rectangle using the current color or gradient.
 		Change color being used with method set_color or gradient with setGradientBrush.
 	*/
-	virtual auto fillRoundedRectangle(Rectangle<> rectangle, Size<> p_radius) -> void = 0;
+	virtual auto fill_rounded_rectangle(Rectangle<> rectangle, Size<> radius) -> void = 0;
 
 	//------------------------------
 
@@ -6471,21 +6329,21 @@ public:
 		Draws a rectangle outline using the current color or gradient.
 		Change the color being used with the method set_color or the gradient with setGradientBrush.
 	*/
-	virtual auto stroke_rectangle(Rectangle<> rectangle, Dip p_strokeWidth) -> void = 0;
+	virtual auto stroke_rectangle(Rectangle<> rectangle, Dip stroke_width) -> void = 0;
 
 	/*
 		Draws a rectangle outline with custom corners using the current color or gradient.
 		Change the color being used with the method set_color or the gradient with setGradientBrush.
 	*/
 	virtual auto stroke_rectangle(
-		Rectangle<> rectangle, RectangleCorners const& p_rectangleCorners, Dip p_strokeWidth
+		Rectangle<> rectangle, RectangleCorners const& rectangle_corners, Dip stroke_width
 	) -> void = 0;
 
 	/*
 		Draws a rounded rectangle outline using the current color or gradient.
 		Change the color being used with the method set_color or the gradient with setGradientBrush.
 	*/
-	virtual auto strokeRoundedRectangle(Rectangle<> rectangle, Size<> p_radius, Dip p_strokeWidth) -> void = 0;
+	virtual auto stroke_rounded_rectangle(Rectangle<> rectangle, Size<> radius, Dip stroke_width) -> void = 0;
 
 	//------------------------------
 
@@ -6493,21 +6351,21 @@ public:
 		Draws a filled circle using the current color or gradient.
 		Change the color being used with the method set_color or the gradient with setGradientBrush.
 
-		p_center is the center position of the circle.
+		circle is the center position of the circle.
 	*/
-	virtual auto fill_circle(Point<> p_center, Dip p_radius) -> void = 0;
+	virtual auto fill_circle(Point<> circle, Dip radius) -> void = 0;
 
 	/*
 		Draws a circle outline using the current color or gradient.
 		Change the color being used with the method set_color or the gradient with setGradientBrush.
 
-		p_center is the center position of the circle.
+		circle is the center position of the circle.
 	*/
-	virtual auto strokeCircle(Point<> p_center, Dip p_radius, Dip p_strokeWidth) -> void = 0;
+	virtual auto stroke_circle(Point<> circle, Dip radius, Dip stroke_width) -> void = 0;
 
-	virtual auto fillEllipse(Point<> p_center, Size<> p_radius) -> void = 0;
+	virtual auto fill_ellipse(Point<> circle, Size<> radius) -> void = 0;
 
-	virtual auto strokeEllipse(Point<> p_center, Size<> p_radius, Dip p_strokeWidth) -> void = 0;
+	virtual auto stroke_ellipse(Point<> circle, Size<> radius, Dip stroke_width) -> void = 0;
 
 	//------------------------------
 
@@ -6522,19 +6380,19 @@ public:
 	/*
 		Draws the edge of a custom shape.
 
-		p_vertices is a vector of the points that make up the shape.
-		p_lineThickness is how thicc the edges of the shape are.
-		p_isClosed is whether the last vertex will be connected to the first one to close the shape.
+		vertices is a vector of the points that make up the shape.
+		line_thickness is how thicc the edges of the shape are.
+		is_closed is whether the last vertex will be connected to the first one to close the shape.
 	*/
-	virtual auto strokeShape(
-		Range<Point<>*> p_vertices, float p_lineThickness, bool p_isClosed = false
+	virtual auto stroke_shape(
+		std::span<Point<> const> vertices, float line_thickness, bool is_closed = false
 	) -> void = 0;
 	/*
 		Fills a custom shape with the current color or gradient.
 
 		p_shape is a vector of points that make up the shape.
 	*/
-	virtual auto fillShape(Range<Point<>*> p_vertices) -> void = 0;
+	virtual auto fill_shape(std::span<Point<> const> vertices) -> void = 0;
 
 	//------------------------------
 
@@ -6544,14 +6402,14 @@ public:
 		If you want to scale the geometry, use scale().
 		You can also change the stroke color with set_color().
 	*/
-	virtual auto strokeGeometry(Geometry const& p_geometry, float p_strokeWidth = 1.f) -> void = 0;
+	virtual auto stroke_geometry(Geometry const& p_geometry, float stroke_width = 1.f) -> void = 0;
 	/*
 		Draws a filled cached geometry with its coordinates relative to the origin.
 		If you want to move the geometry, use move_origin().
 		If you want to scale the geometry, use scale().
 		You can also change the fill color with set_color().
 	*/
-	virtual auto fillGeometry(Geometry const& p_geometry) -> void = 0;
+	virtual auto fill_geometry(Geometry const& p_geometry) -> void = 0;
 
 	//------------------------------
 
@@ -6559,8 +6417,8 @@ public:
 		Creates a Geometry object which represents a rounded rectangle.
 		The Geometry object can be cached and allows for faster drawing.
 	*/
-	virtual auto createRoundedRectangleGeometry(
-		Rectangle<> rectangle, float p_radius, bool p_isStroked = false
+	virtual auto create_rounded_rectangle_geometry(
+		Rectangle<> rectangle, float radius, bool p_isStroked = false
 	) -> Geometry = 0;
 	/*
 		Creates a Geometry object which represents a rectangle with custom corners.
@@ -6576,8 +6434,8 @@ public:
 		Creates a geometry object that represents a polygon.
 		The Geometry object can be cached and allows for faster drawing.
 	*/
-	virtual auto createPolygonGeometry(
-		Range<Point<> const*> p_vertices, bool p_isStroked = false, bool p_isClosed = true
+	virtual auto create_polygon_geometry(
+		Range<Point<> const*> vertices, bool p_isStroked = false, bool is_closed = true
 	) -> Geometry = 0;
 
 	//------------------------------
@@ -6585,15 +6443,15 @@ public:
 	/*
 		Changes the way both start- and endpoints of lines are drawn.
 	*/
-	virtual auto setLineCap(LineCap p_lineCap) -> void = 0;
+	virtual auto set_line_cap(LineCap line_cap) -> void = 0;
 	/*
 		Changes the way startpoints of lines are drawn.
 	*/
-	virtual auto setStartLineCap(LineCap p_lineCap) -> void = 0;
+	virtual auto set_start_line_cap(LineCap line_cap) -> void = 0;
 	/*
 		Changes the way endpoints of lines are drawn.
 	*/
-	virtual auto setEndLineCap(LineCap p_lineCap) -> void = 0;
+	virtual auto setEndLineCap(LineCap line_cap) -> void = 0;
 	/*
 		Returns the way startpoints of lines are drawn.
 	*/
@@ -6700,7 +6558,7 @@ public:
 		The alpha of the clipped content will be multiplied by opacity.
 	*/
 	virtual auto pushRoundedClipRectangle(
-		Rectangle<> rectangle, float p_radius, float opacity = 1.f
+		Rectangle<> rectangle, float radius, float opacity = 1.f
 	) -> void = 0;
 
 	//------------------------------
@@ -6731,12 +6589,12 @@ public:
 		Generates an image of a shadow that is cast by a rounded rectangle.
 
 		size is the size of the rounded rectangle which will cast the shadow. The shadow will have bigger dimensions than this if p_blur > 0.
-		p_radius is the corner radius ("roundness") of the rounded rectangle which will cast the shadow.
+		radius is the corner radius ("roundness") of the rounded rectangle which will cast the shadow.
 		p_blur is how far away from the surface the rounded rectangle is (how blurry the shadow is).
 		color is the color of the resulting shadow.
 	*/
 	virtual auto createRoundedRectangleShadowImage(
-		Size<> size, float p_radius, float p_blur, Color color
+		Size<> size, float radius, float p_blur, Color color
 	) -> Image = 0;
 
 	//------------------------------
@@ -6747,17 +6605,17 @@ public:
 		p_pixelData is an array which is 4*width*height bytes in size.
 		It contains the color values for every pixel in the image, row-by-row. One byte for every color channel.
 	*/
-	virtual auto createImage(std::byte const* p_pixelData, Size<Pixels> size) -> Image = 0;
+	virtual auto create_image(std::byte const* p_pixelData, Size<Pixels> size) -> Image = 0;
 	/*
 		Loads an image from the data of an image file.
 	*/
-	virtual auto createImage(DataView p_imageData) -> Image = 0;
+	virtual auto create_image(DataView p_imageData) -> Image = 0;
 	/*
 		Loads an image from a file. Most standard image formats/codecs are supported.
 		p_filePath is the path, relative or absolute, to the image file to be loaded.
 		If this returns an invalid image, then the file path is probably incorrect.
 	*/
-	virtual auto createImage(std::string_view p_filePath) -> Image = 0;
+	virtual auto create_image(std::string_view p_filePath) -> Image = 0;
 	/*
 		Creates an image from an OS-specific handle.
 
@@ -6813,7 +6671,7 @@ public:
 		Creates a radial gradient that can be used as a brush when drawing things.
 	*/
 	virtual auto createRadialGradient(
-		Range<GradientStop*> p_gradientStops, Point<> start_position = {}, Point<> p_radius = {}
+		Range<GradientStop*> p_gradientStops, Point<> start_position = {}, Point<> radius = {}
 	) -> RadialGradient = 0;
 
 	/*
@@ -6923,17 +6781,17 @@ enum class ModifierKeyFlags
 	X0Mouse = 0x40UL,
 	X1Mouse = 0x80UL
 };
-constexpr auto operator&(ModifierKeyFlags left, ModifierKeyFlags p_right) noexcept -> bool
+constexpr auto operator&(ModifierKeyFlags left, ModifierKeyFlags right) noexcept -> bool
 {
-	return static_cast<uint32>(left) & static_cast<uint32>(p_right);
+	return static_cast<uint32>(left) & static_cast<uint32>(right);
 }
-constexpr auto operator|(ModifierKeyFlags left, ModifierKeyFlags p_right) noexcept -> ModifierKeyFlags
+constexpr auto operator|(ModifierKeyFlags left, ModifierKeyFlags right) noexcept -> ModifierKeyFlags
 {
-	return static_cast<ModifierKeyFlags>(static_cast<uint32>(left) | static_cast<uint32>(p_right));
+	return static_cast<ModifierKeyFlags>(static_cast<uint32>(left) | static_cast<uint32>(right));
 }
-constexpr auto operator|=(ModifierKeyFlags& left, ModifierKeyFlags p_right) noexcept -> ModifierKeyFlags&
+constexpr auto operator|=(ModifierKeyFlags& left, ModifierKeyFlags right) noexcept -> ModifierKeyFlags&
 {
-	return left = left | p_right;
+	return left = left | right;
 }
 
 enum class MouseButton
@@ -7152,12 +7010,12 @@ public:
 	/*
 		Returns the number of dragged items that have file contents.
 	*/
-	virtual auto getNumberOfFiles() const -> Count = 0;
+	virtual auto get_number_of_files() const -> Count = 0;
 
 	/*
 		Returns the additional data that has been assigned by an AvoGUI application.
 	*/
-	virtual auto getAdditionalData() const -> uint64 = 0;
+	virtual auto get_additional_data() const -> uint64 = 0;
 
 	/*
 		If an image is being dragged, this creates and returns an Image object representing the image that was dragged.
@@ -7240,17 +7098,17 @@ enum class WindowStyleFlags {
 	DefaultNoResize = CloseButton | MinimizeButton
 };
 
-constexpr auto operator&(WindowStyleFlags left, WindowStyleFlags p_right) noexcept -> WindowStyleFlags
+constexpr auto operator&(WindowStyleFlags left, WindowStyleFlags right) noexcept -> WindowStyleFlags
 {
-	return static_cast<WindowStyleFlags>(static_cast<uint32>(left) & static_cast<uint32>(p_right));
+	return static_cast<WindowStyleFlags>(static_cast<uint32>(left) & static_cast<uint32>(right));
 }
-constexpr auto operator|(WindowStyleFlags left, WindowStyleFlags p_right) noexcept -> WindowStyleFlags
+constexpr auto operator|(WindowStyleFlags left, WindowStyleFlags right) noexcept -> WindowStyleFlags
 {
-	return static_cast<WindowStyleFlags>(static_cast<uint32>(left) | static_cast<uint32>(p_right));
+	return static_cast<WindowStyleFlags>(static_cast<uint32>(left) | static_cast<uint32>(right));
 }
-constexpr auto operator|=(WindowStyleFlags& left, WindowStyleFlags p_right) noexcept -> WindowStyleFlags&
+constexpr auto operator|=(WindowStyleFlags& left, WindowStyleFlags right) noexcept -> WindowStyleFlags&
 {
-	left = left | p_right;
+	left = left | right;
 	return left;
 }
 
@@ -7321,9 +7179,9 @@ public:
 	}
 
 protected:
-	bool m_isRunning = false;
-	std::mutex m_isRunningMutex;
-	std::condition_variable m_isRunningConditionVariable;
+	bool _is_running = false;
+	std::mutex _isRunningMutex;
+	std::condition_variable _isRunningConditionVariable;
 
 	friend class Gui;
 
@@ -7332,10 +7190,10 @@ protected:
 	*/
 	auto run() -> void
 	{
-		m_isRunningMutex.lock();
-		m_isRunning = true;
-		m_isRunningMutex.unlock();
-		m_isRunningConditionVariable.notify_one();
+		_isRunningMutex.lock();
+		_is_running = true;
+		_isRunningMutex.unlock();
+		_isRunningConditionVariable.notify_one();
 	}
 public:
 
@@ -7350,14 +7208,14 @@ public:
 	virtual auto getIsOpen() const -> bool = 0;
 
 protected:
-	bool m_will_close = false;
+	bool _will_close = false;
 public:
 	/*
 		LIBRARY IMPLEMENTED
 		Returns whether the GUI and its window is awaiting being closed by the animation/drawing thread.
 	*/
 	auto get_will_close() const -> bool {
-		return m_will_close;
+		return _will_close;
 	}
 
 	//------------------------------
@@ -7590,7 +7448,7 @@ public:
 	*/
 	auto getMaxSize() const -> Size<>
 	{
-		return pixels_to_dips(getMaxPixelSize());
+		return pixels_to_dips(get_max_pixel_size());
 	}
 	/*
 		Returns the biggest allowed width for the window when the user is resizing it, in dip units.
@@ -7614,7 +7472,7 @@ public:
 	/*
 		Returns the biggest allowed size for the window when the user is resizing it, in pixel units.
 	*/
-	virtual auto getMaxPixelSize() const -> Size<Pixels> = 0;
+	virtual auto get_max_pixel_size() const -> Size<Pixels> = 0;
 	/*
 		Returns the biggest allowed width for the window when the user is resizing it, in pixel units.
 	*/
@@ -7629,23 +7487,23 @@ public:
 	/*
 		Returns the bounds of the current monitor used by the window, in pixel units.
 	*/
-	virtual auto getMonitorBounds() const -> Rectangle<Pixels> = 0;
+	virtual auto get_monitor_bounds() const -> Rectangle<Pixels> = 0;
 	/*
 		Returns the virtual position of the current monitor used by the window relative to other monitors, in pixel units.
 	*/
-	virtual auto getMonitorPosition() const -> Point<Pixels> = 0;
+	virtual auto get_monitor_position() const -> Point<Pixels> = 0;
 	/*
 		Returns the size of the current monitor used by the window, in pixel units.
 	*/
-	virtual auto getMonitorSize() const -> Size<Pixels> = 0;
+	virtual auto get_monitor_size() const -> Size<Pixels> = 0;
 	/*
 		Returns the width of the current monitor used by the window, in pixel units.
 	*/
-	virtual auto getMonitorWidth() const -> Pixels = 0;
+	virtual auto get_monitor_width() const -> Pixels = 0;
 	/*
 		Returns the height of the current monitor used by the window, in pixel units.
 	*/
-	virtual auto getMonitorHeight() const -> Pixels = 0;
+	virtual auto get_monitor_height() const -> Pixels = 0;
 
 	//------------------------------
 
@@ -7653,42 +7511,42 @@ public:
 		Returns the bounds of the work area of the monitor currently used by the window, in pixel units.
 		This excludes the taskbar on Windows.
 	*/
-	virtual auto getWorkAreaBounds() const -> Rectangle<Pixels> = 0;
+	virtual auto get_work_area_bounds() const -> Rectangle<Pixels> = 0;
 	/*
 		Returns the virtual position of the work area of the monitor currently used by the window, in pixel units.
 		This excludes the taskbar on Windows.
 	*/
-	virtual auto getWorkAreaPosition() const -> Point<Pixels> = 0;
+	virtual auto get_work_area_position() const -> Point<Pixels> = 0;
 	/*
 		Returns the size of the work area of the monitor currently used by the window, in pixel units.
 		This excludes the taskbar on Windows.
 	*/
-	virtual auto getWorkAreaSize() const -> Size<Pixels> = 0;
+	virtual auto get_work_area_size() const -> Size<Pixels> = 0;
 	/*
 		Returns the width of the work area of the monitor currently used by the window, in pixel units.
 		This excludes the taskbar on Windows.
 	*/
-	virtual auto getWorkAreaWidth() const -> Pixels = 0;
+	virtual auto get_work_area_width() const -> Pixels = 0;
 	/*
 		Returns the height of the work area of the monitor currently used by the window, in pixel units.
 		This excludes the taskbar on Windows.
 	*/
-	virtual auto getWorkAreaHeight() const -> Pixels = 0;
+	virtual auto get_work_area_height() const -> Pixels = 0;
 
 	//------------------------------
 
 	/*
 		Returns whether a key is currently pressed down.
 	*/
-	virtual auto getIsKeyDown(KeyboardKey p_key) const -> bool = 0;
+	virtual auto get_is_key_down(KeyboardKey p_key) const -> bool = 0;
 	/*
 		Returns whether a mouse button is currently pressed down.
 	*/
-	virtual auto getIsMouseButtonDown(MouseButton p_button) const -> bool = 0;
+	virtual auto get_is_mouse_button_down(MouseButton p_button) const -> bool = 0;
 	/*
 		Returns the position of the mouse cursor, relative to the top-left corner of the window.
 	*/
-	virtual auto getMousePosition() const -> Point<> = 0;
+	virtual auto get_mouse_position() const -> Point<> = 0;
 
 	//------------------------------
 
@@ -7704,14 +7562,14 @@ public:
 	//------------------------------
 
 protected:
-	Factor m_dip_to_pixel_factor = 1.f;
+	Factor _dip_to_pixel_factor = 1.f;
 public:
 	/*
 		Returns the factor that is used to convert DIP units to pixel units in the window.
 		This can change during the lifetime of the window, if the user drags it to a monitor with a different DPI for example.
 	*/
 	auto get_dip_to_pixel_factor() const -> Factor {
-		return m_dip_to_pixel_factor;
+		return _dip_to_pixel_factor;
 	}
 	/*
 		Converts device independent units to pixel units.
@@ -7719,7 +7577,7 @@ public:
 		1 dip will convert to more pixels on a high DPI display.
 	*/
 	auto dips_to_pixels(Dip dip) const -> Pixels {
-		return dip*m_dip_to_pixel_factor;
+		return dip*_dip_to_pixel_factor;
 	}
 	/*
 		Converts device independent units to pixel units.
@@ -7729,7 +7587,7 @@ public:
 	template<template<typename>typename C>
 	auto dips_to_pixels(Vector2dBase<Dip, C> container) const -> Vector2dBase<Pixels, C>
 	{
-		return Vector2dBase<Pixels, C>{container*m_dip_to_pixel_factor};
+		return Vector2dBase<Pixels, C>{container*_dip_to_pixel_factor};
 	}
 	/*
 		Converts pixel units to device independent units.
@@ -7738,7 +7596,7 @@ public:
 	*/
 	auto pixels_to_dips(Pixels p_pixels) const -> Dip
 	{
-		return p_pixels/m_dip_to_pixel_factor;
+		return p_pixels/_dip_to_pixel_factor;
 	}
 	/*
 		Converts pixel units to device independent units.
@@ -7748,7 +7606,7 @@ public:
 	template<template<typename>typename C>
 	auto pixels_to_dips(Vector2dBase<Pixels, C> container) const -> Vector2dBase<Dip, C>
 	{
-		return Vector2dBase<Dip, C>{container/m_dip_to_pixel_factor};
+		return Vector2dBase<Dip, C>{container/_dip_to_pixel_factor};
 	}
 
 	//------------------------------
@@ -7949,14 +7807,14 @@ private:
 
 public:
 	View(View* parent, Rectangle<> p_bounds = {});
-	View(View* parent, Id p_id, Rectangle<> p_bounds = {});
+	View(View* parent, Id id, Rectangle<> p_bounds = {});
 
 protected:
-	Geometry m_clip_geometry;
+	Geometry _clip_geometry;
 	/*
 		LIBRARY IMPLEMENTED
 		This is called whenever the clipping geometry of the view needs to be updated.
-		You can override this if you want a custom clipping geometry, just replace m_clip_geometry.
+		You can override this if you want a custom clipping geometry, just replace _clip_geometry.
 	*/
 	virtual auto update_clip_geometry() -> void;
 
@@ -7967,20 +7825,20 @@ public:
 		Note that hit testing is not by default affected by this, override get_is_containing(Point<>) if you want custom hit testing.
 	*/
 	auto set_clip_geometry(Geometry const& p_geometry) -> void {
-		m_clip_geometry = p_geometry;
+		_clip_geometry = p_geometry;
 	}
 	/*
 		Returns the geometry being used to clip the view's contents.
 	*/
 	[[nodiscard]]
 	auto getClipGeometry() const -> Geometry const& {
-		return m_clip_geometry;
+		return _clip_geometry;
 	}
 
 	//------------------------------
 
 private:
-	bool m_is_overlay = false;
+	bool _is_overlay = false;
 public:
 	/*
 		LIBRARY IMPLEMENTED
@@ -7988,7 +7846,7 @@ public:
 		Whether this view is a mouse listener has no effect on this.
 	*/
 	auto set_is_overlay(bool const is_overlay) -> void {
-		m_is_overlay = is_overlay;
+		_is_overlay = is_overlay;
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -7997,21 +7855,21 @@ public:
 	*/
 	[[nodiscard]]
 	auto get_is_overlay() const -> bool {
-		return m_is_overlay;
+		return _is_overlay;
 	}
 
 	//------------------------------
 
 private:
-	bool m_is_visible = true;
+	bool _is_visible = true;
 public:
 	/*
 		LIBRARY IMPLEMENTED
 		Sets whether the view is visible and can receive events.
 	*/
 	auto set_is_visible(bool const p_isVisible) -> void {
-		if (p_isVisible != m_is_visible) {
-			m_is_visible = p_isVisible;
+		if (p_isVisible != _is_visible) {
+			_is_visible = p_isVisible;
 			invalidate();
 		}
 	}
@@ -8021,26 +7879,26 @@ public:
 	*/
 	[[nodiscard]]
 	constexpr auto get_is_visible() noexcept const -> bool {
-		return m_is_visible;
+		return _is_visible;
 	}
 
 	//------------------------------
 
 private:
-	Factor m_opacity = 1.f;
+	Factor _opacity = 1.f;
 public:
 	/*
 		Sets how opaque the view and its children are (multiplied with parent opacity).
 	*/
 	constexpr auto set_opacity(Factor const opacity) noexcept -> void {
-		m_opacity = opacity;
+		_opacity = opacity;
 	}
 	/*
 		Returns how opaque the view and its children are (multiplied with parent opacity).
 	*/
 	[[nodiscard]]
 	constexpr auto get_opacity() noexcept const -> Factor {
-		return m_opacity;
+		return _opacity;
 	}
 
 	//------------------------------
@@ -8050,7 +7908,7 @@ public:
 	//------------------------------
 
 private:
-	Cursor m_cursor = Cursor::Arrow;
+	Cursor _cursor = Cursor::Arrow;
 public:
 	/*
 		LIBRARY IMPLEMENTED
@@ -8059,7 +7917,7 @@ public:
 		This method also calls enable_mouse_events().
 	*/
 	auto set_cursor(Cursor const p_cursor) -> void {
-		m_cursor = p_cursor;
+		_cursor = p_cursor;
 		enable_mouse_events();
 	}
 	/*
@@ -8068,13 +7926,13 @@ public:
 	*/
 	[[nodiscard]]
 	auto get_cursor() const -> Cursor {
-		return m_cursor;
+		return _cursor;
 	}
 
 	//------------------------------
 
 private:
-	Gui* m_gui = nullptr;
+	Gui* _gui = nullptr;
 public:
 	/*
 		LIBRARY IMPLEMENTED
@@ -8082,7 +7940,7 @@ public:
 	*/
 	[[nodiscard]]
 	auto get_gui() const -> Gui* {
-		return m_gui;
+		return _gui;
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -8092,7 +7950,7 @@ public:
 	template<typename T>
 	[[nodiscard]]
 	auto get_gui() const -> T* {
-		return dynamic_cast<T*>(m_gui);
+		return dynamic_cast<T*>(_gui);
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -8111,7 +7969,7 @@ public:
 	//------------------------------
 
 private:
-	std::vector<std::unique_ptr<Animation>> m_animations;
+	std::vector<std::unique_ptr<Animation>> _animations;
 
 public:
 
@@ -8122,7 +7980,7 @@ public:
 		milliseconds is the duration of the animation, can be changed later on the returned object.
 	*/
 	auto add_animation(Easing const easing, float const milliseconds) -> Animation* {
-		return m_animations.emplace_back(
+		return _animations.emplace_back(
 			std::make_unique<Animation>(get_gui(), easing, milliseconds)
 		).get();
 	}
@@ -8134,7 +7992,7 @@ public:
 		milliseconds is the duration of the animation, can be changed later on the returned object.
 	*/
 	auto add_animation(Id const easing_id, float const milliseconds) -> Animation* {
-		return m_animations.emplace_back(
+		return _animations.emplace_back(
 			std::make_unique<Animation>(get_gui(), get_theme_easing(easing_id), milliseconds)
 		).get();
 	}
@@ -8146,14 +8004,12 @@ public:
 		callback is a function that will be called every time the animation has been updated, it takes 
 		the current animation value as a parameter.
 	*/
-	template<typename Callable>
 	auto add_animation(
 		Easing const easing, 
 		float const milliseconds, 
-		Callable const& callback
-	) -> Animation*
-	{
-		return m_animations.emplace_back(
+		IsAnimationCallback auto const& callback
+	) -> Animation* {
+		return _animations.emplace_back(
 			std::make_unique<Animation>(get_gui(), easing, milliseconds, callback)
 		).get();
 	}
@@ -8166,13 +8022,13 @@ public:
 		callback is a function that will be called every time the animation has been updated, it takes 
 		the current animation value as a parameter.
 	*/
-	template<typename Callable>
 	auto add_animation(
-		Id const easing_id, float const milliseconds,
-		Callable const& callback
+		Id const easing_id, 
+		float const milliseconds,
+		IsAnimationCallback auto const& callback
 	) -> Animation*
 	{
-		return m_animations.emplace_back(
+		return _animations.emplace_back(
 			std::make_unique<Animation>(get_gui(), get_theme_easing(easing_id), milliseconds, callback)
 		).get();
 	}
@@ -8183,13 +8039,13 @@ public:
 		instead of using these methods if you can.
 		duration is the duration of the animation, can be changed later on the returned object.
 	*/
-	template<typename DurationType, typename DurationPeriod>
+	template<typename _DurationType, typename _DurationPeriod>
 	auto add_animation(
 		Easing const easing, 
-		chrono::duration<DurationType, DurationPeriod> const duration
+		chrono::duration<_DurationType, _DurationPeriod> const duration
 	) -> Animation*
 	{
-		return m_animations.emplace_back(
+		return _animations.emplace_back(
 			std::make_unique<Animation>(get_gui(), easing, milliseconds)
 		).get();
 	}
@@ -8200,13 +8056,13 @@ public:
 		easing_id is the theme easing ID of the animation easing to be used.
 		duration is the duration of the animation, can be changed later on the returned object.
 	*/
-	template<typename DurationType, typename DurationPeriod>
+	template<typename _DurationType, typename _DurationPeriod>
 	auto add_animation(
 		Id const easing_id, 
-		chrono::duration<DurationType, DurationPeriod> const duration
+		chrono::duration<_DurationType, _DurationPeriod> const duration
 	) -> Animation*
 	{
-		return m_animations.emplace_back(
+		return _animations.emplace_back(
 			std::make_unique<Animation>(get_gui(), get_theme_easing(easing_id), milliseconds)
 		).get();
 	}
@@ -8218,14 +8074,14 @@ public:
 		callback is a function that will be called every time the animation has been updated, it takes 
 		the current animation value as a parameter.
 	*/
-	template<typename DurationType, typename DurationPeriod, typename Callable>
+	template<IsNumber _DurationType, IsRatio _DurationPeriod>
 	auto add_animation(
 		Easing const easing, 
-		chrono::duration<DurationType, DurationPeriod> const duration, 
-		Callable const& callback
+		chrono::duration<_DurationType, _DurationPeriod> const duration, 
+		IsAnimationCallback auto const& callback
 	) -> Animation*
 	{
-		return m_animations.emplace_back(
+		return _animations.emplace_back(
 			std::make_unique<Animation>(get_gui(), easing, duration, callback)
 		).get();
 	}
@@ -8238,14 +8094,14 @@ public:
 		callback is a function that will be called every time the animation has been updated, it takes 
 		the current animation value as a parameter.
 	*/
-	template<typename DurationType, typename DurationPeriod, typename Callable>
+	template<IsNumber _DurationType, IsRatio _DurationPeriod>
 	auto add_animation(
 		Id const easing_id, 
-		chrono::duration<DurationType, DurationPeriod> const duration, 
-		Callable const& callback
+		chrono::duration<_DurationType, _DurationPeriod> const duration, 
+		IsAnimationCallback auto const& callback
 	) -> Animation*
 	{
-		return m_animations.emplace_back(
+		return _animations.emplace_back(
 			std::make_unique<Animation>(get_gui(), get_theme_easing(easing_id), duration, callback)
 		).get();
 	}
@@ -8256,7 +8112,7 @@ private:
 		Makes sure the view is drawn at the correct time, according to elevation.
 		Re-sorts a child view according to elevation.
 	*/
-	auto update_view_drawing_index(Avo::View* const view) -> void {
+	auto update_view_drawing_index(View* const view) -> void {
 		auto const number_of_views = get_number_of_views();
 		if (number_of_views <= 1 || view->get_parent<View>() != this) {
 			// Nothing we can do!
@@ -8266,54 +8122,54 @@ private:
 		auto const elevation = view->get_elevation();
 		auto const previous_index = view->get_index();
 
-		auto const is_ordered_with_view_before = !previous_index || elevation > m_child_views[previous_index - 1]->get_elevation();
-		auto const is_ordered_with_view_after = previous_index >= number_of_views - 1 || elevation < m_child_views[previous_index + 1]->get_elevation();
+		auto const is_ordered_with_view_before = !previous_index || elevation > _child_views[previous_index - 1]->get_elevation();
+		auto const is_ordered_with_view_after = previous_index >= number_of_views - 1 || elevation < _child_views[previous_index + 1]->get_elevation();
 
 		if (is_ordered_with_view_before && is_ordered_with_view_after) {
 			// Nothing we can do!
 			return;
 		}
 		else if (!is_ordered_with_view_before) {
-			for (auto a = previous_index; a >= 0; a--) {
-				if (!a || m_child_views[a - 1]->get_elevation() <= elevation) {
-					m_child_views[a] = view;
-					view->m_index = a;
+			for (auto const a : Range{0, previous_index}.reverse()) {
+				if (!a || _child_views[a - 1]->get_elevation() <= elevation) {
+					_child_views[a] = view;
+					view->_index = a;
 					return;
 				}
 				else {
-					m_child_views[a] = m_child_views[a - 1];
-					m_child_views[a]->m_index = a;
+					_child_views[a] = _child_views[a - 1];
+					_child_views[a]->_index = a;
 				}
 			}
 		}
 		else //!is_ordered_with_view_after
 		{
-			for (auto a = previous_index; a < number_of_views; a++) {
-				if (a == number_of_views - 1 || m_child_views[a + 1]->get_elevation() >= elevation) {
-					m_child_views[a] = view;
-					view->m_index = a;
+			for (auto const a : Range{previous_index, number_of_views}) {
+				if (a == number_of_views - 1 || _child_views[a + 1]->get_elevation() >= elevation) {
+					_child_views[a] = view;
+					view->_index = a;
 					return;
 				}
 				else {
-					m_child_views[a] = m_child_views[a + 1];
-					m_child_views[a]->m_index = a;
+					_child_views[a] = _child_views[a + 1];
+					_child_views[a]->_index = a;
 				}
 			}
 		}
 	}
 
-	Index m_index{};
+	Index _index{};
 public:
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the index of this view relative to its siblings.
 	*/
 	auto get_index() const -> Index {
-		return m_index;
+		return _index;
 	}
 
 private:
-	Index m_layer_index{};
+	Index _layer_index{};
 public:
 	/*
 		LIBRARY IMPLEMENTED
@@ -8321,11 +8177,11 @@ public:
 		The GUI view has a layer index of 0.
 	*/
 	auto get_layer_index() const -> Index {
-		return m_layer_index;
+		return _layer_index;
 	}
 
 private:
-	View* m_parent{};
+	View* _parent{};
 public:
 	/*
 		LIBRARY IMPLEMENTED
@@ -8333,60 +8189,53 @@ public:
 		If the parameter is 0, the view is only detached from its old parent, and is left alone with no parents :^(.
 	*/
 	auto set_parent(View* const container) -> void {
-		if (container == m_parent) {
+		if (container == _parent) {
 			return;
 		}
 
 		Component::set_parent(container);
 
-		if (m_parent)
-		{
-			m_parent->removeView(this);
+		if (_parent) {
+			_parent->remove_view(this);
 		}
 
-		if (m_parent = container)
-		{
-			m_gui = m_parent->m_gui;
+		if (_parent = container) {
+			_gui = _parent->_gui;
 
-			if (dynamic_cast<View*>(m_gui) == this)
-			{
-				m_layer_index = 0;
+			if (dynamic_cast<View*>(_gui) == this) {
+				_layer_index = 0;
 			}
-			else
-			{
-				m_layer_index = m_parent->m_layer_index + 1U;
+			else {
+				_layer_index = _parent->_layer_index + 1U;
 			}
-			m_absolutePosition = m_parent->get_absolute_top_left() + m_bounds.get_top_left();
+			_absolute_position = _parent->get_absolute_top_left() + _bounds.get_top_left();
 
-			m_parent->insertView(this);
-			// m_index = m_parent->m_child_views.size();
-			// m_parent->m_child_views.push_back(this);
+			_parent->insert_view(this);
+			// _index = _parent->_child_views.size();
+			// _parent->_child_views.push_back(this);
 
-			m_parent->child_view_attachment_listeners(this);
-			// m_parent->update_view_drawing_index(this);
+			_parent->child_view_attachment_listeners(this);
+			// _parent->update_view_drawing_index(this);
 		}
-		else
-		{
-			m_layer_index = 0;
-			m_index = 0;
+		else {
+			_layer_index = 0;
+			_index = 0;
 		}
 	}
 
 private:
-	std::vector<View*> m_child_views;
+	std::vector<View*> _child_views;
 
-	auto insertView(View* const p_childView) -> void
-	{
-		auto const position = std::lower_bound(
-			m_child_views.begin(), m_child_views.end(), p_childView, 
+	auto insert_view(View* const child_view) -> void {
+		auto const position = std::ranges::lower_bound(
+			_child_views, child_view, 
 			[](View* const a, View* const b){
 				return a->get_elevation() < b->get_elevation();
 			}
 		);
-		m_child_views.insert(position, p_childView);
-		for (auto const view : Range{position + 1, end()})
-		{
-			++view->m_index;
+		_child_views.insert(position, child_view);
+		for (auto const view : std::ranges::subrange{position + 1, end()}) {
+			++view->_index;
 		}
 	}
 
@@ -8396,34 +8245,28 @@ private:
 		This is done in determined sequential order, the same
 		order as the child views appear in their vector container.
 	*/
-	template<typename Callable>
-	auto apply_to_all_child_views_recursively(Callable&& p_apply) -> void
-	{
+	template<std::invocable<View*> _Callback>
+	auto apply_to_all_child_views_recursively(_Callback&& p_apply) -> void {
 		auto const currentContainer = this;
-		auto startIndex = Index{0};
-		while (true)
-		{
+		auto startIndex = Index{};
+		while (true) {
 			auto const nextContainer = std::find_if(
 				currentContainer->begin() + startIndex, currentContainer->end(),
 				[&](View* const childView){
-					std::forward<Callable>(p_apply)(childView);
+					std::forward<_Callback>(p_apply)(childView);
 					return childView->get_has_views();
 				}
 			);
-			if (nextContainer == currentContainer->end())
-			{
-				if (currentContainer == this)
-				{
+			if (nextContainer == currentContainer->end()) {
+				if (currentContainer == this) {
 					break;
 				}
-				else
-				{
+				else {
 					startIndex = currentContainer->get_index() + 1;
 					currentContainer = currentContainer->get_parent<View>();
 				}
 			}
-			else
-			{
+			else {
 				currentContainer = *nextContainer;
 				startIndex = 0;
 			}
@@ -8431,14 +8274,10 @@ private:
 	}
 
 public:
-	template<
-		typename T, typename ... _Arguments, 
-		typename = std::enable_if_t<std::is_base_of_v<View, T>>
-	>
-	auto addView(_Arguments&& ... p_arguments) -> T*
-	{
+	template<std::derived_from<View> T, typename ... _Arguments>
+	auto add_view(_Arguments&& ... p_arguments) -> T* {
 		auto const newView = static_cast<View*>(add_component<T>(std::forward<_Arguments>(p_arguments)...));
-		insertView(newView);
+		insert_view(newView);
 		return newView;
 	}
 	/*
@@ -8446,11 +8285,9 @@ public:
 		Removes a child view from this view. This deletes the view being removed.
 		If you want to steal the child instead of just killing it, use stealView instead.
 	*/
-	auto removeView(View* const view) -> void
-	{
-		if (view && view->m_parent == this)
-		{
-			removeView(view->m_index);
+	auto remove_view(View const* const view) -> void {
+		if (view && view->_parent == this) {
+			remove_view(view->_index);
 		}
 	}
 	/*
@@ -8458,79 +8295,70 @@ public:
 		Removes a child view from this view. This forgets the view being removed.
 		If you haven't remembered it yourself, it will get deleted.
 	*/
-	auto removeView(Index const p_viewIndex) -> void
-	{
-		auto const viewIterator = begin() + p_viewIndex;
+	auto remove_view(Index const view_index) -> void {
+		auto const view_iterator = begin() + view_index;
 		
-		auto const viewToRemove = *viewIterator;
-		viewToRemove->m_parent = nullptr;
+		auto const view_to_remove = *view_iterator;
+		view_to_remove->_parent = nullptr;
 
-		child_view_detachment_listeners(viewToRemove);
-
-		m_child_views.erase(viewIterator);
-		for (auto const child : Range{viewIterator, end()})
-		{
-			--child->m_index;
+		child_view_detachment_listeners(view_to_remove);
+		
+		_child_views.erase(view_iterator);
+		for (auto const child : std::ranges::subrange{view_iterator, end()}) {
+			--child->_index;
 		}
 
-		removeComponent(viewToRemove);
+		remove_component(view_to_remove);
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Forgets the children views and empties this view from children.
 	*/
-	auto removeAllViews() -> void
-	{
-		for (auto const child : m_child_views)
-		{
-			child->m_parent = nullptr;
+	auto remove_all_views() -> void {
+		for (auto const child : _child_views) {
+			child->_parent = nullptr;
 			child_view_detachment_listeners(child);
 		}
-		m_child_views.clear();
+		_child_views.clear();
 
-		removeAllComponents();
+		remove_all_components();
 	}
 
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the child view at an index.
 	*/
-	auto getView(Index const p_viewIndex) const -> View*
-	{
-		return m_child_views[p_viewIndex];
+	auto get_view(Index const view_index) const -> View* {
+		return _child_views[view_index];
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the child view at an index, casted to a pointer of another type.
 	*/
 	template<typename T>
-	auto getView(Index const p_viewIndex) const -> T*
-	{
-		return dynamic_cast<T*>(m_child_views[p_viewIndex]);
+	auto get_view(Index const view_index) const -> T* {
+		return dynamic_cast<T*>(_child_views[view_index]);
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns a vector containing the child views that are attached to this view.
 	*/
-	auto getViews() const -> std::vector<View*> const&
-	{
-		return m_child_views;
+	auto get_views() const -> std::vector<View*> const& {
+		return _child_views;
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the number of child views that are attached to this view.
 	*/
-	auto get_number_of_views() const -> Count
-	{
-		return static_cast<Count>(m_child_views.size());
+	auto get_number_of_views() const -> Count {
+		return static_cast<Count>(_child_views.size());
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns whether the view has any child views.
 	*/
-	auto get_has_views() const noexcept -> bool
-	{
-		return !m_child_views.empty();
+	auto get_has_views() const noexcept -> bool {
+		return !_child_views.empty();
 	}
 
 	using iterator = std::vector<View*>::iterator;
@@ -8541,7 +8369,7 @@ public:
 	*/
 	[[nodiscard]] auto begin() noexcept -> iterator
 	{
-		return m_child_views.begin();
+		return _child_views.begin();
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -8550,7 +8378,7 @@ public:
 	*/
 	[[nodiscard]] auto end() noexcept -> iterator
 	{
-		return m_child_views.end();
+		return _child_views.end();
 	}
 	
 	using const_iterator = std::vector<View*>::const_iterator;
@@ -8561,7 +8389,7 @@ public:
 	*/
 	[[nodiscard]] auto begin() const noexcept -> const_iterator
 	{
-		return m_child_views.begin();
+		return _child_views.begin();
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -8570,7 +8398,7 @@ public:
 	*/
 	[[nodiscard]] auto end() const noexcept -> const_iterator
 	{
-		return m_child_views.end();
+		return _child_views.end();
 	}
 
 	using reverse_iterator = std::vector<View*>::reverse_iterator;
@@ -8581,7 +8409,7 @@ public:
 	*/
 	[[nodiscard]] auto rbegin() noexcept -> reverse_iterator
 	{
-		return m_child_views.rbegin();
+		return _child_views.rbegin();
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -8590,7 +8418,7 @@ public:
 	*/
 	[[nodiscard]] auto rend() noexcept -> reverse_iterator
 	{
-		return m_child_views.rend();
+		return _child_views.rend();
 	}
 
 	using const_reverse_iterator = std::vector<View*>::const_reverse_iterator;
@@ -8601,7 +8429,7 @@ public:
 	*/
 	[[nodiscard]] auto rbegin() const noexcept -> const_reverse_iterator
 	{
-		return m_child_views.rbegin();
+		return _child_views.rbegin();
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -8610,14 +8438,14 @@ public:
 	*/
 	[[nodiscard]] auto rend() const noexcept -> const_reverse_iterator
 	{
-		return m_child_views.rend();
+		return _child_views.rend();
 	}
 
 	//------------------------------
 
 private:
-	Image m_shadowImage;
-	float m_elevation = 0.f;
+	Image _shadow_image;
+	float _elevation = 0.f;
 
 public:
 	/*
@@ -8629,47 +8457,43 @@ public:
 		LIBRARY IMPLEMENTED
 		Sets the elevation of the view. This both changes its shadow (if the view has shadow) and drawing order.
 		The higher the elevation is, the later it will get drawn.
-		If p_elevation is negative, it is set from the top of the elevation space.
+		If elevation is negative, it is set from the top of the elevation space.
 	*/
-	auto set_elevation(float p_elevation) -> void
-	{
-		p_elevation = static_cast<float>(p_elevation < 0.f)*std::numeric_limits<float>::max() + p_elevation;
+	auto set_elevation(float elevation) -> void {
+		elevation = static_cast<float>(elevation < 0.f)*std::numeric_limits<float>::max() + elevation;
 
-		if (m_elevation != p_elevation)
-		{
-			m_elevation = p_elevation;
+		if (_elevation != elevation) {
+			_elevation = elevation;
 			update_shadow();
-			m_parent->update_view_drawing_index(this);
+			_parent->update_view_drawing_index(this);
 		}
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the elevation of the view. See the set_elevation method.
 	*/
-	auto get_elevation() const -> float
-	{
-		return m_elevation;
+	auto get_elevation() const noexcept -> float {
+		return _elevation;
 	}
 
 private:
-	bool m_hasShadow = true;
+	bool _has_shadow = true;
 public:
 	/*
 		LIBRARY IMPLEMENTED
 		Sets whether the elevation is shown with a shadow.
 	*/
-	auto set_has_shadow(bool p_hasShadow) -> void;
+	auto set_has_shadow(bool has_shadow) -> void;
 	/*
 		LIBRARY IMPLEMENTED
 		Returns whether the elevation is shown with a shadow.
 	*/
-	auto getHasShadow() const -> bool
-	{
-		return m_hasShadow;
+	auto getHasShadow() const -> bool {
+		return _has_shadow;
 	}
 
 private:
-	Rectangle<> m_shadowBounds;
+	Rectangle<> _shadow_bounds;
 public:
 	/*
 		LIBRARY IMPLEMENTED
@@ -8678,13 +8502,13 @@ public:
 	*/
 	auto getShadowBounds() const -> Rectangle<>
 	{
-		return m_shadowBounds;
+		return _shadow_bounds;
 	}
 
 	//------------------------------
 
 private:
-	bool m_isInAnimationUpdateQueue = false;
+	bool _isInAnimationUpdateQueue = false;
 public:
 	/*
 		LIBRARY IMPLEMENTED
@@ -8739,7 +8563,7 @@ public:
 	*/
 	auto calculateContentBounds() const -> Rectangle<>
 	{
-		if (m_child_views.empty())
+		if (_child_views.empty())
 		{
 			return {};
 		}
@@ -8758,7 +8582,7 @@ public:
 	*/
 	auto calculateContentWidth() const -> Dip
 	{
-		if (m_child_views.empty())
+		if (_child_views.empty())
 		{
 			return 0.f;
 		}
@@ -8770,7 +8594,7 @@ public:
 	*/
 	auto calculateContentHeight() const -> Dip
 	{
-		if (m_child_views.empty())
+		if (_child_views.empty())
 		{
 			return 0.f;
 		}
@@ -8792,11 +8616,11 @@ public:
 	*/
 	auto calculateContentLeft() const -> Dip
 	{
-		if (m_child_views.empty()) {
+		if (_child_views.empty()) {
 			return 0.f;
 		}
 
-		auto const view = *std::min_element(m_child_views.begin(), m_child_views.end(), 
+		auto const view = *std::min_element(_child_views.begin(), _child_views.end(), 
 			[](View* const a, View* const b) { 
 				return a->getLeft() < b->getLeft(); 
 			}
@@ -8810,11 +8634,11 @@ public:
 	*/
 	auto calculateContentRight() const -> Dip
 	{
-		if (m_child_views.empty()) {
+		if (_child_views.empty()) {
 			return 0.f;
 		}
 
-		auto const view = *std::max_element(m_child_views.begin(), m_child_views.end(), 
+		auto const view = *std::max_element(_child_views.begin(), _child_views.end(), 
 			[](View* const a, View* const b) { 
 				return a->getRight() < b->getRight(); 
 			}
@@ -8828,11 +8652,11 @@ public:
 	*/
 	auto calculateContentTop() const -> Dip
 	{
-		if (m_child_views.empty()) {
+		if (_child_views.empty()) {
 			return 0.f;
 		}
 
-		auto const view = *std::min_element(m_child_views.begin(), m_child_views.end(), 
+		auto const view = *std::min_element(_child_views.begin(), _child_views.end(), 
 			[](View* const a, View* const b) { 
 				return a->getTop() < b->getTop(); 
 			}
@@ -8846,11 +8670,11 @@ public:
 	*/
 	auto calculateContentBottom() const -> Dip
 	{
-		if (m_child_views.empty()) {
+		if (_child_views.empty()) {
 			return 0.f;
 		}
 
-		auto const view = *std::max_element(m_child_views.begin(), m_child_views.end(), 
+		auto const view = *std::max_element(_child_views.begin(), _child_views.end(), 
 			[](View* const a, View* const b) { 
 				return a->getBottom() < b->getBottom(); 
 			}
@@ -8898,8 +8722,7 @@ public:
 			p_leftPadding - contentBounds.left,
 			p_topPadding - contentBounds.top
 		};
-		for (auto const child : m_child_views)
-		{
+		for (auto const child : _child_views) {
 			child->move(offset);
 		}
 		set_size({
@@ -8916,11 +8739,11 @@ public:
 	auto setLeftPadding(Dip const p_leftPadding) -> void
 	{
 		auto const offset = p_leftPadding - calculateContentLeft();
-		for (auto const child : m_child_views)
+		for (auto const child : _child_views)
 		{
 			child->move_x(offset);
 		}
-		setWidth(get_width() + offset);
+		set_width(get_width() + offset);
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -8929,7 +8752,7 @@ public:
 	*/
 	auto setRightPadding(Dip const p_rightPadding) -> void
 	{
-		setWidth(calculateContentRight() + p_rightPadding);
+		set_width(calculateContentRight() + p_rightPadding);
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -8939,11 +8762,11 @@ public:
 	auto setTopPadding(Dip const p_topPadding) -> void
 	{
 		auto const offset = p_topPadding - calculateContentTop();
-		for (auto const child : m_child_views)
+		for (auto const child : _child_views)
 		{
 			child->move_y(offset);
 		}
-		setHeight(get_height() + offset);
+		set_height(get_height() + offset);
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -8952,7 +8775,7 @@ public:
 	*/
 	auto setBottomPadding(Dip const p_bottomPadding) -> void
 	{
-		setHeight(calculateContentBottom() + p_bottomPadding);
+		set_height(calculateContentBottom() + p_bottomPadding);
 	}
 
 	//------------------------------
@@ -8967,7 +8790,7 @@ public:
 		USER IMPLEMENTED
 		This gets called whenever a theme color has changed, not including initialization.
 	*/
-	virtual auto handle_theme_color_change(Id p_id, Color p_newColor) -> void {}
+	virtual auto handle_theme_color_change(Id id, Color p_newColor) -> void {}
 
 	/*
 		Listener signature:
@@ -8979,7 +8802,7 @@ public:
 		USER IMPLEMENTED
 		This gets called whenever a theme easing has changed, not including initialization.
 	*/
-	virtual auto handleThemeEasingChange(Id p_id, Easing p_newEasing) -> void {};
+	virtual auto handleThemeEasingChange(Id id, Easing p_newEasing) -> void {};
 
 	/*
 		Listener signature:
@@ -8991,36 +8814,36 @@ public:
 		USER IMPLEMENTED
 		This gets called whenever a theme value has changed, not including initialization.
 	*/
-	virtual auto handle_theme_value_change(Id p_id, float p_newValue) -> void {};
+	virtual auto handle_theme_value_change(Id id, float p_newValue) -> void {};
 
 	//------------------------------
 
 private:
-	std::shared_ptr<Theme> m_theme;
+	std::shared_ptr<Theme> _theme;
 
 private:
 	template<typename T, typename U>
 	auto propagateThemePropertyChange(
 		auto (View::* const function)(Id, T, bool) -> void, 
-		Id const p_id, 
+		Id const id, 
 		U&& p_property, 
-		bool const p_willAffectChildren
+		bool const will_affect_children
 	) -> void
 	{
-		if (p_willAffectChildren)
+		if (will_affect_children)
 		{
 			apply_to_all_child_views_recursively([&](View* const childView) {
-				(childView->*function)(p_id, std::forward<U>(p_property), false);
+				(childView->*function)(id, std::forward<U>(p_property), false);
 			});
 		}
 
-		if (!m_theme)
+		if (!_theme)
 		{
-			m_theme = std::make_shared<Theme>();
+			_theme = std::make_shared<Theme>();
 		}
-		else if (m_theme.use_count() > 1)
+		else if (_theme.use_count() > 1)
 		{
-			m_theme = std::make_shared<Theme>(*m_theme);
+			_theme = std::make_shared<Theme>(*_theme);
 		}
 	}
 
@@ -9031,19 +8854,19 @@ public:
 		Some IDs have a default color that can be changed.
 		These colors may be used by views that come with the library, but you can use them yourself too.
 		The default color IDs are in the ThemeColors namespace.
-		If p_id is anything else, the color is kept in the theme and you can use it yourself.
+		If id is anything else, the color is kept in the theme and you can use it yourself.
 
-		If p_willAffectChildren is true, all children and views below those too will change this color in their themes.
+		If will_affect_children is true, all children and views below those too will change this color in their themes.
 	*/
-	auto setThemeColor(Id const p_id, Color const color, bool const p_willAffectChildren = true) -> void
+	auto setThemeColor(Id const id, Color const color, bool const will_affect_children = true) -> void
 	{
-		propagateThemePropertyChange(&View::setThemeColor, p_id, color, p_willAffectChildren);
+		propagateThemePropertyChange(&View::setThemeColor, id, color, will_affect_children);
 
-		if (auto& theme_color = m_theme->colors[p_id];
+		if (auto& theme_color = _theme->colors[id];
 			theme_color != color)
 		{
 			theme_color = color;
-			themeColorChangeListeners(p_id, color);
+			themeColorChangeListeners(id, color);
 		}
 	}
 	/*
@@ -9060,20 +8883,20 @@ public:
 		See setThemeColor for more details.
 	*/
 	template<typename Pairs = std::initializer_list<std::pair<Id, Color>>>
-	auto setThemeColors(Pairs const& p_pairs, bool const p_willAffectChildren = true) -> void
+	auto setThemeColors(Pairs const& p_pairs, bool const will_affect_children = true) -> void
 	{
 		for (auto const& [id, color] : p_pairs)
 		{
-			setThemeColor(id, color, p_willAffectChildren);
+			setThemeColor(id, color, will_affect_children);
 		}
 	}
 	/*
 		LIBRARY IMPLEMENTED
 	*/
-	auto get_theme_color(Id const p_id) const -> Color
+	auto get_theme_color(Id const id) const -> Color
 	{
-		if (auto const result = m_theme->colors.find(p_id);
-			result == m_theme->colors.end())
+		if (auto const result = _theme->colors.find(id);
+			result == _theme->colors.end())
 		{
 			return {};
 		}
@@ -9083,10 +8906,10 @@ public:
 	}
 	/*
 		LIBRARY IMPLEMENTED
-		color is inserted into the theme with the id p_id if it doesn't already have a value.
+		color is inserted into the theme with the id id if it doesn't already have a value.
 	*/
-	auto initialize_theme_color(Id const p_id, Color const color) -> void {
-		m_theme->colors.insert({p_id, color});
+	auto initialize_theme_color(Id const id, Color const color) -> void {
+		_theme->colors.insert({id, color});
 	}
 
 	/*
@@ -9095,19 +8918,19 @@ public:
 		Some IDs have a default easing that can be changed.
 		These easings may be used by views that come with the library, but you can use them yourself too.
 		The default easing IDs are in the ThemeEasings namespace.
-		If p_id is anything else, the easing is kept in the theme and you can use it yourself.
+		If id is anything else, the easing is kept in the theme and you can use it yourself.
 
-		if p_willAffectChildren is true, all children and views below those too will change this easing in their themes.
+		if will_affect_children is true, all children and views below those too will change this easing in their themes.
 	*/
-	auto setThemeEasing(Id const p_id, Easing const easing, bool const p_willAffectChildren = true) -> void
+	auto setThemeEasing(Id const id, Easing const easing, bool const will_affect_children = true) -> void
 	{
-		propagateThemePropertyChange(&View::setThemeEasing, p_id, easing, p_willAffectChildren);
+		propagateThemePropertyChange(&View::setThemeEasing, id, easing, will_affect_children);
 
-		if (auto& theme_easing = m_theme->easings[p_id];
+		if (auto& theme_easing = _theme->easings[id];
 			theme_easing != easing)
 		{
 			theme_easing = easing;
-			themeEasingChangeListeners(p_id, easing);
+			themeEasingChangeListeners(id, easing);
 		}
 	}
 	/*
@@ -9116,25 +8939,25 @@ public:
 		Sets multiple theme easings.
 		Example usage:
 			using namespace ThemeEasings;
-			setThemeEasings({
+			set_theme_easings({
 				{in, {1.f, 0.f, 1.f, 1.f}},
 				{in_out, {1.f, 0.f, 0.f, 1.f}},
 			});
 
 		See setThemeEasing for more details.
 	*/
-	template<typename Pairs = std::initializer_list<std::pair<Id, Easing>>>
-	auto setThemeEasings(Pairs const& p_pairs, bool const p_willAffectChildren = true) -> void {
+	template<IsRangeOf<std::pair<Id, Easing>> Pairs = std::initializer_list<std::pair<Id, Easing>>>
+	auto set_theme_easings(Pairs const& p_pairs, bool const will_affect_children = true) -> void {
 		for (auto const& [id, easing] pair : p_pairs) {
-			setThemeEasing(id, easing, p_willAffectChildren);
+			setThemeEasing(id, easing, will_affect_children);
 		}
 	}
 	/*
 		LIBRARY IMPLEMENTED
 	*/
-	auto get_theme_easing(Id const p_id) const -> Easing {
-		if (auto const result = m_theme->easings.find(p_id);
-			result == m_theme->easings.end())
+	auto get_theme_easing(Id const id) const -> Easing {
+		if (auto const result = _theme->easings.find(id);
+			result == _theme->easings.end())
 		{
 			return {};
 		}
@@ -9144,10 +8967,10 @@ public:
 	}
 	/*
 		LIBRARY IMPLEMENTED
-		easing is inserted into the theme with the ID p_id if it doesn't already have a value.
+		easing is inserted into the theme with the ID id if it doesn't already have a value.
 	*/
-	auto initialize_theme_easing(Id const p_id, Easing const easing) -> void {
-		m_theme->easings.insert({p_id, easing});
+	auto initialize_theme_easing(Id const id, Easing const easing) -> void {
+		_theme->easings.insert({id, easing});
 	}
 
 	/*
@@ -9156,19 +8979,19 @@ public:
 		Some IDs have a default value that can be changed.
 		These values may be used by views that come with the library, but you can use them yourself too.
 		The default value IDs are in the ThemeValues namespace.
-		If p_id is anything else, the value is kept in the theme and you can use it yourself.
+		If id is anything else, the value is kept in the theme and you can use it yourself.
 
-		if p_willAffectChildren is true, all children and views below those too will change this value in their themes.
+		if will_affect_children is true, all children and views below those too will change this value in their themes.
 	*/
-	auto setThemeValue(Id const p_id, float const p_value, bool const p_willAffectChildren = true) -> void
+	auto set_theme_value(Id const id, float const p_value, bool const will_affect_children = true) -> void
 	{
-		propagateThemePropertyChange(&View::setThemeValue, p_id, p_value, p_willAffectChildren);
+		propagateThemePropertyChange(&View::set_theme_value, id, p_value, will_affect_children);
 
-		if (auto& value = m_theme->values[p_id];
+		if (auto& value = _theme->values[id];
 			value != p_value)
 		{
 			value = p_value;
-			themeValueChangeListeners(p_id, p_value);
+			themeValueChangeListeners(id, p_value);
 		}
 	}
 	/*
@@ -9176,26 +8999,26 @@ public:
 
 		Sets multiple theme values.
 		Example usage:
-			using namespace ThemeValues;
-			setThemeValues({
+			using namespace Avo::ThemeValues;
+			set_theme_values({
 				{hover_animation_duration, 100},
 				{tooltip_font_size, 13.f},
 			});
 
-		See setThemeValue for more details.
+		See set_theme_value for more details.
 	*/
 	template<typename Pairs = std::initializer_list<std::pair<Id, float>>>
-	auto setThemeValues(Pairs const& p_pairs, bool const p_willAffectChildren = true) -> void {
+	auto set_theme_values(Pairs const& p_pairs, bool const will_affect_children = true) -> void {
 		for (auto const& [id, value] : p_pairs) {
-			setThemeValue(id, value, p_willAffectChildren);
+			set_theme_value(id, value, will_affect_children);
 		}
 	}
 	/*
 		LIBRARY IMPLEMENTED
 	*/
-	auto get_theme_value(Id const p_id) const -> float {
-		if (auto result = m_theme->values.find(p_id);
-			result == m_theme->values.end())
+	auto get_theme_value(Id const id) const -> float {
+		if (auto result = _theme->values.find(id);
+			result == _theme->values.end())
 		{
 			return {};
 		}
@@ -9205,16 +9028,16 @@ public:
 	}
 	/*
 		LIBRARY IMPLEMENTED
-		value is inserted into the theme with the ID p_id if it doesn't already have a value.
+		value is inserted into the theme with the ID id if it doesn't already have a value.
 	*/
-	auto initialize_theme_value(Id const p_id, float const value) -> void {
-		m_theme->values.insert({p_id, value});
+	auto initialize_theme_value(Id const id, float const value) -> void {
+		_theme->values.insert({id, value});
 	}
 
 	//------------------------------
 
 private:
-	Point<> m_absolutePosition;
+	Point<> _absolute_position;
 
 	/*
 		Moves the point(s) representing the absolute position(s) of this view and/or all children of this view (recursively).
@@ -9222,9 +9045,9 @@ private:
 		Because of this, it is pre-calculated in this way only when this view or a parent view has moved.
 	*/
 	auto move_absolute_positions(Vector2d<> const offset, bool const will_update_children = true) -> void {
-		m_absolutePosition += offset;
+		_absolute_position += offset;
 
-		if (will_update_children && !m_child_views.empty()) {
+		if (will_update_children && !_child_views.empty()) {
 			apply_to_all_child_views_recursively([&](View* const view) {
 				view->move_absolute_positions(offset, false);
 			});
@@ -9239,7 +9062,7 @@ private:
 
 			_BoundsChange(View* const p_view) :
 				view{p_view},
-				bounds_before{p_view->m_bounds}
+				bounds_before{p_view->_bounds}
 			{}
 			~_BoundsChange() {
 				view->send_bounds_change_events(bounds_before);
@@ -9256,26 +9079,26 @@ public:
 	auto set_absolute_bounds(Rectangle<> const rectangle) -> void {
 		auto const change = create_bounds_change();
 
-		if (auto const offset = Vector2d{rectangle.get_top_left() - m_absolutePosition}) {
+		if (auto const offset = Vector2d{rectangle.get_top_left() - _absolute_position}) {
 			move_absolute_positions(offset);
-			m_bounds.move_top_left(offset);
+			_bounds.move_top_left(offset);
 		}
 
-		m_bounds.set_bottom_right(m_bounds.get_top_left() + rectangle.get_size(), false);
+		_bounds.set_bottom_right(_bounds.get_top_left() + rectangle.get_size(), false);
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the bounds of the view relative to the top left corner of the GUI.
 	*/
 	auto get_absolute_bounds() const -> Rectangle<> {
-		return {m_absolutePosition, m_bounds.get_size()};
+		return {_absolute_position, _bounds.get_size()};
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the bounds of the view shadow relative to the top left corner of the GUI.
 	*/
 	auto get_absolute_shadow_bounds() const -> Rectangle<> {
-		return {Point{m_absolutePosition + (m_bounds.get_size() - m_shadowBounds.get_size())/2}, m_shadowBounds.get_size()};
+		return {Point{_absolute_position + (_bounds.get_size() - _shadow_bounds.get_size())/2}, _shadow_bounds.get_size()};
 	}
 
 	//------------------------------
@@ -9286,10 +9109,11 @@ public:
 		If will_keep_size is true, the view will only get positioned, keeping its size.
 	*/
 	auto set_absolute_top_left(Point<> const position, bool const will_keep_size = true) -> void {
-		if (auto const offset = Vector2d{position - m_absolutePosition}) {
+		if (auto const offset = Vector2d{position - _absolute_position}) 
+		{
 			auto const change = create_bounds_change();
 			move_absolute_positions(offset);
-			m_bounds.set_top_left(m_bounds.get_top_left() + offset, will_keep_size);
+			_bounds.set_top_left(_bounds.get_top_left() + offset, will_keep_size);
 		}
 	}
 	/*
@@ -9297,7 +9121,7 @@ public:
 		Returns the coordinates of the top left corner of the view relative to the top left corner of the GUI.
 	*/
 	auto get_absolute_top_left() const -> Point<> {
-		return m_absolutePosition;
+		return _absolute_position;
 	}
 
 	/*
@@ -9307,22 +9131,21 @@ public:
 	*/
 	auto set_absolute_top_right(Point<> const position, bool const will_keep_size = true) -> void {
 		if (auto const offset = Vector2d{
-				position.x - m_absolutePosition.x + m_bounds.left - m_bounds.right,
-				position.y - m_absolutePosition.y
+				position.x - _absolute_position.x + _bounds.left - _bounds.right,
+				position.y - _absolute_position.y
 			})
 		{
 			auto const change = create_bounds_change();
 			move_absolute_positions({will_keep_size ? offset.x : 0, offset.y});
-			m_bounds.setTopRight(m_bounds.getTopRight() + offset, will_keep_size);
+			_bounds.set_top_right(_bounds.get_top_right() + offset, will_keep_size);
 		}
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the coordinates of the top right corner of the view relative to the top left corner of the GUI.
 	*/
-	auto get_absolute_top_right() const -> Point<>
-	{
-		return {m_absolutePosition.x + m_bounds.get_width(), m_absolutePosition.y};
+	auto get_absolute_top_right() const -> Point<> {
+		return {_absolute_position.x + _bounds.get_width(), _absolute_position.y};
 	}
 
 	/*
@@ -9330,16 +9153,15 @@ public:
 		Sets the bottom left coordinates of the view relative to the top left corner of the GUI.
 		If will_keep_size is true, the view will only get positioned, keeping its size.
 	*/
-	auto set_absolute_bottom_left(Point<> const position, bool const will_keep_size = true) -> void
-	{
+	auto set_absolute_bottom_left(Point<> const position, bool const will_keep_size = true) -> void {
 		if (auto const offset = Vector2d{
-				position.x - m_absolutePosition.x,
-				position.y - m_absolutePosition.y + m_bounds.top - m_bounds.bottom
+				position.x - _absolute_position.x,
+				position.y - _absolute_position.y + _bounds.top - _bounds.bottom
 			})
 		{
 			auto const change = create_bounds_change();
 			move_absolute_positions({offset.x, will_keep_size ? offset.y : 0.f});
-			m_bounds.set_bottom_left(m_bounds.get_bottom_left() + offset, will_keep_size);
+			_bounds.set_bottom_left(_bounds.get_bottom_left() + offset, will_keep_size);
 		}
 	}
 	/*
@@ -9347,7 +9169,7 @@ public:
 		Returns the coordinates of the bottom left corner of the view relative to the top left corner of the GUI.
 	*/
 	auto get_absolute_bottom_left() const -> Point<> {
-		return {m_absolutePosition.x, m_absolutePosition.y + m_bounds.bottom - m_bounds.top};
+		return {_absolute_position.x, _absolute_position.y + _bounds.bottom - _bounds.top};
 	}
 
 	/*
@@ -9355,20 +9177,19 @@ public:
 		Sets the bottom right coordinates of the view relative to the top left corner of the GUI.
 		If will_keep_size is true, the view will only get positioned, keeping its size.
 	*/
-	auto set_absolute_bottom_right(Point<> const position, bool const will_keep_size = true) -> void
-	{
+	auto set_absolute_bottom_right(Point<> const position, bool const will_keep_size = true) -> void {
 		if (auto const offset = Vector2d{
-				position.x - m_absolutePosition.x + m_bounds.left - m_bounds.right,
-				position.y - m_absolutePosition.y + m_bounds.top - m_bounds.bottom
+				position.x - _absolute_position.x + _bounds.left - _bounds.right,
+				position.y - _absolute_position.y + _bounds.top - _bounds.bottom
 			})
 		{
 			auto const change = create_bounds_change();
 			if (will_keep_size) {
 				move_absolute_positions(offset);
-				m_bounds += offset;
+				_bounds += offset;
 			}
 			else {
-				m_bounds.move_bottom_right(offset);
+				_bounds.move_bottom_right(offset);
 			}
 		}
 	}
@@ -9377,7 +9198,7 @@ public:
 		Returns the coordinates of the bottom right corner of the view relative to the top left corner of the GUI.
 	*/
 	auto get_absolute_bottom_right() const -> Point<> {
-		return {m_absolutePosition.x + m_bounds.right - m_bounds.left, m_absolutePosition.y + m_bounds.bottom - m_bounds.top};
+		return {_absolute_position.x + _bounds.right - _bounds.left, _absolute_position.y + _bounds.bottom - _bounds.top};
 	}
 
 	//------------------------------
@@ -9387,10 +9208,11 @@ public:
 		Sets the center coordinates of the view relative to the top left corner of the GUI.
 	*/
 	auto set_absolute_center(Point<> const position) -> void {
-		if (auto const offset = Vector2d{position - m_absolutePosition - get_size()/2}) {
+		if (auto const offset = Vector2d{position - _absolute_position - get_size()/2}) 
+		{
 			auto const change = create_bounds_change();
 			move_absolute_positions(offset);
-			m_bounds += offset;
+			_bounds += offset;
 		}
 	}
 	/*
@@ -9398,10 +9220,11 @@ public:
 		Sets the horizontal center coordinate of the view relative to the left edge of the GUI.
 	*/
 	auto set_absolute_center_x(float const x) -> void {
-		if (auto const offset_x = x - m_absolutePosition.x - get_width()*0.5f) {
+		if (auto const offset_x = x - _absolute_position.x - get_width()*0.5f) 
+		{
 			auto const change = create_bounds_change();
 			move_absolute_positions({offset_x, 0});
-			m_bounds.move_x(offset_x);
+			_bounds.move_x(offset_x);
 		}
 	}
 	/*
@@ -9409,10 +9232,11 @@ public:
 		Sets the vertical center coordinate of the view relative to the top edge of the GUI.
 	*/
 	auto set_absolute_center_y(float const y) -> void {
-		if (auto const offset_y = y - m_absolutePosition.y - get_height()*0.5f) {
+		if (auto const offset_y = y - _absolute_position.y - get_height()*0.5f) 
+		{
 			auto const change = create_bounds_change();
 			move_absolute_positions(0.f, offset_y);
-			m_bounds.move_y(offset_y);
+			_bounds.move_y(offset_y);
 		}
 	}
 	/*
@@ -9420,21 +9244,21 @@ public:
 		Returns the center coordinates of the view relative to the top left corner of the GUI.
 	*/
 	auto get_absolute_center() const noexcept -> Point<> {
-		return m_absolutePosition + get_size()/2;
+		return _absolute_position + get_size()/2;
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the x-axis center coordinate of the view relative to the left edge of the GUI.
 	*/
 	auto get_absolute_center_x() const noexcept -> float {
-		return m_absolutePosition.x + get_width()*0.5f;
+		return _absolute_position.x + get_width()*0.5f;
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the y-axis center coordinate of the view relative to the top edge of the GUI.
 	*/
 	auto get_absolute_center_y() const noexcept -> float {
-		return m_absolutePosition.y + get_height()*0.5f;
+		return _absolute_position.y + get_height()*0.5f;
 	}
 
 	//------------------------------
@@ -9444,21 +9268,20 @@ public:
 		Sets the left coordinate of this view and updates the layout relative to the left edge of the GUI.
 		If will_keep_width is true, the right coordinate will also be changed so that the width of the view stays the same.
 	*/
-	auto set_absolute_left(float const left, bool const will_keep_width = true) -> void
-	{
-		if (auto const offset = left - m_absolutePosition.x) {
+	auto set_absolute_left(float const left, bool const will_keep_width = true) -> void {
+		if (auto const offset = left - _absolute_position.x) 
+		{
 			auto const change = create_bounds_change();
 			move_absolute_positions(offset, 0);
-			m_bounds.set_left(m_bounds.left + offset, will_keep_width);
+			_bounds.set_left(_bounds.left + offset, will_keep_width);
 		}
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Returns the left coordinate of this view relative to the left edge of the GUI.
 	*/
-	auto get_absolute_left() const noexcept -> float
-	{
-		return m_absolutePosition.x;
+	auto get_absolute_left() const noexcept -> float {
+		return _absolute_position.x;
 	}
 
 	/*
@@ -9467,10 +9290,11 @@ public:
 		If will_keep_height is true, the bottom coordinate will also be changed so that the height of the view stays the same.
 	*/
 	auto set_absolute_top(float const p_top, bool const will_keep_height = true) -> void {
-		if (auto const offset = p_top - m_absolutePosition.y) {
+		if (auto const offset = p_top - _absolute_position.y) 
+		{
 			auto const change = create_bounds_change();
 			move_absolute_positions(0, offset);
-			m_bounds.set_top(m_bounds.top + offset, will_keep_height);
+			_bounds.set_top(_bounds.top + offset, will_keep_height);
 		}
 	}
 	/*
@@ -9478,7 +9302,7 @@ public:
 		Returns the top coordinate of this view relative to the top edge of the GUI.
 	*/
 	auto get_absolute_top() const noexcept -> float {
-		return m_absolutePosition.y;
+		return _absolute_position.y;
 	}
 
 	/*
@@ -9486,15 +9310,16 @@ public:
 		Sets the right coordinate of this view relative to the left edge of the GUI.
 		If will_keep_width is true, the left coordinate will also be changed so that the width of the view stays the same.
 	*/
-	auto set_absolute_right(float const p_right, bool const will_keep_width = true) -> void {
-		if (auto const offset = p_right - m_absolutePosition.x + m_bounds.left - m_bounds.right) {
+	auto set_absolute_right(float const right, bool const will_keep_width = true) -> void {
+		if (auto const offset = right - _absolute_position.x + _bounds.left - _bounds.right) 
+		{
 			auto const change = create_bounds_change();
 			if (will_keep_width) {
 				move_absolute_positions(offset, 0);
-				m_bounds.move_x(offset);
+				_bounds.move_x(offset);
 			}
 			else {
-				m_bounds.right += offset;
+				_bounds.right += offset;
 			}
 		}
 	}
@@ -9503,7 +9328,7 @@ public:
 		Returns the coordinate of the right edge of this view relative to the left edge of the GUI.
 	*/
 	auto get_absolute_right() const noexcept -> float {
-		return m_absolutePosition.x + m_bounds.right - m_bounds.left;
+		return _absolute_position.x + _bounds.right - _bounds.left;
 	}
 
 	/*
@@ -9512,14 +9337,14 @@ public:
 		If will_keep_height is true, the top coordinate will also be changed so that the height of the view stays the same.
 	*/
 	auto set_absolute_bottom(float const p_bottom, bool const will_keep_height = true) -> void {
-		if (auto const offset = p_bottom - m_absolutePosition.y + m_bounds.top - m_bounds.bottom) {
+		if (auto const offset = p_bottom - _absolute_position.y + _bounds.top - _bounds.bottom) {
 			auto const change = create_bounds_change();
 			if (will_keep_height) {
-				m_bounds.move_y(offset);
+				_bounds.move_y(offset);
 				move_absolute_positions(0, offset);
 			}
 			else {
-				m_bounds.bottom += offset;
+				_bounds.bottom += offset;
 			}
 		}
 	}
@@ -9528,7 +9353,7 @@ public:
 		Returns the coordinate of the bottom edge of this view relative to the top edge of the GUI.
 	*/
 	auto get_absolute_bottom() const noexcept -> float {
-		return m_absolutePosition.y + m_bounds.bottom - m_bounds.top;
+		return _absolute_position.y + _bounds.bottom - _bounds.top;
 	}
 
 	//------------------------------
@@ -9540,74 +9365,74 @@ public:
 	*/
 	auto get_is_intersecting(Rectangle<> const rectangle) const noexcept -> bool override
 	{
-		if (m_corners.top_left_size_x && m_corners.top_left_size_y || 
-			m_corners.top_right_size_x && m_corners.top_right_size_y ||
-			m_corners.bottom_left_size_x && m_corners.bottom_left_size_y || 
-			m_corners.bottom_right_size_x && m_corners.bottom_right_size_y)
+		if (_corners.top_left_size_x && _corners.top_left_size_y || 
+			_corners.top_right_size_x && _corners.top_right_size_y ||
+			_corners.bottom_left_size_x && _corners.bottom_left_size_y || 
+			_corners.bottom_right_size_x && _corners.bottom_right_size_y)
 		{
-			if (m_bounds.get_is_intersecting(rectangle))
+			if (_bounds.get_is_intersecting(rectangle))
 			{
-				if (rectangle.right < m_bounds.left + m_corners.top_left_size_x && 
-					rectangle.bottom < m_bounds.top + m_corners.top_left_size_y)
+				if (rectangle.right < _bounds.left + _corners.top_left_size_x && 
+					rectangle.bottom < _bounds.top + _corners.top_left_size_y)
 				{
-					if (m_corners.top_left_type == RectangleCornerType::Round)
+					if (_corners.top_left_type == RectangleCornerType::Round)
 					{
 						return Vector2d<>::get_length_squared(
-							m_bounds.left + m_corners.top_left_size_x - rectangle.right, 
-							(m_bounds.top + m_corners.top_left_size_y - rectangle.bottom)*
-							m_corners.top_left_size_x/m_corners.top_left_size_y
-						) < m_corners.top_left_size_x*m_corners.top_left_size_x;
+							_bounds.left + _corners.top_left_size_x - rectangle.right, 
+							(_bounds.top + _corners.top_left_size_y - rectangle.bottom)*
+							_corners.top_left_size_x/_corners.top_left_size_y
+						) < _corners.top_left_size_x*_corners.top_left_size_x;
 					}
-					return rectangle.bottom > m_bounds.top + m_corners.top_left_size_y - 
-						(rectangle.right - m_bounds.left)*m_corners.top_left_size_y/m_corners.top_left_size_x;
+					return rectangle.bottom > _bounds.top + _corners.top_left_size_y - 
+						(rectangle.right - _bounds.left)*_corners.top_left_size_y/_corners.top_left_size_x;
 				}
-				else if (rectangle.right < m_bounds.left + m_corners.bottom_left_size_x && 
-							rectangle.top > m_bounds.bottom - m_corners.bottom_left_size_y)
+				else if (rectangle.right < _bounds.left + _corners.bottom_left_size_x && 
+							rectangle.top > _bounds.bottom - _corners.bottom_left_size_y)
 				{
-					if (m_corners.top_left_type == RectangleCornerType::Round)
+					if (_corners.top_left_type == RectangleCornerType::Round)
 					{
 						return Vector2d<>::get_length_squared(
-							m_bounds.left + m_corners.bottom_left_size_x - rectangle.right, 
-							(m_bounds.bottom - m_corners.bottom_left_size_y - rectangle.top)*
-							m_corners.bottom_left_size_x/m_corners.bottom_left_size_y
-						) < m_corners.bottom_left_size_x*m_corners.bottom_left_size_x;
+							_bounds.left + _corners.bottom_left_size_x - rectangle.right, 
+							(_bounds.bottom - _corners.bottom_left_size_y - rectangle.top)*
+							_corners.bottom_left_size_x/_corners.bottom_left_size_y
+						) < _corners.bottom_left_size_x*_corners.bottom_left_size_x;
 					}
-					return rectangle.top < m_bounds.bottom - m_corners.bottom_left_size_y + 
-						(rectangle.right - m_bounds.left)*m_corners.bottom_left_size_y/m_corners.bottom_left_size_x;
+					return rectangle.top < _bounds.bottom - _corners.bottom_left_size_y + 
+						(rectangle.right - _bounds.left)*_corners.bottom_left_size_y/_corners.bottom_left_size_x;
 				}
-				else if (rectangle.left > m_bounds.right - m_corners.top_right_size_x && 
-					rectangle.bottom < m_bounds.top + m_corners.top_right_size_y)
+				else if (rectangle.left > _bounds.right - _corners.top_right_size_x && 
+					rectangle.bottom < _bounds.top + _corners.top_right_size_y)
 				{
-					if (m_corners.top_left_type == RectangleCornerType::Round)
+					if (_corners.top_left_type == RectangleCornerType::Round)
 					{
 						return Vector2d<>::get_length_squared(
-							m_bounds.right - m_corners.top_right_size_x - rectangle.left, 
-							(m_bounds.top + m_corners.top_right_size_y - rectangle.bottom)*
-							m_corners.top_right_size_x/m_corners.top_right_size_y
-						) < m_corners.top_right_size_x*m_corners.top_right_size_x;
+							_bounds.right - _corners.top_right_size_x - rectangle.left, 
+							(_bounds.top + _corners.top_right_size_y - rectangle.bottom)*
+							_corners.top_right_size_x/_corners.top_right_size_y
+						) < _corners.top_right_size_x*_corners.top_right_size_x;
 					}
-					return rectangle.bottom > m_bounds.top + (m_bounds.right - rectangle.left)*
-						m_corners.top_right_size_y/m_corners.top_right_size_x;
+					return rectangle.bottom > _bounds.top + (_bounds.right - rectangle.left)*
+						_corners.top_right_size_y/_corners.top_right_size_x;
 				}
-				else if (rectangle.left > m_bounds.right - m_corners.bottom_right_size_x && 
-					rectangle.top > m_bounds.bottom - m_corners.bottom_right_size_y)
+				else if (rectangle.left > _bounds.right - _corners.bottom_right_size_x && 
+					rectangle.top > _bounds.bottom - _corners.bottom_right_size_y)
 				{
-					if (m_corners.top_left_type == RectangleCornerType::Round)
+					if (_corners.top_left_type == RectangleCornerType::Round)
 					{
 						return Vector2d<>::get_length_squared(
-							m_bounds.right - m_corners.bottom_right_size_x - rectangle.left, 
-							(m_bounds.bottom - m_corners.bottom_right_size_y - rectangle.top)*
-							m_corners.bottom_right_size_x/m_corners.bottom_right_size_y
-						) < m_corners.bottom_right_size_x*m_corners.bottom_right_size_x;
+							_bounds.right - _corners.bottom_right_size_x - rectangle.left, 
+							(_bounds.bottom - _corners.bottom_right_size_y - rectangle.top)*
+							_corners.bottom_right_size_x/_corners.bottom_right_size_y
+						) < _corners.bottom_right_size_x*_corners.bottom_right_size_x;
 					}
-					return rectangle.top < m_bounds.bottom - (m_bounds.right - rectangle.left)*
-						m_corners.bottom_right_size_y/m_corners.bottom_right_size_x;
+					return rectangle.top < _bounds.bottom - (_bounds.right - rectangle.left)*
+						_corners.bottom_right_size_y/_corners.bottom_right_size_x;
 				}
 				return true;
 			}
 			return false;
 		}
-		return m_bounds.get_is_intersecting(rectangle);
+		return _bounds.get_is_intersecting(rectangle);
 	}
 
 	//------------------------------
@@ -9619,86 +9444,86 @@ public:
 	*/
 	auto get_is_containing(Rectangle<> const rectangle) const noexcept -> bool override
 	{
-		if (m_corners.top_left_size_x && m_corners.top_left_size_y || m_corners.top_right_size_x && m_corners.top_right_size_y ||
-			m_corners.bottom_left_size_x && m_corners.bottom_left_size_y || m_corners.bottom_right_size_x && m_corners.bottom_right_size_y)
+		if (_corners.top_left_size_x && _corners.top_left_size_y || _corners.top_right_size_x && _corners.top_right_size_y ||
+			_corners.bottom_left_size_x && _corners.bottom_left_size_y || _corners.bottom_right_size_x && _corners.bottom_right_size_y)
 		{
-			if (m_bounds.get_is_containing(rectangle))
+			if (_bounds.get_is_containing(rectangle))
 			{
-				if (rectangle.left < m_bounds.left + m_corners.top_left_size_x && 
-					rectangle.top < m_bounds.top + m_corners.top_left_size_y)
+				if (rectangle.left < _bounds.left + _corners.top_left_size_x && 
+					rectangle.top < _bounds.top + _corners.top_left_size_y)
 				{
-					if (m_corners.top_left_type == RectangleCornerType::Round)
+					if (_corners.top_left_type == RectangleCornerType::Round)
 					{
 						if (Vector2d<>::get_length_squared(
-								m_bounds.left + m_corners.top_left_size_x - rectangle.left, 
-								(m_bounds.top + m_corners.top_left_size_y - rectangle.top)*m_corners.top_left_size_x/m_corners.top_left_size_y
-							) > m_corners.top_left_size_x*m_corners.top_left_size_x)
+								_bounds.left + _corners.top_left_size_x - rectangle.left, 
+								(_bounds.top + _corners.top_left_size_y - rectangle.top)*_corners.top_left_size_x/_corners.top_left_size_y
+							) > _corners.top_left_size_x*_corners.top_left_size_x)
 						{
 							return false;
 						}
 					}
-					else if (rectangle.top > m_bounds.top + m_corners.top_left_size_y - (rectangle.left - m_bounds.left)*
-								m_corners.top_left_size_y/m_corners.top_left_size_x)
+					else if (rectangle.top > _bounds.top + _corners.top_left_size_y - (rectangle.left - _bounds.left)*
+								_corners.top_left_size_y/_corners.top_left_size_x)
 					{
 						return false;
 					}
 				}
-				else if (rectangle.left < m_bounds.left + m_corners.bottom_left_size_x && 
-							rectangle.bottom > m_bounds.bottom - m_corners.bottom_left_size_y)
+				else if (rectangle.left < _bounds.left + _corners.bottom_left_size_x && 
+							rectangle.bottom > _bounds.bottom - _corners.bottom_left_size_y)
 				{
-					if (m_corners.top_left_type == RectangleCornerType::Round)
+					if (_corners.top_left_type == RectangleCornerType::Round)
 					{
 						if (Vector2d<>::get_length_squared(
-								m_bounds.left + m_corners.bottom_left_size_x - rectangle.left, 
-								(m_bounds.bottom - m_corners.bottom_left_size_y - rectangle.bottom)*
-								m_corners.bottom_left_size_x/m_corners.bottom_left_size_y
-							) > m_corners.bottom_left_size_x*m_corners.bottom_left_size_x)
+								_bounds.left + _corners.bottom_left_size_x - rectangle.left, 
+								(_bounds.bottom - _corners.bottom_left_size_y - rectangle.bottom)*
+								_corners.bottom_left_size_x/_corners.bottom_left_size_y
+							) > _corners.bottom_left_size_x*_corners.bottom_left_size_x)
 						{
 							return false;
 						}
 					}
-					else if (rectangle.bottom < m_bounds.bottom - m_corners.bottom_left_size_y + 
-						(m_bounds.right - rectangle.left)*m_corners.top_right_size_y/m_corners.top_right_size_x)
+					else if (rectangle.bottom < _bounds.bottom - _corners.bottom_left_size_y + 
+						(_bounds.right - rectangle.left)*_corners.top_right_size_y/_corners.top_right_size_x)
 					{
 						return false;
 					}
 				}
-				else if (rectangle.right > m_bounds.right - m_corners.top_right_size_x && 
-							rectangle.top < m_bounds.top + m_corners.top_right_size_y)
+				else if (rectangle.right > _bounds.right - _corners.top_right_size_x && 
+							rectangle.top < _bounds.top + _corners.top_right_size_y)
 				{
-					if (m_corners.top_left_type == RectangleCornerType::Round)
+					if (_corners.top_left_type == RectangleCornerType::Round)
 					{
 						if (Vector2d<>::get_length_squared(
-								m_bounds.right - m_corners.top_right_size_x - rectangle.right, 
-								(m_bounds.top + m_corners.top_right_size_y - rectangle.top)*
-								m_corners.top_right_size_x/m_corners.top_right_size_y
-							) > m_corners.top_right_size_x*m_corners.top_right_size_x)
+								_bounds.right - _corners.top_right_size_x - rectangle.right, 
+								(_bounds.top + _corners.top_right_size_y - rectangle.top)*
+								_corners.top_right_size_x/_corners.top_right_size_y
+							) > _corners.top_right_size_x*_corners.top_right_size_x)
 						{
 							return false;
 						}
 					}
-					else if (rectangle.top > m_bounds.top + (m_bounds.right - rectangle.right)*
-						m_corners.top_right_size_y/m_corners.top_right_size_y)
+					else if (rectangle.top > _bounds.top + (_bounds.right - rectangle.right)*
+						_corners.top_right_size_y/_corners.top_right_size_y)
 					{
 						return false;
 					}
 				}
-				else if (rectangle.right > m_bounds.right - m_corners.bottom_right_size_x && 
-							rectangle.bottom > m_bounds.bottom - m_corners.bottom_right_size_y)
+				else if (rectangle.right > _bounds.right - _corners.bottom_right_size_x && 
+							rectangle.bottom > _bounds.bottom - _corners.bottom_right_size_y)
 				{
-					if (m_corners.top_left_type == RectangleCornerType::Round)
+					if (_corners.top_left_type == RectangleCornerType::Round)
 					{
 						if (Vector2d<>::get_length_squared(
-								m_bounds.right - m_corners.bottom_right_size_x - rectangle.right, 
-								(m_bounds.bottom - m_corners.bottom_right_size_y - rectangle.bottom)*
-								m_corners.bottom_right_size_x/m_corners.bottom_right_size_y
-							) > m_corners.bottom_right_size_x*m_corners.bottom_right_size_x)
+								_bounds.right - _corners.bottom_right_size_x - rectangle.right, 
+								(_bounds.bottom - _corners.bottom_right_size_y - rectangle.bottom)*
+								_corners.bottom_right_size_x/_corners.bottom_right_size_y
+							) > _corners.bottom_right_size_x*_corners.bottom_right_size_x)
 						{
 							return false;
 						}
 					}
-					else if (rectangle.bottom < m_bounds.bottom - (m_bounds.right - rectangle.right)*
-						m_corners.bottom_right_size_y/m_corners.bottom_right_size_x)
+					else if (rectangle.bottom < _bounds.bottom - (_bounds.right - rectangle.right)*
+						_corners.bottom_right_size_y/_corners.bottom_right_size_x)
 					{
 						return false;
 					}
@@ -9707,7 +9532,7 @@ public:
 			}
 			return false;
 		}
-		return m_bounds.get_is_containing(rectangle);
+		return _bounds.get_is_containing(rectangle);
 	}
 
 	/*
@@ -9718,61 +9543,61 @@ public:
 	auto get_is_containing(Point<> const p_point) const noexcept -> bool override
 	{
 		auto const [x, y] = p_point;
-		if (m_corners.top_left_size_x && m_corners.top_left_size_y || m_corners.top_right_size_x && m_corners.top_right_size_y ||
-			m_corners.bottom_left_size_x && m_corners.bottom_left_size_y || m_corners.bottom_right_size_x && m_corners.bottom_right_size_y)
+		if (_corners.top_left_size_x && _corners.top_left_size_y || _corners.top_right_size_x && _corners.top_right_size_y ||
+			_corners.bottom_left_size_x && _corners.bottom_left_size_y || _corners.bottom_right_size_x && _corners.bottom_right_size_y)
 		{
-			if (m_bounds.get_is_containing(p_point))
+			if (_bounds.get_is_containing(p_point))
 			{
-				if (x < m_bounds.left + m_corners.top_left_size_x && y < m_bounds.top + m_corners.top_left_size_y)
+				if (x < _bounds.left + _corners.top_left_size_x && y < _bounds.top + _corners.top_left_size_y)
 				{
-					if (m_corners.top_left_type == RectangleCornerType::Round)
+					if (_corners.top_left_type == RectangleCornerType::Round)
 					{
 						return Vector2d<>::get_length_squared(
-							m_bounds.left + m_corners.top_left_size_x - x, 
-							(m_bounds.top + m_corners.top_left_size_y - y)*m_corners.top_left_size_x/m_corners.top_left_size_y
-						) < m_corners.top_left_size_x*m_corners.top_left_size_x;
+							_bounds.left + _corners.top_left_size_x - x, 
+							(_bounds.top + _corners.top_left_size_y - y)*_corners.top_left_size_x/_corners.top_left_size_y
+						) < _corners.top_left_size_x*_corners.top_left_size_x;
 					}
-					return y > m_bounds.top + m_corners.top_left_size_y - (x - m_bounds.left)*m_corners.top_left_size_y/m_corners.top_left_size_x;
+					return y > _bounds.top + _corners.top_left_size_y - (x - _bounds.left)*_corners.top_left_size_y/_corners.top_left_size_x;
 				}
-				else if (x > m_bounds.right - m_corners.top_right_size_x && y < m_bounds.top + m_corners.top_right_size_y)
+				else if (x > _bounds.right - _corners.top_right_size_x && y < _bounds.top + _corners.top_right_size_y)
 				{
-					if (m_corners.topRightType == RectangleCornerType::Round)
+					if (_corners.top_right_type == RectangleCornerType::Round)
 					{
 						return Vector2d<>::get_length_squared(
-							m_bounds.right - m_corners.top_right_size_x - x, 
-							(m_bounds.top + m_corners.top_right_size_y - y)*m_corners.top_right_size_x/m_corners.top_right_size_y
-						) < m_corners.top_right_size_x*m_corners.top_right_size_x;
+							_bounds.right - _corners.top_right_size_x - x, 
+							(_bounds.top + _corners.top_right_size_y - y)*_corners.top_right_size_x/_corners.top_right_size_y
+						) < _corners.top_right_size_x*_corners.top_right_size_x;
 					}
-					return y > m_bounds.top + (m_bounds.right - x)*m_corners.top_right_size_y/m_corners.top_right_size_x;
+					return y > _bounds.top + (_bounds.right - x)*_corners.top_right_size_y/_corners.top_right_size_x;
 				}
-				else if (x < m_bounds.left + m_corners.bottom_left_size_x && y > m_bounds.bottom - m_corners.bottom_left_size_y)
+				else if (x < _bounds.left + _corners.bottom_left_size_x && y > _bounds.bottom - _corners.bottom_left_size_y)
 				{
-					if (m_corners.bottomLeftType == RectangleCornerType::Round)
+					if (_corners.bottom_left_type == RectangleCornerType::Round)
 					{
 						return Vector2d<>::get_length_squared(
-							m_bounds.left + m_corners.bottom_left_size_x - x, 
-							(m_bounds.bottom - m_corners.bottom_left_size_y - y)*m_corners.bottom_left_size_x/m_corners.bottom_left_size_y
-						) < m_corners.bottom_left_size_x*m_corners.bottom_left_size_x;
+							_bounds.left + _corners.bottom_left_size_x - x, 
+							(_bounds.bottom - _corners.bottom_left_size_y - y)*_corners.bottom_left_size_x/_corners.bottom_left_size_y
+						) < _corners.bottom_left_size_x*_corners.bottom_left_size_x;
 					}
-					return y < m_bounds.bottom - m_corners.bottom_left_size_y + 
-						(x - m_bounds.left)*m_corners.bottom_left_size_y/m_corners.bottom_left_size_x;
+					return y < _bounds.bottom - _corners.bottom_left_size_y + 
+						(x - _bounds.left)*_corners.bottom_left_size_y/_corners.bottom_left_size_x;
 				}
-				else if (x > m_bounds.right - m_corners.bottom_right_size_x && y > m_bounds.bottom - m_corners.bottom_right_size_y)
+				else if (x > _bounds.right - _corners.bottom_right_size_x && y > _bounds.bottom - _corners.bottom_right_size_y)
 				{
-					if (m_corners.bottomRightType == RectangleCornerType::Round)
+					if (_corners.bottom_right_type == RectangleCornerType::Round)
 					{
 						return Vector2d<>::get_length_squared(
-							m_bounds.right - m_corners.bottom_right_size_x - x, 
-							(m_bounds.bottom - m_corners.bottom_right_size_y - y)*m_corners.bottom_right_size_x/m_corners.bottom_right_size_y
-						) < m_corners.bottom_right_size_x*m_corners.bottom_right_size_x;
+							_bounds.right - _corners.bottom_right_size_x - x, 
+							(_bounds.bottom - _corners.bottom_right_size_y - y)*_corners.bottom_right_size_x/_corners.bottom_right_size_y
+						) < _corners.bottom_right_size_x*_corners.bottom_right_size_x;
 					}
-					return y < m_bounds.bottom - (m_bounds.right - x)*m_corners.bottom_right_size_y/m_corners.bottom_right_size_x;
+					return y < _bounds.bottom - (_bounds.right - x)*_corners.bottom_right_size_y/_corners.bottom_right_size_x;
 				}
 				return true;
 			}
 			return false;
 		}
-		return m_bounds.get_is_containing(p_point);
+		return _bounds.get_is_containing(p_point);
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -9780,9 +9605,9 @@ public:
 	*/
 	auto get_is_containing_absolute(Point<> const p_point) const noexcept -> bool
 	{
-		if (m_parent)
+		if (_parent)
 		{
-			return get_is_containing(p_point - m_parent->get_absolute_top_left());
+			return get_is_containing(p_point - _parent->get_absolute_top_left());
 		}
 		return get_is_containing(p_point);
 	}
@@ -9793,8 +9618,8 @@ public:
 private:
 	auto handle_protected_rectangle_change(Rectangle<> const old_rectangle) -> void override 
 	{
-		if (old_rectangle != m_bounds) {
-			if (auto const new_top_left = m_bounds.get_top_left(), oldTopLeft = old_rectangle.get_top_left(); 
+		if (old_rectangle != _bounds) {
+			if (auto const new_top_left = _bounds.get_top_left(), oldTopLeft = old_rectangle.get_top_left(); 
 				oldTopLeft != new_top_left)
 			{
 				move_absolute_positions(Vector2d{new_top_left - oldTopLeft});
@@ -9837,21 +9662,21 @@ public:
 	//------------------------------
 
 private:
-	RectangleCorners m_corners;
+	RectangleCorners _corners;
 
 public:
 	/*
 		LIBRARY IMPLEMENTED
-		Sets the roundness of the corners of the view. p_radius is the radius of the corner circles.
+		Sets the roundness of the corners of the view. radius is the radius of the corner circles.
 	*/
-	auto set_corner_radius(float const p_radius) -> void
+	auto set_corner_radius(float const radius) -> void
 	{
-		m_corners.top_left_size_x = m_corners.top_left_size_y = p_radius;
-		m_corners.top_right_size_x = m_corners.top_right_size_y = p_radius;
-		m_corners.bottom_left_size_x = m_corners.bottom_left_size_y = p_radius;
-		m_corners.bottom_right_size_x = m_corners.bottom_right_size_y = p_radius;
-		m_corners.top_left_type = m_corners.topRightType = 
-			m_corners.bottomLeftType = m_corners.bottomRightType = RectangleCornerType::Round;
+		_corners.top_left_size_x = _corners.top_left_size_y = radius;
+		_corners.top_right_size_x = _corners.top_right_size_y = radius;
+		_corners.bottom_left_size_x = _corners.bottom_left_size_y = radius;
+		_corners.bottom_right_size_x = _corners.bottom_right_size_y = radius;
+		_corners.top_left_type = _corners.top_right_type = 
+			_corners.bottom_left_type = _corners.bottom_right_type = RectangleCornerType::Round;
 		update_clip_geometry();
 		update_shadow();
 	}
@@ -9864,12 +9689,12 @@ public:
 		float const p_bottomLeftRadius, float const p_bottomRightRadius
 	) -> void
 	{
-		m_corners.top_left_size_x = m_corners.top_left_size_y = p_topLeftRadius;
-		m_corners.top_right_size_x = m_corners.top_right_size_y = p_topRightRadius;
-		m_corners.bottom_left_size_x = m_corners.bottom_left_size_y = p_bottomLeftRadius;
-		m_corners.bottom_right_size_x = m_corners.bottom_right_size_y = p_bottomRightRadius;
-		m_corners.top_left_type = m_corners.topRightType = 
-			m_corners.bottomLeftType = m_corners.bottomRightType = RectangleCornerType::Round;
+		_corners.top_left_size_x = _corners.top_left_size_y = p_topLeftRadius;
+		_corners.top_right_size_x = _corners.top_right_size_y = p_topRightRadius;
+		_corners.bottom_left_size_x = _corners.bottom_left_size_y = p_bottomLeftRadius;
+		_corners.bottom_right_size_x = _corners.bottom_right_size_y = p_bottomRightRadius;
+		_corners.top_left_type = _corners.top_right_type = 
+			_corners.bottom_left_type = _corners.bottom_right_type = RectangleCornerType::Round;
 		update_clip_geometry();
 		update_shadow();
 	}
@@ -9880,12 +9705,12 @@ public:
 	*/
 	auto setCornerCutSize(float const p_cutSize) -> void
 	{
-		m_corners.top_left_size_x = m_corners.top_left_size_y = p_cutSize;
-		m_corners.top_right_size_x = m_corners.top_right_size_y = p_cutSize;
-		m_corners.bottom_left_size_x = m_corners.bottom_left_size_y = p_cutSize;
-		m_corners.bottom_right_size_x = m_corners.bottom_right_size_y = p_cutSize;
-		m_corners.top_left_type = m_corners.topRightType = 
-			m_corners.bottomLeftType = m_corners.bottomRightType = RectangleCornerType::Cut;
+		_corners.top_left_size_x = _corners.top_left_size_y = p_cutSize;
+		_corners.top_right_size_x = _corners.top_right_size_y = p_cutSize;
+		_corners.bottom_left_size_x = _corners.bottom_left_size_y = p_cutSize;
+		_corners.bottom_right_size_x = _corners.bottom_right_size_y = p_cutSize;
+		_corners.top_left_type = _corners.top_right_type = 
+			_corners.bottom_left_type = _corners.bottom_right_type = RectangleCornerType::Cut;
 		update_clip_geometry();
 		update_shadow();
 	}
@@ -9894,15 +9719,15 @@ public:
 		Sets how much the corners of the view are cut.
 	*/
 	auto setCornerCutSize(
-		float const p_topLeftSize, float const p_topRightSize, 
-		float const p_bottomLeftSize, float const p_bottomRightSize
+		float const top_left_size, float const top_right_size, 
+		float const bottom_left_size, float const bottom_right_size
 	) -> void
 	{
-		m_corners.top_left_size_x = m_corners.top_left_size_y = p_topLeftSize;
-		m_corners.top_right_size_x = m_corners.top_right_size_y = p_topRightSize;
-		m_corners.bottom_left_size_x = m_corners.bottom_left_size_y = p_bottomLeftSize;
-		m_corners.bottom_right_size_x = m_corners.bottom_right_size_y = p_bottomRightSize;
-		m_corners.top_left_type = m_corners.topRightType = m_corners.bottomLeftType = m_corners.bottomRightType = RectangleCornerType::Cut;
+		_corners.top_left_size_x = _corners.top_left_size_y = top_left_size;
+		_corners.top_right_size_x = _corners.top_right_size_y = top_right_size;
+		_corners.bottom_left_size_x = _corners.bottom_left_size_y = bottom_left_size;
+		_corners.bottom_right_size_x = _corners.bottom_right_size_y = bottom_right_size;
+		_corners.top_left_type = _corners.top_right_type = _corners.bottom_left_type = _corners.bottom_right_type = RectangleCornerType::Cut;
 		update_clip_geometry();
 		update_shadow();
 	}
@@ -9913,7 +9738,7 @@ public:
 	*/
 	auto set_corners(RectangleCorners const& p_corners) -> void
 	{
-		m_corners = p_corners;
+		_corners = p_corners;
 		update_clip_geometry();
 		update_shadow();
 	}
@@ -9923,7 +9748,7 @@ public:
 	*/
 	auto get_corners() -> RectangleCorners&
 	{
-		return m_corners;
+		return _corners;
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -9931,8 +9756,8 @@ public:
 	*/
 	auto getHasCornerStyles() const -> bool
 	{
-		return m_corners.top_left_size_x && m_corners.top_left_size_y || m_corners.top_right_size_x && m_corners.top_right_size_y ||
-			m_corners.bottom_left_size_x && m_corners.bottom_left_size_y || m_corners.bottom_right_size_x && m_corners.bottom_right_size_y;
+		return _corners.top_left_size_x && _corners.top_left_size_y || _corners.top_right_size_x && _corners.top_right_size_y ||
+			_corners.bottom_left_size_x && _corners.bottom_left_size_y || _corners.bottom_right_size_x && _corners.bottom_right_size_y;
 	}
 
 	//------------------------------
@@ -9978,8 +9803,8 @@ public:
 	//------------------------------
 
 private:
-	bool m_areDragDropEventsEnabled = false;
-	bool m_isDraggingOver = false;
+	bool _areDragDropEventsEnabled = false;
+	bool _isDraggingOver = false;
 public:
 	/*
 		LIBRARY IMPLEMENTED
@@ -9987,7 +9812,7 @@ public:
 	*/
 	auto enableDragDropEvents() -> void
 	{
-		m_areDragDropEventsEnabled = true;
+		_areDragDropEventsEnabled = true;
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -9995,7 +9820,7 @@ public:
 	*/
 	auto disableDragDropEvents() -> void
 	{
-		m_areDragDropEventsEnabled = false;
+		_areDragDropEventsEnabled = false;
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -10003,7 +9828,7 @@ public:
 	*/
 	auto get_are_drag_drop_events_enabled() const -> bool
 	{
-		return m_areDragDropEventsEnabled;
+		return _areDragDropEventsEnabled;
 	}
 
 	/*
@@ -10066,28 +9891,28 @@ public:
 	//------------------------------
 
 private:
-	bool m_are_mouse_events_enabled = false;
-	bool m_is_mouse_hovering = false;
+	bool _are_mouse_events_enabled = false;
+	bool _is_mouse_hovering = false;
 public:
 	/*
 		LIBRARY IMPLEMENTED
 		Mouse events are disabled by default.
 	*/
 	auto enable_mouse_events() -> void {
-		m_are_mouse_events_enabled = true;
+		_are_mouse_events_enabled = true;
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Mouse events are disabled by default.
 	*/
 	auto disable_mouse_events() -> void {
-		m_are_mouse_events_enabled = false;
+		_are_mouse_events_enabled = false;
 	}
 	/*
 		LIBRARY IMPLEMENTED
 	*/
 	auto get_are_mouse_events_enabled() const -> bool {
-		return m_are_mouse_events_enabled;
+		return _are_mouse_events_enabled;
 	}
 
 	using MouseListener = void(MouseEvent const&);
@@ -10209,9 +10034,9 @@ private:
 
 	//------------------------------
 
-	auto handle_theme_color_change(Id const p_id, Color const p_newColor) -> void override
+	auto handle_theme_color_change(Id const id, Color const p_newColor) -> void override
 	{
-		if (p_id == ThemeColors::background) {
+		if (id == ThemeColors::background) {
 			get_drawing_context()->setBackgroundColor(p_newColor);
 		}
 	}
@@ -10262,7 +10087,7 @@ public:
 	) -> void;
 
 private:
-	Gui* m_parent = nullptr;
+	Gui* _parent = nullptr;
 public:
 	/*
 		LIBRARY IMPLEMENTED
@@ -10270,7 +10095,7 @@ public:
 		If the window does not have a parent, it returns 0.
 	*/
 	auto get_parent() const noexcept -> Gui* {
-		return m_parent;
+		return _parent;
 	}
 
 	//------------------------------
@@ -10284,39 +10109,39 @@ public:
 	//------------------------------
 
 private:
-	TimerThread<std::recursive_mutex> m_timer_thread{m_sharedStateMutex};
+	TimerThread<std::recursive_mutex> _timer_thread{_sharedStateMutex};
 public:
 	/*
 		Adds a function that will be called in duration from now
 		and returns an ID that identifies the timer callback.
 	*/
-	template<typename Callable, typename DurationTime, typename DurationPeriod>
+	template<typename _Callback, typename DurationTime, typename _DurationPeriod>
 	auto add_timer_callback(
-		Callable const& callback, 
-		chrono::duration<DurationTime, DurationPeriod> const duration
+		_Callback const& callback, 
+		chrono::duration<DurationTime, _DurationPeriod> const duration
 	) -> Id {
-		return m_timer_thread.add_callback(callback, duration);
+		return _timer_thread.add_callback(callback, duration);
 	}
 	/*
 		Adds a function that will be called in milliseconds milliseconds from now
 		and returns an ID that identifies the timer callback.
 	*/
-	template<typename Callable>
-	auto add_timer_callback(Callable const& callback, float const milliseconds) -> Id {
-		return m_timer_thread.add_callback(callback, milliseconds);
+	template<typename _Callback>
+	auto add_timer_callback(_Callback const& callback, float const milliseconds) -> Id {
+		return _timer_thread.add_callback(callback, milliseconds);
 	}
-	auto cancelTimerCallback(Id const p_id) -> void {
-		m_timer_thread.cancelCallback(p_id);
+	auto cancelTimerCallback(Id const id) -> void {
+		_timer_thread.cancel_callback(id);
 	}
 
 	//------------------------------
 
 private:
-	std::deque<View*> m_viewAnimationUpdateQueue;
-	std::deque<Animation*> m_animationUpdateQueue;
+	std::deque<View*> _viewAnimationUpdateQueue;
+	std::deque<Animation*> _animationUpdateQueue;
 
-	bool m_hasAnimationLoopStarted = false;
-	std::thread m_animation_thread;
+	bool _hasAnimationLoopStarted = false;
+	std::thread _animation_thread;
 
 	auto thread_run_animation_loop() -> void;
 	
@@ -10334,14 +10159,14 @@ public:
 			The size of the GUI might have changed.
 			In that case, corresponding size event(s) will be caused later by a window size change event.
 		*/
-		if (get_size() == m_window->get_size())
+		if (get_size() == _window->get_size())
 		{
 			View::send_bounds_change_events({});
 		}
 		invalidate();
 
-		m_window->run();
-		m_animation_thread = std::thread{&Gui::thread_run_animation_loop, this};
+		_window->run();
+		_animation_thread = std::thread{&Gui::thread_run_animation_loop, this};
 
 		static std::vector<Gui*> s_instances_to_join;
 		static std::mutex s_instances_to_join_mutex;
@@ -10349,7 +10174,7 @@ public:
 
 		if (s_is_waiting_for_instances_to_finish)
 		{
-			m_animation_thread.detach();
+			_animation_thread.detach();
 		}
 		else
 		{
@@ -10365,7 +10190,7 @@ public:
 			s_instances_to_join_mutex.unlock();
 
 			for (auto& instance : instancesToJoin) {
-				instance->m_animation_thread.join();
+				instance->_animation_thread.join();
 			}
 			s_is_waiting_for_instances_to_finish = false;
 		}
@@ -10374,28 +10199,28 @@ public:
 	//------------------------------
 
 private:
-	std::recursive_mutex m_sharedStateMutex;
+	std::recursive_mutex _sharedStateMutex;
 public:
 	/*
 		LIBRARY IMPLEMENTED
 		Gives the running thread exclusive access to modify any state that is shared by the event thread and animation thread.
 	*/
 	auto lock_threads() -> void {
-		m_sharedStateMutex.lock();
+		_sharedStateMutex.lock();
 	}
 	/*
 		LIBRARY IMPLEMENTED
 		Gives back the other threads access to modify any state that is shared by the event thread and animation thread.
 	*/
 	auto unlock_threads() -> void {
-		m_sharedStateMutex.unlock();
+		_sharedStateMutex.unlock();
 	}
 	/*
 		LIBRARY IMPLEMENTED
 
 	*/
 	auto create_thread_lock() {
-		return std::scoped_lock{m_sharedStateMutex};
+		return std::scoped_lock{_sharedStateMutex};
 	}
 
 	//------------------------------
@@ -10403,14 +10228,14 @@ public:
 private:
 	auto handle_window_create(WindowEvent const& event) -> void;
 
-	Size<> m_lastUpdatedWindowSize;
+	Size<> _lastUpdatedWindowSize;
 	auto handle_window_size_change(WindowEvent const& event) -> void;
 
 	auto send_bounds_change_events(Rectangle<> const previous_bounds) -> void override {
 		if (auto const size = get_size();
-			m_window->dips_to_pixels(size) != m_window->dips_to_pixels(m_window->get_size()))
+			_window->dips_to_pixels(size) != _window->dips_to_pixels(_window->get_size()))
 		{
-			m_window->set_size(size);
+			_window->set_size(size);
 		}
 		else {
 			View::send_bounds_change_events(previous_bounds);
@@ -10551,7 +10376,7 @@ public:
 		LIBRARY IMPLEMENTED
 	*/
 	auto handleGlobalDragDropFinish(DragDropEvent& event) -> void {
-		if (m_areDragDropEventsEnabled) {
+		if (_areDragDropEventsEnabled) {
 			handle_drag_drop_finish(event);
 		}
 
@@ -10599,7 +10424,7 @@ public:
 		// loopStart:
 		// 	for (Index a = startIndex; a >= 0; a--)
 		// 	{
-		// 		if (auto const child = container->getView(a);
+		// 		if (auto const child = container->get_view(a);
 		// 		    child->get_is_visible() && child->get_is_containing_absolute(absolute))
 		// 		{
 		// 			if (child->get_are_drag_drop_events_enabled())
@@ -10641,8 +10466,8 @@ private:
 	*/
 	std::vector<View*> get_top_mouse_listeners_at(Point<> coordinates);
 
-	std::vector<View*> m_pressed_mouse_event_listeners;
-	Point<> m_mouse_down_position;
+	std::vector<View*> _pressed_mouse_event_listeners;
+	Point<> _mouse_down_position;
 public:
 	/*
 		LIBRARY IMPLEMENTED
@@ -10656,26 +10481,26 @@ public:
 				event.xy = absolute - view->get_absolute_top_left();
 
 				view->mouse_down_listeners(event);
-				m_pressed_mouse_event_listeners.push_back(view);
+				_pressed_mouse_event_listeners.push_back(view);
 			}
-			m_mouse_down_position = absolute;
+			_mouse_down_position = absolute;
 		}
 	}
 	/*
 		LIBRARY IMPLEMENTED
 	*/
 	auto handleGlobalMouseUp(MouseEvent& event) -> void {
-		if (!m_pressed_mouse_event_listeners.empty()) {
+		if (!_pressed_mouse_event_listeners.empty()) {
 			auto const absolute = event.xy;
-			for (auto const view : m_pressed_mouse_event_listeners) {
+			for (auto const view : _pressed_mouse_event_listeners) {
 				event.xy = absolute - view->get_absolute_top_left();
 				view->mouse_up_listeners(event);
 			}
-			m_pressed_mouse_event_listeners.clear();
+			_pressed_mouse_event_listeners.clear();
 
-			if (absolute != m_mouse_down_position) {
+			if (absolute != _mouse_down_position) {
 				event.xy = absolute;
-				event.movement = Vector2d{absolute - m_mouse_down_position};
+				event.movement = Vector2d{absolute - _mouse_down_position};
 				handle_global_mouse_move(event); // This is so that any views that the mouse has entered while pressed get their events.
 			}
 		}
@@ -10763,7 +10588,7 @@ public:
 	//------------------------------
 
 private:
-	View* m_keyboard_focus = nullptr;
+	View* _keyboard_focus = nullptr;
 public:
 	/*
 		LIBRARY IMPLEMENTED
@@ -10771,13 +10596,13 @@ public:
 	*/
 	auto set_keyboard_focus(View* const p_view) -> void
 	{
-		if (m_keyboard_focus == p_view) {
+		if (_keyboard_focus == p_view) {
 			return;
 		}
 
-		auto const focusBefore = m_keyboard_focus;
+		auto const focusBefore = _keyboard_focus;
 
-		m_keyboard_focus = p_view;
+		_keyboard_focus = p_view;
 
 		if (focusBefore) {
 			focusBefore->keyboard_focus_lose_listeners();
@@ -10792,7 +10617,7 @@ public:
 		Returns the keyboard event listener that keyboard events are sent to.
 	*/
 	auto get_keyboard_focus() const noexcept -> View* {
-		return m_keyboard_focus;
+		return _keyboard_focus;
 	}
 	/*
 		LIBRARY IMPLEMENTED
@@ -10800,13 +10625,13 @@ public:
 	*/
 	template<typename T>
 	auto get_keyboard_focus() const noexcept -> T* {
-		return dynamic_cast<T*>(m_keyboard_focus);
+		return dynamic_cast<T*>(_keyboard_focus);
 	}
 
 	auto send_global_character_input_events(KeyboardEvent const& event) -> void
 	{
-		if (m_keyboard_focus) {
-			m_keyboard_focus->characterInputListeners(event);
+		if (_keyboard_focus) {
+			_keyboard_focus->characterInputListeners(event);
 		}
 		globalCharacterInputListeners(event);
 	}
@@ -10814,8 +10639,8 @@ public:
 
 	auto send_global_keyboard_key_down_events(KeyboardEvent const& event) -> void
 	{
-		if (m_keyboard_focus) {
-			m_keyboard_focus->keyboard_key_down_listeners(event);
+		if (_keyboard_focus) {
+			_keyboard_focus->keyboard_key_down_listeners(event);
 		}
 		global_keyboard_key_down_listeners(event);
 	}
@@ -10823,8 +10648,8 @@ public:
 
 	auto sendGlobalKeyboardKeyUpEvents(KeyboardEvent const& event) -> void
 	{
-		if (m_keyboard_focus) {
-			m_keyboard_focus->keyboard_key_up_listeners(event);
+		if (_keyboard_focus) {
+			_keyboard_focus->keyboard_key_up_listeners(event);
 		}
 		global_keyboard_key_up_listeners(event);
 	}
@@ -10833,32 +10658,32 @@ public:
 	//------------------------------
 
 private:
-	std::unique_ptr<Window> m_window;
+	std::unique_ptr<Window> _window;
 public:
 	/*
 		LIBRARY IMPLEMENTED
 		Returns a pointer to the window used by this GUI.
 	*/
 	auto get_window() const noexcept -> Window* {
-		return m_window.get();
+		return _window.get();
 	}
 
 private:
-	std::unique_ptr<DrawingContext> m_drawingContext;
-	DrawingState m_drawingContextState;
+	std::unique_ptr<DrawingContext> _drawingContext;
+	DrawingState _drawingContextState;
 public:
 	/*
 		LIBRARY IMPLEMENTED
 		Returns a pointer to the drawing context used by this GUI.
 	*/
 	auto get_drawing_context() const noexcept -> DrawingContext* {
-		return m_drawingContext.get();
+		return _drawingContext.get();
 	}
 
 	//------------------------------
 
 private:
-	std::atomic<bool> m_isInvalid = true;
+	std::atomic<bool> _isInvalid = true;
 	/*
 		LIBRARY IMPLEMENTED
 		Redraws the whole GUI.
@@ -10866,7 +10691,7 @@ private:
 	auto drawViews() -> void;
 public:
 	auto invalidate() -> void {
-		m_isInvalid = true;
+		_isInvalid = true;
 	}
 	
 	//------------------------------
@@ -10900,16 +10725,16 @@ inline Id const tooltip_delay;
 */
 class Tooltip : public View {
 private:
-	Animation m_show_animation{
+	Animation _show_animation{
 		get_gui(), get_theme_easing(ThemeEasings::out), 100ms, 
 		[this](float const value) {
-			m_opacity = value;
+			_opacity = value;
 			invalidate();
 		} 
 	};
-	bool m_is_showing = false;
+	bool _is_showing = false;
 
-	Id m_timerId = 0;
+	Id _timerId = 0;
 
 public:
 	/*
@@ -10920,27 +10745,27 @@ public:
 	*/
 	virtual auto show(std::string_view const string, Rectangle<> const target_rectangle) -> void
 	{
-		if (!m_is_showing) {
-			if (!m_text || string != m_text.get_string()) {
+		if (!_is_showing) {
+			if (!_text || string != _text.get_string()) {
 				auto const font_size = get_theme_value(ThemeValues::tooltip_font_size);
-				m_text = get_gui()->get_drawing_context()->create_text(string, font_size);
-				m_text.fit_size_to_text();
-				set_size(m_text.get_size() + Size{2.2f*font_size, 1.8f*font_size});
-				m_text.set_center(Point{get_size()/2});
+				_text = get_gui()->get_drawing_context()->create_text(string, font_size);
+				_text.fit_size_to_text();
+				set_size(_text.get_size() + Size{2.2f*font_size, 1.8f*font_size});
+				_text.set_center(Point{get_size()/2});
 			}
 
 			if (target_rectangle.bottom + 7.f + get_height() >= get_gui()->get_height()) {
-				setBottom(max(1.f, target_rectangle.top - 7.f), true);
+				set_bottom(max(1.f, target_rectangle.top - 7.f), true);
 			}
 			else {
 				set_top(target_rectangle.bottom + 7.f, true);
 			}
-			setCenterX(max(1.f + get_width()/2, min(get_gui()->get_width() - get_width()/2 - 1.f, target_rectangle.get_center_x())));
+			set_center_x(max(1.f + get_width()/2, min(get_gui()->get_width() - get_width()/2 - 1.f, target_rectangle.get_center_x())));
 
-			m_is_showing = true;
-			m_timerId = get_gui()->add_timer_callback([this] {
-				m_opacity = 0.f;
-				m_show_animation.play(false);
+			_is_showing = true;
+			_timerId = get_gui()->add_timer_callback([this] {
+				_opacity = 0.f;
+				_show_animation.play(false);
 			}, get_theme_value(ThemeValues::tooltip_delay));
 		}
 	}
@@ -10949,11 +10774,11 @@ public:
 		Makes the tooltip disappear.
 	*/
 	virtual auto hide() -> void {
-		if (m_is_showing) {
-			get_gui()->cancelTimerCallback(m_timerId);
-			m_is_showing = false;
-			if (m_opacity) {
-				m_show_animation.play(true);
+		if (_is_showing) {
+			get_gui()->cancelTimerCallback(_timerId);
+			_is_showing = false;
+			if (_opacity) {
+				_show_animation.play(true);
 			}
 		}
 	}
@@ -10961,17 +10786,17 @@ public:
 	//------------------------------
 
 private:
-	Text m_text;
-	float m_opacity = 0.f;
+	Text _text;
+	float _opacity = 0.f;
 public:
 	auto draw(DrawingContext* const drawing_context) -> void override {
-		if (m_text) {
-			drawing_context->scale(m_opacity*0.3f + 0.7f, get_absolute_center());
-			drawing_context->set_color({get_theme_color(ThemeColors::tooltip_background), m_opacity});
+		if (_text) {
+			drawing_context->scale(_opacity*0.3f + 0.7f, get_absolute_center());
+			drawing_context->set_color({get_theme_color(ThemeColors::tooltip_background), _opacity});
 			drawing_context->fill_rectangle(get_size());
-			drawing_context->set_color(Color(get_theme_color(ThemeColors::tooltip_on_background), m_opacity));
-			drawing_context->draw_text(m_text);
-			drawing_context->scale(1.f/(m_opacity*0.3f + 0.7f), get_absolute_center());
+			drawing_context->set_color(Color(get_theme_color(ThemeColors::tooltip_on_background), _opacity));
+			drawing_context->draw_text(_text);
+			drawing_context->scale(1.f/(_opacity*0.3f + 0.7f), get_absolute_center());
 		}
 	}
 
@@ -11011,38 +10836,38 @@ public:
 	};
 
 private:
-	bool m_can_select_multiple_files = false;
+	bool _can_select_multiple_files = false;
 public:
 	/*
 		If this is true, the user can select more than 1 file to open.
 	*/
 	constexpr auto set_can_select_multiple_files(bool const can_select_multiple_files) noexcept -> void {
-		m_can_select_multiple_files = can_select_multiple_files;
+		_can_select_multiple_files = can_select_multiple_files;
 	}
 	[[nodiscard]]
 	constexpr auto get_can_select_multiple_files() const noexcept -> bool {
-		return m_can_select_multiple_files;
+		return _can_select_multiple_files;
 	}
 
 private:
-	std::string m_title = "Open file...";
+	std::string _title = "Open file...";
 public:
 	/*
 		Sets the title shown in the top border of the open file dialog.
 	*/
 	auto set_title(std::string_view title) noexcept -> void {
-		m_title = title;
+		_title = title;
 	}
 	/*
 		Returns the title shown in the thop border of the open file dialog.
 	*/
 	[[nodiscard]]
 	auto get_title() const noexcept -> std::string_view {
-		return m_title;
+		return _title;
 	}
 
 private:
-	std::vector<FileExtensionFilter> m_file_extensions;
+	std::vector<FileExtensionFilter> _file_extensions;
 public:
 	/*
 		Sets the file extensions of the files that the user can open with the dialog.
@@ -11056,7 +10881,7 @@ public:
 		}
 	*/
 	auto set_file_extensions(std::vector<FileExtensionFilter>&& file_extensions) noexcept -> void {
-		m_file_extensions = std::move(file_extensions);
+		_file_extensions = std::move(file_extensions);
 	}
 	/*
 		These are the file extensions of the files that the user can open with the dialog.
@@ -11070,15 +10895,15 @@ public:
 		}
 	*/
 	auto set_file_extensions(std::span<FileExtensionFilter const> const file_extensions) -> void {
-		m_file_extensions.resize(file_extensions.size());
-		std::ranges::copy(file_extensions, m_file_extensions.begin());
+		_file_extensions.resize(file_extensions.size());
+		std::ranges::copy(file_extensions, _file_extensions.begin());
 	}
 	/*
 		Returns the file extension filters that can be selected in the dialog.
 	*/
 	[[nodiscard]]
 	auto get_file_extensions() const -> std::span<FileExtensionFilter const> {
-		return m_file_extensions;
+		return _file_extensions;
 	}
 
 	/*
@@ -11089,13 +10914,13 @@ public:
 	auto open() const -> std::vector<std::string>;
 
 private:
-	Gui* m_gui;
+	Gui* _gui;
 public:
 	OpenFileDialog() :
-		m_gui{nullptr}
+		_gui{nullptr}
 	{}
 	OpenFileDialog(Gui* const gui) :
-		m_gui{gui}
+		_gui{gui}
 	{}
 };
 
@@ -11106,76 +10931,76 @@ public:
 */
 class TextView : public View {
 private:
-	Color m_color = get_theme_color(ThemeColors::on_background);
+	Color _color = get_theme_color(ThemeColors::on_background);
 public:
 	auto set_color(Color color) noexcept -> void {
-		m_color = color;
+		_color = color;
 	}
 	auto get_color() const noexcept -> Color {
-		return m_color;
+		return _color;
 	}
 
 private:
-	float m_font_size;
+	float _font_size;
 public:
 	auto set_font_size(float font_size) -> void {
-		m_font_size = font_size;
-		if (m_text) {
-			m_text.set_font_size(font_size);
+		_font_size = font_size;
+		if (_text) {
+			_text.set_font_size(font_size);
 		}
 	}
 	auto get_font_size() const noexcept -> float {
-		return m_font_size;
+		return _font_size;
 	}
 
 private:
-	Text m_text;
+	Text _text;
 public:
 	auto set_string(std::string_view string) -> void {
 		if (string.empty()) {
 			return;
 		}
-		m_text = get_drawing_context()->create_text(string, m_font_size);
-		m_text.set_is_top_trimmed(true);
-		//m_text.set_size(get_size());
-		set_size(m_text.get_size() + 1.f);
+		_text = get_drawing_context()->create_text(string, _font_size);
+		_text.set_is_top_trimmed(true);
+		//_text.set_size(get_size());
+		set_size(_text.get_size() + 1.f);
 	}
 	auto set_text(Text p_text) -> void {
-		m_text = p_text;
+		_text = p_text;
 	}
 	auto get_text() -> Text& {
-		return m_text;
+		return _text;
 	}
 
 	auto fit_size_to_text() -> void {
-		if (m_text) {
-			m_text.fit_size_to_text();
-			set_size(m_text.get_size());
+		if (_text) {
+			_text.fit_size_to_text();
+			set_size(_text.get_size());
 		}
 	}
 	auto fit_width_to_text() -> void {
-		if (m_text) {
-			m_text.fit_width_to_text();
-			setWidth(m_text.get_width());
+		if (_text) {
+			_text.fit_width_to_text();
+			set_width(_text.get_width());
 		}
 	}
 	auto fit_height_to_text() -> void {
-		if (m_text) {
-			m_text.fit_height_to_text();
-			setHeight(m_text.get_height());
+		if (_text) {
+			_text.fit_height_to_text();
+			set_height(_text.get_height());
 		}
 	}
 
 	auto handle_size_change() -> void override {
-		if (m_text) {
-			m_text.set_size(get_size());
+		if (_text) {
+			_text.set_size(get_size());
 		}
 	}
 
 	auto draw(DrawingContext* context) -> void override {
-		if (m_text) {
-			context->set_color(m_color);
-			context->draw_text(m_text);
+		if (_text) {
+			context->set_color(_color);
+			context->draw_text(_text);
 		}
 	}
 
@@ -11183,7 +11008,7 @@ public:
 
 	TextView(View* parent, float font_size, std::string_view string = "") :
 		View{parent},
-		m_font_size{font_size}
+		_font_size{font_size}
 	{
 		set_string(string);
 	}
@@ -11212,75 +11037,75 @@ inline Id const rippleDuration;
 */
 class Ripple : public View {
 private:
-	bool m_is_enabled = true;
+	bool _is_enabled = true;
 public:
 	/*
 		Disables the ripple and hover effects.
 	*/
 	constexpr auto disable() noexcept -> void {
-		m_is_enabled = false;
+		_is_enabled = false;
 	}
 	/*
 		Enables the ripple and hover effects.
 	*/
 	constexpr auto enable() noexcept -> void {
-		m_is_enabled = true;
+		_is_enabled = true;
 	}
 	/*
 		Returns whether the ripple and hover effects are enabled.
 	*/
 	[[nodiscard]]
 	constexpr auto get_is_enabled() const noexcept -> bool {
-		return m_is_enabled;
+		return _is_enabled;
 	}
 
 	//------------------------------
 
 private:
-	Color m_color;
+	Color _color;
 public:
 	/*
 		Sets the color that is used by the ripple and hover effects.
 	*/
 	constexpr auto set_color(Color const color) noexcept -> void {
-		m_color = color;
+		_color = color;
 	}
 	/*
 		Returns the color that is used by the ripple and hover effects.
 	*/
 	[[nodiscard]]
 	constexpr auto get_color() const noexcept -> Color {
-		return m_color;
+		return _color;
 	}
 
 	//------------------------------
 
 private:
-	bool m_has_hover_effect = true;
+	bool _has_hover_effect = true;
 public:
 	/*
 		Sets whether the view will be lightly highlighted when the mouse hovers over it.
 		This is true by default and is recommended since it indicates that the view can be pressed.
 	*/
 	constexpr auto set_has_hover_effect(bool has_hover_effect) noexcept -> void {
-		m_has_hover_effect = has_hover_effect;
+		_has_hover_effect = has_hover_effect;
 	}
 	/*
 		Returns whether the view will be lightly highlighted when the mouse hovers over it.
 	*/
 	[[nodiscard]]
 	constexpr auto get_has_hover_effect() const noexcept -> bool {
-		return m_has_hover_effect;
+		return _has_hover_effect;
 	}
 
 private:
-	Point<> m_position;
-	float m_max_size{};
+	Point<> _position;
+	float _max_size{};
 public:
 	auto update_max_size() noexcept -> void {
-		m_max_size = 2.f*Point<>::get_distance(m_position, Point{
-			m_position.x < get_width()*0.5f ? get_width() : 0.f,
-			m_position.y < get_height()*0.5f ? get_height() : 0.f
+		_max_size = 2.f*Point<>::get_distance(_position, Point{
+			_position.x < get_width()*0.5f ? get_width() : 0.f,
+			_position.y < get_height()*0.5f ? get_height() : 0.f
 		});
 	}
 
@@ -11290,72 +11115,72 @@ private:
 		initialize_theme_value(ThemeValues::rippleDuration, 300);
 	};
 
-	float m_size = 0.f;
-	Animation m_ripple_animation {
+	float _size = 0.f;
+	Animation _ripple_animation {
 		get_gui(), get_theme_easing(ThemeEasings::ripple), get_theme_value(ThemeValues::rippleDuration),
 		[=](float value) {
-			m_size = interpolate(Range{m_max_size*0.4f, m_max_size}, value);
-			m_alpha_factor = 1.f;
-			if (!m_is_mouse_down && value == 1.f) {
-				m_ripple_fade_animation.replay();
+			_size = interpolate(Range{_max_size*0.4f, _max_size}, value);
+			_alpha_factor = 1.f;
+			if (!_is_mouse_down && value == 1.f) {
+				_ripple_fade_animation.replay();
 			}
 			invalidate();
 		}
 	};
 
-	bool m_is_mouse_down = false;
+	bool _is_mouse_down = false;
 	Initializer init_press = [=] {
 		auto mouse_down_listener = [=](MouseEvent const& event) {
-			if (m_is_enabled && event.mouse_button == MouseButton::Left) {
-				m_ripple_fade_animation.stop();
+			if (_is_enabled && event.mouse_button == MouseButton::Left) {
+				_ripple_fade_animation.stop();
 
-				m_is_mouse_down = true;
-				m_position = event.xy;
-				m_alpha_factor = 1.f;
+				_is_mouse_down = true;
+				_position = event.xy;
+				_alpha_factor = 1.f;
 				update_max_size();
 
-				m_ripple_animation.replay();
+				_ripple_animation.replay();
 			}
 		};
 		mouse_down_listeners += mouse_down_listener;
 	};
 
-	float m_alpha_factor = 0.f;
-	Animation m_ripple_fade_animation {
+	float _alpha_factor = 0.f;
+	Animation _ripple_fade_animation {
 		get_gui(), get_theme_easing(ThemeEasings::in_out), 400ms,
 		[=](float value) {
-			m_alpha_factor = 1.f - value;
+			_alpha_factor = 1.f - value;
 			invalidate();
 		}
 	};
 
 	Initializer init_release = [=] {
 		mouse_up_listeners += [=](MouseEvent const& event) {
-			if (m_is_mouse_down && event.mouse_button == MouseButton::Left) {
-				m_is_mouse_down = false;
-				if (m_size == m_max_size && m_alpha_factor == 1.f) {
-					m_ripple_animation.stop();
-					m_ripple_fade_animation.replay();
+			if (_is_mouse_down && event.mouse_button == MouseButton::Left) {
+				_is_mouse_down = false;
+				if (_size == _max_size && _alpha_factor == 1.f) {
+					_ripple_animation.stop();
+					_ripple_fade_animation.replay();
 				}
 			}
 		};
 	};
 
-	float m_overlay_alpha_factor = 0.f;
-	Animation m_hover_animation {
+	float _overlay_alpha_factor = 0.f;
+	Animation _hover_animation {
 		get_gui(), get_theme_easing(ThemeEasings::in_out), get_theme_value(ThemeValues::hover_animation_duration),
 		[=](float value) {
-			m_overlay_alpha_factor = value;
+			_overlay_alpha_factor = value;
 			invalidate();
 		}
 	};
 
 	Initializer init_hover = [=] {
 		mouse_background_enter_listeners += [=](auto const&) {
-			m_hover_animation.play(false);
+			_hover_animation.play(false);
 		};
 		mouse_background_leave_listeners += [=](auto const&) {
-			m_hover_animation.play(true);
+			_hover_animation.play(true);
 		};
 	};
 
@@ -11363,20 +11188,20 @@ private:
 
 public:
 	void draw(DrawingContext* drawing_context) override {
-		if (m_is_enabled) {
-			drawing_context->set_color({m_color, m_color.alpha*m_overlay_alpha_factor*0.3f});
+		if (_is_enabled) {
+			drawing_context->set_color({_color, _color.alpha*_overlay_alpha_factor*0.3f});
 			drawing_context->fill_rectangle(get_size());
 
-			if (m_color.alpha*m_alpha_factor >= 0.f) {
-				drawing_context->set_color({m_color, m_color.alpha*m_alpha_factor*0.8f});
-				drawing_context->fill_circle(m_position, m_size*0.5f);
+			if (_color.alpha*_alpha_factor >= 0.f) {
+				drawing_context->set_color({_color, _color.alpha*_alpha_factor*0.8f});
+				drawing_context->fill_circle(_position, _size*0.5f);
 			}
 		}
 	}
 
 	Ripple(View* parent, Color color = {1.f, 0.45f}) :
 		View{parent, parent->get_size()},
-		m_color{color}
+		_color{color}
 	{
 		set_is_overlay(true); // Mouse events should be sent through
 		set_has_shadow(false);
@@ -11410,60 +11235,60 @@ public:
 	};
 
 private:
-	Text m_text;
+	Text _text;
 
-	Tooltip* m_tooltip_view = nullptr;
-	std::string m_tooltip_string;
+	Tooltip* _tooltip_view = nullptr;
+	std::string _tooltip_string;
 
-	Image m_icon;
+	Image _icon;
 
-	float m_press_animation_time = 1.f;
-	bool m_is_pressed = false;
-	bool m_is_raising = false;
-	Emphasis m_emphasis;
+	float _press_animation_time = 1.f;
+	bool _is_pressed = false;
+	bool _is_raising = false;
+	Emphasis _emphasis;
 
-	bool m_is_enabled = true;
-	Color m_current_color;
-	float m_color_animation_time = 1.f;
-	bool m_is_accent = false;
+	bool _is_enabled = true;
+	Color _current_color;
+	float _color_animation_time = 1.f;
+	bool _is_accent = false;
 
-	bool m_is_mouse_hovering = false;
+	bool _is_mouse_hovering = false;
 
-	Ripple* m_ripple = nullptr;
+	Ripple* _ripple = nullptr;
 
 protected:
-	void handle_theme_value_change(Id p_id, float p_newValue) override {
-		if (p_id == ThemeValues::button_font_size) {
-			m_text.set_font_size(p_newValue);
-			if (p_id == ThemeValues::button_character_spacing) {
-				m_text.set_character_spacing(p_newValue);
+	void handle_theme_value_change(Id id, float p_newValue) override {
+		if (id == ThemeValues::button_font_size) {
+			_text.set_font_size(p_newValue);
+			if (id == ThemeValues::button_character_spacing) {
+				_text.set_character_spacing(p_newValue);
 			}
 			update_size();
 		}
-		else if (p_id == ThemeValues::button_character_spacing) {
-			m_text.set_character_spacing(p_newValue);
+		else if (id == ThemeValues::button_character_spacing) {
+			_text.set_character_spacing(p_newValue);
 			update_size();
 		}
 	}
-	void handle_theme_color_change(Id p_id, Color p_newColor) override {
-		if (m_emphasis == Emphasis::High) {
-			if (p_id == (m_is_accent ? ThemeColors::secondary : ThemeColors::primary) ||
-				p_id == (m_is_accent ? ThemeColors::on_secondary : ThemeColors::on_primary))
+	void handle_theme_color_change(Id id, Color p_newColor) override {
+		if (_emphasis == Emphasis::High) {
+			if (id == (_is_accent ? ThemeColors::secondary : ThemeColors::primary) ||
+				id == (_is_accent ? ThemeColors::on_secondary : ThemeColors::on_primary))
 			{
-				m_current_color = p_newColor;
+				_current_color = p_newColor;
 			}
 		}
-		else if (p_id == (m_is_accent ? ThemeColors::secondary_on_background : ThemeColors::primary_on_background))
+		else if (id == (_is_accent ? ThemeColors::secondary_on_background : ThemeColors::primary_on_background))
 		{
-			m_current_color = p_newColor;
-			m_ripple->set_color(Color(p_newColor, 0.3f));
+			_current_color = p_newColor;
+			_ripple->set_color(Color(p_newColor, 0.3f));
 		}
 	}
 
 public:
 	explicit Button(View* parent, std::string_view p_text = "", Emphasis emphasis = Emphasis::High, bool is_accent = false) :
 		View{parent},
-		m_emphasis{emphasis}
+		_emphasis{emphasis}
 	{
 		initialize_theme_value(ThemeValues::button_font_size, 14.f);
 		initialize_theme_value(ThemeValues::button_character_spacing, 1.f);
@@ -11472,8 +11297,8 @@ public:
 
 		set_corner_radius(4.f);
 
-		m_ripple = addView<Ripple>();
-		m_ripple->set_cursor(Cursor::Hand);
+		_ripple = add_view<Ripple>();
+		_ripple->set_cursor(Cursor::Hand);
 
 		set_is_accent(is_accent);
 		if (emphasis == Emphasis::High) {
@@ -11486,27 +11311,27 @@ public:
 	//------------------------------
 
 	void update_size() {
-		if (m_text) {
+		if (_text) {
 			auto const size_factor = get_theme_value(ThemeValues::button_font_size)/14.f;
-			if (m_icon) {
-				m_icon.set_size(16.f*size_factor);
-				m_icon.set_center({size_factor*38.f*0.5f, get_height()*0.5f});
+			if (_icon) {
+				_icon.set_size(16.f*size_factor);
+				_icon.set_center({size_factor*38.f*0.5f, get_height()*0.5f});
 
-				m_text.set_left(38.f*size_factor);
-				set_size({std::round(m_text.get_width()) + size_factor*(16.f + 38.f), 36.f*size_factor});
+				_text.set_left(38.f*size_factor);
+				set_size({std::round(_text.get_width()) + size_factor*(16.f + 38.f), 36.f*size_factor});
 			}
 			else {
-				if (m_text.get_width() >= 32.f*size_factor) {
-					set_size(Size{std::round(m_text.get_width()) + 32.f, 36.f}*size_factor);
+				if (_text.get_width() >= 32.f*size_factor) {
+					set_size(Size{std::round(_text.get_width()) + 32.f, 36.f}*size_factor);
 				}
 				else {
 					set_size(Size{64.f, 36.f}*size_factor);
 				}
-				m_text.set_center(getCenter() - get_top_left());
+				_text.set_center(get_center() - get_top_left());
 			}
 		}
-		else if (m_icon) {
-			m_icon.set_center(getCenter() - get_top_left());
+		else if (_icon) {
+			_icon.set_center(get_center() - get_top_left());
 		}
 	}
 
@@ -11516,14 +11341,14 @@ public:
 		Makes the user unable to use the button and makes it gray.
 	*/
 	void disable() {
-		if (m_is_enabled) {
-			m_is_enabled = false;
-			m_color_animation_time = 1.f;
+		if (_is_enabled) {
+			_is_enabled = false;
+			_color_animation_time = 1.f;
 			queue_animation_update();
 
-			m_ripple->disable();
+			_ripple->disable();
 
-			//if (m_is_mouse_hovering)
+			//if (_is_mouse_hovering)
 			//{
 			//	get_gui()->get_window()->set_cursor(Cursor::Arrow);
 			//}
@@ -11534,14 +11359,14 @@ public:
 		Makes the user able to use the button.
 	*/
 	void enable() {
-		if (!m_is_enabled) {
-			m_is_enabled = true;
-			m_color_animation_time = 0.f;
+		if (!_is_enabled) {
+			_is_enabled = true;
+			_color_animation_time = 0.f;
 			queue_animation_update();
 
-			m_ripple->enable();
+			_ripple->enable();
 
-			//if (m_is_mouse_hovering)
+			//if (_is_mouse_hovering)
 			//{
 			//	get_gui()->get_window()->set_cursor(get_cursor());
 			//}
@@ -11552,7 +11377,7 @@ public:
 		Returns whether the user can use the button.
 	*/
 	bool get_is_enabled() {
-		return m_is_enabled;
+		return _is_enabled;
 	}
 
 	//------------------------------
@@ -11561,21 +11386,21 @@ public:
 		Sets whether the button uses the secondary/accent color. If not, it uses the primary color. The button uses primary color by default.
 	*/
 	auto set_is_accent(bool const is_accent) -> void {
-		m_is_accent = is_accent;
-		if (m_emphasis == Emphasis::High) {
-			m_current_color = m_is_accent ? get_theme_color(ThemeColors::secondary) : get_theme_color(ThemeColors::primary);
-			m_ripple->set_color(Color(m_is_accent ? get_theme_color(ThemeColors::on_secondary) : get_theme_color(ThemeColors::on_primary), 0.3f));
+		_is_accent = is_accent;
+		if (_emphasis == Emphasis::High) {
+			_current_color = _is_accent ? get_theme_color(ThemeColors::secondary) : get_theme_color(ThemeColors::primary);
+			_ripple->set_color(Color(_is_accent ? get_theme_color(ThemeColors::on_secondary) : get_theme_color(ThemeColors::on_primary), 0.3f));
 		}
 		else {
-			m_current_color = m_is_accent ? get_theme_color(ThemeColors::secondary_on_background) : get_theme_color(ThemeColors::primary_on_background);
-			m_ripple->set_color(Color(m_is_accent ? get_theme_color(ThemeColors::secondary_on_background) : get_theme_color(ThemeColors::primary_on_background), 0.3f));
+			_current_color = _is_accent ? get_theme_color(ThemeColors::secondary_on_background) : get_theme_color(ThemeColors::primary_on_background);
+			_ripple->set_color(Color(_is_accent ? get_theme_color(ThemeColors::secondary_on_background) : get_theme_color(ThemeColors::primary_on_background), 0.3f));
 		}
 	}
 	/*
 		Returns whether the button uses the secondary/accent color. If not, it uses the primary color. The button uses primary color by default.
 	*/
 	auto get_is_accent() const noexcept -> bool {
-		return m_is_accent;
+		return _is_accent;
 	}
 
 	//------------------------------
@@ -11585,15 +11410,15 @@ public:
 	*/
 	auto set_string(std::string_view string) -> void {
 		if (string[0]) {
-			m_text = get_gui()->get_drawing_context()->create_text(string, get_theme_value(ThemeValues::button_font_size));
-			m_text.set_word_wrapping(WordWrapping::Never);
-			m_text.set_character_spacing(get_theme_value(ThemeValues::button_character_spacing));
-			m_text.set_font_weight(FontWeight::Medium);
-			//m_text.set_is_top_trimmed(true);
-			m_text.fit_size_to_text();
+			_text = get_gui()->get_drawing_context()->create_text(string, get_theme_value(ThemeValues::button_font_size));
+			_text.set_word_wrapping(WordWrapping::Never);
+			_text.set_character_spacing(get_theme_value(ThemeValues::button_character_spacing));
+			_text.set_font_weight(FontWeight::Medium);
+			//_text.set_is_top_trimmed(true);
+			_text.fit_size_to_text();
 		}
 		else {
-			m_text.destroy();
+			_text.destroy();
 		}
 		update_size();
 	}
@@ -11602,8 +11427,8 @@ public:
 		Returns the string that the button displays.
 	*/
 	auto get_string() const -> std::string_view {
-		if (m_text) {
-			return m_text.get_string();
+		if (_text) {
+			return _text.get_string();
 		}
 		return "";
 	}
@@ -11612,7 +11437,7 @@ public:
 		Returns the text object that is used to display the button label.
 	*/
 	auto get_text() const -> Text {
-		return m_text;
+		return _text;
 	}
 
 	//------------------------------
@@ -11623,13 +11448,13 @@ public:
 		If icon is 0, the icon is removed.
 	*/
 	auto set_icon(Image const& icon) -> void {
-		if (icon != m_icon) {
+		if (icon != _icon) {
 			if (icon) {
-				m_icon = icon;
-				m_icon.set_bounds_sizing(ImageBoundsSizing::Contain);
+				_icon = icon;
+				_icon.set_bounds_sizing(ImageBoundsSizing::Contain);
 			}
 			else {
-				m_icon.destroy();
+				_icon.destroy();
 			}
 			update_size();
 			invalidate();
@@ -11640,7 +11465,7 @@ public:
 		Returns the image that is shown together with the button text.
 	*/
 	auto get_icon() const -> Image {
-		return m_icon;
+		return _icon;
 	}
 
 	//------------------------------
@@ -11651,8 +11476,8 @@ public:
 		An empty string disables the tooltip.
 	*/
 	auto set_tooltip(Tooltip* const tooltip_view, std::string_view const p_info) -> void {
-		m_tooltip_view = tooltip_view;
-		m_tooltip_string = p_info;
+		_tooltip_view = tooltip_view;
+		_tooltip_string = p_info;
 	}
 
 	//------------------------------
@@ -11662,34 +11487,34 @@ public:
 	//------------------------------
 
 	auto handle_mouse_background_enter(MouseEvent const& event) override -> void  {
-		if (m_tooltip_view && !m_tooltip_string.empty()) {
-			m_tooltip_view->show(m_tooltip_string, get_absolute_bounds());
+		if (_tooltip_view && !_tooltip_string.empty()) {
+			_tooltip_view->show(_tooltip_string, get_absolute_bounds());
 		}
 	}
 	auto handle_mouse_move(MouseEvent const& event) override -> void {
-		m_is_mouse_hovering = true;
+		_is_mouse_hovering = true;
 	}
 	auto handle_mouse_background_leave(MouseEvent const& event) override -> void {
-		if (m_tooltip_view && !m_tooltip_string.empty()) {
-			m_tooltip_view->hide();
+		if (_tooltip_view && !_tooltip_string.empty()) {
+			_tooltip_view->hide();
 		}
-		m_is_mouse_hovering = false;
+		_is_mouse_hovering = false;
 	}
 	auto handle_mouse_down(MouseEvent const& event) override -> void  {
-		if (event.mouse_button == MouseButton::Left && m_is_enabled && m_emphasis == Emphasis::High) {
-			m_is_pressed = true;
-			m_is_raising = true;
-			m_press_animation_time = 0.f;
+		if (event.mouse_button == MouseButton::Left && _is_enabled && _emphasis == Emphasis::High) {
+			_is_pressed = true;
+			_is_raising = true;
+			_press_animation_time = 0.f;
 			queue_animation_update();
 		}
 	}
 	void handle_mouse_up(MouseEvent const& event) override {
 		if (event.mouse_button == MouseButton::Left) {
-			if (m_emphasis == Emphasis::High) {
-				m_is_pressed = false;
+			if (_emphasis == Emphasis::High) {
+				_is_pressed = false;
 				queue_animation_update();
 			}
-			if (m_is_enabled && get_is_containing(Point{event.x + getLeft(), event.y + getTop()})) {
+			if (_is_enabled && get_is_containing(Point{event.x + getLeft(), event.y + getTop()})) {
 				button_click_listeners(this);
 			}
 		}
@@ -11698,41 +11523,41 @@ public:
 	//------------------------------
 
 	auto update_animations() -> void override {
-		if ((m_color_animation_time != 1.f && m_is_enabled) || (m_color_animation_time != 0.f && !m_is_enabled)) {
-			auto const color_animation_value = get_theme_easing(ThemeEasings::symmetrical_in_out).ease_value(m_color_animation_time);
-			if (m_emphasis == Emphasis::High) {
-				m_current_color = m_is_accent ? get_theme_color(ThemeColors::secondary) : get_theme_color(ThemeColors::primary);
+		if ((_color_animation_time != 1.f && _is_enabled) || (_color_animation_time != 0.f && !_is_enabled)) {
+			auto const color_animation_value = get_theme_easing(ThemeEasings::symmetrical_in_out).ease_value(_color_animation_time);
+			if (_emphasis == Emphasis::High) {
+				_current_color = _is_accent ? get_theme_color(ThemeColors::secondary) : get_theme_color(ThemeColors::primary);
 			}
 			else {
-				m_current_color = m_is_accent ? 
+				_current_color = _is_accent ? 
 					get_theme_color(ThemeColors::secondary_on_background) : 
 					get_theme_color(ThemeColors::primary_on_background);
 			}
-			m_current_color.setSaturationHSL(color_animation_value);
+			_current_color.setSaturationHSL(color_animation_value);
 
-			if (m_is_enabled) {
-				if (m_color_animation_time < 1.f) {
-					m_color_animation_time = min(1.f, m_color_animation_time + 0.1f);
+			if (_is_enabled) {
+				if (_color_animation_time < 1.f) {
+					_color_animation_time = min(1.f, _color_animation_time + 0.1f);
 					queue_animation_update();
 				}
 			}
 			else {
-				if (m_color_animation_time > 0.f) {
-					m_color_animation_time = max(0.f, m_color_animation_time - 0.1f);
+				if (_color_animation_time > 0.f) {
+					_color_animation_time = max(0.f, _color_animation_time - 0.1f);
 					queue_animation_update();
 				}
 			}
 		}
 
-		if (m_emphasis == Emphasis::High) {
-			auto const press_animation_value = get_theme_easing(ThemeEasings::in_out).ease_value(m_press_animation_time);
-			m_press_animation_time += 0.06f;
+		if (_emphasis == Emphasis::High) {
+			auto const press_animation_value = get_theme_easing(ThemeEasings::in_out).ease_value(_press_animation_time);
+			_press_animation_time += 0.06f;
 
-			if (m_is_raising || m_is_pressed) {
+			if (_is_raising || _is_pressed) {
 				set_elevation(2.f + press_animation_value*4.f);
-				if (!m_is_pressed && press_animation_value == 1.f) {
-					m_press_animation_time = 0.f;
-					m_is_raising = false;
+				if (!_is_pressed && press_animation_value == 1.f) {
+					_press_animation_time = 0.f;
+					_is_raising = false;
 					queue_animation_update();
 				}
 			}
@@ -11752,27 +11577,27 @@ public:
 	//------------------------------
 
 	void drawOverlay(DrawingContext* drawing_context) override {
-		if (m_emphasis == Emphasis::Medium) {
+		if (_emphasis == Emphasis::Medium) {
 			drawing_context->set_color(Color(get_theme_color(ThemeColors::on_background), 0.25f));
-			drawing_context->strokeRoundedRectangle(Rectangle<>(0.5f, 0.5f, get_width() - 0.5f, get_height() - 0.5f), get_corners().top_left_size_x, 1.f);
+			drawing_context->stroke_rounded_rectangle(Rectangle<>(0.5f, 0.5f, get_width() - 0.5f, get_height() - 0.5f), get_corners().top_left_size_x, 1.f);
 		}
 	}
 
 	void draw(DrawingContext* drawing_context) override {
-		if (m_emphasis == Emphasis::High) {
-			drawing_context->clear(m_current_color);
-			drawing_context->set_color(m_is_accent ? get_theme_color(ThemeColors::on_secondary) : get_theme_color(ThemeColors::on_primary));
+		if (_emphasis == Emphasis::High) {
+			drawing_context->clear(_current_color);
+			drawing_context->set_color(_is_accent ? get_theme_color(ThemeColors::on_secondary) : get_theme_color(ThemeColors::on_primary));
 		}
 		else {
-			drawing_context->set_color(m_current_color);
+			drawing_context->set_color(_current_color);
 		}
 
-		if (m_icon) {
-			drawing_context->drawImage(m_icon);
+		if (_icon) {
+			drawing_context->drawImage(_icon);
 		}
 
-		if (m_text) {
-			drawing_context->draw_text(m_text);
+		if (_text) {
+			drawing_context->draw_text(_text);
 		}
 	}
 };
@@ -11792,84 +11617,84 @@ inline Id const editable_text_caret_blink_rate;
 */
 class EditableText : public View {
 private:
-	Text m_text;
-	float m_text_drawing_offset_x = 0.f;
-	float m_font_size;
-	TextAlign m_text_align = TextAlign::Left;
+	Text _text;
+	float _text_drawing_offset_x = 0.f;
+	float _font_size;
+	TextAlign _text_align = TextAlign::Left;
 
-	Index m_caret_character_index = 0;
-	Index m_caret_byte_index = 0;
-	Point<> m_caret_position;
-	bool m_isCaretVisible = false;
-	Count m_caretFrameCount = 0;
+	Index _caret_character_index = 0;
+	Index _caret_byte_index = 0;
+	Point<> _caret_position;
+	bool _isCaretVisible = false;
+	Count _caretFrameCount = 0;
 
-	Index m_selectionEndCharacterIndex = 0;
-	Index m_selectionEndByteIndex = 0;
-	Point<> m_selection_end_position;
-	bool m_isSelectingWithMouse = false;
-	bool m_isSelectionVisible = false;
+	Index _selectionEndCharacterIndex = 0;
+	Index _selectionEndByteIndex = 0;
+	Point<> _selection_end_position;
+	bool _isSelectingWithMouse = false;
+	bool _isSelectionVisible = false;
 
 	//------------------------------
 
 	auto update_caret_tracking() -> void {
-		if (!m_text) {
+		if (!_text) {
 			return;
 		}
 
-		if (m_caret_position.x + m_text_drawing_offset_x > get_width())
+		if (_caret_position.x + _text_drawing_offset_x > get_width())
 		{
-			m_text_drawing_offset_x = get_width() - m_caret_position.x;
+			_text_drawing_offset_x = get_width() - _caret_position.x;
 		}
-		else if (m_caret_position.x + m_text_drawing_offset_x < 0.f)
+		else if (_caret_position.x + _text_drawing_offset_x < 0.f)
 		{
-			m_text_drawing_offset_x = -m_caret_position.x;
+			_text_drawing_offset_x = -_caret_position.x;
 		}
 
-		if (m_text_align == TextAlign::Left)
+		if (_text_align == TextAlign::Left)
 		{
-			if (m_text.get_minimum_width() > get_width())
+			if (_text.get_minimum_width() > get_width())
 			{
-				if (m_text.get_minimum_width() + m_text_drawing_offset_x < get_width())
+				if (_text.get_minimum_width() + _text_drawing_offset_x < get_width())
 				{
-					m_text_drawing_offset_x = get_width() - m_text.get_minimum_width();
+					_text_drawing_offset_x = get_width() - _text.get_minimum_width();
 				}
 			}
 			else
 			{
-				m_text_drawing_offset_x = 0.f;
+				_text_drawing_offset_x = 0.f;
 			}
 		}
-		else if (m_text_align == TextAlign::Right)
+		else if (_text_align == TextAlign::Right)
 		{
-			if (m_text.get_minimum_width() > get_width())
+			if (_text.get_minimum_width() > get_width())
 			{
-				if (get_width() - m_text.get_minimum_width() + m_text_drawing_offset_x > 0.f)
+				if (get_width() - _text.get_minimum_width() + _text_drawing_offset_x > 0.f)
 				{
-					m_text_drawing_offset_x = m_text.get_minimum_width() - get_width();
+					_text_drawing_offset_x = _text.get_minimum_width() - get_width();
 				}
 			}
 			else
 			{
-				m_text_drawing_offset_x = 0;
+				_text_drawing_offset_x = 0;
 			}
 		}
 	}
 	void updateSelectionEndTracking()
 	{
-		if (m_selection_end_position.x + m_text_drawing_offset_x > get_width())
+		if (_selection_end_position.x + _text_drawing_offset_x > get_width())
 		{
-			m_text_drawing_offset_x = get_width() - m_selection_end_position.x;
+			_text_drawing_offset_x = get_width() - _selection_end_position.x;
 		}
-		else if (m_selection_end_position.x + m_text_drawing_offset_x < 0.f)
+		else if (_selection_end_position.x + _text_drawing_offset_x < 0.f)
 		{
-			m_text_drawing_offset_x = -m_selection_end_position.x;
+			_text_drawing_offset_x = -_selection_end_position.x;
 		}
 	}
 
 public:
-	explicit EditableText(View* parent, float p_width = 0.f, float font_size = 12.f) :
-		View(parent, Rectangle<>(0.f, 0.f, p_width, font_size*1.2f)),
-		m_font_size(font_size)
+	explicit EditableText(View* parent, float width = 0.f, float font_size = 12.f) :
+		View(parent, Rectangle<>(0.f, 0.f, width, font_size*1.2f)),
+		_font_size(font_size)
 	{
 		initialize_theme_value(ThemeValues::editable_text_caret_blink_rate, 20);
 
@@ -11894,18 +11719,18 @@ public:
 	/*
 		Listeners that get called when the user has pressed the enter/return key while p_editableText has keyboard focus.
 	*/
-	EventListeners<void(EditableText*)> editableTextEnterListeners;
+	EventListeners<void(EditableText*)> editable_text_enter_listeners;
 
 	//------------------------------
 
 private:
 	auto handleDoubleClick(MouseEvent const& event) -> void
 	{
-		if (m_text)
+		if (_text)
 		{	
-			auto const string = m_text.get_string();
+			auto const string = _text.get_string();
 
-			auto const clickCharacterIndex = m_text.get_nearest_character_index({event.x - m_text_drawing_offset_x, event.y}, true);
+			auto const clickCharacterIndex = _text.get_nearest_character_index({event.x - _text_drawing_offset_x, event.y}, true);
 			auto const clickUnitIndex = getUnitIndexFromCharacterIndex(string, clickCharacterIndex);
 			
 			auto leftBound = string.rfind(' ', clickUnitIndex);
@@ -11913,25 +11738,25 @@ private:
 			{
 				leftBound = 0;
 			}
-			m_caret_character_index = getCharacterIndexFromUnitIndex(string, leftBound);
-			m_caret_byte_index = leftBound;
-			m_caret_position = m_text.get_character_position(m_caret_character_index, true);
+			_caret_character_index = getCharacterIndexFromUnitIndex(string, leftBound);
+			_caret_byte_index = leftBound;
+			_caret_position = _text.get_character_position(_caret_character_index, true);
 			
 			if (auto const rightBound = string.find(' ', clickUnitIndex);
 				rightBound == std::string_view::npos)
 			{
-				m_selectionEndCharacterIndex = getNumberOfCharactersInString(string);
-				m_selectionEndByteIndex = string.size();
+				_selectionEndCharacterIndex = get_number_of_characters_in_string(string);
+				_selectionEndByteIndex = string.size();
 			}
 			else
 			{
-				m_selectionEndCharacterIndex = getCharacterIndexFromUnitIndex(string, rightBound);
-				m_selectionEndByteIndex = rightBound;
+				_selectionEndCharacterIndex = getCharacterIndexFromUnitIndex(string, rightBound);
+				_selectionEndByteIndex = rightBound;
 			}
-			m_selection_end_position = m_text.get_character_position(m_selectionEndCharacterIndex);
+			_selection_end_position = _text.get_character_position(_selectionEndCharacterIndex);
 
-			// m_caret_character_index = 0;
-			// m_caret_byte_index = 0;
+			// _caret_character_index = 0;
+			// _caret_byte_index = 0;
 
 			// auto characterIndex = Index{};
 			// for (auto byteIndex : Indices{string, 1})
@@ -11942,25 +11767,25 @@ private:
 			// 		{
 			// 			if (characterIndex >= clickCharacterIndex)
 			// 			{
-			// 				m_selectionEndCharacterIndex = characterIndex;
-			// 				m_selectionEndByteIndex = byteIndex;
-			// 				m_selection_end_position = m_text.get_character_position(m_selectionEndCharacterIndex);
-			// 				m_caret_position = m_text.get_character_position(m_caret_character_index, true);
+			// 				_selectionEndCharacterIndex = characterIndex;
+			// 				_selectionEndByteIndex = byteIndex;
+			// 				_selection_end_position = _text.get_character_position(_selectionEndCharacterIndex);
+			// 				_caret_position = _text.get_character_position(_caret_character_index, true);
 			// 				update_caret_tracking();
 			// 				break;
 			// 			}
 			// 			else
 			// 			{
-			// 				m_caret_character_index = characterIndex + 1;
-			// 				m_caret_byte_index = byteIndex + 1;
+			// 				_caret_character_index = characterIndex + 1;
+			// 				_caret_byte_index = byteIndex + 1;
 			// 			}
 			// 		}
 			// 		++characterIndex;
 			// 	}
 			// }
-			if (m_caret_character_index != m_selectionEndCharacterIndex)
+			if (_caret_character_index != _selectionEndCharacterIndex)
 			{
-				m_isSelectionVisible = true;
+				_isSelectionVisible = true;
 				invalidate();
 			}
 		}
@@ -11974,40 +11799,40 @@ public:
 		}
 		else
 		{
-			if (m_text)
+			if (_text)
 			{
 				if (event.modifier_keys & ModifierKeyFlags::Shift)
 				{
-					std::tie(m_selectionEndCharacterIndex, m_selection_end_position) = 
-						m_text.get_nearest_character_index_and_position({event.x - m_text_drawing_offset_x, event.y}, true);
+					std::tie(_selectionEndCharacterIndex, _selection_end_position) = 
+						_text.get_nearest_character_index_and_position({event.x - _text_drawing_offset_x, event.y}, true);
 					
-					m_selectionEndByteIndex = getUnitIndexFromCharacterIndex(m_text.get_string(), m_selectionEndCharacterIndex);
+					_selectionEndByteIndex = getUnitIndexFromCharacterIndex(_text.get_string(), _selectionEndCharacterIndex);
 
-					if (m_selectionEndCharacterIndex == m_caret_character_index)
+					if (_selectionEndCharacterIndex == _caret_character_index)
 					{
-						m_caretFrameCount = 1;
-						m_isCaretVisible = true;
-						m_isSelectionVisible = false;
+						_caretFrameCount = 1;
+						_isCaretVisible = true;
+						_isSelectionVisible = false;
 					}
 					else
 					{
 						updateSelectionEndTracking();
-						m_isSelectionVisible = true;
+						_isSelectionVisible = true;
 					}
-					m_isSelectingWithMouse = true;
+					_isSelectingWithMouse = true;
 				}
 				else
 				{
-					std::tie(m_caret_character_index, m_caret_position) = 
-						m_text.get_nearest_character_index_and_position({event.x - m_text_drawing_offset_x, event.y}, true);
+					std::tie(_caret_character_index, _caret_position) = 
+						_text.get_nearest_character_index_and_position({event.x - _text_drawing_offset_x, event.y}, true);
 
-					m_caret_byte_index = getUnitIndexFromCharacterIndex(m_text.get_string(), m_caret_character_index);
+					_caret_byte_index = getUnitIndexFromCharacterIndex(_text.get_string(), _caret_character_index);
 					update_caret_tracking();
 
-					m_isCaretVisible = true;
-					m_caretFrameCount = 1;
-					m_isSelectingWithMouse = true;
-					m_isSelectionVisible = false;
+					_isCaretVisible = true;
+					_caretFrameCount = 1;
+					_isSelectingWithMouse = true;
+					_isSelectionVisible = false;
 				}
 			}
 			else
@@ -12023,37 +11848,37 @@ public:
 	}
 	void handle_mouse_move(MouseEvent const& event) override
 	{
-		if (m_isSelectingWithMouse)
+		if (_isSelectingWithMouse)
 		{
-			std::tie(m_selectionEndCharacterIndex, m_selection_end_position) = 
-				m_text.get_nearest_character_index_and_position({event.x - m_text_drawing_offset_x, 0}, true);
+			std::tie(_selectionEndCharacterIndex, _selection_end_position) = 
+				_text.get_nearest_character_index_and_position({event.x - _text_drawing_offset_x, 0}, true);
 
-			m_selectionEndByteIndex = getUnitIndexFromCharacterIndex(m_text.get_string(), m_selectionEndCharacterIndex);
+			_selectionEndByteIndex = getUnitIndexFromCharacterIndex(_text.get_string(), _selectionEndCharacterIndex);
 			updateSelectionEndTracking();
-			m_isSelectionVisible = m_selectionEndCharacterIndex != m_caret_character_index;
-			m_isCaretVisible = true;
-			m_caretFrameCount = 1;
+			_isSelectionVisible = _selectionEndCharacterIndex != _caret_character_index;
+			_isCaretVisible = true;
+			_caretFrameCount = 1;
 			invalidate();
 		}
 	}
 	void handle_mouse_up(MouseEvent const& event) override
 	{
-		m_isSelectingWithMouse = false;
+		_isSelectingWithMouse = false;
 	}
 
 	void handle_keyboard_focus_gain() override
 	{
-		m_caretFrameCount = 1;
-		m_isCaretVisible = true;
+		_caretFrameCount = 1;
+		_isCaretVisible = true;
 
 		queue_animation_update();
 		invalidate();
 	}
 	void handleKeyboardFocusLose() override
 	{
-		m_caretFrameCount = 1;
-		m_isCaretVisible = false;
-		m_isSelectionVisible = false;
+		_caretFrameCount = 1;
+		_isCaretVisible = false;
+		_isSelectionVisible = false;
 
 		invalidate();
 	}
@@ -12061,30 +11886,30 @@ public:
 	{
 		if (event.character > u8"\u001f" && (event.character < u8"\u007f" || event.character > u8"\u009f"))
 		{
-			auto string = std::string{m_text ? m_text.get_string() : ""};
-			if (m_isSelectionVisible)
+			auto string = std::string{_text ? _text.get_string() : ""};
+			if (_isSelectionVisible)
 			{
-				if (m_caret_character_index <= m_selectionEndCharacterIndex)
+				if (_caret_character_index <= _selectionEndCharacterIndex)
 				{
-					string.erase(m_caret_byte_index, m_selectionEndByteIndex - m_caret_byte_index);
+					string.erase(_caret_byte_index, _selectionEndByteIndex - _caret_byte_index);
 				}
 				else
 				{
-					string.erase(m_selectionEndByteIndex, m_caret_byte_index - m_selectionEndByteIndex);
-					m_caret_character_index = m_selectionEndCharacterIndex;
-					m_caret_byte_index = m_selectionEndByteIndex;
+					string.erase(_selectionEndByteIndex, _caret_byte_index - _selectionEndByteIndex);
+					_caret_character_index = _selectionEndCharacterIndex;
+					_caret_byte_index = _selectionEndByteIndex;
 				}
-				m_isSelectionVisible = false;
+				_isSelectionVisible = false;
 			}
 
-			string.insert(m_caret_byte_index, event.character);
+			string.insert(_caret_byte_index, event.character);
 
-			set_string(string, m_caret_character_index + 1);
+			set_string(string, _caret_character_index + 1);
 
 			update_caret_tracking();
 
-			m_caretFrameCount = 1;
-			m_isCaretVisible = true;
+			_caretFrameCount = 1;
+			_isCaretVisible = true;
 
 			invalidate();
 		}
@@ -12093,34 +11918,34 @@ public:
 	{
 		Window* window = get_window();
 
-		auto string = m_text ? std::string{m_text.get_string()} : "";
+		auto string = _text ? std::string{_text.get_string()} : "";
 
-		if (m_isSelectionVisible && 
+		if (_isSelectionVisible && 
 			(event.key == KeyboardKey::Backspace || event.key == KeyboardKey::Delete) && 
-			m_caret_character_index != m_selectionEndCharacterIndex)
+			_caret_character_index != _selectionEndCharacterIndex)
 		{
-			if (m_caret_character_index <= m_selectionEndCharacterIndex)
+			if (_caret_character_index <= _selectionEndCharacterIndex)
 			{
-				string.erase(m_caret_byte_index, m_selectionEndByteIndex - m_caret_byte_index);
-				m_isSelectionVisible = false;
+				string.erase(_caret_byte_index, _selectionEndByteIndex - _caret_byte_index);
+				_isSelectionVisible = false;
 				set_string(string);
 				update_caret_tracking();
 			}
 			else
 			{
-				string.erase(m_selectionEndByteIndex, m_caret_byte_index - m_selectionEndByteIndex);
-				m_isSelectionVisible = false;
-				set_string(string, m_selectionEndCharacterIndex);
+				string.erase(_selectionEndByteIndex, _caret_byte_index - _selectionEndByteIndex);
+				_isSelectionVisible = false;
+				set_string(string, _selectionEndCharacterIndex);
 				update_caret_tracking();
 			}
-			if (m_text_align == TextAlign::Center && m_text)
+			if (_text_align == TextAlign::Center && _text)
 			{
-				m_caret_position = m_text.get_character_position(m_caret_character_index);
+				_caret_position = _text.get_character_position(_caret_character_index);
 				update_caret_tracking();
 			}
 
-			m_caretFrameCount = 1;
-			m_isCaretVisible = true;
+			_caretFrameCount = 1;
+			_isCaretVisible = true;
 			invalidate();
 			return;
 		}
@@ -12128,22 +11953,22 @@ public:
 		{
 			case KeyboardKey::Backspace:
 			{
-				if (!m_text)
+				if (!_text)
 				{
 					return;
 				}
-				if (!m_isSelectionVisible && m_caret_character_index > 0)
+				if (!_isSelectionVisible && _caret_character_index > 0)
 				{
-					if (window->getIsKeyDown(KeyboardKey::Control))
+					if (window->get_is_key_down(KeyboardKey::Control))
 					{
-						Index characterIndex = m_caret_character_index - 1;
-						for (Index byteIndex = m_caret_byte_index - 1; byteIndex >= 0; byteIndex--)
+						Index characterIndex = _caret_character_index - 1;
+						for (Index byteIndex = _caret_byte_index - 1; byteIndex >= 0; byteIndex--)
 						{
 							if (get_is_unit_start_of_character(string[byteIndex]))
 							{
 								if (!byteIndex || (string[byteIndex - 1U] == ' ' && string[byteIndex] != ' '))
 								{
-									string.erase(byteIndex, m_caret_byte_index - byteIndex);
+									string.erase(byteIndex, _caret_byte_index - byteIndex);
 									set_string(string, characterIndex);
 									break;
 								}
@@ -12151,87 +11976,75 @@ public:
 							}
 						}
 					}
-					else
-					{
-						for (Index byteIndex = m_caret_byte_index - 1; byteIndex >= 0; byteIndex--)
-						{
-							int8 numberOfBytesInCharacter = get_number_of_units_in_character(string[byteIndex]);
-							if (numberOfBytesInCharacter)
-							{
-								set_string(string.erase(byteIndex, numberOfBytesInCharacter), m_caret_character_index - 1);
+					else {
+						for (Index byteIndex = _caret_byte_index - 1; byteIndex >= 0; byteIndex--) {
+							if (auto const numberOfBytesInCharacter = get_number_of_units_in_character(string[byteIndex])) {
+								set_string(string.erase(byteIndex, numberOfBytesInCharacter), _caret_character_index - 1);
 								break;
 							}
 						}
 					}
 				}
-				m_caretFrameCount = 1;
-				m_isCaretVisible = true;
-				m_isSelectionVisible = false;
+				_caretFrameCount = 1;
+				_isCaretVisible = true;
+				_isSelectionVisible = false;
 				break;
 			}
-			case KeyboardKey::Delete:
-			{
-				if (!m_text)
-				{
+			case KeyboardKey::Delete: {
+				if (!_text) {
 					return;
 				}
-				if (!m_isSelectionVisible && m_caret_byte_index < string.size())
-				{
-					if (window->getIsKeyDown(KeyboardKey::Control))
-					{
-						for (auto byteIndex : Indices{m_caret_byte_index, string})
+				if (!_isSelectionVisible && _caret_byte_index < string.size()) {
+					if (window->get_is_key_down(KeyboardKey::Control)) {
+						for (auto const byteIndex : Range{_caret_byte_index, string.size() - 1})
 						{
 							if (byteIndex == string.size() - 1 || (string[byteIndex + 1] == ' ' && string[byteIndex] != ' '))
 							{
-								string.erase(m_caret_byte_index, byteIndex - m_caret_byte_index + 1);
+								string.erase(_caret_byte_index, byteIndex - _caret_byte_index + 1);
 								set_string(string);
 								break;
 							}
 						}
 					}
-					else
-					{
-						set_string(string.erase(m_caret_byte_index, get_number_of_units_in_character(string[m_caret_byte_index])));
+					else {
+						set_string(string.erase(_caret_byte_index, get_number_of_units_in_character(string[_caret_byte_index])));
 					}
 				}
-				m_caretFrameCount = 1;
-				m_isCaretVisible = true;
-				m_isSelectionVisible = false;
+				_caretFrameCount = 1;
+				_isCaretVisible = true;
+				_isSelectionVisible = false;
 				break;
 			}
-			case KeyboardKey::Left:
-			{
-				if (!m_text)
-				{
+			case KeyboardKey::Left: {
+				if (!_text) {
 					return;
 				}
-				if (window->getIsKeyDown(KeyboardKey::Control))
+				if (window->get_is_key_down(KeyboardKey::Control))
 				{
-					if (window->getIsKeyDown(KeyboardKey::Shift))
+					if (window->get_is_key_down(KeyboardKey::Shift))
 					{
-						if (!m_isSelectionVisible)
+						if (!_isSelectionVisible)
 						{
-							m_selectionEndCharacterIndex = m_caret_character_index;
-							m_selectionEndByteIndex = m_caret_byte_index;
+							_selectionEndCharacterIndex = _caret_character_index;
+							_selectionEndByteIndex = _caret_byte_index;
 						}
-						Index characterIndex = m_selectionEndCharacterIndex - 1;
-						for (Index byteIndex = m_selectionEndByteIndex - 1; byteIndex >= 0; byteIndex--)
+						Index characterIndex = _selectionEndCharacterIndex - 1;
+						for (Index byteIndex = _selectionEndByteIndex - 1; byteIndex >= 0; byteIndex--)
 						{
 							if (get_is_unit_start_of_character(string[byteIndex]))
 							{
 								if (!byteIndex || (string[byteIndex - 1U] == ' ' && string[byteIndex] != ' '))
 								{
-									m_selectionEndByteIndex = byteIndex;
-									m_selectionEndCharacterIndex = characterIndex;
-									if (m_selectionEndCharacterIndex == m_caret_character_index)
+									_selectionEndByteIndex = byteIndex;
+									_selectionEndCharacterIndex = characterIndex;
+									if (_selectionEndCharacterIndex == _caret_character_index)
 									{
-										m_isSelectionVisible = false;
+										_isSelectionVisible = false;
 									}
-									else
-									{
-										m_selection_end_position = m_text.get_character_position(m_selectionEndCharacterIndex, true);
+									else {
+										_selection_end_position = _text.get_character_position(_selectionEndCharacterIndex, true);
 										updateSelectionEndTracking();
-										m_isSelectionVisible = true;
+										_isSelectionVisible = true;
 									}
 									break;
 								}
@@ -12241,18 +12054,18 @@ public:
 					}
 					else
 					{
-						Index characterIndex = m_caret_character_index - 1;
-						for (Index byteIndex = m_caret_byte_index - 1; byteIndex >= 0; byteIndex--)
+						Index characterIndex = _caret_character_index - 1;
+						for (Index byteIndex = _caret_byte_index - 1; byteIndex >= 0; byteIndex--)
 						{
 							if (get_is_unit_start_of_character(string[byteIndex]))
 							{
 								if (!byteIndex || (string[byteIndex - 1U] == ' ' && string[byteIndex] != ' '))
 								{
-									m_caret_byte_index = byteIndex;
-									m_caret_character_index = characterIndex;
-									m_caret_position = m_text.get_character_position(m_caret_character_index, true);
+									_caret_byte_index = byteIndex;
+									_caret_character_index = characterIndex;
+									_caret_position = _text.get_character_position(_caret_character_index, true);
 									update_caret_tracking();
-									m_isSelectionVisible = false;
+									_isSelectionVisible = false;
 									break;
 								}
 								characterIndex--;
@@ -12260,60 +12073,53 @@ public:
 						}
 					}
 				}
-				else if (window->getIsKeyDown(KeyboardKey::Shift))
-				{
-					if (!m_isSelectionVisible)
-					{
-						m_selectionEndCharacterIndex = m_caret_character_index;
-						m_selectionEndByteIndex = m_caret_byte_index;
+				else if (window->get_is_key_down(KeyboardKey::Shift)) {
+					if (!_isSelectionVisible) {
+						_selectionEndCharacterIndex = _caret_character_index;
+						_selectionEndByteIndex = _caret_byte_index;
 					}
-					if (m_selectionEndCharacterIndex > 0)
+					if (_selectionEndCharacterIndex > 0)
 					{
-						for (Index byteIndex = m_selectionEndByteIndex - 1; byteIndex >= 0; byteIndex--)
+						for (Index byteIndex = _selectionEndByteIndex - 1; byteIndex >= 0; byteIndex--)
 						{
 							if (get_is_unit_start_of_character(string[byteIndex]))
 							{
-								m_selectionEndCharacterIndex--;
-								m_selectionEndByteIndex = byteIndex;
-								if (m_selectionEndCharacterIndex == m_caret_character_index)
-								{
-									m_isSelectionVisible = false;
+								_selectionEndCharacterIndex--;
+								_selectionEndByteIndex = byteIndex;
+								if (_selectionEndCharacterIndex == _caret_character_index) {
+									_isSelectionVisible = false;
 								}
-								else
-								{
-									m_selection_end_position = m_text.get_character_position(m_selectionEndCharacterIndex, true);
+								else {
+									_selection_end_position = _text.get_character_position(_selectionEndCharacterIndex, true);
 									updateSelectionEndTracking();
-									m_isSelectionVisible = true;
+									_isSelectionVisible = true;
 								}
 								break;
 							}
 						}
 					}
 				}
-				else
-				{
-					if (m_isSelectionVisible)
-					{
-						if (m_caret_character_index > m_selectionEndCharacterIndex)
+				else {
+					if (_isSelectionVisible) {
+						if (_caret_character_index > _selectionEndCharacterIndex) 
 						{
-							m_caret_character_index = m_selectionEndCharacterIndex;
-							m_caret_byte_index = m_selectionEndByteIndex;
-							m_caret_position = m_selection_end_position;
+							_caret_character_index = _selectionEndCharacterIndex;
+							_caret_byte_index = _selectionEndByteIndex;
+							_caret_position = _selection_end_position;
 						}
 						update_caret_tracking();
-						m_isSelectionVisible = false;
+						_isSelectionVisible = false;
 					}
-					else
-					{
-						if (m_caret_character_index > 0)
+					else {
+						if (_caret_character_index > 0)
 						{
-							for (Index byteIndex = m_caret_byte_index - 1; byteIndex >= 0; byteIndex--)
+							for (Index byteIndex = _caret_byte_index - 1; byteIndex >= 0; byteIndex--)
 							{
 								if (get_is_unit_start_of_character(string[byteIndex]))
 								{
-									m_caret_character_index--;
-									m_caret_byte_index = byteIndex;
-									m_caret_position = m_text.get_character_position(m_caret_character_index, true);
+									_caret_character_index--;
+									_caret_byte_index = byteIndex;
+									_caret_position = _text.get_character_position(_caret_character_index, true);
 									update_caret_tracking();
 									break;
 								}
@@ -12321,217 +12127,180 @@ public:
 						}
 					}
 				}
-				m_caretFrameCount = 1;
-				m_isCaretVisible = true;
+				_caretFrameCount = 1;
+				_isCaretVisible = true;
 				invalidate();
 				break;
 			}
-			case KeyboardKey::Right:
-			{
-				if (!m_text)
-				{
+			case KeyboardKey::Right: {
+				if (!_text) {
 					return;
 				}
-				if (window->getIsKeyDown(KeyboardKey::Control))
-				{
-					if (window->getIsKeyDown(KeyboardKey::Shift))
-					{
-						if (!m_isSelectionVisible)
-						{
-							m_selectionEndCharacterIndex = m_caret_character_index;
-							m_selectionEndByteIndex = m_caret_byte_index;
+				if (window->get_is_key_down(KeyboardKey::Control)) {
+					if (window->get_is_key_down(KeyboardKey::Shift)) {
+						if (!_isSelectionVisible) {
+							_selectionEndCharacterIndex = _caret_character_index;
+							_selectionEndByteIndex = _caret_byte_index;
 						}
-						Index characterIndex = m_selectionEndCharacterIndex;
-						for (Index byteIndex = m_selectionEndByteIndex + 1; byteIndex <= string.size(); byteIndex++)
+						Index characterIndex = _selectionEndCharacterIndex;
+						for (Index byteIndex = _selectionEndByteIndex + 1; byteIndex <= string.size(); byteIndex++) 
 						{
 							if (byteIndex == string.size() || get_is_unit_start_of_character(string[byteIndex]))
 							{
 								characterIndex++;
-								if (byteIndex == string.size() || string[byteIndex] == ' ' && string[byteIndex - 1] != ' ')
+								if (byteIndex == string.size() || string[byteIndex] == ' ' && string[byteIndex - 1] != ' ') 
 								{
-									m_selectionEndByteIndex = byteIndex;
-									m_selectionEndCharacterIndex = characterIndex;
-									if (m_selectionEndCharacterIndex == m_caret_character_index)
-									{
-										m_isSelectionVisible = false;
+									_selectionEndByteIndex = byteIndex;
+									_selectionEndCharacterIndex = characterIndex;
+									if (_selectionEndCharacterIndex == _caret_character_index) {
+										_isSelectionVisible = false;
 									}
-									else
-									{
-										m_selection_end_position = m_text.get_character_position(m_selectionEndCharacterIndex, true);
+									else {
+										_selection_end_position = _text.get_character_position(_selectionEndCharacterIndex, true);
 										updateSelectionEndTracking();
-										m_isSelectionVisible = true;
+										_isSelectionVisible = true;
 									}
 									break;
 								}
 							}
 						}
 					}
-					else
-					{
-						Index characterIndex = m_caret_character_index;
-						for (Index byteIndex = m_caret_byte_index + 1; byteIndex <= string.size(); byteIndex++)
-						{
-							if (byteIndex == string.size() || get_is_unit_start_of_character(string[byteIndex]))
+					else {
+						Index characterIndex = _caret_character_index;
+						for (Index byteIndex = _caret_byte_index + 1; byteIndex <= string.size(); byteIndex++) {
+							if (byteIndex == string.size() || get_is_unit_start_of_character(string[byteIndex])) 
 							{
 								characterIndex++;
-								if (byteIndex == string.size() || string[byteIndex] == ' ' && string[byteIndex - 1] != ' ')
+								if (byteIndex == string.size() || string[byteIndex] == ' ' && string[byteIndex - 1] != ' ') 
 								{
-									m_caret_byte_index = byteIndex;
-									m_caret_character_index = characterIndex;
-									m_caret_position = m_text.get_character_position(m_caret_character_index, true);
+									_caret_byte_index = byteIndex;
+									_caret_character_index = characterIndex;
+									_caret_position = _text.get_character_position(_caret_character_index, true);
 									update_caret_tracking();
-									m_isSelectionVisible = false;
+									_isSelectionVisible = false;
 									break;
 								}
 							}
 						}
 					}
 				}
-				else if (window->getIsKeyDown(KeyboardKey::Shift))
-				{
-					if (!m_isSelectionVisible)
-					{
-						m_selectionEndCharacterIndex = m_caret_character_index;
+				else if (window->get_is_key_down(KeyboardKey::Shift)) {
+					if (!_isSelectionVisible) {
+						_selectionEndCharacterIndex = _caret_character_index;
 					}
-					if (m_selectionEndByteIndex < string.size())
-					{
-						m_selectionEndByteIndex += get_number_of_units_in_character(string[m_selectionEndByteIndex]);
-						m_selectionEndCharacterIndex++;
-						if (m_selectionEndCharacterIndex == m_caret_character_index)
-						{
-							m_isSelectionVisible = false;
+					if (_selectionEndByteIndex < string.size()) {
+						_selectionEndByteIndex += get_number_of_units_in_character(string[_selectionEndByteIndex]);
+						_selectionEndCharacterIndex++;
+						if (_selectionEndCharacterIndex == _caret_character_index) {
+							_isSelectionVisible = false;
 						}
-						else
-						{
-							m_selection_end_position = m_text.get_character_position(m_selectionEndCharacterIndex, true);
+						else {
+							_selection_end_position = _text.get_character_position(_selectionEndCharacterIndex, true);
 							updateSelectionEndTracking();
-							m_isSelectionVisible = true;
+							_isSelectionVisible = true;
 						}
 					}
 				}
-				else
-				{
-					if (m_isSelectionVisible)
-					{
-						if (m_caret_character_index < m_selectionEndCharacterIndex)
-						{
-							m_caret_character_index = m_selectionEndCharacterIndex;
-							m_caret_byte_index = m_selectionEndByteIndex;
-							m_caret_position = m_selection_end_position;
+				else {
+					if (_isSelectionVisible) {
+						if (_caret_character_index < _selectionEndCharacterIndex) {
+							_caret_character_index = _selectionEndCharacterIndex;
+							_caret_byte_index = _selectionEndByteIndex;
+							_caret_position = _selection_end_position;
 							update_caret_tracking();
 						}
-						m_isSelectionVisible = false;
+						_isSelectionVisible = false;
 					}
-					else
-					{
-						if (m_caret_byte_index < string.size())
-						{
-							m_caret_byte_index += get_number_of_units_in_character(string[m_caret_byte_index]);
-							m_caret_character_index++;
-							m_caret_position = m_text.get_character_position(m_caret_character_index, true);
+					else {
+						if (_caret_byte_index < string.size()) {
+							_caret_byte_index += get_number_of_units_in_character(string[_caret_byte_index]);
+							_caret_character_index++;
+							_caret_position = _text.get_character_position(_caret_character_index, true);
 							update_caret_tracking();
 						}
 					}
 				}
-				m_caretFrameCount = 1;
-				m_isCaretVisible = true;
+				_caretFrameCount = 1;
+				_isCaretVisible = true;
 				invalidate();
 				break;
 			}
-			case KeyboardKey::C:
-			{
-				if (!m_text)
-				{
+			case KeyboardKey::C: {
+				if (!_text) {
 					return;
 				}
-				if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
-				{
-					if (m_caret_character_index < m_selectionEndCharacterIndex)
-					{
-						window->set_clipboard_string(string.substr(m_caret_byte_index, m_selectionEndByteIndex - m_caret_byte_index));
+				if (window->get_is_key_down(KeyboardKey::Control) && _isSelectionVisible) {
+					if (_caret_character_index < _selectionEndCharacterIndex) {
+						window->set_clipboard_string(string.substr(_caret_byte_index, _selectionEndByteIndex - _caret_byte_index));
 					}
-					else
-					{
-						window->set_clipboard_string(string.substr(m_selectionEndByteIndex, m_caret_byte_index - m_selectionEndByteIndex));
+					else {
+						window->set_clipboard_string(string.substr(_selectionEndByteIndex, _caret_byte_index - _selectionEndByteIndex));
 					}
 				}
 				break;
 			}
-			case KeyboardKey::X:
-			{
-				if (!m_text)
-				{
+			case KeyboardKey::X: {
+				if (!_text) {
 					return;
 				}
-				if (window->getIsKeyDown(KeyboardKey::Control) && m_isSelectionVisible)
-				{
-					if (m_caret_character_index < m_selectionEndCharacterIndex)
-					{
-						window->set_clipboard_string(string.substr(m_caret_byte_index, m_selectionEndByteIndex - m_caret_byte_index));
-						string.erase(m_caret_byte_index, m_selectionEndByteIndex - m_caret_byte_index);
+				if (window->get_is_key_down(KeyboardKey::Control) && _isSelectionVisible) {
+					if (_caret_character_index < _selectionEndCharacterIndex) {
+						window->set_clipboard_string(string.substr(_caret_byte_index, _selectionEndByteIndex - _caret_byte_index));
+						string.erase(_caret_byte_index, _selectionEndByteIndex - _caret_byte_index);
 						set_string(string);
 					}
 					else {
-						window->set_clipboard_string(string.substr(m_selectionEndByteIndex, m_caret_byte_index - m_selectionEndByteIndex));
-						string.erase(m_selectionEndByteIndex, m_caret_byte_index - m_selectionEndByteIndex);
-						set_string(string, m_selectionEndCharacterIndex);
+						window->set_clipboard_string(string.substr(_selectionEndByteIndex, _caret_byte_index - _selectionEndByteIndex));
+						string.erase(_selectionEndByteIndex, _caret_byte_index - _selectionEndByteIndex);
+						set_string(string, _selectionEndCharacterIndex);
 					}
 
-					m_isSelectionVisible = false;
+					_isSelectionVisible = false;
 
-					m_caretFrameCount = 1;
-					m_isCaretVisible = true;
+					_caretFrameCount = 1;
+					_isCaretVisible = true;
 				}
 				break;
 			}
-			case KeyboardKey::V:
-			{
-				if (window->getIsKeyDown(KeyboardKey::Control))
-				{
-					Index caretCharacterIndex = m_caret_character_index;
-					Index caretByteIndex = m_caret_byte_index;
-					if (m_isSelectionVisible)
-					{
-						if (caretCharacterIndex < m_selectionEndCharacterIndex)
-						{
-							string.erase(m_caret_byte_index, m_selectionEndByteIndex - m_caret_byte_index);
-							m_selectionEndCharacterIndex = m_caret_character_index;
-							m_selectionEndByteIndex = m_caret_byte_index;
+			case KeyboardKey::V: {
+				if (window->get_is_key_down(KeyboardKey::Control)) {
+					Index caret_character_index = _caret_character_index;
+					Index caret_byte_index = _caret_byte_index;
+					if (_isSelectionVisible) {
+						if (caret_character_index < _selectionEndCharacterIndex) {
+							string.erase(_caret_byte_index, _selectionEndByteIndex - _caret_byte_index);
+							_selectionEndCharacterIndex = _caret_character_index;
+							_selectionEndByteIndex = _caret_byte_index;
 						}
-						else
-						{
-							string.erase(m_selectionEndByteIndex, m_caret_byte_index - m_selectionEndByteIndex);
-							caretCharacterIndex = m_selectionEndCharacterIndex;
-							caretByteIndex = m_selectionEndByteIndex;
+						else {
+							string.erase(_selectionEndByteIndex, _caret_byte_index - _selectionEndByteIndex);
+							caret_character_index = _selectionEndCharacterIndex;
+							caret_byte_index = _selectionEndByteIndex;
 						}
-						m_isSelectionVisible = false;
+						_isSelectionVisible = false;
 					}
-					auto clipboardData = window->get_clipboard_data();
-					auto clipboardString = clipboardData->get_string();
-					string.insert(caretByteIndex, clipboardString);
-					set_string(string, caretCharacterIndex + getNumberOfCharactersInString<char>(clipboardString));
+					auto clipboard_data = window->get_clipboard_data();
+					auto clipboard_string = clipboard_data->get_string();
+					string.insert(caret_byte_index, clipboard_string);
+					set_string(string, caret_character_index + get_number_of_characters_in_string<char>(clipboard_string));
 
-					m_caretFrameCount = 1;
-					m_isCaretVisible = true;
+					_caretFrameCount = 1;
+					_isCaretVisible = true;
 				}
 				break;
 			}
-			case KeyboardKey::A:
-			{
-				if (!m_text)
-				{
+			case KeyboardKey::A: {
+				if (!_text) {
 					return;
 				}
-				if (window->getIsKeyDown(KeyboardKey::Control))
-				{
-					selectAll();
+				if (window->get_is_key_down(KeyboardKey::Control)) {
+					select_all();
 					return;
 				}
 				break;
 			}
-			case KeyboardKey::Enter:
-			{
-				editableTextEnterListeners(this);
+			case KeyboardKey::Enter: {
+				editable_text_enter_listeners(this);
 				break;
 			}
 		}
@@ -12544,27 +12313,27 @@ public:
 	*/
 	auto setSelection(Index startIndex, Index endIndex) -> void
 	{
-		if (m_text)
+		if (_text)
 		{
-			auto const number_of_characters_in_string = getNumberOfCharactersInString(m_text.get_string());
+			auto const number_of_characters_in_string = get_number_of_characters_in_string(_text.get_string());
 			startIndex = min(number_of_characters_in_string, startIndex);
 			endIndex = min(number_of_characters_in_string, max(startIndex, endIndex));
 			if (startIndex != endIndex)
 			{
-				if (startIndex != m_caret_character_index)
+				if (startIndex != _caret_character_index)
 				{
-					m_caret_character_index = startIndex;
-					m_caret_byte_index = getUnitIndexFromCharacterIndex(m_text.get_string(), m_caret_character_index);
-					m_caret_position = m_text.get_character_position(m_caret_character_index, true);
+					_caret_character_index = startIndex;
+					_caret_byte_index = getUnitIndexFromCharacterIndex(_text.get_string(), _caret_character_index);
+					_caret_position = _text.get_character_position(_caret_character_index, true);
 				}
 
-				if (endIndex != m_selectionEndCharacterIndex)
+				if (endIndex != _selectionEndCharacterIndex)
 				{
-					m_selectionEndCharacterIndex = endIndex;
-					m_selectionEndByteIndex = getUnitIndexFromCharacterIndex(m_text.get_string(), m_selectionEndCharacterIndex);
-					m_selection_end_position = m_text.get_character_position(m_selectionEndCharacterIndex, true);
+					_selectionEndCharacterIndex = endIndex;
+					_selectionEndByteIndex = getUnitIndexFromCharacterIndex(_text.get_string(), _selectionEndCharacterIndex);
+					_selection_end_position = _text.get_character_position(_selectionEndCharacterIndex, true);
 				}
-				m_isSelectionVisible = true;
+				_isSelectionVisible = true;
 				invalidate();
 			}
 		}
@@ -12572,21 +12341,21 @@ public:
 	/*
 		Selects all of the text.
 	*/
-	auto selectAll() -> void {
-		if (m_text) {
-			if (auto const stringLength = m_text.get_string().size()) {
-				if (m_caret_character_index != 0) {
-					m_caret_character_index = 0;
-					m_caret_byte_index = 0;
-					m_caret_position = m_text.get_character_position(m_caret_character_index, true);
+	auto select_all() -> void {
+		if (_text) {
+			if (auto const stringLength = _text.get_string().size()) {
+				if (_caret_character_index != 0) {
+					_caret_character_index = 0;
+					_caret_byte_index = 0;
+					_caret_position = _text.get_character_position(_caret_character_index, true);
 				}
 
-				if (m_selectionEndCharacterIndex != stringLength) {
-					m_selectionEndCharacterIndex = getNumberOfCharactersInString(m_text.get_string());
-					m_selectionEndByteIndex = stringLength;
-					m_selection_end_position = m_text.get_character_position(m_selectionEndCharacterIndex, true);
+				if (_selectionEndCharacterIndex != stringLength) {
+					_selectionEndCharacterIndex = get_number_of_characters_in_string(_text.get_string());
+					_selectionEndByteIndex = stringLength;
+					_selection_end_position = _text.get_character_position(_selectionEndCharacterIndex, true);
 				}
-				m_isSelectionVisible = true;
+				_isSelectionVisible = true;
 				invalidate();
 			}
 		}
@@ -12602,11 +12371,11 @@ public:
 	*/
 	auto set_string(std::string_view string, Index p_newCaretCharacterIndex = -1) -> void
 	{
-		if (m_text && m_text.get_string() == string) {
+		if (_text && _text.get_string() == string) {
 			return;
 		}
 		if (p_newCaretCharacterIndex == -1) {
-			p_newCaretCharacterIndex = m_caret_character_index;
+			p_newCaretCharacterIndex = _caret_character_index;
 		}
 
 		auto new_string = std::string{string};
@@ -12618,63 +12387,63 @@ public:
 		}
 
 		if (!new_string.size()) {
-			m_text.destroy();
-			m_caret_character_index = 0;
-			m_caret_byte_index = 0;
-			m_caret_position.y = 0;
-			if (m_text_align == TextAlign::Left) {
-				m_caret_position.x = 0;
+			_text.destroy();
+			_caret_character_index = 0;
+			_caret_byte_index = 0;
+			_caret_position.y = 0;
+			if (_text_align == TextAlign::Left) {
+				_caret_position.x = 0;
 			}
-			else if (m_text_align == TextAlign::Right) {
-				m_caret_position.x = get_width();
+			else if (_text_align == TextAlign::Right) {
+				_caret_position.x = get_width();
 			}
-			else if (m_text_align == TextAlign::Center) {
-				m_caret_position.x = get_width()*0.5f;
+			else if (_text_align == TextAlign::Center) {
+				_caret_position.x = get_width()*0.5f;
 			}
-			m_text_drawing_offset_x = 0.f;
-			m_isSelectionVisible = false;
+			_text_drawing_offset_x = 0.f;
+			_isSelectionVisible = false;
 			invalidate();
 			return;
 		}
 
-		m_text = get_drawing_context()->create_text(new_string, m_font_size);
-		m_text.set_font_weight(FontWeight::Regular);
-		m_text.set_text_align(m_text_align);
-		m_text.setWidth(get_width());
-		m_text.set_top(2.f);
-		m_text.setBottom(get_height(), false);
+		_text = get_drawing_context()->create_text(new_string, _font_size);
+		_text.set_font_weight(FontWeight::Regular);
+		_text.set_text_align(_text_align);
+		_text.set_width(get_width());
+		_text.set_top(2.f);
+		_text.set_bottom(get_height(), false);
 
-		auto const characterCount = getNumberOfCharactersInString<char>(new_string);
+		auto const characterCount = get_number_of_characters_in_string<char>(new_string);
 		if (p_newCaretCharacterIndex > characterCount)
 		{
-			m_caret_byte_index = new_string.size();
-			m_caret_character_index = characterCount;
+			_caret_byte_index = new_string.size();
+			_caret_character_index = characterCount;
 		}
-		else if (p_newCaretCharacterIndex != m_caret_character_index)
+		else if (p_newCaretCharacterIndex != _caret_character_index)
 		{
 			if (p_newCaretCharacterIndex < 0)
 			{
-				m_caret_character_index = 0;
-				m_caret_byte_index = 0;
+				_caret_character_index = 0;
+				_caret_byte_index = 0;
 			}
 			else
 			{
-				m_caret_character_index = p_newCaretCharacterIndex;
-				m_caret_byte_index = getUnitIndexFromCharacterIndex<char>(new_string, p_newCaretCharacterIndex);
+				_caret_character_index = p_newCaretCharacterIndex;
+				_caret_byte_index = getUnitIndexFromCharacterIndex<char>(new_string, p_newCaretCharacterIndex);
 			}
 		}
-		m_caret_position = m_text.get_character_position(m_caret_character_index, true);
+		_caret_position = _text.get_character_position(_caret_character_index, true);
 		update_caret_tracking();
 
-		if (m_isSelectionVisible) {
-			if (m_selectionEndByteIndex > new_string.size()) {
-				m_selectionEndByteIndex = new_string.size();
-				m_selectionEndCharacterIndex = characterCount;
-				if (m_selectionEndCharacterIndex == m_caret_character_index) {
-					m_isSelectionVisible = false;
+		if (_isSelectionVisible) {
+			if (_selectionEndByteIndex > new_string.size()) {
+				_selectionEndByteIndex = new_string.size();
+				_selectionEndCharacterIndex = characterCount;
+				if (_selectionEndCharacterIndex == _caret_character_index) {
+					_isSelectionVisible = false;
 				}
 				else {
-					m_selection_end_position = m_text.get_character_position(m_selectionEndCharacterIndex, true);
+					_selection_end_position = _text.get_character_position(_selectionEndCharacterIndex, true);
 				}
 			}
 		}
@@ -12684,8 +12453,8 @@ public:
 		Returns the content of the editable text.
 	*/
 	auto get_string() const -> std::string_view {
-		if (m_text) {
-			return m_text.get_string();
+		if (_text) {
+			return _text.get_string();
 		}
 		return "";
 	}
@@ -12717,7 +12486,7 @@ public:
 		Returns the internal text graphics object.
 	*/
 	auto get_text() const -> Text {
-		return m_text;
+		return _text;
 	}
 
 	//------------------------------
@@ -12727,10 +12496,10 @@ public:
 	*/
 	auto set_text_align(TextAlign text_align) -> void
 	{
-		m_text_align = text_align;
-		if (m_text)
+		_text_align = text_align;
+		if (_text)
 		{
-			m_text.set_text_align(m_text_align);
+			_text.set_text_align(_text_align);
 			invalidate();
 		}
 	}
@@ -12739,24 +12508,24 @@ public:
 	*/
 	auto get_text_align() const -> TextAlign
 	{
-		return m_text_align;
+		return _text_align;
 	}
 
 	//------------------------------
 
 	auto set_font_size(float font_size) -> void
 	{
-		m_font_size = font_size;
-		if (m_text)
+		_font_size = font_size;
+		if (_text)
 		{
-			m_text.set_font_size(font_size);
+			_text.set_font_size(font_size);
 		}
-		setHeight(font_size*1.2f);
+		set_height(font_size*1.2f);
 		invalidate();
 	}
 	auto get_font_size() const -> float
 	{
-		return m_font_size;
+		return _font_size;
 	}
 
 	//------------------------------
@@ -12764,9 +12533,9 @@ public:
 	auto handle_size_change() -> void override
 	{
 		update_caret_tracking();
-		if (m_text)
+		if (_text)
 		{
-			m_text.setWidth(get_width());
+			_text.set_width(get_width());
 		}
 	}
 
@@ -12776,12 +12545,12 @@ public:
 	{
 		if (get_gui()->get_keyboard_focus() == this)
 		{
-			if (m_caretFrameCount % (uint32)get_theme_value(ThemeValues::editable_text_caret_blink_rate) == 0 && !m_isSelectionVisible)
+			if (_caretFrameCount % (uint32)get_theme_value(ThemeValues::editable_text_caret_blink_rate) == 0 && !_isSelectionVisible)
 			{
-				m_isCaretVisible = !m_isCaretVisible;
+				_isCaretVisible = !_isCaretVisible;
 				invalidate();
 			}
-			m_caretFrameCount++;
+			_caretFrameCount++;
 			queue_animation_update();
 		}
 	}
@@ -12790,22 +12559,22 @@ public:
 	{
 		//context->set_color(Color(0.f));
 		//context->stroke_rectangle(get_size(), 1.f);
-		context->move_origin({m_text_drawing_offset_x, 0.f});
+		context->move_origin({_text_drawing_offset_x, 0.f});
 		context->set_color(get_theme_color(ThemeColors::on_background));
-		if (m_text)
+		if (_text)
 		{
-			context->draw_text(m_text);
-			if (m_isSelectionVisible)
+			context->draw_text(_text);
+			if (_isSelectionVisible)
 			{
 				context->set_color(get_theme_color(ThemeColors::selection));
-				context->fill_rectangle({m_caret_position.x, 0.f, m_selection_end_position.x, get_height()});
+				context->fill_rectangle({_caret_position.x, 0.f, _selection_end_position.x, get_height()});
 			}
 		}
-		if (m_isCaretVisible && !m_isSelectionVisible)
+		if (_isCaretVisible && !_isSelectionVisible)
 		{
-			context->draw_line({m_caret_position.x, 0.f}, {m_caret_position.x, get_height()}, 1.f);
+			context->draw_line({_caret_position.x, 0.f}, {_caret_position.x, get_height()}, 1.f);
 		}
-		context->move_origin({-m_text_drawing_offset_x, 0.f});
+		context->move_origin({-_text_drawing_offset_x, 0.f});
 	}
 };
 
@@ -12833,171 +12602,171 @@ public:
 
 	static constexpr float outlined_padding_label = 5.f;
 private:
-	Type m_type;
+	Type _type;
 
-	EditableText* m_editable_text = addView<EditableText>();
+	EditableText* _editable_text = add_view<EditableText>();
 public:
 	auto getEditableText() const noexcept -> EditableText* {
-		return m_editable_text;
+		return _editable_text;
 	}
 
 protected:
-	auto handle_theme_value_change(Id const p_id, float const p_newValue) -> void override
+	auto handle_theme_value_change(Id const id, float const p_newValue) -> void override
 	{
-		if (p_id == ThemeValues::text_field_font_size)
+		if (id == ThemeValues::text_field_font_size)
 		{
-			if (m_label_text)
+			if (_label_text)
 			{
-				m_label_text.set_font_size(p_newValue);
-				m_label_text.fit_size_to_text();
+				_label_text.set_font_size(p_newValue);
+				_label_text.fit_size_to_text();
 			}
-			if (m_prefixText)
+			if (_prefixText)
 			{
-				m_prefixText.set_font_size(p_newValue);
-				m_prefixText.fit_size_to_text();
+				_prefixText.set_font_size(p_newValue);
+				_prefixText.fit_size_to_text();
 			}
-			if (m_suffixText)
+			if (_suffixText)
 			{
-				m_suffixText.set_font_size(p_newValue);
-				m_suffixText.fit_size_to_text();
+				_suffixText.set_font_size(p_newValue);
+				_suffixText.fit_size_to_text();
 			}
-			m_editable_text->set_font_size(p_newValue);
+			_editable_text->set_font_size(p_newValue);
 		}
-		if (p_id == ThemeValues::text_field_font_size || p_id == ThemeValues::text_field_height)
+		if (id == ThemeValues::text_field_font_size || id == ThemeValues::text_field_height)
 		{
 			// Text positions will be updated in handle_size_change()
-			setHeight(get_theme_value(ThemeValues::text_field_font_size)*1.2f*get_theme_value(ThemeValues::text_field_height) + outlined_padding_label*(m_type == Type::Outlined));
+			set_height(get_theme_value(ThemeValues::text_field_font_size)*1.2f*get_theme_value(ThemeValues::text_field_height) + outlined_padding_label*(_type == Type::Outlined));
 		}
-		if (p_id == ThemeValues::text_field_padding_left)
+		if (id == ThemeValues::text_field_padding_left)
 		{
-			if (m_label_text)
+			if (_label_text)
 			{
-				m_label_text.set_left(p_newValue);
+				_label_text.set_left(p_newValue);
 			}
-			if (m_prefixText)
+			if (_prefixText)
 			{
-				m_prefixText.set_left(p_newValue);
-				m_editable_text->set_left(m_prefixText.getRight() + 1.f, false);
+				_prefixText.set_left(p_newValue);
+				_editable_text->set_left(_prefixText.getRight() + 1.f, false);
 			}
 			else
 			{
-				m_editable_text->set_left(p_newValue, false);
+				_editable_text->set_left(p_newValue, false);
 			}
 		}
-		else if (p_id == ThemeValues::text_field_padding_right)
+		else if (id == ThemeValues::text_field_padding_right)
 		{
-			if (m_suffixText)
+			if (_suffixText)
 			{
-				m_suffixText.set_right(get_width() - p_newValue);
-				m_editable_text->set_right(m_suffixText.getLeft() - 1.f, false);
+				_suffixText.set_right(get_width() - p_newValue);
+				_editable_text->set_right(_suffixText.getLeft() - 1.f, false);
 			}
 			else
 			{
-				m_editable_text->set_right(get_width() - p_newValue, false);
+				_editable_text->set_right(get_width() - p_newValue, false);
 			}
 		}
-		else if (p_id == ThemeValues::textFieldFilledPaddingBottom)
+		else if (id == ThemeValues::textFieldFilledPaddingBottom)
 		{
-			if (m_prefixText)
+			if (_prefixText)
 			{
-				m_prefixText.setBottom(get_height() - p_newValue);
+				_prefixText.set_bottom(get_height() - p_newValue);
 			}
-			if (m_suffixText)
+			if (_suffixText)
 			{
-				m_suffixText.setBottom(get_height() - p_newValue);
+				_suffixText.set_bottom(get_height() - p_newValue);
 			}
-			m_editable_text->setBottom(get_height() - p_newValue);
+			_editable_text->set_bottom(get_height() - p_newValue);
 		}
 	}
 
 public:
 	auto handle_size_change() -> void override
 	{
-		if (m_suffixText)
+		if (_suffixText)
 		{
-			m_suffixText.set_right(get_width() - get_theme_value(ThemeValues::text_field_padding_right));
-			m_editable_text->set_right(m_suffixText.getLeft() - 1.f, false);
+			_suffixText.set_right(get_width() - get_theme_value(ThemeValues::text_field_padding_right));
+			_editable_text->set_right(_suffixText.getLeft() - 1.f, false);
 		}
 		else
 		{
-			m_editable_text->set_right(get_width() - get_theme_value(ThemeValues::text_field_padding_right), false);
+			_editable_text->set_right(get_width() - get_theme_value(ThemeValues::text_field_padding_right), false);
 		}
 
-		if (m_type == Type::Filled)
+		if (_type == Type::Filled)
 		{
 			auto const bottom = get_height() - get_theme_value(ThemeValues::textFieldFilledPaddingBottom);
-			if (m_label_text)
+			if (_label_text)
 			{
-				m_label_text.setCenterY(get_height()*0.5f);
+				_label_text.set_center_y(get_height()*0.5f);
 			}
-			if (m_prefixText)
+			if (_prefixText)
 			{
-				m_prefixText.setBottom(bottom);
+				_prefixText.set_bottom(bottom);
 			}
-			if (m_suffixText)
+			if (_suffixText)
 			{
-				m_suffixText.setBottom(bottom);
+				_suffixText.set_bottom(bottom);
 			}
-			m_editable_text->setBottom(bottom);
+			_editable_text->set_bottom(bottom);
 		}
 		else
 		{
 			auto const centerY = outlined_padding_label + (get_height() - outlined_padding_label)*0.5f;
-			if (m_label_text)
+			if (_label_text)
 			{
-				m_label_text.setCenterY(centerY);
+				_label_text.set_center_y(centerY);
 			}
-			if (m_prefixText)
+			if (_prefixText)
 			{
-				m_prefixText.setCenterY(centerY);
+				_prefixText.set_center_y(centerY);
 			}
-			if (m_suffixText)
+			if (_suffixText)
 			{
-				m_suffixText.setCenterY(centerY);
+				_suffixText.set_center_y(centerY);
 			}
-			m_editable_text->setCenterY(centerY);
+			_editable_text->set_center_y(centerY);
 		}
 	}
 
 private:
-	Text m_label_text;
-	Color m_label_color;
+	Text _label_text;
+	Color _label_color;
 
 public:
 	auto set_label(std::string_view const p_label) -> void
 	{
-		if (m_label_text)
+		if (_label_text)
 		{
-			if (p_label == m_label_text.get_string())
+			if (p_label == _label_text.get_string())
 			{
 				return;
 			}
 		}
 		if (p_label.empty())
 		{
-			m_label_text.destroy();
+			_label_text.destroy();
 		}
 		else
 		{
-			m_label_text = get_gui()->get_drawing_context()->create_text(p_label, get_theme_value(ThemeValues::text_field_font_size));
-			m_label_text.set_font_weight(FontWeight::Regular);
-			m_label_text.fit_size_to_text();
-			if (m_type == Type::Filled)
+			_label_text = get_gui()->get_drawing_context()->create_text(p_label, get_theme_value(ThemeValues::text_field_font_size));
+			_label_text.set_font_weight(FontWeight::Regular);
+			_label_text.fit_size_to_text();
+			if (_type == Type::Filled)
 			{
-				m_label_text.setCenterY(get_height()*0.5f);
+				_label_text.set_center_y(get_height()*0.5f);
 			}
-			else if (m_type == Type::Outlined)
+			else if (_type == Type::Outlined)
 			{
-				m_label_text.setCenterY(outlined_padding_label + (get_height() - outlined_padding_label)*0.5f);
+				_label_text.set_center_y(outlined_padding_label + (get_height() - outlined_padding_label)*0.5f);
 			}
 			queue_animation_update();
 		}
 	}
 	auto getLabel() const -> std::string_view
 	{
-		if (m_label_text)
+		if (_label_text)
 		{
-			return m_label_text.get_string();
+			return _label_text.get_string();
 		}
 		return "";
 	}
@@ -13005,8 +12774,8 @@ public:
 	//------------------------------
 
 private:
-	Text m_prefixText;
-	Text m_suffixText;
+	Text _prefixText;
+	Text _suffixText;
 
 	auto setAffixString(std::string_view const string, Text& p_affixText) -> bool
 	{
@@ -13024,52 +12793,52 @@ private:
 		}
 		p_affixText = get_drawing_context()->create_text(string, get_theme_value(ThemeValues::text_field_font_size));
 		p_affixText.set_font_weight(FontWeight::Regular);
-		p_affixText.setHeight(p_affixText.get_font_size()*1.2f);
-		if (m_type == Type::Filled)
+		p_affixText.set_height(p_affixText.get_font_size()*1.2f);
+		if (_type == Type::Filled)
 		{
-			p_affixText.setBottom(get_theme_value(ThemeValues::textFieldFilledPaddingBottom));
+			p_affixText.set_bottom(get_theme_value(ThemeValues::textFieldFilledPaddingBottom));
 		}
 		else
 		{
-			p_affixText.set_top(m_editable_text->getTop() + 2.f);
+			p_affixText.set_top(_editable_text->getTop() + 2.f);
 		}
 		return true;
 	}
 public:
 	auto setPrefixString(std::string_view const string) -> void
 	{
-		if (setAffixString(string, m_prefixText))
+		if (setAffixString(string, _prefixText))
 		{
-			m_prefixText.set_left(get_theme_value(ThemeValues::text_field_padding_left));
-			m_editable_text->set_left(m_prefixText.getRight() + 1.f, false);
-			if (m_label_text)
+			_prefixText.set_left(get_theme_value(ThemeValues::text_field_padding_left));
+			_editable_text->set_left(_prefixText.getRight() + 1.f, false);
+			if (_label_text)
 			{
-				m_label_text.set_left(m_prefixText.getRight() + 1.f);
+				_label_text.set_left(_prefixText.getRight() + 1.f);
 			}
 		}
 	}
 	auto getPrefixString() const -> std::string_view
 	{
-		if (m_suffixText)
+		if (_suffixText)
 		{
-			return m_suffixText.get_string();
+			return _suffixText.get_string();
 		}
 		return "";
 	}
 
 	auto setSuffixString(std::string_view const string) -> void
 	{
-		if (setAffixString(string, m_suffixText))
+		if (setAffixString(string, _suffixText))
 		{
-			m_suffixText.set_right(get_width() - get_theme_value(ThemeValues::text_field_padding_right));
-			m_editable_text->set_right(m_suffixText.getLeft() - 1.f, false);
+			_suffixText.set_right(get_width() - get_theme_value(ThemeValues::text_field_padding_right));
+			_editable_text->set_right(_suffixText.getLeft() - 1.f, false);
 		}
 	}
 	auto getSuffixString() const -> std::string_view
 	{
-		if (m_suffixText)
+		if (_suffixText)
 		{
-			return m_suffixText.get_string();
+			return _suffixText.get_string();
 		}
 		return "";
 	}
@@ -13078,19 +12847,19 @@ public:
 
 	auto set_string(std::string_view const string) -> void
 	{
-		m_editable_text->set_string(string);
-		if (m_type == Type::Filled)
+		_editable_text->set_string(string);
+		if (_type == Type::Filled)
 		{
-			m_editable_text->setBottom(get_height() - get_theme_value(ThemeValues::textFieldFilledPaddingBottom));
+			_editable_text->set_bottom(get_height() - get_theme_value(ThemeValues::textFieldFilledPaddingBottom));
 		}
-		else if (m_type == Type::Outlined)
+		else if (_type == Type::Outlined)
 		{
-			m_editable_text->setCenterY(outlined_padding_label + (get_height() - outlined_padding_label)*0.5f);
+			_editable_text->set_center_y(outlined_padding_label + (get_height() - outlined_padding_label)*0.5f);
 		}
 	}
 	auto get_string() const -> std::string_view
 	{
-		return m_editable_text->get_string();
+		return _editable_text->get_string();
 	}
 	
 	/*
@@ -13115,16 +12884,16 @@ public:
 	template<typename T>
 	auto getValue() -> std::optional<T>
 	{
-		return m_editable_text->getValue<T>();
+		return _editable_text->getValue<T>();
 	}
 
 	//------------------------------
 
 	auto set_text_align(TextAlign text_align) -> void {
-		m_editable_text->set_text_align(text_align);
+		_editable_text->set_text_align(text_align);
 	}
 	auto get_text_align() const -> TextAlign {
-		return m_editable_text->get_text_align();
+		return _editable_text->get_text_align();
 	}
 
 	//------------------------------
@@ -13132,37 +12901,37 @@ public:
 	void handle_mouse_down(MouseEvent const& event) override {
 		MouseEvent event_copy = event;
 		event_copy.y = 0;
-		event_copy.x -= m_editable_text->getLeft();
-		m_editable_text->handle_mouse_down(event_copy);
+		event_copy.x -= _editable_text->getLeft();
+		_editable_text->handle_mouse_down(event_copy);
 	}
 	void handle_mouse_up(MouseEvent const& event) override
 	{
 		MouseEvent event_copy = event;
 		event_copy.y = 0;
-		event_copy.x -= m_editable_text->getLeft();
-		m_editable_text->handle_mouse_up(event_copy);
+		event_copy.x -= _editable_text->getLeft();
+		_editable_text->handle_mouse_up(event_copy);
 	}
 	void handle_mouse_move(MouseEvent const& event) override
 	{
 		MouseEvent event_copy = event;
 		event_copy.y = 0;
-		event_copy.x -= m_editable_text->getLeft();
-		m_editable_text->handle_mouse_move(event_copy);
+		event_copy.x -= _editable_text->getLeft();
+		_editable_text->handle_mouse_move(event_copy);
 	}
 	void handle_mouse_enter(MouseEvent const& event) override
 	{
 		View::handle_mouse_background_enter(event);
-		m_is_mouse_hovering = true;
+		_is_mouse_hovering = true;
 		queue_animation_update();
 	}
 	void handle_mouse_leave(MouseEvent const& event) override
 	{
-		m_is_mouse_hovering = false;
+		_is_mouse_hovering = false;
 		queue_animation_update();
 	}
 
 	void handle_keyboard_focus_gain() override {
-		get_gui()->set_keyboard_focus(m_editable_text);
+		get_gui()->set_keyboard_focus(_editable_text);
 	}
 
 	//------------------------------
@@ -13171,99 +12940,99 @@ public:
 		Returns whether the EditableText child of this text field has keyboard focus.
 	*/
 	bool get_has_keyboard_focus() const {
-		return m_editable_text == get_gui()->get_keyboard_focus();
+		return _editable_text == get_gui()->get_keyboard_focus();
 	}
 
 	//------------------------------
 
 private:
-	float m_focus_animation_time = 0.f;
-	Factor m_focus_animation_value = 0.f;
+	float _focus_animation_time = 0.f;
+	Factor _focus_animation_value = 0.f;
 
-	bool m_is_mouse_hovering = false;
-	float m_hover_animation_time = 0.f;
-	Factor m_hover_animation_value = 0.f;
+	bool _is_mouse_hovering = false;
+	float _hover_animation_time = 0.f;
+	Factor _hover_animation_value = 0.f;
 
 public:
 	auto update_animations() -> void override {
-		if (get_gui()->get_keyboard_focus() == m_editable_text) {
-			if (m_focus_animation_value < 1.f) {
-				m_focus_animation_value = get_theme_easing(ThemeEasings::in_out).ease_value(m_focus_animation_time);
-				m_focus_animation_time = min(1.f, m_focus_animation_time + 0.09f);
+		if (get_gui()->get_keyboard_focus() == _editable_text) {
+			if (_focus_animation_value < 1.f) {
+				_focus_animation_value = get_theme_easing(ThemeEasings::in_out).ease_value(_focus_animation_time);
+				_focus_animation_time = min(1.f, _focus_animation_time + 0.09f);
 				invalidate();
 				queue_animation_update();
 			}
 		}
-		else if (m_focus_animation_value > 0.f) {
-			m_focus_animation_value = 1.f - get_theme_easing(ThemeEasings::in_out).ease_value(1.f - m_focus_animation_time);
-			m_focus_animation_time = max(0.f, m_focus_animation_time - 0.09f);
+		else if (_focus_animation_value > 0.f) {
+			_focus_animation_value = 1.f - get_theme_easing(ThemeEasings::in_out).ease_value(1.f - _focus_animation_time);
+			_focus_animation_time = max(0.f, _focus_animation_time - 0.09f);
 			invalidate();
 			queue_animation_update();
 		}
-		if (m_is_mouse_hovering) {
-			if (m_hover_animation_value < 1.f) {
-				m_hover_animation_value = get_theme_easing(ThemeEasings::symmetrical_in_out).ease_value(m_hover_animation_time);
-				m_hover_animation_time = min(1.f, m_hover_animation_time + get_theme_value(ThemeValues::hover_animation_speed));
+		if (_is_mouse_hovering) {
+			if (_hover_animation_value < 1.f) {
+				_hover_animation_value = get_theme_easing(ThemeEasings::symmetrical_in_out).ease_value(_hover_animation_time);
+				_hover_animation_time = min(1.f, _hover_animation_time + get_theme_value(ThemeValues::hover_animation_speed));
 				invalidate();
 				queue_animation_update();
 			}
 		}
-		else if (m_hover_animation_value > 0.f) {
-			m_hover_animation_value = 1.f - get_theme_easing(ThemeEasings::symmetrical_in_out).ease_value(1.f - m_hover_animation_time);
-			m_hover_animation_time = max(0.f, m_hover_animation_time - get_theme_value(ThemeValues::hover_animation_speed));
+		else if (_hover_animation_value > 0.f) {
+			_hover_animation_value = 1.f - get_theme_easing(ThemeEasings::symmetrical_in_out).ease_value(1.f - _hover_animation_time);
+			_hover_animation_time = max(0.f, _hover_animation_time - get_theme_value(ThemeValues::hover_animation_speed));
 			invalidate();
 			queue_animation_update();
 		}
-		m_label_color = interpolate(
+		_label_color = interpolate(
 			interpolate(
 				get_theme_color(ThemeColors::background), 
 				get_theme_color(ThemeColors::on_background), 
-				(1.f - m_focus_animation_value)*m_hover_animation_value*0.3f + 0.4f
+				(1.f - _focus_animation_value)*_hover_animation_value*0.3f + 0.4f
 			), 
 			get_theme_color(ThemeColors::primary_on_background), 
-			m_focus_animation_value
+			_focus_animation_value
 		);
 	}
 
 	void draw(DrawingContext* const context) override {
-		if (m_type == Type::Filled) {
+		if (_type == Type::Filled) {
 			context->set_color({
 				interpolate(
 					get_theme_color(ThemeColors::background), get_theme_color(ThemeColors::on_background), 
-					0.05f + 0.05f*min(m_hover_animation_value*0.3f + m_focus_animation_value, 1.f)
+					0.05f + 0.05f*min(_hover_animation_value*0.3f + _focus_animation_value, 1.f)
 				), 1.f 
 			});
 			context->fill_rectangle(get_size());
 			context->set_color(Color{get_theme_color(ThemeColors::on_background), 0.4f});
 			context->draw_line({0.f, get_height() - 1.f}, {get_width(), get_height() - 0.5f}, 1.f);
-			if (m_focus_animation_value > 0.01f) {
+			if (_focus_animation_value > 0.01f) {
 				context->set_color(get_theme_color(ThemeColors::primary_on_background));
 				context->draw_line(
-					{(1.f - m_focus_animation_value)*get_width()*0.5f, get_height() - 1.f}, 
-					{(1.f + m_focus_animation_value)*get_width()*0.5f, get_height() - 1.f}, 
+					{(1.f - _focus_animation_value)*get_width()*0.5f, get_height() - 1.f}, 
+					{(1.f + _focus_animation_value)*get_width()*0.5f, get_height() - 1.f}, 
 					2.f
 				);
 			}
-			if (m_label_text) {
-				Factor label_animation_value = m_editable_text->get_string().empty() ? m_focus_animation_value : 1.f;
+			if (_label_text) {
+				Factor label_animation_value = _editable_text->get_string().empty() ? _focus_animation_value : 1.f;
 				Dip leftPadding = get_theme_value(ThemeValues::text_field_padding_left);
 				context->move_origin({
 					leftPadding + 2.f*label_animation_value, 
-					-0.17f*(get_height() - m_label_text.get_height() - leftPadding)*label_animation_value
+					-0.17f*(get_height() - _label_text.get_height() - leftPadding)*label_animation_value
 				});
 				context->set_scale(1.f - label_animation_value*0.3f);
-				context->set_color(m_label_color);
-				context->draw_text(m_label_text);
+				context->set_color(_label_color);
+				context->draw_text(_label_text);
 				context->set_scale(1.f);
-				context->setOrigin(get_absolute_top_left());
+				context->set_origin(get_absolute_top_left());
 			}
 		}
-		else if (m_type == Type::Outlined) {
-			context->set_color(m_label_color);
-			context->stroke_rectangle({1.f, 1.f + outlined_padding_label, get_width() - 1.f, get_height() - 1.f}, get_corners(), m_focus_animation_value + 1.f);
+		else if (_type == Type::Outlined) {
+			context->set_color(_label_color);
+			context->stroke_rectangle({1.f, 1.f + outlined_padding_label, get_width() - 1.f, get_height() - 1.f}, get_corners(), _focus_animation_value + 1.f);
 
-			if (m_label_text) {
-				Factor label_animation_value = m_editable_text->get_string().empty() ? m_focus_animation_value : 1.f;
+			if (_label_text) {
+				Factor label_animation_value = _editable_text->get_string().empty() ? _focus_animation_value : 1.f;
 				context->move_origin({
 					get_theme_value(ThemeValues::text_field_padding_left) + 2.f*label_animation_value, 
 					-(get_height() - outlined_padding_label)*0.3f*label_animation_value
@@ -13271,28 +13040,28 @@ public:
 				context->set_scale(1.f - label_animation_value*0.3f);
 
 				context->set_color(get_theme_color(ThemeColors::background));
-				context->fillRoundedRectangle(
+				context->fill_rounded_rectangle(
 					{
-						m_label_text.getLeft() - 4.f, m_label_text.getTop(), 
-						m_label_text.getRight() + 4.f, m_label_text.getBottom() 
+						_label_text.getLeft() - 4.f, _label_text.getTop(), 
+						_label_text.getRight() + 4.f, _label_text.getBottom() 
 					}, 2.f
 				);
 
-				context->set_color(m_label_color);
-				context->draw_text(m_label_text);
+				context->set_color(_label_color);
+				context->draw_text(_label_text);
 
 				context->set_scale(1.f);
-				context->setOrigin(get_absolute_top_left());
+				context->set_origin(get_absolute_top_left());
 			}
 		}
 
-		if (m_prefixText) {
+		if (_prefixText) {
 			context->set_color({get_theme_color(ThemeColors::on_background), 0.5f});
-			context->draw_text(m_prefixText);
+			context->draw_text(_prefixText);
 		}
-		if (m_suffixText) {
+		if (_suffixText) {
 			context->set_color({get_theme_color(ThemeColors::on_background), 0.5f});
-			context->draw_text(m_suffixText);
+			context->draw_text(_suffixText);
 		}
 	}
 
@@ -13302,10 +13071,10 @@ public:
 		View* const parent, 
 		Type const p_type = Type::Filled, 
 		std::string_view const p_label = "", 
-		Dip const p_width = 120.f
+		Dip const width = 120.f
 	) :
 		View{parent},
-		m_type{p_type}
+		_type{p_type}
 	{
 		initialize_theme_value(ThemeValues::text_field_font_size, 15.f);
 		initialize_theme_value(ThemeValues::text_field_height, 3.f);
@@ -13317,20 +13086,20 @@ public:
 		set_cursor(Cursor::Ibeam);
 		enable_mouse_events();
 
-		m_editable_text->set_font_size(get_theme_value(ThemeValues::text_field_font_size));
-		m_editable_text->set_left(get_theme_value(ThemeValues::text_field_padding_left));
-		m_editable_text->set_right(p_width - get_theme_value(ThemeValues::text_field_padding_right), false);
+		_editable_text->set_font_size(get_theme_value(ThemeValues::text_field_font_size));
+		_editable_text->set_left(get_theme_value(ThemeValues::text_field_padding_left));
+		_editable_text->set_right(width - get_theme_value(ThemeValues::text_field_padding_right), false);
 
 		auto const handle_editable_text_focus_change = [this]() {
 			queue_animation_update();
 		};
-		m_editable_text->keyboard_focus_gain_listeners += handle_editable_text_focus_change;
-		m_editable_text->keyboard_focus_lose_listeners += handle_editable_text_focus_change;
+		_editable_text->keyboard_focus_gain_listeners += handle_editable_text_focus_change;
+		_editable_text->keyboard_focus_lose_listeners += handle_editable_text_focus_change;
 
 		set_size({
-			p_width, 
+			width, 
 			get_theme_value(ThemeValues::text_field_font_size)*1.2f*get_theme_value(ThemeValues::text_field_height) + 
-			outlined_padding_label*(m_type == Type::Outlined)
+			outlined_padding_label*(_type == Type::Outlined)
 		});
 
 		if (p_type == Type::Filled) {
