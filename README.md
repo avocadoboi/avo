@@ -8,11 +8,12 @@ The project was inspired by Google's Material Design guidelines and includes som
 
 Warning: the project is still in development and a lot of breaking changes are being made.
 
-## How to start
+## CMake usage
+TODO: write about CMake integration.
 
-All you need to do is add "AvoGUI.hpp", "AvoGUI.cpp" and "Font data.hpp" to your project, and you're ready to start. c++17 standard is required. 
+## Getting started
 
-A short "getting started" tutorial will be added in the near future. Take a look at the documentation in AvoGUI.hpp for more information about anything. If there's something you wonder about not addressed in the documentation, please open an issue! More guides will also be made at some point, when the API has gotten somewhat stable. Meanwhile, the programs in "Test programs" can be useful for learning about how to use the framework. They should be up to date with the API.
+Take a look at the documentation in AvoGUI.hpp for more information about anything. If there's something you wonder about not addressed in the documentation, please open an issue! More guides will also be made at some point, when the API has gotten somewhat stable. Meanwhile, the programs in the examples directory can be useful for learning about how to use the framework. They should be up to date with the API.
 
 ### Unicode characters
 

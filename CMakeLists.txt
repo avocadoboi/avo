@@ -38,11 +38,22 @@ target_include_directories(avogui PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-if (WIN32)
-    target_link_libraries(avogui PRIVATE Shlwapi Dwmapi d2d1 d3d11 dxguid dwrite windowscodecs)
-else ()
+# if (WIN32)
+#     target_link_libraries(avogui PRIVATE Shlwapi Dwmapi d2d1 d3d11 dxguid dwrite windowscodecs)
+# else ()
 
+# endif ()
+
+#--------------------------------------------
+
+if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+	include(CTest)
+	if (BUILD_TESTING)
+		add_subdirectory(tests)
+	endif ()
 endif ()
+
+add_subdirectory(examples)
 
 #--------------------------------------------
 # Set up installation.
