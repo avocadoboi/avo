@@ -658,8 +658,8 @@ public:
 //------------------------------
 
 /*
-    Enables utf-8 encoded console output on Windows.
-    Pretty much all other platforms use utf-8 by default.
+    Enables UTF-8 encoded console output on Windows.
+    Pretty much all other platforms use UTF-8 by default.
 */
 auto enable_utf8_console() -> void;
 

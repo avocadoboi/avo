@@ -3,6 +3,7 @@
 !*.cpp
 !*.md
 !*.txt
+!*.cmake.in
 !*/
 
 build
