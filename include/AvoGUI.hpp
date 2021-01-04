@@ -34,8 +34,10 @@ SOFTWARE.
 #include <concepts>
 #include <cstdint>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 #include <numeric>
+#include <optional>
 #include <random>
 #include <ranges>
 #include <span>
@@ -61,6 +63,15 @@ using namespace std::string_view_literals;
 //------------------------------
 
 namespace avo {
+
+// Physical screen pixels
+using Pixels = std::int32_t;
+
+// Density independent pixels
+using Dip = float;
+
+// Represents a proportion of something. Something that will be multiplied with a value.
+using Factor = float;
 
 namespace utils {
 
@@ -525,46 +536,6 @@ public:
 //------------------------------
 
 /*
-    A random number generator, a small abstraction on top of the standard library.
-*/
-class Random {
-private:
-    std::default_random_engine _engine{std::random_device{}()};
-public:
-    /*
-        Generates a new uniformly distributed random floating point number in the range [min, max).
-    */
-    template<std::floating_point T>
-    [[nodiscard]]
-    auto next(T const min = T{}, T const max = T{1}) -> T {
-        return std::uniform_real_distribution<T>{min, max}(_engine);
-    }
-    /*
-        Generates a new uniformly distributed random integer in the range [min, max].
-    */
-    template<std::integral T>
-    [[nodiscard]]
-    auto next(T const min = T{}, T const max = T{1}) -> T {
-        return std::uniform_int_distribution<T>{min, max}(_engine);
-    }
-    /*
-        Generates a new random floating point number distributed according to a gaussian distribution
-        with a mean and a standard deviation.
-    */
-    template<std::floating_point T>
-    [[nodiscard]]
-    auto next_normal(T const mean, T const standard_deviation) -> T {
-        return std::normal_distribution<T>{mean, standard_deviation};
-    }
-
-    Random(std::uint_fast32_t const seed) :
-        _engine{seed}
-    {}
-};
-
-//------------------------------
-
-/*
 	Similar to std::unique_ptr except that non-pointer types can be held
 	and that a custom deleter must be specified. 
 
@@ -657,41 +628,263 @@ public:
 
 //------------------------------
 
+using DataVector = std::vector<std::byte>;
+using DataView = std::span<std::byte const>;
+using DataRange = std::span<std::byte>;
+
+[[nodiscard]] 
+inline auto read_file(std::string const path) -> DataVector {
+	auto file = std::ifstream(path.data(), std::ios::ate | std::ios::binary);
+
+	if (!file) {
+		return {};
+	}
+
+	auto result = DataVector(file.tellg());
+	file.seekg(0, std::ios::beg);
+	file.read(reinterpret_cast<char*>(result.data()), result.size());
+
+	return result;
+}
+
+//------------------------------
+
+/*
+	Binds a const object to a member method of its class, so that the returned object can be invoked without providing the instance.
+*/
+template<typename _ReturnType, typename _Class, typename ... _Arguments>
+[[nodiscard]] 
+constexpr auto bind(auto (_Class::* const function)(_Arguments...) const -> _ReturnType, _Class const* const instance)
+{
+	return [instance, function](_Arguments&& ... arguments) { 
+        return (instance->*function)(std::forward<_Arguments>(arguments)...); 
+    };
+}
+
+/*
+	Binds a mutable object to a member method of its class, so that the returned object can be invoked without providing the instance.
+*/
+template<typename _ReturnType, typename _Class, typename ... _Arguments>
+[[nodiscard]] 
+constexpr auto bind(auto (_Class::* const function)(_Arguments...) -> _ReturnType, _Class* const instance)
+{
+	return [instance, function](_Arguments&& ... arguments) { 
+        return (instance->*function)(std::forward<_Arguments>(arguments)...); 
+    };
+}
+
+#ifdef BUILD_TESTING
+static_assert(
+    []{
+        struct Test {
+            bool b{};
+
+            constexpr auto get() const -> bool {
+                return b;
+            }
+        };
+        auto const instance = Test{true};
+        auto const get_function = bind(&Test::get, &instance);
+        return get_function() == true;
+    }(),
+    "avo::utils::bind does not work with const objects."
+);
+static_assert(
+    []{
+        struct Test {
+            bool b{};
+
+            constexpr auto get() -> bool {
+                return b;
+            }
+        };
+        auto instance = Test{true};
+        auto const get_function = bind(&Test::get, &instance);
+        return get_function() == true;
+    }(),
+    "avo::utils::bind does not work with mutable objects."
+);
+#endif
+
+} // namespace utils
+
+//------------------------------
+
+/*
+    Unicode support library.
+*/
+namespace unicode {
+
 /*
     Enables UTF-8 encoded console output on Windows.
     Pretty much all other platforms use UTF-8 by default.
 */
 auto enable_utf8_console() -> void;
 
+//------------------------------
+
 /*
 	Converts a UTF-8 encoded char string to a UTF-16 encoded char16 string.
+    Returns the length of the converted string, in code point units (char16_t).
+    If no value is returned then the output span is too small to fit the whole converted string.
 */
-auto utf8_to_utf16(std::string_view input, std::span<char16_t> output) -> void;
+auto utf8_to_utf16(std::string_view input, std::span<char16_t> output) -> std::optional<std::size_t>;
 /*
 	Converts a UTF-8 encoded string to a UTF-16 encoded std::u16string.
 */
+[[nodiscard]]
 auto utf8_to_utf16(std::string_view input) -> std::u16string;
-/*
-	Returns the number of UTF-16 encoded char16 units that would be used to 
-    represent the same characters in a UTF-8 encoded char string.
-*/
-auto utf8_to_utf16_unit_count(std::string_view input) -> std::size_t;
 
 /*
 	Converts a UTF-16 encoded char16 string to a UTF-8 encoded char string.
+    Returns the length of the converted string, in code point units (char).
+    If no value is returned then the output span is too small to fit the whole converted string.
 */
-auto utf16_to_utf8(std::u16string_view input, std::span<char> output) -> void;
+auto utf16_to_utf8(std::u16string_view input, std::span<char> output) -> std::optional<std::size_t>;
 /*
 	Converts a UTF-16 char16 string to a UTF-8 encoded std::string.
 */
+[[nodiscard]]
 auto utf16_to_utf8(std::u16string_view input) -> std::string;
-/*
-	Returns the number of UTF-8 encoded char units that would be used to 
-    represent the same characters in a UTF-16 encoded char16 string.
-*/
-auto utf16_to_utf8_unit_count(std::u16string_view input) -> std::size_t;
 
-} // namespace utils
+//------------------------------
+
+/*
+    Returns the number of UTF-8 code points a character starting with 
+    first_code_point_in_character consists of in total.
+    Returns 0 if the code point is not the first one in a character.
+    Returns -1 if the code point is an invalid UTF-8 code point.
+*/
+[[nodiscard]]
+constexpr auto code_point_count(char const first_code_point_in_character) noexcept -> int {
+	// http://www.unicode.org/versions/Unicode12.1.0/ch03.pdf , page 126
+	if (!(first_code_point_in_character & 0x80)) // 0xxxxxxx
+		return 1;
+	if ((first_code_point_in_character & 0xc0) == 0x80) // 10??????
+		return 0;
+	if ((first_code_point_in_character & 0xe0) == 0xc0) // 110yyyyy
+		return 2;
+	if ((first_code_point_in_character & 0xf0) == 0xe0) // 1110zzzz
+		return 3;
+	if ((first_code_point_in_character & 0xf8) == 0xf0) // 11110uuu
+		return 4;
+	return -1;
+}
+
+/*
+    Returns the number of UTF-16 code points a character starting with 
+    first_code_point_in_character consists of in total.
+    Returns 0 if the code point is not the first one in a character.
+    Returns -1 if the code point is an invalid UTF-16 code point.
+*/
+[[nodiscard]]
+constexpr auto code_point_count(char16_t const first_code_point_in_character) noexcept -> int {
+	// http://www.unicode.org/versions/Unicode12.1.0/ch03.pdf , page 125
+	if ((first_code_point_in_character & 0xfc00) == 0xd800) // 110110wwwwxxxxxx
+		return 2;
+	if ((first_code_point_in_character & 0xfc00) == 0xdc00) // 110111xxxxxxxxxx
+		return 0;
+	return 1; // xxxxxxxxxxxxxxxx
+}
+
+/*
+	Returns whether the passed code point is the start of a UTF-8 encoded character.
+*/
+[[nodiscard]]
+constexpr auto is_first_code_point(char const code_point) noexcept -> bool {
+	return (code_point & 0xc0) != 0x80;
+}
+
+/*
+	Returns whether p_unit is the start of a UTF-16 encoded character
+*/
+[[nodiscard]]
+constexpr auto is_first_code_point(char16_t const code_point) noexcept -> bool {
+	return (code_point & 0xfc00) != 0xdc00;
+}
+
+template<typename T>
+concept IsCodePoint = utils::IsAnyOf<T, char, char16_t>;
+
+/*
+	Returns the index of the code point at a certain character index in a UTF-8 or UTF-16 encoded string.
+	If character_index is outside of the string, the size of the string is returned.
+*/
+template<IsCodePoint T>
+[[nodiscard]]
+constexpr auto code_point_index(std::basic_string_view<T> const string, std::size_t const character_index) 
+    -> std::size_t 
+{
+    if (!character_index) {
+        return {};
+    }
+    if (character_index >= string.size()) {
+        return string.size();
+    }
+
+    auto const position = std::ranges::find_if(
+        string, [character_index, char_count = std::size_t{}](T const code_point) mutable {
+            return is_first_code_point(code_point) && char_count++ == character_index;
+        }
+    );
+    return position - string.begin();
+}
+
+/*
+	Returns the index of the character that the code point at code_point_index in the UTF-8 or UTF-16 encoded string belongs to.
+	If code_point_index is outside of the string, the last character index is returned.
+	If code_point_index is past the start of a character but before the next one, it returns the index of the character it is part of.
+*/
+template<IsCodePoint T>
+[[nodiscard]]
+constexpr auto character_index(std::basic_string_view<T> const string, std::size_t const code_point_index) 
+    -> std::size_t 
+{
+    if (!code_point_index) {
+        return {};
+    }
+    if (code_point_index >= string.size()) {
+        return string.size();
+    }
+
+    return std::ranges::count_if(
+        string.begin() + 1, string.begin() + code_point_index + 1,
+        [](T const code_point) { return is_first_code_point(code_point); }
+    );
+}
+
+/*
+    Returns the number of unicode characters that a UTF-8 or UTF-16 string consists of.
+*/
+template<IsCodePoint T>
+[[nodiscard]]
+constexpr auto character_count(std::basic_string_view<T> const string) -> std::size_t {
+    return character_index(string, string.size()) + 1;
+}
+
+#ifdef BUILD_TESTING
+static_assert(
+    code_point_count('a') == 1 &&
+    code_point_count("å"[0]) == 2 &&
+    code_point_count("√"[0]) == 3 &&
+    code_point_count("🪢"[0]) == 4 &&
+    code_point_count(static_cast<char>(0b10101010)) == 0 &&
+    code_point_count(static_cast<char>(0b11111111)) == -1,
+    "avo::unicode::code_point_count does not work correctly with UTF-8."
+);
+static_assert(
+    code_point_count(u'a') == 1 &&
+    code_point_count(u"å"[0]) == 1 &&
+    code_point_count(u"√"[0]) == 1 &&
+    code_point_count(u"🪢"[0]) == 2 &&
+    code_point_count(static_cast<char16_t>(0b1101111010000011)) == 0,
+    "avo::unicode::code_point_count does not work correctly with UTF-16."
+);
+#endif
+
+} // namespace unicode
+
+//------------------------------
 
 namespace math {
 
@@ -788,6 +981,85 @@ static_assert(
 );
 #endif
 
+//------------------------------
+
+/*
+    A random number generator, a small abstraction on top of a subset 
+    of the standard library random utilities.
+*/
+class Random {
+private:
+    std::default_random_engine _engine{std::random_device{}()};
+public:
+    /*
+        Generates a new uniformly distributed random floating point number in the range [min, max).
+    */
+    template<std::floating_point T>
+    [[nodiscard]]
+    auto next(T const min = T{}, T const max = T{1}) -> T {
+        return std::uniform_real_distribution<T>{min, max}(_engine);
+    }
+    /*
+        Generates a new uniformly distributed random integer in the range [min, max].
+    */
+    template<std::integral T>
+    [[nodiscard]]
+    auto next(T const min = T{}, T const max = T{1}) -> T {
+        return std::uniform_int_distribution<T>{min, max}(_engine);
+    }
+    /*
+        Generates a new random floating point number distributed according to a gaussian distribution
+        with a mean and a standard deviation.
+    */
+    template<std::floating_point T>
+    [[nodiscard]]
+    auto next_normal(T const mean, T const standard_deviation) -> T {
+        return std::normal_distribution<T>{mean, standard_deviation};
+    }
+
+    Random(std::uint_fast32_t const seed) :
+        _engine{seed}
+    {}
+    Random() = default;
+};
+
 } // namespace math
+
+//------------------------------
+
+/*
+	Represents an ID.
+	To generate a new unique ID, use the default constructor like this:
+		auto const id = Id{};
+	To create an ID with a specific value (not guaranteed to be unique), just assign:
+		auto const id = Id{1234};
+	An ID which converts to 0 is considered invalid, and can be created like this:
+		auto const id = Id{0};
+*/
+class Id {
+public:
+	using ValueType = std::uint64_t;
+	
+private:
+	static ValueType s_counter;
+	ValueType _count;
+
+public:
+	constexpr operator ValueType() const noexcept {
+		return _count;
+	}
+	constexpr auto operator==(Id const& id) const noexcept -> bool = default;
+
+	constexpr explicit Id(ValueType const id) noexcept :
+		_count{id}
+	{}
+	Id() noexcept :
+		_count{++s_counter}
+	{}
+};
+
+//------------------------------
+
+
 
 } // namespace avo

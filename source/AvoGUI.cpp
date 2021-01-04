@@ -2,20 +2,24 @@
 
 #ifdef _WIN32
 #	include <windows.h>
+#else
+#	include <iconv.h>
 #endif
 
 namespace avo {
 
-namespace utils {
-
+namespace unicode {
 auto enable_utf8_console() -> void {
 #ifdef _WIN32
 	SetConsoleOutputCP(CP_UTF8);
 #endif
-	// Pretty much everyone else uses utf-8 by default.
+	// Pretty much everyone else uses UTF-8 by default.
 }
 
-auto utf8_to_utf16(std::string_view const input, std::span<char16_t> const output) -> void {
+using IconvHandle = utils::UniqueHandle<iconv_t, decltype([](iconv_t const handle){iconv_close(handle);})>;
+
+auto utf8_to_utf16(std::string_view const input, std::span<char16_t> const output) -> std::optional<std::size_t> {
+#ifdef _WIN32
 	auto const length = MultiByteToWideChar(
 		CP_UTF8, 0,
 		input.data(), static_cast<int>(input.size()),
@@ -25,8 +29,31 @@ auto utf8_to_utf16(std::string_view const input, std::span<char16_t> const outpu
 	if (length > 0) {
 		output[length] = 0;
 	}
+#else
+	// I have no idea why the input string data parameter isn't char const**.
+	// It shouldn't be modified, so a const_cast is made here.
+
+	auto in_pointer = const_cast<char*>(input.data());
+	auto in_bytes_left = input.size();
+	auto out_pointer = reinterpret_cast<char*>(output.data());
+	auto out_bytes_left = output.size()*sizeof(char16_t);
+
+	if (iconv(
+			IconvHandle{iconv_open("UTF-16LE", "UTF-8")}.get(), 
+			&in_pointer, 
+			&in_bytes_left, 
+			&out_pointer, 
+			&out_bytes_left
+		) == static_cast<std::size_t>(-1)) 
+	{
+		return {};
+	}
+	
+	return output.size() - out_bytes_left/sizeof(char16_t);
+#endif
 }
 auto utf8_to_utf16(std::string_view const input) -> std::u16string {
+#ifdef _WIN32
 	auto result = std::u16string(MultiByteToWideChar(
 		CP_UTF8, 0,
 		input.data(), static_cast<int>(input.size()),
@@ -40,16 +67,19 @@ auto utf8_to_utf16(std::string_view const input) -> std::u16string {
 	);
 
 	return result;
-}
-auto utf8_to_utf16_unit_count(std::string_view const input) -> std::size_t {
-	return MultiByteToWideChar(
-		CP_UTF8, 0,
-		input.data(), static_cast<int>(input.size()),
-		0, 0
-	);
+#else
+	auto output = std::u16string(input.size(), u'\0');
+	if (auto const length = utf8_to_utf16(input, std::span{output})) {
+		// length includes null terminator because of std::span constructor.
+		output.resize(*length);
+		return output;
+	}
+	return {};
+#endif
 }
 
-auto utf16_to_utf8(std::u16string_view const input, std::span<char> const output) -> void {
+auto utf16_to_utf8(std::u16string_view const input, std::span<char> const output) -> std::optional<std::size_t> {
+#ifdef _WIN32
 	auto const length = WideCharToMultiByte(
 		CP_UTF8, 0,
 		reinterpret_cast<wchar_t const*>(input.data()), static_cast<int>(input.size()),
@@ -60,8 +90,27 @@ auto utf16_to_utf8(std::u16string_view const input, std::span<char> const output
 	if (length > 0) {
 		output[length] = 0;
 	}
+#else
+	auto in_pointer = const_cast<char*>(reinterpret_cast<char const*>(input.data()));
+	auto in_bytes_left = input.size()*sizeof(char16_t);
+	auto out_pointer = output.data();
+	auto out_bytes_left = output.size();
+
+	if (iconv(
+			IconvHandle{iconv_open("UTF-8", "UTF-16")}.get(), 
+			&in_pointer, 
+			&in_bytes_left, 
+			&out_pointer, 
+			&out_bytes_left
+		) == static_cast<std::size_t>(-1)) 
+	{
+		return {};
+	}
+	return output.size() - out_bytes_left;
+#endif
 }
 auto utf16_to_utf8(std::u16string_view const input) -> std::string {
+#ifdef _WIN32
 	auto result = std::string(WideCharToMultiByte(
 		CP_UTF8, 0,
 		reinterpret_cast<wchar_t const*>(input.data()), static_cast<int>(input.size()),
@@ -76,15 +125,17 @@ auto utf16_to_utf8(std::u16string_view const input) -> std::string {
 	);
 
 	return result;
-}
-auto utf16_to_utf8_unit_count(std::u16string_view const input) -> std::size_t {
-	return WideCharToMultiByte(
-		CP_UTF8, 0,
-		reinterpret_cast<wchar_t const*>(input.data()), static_cast<int>(input.size()),
-		0, 0, nullptr, nullptr
-	);
+#else
+	auto output = std::string(input.size()*3, '\0');
+	if (auto const length = utf16_to_utf8(input, std::span{output})) {
+		output.resize(*length);
+		return output;
+	}
+	return {};
+#endif
 }
 
-} // namespace utils
+} // namespace unicode
+
 
 } // namespace avo

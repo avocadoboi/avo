@@ -38,11 +38,14 @@ target_include_directories(avogui PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-# if (WIN32)
+if (WIN32)
 #     target_link_libraries(avogui PRIVATE Shlwapi Dwmapi d2d1 d3d11 dxguid dwrite windowscodecs)
-# else ()
-
-# endif ()
+else ()
+	find_package(Iconv REQUIRED)
+	if (NOT Iconv_IS_BUILT_IN)
+		target_link_libraries(avogui PRIVATE ${Iconv_LIBRARIES})
+	endif ()
+endif ()
 
 #--------------------------------------------
 
