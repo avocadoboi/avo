@@ -26,9 +26,10 @@ auto utf8_to_utf16(std::string_view const input, std::span<char16_t> const outpu
 		reinterpret_cast<wchar_t*>(output.data()), static_cast<int>(output.size())
 	);
 
-	if (length > 0) {
-		output[length] = 0;
+	if (length == 0 && GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+		return {};
 	}
+	return length;
 #else
 	// I have no idea why the input string data parameter isn't char const**.
 	// It shouldn't be modified, so a const_cast is made here.
@@ -86,10 +87,10 @@ auto utf16_to_utf8(std::u16string_view const input, std::span<char> const output
 		output.data(), static_cast<int>(output.size()),
 		nullptr, nullptr
 	);
-
-	if (length > 0) {
-		output[length] = 0;
+	if (length == 0 && GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+		return {};
 	}
+	return length;
 #else
 	auto in_pointer = const_cast<char*>(reinterpret_cast<char const*>(input.data()));
 	auto in_bytes_left = input.size()*sizeof(char16_t);

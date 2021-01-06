@@ -35,7 +35,9 @@ SOFTWARE.
 #include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <functional>
 #include <iostream>
+#include <mutex>
 #include <numeric>
 #include <optional>
 #include <random>
@@ -92,234 +94,234 @@ concept IsNumber = std::integral<T> || std::floating_point<T>;
 template<std::integral _Value, bool is_reverse = false>
 class Range {
 public:
-    using value_type = _Value;
+	using value_type = _Value;
 
-    class Iterator {
-    public:
-        using value_type = std::remove_cv_t<_Value>;
-        using reference = value_type&;
-        using pointer = value_type*;
-        using iterator_category = std::bidirectional_iterator_tag;
-        using iterator_concept = std::bidirectional_iterator_tag;
-        using difference_type = value_type;
+	class Iterator {
+	public:
+		using value_type = std::remove_cv_t<_Value>;
+		using reference = value_type&;
+		using pointer = value_type*;
+		using iterator_category = std::bidirectional_iterator_tag;
+		using iterator_concept = std::bidirectional_iterator_tag;
+		using difference_type = value_type;
 
-    private:
-        value_type _current_value;
+	private:
+		value_type _current_value;
 
-    public:
-        constexpr auto operator++(int) noexcept -> Iterator {
-            if constexpr (is_reverse) {
-                return Iterator{_current_value--};
-            }
-            else {
-                return Iterator{_current_value++};
-            }
-        }
-        constexpr auto operator++() noexcept -> Iterator& {
-            if constexpr (is_reverse) {
-                --_current_value;
-            }
-            else {
-                ++_current_value;
-            }
-            return *this;
-        }
+	public:
+		constexpr auto operator++(int) noexcept -> Iterator {
+			if constexpr (is_reverse) {
+				return Iterator{_current_value--};
+			}
+			else {
+				return Iterator{_current_value++};
+			}
+		}
+		constexpr auto operator++() noexcept -> Iterator& {
+			if constexpr (is_reverse) {
+				--_current_value;
+			}
+			else {
+				++_current_value;
+			}
+			return *this;
+		}
 
-        [[nodiscard]]
-        constexpr auto operator+(difference_type const offset) const noexcept -> Iterator {
-            if constexpr (is_reverse) {
-                return _current_value - offset;
-            }
-            else {
-                return _current_value + offset;
-            }
-        }
-        constexpr auto operator+=(difference_type const offset) noexcept -> Iterator& {
-            if constexpr (is_reverse) {
-                _current_value -= offset;
-            }
-            else {
-                _current_value += offset;
-            }
-            return *this;
-        }
+		[[nodiscard]]
+		constexpr auto operator+(difference_type const offset) const noexcept -> Iterator {
+			if constexpr (is_reverse) {
+				return _current_value - offset;
+			}
+			else {
+				return _current_value + offset;
+			}
+		}
+		constexpr auto operator+=(difference_type const offset) noexcept -> Iterator& {
+			if constexpr (is_reverse) {
+				_current_value -= offset;
+			}
+			else {
+				_current_value += offset;
+			}
+			return *this;
+		}
 
-        constexpr auto operator--(int) noexcept -> Iterator {
-            if constexpr (is_reverse) {
-                return Iterator{_current_value++};
-            }
-            else {
-                return Iterator{_current_value--};
-            }
-        }
-        constexpr auto operator--() noexcept -> Iterator& {
-            if constexpr (is_reverse) {
-                ++_current_value;
-            }
-            else {
-                --_current_value;
-            }
-            return *this;
-        }
+		constexpr auto operator--(int) noexcept -> Iterator {
+			if constexpr (is_reverse) {
+				return Iterator{_current_value++};
+			}
+			else {
+				return Iterator{_current_value--};
+			}
+		}
+		constexpr auto operator--() noexcept -> Iterator& {
+			if constexpr (is_reverse) {
+				++_current_value;
+			}
+			else {
+				--_current_value;
+			}
+			return *this;
+		}
 
-        [[nodiscard]]
-        constexpr auto operator-(difference_type const offset) const noexcept -> Iterator {
-            if constexpr (is_reverse) {
-                return _current_value + offset;
-            }
-            else {
-                return _current_value - offset;
-            }        
-        }
-        constexpr auto operator-=(difference_type const offset) noexcept -> Iterator& {
-            if constexpr (is_reverse) {
-                _current_value += offset;
-            }
-            else {
-                _current_value -= offset;
-            }
-            return *this;
-        }
+		[[nodiscard]]
+		constexpr auto operator-(difference_type const offset) const noexcept -> Iterator {
+			if constexpr (is_reverse) {
+				return _current_value + offset;
+			}
+			else {
+				return _current_value - offset;
+			}        
+		}
+		constexpr auto operator-=(difference_type const offset) noexcept -> Iterator& {
+			if constexpr (is_reverse) {
+				_current_value += offset;
+			}
+			else {
+				_current_value -= offset;
+			}
+			return *this;
+		}
 
-        [[nodiscard]]
-        constexpr auto operator*() const noexcept -> value_type const& {
-            return _current_value;
-        }
-        [[nodiscard]]
-        constexpr auto operator*() noexcept -> value_type& {
-            return _current_value;
-        }
+		[[nodiscard]]
+		constexpr auto operator*() const noexcept -> value_type const& {
+			return _current_value;
+		}
+		[[nodiscard]]
+		constexpr auto operator*() noexcept -> value_type& {
+			return _current_value;
+		}
 
-        [[nodiscard]]
-        constexpr auto operator<=>(Iterator const& other) const noexcept = default;
+		[[nodiscard]]
+		constexpr auto operator<=>(Iterator const& other) const noexcept = default;
 
-        constexpr Iterator() noexcept = default;
-        constexpr Iterator(_Value const value) noexcept :
-            _current_value{value}
-        {}
-    };
+		constexpr Iterator() noexcept = default;
+		constexpr Iterator(_Value const value) noexcept :
+			_current_value{value}
+		{}
+	};
 
 private:
-    Iterator _start;
-    Iterator _end;
+	Iterator _start;
+	Iterator _end;
 
 public:
-    [[nodiscard]]
-    constexpr auto reverse() const noexcept -> Range<_Value, !is_reverse> {
-        return {*(_end - 1), *_start};
-    }
+	[[nodiscard]]
+	constexpr auto reverse() const noexcept -> Range<_Value, !is_reverse> {
+		return {*(_end - 1), *_start};
+	}
 
-    [[nodiscard]]
-    constexpr auto begin() const noexcept -> Iterator {
-        return _start;
-    }
+	[[nodiscard]]
+	constexpr auto begin() const noexcept -> Iterator {
+		return _start;
+	}
 
-    [[nodiscard]]
-    constexpr auto end() const noexcept -> Iterator {
-        return _end;
-    }
+	[[nodiscard]]
+	constexpr auto end() const noexcept -> Iterator {
+		return _end;
+	}
 
-    constexpr auto operator==(Range const&) const noexcept -> bool = default;
+	constexpr auto operator==(Range const&) const noexcept -> bool = default;
 
-    /*
-        Creates a range of integers starting with start and ending with inclusive_end.
-    */
-    constexpr Range(_Value const start, _Value const inclusive_end) noexcept requires (!is_reverse) :
-        _start{start},
-        _end{inclusive_end + 1}
-    {}
-    constexpr Range(_Value const start, _Value const inclusive_end) noexcept requires is_reverse :
-        _start{start},
-        _end{inclusive_end - 1}
-    {}
-    /*
-        Creates a range of integers starting with 0 and ending with count - 1.
-    */
-    constexpr Range(_Value const count) noexcept :
-        _start{0},
-        _end{count}
-    {}
+	/*
+		Creates a range of integers starting with start and ending with inclusive_end.
+	*/
+	constexpr Range(_Value const start, _Value const inclusive_end) noexcept requires (!is_reverse) :
+		_start{start},
+		_end{inclusive_end + 1}
+	{}
+	constexpr Range(_Value const start, _Value const inclusive_end) noexcept requires is_reverse :
+		_start{start},
+		_end{inclusive_end - 1}
+	{}
+	/*
+		Creates a range of integers starting with 0 and ending with count - 1.
+	*/
+	constexpr Range(_Value const count) noexcept :
+		_start{0},
+		_end{count}
+	{}
 
-    constexpr Range() noexcept = default;
+	constexpr Range() noexcept = default;
 };
 
 template<typename T, typename _Value = typename T::value_type>
 concept IsRange = requires(T range) {
-    { Range{range} } -> std::same_as<T>;
-    requires std::same_as<_Value, typename T::value_type>;
+	{ Range{range} } -> std::same_as<T>;
+	requires std::same_as<_Value, typename T::value_type>;
 };
 
 #ifdef BUILD_TESTING
 static_assert(
-    [] {
-        constexpr auto check_with = [](IsRange<int> auto const range) {
-            return range.reverse().reverse() == range;
-        };
-        return check_with(Range{31415}) && check_with(Range{-6283, 31415});
-    }(), 
-    "Inverse property of avo::utils::Range::reverse() is not held"
+	[] {
+		constexpr auto check_with = [](IsRange<int> auto const range) {
+			return range.reverse().reverse() == range;
+		};
+		return check_with(Range{31415}) && check_with(Range{-6283, 31415});
+	}(), 
+	"Inverse property of avo::utils::Range::reverse() is not held"
 );
 static_assert(
-    [] {
-        constexpr auto number_of_iterations = std::size_t{10};
+	[] {
+		constexpr auto number_of_iterations = std::size_t{10};
 
-	    auto a = std::size_t{};
-	    for (auto const b : Range{number_of_iterations}) {
-            if (a != b) {
-                return false;
-            }
-		    ++a;
-	    }
-	    return a == number_of_iterations;
-    }(),
-    "avo::utils::Range with single constructor argument works incorrectly."
+		auto a = std::size_t{};
+		for (auto const b : Range{number_of_iterations}) {
+			if (a != b) {
+				return false;
+			}
+			++a;
+		}
+		return a == number_of_iterations;
+	}(),
+	"avo::utils::Range with single constructor argument works incorrectly."
 );
 static_assert(
-    [] {
-        constexpr auto number_of_iterations = std::size_t{10};
+	[] {
+		constexpr auto number_of_iterations = std::size_t{10};
 
-        auto a = number_of_iterations;
-        for (auto const b : Range{number_of_iterations}.reverse()) {
-            --a;
-            if (a != b) {
-                return false;
-            }
-        }
-        return a == 0;
-    }(),
-    "Reversed avo::utils::Range with single constructor argument works incorrectly."
+		auto a = number_of_iterations;
+		for (auto const b : Range{number_of_iterations}.reverse()) {
+			--a;
+			if (a != b) {
+				return false;
+			}
+		}
+		return a == 0;
+	}(),
+	"Reversed avo::utils::Range with single constructor argument works incorrectly."
 );
 static_assert(
-    [] {
-        constexpr auto min = -5;
-        constexpr auto max = 8;
+	[] {
+		constexpr auto min = -5;
+		constexpr auto max = 8;
 
-        auto a = min;
-        for (auto const b : Range{min, max}) {
-            if (a != b) {
-                return false;
-            }
-            ++a;
-        }
-        return a == max + 1;
-    }(),
-    "avo::utils::Range with two constructor arguments works incorrectly."
+		auto a = min;
+		for (auto const b : Range{min, max}) {
+			if (a != b) {
+				return false;
+			}
+			++a;
+		}
+		return a == max + 1;
+	}(),
+	"avo::utils::Range with two constructor arguments works incorrectly."
 );
 static_assert(
-    [] {
-        constexpr auto min = -5;
-        constexpr auto max = 8;
+	[] {
+		constexpr auto min = -5;
+		constexpr auto max = 8;
 
-        auto a = max;
-        for (auto const b : Range{min, max}.reverse()) {
-            if (a != b) {
-                return false;
-            }
-            --a;
-        }
-        return a == min - 1;
-    }(),
-    "Reversed avo::utils::Range with two constructor arguments works incorrectly."
+		auto a = max;
+		for (auto const b : Range{min, max}.reverse()) {
+			if (a != b) {
+				return false;
+			}
+			--a;
+		}
+		return a == min - 1;
+	}(),
+	"Reversed avo::utils::Range with two constructor arguments works incorrectly."
 );
 #endif // BUILD_TESTING
 
@@ -330,20 +332,20 @@ static_assert(
 */
 [[nodiscard]]
 constexpr auto indices(std::ranges::sized_range auto&& range) -> Range<std::size_t> {
-    return std::size(range);
+	return std::size(range);
 }
 
 #ifdef BUILD_TESTING
 static_assert(
-    [] {
-        constexpr auto container = std::array{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 6};
-        return indices(container) == Range{container.size()};
-    }(),
-    "avo::utils::indices with lvalue reference failed."
+	[] {
+		constexpr auto container = std::array{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 6};
+		return indices(container) == Range{container.size()};
+	}(),
+	"avo::utils::indices with lvalue reference failed."
 );
 static_assert(
-    indices(std::array{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 6}) == Range{std::size_t{11}},
-    "avo::utils::indices with rvalue reference failed."
+	indices(std::array{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 6}) == Range{std::size_t{11}},
+	"avo::utils::indices with rvalue reference failed."
 );
 #endif // BUILD_TESTING
 
@@ -351,8 +353,8 @@ static_assert(
 
 template<typename T>
 struct EnumeratedElement {
-    std::size_t index;
-    T& element;
+	std::size_t index;
+	T& element;
 };
 
 /*
@@ -361,16 +363,16 @@ struct EnumeratedElement {
 */
 [[nodiscard]]
 constexpr auto enumerate(std::ranges::range auto& range) 
-    -> std::ranges::view auto 
+	-> std::ranges::view auto 
 {
-    return range | std::views::transform([i = std::size_t{}](auto& element) mutable {
-        return EnumeratedElement{i++, element};
-    });
+	return range | std::views::transform([i = std::size_t{}](auto& element) mutable {
+		return EnumeratedElement{i++, element};
+	});
 }
 
 /*
-    Takes an rvalue range and returns a range of (index, element) pairs referring to 
-    the original range. The returned range owns the original range since it is moved into it.
+	Takes an rvalue range and returns a range of (index, element) pairs referring to 
+	the original range. The returned range owns the original range since it is moved into it.
 */
 [[nodiscard]]
 constexpr auto enumerate(std::ranges::range auto&& range) -> std::ranges::range auto;
@@ -382,102 +384,102 @@ constexpr auto enumerate(std::ranges::range auto&& range) -> std::ranges::range 
 template<std::ranges::range T> requires std::movable<T>
 class EnumeratedRange {
 private:
-    using _BaseIterator = std::ranges::iterator_t<T const>;
-    T _range;
+	using _BaseIterator = std::ranges::iterator_t<T const>;
+	T _range;
 
 public:
-    class Iterator {
-    public:
-        using value_type = EnumeratedElement<std::ranges::range_value_t<T> const>;
-        using reference = value_type&;
-        using pointer = value_type*;
-        using iterator_category = std::input_iterator_tag;
-        using iterator_concept = std::input_iterator_tag;
-        using difference_type = std::ptrdiff_t;
+	class Iterator {
+	public:
+		using value_type = EnumeratedElement<std::ranges::range_value_t<T> const>;
+		using reference = value_type&;
+		using pointer = value_type*;
+		using iterator_category = std::input_iterator_tag;
+		using iterator_concept = std::input_iterator_tag;
+		using difference_type = std::ptrdiff_t;
 
-    private:
-        _BaseIterator _base_iterator;
-        std::size_t _index;
+	private:
+		_BaseIterator _base_iterator;
+		std::size_t _index;
 		
-    public:
-        constexpr auto operator++(int) -> Iterator {
-            return Iterator{++_base_iterator, ++_index};
-        }
-        constexpr auto operator++() -> Iterator& {
-            ++_base_iterator;
-            ++_index;
-            return *this;
-        }
+	public:
+		constexpr auto operator++(int) -> Iterator {
+			return Iterator{++_base_iterator, ++_index};
+		}
+		constexpr auto operator++() -> Iterator& {
+			++_base_iterator;
+			++_index;
+			return *this;
+		}
 
 		[[nodiscard]]
-        constexpr auto operator==(Iterator const& other) const noexcept -> bool {
-            return _base_iterator == other._base_iterator;
-        }
+		constexpr auto operator==(Iterator const& other) const noexcept -> bool {
+			return _base_iterator == other._base_iterator;
+		}
 
 		[[nodiscard]]
-        constexpr auto operator*() const -> value_type {
-            return EnumeratedElement{_index, *_base_iterator};
-        }
+		constexpr auto operator*() const -> value_type {
+			return EnumeratedElement{_index, *_base_iterator};
+		}
 
-        constexpr Iterator() = default;
-        constexpr Iterator(_BaseIterator const base_iterator, std::size_t const index) :
-            _base_iterator{base_iterator},
-            _index{index}
-        {}
-    };
+		constexpr Iterator() = default;
+		constexpr Iterator(_BaseIterator const base_iterator, std::size_t const index) :
+			_base_iterator{base_iterator},
+			_index{index}
+		{}
+	};
 
-    [[nodiscard]]
-    constexpr auto begin() const -> Iterator {
-        return Iterator{std::begin(_range), std::size_t{}};
-    }
-    [[nodiscard]]
-    constexpr auto end() const -> Iterator {
-        return Iterator{std::end(_range), std::size_t{}};
-    }
+	[[nodiscard]]
+	constexpr auto begin() const -> Iterator {
+		return Iterator{std::begin(_range), std::size_t{}};
+	}
+	[[nodiscard]]
+	constexpr auto end() const -> Iterator {
+		return Iterator{std::end(_range), std::size_t{}};
+	}
 
-    friend constexpr auto enumerate<>(T&& range) -> std::ranges::range auto;
+	friend constexpr auto enumerate<>(T&& range) -> std::ranges::range auto;
 
 private:
-    constexpr EnumeratedRange(T&& range) noexcept :
-        _range{std::forward<T>(range)}
-    {}
-    constexpr EnumeratedRange() = default;
+	constexpr EnumeratedRange(T&& range) noexcept :
+		_range{std::forward<T>(range)}
+	{}
+	constexpr EnumeratedRange() = default;
 };
 
 constexpr auto enumerate(std::ranges::range auto&& range) 
-    -> std::ranges::range auto
+	-> std::ranges::range auto
 {
-    return EnumeratedRange{std::move(range)};
+	return EnumeratedRange{std::move(range)};
 }
 
 #ifdef BUILD_TESTING
 static_assert(
-    [] {
-        constexpr auto container = std::array{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 6};
-        auto correct_index = std::size_t{};
-        for (auto const [index, element] : enumerate(container)) {
-            if (index != correct_index || element != container[correct_index]) {
-                return false;
-            }
-            ++correct_index;
-        }
-        return correct_index == container.size();
-    }(),
-    "avo::utils::enumerate with lvalue reference failed."
+	[] {
+		constexpr auto container = std::array{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 6};
+		auto correct_index = std::size_t{};
+		for (auto const [index, element] : enumerate(container)) {
+			if (index != correct_index || element != container[correct_index]) {
+				return false;
+			}
+			++correct_index;
+		}
+		return correct_index == container.size();
+	}(),
+	"avo::utils::enumerate with lvalue reference failed."
 );
 static_assert(
-    [] {
-        constexpr auto original_container = std::array{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 6};
-        auto correct_index = std::size_t{};
-        for (auto const [index, element] : enumerate(std::array{original_container})) {
-            if (index != correct_index || element != original_container[correct_index]) {
-                return false;
-            }
-            ++correct_index;
-        }
-        return correct_index == original_container.size();
-    }(),
-    "avo::utils::enumerate with rvalue reference failed."
+	[] {
+		constexpr auto original_container = std::array{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 6};
+		auto correct_index = std::size_t{};
+		for (auto const [index, element] : enumerate(std::array{original_container})) {
+			if (index != correct_index || element != original_container[correct_index]) {
+				return false;
+			}
+			++correct_index;
+		}
+		return correct_index == original_container.size();
+	}(),
+	"avo::utils::enumerate with rvalue reference failed."
 );
 #endif
 
@@ -657,8 +659,8 @@ template<typename _ReturnType, typename _Class, typename ... _Arguments>
 constexpr auto bind(auto (_Class::* const function)(_Arguments...) const -> _ReturnType, _Class const* const instance)
 {
 	return [instance, function](_Arguments&& ... arguments) { 
-        return (instance->*function)(std::forward<_Arguments>(arguments)...); 
-    };
+		return (instance->*function)(std::forward<_Arguments>(arguments)...); 
+	};
 }
 
 /*
@@ -669,40 +671,40 @@ template<typename _ReturnType, typename _Class, typename ... _Arguments>
 constexpr auto bind(auto (_Class::* const function)(_Arguments...) -> _ReturnType, _Class* const instance)
 {
 	return [instance, function](_Arguments&& ... arguments) { 
-        return (instance->*function)(std::forward<_Arguments>(arguments)...); 
-    };
+		return (instance->*function)(std::forward<_Arguments>(arguments)...); 
+	};
 }
 
 #ifdef BUILD_TESTING
 static_assert(
-    []{
-        struct Test {
-            bool b{};
+	[]{
+		struct Test {
+			bool b{};
 
-            constexpr auto get() const -> bool {
-                return b;
-            }
-        };
-        auto const instance = Test{true};
-        auto const get_function = bind(&Test::get, &instance);
-        return get_function() == true;
-    }(),
-    "avo::utils::bind does not work with const objects."
+			constexpr auto get() const -> bool {
+				return b;
+			}
+		};
+		auto const instance = Test{true};
+		auto const get_function = bind(&Test::get, &instance);
+		return get_function() == true;
+	}(),
+	"avo::utils::bind does not work with const objects."
 );
 static_assert(
-    []{
-        struct Test {
-            bool b{};
+	[]{
+		struct Test {
+			bool b{};
 
-            constexpr auto get() -> bool {
-                return b;
-            }
-        };
-        auto instance = Test{true};
-        auto const get_function = bind(&Test::get, &instance);
-        return get_function() == true;
-    }(),
-    "avo::utils::bind does not work with mutable objects."
+			constexpr auto get() -> bool {
+				return b;
+			}
+		};
+		auto instance = Test{true};
+		auto const get_function = bind(&Test::get, &instance);
+		return get_function() == true;
+	}(),
+	"avo::utils::bind does not work with mutable objects."
 );
 #endif
 
@@ -711,13 +713,13 @@ static_assert(
 //------------------------------
 
 /*
-    Unicode support library.
+	Unicode support library.
 */
 namespace unicode {
 
 /*
-    Enables UTF-8 encoded console output on Windows.
-    Pretty much all other platforms use UTF-8 by default.
+	Enables UTF-8 encoded console output on Windows.
+	Pretty much all other platforms use UTF-8 by default.
 */
 auto enable_utf8_console() -> void;
 
@@ -725,8 +727,8 @@ auto enable_utf8_console() -> void;
 
 /*
 	Converts a UTF-8 encoded char string to a UTF-16 encoded char16 string.
-    Returns the length of the converted string, in code point units (char16_t).
-    If no value is returned then the output span is too small to fit the whole converted string.
+	Returns the length of the converted string, in code point units (char16_t).
+	If no value is returned then the output span is too small to fit the whole converted string.
 */
 auto utf8_to_utf16(std::string_view input, std::span<char16_t> output) -> std::optional<std::size_t>;
 /*
@@ -737,8 +739,8 @@ auto utf8_to_utf16(std::string_view input) -> std::u16string;
 
 /*
 	Converts a UTF-16 encoded char16 string to a UTF-8 encoded char string.
-    Returns the length of the converted string, in code point units (char).
-    If no value is returned then the output span is too small to fit the whole converted string.
+	Returns the length of the converted string, in code point units (char).
+	If no value is returned then the output span is too small to fit the whole converted string.
 */
 auto utf16_to_utf8(std::u16string_view input, std::span<char> output) -> std::optional<std::size_t>;
 /*
@@ -750,10 +752,10 @@ auto utf16_to_utf8(std::u16string_view input) -> std::string;
 //------------------------------
 
 /*
-    Returns the number of UTF-8 code points a character starting with 
-    first_code_point_in_character consists of in total.
-    Returns 0 if the code point is not the first one in a character.
-    Returns -1 if the code point is an invalid UTF-8 code point.
+	Returns the number of UTF-8 code points a character starting with 
+	first_code_point_in_character consists of in total.
+	Returns 0 if the code point is not the first one in a character.
+	Returns -1 if the code point is an invalid UTF-8 code point.
 */
 [[nodiscard]]
 constexpr auto code_point_count(char const first_code_point_in_character) noexcept -> int {
@@ -772,10 +774,10 @@ constexpr auto code_point_count(char const first_code_point_in_character) noexce
 }
 
 /*
-    Returns the number of UTF-16 code points a character starting with 
-    first_code_point_in_character consists of in total.
-    Returns 0 if the code point is not the first one in a character.
-    Returns -1 if the code point is an invalid UTF-16 code point.
+	Returns the number of UTF-16 code points a character starting with 
+	first_code_point_in_character consists of in total.
+	Returns 0 if the code point is not the first one in a character.
+	Returns -1 if the code point is an invalid UTF-16 code point.
 */
 [[nodiscard]]
 constexpr auto code_point_count(char16_t const first_code_point_in_character) noexcept -> int {
@@ -813,21 +815,21 @@ concept IsCodePoint = utils::IsAnyOf<T, char, char16_t>;
 template<IsCodePoint T>
 [[nodiscard]]
 constexpr auto code_point_index(std::basic_string_view<T> const string, std::size_t const character_index) 
-    -> std::size_t 
+	-> std::size_t 
 {
-    if (!character_index) {
-        return {};
-    }
-    if (character_index >= string.size()) {
-        return string.size();
-    }
+	if (!character_index) {
+		return {};
+	}
+	if (character_index >= string.size()) {
+		return string.size();
+	}
 
-    auto const position = std::ranges::find_if(
-        string, [character_index, char_count = std::size_t{}](T const code_point) mutable {
-            return is_first_code_point(code_point) && char_count++ == character_index;
-        }
-    );
-    return position - string.begin();
+	auto const position = std::ranges::find_if(
+		string, [character_index, char_count = std::size_t{}](T const code_point) mutable {
+			return is_first_code_point(code_point) && char_count++ == character_index;
+		}
+	);
+	return position - string.begin();
 }
 
 /*
@@ -838,47 +840,67 @@ constexpr auto code_point_index(std::basic_string_view<T> const string, std::siz
 template<IsCodePoint T>
 [[nodiscard]]
 constexpr auto character_index(std::basic_string_view<T> const string, std::size_t const code_point_index) 
-    -> std::size_t 
+	-> std::size_t 
 {
-    if (!code_point_index) {
-        return {};
-    }
-    if (code_point_index >= string.size()) {
-        return string.size();
-    }
+	if (!code_point_index) {
+		return {};
+	}
+	if (code_point_index >= string.size()) {
+		return string.size();
+	}
 
-    return std::ranges::count_if(
-        string.begin() + 1, string.begin() + code_point_index + 1,
-        [](T const code_point) { return is_first_code_point(code_point); }
-    );
+	return std::ranges::count_if(
+		string.begin() + 1, string.begin() + code_point_index + 1,
+		[](T const code_point) { return is_first_code_point(code_point); }
+	);
 }
 
 /*
-    Returns the number of unicode characters that a UTF-8 or UTF-16 string consists of.
+	Returns the number of unicode characters that a UTF-8 or UTF-16 string consists of.
 */
 template<IsCodePoint T>
 [[nodiscard]]
 constexpr auto character_count(std::basic_string_view<T> const string) -> std::size_t {
-    return character_index(string, string.size()) + 1;
+	return character_index(string, string.size()) + 1;
 }
 
 #ifdef BUILD_TESTING
 static_assert(
-    code_point_count('a') == 1 &&
-    code_point_count("å"[0]) == 2 &&
-    code_point_count("√"[0]) == 3 &&
-    code_point_count("🪢"[0]) == 4 &&
-    code_point_count(static_cast<char>(0b10101010)) == 0 &&
-    code_point_count(static_cast<char>(0b11111111)) == -1,
-    "avo::unicode::code_point_count does not work correctly with UTF-8."
+	code_point_count('a') == 1 &&
+	code_point_count("å"[0]) == 2 &&
+	code_point_count("√"[0]) == 3 &&
+	code_point_count("🪢"[0]) == 4 &&
+	code_point_count(static_cast<char>(0b10101010)) == 0 &&
+	code_point_count(static_cast<char>(0b11111111)) == -1,
+	"avo::unicode::code_point_count does not work correctly with UTF-8."
 );
 static_assert(
-    code_point_count(u'a') == 1 &&
-    code_point_count(u"å"[0]) == 1 &&
-    code_point_count(u"√"[0]) == 1 &&
-    code_point_count(u"🪢"[0]) == 2 &&
-    code_point_count(static_cast<char16_t>(0b1101111010000011)) == 0,
-    "avo::unicode::code_point_count does not work correctly with UTF-16."
+	code_point_count(u'a') == 1 &&
+	code_point_count(u"å"[0]) == 1 &&
+	code_point_count(u"√"[0]) == 1 &&
+	code_point_count(u"🪢"[0]) == 2 &&
+	code_point_count(static_cast<char16_t>(0b1101111010000011)) == 0,
+	"avo::unicode::code_point_count does not work correctly with UTF-16."
+);
+static_assert(
+	code_point_index("🪢 här √ är knut"sv, 10) == 17 &&
+	code_point_index("🪢 här 🪢 är knut"sv, 10) == 18, 
+	"code_point_index does not work correctly with UTF-8."
+);
+static_assert(
+	code_point_index(u"🪢 här √ är knut"sv, 10) == 11 &&
+	code_point_index(u"🪢 här 🪢 är knut"sv, 10) == 12, 
+	"code_point_index does not work correctly with UTF-16."
+);
+static_assert(
+	character_index("🪢 här √ är knut"sv, 17) == 10 &&
+	character_index("🪢 här 🪢 är knut"sv, 18) == 10, 
+	"character_index does not work correctly with UTF-8."
+);
+static_assert(
+	character_index(u"🪢 här √ är knut"sv, 11) == 10 &&
+	character_index(u"🪢 här 🪢 är knut"sv, 12) == 10, 
+	"character_index does not work correctly with UTF-16."
 );
 #endif
 
@@ -891,7 +913,7 @@ namespace math {
 template<utils::IsNumber T>
 [[nodiscard]]
 constexpr auto sign(T const number) -> T {
-    return std::copysign(T{1}, number);
+	return std::copysign(T{1}, number);
 }
 
 /*
@@ -932,10 +954,10 @@ constexpr auto max(T&& value) -> decltype(auto) {
 	return std::forward<T>(value);
 }
 /*
-    Returns the parameter that is compared largest.
-    All types must be totally ordered with each other.
-    All types must be convertible to each other, but this is 
-    best checked by the actual code than by a constraint.
+	Returns the parameter that is compared largest.
+	All types must be totally ordered with each other.
+	All types must be convertible to each other, but this is 
+	best checked by the actual code than by a constraint.
 */
 template<typename T0, typename T1, typename ... T2> requires std::totally_ordered_with<T0, T1>
 [[nodiscard]]
@@ -952,10 +974,10 @@ constexpr auto min(T&& value) -> decltype(auto) {
 	return std::forward<T>(value);
 }
 /*
-    Returns the parameter that is compared smallest.
-    All types must be totally ordered with each other.
-    All types must be convertible to each other, but this is 
-    best checked by the actual code than by a constraint.
+	Returns the parameter that is compared smallest.
+	All types must be totally ordered with each other.
+	All types must be convertible to each other, but this is 
+	best checked by the actual code than by a constraint.
 */
 template<typename T0, typename T1, typename ... T2> requires std::totally_ordered_with<T0, T1>
 [[nodiscard]]
@@ -968,59 +990,59 @@ constexpr auto min(T0&& first, T1&& second, T2&& ... arguments) -> decltype(auto
 
 #ifdef BUILD_TESTING
 static_assert(
-    min(1, 9.89, 3, 6.1, -6, 0., 1845, 14) == -6 &&
-    min(-1, 2) == -1 &&
-    min(-1) == -1,
-    "avo::math::min works incorrectly."
+	min(1, 9.89, 3, 6.1, -6, 0., 1845, 14) == -6 &&
+	min(-1, 2) == -1 &&
+	min(-1) == -1,
+	"avo::math::min works incorrectly."
 );
 static_assert(
-    max(1, 9.89, 3, 6.1, -6, 0., 1845, 14) == 1845 &&
-    max(-1, 2) == 2 &&
-    max(-1) == -1,
-    "avo::math::max works incorrectly."
+	max(1, 9.89, 3, 6.1, -6, 0., 1845, 14) == 1845 &&
+	max(-1, 2) == 2 &&
+	max(-1) == -1,
+	"avo::math::max works incorrectly."
 );
 #endif
 
 //------------------------------
 
 /*
-    A random number generator, a small abstraction on top of a subset 
-    of the standard library random utilities.
+	A random number generator, a small abstraction on top of a subset 
+	of the standard library random utilities.
 */
 class Random {
 private:
-    std::default_random_engine _engine{std::random_device{}()};
+	std::default_random_engine _engine{std::random_device{}()};
 public:
-    /*
-        Generates a new uniformly distributed random floating point number in the range [min, max).
-    */
-    template<std::floating_point T>
-    [[nodiscard]]
-    auto next(T const min = T{}, T const max = T{1}) -> T {
-        return std::uniform_real_distribution<T>{min, max}(_engine);
-    }
-    /*
-        Generates a new uniformly distributed random integer in the range [min, max].
-    */
-    template<std::integral T>
-    [[nodiscard]]
-    auto next(T const min = T{}, T const max = T{1}) -> T {
-        return std::uniform_int_distribution<T>{min, max}(_engine);
-    }
-    /*
-        Generates a new random floating point number distributed according to a gaussian distribution
-        with a mean and a standard deviation.
-    */
-    template<std::floating_point T>
-    [[nodiscard]]
-    auto next_normal(T const mean, T const standard_deviation) -> T {
-        return std::normal_distribution<T>{mean, standard_deviation};
-    }
+	/*
+		Generates a new uniformly distributed random floating point number in the range [min, max).
+	*/
+	template<std::floating_point T>
+	[[nodiscard]]
+	auto next(T const min = T{}, T const max = T{1}) -> T {
+		return std::uniform_real_distribution<T>{min, max}(_engine);
+	}
+	/*
+		Generates a new uniformly distributed random integer in the range [min, max].
+	*/
+	template<std::integral T>
+	[[nodiscard]]
+	auto next(T const min = T{}, T const max = T{1}) -> T {
+		return std::uniform_int_distribution<T>{min, max}(_engine);
+	}
+	/*
+		Generates a new random floating point number distributed according to a gaussian distribution
+		with a mean and a standard deviation.
+	*/
+	template<std::floating_point T>
+	[[nodiscard]]
+	auto next_normal(T const mean, T const standard_deviation) -> T {
+		return std::normal_distribution<T>{mean, standard_deviation};
+	}
 
-    Random(std::uint_fast32_t const seed) :
-        _engine{seed}
-    {}
-    Random() = default;
+	Random(std::uint_fast32_t const seed) :
+		_engine{seed}
+	{}
+	Random() = default;
 };
 
 } // namespace math
@@ -1045,9 +1067,11 @@ private:
 	ValueType _count;
 
 public:
+	[[nodiscard]]
 	constexpr operator ValueType() const noexcept {
 		return _count;
 	}
+	[[nodiscard]]
 	constexpr auto operator==(Id const& id) const noexcept -> bool = default;
 
 	constexpr explicit Id(ValueType const id) noexcept :
@@ -1060,6 +1084,85 @@ public:
 
 //------------------------------
 
+template<typename T>
+class EventListeners;
 
+/*
+	This is a class used to easily manage event listeners. Any type of callable can be a listener.
+	The return type and arguments have to be the same for all listeners added to one instance of EventListeners.
+*/
+template<typename _Return, typename ... _Arguments>
+class EventListeners<_Return(_Arguments...)> {
+public:
+	using FunctionType = _Return(_Arguments...);
+	
+private:
+	std::recursive_mutex _mutex;
+	std::vector<std::function<FunctionType>> _listeners;
+
+public:
+	[[nodiscard]]
+	auto begin() noexcept -> decltype(_listeners)::iterator {
+		return _listeners.begin();
+	}
+	[[nodiscard]]
+	auto end() noexcept -> decltype(_listeners)::iterator {
+		return _listeners.end();
+	}
+
+	auto add(std::function<FunctionType> listener) -> void {
+		auto const lock = std::scoped_lock{_mutex};    
+		_listeners.emplace_back(std::move(listener));
+	}
+	auto operator+=(std::function<FunctionType> listener) -> EventListeners& {
+		add(std::move(listener));
+		return *this;
+	}
+
+	auto remove(std::function<FunctionType> const& listener) -> void {
+		auto const lock = std::scoped_lock{_mutex};
+		auto const& listener_type = listener.target_type();
+		auto const found_position = std::ranges::find_if(_listeners, [&](auto const& listener_element) {
+			// template keyword is used to expicitly tell the compiler that target is a template method for
+			// std::function<FunctionalType> and < shouldn't be parsed as the less-than operator
+			return listener_type == listener_element.target_type() &&
+				*(listener.template target<FunctionType>()) == *(listener_element.template target<FunctionType>());
+		});
+		if (found_position != _listeners.end()) {
+			*found_position = std::move(_listeners.back());
+			_listeners.pop_back();
+		}
+	}
+	auto operator-=(std::function<FunctionType> const& listener) -> EventListeners& {
+		remove(listener);
+		return *this;
+	}
+
+	/*
+		Calls all of the listeners with event_arguments as arguments.
+	*/
+	auto notify_all(_Arguments&& ... event_arguments) -> void {
+		auto const lock = std::scoped_lock{_mutex};
+		for (auto& listener : _listeners) {
+			listener(std::forward<_Arguments>(event_arguments)...);
+		}
+	}
+	auto operator()(_Arguments&& ... event_arguments) -> void {
+		notify_all(std::forward<_Arguments>(event_arguments)...);
+	}
+
+	EventListeners() = default;
+
+	EventListeners(EventListeners&& other) :
+		_listeners{std::move(other._listeners)}
+	{}
+	EventListeners(EventListeners const&) = delete;
+
+	auto operator=(EventListeners&& other) -> EventListeners& {
+		_listeners = std::move(other._listeners);
+		return *this;
+	}
+	auto operator=(EventListeners const&) -> EventListeners& = delete;
+};
 
 } // namespace avo
