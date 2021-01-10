@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2020 Björn Sundin
+Copyright (c) 2021 Björn Sundin
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,8 +24,6 @@ SOFTWARE.
 
 #pragma once
 
-//------------------------------
-
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -46,7 +44,6 @@ SOFTWARE.
 #include <span>
 #include <string>
 #include <string_view>
-
 
 #if __has_include(<source_location>)
 #	include <source_location>
