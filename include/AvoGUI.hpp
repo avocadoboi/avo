@@ -1330,6 +1330,11 @@ concept Is2dVector = requires {
 	requires std::derived_from<T, Vector2dBase<typename T::value_type>>;
 }; 
 
+auto operator<<(std::ostream& stream, Is2dVector auto const vector) -> std::ostream& {
+	stream << '(' << vector.x << ", " << vector.y << ')';
+	return stream;
+}
+
 template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
 [[nodiscard]]
 constexpr auto operator==(_Class<A> const first, _Class<B> const second) noexcept -> bool {
@@ -1696,7 +1701,6 @@ template<typename T>
 Size(T, T) -> Size<T>;
 
 #ifdef BUILD_TESTING
-
 static_assert(utils::IsTrivial<Vector2d<float>>);
 static_assert(Vector2d{5.f, 3.f} != Vector2d{5.f, 3.1f});
 static_assert(Vector2d{5.f, 3.f} == Vector2d{5.f, 3.f});
@@ -1711,7 +1715,226 @@ static_assert(square(5.f) == 25.f);
 
 static_assert(dot(Vector2d{4, 2}, Vector2d{-2, -3}) == -14);
 static_assert(cross(Vector2d{4, 2}, Vector2d{-2, -3}) == -8);
+#endif
 
+//------------------------------
+
+template<std::floating_point T>
+struct Transform {
+	T x_to_x{1}, y_to_x{0}, offset_x{0},
+	  x_to_y{0}, y_to_y{1}, offset_y{0};
+
+	[[nodiscard]]
+	constexpr auto operator==(Transform const&) const noexcept -> bool = default;
+
+	/*
+		Multiplies this 2x3 matrix to a column vector that has an implicit third column with the value 1.
+
+		[a b c]   [x]   [ax+by+c]
+		[d e f] * [y] = [dx+ey+f]
+		          [1]
+	*/
+	template<utils::IsNumber U, template<typename> typename _Vector> requires Is2dVectorTemplate<_Vector>
+	[[nodiscard]]
+	constexpr auto operator*(_Vector<U> const vector) const noexcept {
+		return _Vector{
+			x_to_x*vector.x + y_to_x*vector.y + offset_x, 
+			x_to_y*vector.x + y_to_y*vector.y + offset_y
+		};
+	}
+
+	/*
+		Returns the result of applying this transform to another transform.
+		Note that the order of multiplication matters.
+
+		(A*B)*v = A*(B*v) where v is a vector, A and B are transforms.
+
+		[a b c]   [g h i]   [ag+bj ah+bk ai+bl+c]
+		[d e f] * [j k l] = [dg+ej dh+ek di+el+f]
+		[0 0 1]   [0 0 1]   [0     0     1      ]
+	*/
+	template<std::floating_point U>
+	[[nodiscard]]
+	constexpr auto operator*(Transform<U> const& other) const noexcept {
+		return Transform{
+			.x_to_x = x_to_x*other.x_to_x + y_to_x*other.x_to_y,
+			.y_to_x = x_to_x*other.y_to_x + y_to_x*other.y_to_y,
+			.offset_x = x_to_x*other.offset_x + y_to_x*other.offset_y + offset_x,
+			.x_to_y = x_to_y*other.x_to_x + y_to_y*other.x_to_y,
+			.y_to_y = x_to_y*other.y_to_x + y_to_y*other.y_to_y,
+			.offset_y = x_to_y*other.offset_x + y_to_y*other.offset_y + offset_y
+		};
+	}
+	/*
+		A *= B is equivalent to A = B*A.
+	*/
+	template<std::floating_point U>
+	constexpr auto operator*=(Transform<U> const& other) const noexcept -> Transform& {
+		return *this = other**this;	
+	}
+
+	/*
+		Rotates transformed points anticlockwise from the right.
+	*/
+	auto rotate(IsAngle auto const angle) -> Transform& {
+		/*
+			[cos -sin  0]   [x_to_x y_to_x offset_x]
+			[sin  cos  0] * [x_to_y y_to_y offset_y]
+			[0    0    1]   [0      0      1       ]
+		*/
+		auto const [cos, sin] = cos_sin<long double>(angle);
+
+		// Previous transformation
+		auto const p = *this;
+
+		x_to_x = static_cast<T>(cos*p.x_to_x - sin*p.x_to_y);
+		y_to_x = static_cast<T>(cos*p.y_to_x - sin*p.y_to_y);
+		offset_x = static_cast<T>(cos*p.offset_x - sin*p.offset_y);
+		x_to_y = static_cast<T>(sin*p.x_to_x + cos*p.x_to_y);
+		y_to_y = static_cast<T>(sin*p.y_to_x + cos*p.y_to_y);
+		offset_y = static_cast<T>(sin*p.offset_x + cos*p.offset_y);
+
+		return *this;
+	}
+	/*
+		Rotates transformed points around an origin anticlockwise from the right.
+	*/
+	auto rotate(IsAngle auto const angle, Is2dVector auto const origin) -> Transform& {
+		translate(-origin);
+		rotate(angle);
+		translate(origin);
+		return *this;
+	}
+
+	/*
+		Moves the translation by an offset.
+	*/
+	constexpr auto translate(Is2dVector auto const offset) noexcept -> Transform& {
+		offset_x += offset.x;
+		offset_y += offset.y;
+		return *this;
+	}
+	/*
+		Sets the absolute offset in coordinates caused by the transform.
+	*/
+	constexpr auto set_translation(Is2dVector auto const point) noexcept -> Transform& {
+		offset_x = point.x;
+		offset_y = point.y;
+		return *this;
+	}
+
+	/*
+		Scales the transform by a horizontal and vertical factor.
+	*/
+	constexpr auto scale(Is2dVector auto const scale_factor) noexcept -> Transform& {
+		x_to_x *= scale_factor.x;
+		y_to_x *= scale_factor.x;
+		offset_x *= scale_factor.x;
+		y_to_y *= scale_factor.y;
+		x_to_y *= scale_factor.y;
+		offset_y *= scale_factor.y;
+		return *this;
+	}
+	constexpr auto scale_x(utils::IsNumber auto const scale_factor) noexcept -> Transform& {
+		x_to_x *= scale_factor;
+		y_to_x *= scale_factor;
+		offset_x *= scale_factor;
+		return *this;
+	}
+	constexpr auto scale_y(utils::IsNumber auto const scale_factor) noexcept -> Transform& {
+		y_to_y *= scale_factor;
+		x_to_y *= scale_factor;
+		offset_y *= scale_factor;
+		return *this;
+	}
+};
+
+/*
+	Returns a rotated copy of the Transform argument.
+	See Transform::rotate.
+*/
+template<std::floating_point T>
+[[nodiscard]]
+constexpr auto rotated(Transform<T> transform, IsAngle auto const angle) -> Transform<T> {
+	return transform.rotate(angle);
+}
+/*
+	Returns a rotated copy of the Transform argument.
+	See Transform::rotate.
+*/
+template<std::floating_point T>
+[[nodiscard]]
+constexpr auto rotated(Transform<T> transform, IsAngle auto const angle, Is2dVector auto const origin) -> Transform<T> {
+	return transform.rotate(angle, origin);
+}
+
+/*
+	Returns a translated copy of the Transform argument.
+	See Transform::translate.
+*/
+template<std::floating_point T>
+[[nodiscard]]
+constexpr auto translated(Transform<T> transform, Is2dVector auto const offset) -> Transform<T> {
+	return transform.translate(offset);
+}
+/*
+	Returns a copy of the Transform argument with a specific absolute translation.
+	See Transform::set_translation.
+*/
+template<std::floating_point T>
+[[nodiscard]]
+constexpr auto with_translation(Transform<T> transform, Is2dVector auto const point) -> Transform<T> {
+	return transform.set_translation(point);
+}
+
+/*
+	Returns a scaled copy of the Transform argument.
+	See Transform::scale.
+*/
+template<std::floating_point T>
+[[nodiscard]]
+constexpr auto scaled(Transform<T> transform, Is2dVector auto const scale_factor) noexcept -> Transform<T> {
+	return transform.scale(scale_factor);
+}
+template<std::floating_point T>
+[[nodiscard]]
+constexpr auto scaled_x(Transform<T> transform, utils::IsNumber auto const scale_factor) noexcept -> Transform<T> {
+	return transform.scale_x(scale_factor);
+}
+template<std::floating_point T>
+[[nodiscard]]
+constexpr auto scaled_y(Transform<T> transform, utils::IsNumber auto const scale_factor) noexcept -> Transform<T> {
+	return transform.scale_y(scale_factor);
+}
+
+#ifdef BUILD_TESTING
+static_assert(
+	[]{
+		constexpr auto a = Transform{
+			11.f, 2.9f, 3.5f, 
+			4.3f, 5.7f, 6.2f
+		};
+		constexpr auto b = Transform{
+			-4.8f, -3.6f, -2.6f, 
+			-1.2f, 1.5f, -3.31f
+		};
+
+		constexpr auto c = Vector2d{3.14f, 5.158f};
+
+		return a*(b*c) == (a*b)*c && a*b != b*a;
+	}(),
+	"avo::math::Transform does not hold the composition and non-commutative properties."
+);
+static_assert(
+	[]{
+		auto a = Transform{
+			11.f, 2.9f, 3.5f, 
+			4.3f, 5.7f, 6.2f
+		};
+		return scaled(a, square<Vector2d>(0.6f)) == scaled_x(a, 0.6f).scale_y(0.6f);
+	}(),
+	"The scaling functions for avo::math::Transform do not work properly."
+);
 #endif
 
 } // namespace math
