@@ -38,6 +38,7 @@ SOFTWARE.
 #include <functional>
 #include <iostream>
 #include <mutex>
+#include <numbers>
 #include <numeric>
 #include <optional>
 #include <random>
@@ -45,6 +46,7 @@ SOFTWARE.
 #include <span>
 #include <string>
 #include <string_view>
+
 
 #if __has_include(<source_location>)
 #	include <source_location>
@@ -79,6 +81,19 @@ namespace utils {
 
 template<typename T>
 concept IsTrivial = std::is_trivial_v<T>;
+
+/*
+	At the moment, trying to instantiate this concept crashes GCC...
+	TODO: Take advantage of this in the code when this GCC bug is fixed:
+	https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98611
+*/
+// template<typename T, template<typename...> typename _Class>
+// concept IsInstantiationOf = requires(T object) {
+// 	{ _Class{object} } -> std::same_as<T>;
+// };
+
+// template<typename T, template<typename...> typename ... U>
+// concept IsInstantiationOfAny = (IsInstantiationOf<T, U> || ...);
 
 template<typename T, typename ... U>
 concept IsAnyOf = (std::same_as<T, U> || ...);
@@ -910,6 +925,246 @@ static_assert(
 
 namespace math {
 
+/*
+	This can be used to define a strong type that wraps a primitive arithmetic type.
+	Arithmetic operations can be made on types that derive from this struct.
+*/
+template<utils::IsNumber _Value>
+struct ArithmeticBase {
+	using value_type = _Value;
+	
+	_Value value;
+
+	[[nodiscard]]
+	constexpr explicit operator _Value() const noexcept {
+		return value;
+	}
+};
+
+template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
+    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+[[nodiscard]]
+constexpr auto operator==(_Class<A> const first, _Class<B> const second) noexcept -> bool {
+    return first.value == second.value;
+}
+template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
+    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+[[nodiscard]]
+constexpr auto operator<=>(_Class<A> const first, _Class<B> const second) noexcept {
+    return first.value <=> second.value;
+}
+
+template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
+    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+[[nodiscard]]
+constexpr auto operator+(_Class<A> const first, _Class<B> const second) noexcept {
+	return _Class{first.value + second.value};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
+    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+constexpr auto operator+=(_Class<A>& first, _Class<B> const second) noexcept -> _Class<A>& {
+	first.value += second.value;
+	return first;
+}
+
+template<utils::IsNumber A, template<utils::IsNumber> typename _Class>
+	requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+[[nodiscard]]
+constexpr auto operator-(_Class<A> const value) noexcept {
+	return _Class{-value.value};
+}
+
+template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
+    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+[[nodiscard]]
+constexpr auto operator-(_Class<A> const first, _Class<B> const second) noexcept {
+	return _Class{first.value - second.value};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
+    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+constexpr auto operator-=(_Class<A>& first, _Class<B> const second) noexcept -> _Class<A>& {
+	first.value -= second.value;
+	return first;
+}
+
+template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
+    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+[[nodiscard]]
+constexpr auto operator*(_Class<A> const first, B const second) noexcept {
+	return _Class{first.value*second};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
+    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+[[nodiscard]]
+constexpr auto operator*(B first, _Class<A> const second) noexcept {
+	return _Class{first*second.value};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
+    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+constexpr auto operator*=(_Class<A>& first, B const second) noexcept -> _Class<A>& {
+	first.value *= second;
+	return first;
+}
+
+template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
+    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+[[nodiscard]]
+constexpr auto operator/(_Class<A> const first, B const second) noexcept {
+	return _Class{first.value/second};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
+    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+constexpr auto operator/=(_Class<A>& first, B const second) noexcept -> _Class<A>& {
+	first.value /= second;
+	return first;
+}
+
+//------------------------------
+
+template<std::floating_point T>
+struct Radians : ArithmeticBase<T> {};
+
+template<typename T>
+Radians(T) -> Radians<T>;
+
+template<utils::IsNumber T>
+struct Degrees : ArithmeticBase<T> {};
+
+template<typename T>
+Degrees(T) -> Degrees<T>;
+
+// template<typename T>
+// concept IsAngle = utils::IsInstantiationOfAny<T, Radians, Degrees>;
+
+template<typename T>
+concept IsDegrees = requires(T x) { { Degrees{x} } -> std::same_as<T>; };
+
+template<typename T>
+concept IsRadians = requires(T x) { { Radians{x} } -> std::same_as<T>; };
+
+template<typename T>
+concept IsAngle = IsRadians<T> || IsDegrees<T>;
+
+/*
+	Converts an angle to degrees.
+	If the destination type is integral then the value is rounded.
+*/
+template<utils::IsNumber _To, std::floating_point _From>
+[[nodiscard]]
+constexpr auto to_degrees(Radians<_From> const radians) noexcept -> Degrees<_To> {
+	if constexpr (std::integral<_To>) {
+		return Degrees{static_cast<_To>(std::round(radians.value / std::numbers::pi_v<_From> * static_cast<_From>(180)))};
+	}
+	return Degrees{static_cast<_To>(radians.value / std::numbers::pi_v<_From> * static_cast<_From>(180))};
+}
+/*
+	Converts an angle to degrees.
+	If the destination type is integral then the value is rounded.
+*/
+template<utils::IsNumber _To, utils::IsNumber _From>
+[[nodiscard]]
+constexpr auto to_degrees(Degrees<_From> const degrees) noexcept -> Degrees<_To> {
+	if constexpr (std::integral<_To> && std::floating_point<_From>) {
+		return Degrees{static_cast<_To>(std::round(degrees.value))};
+	}
+	return Degrees{static_cast<_To>(degrees.value)};
+}
+
+/*
+	Converts an angle to radians.
+*/
+template<std::floating_point _To, utils::IsNumber _From>
+[[nodiscard]]
+constexpr auto to_radians(Degrees<_From> const degrees) noexcept -> Radians<_To> {
+	return Radians{static_cast<_To>(degrees.value / static_cast<_To>(180) * std::numbers::pi_v<_To>)};
+}
+/*
+	Converts an angle to radians.
+*/
+template<std::floating_point _To, std::floating_point _From>
+[[nodiscard]]
+constexpr auto to_radians(Radians<_From> const radians) noexcept -> Radians<_To> {
+	return Radians{static_cast<_To>(radians.value)};
+}
+
+/*
+	Converts an angle to another angle type.
+*/
+template<IsRadians _To>
+[[nodiscard]]
+constexpr auto angle_as(IsAngle auto const angle) noexcept -> _To {
+	return to_radians<typename _To::value_type>(angle);
+}
+
+/*
+	Converts an angle to another angle type.
+*/
+template<IsDegrees _To>
+[[nodiscard]]
+constexpr auto angle_as(IsAngle auto const angle) noexcept -> _To {
+	return to_degrees<typename _To::value_type>(angle);
+}
+
+inline namespace angle_literals {
+
+constexpr auto operator"" _deg(long double const value) noexcept -> Degrees<double> {
+	return Degrees{static_cast<double>(value)};
+}
+constexpr auto operator"" _degf(long double const value) noexcept -> Degrees<float> {
+	return Degrees{static_cast<float>(value)};
+}
+constexpr auto operator"" _deg(unsigned long long const value) noexcept -> Degrees<int> {
+	return Degrees{static_cast<int>(value)};
+}
+constexpr auto operator"" _rad(long double const value) noexcept -> Radians<double> {
+	return Radians{static_cast<double>(value)};
+}
+constexpr auto operator"" _radf(long double const value) noexcept -> Radians<float> {
+	return Radians{static_cast<float>(value)};
+}
+
+} // namespace angle_literals
+
+namespace literals {
+
+using namespace angle_literals;
+
+} // namespace literals
+
+#ifdef BUILD_TESTING
+
+static_assert(utils::IsTrivial<Degrees<int>>);
+static_assert(std::same_as<decltype(Degrees{5} + Degrees{3.1}), Degrees<double>>);
+static_assert(std::same_as<decltype(Degrees{5}*3.1), Degrees<double>>);
+static_assert(3.f*(Radians{5.f} + Radians{3.f}*3.f)/2.f - Radians{3.f} == Radians{18.f}, "Radian arithmetic does not work");
+static_assert([]{
+	auto angle = Radians{5.f};
+	angle += Radians{2.f};
+	if (angle != Radians{7.f}) return false;
+	angle -= Radians{2.f};
+	if (angle != Radians{5.f}) return false;
+	angle /= 2.f;
+	if (angle != Radians{2.5f}) return false;
+	angle *= 4.f;
+	if (angle != Radians{10.f}) return false;
+	return true;
+}(), "Radian arithmetic does not work.");
+static_assert(80_deg == Degrees{80} && -80_deg == Degrees{-80});
+static_assert(80._deg == Degrees{80.} && 80._degf == Degrees{80.f});
+static_assert(3.14_rad == Radians{3.14} && 3.14_radf == Radians{3.14f});
+static_assert(Degrees{80} > Degrees{-30} && Degrees{-30} < Degrees{80});
+static_assert(Degrees{50} == Degrees{50} && Degrees{50} != Degrees{51});
+static_assert(to_radians<float>(Degrees{180.f}) == Radians{std::numbers::pi_v<float>});
+static_assert(to_degrees<int>(Radians{std::numbers::pi_v<float>}) == Degrees{180});
+static_assert(to_degrees<float>(Degrees{50}) == Degrees{50.f});
+
+#endif
+
+//------------------------------
+
+/*
+	Returns 1 if the number is positive, 0 if it is 0 and -1 if it is negative.
+*/
 template<utils::IsNumber T>
 [[nodiscard]]
 constexpr auto sign(T const number) -> T {
@@ -946,6 +1201,15 @@ inline auto fast_inverse_sqrt(float const input) noexcept -> float
 	std::memcpy(&approximation, &bits, 4);
 
 	return approximation*(1.5f - 0.5f*input*approximation*approximation);
+}
+
+/*
+	Returns the pair of cosine and sine values for any angle.
+*/
+template<std::floating_point _Return>
+auto cos_sin(IsAngle auto angle) -> std::pair<_Return, _Return> {
+	auto const radians = to_radians<_Return>(angle);
+	return std::pair{std::cos(radians.value), std::sin(radians.value)};
 }
 
 template<typename T>
@@ -1045,6 +1309,411 @@ public:
 	Random() = default;
 };
 
+//------------------------------
+
+template<utils::IsNumber>
+struct Vector2dBase;
+
+/*
+	Evaluates to whether a class template is a 2d vector or not.
+*/
+template<template<typename> typename T>
+concept Is2dVectorTemplate = std::derived_from<T<float>, Vector2dBase<float>>;
+// Assuming all other instantiations also derive from Vector2dBase<T>.
+
+/*
+	Evaluates to whether a type is a 2d vector or not.
+*/
+template<typename T>
+concept Is2dVector = requires {
+	typename T::value_type;
+	requires std::derived_from<T, Vector2dBase<typename T::value_type>>;
+}; 
+
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+[[nodiscard]]
+constexpr auto operator==(_Class<A> const first, _Class<B> const second) noexcept -> bool {
+	return first.x == second.x && first.y == second.y;
+}
+
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+[[nodiscard]]
+constexpr auto operator<=>(_Class<A> const first, _Class<B> const second) noexcept -> std::partial_ordering {
+	if (first.x < second.x && first.y < second.y) {
+		return std::partial_ordering::less;
+	}
+	if (first.x > second.x && first.y > second.y) {
+		return std::partial_ordering::greater;
+	}
+	if (first == second) {
+		return std::partial_ordering::equivalent;
+	}
+	return std::partial_ordering::unordered;
+}
+
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+[[nodiscard]]
+constexpr auto operator+(_Class<A> const first, _Class<B> const second) noexcept {
+	return _Class{first.x + second.x, first.y + second.y};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+constexpr auto operator+=(_Class<A>& first, _Class<B> const second) noexcept -> _Class<A>& {
+	first.x += second.x;
+	first.y += second.y;
+	return first;
+}
+
+template<utils::IsNumber A, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+[[nodiscard]]
+constexpr auto operator-(_Class<A> const vector) noexcept {
+	return _Class{vector.x, vector.y};
+}
+
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+[[nodiscard]]
+constexpr auto operator-(_Class<A> const first, _Class<B> const second) noexcept {
+	return _Class{first.x - second.x, first.y - second.y};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+constexpr auto operator-=(_Class<A>& first, _Class<B> const second) noexcept -> _Class<A>& {
+	first.x -= second.x;
+	first.y -= second.y;
+	return first;
+}
+
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+[[nodiscard]]
+constexpr auto operator*(_Class<A> const first, B const second) noexcept {
+	return _Class{first.x*second, first.y*second};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+[[nodiscard]]
+constexpr auto operator*(B const first, _Class<A> const second) noexcept {
+	return _Class{second.x*first, second.y*first};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+constexpr auto operator*=(_Class<A>& first, B const second) noexcept -> _Class<A>& {
+	first.x *= second;
+	first.y *= second;
+	return first;
+}
+
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+[[nodiscard]]
+constexpr auto operator*(_Class<A> const first, _Class<B> const second) noexcept {
+	return _Class{first.x*second.x, first.y*second.y};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+constexpr auto operator*=(_Class<A>& first, _Class<B> const second) noexcept -> _Class<A>& {
+	first.x *= second.x;
+	first.y *= second.y;
+	return first;
+}
+
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+[[nodiscard]]
+constexpr auto operator/(_Class<A> const first, B const second) noexcept {
+	return _Class{first.x/second, first.y/second};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+[[nodiscard]]
+constexpr auto operator/(B const first, _Class<A> const second) noexcept {
+	return _Class{first/second.x, first/second.y};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+constexpr auto operator/=(_Class<A>& first, B const second) noexcept -> _Class<A>& {
+	first.x /= second;
+	first.y /= second;
+	return first;
+}
+
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+[[nodiscard]]
+constexpr auto operator/(_Class<A> const first, _Class<B> const second) noexcept {
+	return _Class{first.x/second.x, first.y/second.y};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+constexpr auto operator/=(_Class<A>& first, _Class<B> const second) noexcept -> _Class<A>& {
+	first.x /= second.x;
+	first.y /= second.y;
+	return first;
+}
+
+/*
+	Creates a square 2d vector, that is a vector with both coordinates equal.
+*/
+template<template<typename> typename _Vector, utils::IsNumber _Value> requires Is2dVectorTemplate<_Vector>
+constexpr auto square(_Value const side_length) -> _Vector<_Value> {
+	return _Vector{side_length, side_length};
+}
+
+/*
+	Creates a 2d vector from polar coordinates.
+	The angle goes anticlockwise.
+*/
+template<template<typename> typename _Vector, std::floating_point _Length> requires Is2dVectorTemplate<_Vector>
+[[nodiscard]]
+auto polar(IsAngle auto const angle, _Length const length) {
+	auto const [x, y] = cos_sin(angle);
+	return _Vector{x*length, y*length};
+}
+/*
+	Creates a unit 2d vector from an angle that goes anticlockwise.
+*/
+template<template<typename> typename _Vector> requires Is2dVectorTemplate<_Vector>
+[[nodiscard]]
+auto polar(IsAngle auto const angle) {
+	auto const [x, y] = cos_sin(angle);
+	return _Vector{x, y};
+}
+
+/*
+	Returns the dot product of two 2d vectors.
+*/
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Vector> requires Is2dVectorTemplate<_Vector>
+[[nodiscard]]
+constexpr auto dot(_Vector<A> const first, _Vector<B> const second) {
+	return first.x*second.x + first.y*second.y;
+}
+
+/*
+	Returns the cross product of two 2d vectors.
+*/
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Vector> requires Is2dVectorTemplate<_Vector>
+[[nodiscard]]
+constexpr auto cross(_Vector<A> const first, _Vector<B> const second) {
+	return first.x*second.y - first.y*second.x;
+}
+
+/*
+	Returns the euclidean distance between two 2d vectors.
+*/
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Vector> requires Is2dVectorTemplate<_Vector>
+[[nodiscard]]
+auto distance(_Vector<A> const first, _Vector<B> const second) {
+	return std::hypot(second.x - first.x, second.y - first.y);
+}
+/*
+	Returns the squared euclidean distance between two 2d vectors.
+*/
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Vector> requires Is2dVectorTemplate<_Vector>
+[[nodiscard]]
+constexpr auto distance_squared(_Vector<A> const first, _Vector<B> const second) noexcept {
+	return square(second.x - first.x) + square(second.y - first.y);
+}
+
+/*
+	Returns a vector that has the same angle as the argument but with a length of 1.
+*/
+template<Is2dVector T>
+[[nodiscard]]
+auto normalized(T vector) -> T {
+	vector.normalize();
+	return vector;
+}
+/*
+	Returns a vector that has the same angle as the argument but with a length of 1, using a slightly faster algorithm.
+*/
+template<Is2dVector T>
+[[nodiscard]]
+auto normalized_fast(T vector) -> T {
+	vector.normalize_fast();
+	return vector;
+}
+
+/*
+	Returns a vector that has the same length as the input vector but is rotated by an angle clockwise.
+*/
+template<Is2dVector T>
+[[nodiscard]]
+auto rotated(T vector, IsAngle auto const angle) -> T {
+	vector.rotate(angle);
+	return vector;
+}
+/*
+	Returns a vector that has the same length as the input vector but is rotated by an angle clockwise relative to an origin.
+*/
+template<Is2dVector T>
+[[nodiscard]]
+auto rotated(T vector, IsAngle auto const angle, Is2dVector auto const origin) -> T {
+	vector.rotate(angle, origin);
+	return vector;
+}
+
+/*
+	Returns a vector that has the same length as the input vector but has a different angle, measured anticlockwise.
+*/
+template<Is2dVector T>
+[[nodiscard]]
+auto with_angle(T vector, IsAngle auto const angle) -> T {
+	vector.set_angle(angle);
+	return vector;
+}
+/*
+	Returns a vector that has the same length as the input vector but has a different angle, measured anticlockwise
+	relative to an origin.
+*/
+template<Is2dVector T>
+[[nodiscard]]
+auto with_angle(T vector, IsAngle auto const angle, Is2dVector auto const origin) -> T {
+	vector.set_angle(angle, origin);
+	return vector;
+}
+
+/*
+	All 2d vector types derive from this type.
+	It provides a bunch of 2d vector operations.
+*/
+template<utils::IsNumber _Value>
+struct Vector2dBase {
+	using value_type = _Value;
+
+	_Value x, y;
+
+	/*
+		Returns the magnitude of the vector, or the hypotenuse of the triangle.
+	*/
+	[[nodiscard]]
+	auto get_length() const {
+		return std::hypot(x, y);
+	}
+	/*
+		Returns the squared magnitude of the vector, or the squared hypotenuse of the triangle.
+	*/
+	[[nodiscard]]
+	constexpr auto get_length_squared() const noexcept -> _Value {
+		return x*x + y*y;
+	}
+
+	/*
+		Rotates the vector by an angle clockwise.
+	*/
+	auto rotate(IsAngle auto const angle) -> void {
+		// A very small change in angle could result in a very big change in cartesian coordinates.
+		// Therefore we use long double for these calculations and not _Value.
+		auto const [cos, sin] = cos_sin<long double>(angle);
+		auto const x_before = x;
+		x = static_cast<_Value>(x*cos - y*sin);
+		y = static_cast<_Value>(y*cos + x_before*sin);
+	}
+	/*
+		Rotates the vector by an angle clockwise relative to an origin.
+	*/
+	auto rotate(IsAngle auto const angle, Is2dVector auto const origin) -> void {
+		auto const [cos, sin] = cos_sin<long double>(angle);
+		auto const x_before = x;
+		x = static_cast<_Value>((x - origin.x)*cos - (y - origin.y)*sin + origin.x);
+		y = static_cast<_Value>((y - origin.y)*cos + (x_before - origin.x)*sin + origin.y);
+	}
+
+	/*
+		Sets the angle of the vector measured anticlockwise from the right side.
+	*/
+	auto set_angle(IsAngle auto const angle) -> void {
+		auto const [cos, sin] = cos_sin<long double>(angle);
+		auto const length = get_length();
+		x = static_cast<_Value>(cos*length);
+		y = static_cast<_Value>(sin*length);
+	}
+	/*
+		Sets the angle of the vector measured anticlockwise from the right side relative to an origin.
+	*/
+	auto set_angle(IsAngle auto const angle, Is2dVector auto const origin) -> void {
+		auto const [cos, sin] = cos_sin<long double>(angle);
+		auto const length = distance(*this, origin);
+		x = static_cast<_Value>(cos*length + origin.x);
+		y = static_cast<_Value>(sin*length + origin.y);
+	}
+
+	/*
+		Returns the angle of the vector measured anticlockwise from the right side.
+	*/
+	template<IsAngle _Angle>
+	[[nodiscard]]
+	auto get_angle() const -> _Angle {
+		if (!x && !y) {
+			return _Angle{};
+		}
+		auto const atan2 = std::atan2(static_cast<long double>(y), static_cast<long double>(x));
+		if (atan2 < 0) {
+			return angle_as<_Angle>(Radians{atan2 + 2*std::numbers::pi_v<long double>});
+		}
+		return angle_as<_Angle>(Radians{atan2});
+	}
+	/*
+		Returns the angle of the vector measured anticlockwise from the right side relative to an origin.
+	*/
+	template<IsAngle _Angle>
+	[[nodiscard]]
+	auto get_angle(Is2dVector auto const origin) const -> _Angle {
+		if (x == origin.x && y == origin.y) {
+			return _Angle{};
+		}
+		auto const atan2 = std::atan2(
+			static_cast<long double>(y - origin.y), 
+			static_cast<long double>(x - origin.x)
+		);
+		if (atan2 < 0) {
+			return angle_as<_Angle>(Radians{atan2 + 2*std::numbers::pi_v<long double>});
+		}
+		return angle_as<_Angle>(Radians{atan2});
+	}
+
+	/*
+		Keeps the angle of the vector but sets its length to 1.
+	*/
+	auto normalize() -> void {
+		auto const length = get_length();
+		x /= length;
+		y /= length;
+	}
+	/*
+		Keeps the angle of the vector but sets its length to 1 using a slightly faster algorithm.
+	*/
+	auto normalize_fast() -> void {
+		auto const inverse_length = fast_inverse_sqrt(get_length_squared());
+		x *= inverse_length;
+		y *= inverse_length;
+	}
+};
+
+template<utils::IsNumber _Value = float>
+struct Vector2d : Vector2dBase<_Value> {};
+
+template<typename T>
+Vector2d(T, T) -> Vector2d<T>;
+
+template<utils::IsNumber _Value = float>
+struct Point : Vector2dBase<_Value> {};
+
+template<typename T>
+Point(T, T) -> Point<T>;
+
+template<utils::IsNumber _Value = float>
+struct Size : Vector2dBase<_Value> {};
+
+template<typename T>
+Size(T, T) -> Size<T>;
+
+#ifdef BUILD_TESTING
+
+static_assert(utils::IsTrivial<Vector2d<float>>);
+static_assert(Vector2d{5.f, 3.f} != Vector2d{5.f, 3.1f});
+static_assert(Vector2d{5.f, 3.f} == Vector2d{5.f, 3.f});
+static_assert(Vector2d{-2.f, -3.f} < Vector2d{5.f, 3.f} && Vector2d{5.f, 3.f} > Vector2d{-2.f, -3.f});
+static_assert(Vector2d{-2.f, 1.f}*2.f == Vector2d{16.f, -8.f}/-4.f);
+static_assert(Vector2d{-2.f, 1.f}*2.f == 2.f*Vector2d{-2.f, 1.f});
+static_assert(2.f/Vector2d{2.f, -4.f} == Vector2d{1.f, -0.5f});
+static_assert(100/(3*Vector2d{4, 3} + Vector2d{2, 1}*2) == Vector2d{100/16, 100/11});
+
+static_assert(square<Vector2d>(5.f) == Vector2d{5.f, 5.f});
+static_assert(square(5.f) == 25.f);
+
+static_assert(dot(Vector2d{4, 2}, Vector2d{-2, -3}) == -14);
+static_assert(cross(Vector2d{4, 2}, Vector2d{-2, -3}) == -8);
+
+#endif
+
 } // namespace math
 
 //------------------------------
@@ -1060,21 +1729,21 @@ public:
 */
 class Id {
 public:
-	using ValueType = std::uint64_t;
+	using value_type = std::uint64_t;
 	
 private:
-	static ValueType s_counter;
-	ValueType _count;
+	static value_type s_counter;
+	value_type _count;
 
 public:
 	[[nodiscard]]
-	constexpr operator ValueType() const noexcept {
+	constexpr operator value_type() const noexcept {
 		return _count;
 	}
 	[[nodiscard]]
 	constexpr auto operator==(Id const& id) const noexcept -> bool = default;
 
-	constexpr explicit Id(ValueType const id) noexcept :
+	constexpr explicit Id(value_type const id) noexcept :
 		_count{id}
 	{}
 	Id() noexcept :
@@ -1110,15 +1779,27 @@ public:
 		return _listeners.end();
 	}
 
+	/*
+		Adds a listener to the EventListeners instance that will be called when nofity_all or operator() is called.
+		Equivalent to EventListeners::operator+=.
+	*/
 	auto add(std::function<FunctionType> listener) -> void {
 		auto const lock = std::scoped_lock{_mutex};    
 		_listeners.emplace_back(std::move(listener));
 	}
+	/*
+		Adds a listener to the EventListeners instance that will be called when nofity_all or operator() is called.
+		Equivalent to EventListeners::add.
+	*/
 	auto operator+=(std::function<FunctionType> listener) -> EventListeners& {
 		add(std::move(listener));
 		return *this;
 	}
 
+	/*
+		Removes a listener from the EventListeners instance that matches the passed function.
+		Equivalent to EventListeners::operator-=.
+	*/
 	auto remove(std::function<FunctionType> const& listener) -> void {
 		auto const lock = std::scoped_lock{_mutex};
 		auto const& listener_type = listener.target_type();
@@ -1133,6 +1814,10 @@ public:
 			_listeners.pop_back();
 		}
 	}
+	/*
+		Removes a listener from the EventListeners instance that matches the passed function.
+		Equivalent to EventListeners::remove.
+	*/
 	auto operator-=(std::function<FunctionType> const& listener) -> EventListeners& {
 		remove(listener);
 		return *this;
@@ -1140,6 +1825,7 @@ public:
 
 	/*
 		Calls all of the listeners with event_arguments as arguments.
+		Equivalent to EventListeners::operator().
 	*/
 	auto notify_all(_Arguments&& ... event_arguments) -> void {
 		auto const lock = std::scoped_lock{_mutex};
@@ -1147,6 +1833,10 @@ public:
 			listener(std::forward<_Arguments>(event_arguments)...);
 		}
 	}
+	/*
+		Calls all of the listeners with event_arguments as arguments.
+		Equivalent to EventListeners::notify_all.
+	*/
 	auto operator()(_Arguments&& ... event_arguments) -> void {
 		notify_all(std::forward<_Arguments>(event_arguments)...);
 	}
@@ -1164,5 +1854,8 @@ public:
 	}
 	auto operator=(EventListeners const&) -> EventListeners& = delete;
 };
+
+//------------------------------
+
 
 } // namespace avo

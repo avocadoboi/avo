@@ -16,7 +16,9 @@ auto enable_utf8_console() -> void {
 	// Pretty much everyone else uses UTF-8 by default.
 }
 
+#ifndef _WIN32
 using IconvHandle = utils::UniqueHandle<iconv_t, decltype([](iconv_t const handle){iconv_close(handle);})>;
+#endif
 
 auto utf8_to_utf16(std::string_view const input, std::span<char16_t> const output) -> std::optional<std::size_t> {
 #ifdef _WIN32
