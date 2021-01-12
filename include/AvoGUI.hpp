@@ -1414,6 +1414,17 @@ constexpr auto operator*=(_Class<A>& first, _Class<B> const second) noexcept -> 
 
 template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
 [[nodiscard]]
+constexpr auto scaled(_Class<A> const first, B const second) noexcept {
+	return first * second;
+}
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+[[nodiscard]]
+constexpr auto scaled(_Class<A> const first, _Class<B> const second) noexcept {
+	return first * second;
+}
+
+template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
+[[nodiscard]]
 constexpr auto operator/(_Class<A> const first, B const second) noexcept {
 	return _Class{first.x/second, first.y/second};
 }
@@ -1447,6 +1458,14 @@ constexpr auto operator/=(_Class<A>& first, _Class<B> const second) noexcept -> 
 template<template<typename> typename _Vector, utils::IsNumber _Value> requires Is2dVectorTemplate<_Vector>
 constexpr auto square(_Value const side_length) -> _Vector<_Value> {
 	return _Vector{side_length, side_length};
+}
+
+template<std::floating_point T, template<typename> typename _Vector> requires Is2dVectorTemplate<_Vector>
+constexpr auto interpolate(_Vector<T> const a, _Vector<T> const b, T const c) -> _Vector<T> {
+	return _Vector{
+		std::lerp(a.x, b.x, c),
+		std::lerp(a.y, b.y, c),
+	};
 }
 
 /*
@@ -1677,6 +1696,15 @@ struct Vector2dBase {
 		x *= inverse_length;
 		y *= inverse_length;
 	}
+
+	template<Is2dVector _Vector>
+	[[nodiscard]]
+	constexpr auto to() const noexcept -> _Vector {
+		return _Vector{
+			static_cast<typename _Vector::value_type>(x),
+			static_cast<typename _Vector::value_type>(y)
+		};
+	}
 };
 
 template<utils::IsNumber _Value = float>
@@ -1707,17 +1735,23 @@ static_assert(Vector2d{-2.f, 1.f}*2.f == 2.f*Vector2d{-2.f, 1.f});
 static_assert(2.f/Vector2d{2.f, -4.f} == Vector2d{1.f, -0.5f});
 static_assert(100/(3*Vector2d{4, 3} + Vector2d{2, 1}*2) == Vector2d{100/16, 100/11});
 
+static_assert(interpolate(Vector2d{0.f, 0.f}, Vector2d{1.f, 1.f}, 0.5f) == Vector2d{0.5f, 0.5f});
+
 static_assert(square<Vector2d>(5.f) == Vector2d{5.f, 5.f});
 static_assert(square(5.f) == 25.f);
 
 static_assert(dot(Vector2d{4, 2}, Vector2d{-2, -3}) == -14);
 static_assert(cross(Vector2d{4, 2}, Vector2d{-2, -3}) == -8);
+
+static_assert(Vector2d{2.f, 5.f}.to<Size<int>>() == Size{2, 5});
 #endif
 
 //------------------------------
 
 template<std::floating_point T>
 struct Transform {
+	using value_type = T;
+	
 	T x_to_x{1}, y_to_x{0}, offset_x{0},
 	  x_to_y{0}, y_to_y{1}, offset_y{0};
 
@@ -1753,7 +1787,7 @@ struct Transform {
 	template<std::floating_point U>
 	[[nodiscard]]
 	constexpr auto operator*(Transform<U> const& other) const noexcept {
-		return Transform{
+		return Transform<std::common_type_t<T, U>>{
 			.x_to_x = x_to_x*other.x_to_x + y_to_x*other.x_to_y,
 			.y_to_x = x_to_x*other.y_to_x + y_to_x*other.y_to_y,
 			.offset_x = x_to_x*other.offset_x + y_to_x*other.offset_y + offset_x,
@@ -1767,7 +1801,7 @@ struct Transform {
 	*/
 	template<std::floating_point U>
 	constexpr auto operator*=(Transform<U> const& other) const noexcept -> Transform& {
-		return *this = other**this;	
+		return *this = other * *this;	
 	}
 
 	/*
@@ -1934,6 +1968,195 @@ static_assert(
 );
 #endif
 
+//------------------------------
+
+template<utils::IsNumber _Value>
+struct Rectangle {
+	using value_type = _Value;
+
+	_Value left{}, top{}, right{}, bottom{};
+
+	constexpr Rectangle() noexcept = default;
+	constexpr Rectangle(_Value const p_left, _Value const p_top, _Value const p_right, _Value const p_bottom) noexcept :
+		left{p_left}, top{p_top}, right{p_right}, bottom{p_bottom}
+	{}
+	constexpr Rectangle(Size<_Value> const size) noexcept :
+		left{}, top{}, right{size.x}, bottom{size.y}
+	{}
+	constexpr Rectangle(Point<_Value> const position) noexcept :
+		left{position.x}, top{position.y},
+		right{position.x}, bottom{position.y}
+	{}
+	constexpr Rectangle(Point<_Value> const position, Size<_Value> const size) noexcept :
+		left{position.x}, top{position.y},
+		right{position.x + size.x}, bottom{position.y + size.y}
+	{}
+	constexpr Rectangle(Point<_Value> const top_left, Point<_Value> const bottom_right) noexcept :
+		left{top_left.x}, top{top_left.y},
+		right{bottom_right.x}, bottom{bottom_right.y}
+	{}
+
+	[[nodiscard]]
+	constexpr auto operator==(Rectangle const&) const noexcept -> bool = default;
+
+	constexpr auto operator-() const noexcept -> Rectangle {
+		return Rectangle{-right, -bottom, -left, -top};
+	}
+	
+	constexpr auto operator+(Is2dVector auto const other) const noexcept {
+		return Rectangle<decltype(left + other.x)>{
+			left + other.x,
+			top + other.y,
+			right + other.x,
+			bottom + other.y
+		};
+	}
+	constexpr auto operator+=(Is2dVector auto const offset) noexcept -> Rectangle& {
+		return move(offset);
+	}
+	constexpr auto operator-=(Is2dVector auto const offset) noexcept -> Rectangle& {
+		return move(-offset);
+	}
+	constexpr auto move(Is2dVector auto const offset) noexcept -> Rectangle& {
+		left += offset.x;
+		right += offset.x;
+		top += offset.y;
+		bottom += offset.y;
+		return *this;
+	}
+
+	constexpr auto operator*(utils::IsNumber auto const factor) const noexcept {
+		return Rectangle<decltype(left*factor)>{
+			left*factor,
+			top*factor,
+			right*factor,
+			bottom*factor
+		};
+	}
+	constexpr auto operator*=(utils::IsNumber auto const factor) noexcept -> Rectangle& {
+		left *= factor;
+		top *= factor;
+		right *= factor;
+		bottom *= factor;
+		return *this;
+	}
+
+	[[nodiscard]]
+	constexpr auto get_size() const noexcept -> Size<_Value> {
+		return Size{right - left, bottom - top};
+	}
+	[[nodiscard]]
+	constexpr auto get_width() const noexcept -> _Value {
+		return right - left;
+	}
+	[[nodiscard]]
+	constexpr auto get_height() const noexcept -> _Value {
+		return bottom - top;
+	}
+
+	[[nodiscard]]
+	constexpr auto get_top_left() const noexcept -> Point<_Value> {
+		return Point{left, top};
+	}
+	template<bool keep_size = true>
+	constexpr auto set_top_left(Point<_Value> const top_left) noexcept -> Rectangle& {
+		if constexpr (keep_size) {
+			right += top_left.x - left;
+			bottom += top_left.y - top;
+		}
+		left = top_left.x;
+		top = top_left.y;
+		return *this;
+	}
+
+	[[nodiscard]]
+	constexpr auto get_top_right() const noexcept -> Point<_Value> {
+		return Point{right, top};
+	}
+	template<bool keep_size = true>
+	constexpr auto set_top_right(Point<_Value> const top_right) noexcept -> Rectangle& {
+		if constexpr (keep_size) {
+			left += top_right.x - right;
+			bottom += top_right.y - top;
+		}
+		right = top_right.x;
+		top = top_right.y;
+		return *this;
+	}
+
+	[[nodiscard]]
+	constexpr auto get_bottom_right() const noexcept -> Point<_Value> {
+		return Point{right, bottom};
+	}
+	template<bool keep_size = true>
+	constexpr auto set_bottom_right(Point<_Value> const bottom_right) noexcept -> Rectangle& {
+		if constexpr (keep_size) {
+			left += bottom_right.x - right;
+			top += bottom_right.y - bottom;
+		}
+		right = bottom_right.x;
+		bottom = bottom_right.y;
+		return *this;
+	}
+
+	[[nodiscard]]
+	constexpr auto get_bottom_left() const noexcept -> Point<_Value> {
+		return Point{left, bottom};
+	}
+	template<bool keep_size = true>
+	constexpr auto set_bottom_left(Point<_Value> const bottom_left) noexcept -> Rectangle& {
+		if constexpr (keep_size) {
+			right += bottom_left.x - left;
+			top += bottom_left.y - bottom;
+		}
+		left = bottom_left.x;
+		bottom = bottom_left.y;
+		return *this;
+	}
+
+	template<utils::IsNumber T>
+	[[nodiscard]]
+	constexpr auto to() const noexcept -> Rectangle<T> {
+		return Rectangle<T>{
+			static_cast<T>(left),
+			static_cast<T>(top),
+			static_cast<T>(right),
+			static_cast<T>(bottom)
+		};
+	}
+};
+
+template<typename T>
+concept IsRectangle = requires(T x) { { Rectangle{x} } -> std::same_as<T>; };
+
+template<utils::IsNumber T, utils::IsNumber U>
+[[nodiscard]]
+constexpr auto scaled(Rectangle<T> const rectangle, U const scale_factor) noexcept {
+	return rectangle * scale_factor;
+}
+template<template<typename> typename _Rectangle, utils::IsNumber T> 
+	requires std::same_as<_Rectangle<T>, Rectangle<T>>
+[[nodiscard]]
+constexpr auto square(T const value) noexcept -> Rectangle<T> {
+	return Rectangle{T{}, T{}, value, value};
+}
+// template<IsRectangle T>
+// constexpr auto square(T const rectangle)
+
+#ifdef BUILD_TESTING
+
+static_assert(Rectangle{Size{5, 8}}.to<float>() == Rectangle{0.f, 0.f, 5.f, 8.f});
+static_assert(Rectangle{Point{9, 1}, Point{11, 6}} == Rectangle{9, 1, 11, 6});
+static_assert(Rectangle{9, 1, 11, 6}.get_top_left() == Point{9, 1});
+static_assert(Rectangle{9, 1, 11, 6}.get_top_right() == Point{11, 1});
+static_assert(Rectangle{9, 1, 11, 6}.get_bottom_right() == Point{11, 6});
+static_assert(Rectangle{9, 1, 11, 6}.get_bottom_left() == Point{9, 6});
+static_assert(Rectangle{9, 1, 11, 6}.set_top_left<false>(Point{-2, -2}) == Rectangle{-2, -2, 11, 6});
+static_assert(Rectangle{9, 1, 11, 6}.set_top_left(Point{-2, -2}) == Rectangle{-2, -2, 0, 3});
+static_assert(square<Rectangle>(5.f) == Rectangle{0.f, 0.f, 5.f, 5.f});
+
+#endif
+
 } // namespace math
 
 //------------------------------
@@ -2076,6 +2299,7 @@ public:
 };
 
 //------------------------------
+
 
 
 } // namespace avo
