@@ -1176,6 +1176,12 @@ constexpr auto sign(T const number) -> T {
 	return std::copysign(T{1}, number);
 }
 
+template<utils::IsNumber T>
+[[nodiscard]]
+constexpr auto abs(T const number) -> T {
+	return number >= T{} ? number ? -number;
+}
+
 /*
 	Returns a number multiplied by itself.
 	Can be useful if you want to quickly square a longer expression.
@@ -2469,6 +2475,20 @@ static_assert(Rectangle{2, 3, 4, 5} + Size{3, 1} == Rectangle{2, 3, 7, 6});
 
 //------------------------------
 
+/*
+	Cubic bezier animation easing.
+	Try out this, can be useful for making your easing curves:
+	http://bjornsundin.com/projects/cubic-bezier-easing
+
+	Ease in example:
+	Easing{Point{0.7f, 0.f}, Point{1.f, 1.f}}.ease_value(x)
+	Ease out example:
+	Easing{Point{0.f, 0.f}, Point{0.3f, 1.f}}.ease_value(x)
+	See Easing::ease_value() for more info.
+
+	Storing Easing objects in a Theme can be a good idea because you can use the same easings within your whole
+	application, or different parts of it.
+*/
 struct Easing {
 	Point<> c0, c1;
 
@@ -2484,9 +2504,10 @@ struct Easing {
 		It calculates a quick newton's method estimation since the cubic bezier curve is defined as a calculation of points;
 		f(t) = (x, y) where 0 <= t <= 1, and we want to ease over x (value is x) and not t. This why we have a precision parameter.
 	*/
-	static auto ease_value(Point<> const c0, Point<> const c1, float const value, float const precision = default_precision) noexcept 
-		-> float
-	{
+	static constexpr auto ease_value(
+		Point<> const c0, Point<> const c1, 
+		float const value, float const precision = default_precision
+	) noexcept -> float {
 		constexpr auto extreme_value_threshold = 1e-5f;
 		
 		if (value <= extreme_value_threshold) {
@@ -2506,12 +2527,12 @@ struct Easing {
 		*/
 
 		auto error = 1.f;
-		while (std::abs(error) > precision) {
-			error = value - t*((1.f - t)*(3.f*(1.f - t)*c0.x + 3.f*t*c1.x) + t*t);
-			t += error/(c0.x*9.f*(t - 1.f)*(t - 1.f/3.f) + t*(c1.x*(6.f - 9.f*t) + 3.f*t));
+		while (abs(error) > precision) {
+			error = value - t * ((1.f - t) * (3.f * (1.f - t) * c0.x + 3.f * t * c1.x) + t * t);
+			t += error / (c0.x * 9.f * (t - 1.f) * (t - 1.f / 3.f) + t * (c1.x * (6.f - 9.f * t) + 3.f * t));
 		}
 
-		return t*((1.f - t)*(3.f*(1.f - t)*c0.y + 3.f*t*c1.y) + t*t);
+		return t * ((1.f - t) * (3.f * (1.f - t) * c0.y + 3.f * t * c1.y) + t * t);
 	}
 
 	auto ease_value(float const value, float const precision = default_precision) const noexcept
@@ -2525,6 +2546,162 @@ struct Easing {
 };
 
 } // namespace math
+
+//------------------------------
+
+/*
+	ARGB formatted 32-bit packed color, where every channel has 8 bits.
+*/
+using ColorInt = std::uint32_t;
+
+[[nodiscard]]
+constexpr inline auto get_red_channel(ColorInt const color) noexcept -> std::uint8_t {
+	return color >> 16 & 0xff;
+}
+[[nodiscard]]
+constexpr inline auto get_green_channel(ColorInt const color) noexcept -> std::uint8_t {
+	return color >> 8 & 0xff;
+}
+[[nodiscard]]
+constexpr inline auto get_blue_channel(ColorInt const color) noexcept -> std::uint8_t {
+	return color & 0xff;
+}
+[[nodiscard]]
+constexpr inline auto get_alpha_channel(ColorInt const color) noexcept -> std::uint8_t {
+	return color >> 24 & 0xff;
+}
+
+/*
+	Object representing a color. A Color object stores the channels as 32-bit floats with a range of [0, 1].
+	This means that a Color object is 4 times as big as a packed 32-bit color, but allows for more 
+	precise and efficient operations.
+*/
+struct Color {
+	float red{0.f},
+          green{0.f},
+          blue{0.f},
+          alpha{1.f};
+	
+	constexpr Color() noexcept = default;
+	/*
+		The channels are clamped to the range [0, 1].
+	*/
+	constexpr Color(float const p_red, float const p_green, float const p_blue, float const p_alpha = 1.f) noexcept :
+		red{std::clamp(p_red, 0.f, 1.f)}, 
+		green{std::clamp(p_green, 0.f, 1.f)}, 
+		blue{std::clamp(p_blue, 0.f, 1.f)}, 
+		alpha{std::clamp(p_alpha, 0.f, 1.f)}
+	{}
+	/*
+		The channels are in the range [0, 255]
+	*/
+	constexpr Color(
+		std::uint8_t const p_red, 
+		std::uint8_t const p_green, 
+		std::uint8_t const p_blue, 
+		std::uint8_t const p_alpha = static_cast<std::uint8_t>(255)
+	) noexcept :
+		red{p_red / 255.f},
+		green{p_green / 255.f},
+		blue{p_blue / 255.f},
+		alpha{p_alpha / 255.f}
+	{}
+	/*
+		The channels are clamped to the range [0, 255]
+	*/
+	template<std::integral T>
+	constexpr Color(T const p_red, T const p_green, T const p_blue, T const p_alpha = static_cast<T>(255)) noexcept :
+		red{std::clamp(p_red / 255.f, 0.f, 1.f)},
+		green{std::clamp(p_green / 255.f, 0.f, 1.f)},
+		blue{std::clamp(p_blue / 255.f, 0.f, 1.f)},
+		alpha{std::clamp(p_alpha / 255.f, 0.f, 1.f)}
+	{}
+
+	/*
+		Initializes the color with a grayscale value. The values are clamped to the range [0, 1].
+	*/
+	constexpr Color(float const lightness, float const p_alpha = 1.f) noexcept :
+		red{std::clamp(lightness, 0.f, 1.f)},
+		green{std::clamp(lightness, 0.f, 1.f)},
+		blue{std::clamp(lightness, 0.f, 1.f)},
+		alpha{std::clamp(p_alpha, 0.f, 1.f)}
+	{}
+	/*
+		Initializes the color with a grayscale value. The values are bytes in the range [0, 255].
+	*/
+	constexpr Color(std::uint8_t const lightness, std::uint8_t const p_alpha = 255u) noexcept :
+		red{lightness/255.f},
+		green{red},
+		blue{red},
+		alpha{p_alpha/255.f}
+	{}
+	/*
+		Initializes the color with a grayscale value. The values are clamped to the range [0, 255].
+	*/
+	template<std::integral T>
+	constexpr Color(T const lightness, T const p_alpha = static_cast<T>(255)) noexcept :
+		red{std::clamp(lightness / 255.f, 0.f, 1.f)},
+		green{red},
+		blue{red},
+		alpha{std::clamp(p_alpha / 255.f, 0.f, 1.f)}
+	{}
+
+	/*
+		Creates a copy of another color but with a new alpha.
+	*/
+	constexpr Color(Color const color, float const p_alpha) noexcept :
+		red{color.red}, 
+		green{color.green}, 
+		blue{color.blue}, 
+		alpha{std::clamp(p_alpha, 0.f, 1.f)}
+	{}
+	/*
+		Creates a copy of another color but with a new alpha.
+	*/
+	constexpr Color(Color const color, std::uint8_t const p_alpha) noexcept :
+		red{color.red / 255.f},
+		green{color.green / 255.f},
+		blue{color.blue / 255.f},
+		alpha{p_alpha / 255.f}
+	{}
+	/*
+		Creates a copy of another color but with a new alpha.
+	*/
+	template<std::integral T>
+	constexpr Color(Color const color, T const p_alpha) noexcept :
+		red{color.red},
+		green{color.green},
+		blue{color.blue},
+		alpha{std::clamp(p_alpha / 255.f, 0.f, 1.f)}
+	{}
+
+	/*
+		Initializes with a 4-byte packed RGBA color.
+	*/
+	constexpr Color(ColorInt const color) noexcept :
+		red{get_red_channel(color) / 255.f},
+		green{get_green_channel(color) / 255.f},
+		blue{get_blue_channel(color) / 255.f},
+		alpha{get_alpha_channel(color) / 255.f}
+	{}
+
+	constexpr auto operator=(ColorInt const color) noexcept -> Color& {
+		return *this = Color{color};
+	}
+
+	constexpr auto operator*(float const factor) const noexcept -> Color {
+		return Color{red * factor, green * factor, blue * factor, alpha};
+	}
+	constexpr auto operator*=(float const factor) noexcept -> Color& {
+		return *this = *this * factor;
+	}
+	constexpr auto operator/(float const divisor) const noexcept -> Color {
+		return {red/divisor, green/divisor, blue/divisor, alpha};
+	}
+	constexpr auto operator/=(float const divisor) noexcept -> Color& {
+		return *this = *this / divisor;
+	}
+};
 
 //------------------------------
 
