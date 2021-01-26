@@ -1191,6 +1191,12 @@ constexpr T sign(T const number) {
 	return std::copysign(T{1}, number);
 }
 
+template<std::floating_point T>
+[[nodiscard]]
+constexpr T unit_clamp(T const value) {
+	return std::clamp(value, T{}, T{1});
+}
+
 template<utils::IsNumber _Return, utils::IsNumber T>
 [[nodiscard]]
 constexpr _Return floor(T const number) {
@@ -2631,20 +2637,17 @@ constexpr inline std::uint8_t alpha_channel(ColorInt const color) noexcept {
 	precise and efficient operations.
 */
 struct Color {
-	float red{},
-          green{},
-          blue{},
-          alpha{1.f};
+	float red{}, green{}, blue{}, alpha{1.f};
 	
 	constexpr Color() noexcept = default;
 	/*
 		The channels are clamped to the range [0, 1].
 	*/
 	constexpr Color(float const p_red, float const p_green, float const p_blue, float const p_alpha = 1.f) noexcept :
-		red{std::clamp(p_red, 0.f, 1.f)}, 
-		green{std::clamp(p_green, 0.f, 1.f)}, 
-		blue{std::clamp(p_blue, 0.f, 1.f)}, 
-		alpha{std::clamp(p_alpha, 0.f, 1.f)}
+		red{math::unit_clamp(p_red)}, 
+		green{math::unit_clamp(p_green)}, 
+		blue{math::unit_clamp(p_blue)}, 
+		alpha{math::unit_clamp(p_alpha)}
 	{}
 	/*
 		The channels are in the range [0, 255]
@@ -2665,20 +2668,20 @@ struct Color {
 	*/
 	template<std::integral T>
 	constexpr Color(T const p_red, T const p_green, T const p_blue, T const p_alpha = static_cast<T>(255)) noexcept :
-		red{std::clamp(p_red / 255.f, 0.f, 1.f)},
-		green{std::clamp(p_green / 255.f, 0.f, 1.f)},
-		blue{std::clamp(p_blue / 255.f, 0.f, 1.f)},
-		alpha{std::clamp(p_alpha / 255.f, 0.f, 1.f)}
+		red{math::unit_clamp(p_red / 255.f)},
+		green{math::unit_clamp(p_green / 255.f)},
+		blue{math::unit_clamp(p_blue / 255.f)},
+		alpha{math::unit_clamp(p_alpha / 255.f)}
 	{}
 
 	/*
 		Initializes the color with a grayscale value. The values are clamped to the range [0, 1].
 	*/
 	explicit constexpr Color(float const lightness, float const p_alpha = 1.f) noexcept :
-		red{std::clamp(lightness, 0.f, 1.f)},
-		green{std::clamp(lightness, 0.f, 1.f)},
-		blue{std::clamp(lightness, 0.f, 1.f)},
-		alpha{std::clamp(p_alpha, 0.f, 1.f)}
+		red{math::unit_clamp(lightness)},
+		green{math::unit_clamp(lightness)},
+		blue{math::unit_clamp(lightness)},
+		alpha{math::unit_clamp(p_alpha)}
 	{}
 	/*
 		Initializes the color with a grayscale value. The values are bytes in the range [0, 255].
@@ -2694,10 +2697,10 @@ struct Color {
 	*/
 	template<std::integral T>
 	explicit constexpr Color(T const lightness, T const p_alpha = static_cast<T>(255)) noexcept :
-		red{std::clamp(lightness / 255.f, 0.f, 1.f)},
+		red{math::unit_clamp(lightness / 255.f)},
 		green{red},
 		blue{red},
-		alpha{std::clamp(p_alpha / 255.f, 0.f, 1.f)}
+		alpha{math::unit_clamp(p_alpha / 255.f)}
 	{}
 
 	/*
@@ -2707,7 +2710,7 @@ struct Color {
 		red{color.red}, 
 		green{color.green}, 
 		blue{color.blue}, 
-		alpha{std::clamp(p_alpha, 0.f, 1.f)}
+		alpha{math::unit_clamp(p_alpha)}
 	{}
 	/*
 		Creates a copy of another color but with a new alpha.
@@ -2726,7 +2729,7 @@ struct Color {
 		red{color.red},
 		green{color.green},
 		blue{color.blue},
-		alpha{std::clamp(p_alpha / 255.f, 0.f, 1.f)}
+		alpha{math::unit_clamp(p_alpha / 255.f)}
 	{}
 
 	/*
@@ -2766,13 +2769,13 @@ struct Color {
 	static constexpr Color hsba(float hue, float const saturation, float brightness, float const alpha = 1.f) noexcept
 	{
 		hue -= math::floor<float>(hue);
-		brightness = std::clamp(brightness, 0.f, 1.f);
-		auto const factor = brightness * std::clamp(saturation, 0.f, 1.f);
+		brightness = math::unit_clamp(brightness);
+		auto const factor = brightness * math::unit_clamp(saturation);
 
 		return Color{
-			brightness + factor * (std::clamp(1.f - (hue - 1.f / 6.f) * 6.f, 0.f, 1.f) + std::clamp((hue - 4.f / 6.f) * 6.f, 0.f, 1.f) - 1.f),
-			brightness + factor * (std::min(1.f, hue * 6.f) - std::clamp((hue - 3.f / 6.f) * 6.f, 0.f, 1.f) - 1.f),
-			brightness + factor * (std::clamp((hue - 2.f / 6.f) * 6.f, 0.f, 1.f) - std::clamp((hue - 5.f / 6.f) * 6.f, 0.f, 1.f) - 1.f),
+			brightness + factor * (math::unit_clamp(1.f - (hue - 1.f / 6.f) * 6.f) + math::unit_clamp((hue - 4.f / 6.f) * 6.f) - 1.f),
+			brightness + factor * (std::min(1.f, hue * 6.f) - math::unit_clamp((hue - 3.f / 6.f) * 6.f) - 1.f),
+			brightness + factor * (math::unit_clamp((hue - 2.f / 6.f) * 6.f) - math::unit_clamp((hue - 5.f / 6.f) * 6.f) - 1.f),
 			alpha,
 		};
 	}
@@ -2803,13 +2806,13 @@ struct Color {
 	static constexpr Color hsla(float hue, float const saturation, float lightness, float const alpha = 1.f) noexcept 
 	{
 		hue -= math::floor<float>(hue);
-		lightness = std::clamp(lightness, 0.f, 1.f);
-		auto const factor = 2.f * std::clamp(saturation, 0.f, 1.f)*(lightness < 0.5f ? lightness : (1.f - lightness));
+		lightness = math::unit_clamp(lightness);
+		auto const factor = 2.f * math::unit_clamp(saturation)*(lightness < 0.5f ? lightness : (1.f - lightness));
 
 		return Color{
-			lightness + factor * (std::clamp(1.f - (hue - 1.f / 6.f) * 6.f, 0.f, 1.f) + std::clamp((hue - 4.f / 6.f) * 6.f, 0.f, 1.f) - 0.5f),
-			lightness + factor * (std::min(1.f, hue * 6.f) - std::clamp((hue - 3.f / 6.f) * 6.f, 0.f, 1.f) - 0.5f),
-			lightness + factor * (std::clamp((hue - 2.f / 6.f) * 6.f, 0.f, 1.f) - std::clamp((hue - 5.f / 6.f) * 6.f, 0.f, 1.f) - 0.5f),
+			lightness + factor * (math::unit_clamp(1.f - (hue - 1.f / 6.f) * 6.f) + math::unit_clamp((hue - 4.f / 6.f) * 6.f) - 0.5f),
+			lightness + factor * (std::min(1.f, hue * 6.f) - math::unit_clamp((hue - 3.f / 6.f) * 6.f) - 0.5f),
+			lightness + factor * (math::unit_clamp((hue - 2.f / 6.f) * 6.f) - math::unit_clamp((hue - 5.f / 6.f) * 6.f) - 0.5f),
 			alpha
 		};
 	}
@@ -2821,12 +2824,12 @@ struct Color {
 		return hsla(hue, saturation, lightness);
 	}
 	[[nodiscard]]
-	static constexpr Color hsla(math::IsAngle auto const hue, float const saturation, float const lightness, float const p_alpha = 1.f) noexcept {
-		return hsla(math::normalized(hue), saturation, lightness, p_alpha);
+	static constexpr Color hsla(math::IsAngle auto const hue, float const saturation, float const lightness, float const alpha = 1.f) noexcept {
+		return hsla(math::normalized<float>(hue), saturation, lightness, alpha);
 	}
 	[[nodiscard]]
 	static constexpr Color hsl(math::IsAngle auto const hue, float const saturation, float const lightness) noexcept {
-		return hsla(math::normalized(hue), saturation, lightness);
+		return hsla(math::normalized<float>(hue), saturation, lightness);
 	}
 
 	/*
@@ -2839,15 +2842,18 @@ struct Color {
 		auto const max_channel = math::max(red, green, blue);
 		
 		red = min_channel + (max_channel - min_channel) * 
-			(std::clamp(1.f - (new_hue - 1.f / 6.f) * 6.f, 0.f, 1.f) + std::clamp((new_hue - 4.f / 6.f) * 6.f, 0.f, 1.f));
+			(math::unit_clamp(1.f - (new_hue - 1.f / 6.f) * 6.f) + math::unit_clamp((new_hue - 4.f / 6.f) * 6.f));
 			
 		green = min_channel + (max_channel - min_channel) * 
-			(std::min(1.f, new_hue * 6.f) - std::clamp((new_hue - 3.f / 6.f) * 6.f, 0.f, 1.f));
+			(std::min(1.f, new_hue * 6.f) - math::unit_clamp((new_hue - 3.f / 6.f) * 6.f));
 			
 		blue = min_channel + (max_channel - min_channel) * 
-			(std::clamp((new_hue - 2.f / 6.f) * 6.f, 0.f, 1.f) - std::clamp((new_hue - 5.f / 6.f) * 6.f, 0.f, 1.f));
+			(math::unit_clamp((new_hue - 2.f / 6.f) * 6.f) - math::unit_clamp((new_hue - 5.f / 6.f) * 6.f));
 			
 		return *this;
+	}
+	constexpr Color& hue(math::IsAngle auto const hue_angle) noexcept {
+		return hue(math::normalized<float>(hue_angle));
 	}
 	/*
 		Returns the hue of the color. The hue is a float in the range [0, 1].
@@ -2917,7 +2923,7 @@ struct Color {
 			return *this;
 		}
 
-		saturation = std::clamp(saturation, 0.f, 1.f);
+		saturation = math::unit_clamp(saturation);
 		auto const factor = saturation/hsb_saturation();
 
 		auto const brightness = math::max(red, green, blue);
@@ -2944,13 +2950,14 @@ struct Color {
 		Keep in mind that you can't change the saturation if the color is gray, since only RGBA values are stored.
 	*/
 	constexpr Color& hsl_saturation(float saturation) noexcept {
-		saturation = std::clamp(saturation, 0.f, 1.f);
+		saturation = math::unit_clamp(saturation);
 
-		auto const factor = saturation/hsl_saturation();
-		if (factor == saturation/0.f) {
+		auto const saturation_before = hsl_saturation();
+		if (saturation_before == 0.f) {
 			return *this;
 		}
 		
+		auto const factor = saturation/saturation_before;
 		auto const current_lightness = lightness();
 		red = current_lightness + factor*(red - current_lightness);
 		green = current_lightness + factor*(green - current_lightness);
@@ -2979,7 +2986,7 @@ struct Color {
 		color black, and a brightness of 1 makes the color fully bright. This only makes it white if saturation is at 0.
 	*/
 	constexpr Color& brightness(float new_brightness) noexcept {
-		new_brightness = std::clamp(new_brightness, 0.f, 1.f);
+		new_brightness = math::unit_clamp(new_brightness);
 
 		if (red == green && red == blue) {
 			red = new_brightness;
@@ -3007,7 +3014,7 @@ struct Color {
 		color black, a lightness of 0.5 makes it normal and a lightness of 1 makes it white.
 	*/
 	constexpr Color& lightness(float new_lightness) noexcept {
-		new_lightness = std::clamp(new_lightness, 0.f, 1.f);
+		new_lightness = math::unit_clamp(new_lightness);
 
 		if (red == green && red == blue) {
 			red = new_lightness;
@@ -3081,6 +3088,21 @@ struct Color {
 	}
 
 	[[nodiscard]]
+	constexpr Color operator+(Color const other) const noexcept {
+		return Color{red + other.red, green + other.green, blue + other.blue, alpha + other.alpha};
+	}
+	constexpr Color& operator+=(Color const other) noexcept {
+		return *this = *this + other;
+	}
+	[[nodiscard]]
+	constexpr Color operator-(Color const other) const noexcept {
+		return Color{red - other.red, green - other.green, blue - other.blue, alpha - other.alpha};
+	}
+	constexpr Color& operator-=(Color const other) noexcept {
+		return *this = *this - other;
+	}
+
+	[[nodiscard]]
 	constexpr Color operator*(float const factor) const noexcept {
 		return Color{red * factor, green * factor, blue * factor, alpha};
 	}
@@ -3116,10 +3138,6 @@ constexpr Color operator*(float const factor, Color const color) noexcept {
 	return color * factor;
 }
 [[nodiscard]]
-constexpr Color operator/(float const dividend, Color const color) noexcept {
-	return Color{dividend / color.red, dividend / color.green, dividend / color.blue};
-}
-[[nodiscard]]
 constexpr Color operator+(float const factor, Color const color) noexcept {
 	return color + factor;
 }
@@ -3128,11 +3146,54 @@ constexpr Color operator-(float const term, Color const color) noexcept {
 	return Color{term - color.red, term - color.green, term - color.blue};
 }
 
-#ifdef BUILD_TESTING
+inline std::ostream& operator<<(std::ostream& stream, Color const color) {
+	return stream << "rgba(" << color.red << ", " << color.green 
+		<< ", " << color.blue << ", " << color.alpha << ")";
+}
 
+namespace math {
+
+/*
+	Linearly interpolates a color between start and end. Each channel is faded individually.
+	If progress is 0, start is returned. If progress is 1, end is returned.
+*/
+constexpr Color interpolate(Color const start, Color const end, float const progress) noexcept {
+	return Color{
+		std::lerp(start.red, end.red, progress),
+		std::lerp(start.green, end.green, progress),
+		std::lerp(start.blue, end.blue, progress),
+		std::lerp(start.alpha, end.alpha, progress),
+	};
+}
+
+} // namespace math
+
+#ifdef BUILD_TESTING
 static_assert(Color::hsb(math::Degrees{30}, 1.f, 1.f).hue<math::Degrees<int>>() == math::Degrees{30});
 static_assert(Color::hsb(math::Degrees{180}, 1.f, 1.f).hue() == 0.5f);
+static_assert(Color::hsb(math::Degrees{30}, 0.77f, 1.f).hsb_saturation() == 0.77f);
 
+static_assert(Color::hsl(math::Degrees{30}, 1.f, 0.8f).hue<math::Degrees<int>>() == math::Degrees{30});
+static_assert(Color::hsl(math::Degrees{180}, 1.f, 0.8f).hue() == 0.5f);
+static_assert(Color::hsl(math::Degrees{30}, 0.77f, 0.8f).hsl_saturation() == 0.77f);
+
+static_assert(Color{0.1f} == Color{0.1f, 0.1f, 0.1f, 1.f});
+static_assert(Color{0.1f} == Color::rgb(0.1f, 0.1f, 0.1f));
+static_assert(Color{0.1f, 0.2f, 0.3f} + Color{1.f, 0.7f, 0.5f} == Color{1.f, 0.9f, 0.8f});
+static_assert(Color{1.f, 0.9f, 0.8f} - Color{1.f, 0.7f, 0.5f, 0.5f} == Color{0.f, 0.9f - 0.7f, 0.8f - 0.5f, 0.5f});
+static_assert(Color{0.1f, 0.2f, 0.3f} + 0.2f == Color{0.3f, 0.4f, 0.5f});
+static_assert(Color{0.2f, 0.3f, 0.4f} - 0.2f == Color{0.f, 0.3f - 0.2f, 0.2f});
+static_assert(1.f - Color{0.2f, 0.3f, 0.4f} == Color{0.8f, 0.7f, 0.6f});
+static_assert(Color{0.2f, 0.3f, 0.4f} * 2.f == Color{0.4f, 0.6f, 0.8f});
+
+static_assert(Color{0.1f, 0.2f, 0.9f}.hue(math::Degrees{71}).hue<math::Degrees<int>>() == math::Degrees{71});
+static_assert(Color{0.1f, 0.2f, 0.9f}.hue(0.3f).hue() == 0.3f);
+static_assert(Color{0.1f, 0.2f, 0.9f}.brightness(0.3f).brightness() == 0.3f);
+static_assert(Color{0.1f, 0.2f, 0.9f}.lightness(0.3f).lightness() == 0.3f);
+static_assert(math::approximately_equal(Color{0.1f, 0.2f, 0.9f}.hsl_saturation(0.3f).hsl_saturation(), 0.3f));
+static_assert(Color{0.1f, 0.2f, 0.9f}.hsb_saturation(0.3f).hsb_saturation() == 0.3f);
+
+static_assert(math::interpolate(Color{0.2f, 0.3f, 0.4f}, Color{0.8f, 0.7f, 0.6f}, 0.5f) == Color{0.5f});
 #endif // BUILD_TESTING
 
 //------------------------------

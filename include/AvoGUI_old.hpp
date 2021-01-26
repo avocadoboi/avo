@@ -1411,28 +1411,6 @@ struct Initializer {
 //------------------------------
 // Color stuff
 
-/*
-	Object representing a color. A Color object stores the channels as 32-bit floats with a range of [0, 1].
-	This means that a Color object is 4 times as big as a packed 32-bit color, but allows for more 
-	precise and efficient operations.
-*/
-struct Color {
-
-};
-
-/*
-	Linearly interpolates a color between start and end. Each channel is faded individually.
-	If progress is 0, start is returned. If progress is 1, end is returned.
-*/
-inline auto interpolate(Color const start, Color const end, float const progress) -> Color {
-	return {
-		std::lerp(start.red, end.red, progress),
-		std::lerp(start.green, end.green, progress),
-		std::lerp(start.blue, end.blue, progress),
-		std::lerp(start.alpha, end.alpha, progress),
-	};
-}
-
 //
 // Font family names
 //
