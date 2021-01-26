@@ -122,7 +122,7 @@ public:
 		value_type _current_value;
 
 	public:
-		constexpr auto operator++(int) noexcept -> Iterator {
+		constexpr Iterator operator++(int) noexcept {
 			if constexpr (is_reverse) {
 				return Iterator{_current_value--};
 			}
@@ -130,7 +130,7 @@ public:
 				return Iterator{_current_value++};
 			}
 		}
-		constexpr auto operator++() noexcept -> Iterator& {
+		constexpr Iterator& operator++() noexcept {
 			if constexpr (is_reverse) {
 				--_current_value;
 			}
@@ -141,7 +141,7 @@ public:
 		}
 
 		[[nodiscard]]
-		constexpr auto operator+(difference_type const offset) const noexcept -> Iterator {
+		constexpr Iterator operator+(difference_type const offset) const noexcept {
 			if constexpr (is_reverse) {
 				return _current_value - offset;
 			}
@@ -149,7 +149,7 @@ public:
 				return _current_value + offset;
 			}
 		}
-		constexpr auto operator+=(difference_type const offset) noexcept -> Iterator& {
+		constexpr Iterator& operator+=(difference_type const offset) noexcept {
 			if constexpr (is_reverse) {
 				_current_value -= offset;
 			}
@@ -159,7 +159,7 @@ public:
 			return *this;
 		}
 
-		constexpr auto operator--(int) noexcept -> Iterator {
+		constexpr Iterator operator--(int) noexcept {
 			if constexpr (is_reverse) {
 				return Iterator{_current_value++};
 			}
@@ -167,7 +167,7 @@ public:
 				return Iterator{_current_value--};
 			}
 		}
-		constexpr auto operator--() noexcept -> Iterator& {
+		constexpr Iterator& operator--() noexcept {
 			if constexpr (is_reverse) {
 				++_current_value;
 			}
@@ -178,7 +178,7 @@ public:
 		}
 
 		[[nodiscard]]
-		constexpr auto operator-(difference_type const offset) const noexcept -> Iterator {
+		constexpr Iterator operator-(difference_type const offset) const noexcept {
 			if constexpr (is_reverse) {
 				return _current_value + offset;
 			}
@@ -186,7 +186,7 @@ public:
 				return _current_value - offset;
 			}        
 		}
-		constexpr auto operator-=(difference_type const offset) noexcept -> Iterator& {
+		constexpr Iterator& operator-=(difference_type const offset) noexcept {
 			if constexpr (is_reverse) {
 				_current_value += offset;
 			}
@@ -197,11 +197,11 @@ public:
 		}
 
 		[[nodiscard]]
-		constexpr auto operator*() const noexcept -> value_type const& {
+		constexpr value_type const& operator*() const noexcept {
 			return _current_value;
 		}
 		[[nodiscard]]
-		constexpr auto operator*() noexcept -> value_type& {
+		constexpr value_type& operator*() noexcept {
 			return _current_value;
 		}
 
@@ -220,21 +220,22 @@ private:
 
 public:
 	[[nodiscard]]
-	constexpr auto reverse() const noexcept -> Range<_Value, !is_reverse> {
+	constexpr Range<_Value, !is_reverse> reverse() const noexcept 
+	{
 		return {*(_end - 1), *_start};
 	}
 
 	[[nodiscard]]
-	constexpr auto begin() const noexcept -> Iterator {
+	constexpr Iterator begin() const noexcept{
 		return _start;
 	}
 
 	[[nodiscard]]
-	constexpr auto end() const noexcept -> Iterator {
+	constexpr Iterator end() const noexcept {
 		return _end;
 	}
 
-	constexpr auto operator==(Range const&) const noexcept -> bool = default;
+	constexpr bool operator==(Range const&) const noexcept = default;
 
 	/*
 		Creates a range of integers starting with start and ending with inclusive_end.
@@ -344,7 +345,7 @@ static_assert(
 	Takes any range and returns a range containing the indices of the elements of the original range.
 */
 [[nodiscard]]
-constexpr auto indices(std::ranges::sized_range auto&& range) -> Range<std::size_t> {
+constexpr Range<std::size_t> indices(std::ranges::sized_range auto&& range) {
 	return std::size(range);
 }
 
@@ -375,8 +376,7 @@ struct EnumeratedElement {
 	The original range isn't moved anywhere.
 */
 [[nodiscard]]
-constexpr auto enumerate(std::ranges::range auto& range) 
-	-> std::ranges::view auto 
+constexpr std::ranges::view auto enumerate(std::ranges::range auto& range) 
 {
 	return range | std::views::transform([i = std::size_t{}](auto& element) mutable {
 		return EnumeratedElement{i++, element};
@@ -388,7 +388,7 @@ constexpr auto enumerate(std::ranges::range auto& range)
 	the original range. The returned range owns the original range since it is moved into it.
 */
 [[nodiscard]]
-constexpr auto enumerate(std::ranges::range auto&& range) -> std::ranges::range auto;
+constexpr std::ranges::range auto enumerate(std::ranges::range auto&& range);
 
 /*
 	A range of (index, element) pairs referring to the elements of an owned range.
@@ -415,22 +415,22 @@ public:
 		std::size_t _index;
 		
 	public:
-		constexpr auto operator++(int) -> Iterator {
+		constexpr Iterator operator++(int) {
 			return Iterator{++_base_iterator, ++_index};
 		}
-		constexpr auto operator++() -> Iterator& {
+		constexpr Iterator& operator++() {
 			++_base_iterator;
 			++_index;
 			return *this;
 		}
 
 		[[nodiscard]]
-		constexpr auto operator==(Iterator const& other) const noexcept -> bool {
+		constexpr bool operator==(Iterator const& other) const noexcept {
 			return _base_iterator == other._base_iterator;
 		}
 
 		[[nodiscard]]
-		constexpr auto operator*() const -> value_type {
+		constexpr value_type operator*() const {
 			return EnumeratedElement{_index, *_base_iterator};
 		}
 
@@ -442,15 +442,15 @@ public:
 	};
 
 	[[nodiscard]]
-	constexpr auto begin() const -> Iterator {
+	constexpr Iterator begin() const {
 		return Iterator{std::begin(_range), std::size_t{}};
 	}
 	[[nodiscard]]
-	constexpr auto end() const -> Iterator {
+	constexpr Iterator end() const {
 		return Iterator{std::end(_range), std::size_t{}};
 	}
 
-	friend constexpr auto enumerate<>(T&& range) -> std::ranges::range auto;
+	friend constexpr std::ranges::range auto enumerate<>(T&& range);
 
 private:
 	constexpr EnumeratedRange(T&& range) noexcept :
@@ -459,9 +459,7 @@ private:
 	constexpr EnumeratedRange() = default;
 };
 
-constexpr auto enumerate(std::ranges::range auto&& range) 
-	-> std::ranges::range auto
-{
+constexpr std::ranges::range auto enumerate(std::ranges::range auto&& range) {
 	return EnumeratedRange{std::move(range)};
 }
 
@@ -494,7 +492,7 @@ static_assert(
 	}(),
 	"avo::utils::enumerate with rvalue reference failed."
 );
-#endif
+#endif // BUILD_TESTING
 
 //------------------------------
 
@@ -504,7 +502,7 @@ static_assert(
 */
 #ifdef __cpp_lib_source_location
 [[noreturn]]
-inline auto unreachable(std::source_location const& source_location = std::source_location::current()) -> void {
+inline void unreachable(std::source_location const& source_location = std::source_location::current()) {
 	// TODO: use std::format when supported
 	// std::cerr << std::format("Reached an unreachable code path in file {}, in function {}, on line {}.", 
 	// 	source_location.file_name(), source_location.function_name(), source_location.line());
@@ -514,7 +512,7 @@ inline auto unreachable(std::source_location const& source_location = std::sourc
 }
 #else
 [[noreturn]]
-inline auto unreachable() -> void {
+inline void unreachable() {
 	std::cerr << "Reached an unreachable code path, exiting.\n";
 	std::exit(1);
 }
@@ -532,10 +530,10 @@ private:
 	
 public:
 	Cleanup(Cleanup&&) noexcept = delete;
-	auto operator=(Cleanup&&) noexcept -> Cleanup& = delete;
+	Cleanup& operator=(Cleanup&&) noexcept = delete;
 
 	Cleanup(Cleanup const&) = delete;
-	auto operator=(Cleanup const&) -> Cleanup& = delete;
+	Cleanup& operator=(Cleanup const&) = delete;
 
 	[[nodiscard]] 
 	Cleanup(T&& callable) :
@@ -565,7 +563,7 @@ template<IsTrivial _Type, std::invocable<_Type> _Deleter, _Type invalid_handle =
 class UniqueHandle {
 	_Type _handle{invalid_handle};
 
-	auto close() -> void {
+	void close() {
 		if (_handle != invalid_handle) {
 			_Deleter{}(_handle);
 			_handle = invalid_handle;
@@ -577,29 +575,29 @@ public:
 		return _handle;
 	}
 	[[nodiscard]]
-	auto get() const -> _Type {
+	_Type get() const {
 		return _handle;
 	}
 	[[nodiscard]]
-	auto get() -> _Type& {
+	_Type& get() {
 		return _handle;
 	}
 
 	[[nodiscard]]
-	auto operator->() const -> _Type const* {
+	_Type const* operator->() const {
 		return &_handle;
 	}
 	[[nodiscard]]
-	auto operator->() -> _Type* {
+	_Type* operator->() {
 		return &_handle;
 	}
 
 	[[nodiscard]]
-	auto operator&() const -> _Type const* {
+	_Type const* operator&() const {
 		return &_handle;
 	}
 	[[nodiscard]]
-	auto operator&() -> _Type* {
+	_Type* operator&() {
 		return &_handle;
 	}
 
@@ -608,14 +606,14 @@ public:
 		return _handle != invalid_handle;
 	}
 	[[nodiscard]]
-	auto operator!() const -> bool {
+	bool operator!() const {
 		return _handle == invalid_handle;
 	}
 
 	explicit UniqueHandle(_Type handle) :
 		_handle{handle}
 	{}
-	auto operator=(_Type handle) -> UniqueHandle& {
+	UniqueHandle& operator=(_Type handle) {
 		close();
 		_handle = handle;
 		return *this;
@@ -631,14 +629,14 @@ public:
 	{
 		handle._handle = invalid_handle;
 	}
-	auto operator=(UniqueHandle&& handle) noexcept -> UniqueHandle& {
+	UniqueHandle& operator=(UniqueHandle&& handle) noexcept {
 		_handle = handle._handle;
 		handle._handle = invalid_handle;
 		return *this;
 	}
 
 	UniqueHandle(UniqueHandle const&) = delete;
-	auto operator=(UniqueHandle const&) -> UniqueHandle& = delete;
+	UniqueHandle& operator=(UniqueHandle const&) = delete;
 };
 
 //------------------------------
@@ -648,7 +646,7 @@ using DataView = std::span<std::byte const>;
 using DataRange = std::span<std::byte>;
 
 [[nodiscard]] 
-inline auto read_file(std::string const path) -> DataVector {
+inline DataVector read_file(std::string const path) {
 	auto file = std::ifstream(path.data(), std::ios::ate | std::ios::binary);
 
 	if (!file) {
@@ -694,7 +692,7 @@ static_assert(
 		struct Test {
 			bool b{};
 
-			constexpr auto get() const -> bool {
+			constexpr bool get() const {
 				return b;
 			}
 		};
@@ -709,7 +707,7 @@ static_assert(
 		struct Test {
 			bool b{};
 
-			constexpr auto get() -> bool {
+			constexpr bool get() {
 				return b;
 			}
 		};
@@ -719,7 +717,7 @@ static_assert(
 	}(),
 	"avo::utils::bind does not work with mutable objects."
 );
-#endif
+#endif // BUILD_TESTING
 
 } // namespace utils
 
@@ -734,7 +732,7 @@ namespace unicode {
 	Enables UTF-8 encoded console output on Windows.
 	Pretty much all other platforms use UTF-8 by default.
 */
-auto enable_utf8_console() -> void;
+void enable_utf8_console();
 
 //------------------------------
 
@@ -743,24 +741,24 @@ auto enable_utf8_console() -> void;
 	Returns the length of the converted string, in code point units (char16_t).
 	If no value is returned then the output span is too small to fit the whole converted string.
 */
-auto utf8_to_utf16(std::string_view input, std::span<char16_t> output) -> std::optional<std::size_t>;
+std::optional<std::size_t> utf8_to_utf16(std::string_view input, std::span<char16_t> output);
 /*
 	Converts a UTF-8 encoded string to a UTF-16 encoded std::u16string.
 */
 [[nodiscard]]
-auto utf8_to_utf16(std::string_view input) -> std::u16string;
+std::u16string utf8_to_utf16(std::string_view input);
 
 /*
 	Converts a UTF-16 encoded char16 string to a UTF-8 encoded char string.
 	Returns the length of the converted string, in code point units (char).
 	If no value is returned then the output span is too small to fit the whole converted string.
 */
-auto utf16_to_utf8(std::u16string_view input, std::span<char> output) -> std::optional<std::size_t>;
+std::optional<std::size_t> utf16_to_utf8(std::u16string_view input, std::span<char> output);
 /*
 	Converts a UTF-16 char16 string to a UTF-8 encoded std::string.
 */
 [[nodiscard]]
-auto utf16_to_utf8(std::u16string_view input) -> std::string;
+std::string utf16_to_utf8(std::u16string_view input);
 
 //------------------------------
 
@@ -771,7 +769,7 @@ auto utf16_to_utf8(std::u16string_view input) -> std::string;
 	Returns -1 if the code point is an invalid UTF-8 code point.
 */
 [[nodiscard]]
-constexpr auto code_point_count(char const first_code_point_in_character) noexcept -> int {
+constexpr int code_point_count(char const first_code_point_in_character) noexcept {
 	// http://www.unicode.org/versions/Unicode12.1.0/ch03.pdf , page 126
 	if (!(first_code_point_in_character & 0x80)) // 0xxxxxxx
 		return 1;
@@ -793,7 +791,7 @@ constexpr auto code_point_count(char const first_code_point_in_character) noexce
 	Returns -1 if the code point is an invalid UTF-16 code point.
 */
 [[nodiscard]]
-constexpr auto code_point_count(char16_t const first_code_point_in_character) noexcept -> int {
+constexpr int code_point_count(char16_t const first_code_point_in_character) noexcept {
 	// http://www.unicode.org/versions/Unicode12.1.0/ch03.pdf , page 125
 	if ((first_code_point_in_character & 0xfc00) == 0xd800) // 110110wwwwxxxxxx
 		return 2;
@@ -806,7 +804,7 @@ constexpr auto code_point_count(char16_t const first_code_point_in_character) no
 	Returns whether the passed code point is the start of a UTF-8 encoded character.
 */
 [[nodiscard]]
-constexpr auto is_first_code_point(char const code_point) noexcept -> bool {
+constexpr bool is_first_code_point(char const code_point) noexcept {
 	return (code_point & 0xc0) != 0x80;
 }
 
@@ -814,7 +812,7 @@ constexpr auto is_first_code_point(char const code_point) noexcept -> bool {
 	Returns whether p_unit is the start of a UTF-16 encoded character
 */
 [[nodiscard]]
-constexpr auto is_first_code_point(char16_t const code_point) noexcept -> bool {
+constexpr bool is_first_code_point(char16_t const code_point) noexcept {
 	return (code_point & 0xfc00) != 0xdc00;
 }
 
@@ -827,8 +825,7 @@ concept IsCodePoint = utils::IsAnyOf<T, char, char16_t>;
 */
 template<IsCodePoint T>
 [[nodiscard]]
-constexpr auto code_point_index(std::basic_string_view<T> const string, std::size_t const character_index) 
-	-> std::size_t 
+constexpr std::size_t code_point_index(std::basic_string_view<T> const string, std::size_t const character_index) 
 {
 	if (!character_index) {
 		return {};
@@ -852,8 +849,7 @@ constexpr auto code_point_index(std::basic_string_view<T> const string, std::siz
 */
 template<IsCodePoint T>
 [[nodiscard]]
-constexpr auto character_index(std::basic_string_view<T> const string, std::size_t const code_point_index) 
-	-> std::size_t 
+constexpr std::size_t character_index(std::basic_string_view<T> const string, std::size_t const code_point_index) 
 {
 	if (!code_point_index) {
 		return {};
@@ -873,7 +869,7 @@ constexpr auto character_index(std::basic_string_view<T> const string, std::size
 */
 template<IsCodePoint T>
 [[nodiscard]]
-constexpr auto character_count(std::basic_string_view<T> const string) -> std::size_t {
+constexpr std::size_t character_count(std::basic_string_view<T> const string) {
 	return character_index(string, string.size()) + 1;
 }
 
@@ -915,7 +911,7 @@ static_assert(
 	character_index(u"🪢 här 🪢 är knut"sv, 12) == 10, 
 	"character_index does not work correctly with UTF-16."
 );
-#endif
+#endif // BUILD_TESTING
 
 } // namespace unicode
 
@@ -942,7 +938,7 @@ struct ArithmeticBase {
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
     requires std::derived_from<_Class<A>, ArithmeticBase<A>>
 [[nodiscard]]
-constexpr auto operator==(_Class<A> const first, _Class<B> const second) noexcept -> bool {
+constexpr bool operator==(_Class<A> const first, _Class<B> const second) noexcept {
     return first.value == second.value;
 }
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
@@ -960,7 +956,7 @@ constexpr auto operator+(_Class<A> const first, _Class<B> const second) noexcept
 }
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
     requires std::derived_from<_Class<A>, ArithmeticBase<A>>
-constexpr auto operator+=(_Class<A>& first, _Class<B> const second) noexcept -> _Class<A>& {
+constexpr _Class<A>& operator+=(_Class<A>& first, _Class<B> const second) noexcept {
 	first.value += second.value;
 	return first;
 }
@@ -980,7 +976,7 @@ constexpr auto operator-(_Class<A> const first, _Class<B> const second) noexcept
 }
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
     requires std::derived_from<_Class<A>, ArithmeticBase<A>>
-constexpr auto operator-=(_Class<A>& first, _Class<B> const second) noexcept -> _Class<A>& {
+constexpr _Class<A>& operator-=(_Class<A>& first, _Class<B> const second) noexcept {
 	first.value -= second.value;
 	return first;
 }
@@ -999,7 +995,7 @@ constexpr auto operator*(B first, _Class<A> const second) noexcept {
 }
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
     requires std::derived_from<_Class<A>, ArithmeticBase<A>>
-constexpr auto operator*=(_Class<A>& first, B const second) noexcept -> _Class<A>& {
+constexpr _Class<A>& operator*=(_Class<A>& first, B const second) noexcept {
 	first.value *= second;
 	return first;
 }
@@ -1012,7 +1008,7 @@ constexpr auto operator/(_Class<A> const first, B const second) noexcept {
 }
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
     requires std::derived_from<_Class<A>, ArithmeticBase<A>>
-constexpr auto operator/=(_Class<A>& first, B const second) noexcept -> _Class<A>& {
+constexpr _Class<A>& operator/=(_Class<A>& first, B const second) noexcept {
 	first.value /= second;
 	return first;
 }
@@ -1049,7 +1045,7 @@ concept IsAngle = IsRadians<T> || IsDegrees<T>;
 */
 template<utils::IsNumber _To, std::floating_point _From>
 [[nodiscard]]
-constexpr auto to_degrees(Radians<_From> const radians) noexcept -> Degrees<_To> {
+constexpr Degrees<_To> to_degrees(Radians<_From> const radians) noexcept {
 	if constexpr (std::integral<_To>) {
 		return Degrees{static_cast<_To>(std::round(radians.value / std::numbers::pi_v<_From> * static_cast<_From>(180)))};
 	}
@@ -1061,7 +1057,7 @@ constexpr auto to_degrees(Radians<_From> const radians) noexcept -> Degrees<_To>
 */
 template<utils::IsNumber _To, utils::IsNumber _From>
 [[nodiscard]]
-constexpr auto to_degrees(Degrees<_From> const degrees) noexcept -> Degrees<_To> {
+constexpr Degrees<_To> to_degrees(Degrees<_From> const degrees) noexcept {
 	if constexpr (std::integral<_To> && std::floating_point<_From>) {
 		return Degrees{static_cast<_To>(std::round(degrees.value))};
 	}
@@ -1073,7 +1069,7 @@ constexpr auto to_degrees(Degrees<_From> const degrees) noexcept -> Degrees<_To>
 */
 template<std::floating_point _To, utils::IsNumber _From>
 [[nodiscard]]
-constexpr auto to_radians(Degrees<_From> const degrees) noexcept -> Radians<_To> {
+constexpr Radians<_To> to_radians(Degrees<_From> const degrees) noexcept {
 	return Radians{static_cast<_To>(degrees.value / static_cast<_To>(180) * std::numbers::pi_v<_To>)};
 }
 /*
@@ -1081,7 +1077,7 @@ constexpr auto to_radians(Degrees<_From> const degrees) noexcept -> Radians<_To>
 */
 template<std::floating_point _To, std::floating_point _From>
 [[nodiscard]]
-constexpr auto to_radians(Radians<_From> const radians) noexcept -> Radians<_To> {
+constexpr Radians<_To> to_radians(Radians<_From> const radians) noexcept {
 	return Radians{static_cast<_To>(radians.value)};
 }
 
@@ -1090,7 +1086,7 @@ constexpr auto to_radians(Radians<_From> const radians) noexcept -> Radians<_To>
 */
 template<IsRadians _To>
 [[nodiscard]]
-constexpr auto angle_as(IsAngle auto const angle) noexcept -> _To {
+constexpr _To angle_as(IsAngle auto const angle) noexcept {
 	return to_radians<typename _To::value_type>(angle);
 }
 
@@ -1099,25 +1095,42 @@ constexpr auto angle_as(IsAngle auto const angle) noexcept -> _To {
 */
 template<IsDegrees _To>
 [[nodiscard]]
-constexpr auto angle_as(IsAngle auto const angle) noexcept -> _To {
+constexpr _To angle_as(IsAngle auto const angle) noexcept {
 	return to_degrees<typename _To::value_type>(angle);
+}
+
+template<std::floating_point T>
+[[nodiscard]]
+constexpr T normalized(Degrees<T> const degrees) noexcept {
+	return degrees.value / 360;
+}
+template<std::floating_point _Return, std::integral T>
+[[nodiscard]]
+constexpr _Return normalized(Degrees<T> const degrees) noexcept {
+	return static_cast<_Return>(degrees.value) / 360;
+}
+
+template<std::floating_point T>
+[[nodiscard]]
+constexpr T normalized(Radians<T> const radians) noexcept {
+	return radians.value / (std::numbers::pi_v<T>*2);
 }
 
 inline namespace angle_literals {
 
-constexpr auto operator"" _deg(long double const value) noexcept -> Degrees<double> {
+constexpr Degrees<double> operator"" _deg(long double const value) noexcept {
 	return Degrees{static_cast<double>(value)};
 }
-constexpr auto operator"" _degf(long double const value) noexcept -> Degrees<float> {
+constexpr Degrees<float> operator"" _degf(long double const value) noexcept {
 	return Degrees{static_cast<float>(value)};
 }
-constexpr auto operator"" _deg(unsigned long long const value) noexcept -> Degrees<int> {
+constexpr Degrees<int> operator"" _deg(unsigned long long const value) noexcept {
 	return Degrees{static_cast<int>(value)};
 }
-constexpr auto operator"" _rad(long double const value) noexcept -> Radians<double> {
+constexpr Radians<double> operator"" _rad(long double const value) noexcept {
 	return Radians{static_cast<double>(value)};
 }
-constexpr auto operator"" _radf(long double const value) noexcept -> Radians<float> {
+constexpr Radians<float> operator"" _radf(long double const value) noexcept {
 	return Radians{static_cast<float>(value)};
 }
 
@@ -1155,14 +1168,16 @@ static_assert(Degrees{50} == Degrees{50} && Degrees{50} != Degrees{51});
 static_assert(to_radians<float>(Degrees{180.f}) == Radians{std::numbers::pi_v<float>});
 static_assert(to_degrees<int>(Radians{std::numbers::pi_v<float>}) == Degrees{180});
 static_assert(to_degrees<float>(Degrees{50}) == Degrees{50.f});
-
-#endif
+static_assert(normalized<float>(Degrees{90}) == 0.25f);
+static_assert(normalized(Degrees{90.f}) == 0.25f);
+static_assert(normalized(Radians{std::numbers::pi_v<float>/2}) == 0.25f);
+#endif // BUILD_TESTING
 
 //------------------------------
 
 template<std::floating_point T>
 [[nodiscard]]
-constexpr auto approximately_equal(T const a, T const b, T const max_difference = static_cast<T>(1e-6)) -> bool 
+constexpr bool approximately_equal(T const a, T const b, T const max_difference = static_cast<T>(1e-6))  
 {
 	return std::abs(a - b) <= max_difference;
 }
@@ -1172,14 +1187,40 @@ constexpr auto approximately_equal(T const a, T const b, T const max_difference 
 */
 template<utils::IsNumber T>
 [[nodiscard]]
-constexpr auto sign(T const number) -> T {
+constexpr T sign(T const number) {
 	return std::copysign(T{1}, number);
+}
+
+template<utils::IsNumber _Return, utils::IsNumber T>
+[[nodiscard]]
+constexpr _Return floor(T const number) {
+	if (std::is_constant_evaluated()) {
+		return static_cast<_Return>(static_cast<std::int64_t>(number) - static_cast<std::int64_t>(number < 0));
+	}
+	else {
+		return static_cast<_Return>(std::floor(number));
+	}
+}
+template<utils::IsNumber _Return, utils::IsNumber T>
+[[nodiscard]]
+constexpr _Return ceil(T const number) {
+	if (std::is_constant_evaluated()) {
+		return static_cast<_Return>(static_cast<std::int64_t>(number) + static_cast<std::int64_t>(number > 0));
+	}
+	else {
+		return static_cast<_Return>(std::ceil(number));
+	}
 }
 
 template<utils::IsNumber T>
 [[nodiscard]]
-constexpr auto abs(T const number) -> T {
-	return number >= T{} ? number ? -number;
+constexpr T abs(T const number) {
+	if (std::is_constant_evaluated()) {
+		return number >= T{} ? number : -number;
+	}
+	else {
+		return std::abs(number);
+	}
 }
 
 /*
@@ -1188,7 +1229,7 @@ constexpr auto abs(T const number) -> T {
 */
 template<utils::IsNumber T>
 [[nodiscard]]
-constexpr auto square(T const x) noexcept -> T {
+constexpr T square(T const x) noexcept {
 	return x*x;
 }
 
@@ -1197,7 +1238,7 @@ constexpr auto square(T const x) noexcept -> T {
 	It is about 8% to 15% faster than 1.f/std::sqrt(x) with gcc -O3 on my computer.
 */
 [[nodiscard]]
-inline auto fast_inverse_sqrt(float const input) noexcept -> float
+inline float fast_inverse_sqrt(float const input) noexcept 
 {
 	static_assert(std::numeric_limits<float>::is_iec559, "fast_inverse_sqrt error: float type must follow IEEE 754-1985 standard.");
 	static_assert(sizeof(float) == 4, "fast_inverse_sqrt error: sizeof(float) must be 4.");
@@ -1218,14 +1259,14 @@ inline auto fast_inverse_sqrt(float const input) noexcept -> float
 	Returns the pair of cosine and sine values for any angle.
 */
 template<std::floating_point _Return>
-auto cos_sin(IsAngle auto angle) -> std::pair<_Return, _Return> {
+std::pair<_Return, _Return> cos_sin(IsAngle auto angle) {
 	auto const radians = to_radians<_Return>(angle);
 	return std::pair{std::cos(radians.value), std::sin(radians.value)};
 }
 
 template<typename T>
 [[nodiscard]]
-constexpr auto max(T&& value) -> decltype(auto) {
+constexpr decltype(auto) max(T&& value) {
 	return std::forward<T>(value);
 }
 /*
@@ -1236,7 +1277,7 @@ constexpr auto max(T&& value) -> decltype(auto) {
 */
 template<typename T0, typename T1, typename ... T2> requires std::totally_ordered_with<T0, T1>
 [[nodiscard]]
-constexpr auto max(T0&& first, T1&& second, T2&& ... arguments) -> decltype(auto) 
+constexpr decltype(auto) max(T0&& first, T1&& second, T2&& ... arguments) 
 {
 	return (first > second) ? 
 		max(std::forward<T0>(first), std::forward<T2>(arguments)...) : 
@@ -1245,7 +1286,7 @@ constexpr auto max(T0&& first, T1&& second, T2&& ... arguments) -> decltype(auto
 
 template<typename T>
 [[nodiscard]]
-constexpr auto min(T&& value) -> decltype(auto) {
+constexpr decltype(auto) min(T&& value) {
 	return std::forward<T>(value);
 }
 /*
@@ -1256,7 +1297,7 @@ constexpr auto min(T&& value) -> decltype(auto) {
 */
 template<typename T0, typename T1, typename ... T2> requires std::totally_ordered_with<T0, T1>
 [[nodiscard]]
-constexpr auto min(T0&& first, T1&& second, T2&& ... arguments) -> decltype(auto) 
+constexpr decltype(auto) min(T0&& first, T1&& second, T2&& ... arguments) 
 {
 	return (first < second) ? 
 		min(std::forward<T0>(first), std::forward<T2>(arguments)...) : 
@@ -1264,6 +1305,11 @@ constexpr auto min(T0&& first, T1&& second, T2&& ... arguments) -> decltype(auto
 }
 
 #ifdef BUILD_TESTING
+static_assert(floor<double>(-4.5) == -5. && floor<int>(-4.4) == -5);
+static_assert(floor<double>(4.5) == 4. && floor<int>(4.7) == 4);
+static_assert(ceil<double>(-4.5) == -4. && ceil<int>(-4.4) == -4);
+static_assert(ceil<double>(4.5) == 5. && ceil<int>(4.7) == 5);
+
 static_assert(
 	min(1, 9.89, 3, 6.1, -6, 0., 1845, 14) == -6 &&
 	min(-1, 2) == -1 &&
@@ -1276,7 +1322,7 @@ static_assert(
 	max(-1) == -1,
 	"avo::math::max works incorrectly."
 );
-#endif
+#endif // BUILD_TESTING
 
 //------------------------------
 
@@ -1293,24 +1339,32 @@ public:
 	*/
 	template<std::floating_point T>
 	[[nodiscard]]
-	auto next(T const min = T{}, T const max = T{1}) -> T {
+	T next(T const min = T{}, T const max = T{1}) {
 		return std::uniform_real_distribution<T>{min, max}(_engine);
 	}
 	/*
 		Generates a new uniformly distributed random integer in the range [min, max].
 	*/
-	template<std::integral T>
+	template<std::integral T> requires (!std::same_as<T, bool>)
 	[[nodiscard]]
-	auto next(T const min = T{}, T const max = T{1}) -> T {
+	T next(T const min = T{}, T const max = T{1}) {
 		return std::uniform_int_distribution<T>{min, max}(_engine);
 	}
+	/*
+		Returns a random coin flip, true or false.
+	*/
+    template<std::same_as<bool> T>
+    [[nodiscard]]
+    T next() {
+        return static_cast<T>(std::uniform_int_distribution{0, 1}(_engine));
+    }
 	/*
 		Generates a new random floating point number distributed according to a gaussian distribution
 		with a mean and a standard deviation.
 	*/
 	template<std::floating_point T>
 	[[nodiscard]]
-	auto next_normal(T const mean, T const standard_deviation) -> T {
+	T next_normal(T const mean, T const standard_deviation) {
 		return std::normal_distribution<T>{mean, standard_deviation};
 	}
 
@@ -1341,20 +1395,21 @@ concept Is2dVector = requires {
 	requires std::derived_from<T, Vector2dBase<typename T::value_type>>;
 }; 
 
-auto operator<<(std::ostream& stream, Is2dVector auto const vector) -> std::ostream& {
+std::ostream& operator<<(std::ostream& stream, Is2dVector auto const vector) {
 	stream << '(' << vector.x << ", " << vector.y << ')';
 	return stream;
 }
 
 template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
 [[nodiscard]]
-constexpr auto operator==(_Class<A> const first, _Class<B> const second) noexcept -> bool {
+constexpr bool operator==(_Class<A> const first, _Class<B> const second) noexcept {
 	return first.x == second.x && first.y == second.y;
 }
 
 template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
 [[nodiscard]]
-constexpr auto operator<=>(_Class<A> const first, _Class<B> const second) noexcept -> std::partial_ordering {
+constexpr std::partial_ordering operator<=>(_Class<A> const first, _Class<B> const second) noexcept 
+{
 	if (first.x < second.x && first.y < second.y) {
 		return std::partial_ordering::less;
 	}
@@ -1373,7 +1428,7 @@ constexpr auto operator+(_Class<A> const first, _Class<B> const second) noexcept
 	return _Class{first.x + second.x, first.y + second.y};
 }
 template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
-constexpr auto operator+=(_Class<A>& first, _Class<B> const second) noexcept -> _Class<A>& {
+constexpr _Class<A>& operator+=(_Class<A>& first, _Class<B> const second) noexcept {
 	first.x += second.x;
 	first.y += second.y;
 	return first;
@@ -1391,7 +1446,7 @@ constexpr auto operator-(_Class<A> const first, _Class<B> const second) noexcept
 	return _Class{first.x - second.x, first.y - second.y};
 }
 template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
-constexpr auto operator-=(_Class<A>& first, _Class<B> const second) noexcept -> _Class<A>& {
+constexpr _Class<A>& operator-=(_Class<A>& first, _Class<B> const second) noexcept {
 	first.x -= second.x;
 	first.y -= second.y;
 	return first;
@@ -1408,7 +1463,7 @@ constexpr auto operator*(B const first, _Class<A> const second) noexcept {
 	return _Class{second.x*first, second.y*first};
 }
 template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
-constexpr auto operator*=(_Class<A>& first, B const second) noexcept -> _Class<A>& {
+constexpr _Class<A>& operator*=(_Class<A>& first, B const second) noexcept {
 	first.x *= second;
 	first.y *= second;
 	return first;
@@ -1420,7 +1475,7 @@ constexpr auto operator*(_Class<A> const first, _Class<B> const second) noexcept
 	return _Class{first.x*second.x, first.y*second.y};
 }
 template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
-constexpr auto operator*=(_Class<A>& first, _Class<B> const second) noexcept -> _Class<A>& {
+constexpr _Class<A>& operator*=(_Class<A>& first, _Class<B> const second) noexcept {
 	first.x *= second.x;
 	first.y *= second.y;
 	return first;
@@ -1448,7 +1503,7 @@ constexpr auto operator/(B const first, _Class<A> const second) noexcept {
 	return _Class{first/second.x, first/second.y};
 }
 template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
-constexpr auto operator/=(_Class<A>& first, B const second) noexcept -> _Class<A>& {
+constexpr _Class<A>& operator/=(_Class<A>& first, B const second) noexcept {
 	first.x /= second;
 	first.y /= second;
 	return first;
@@ -1460,7 +1515,7 @@ constexpr auto operator/(_Class<A> const first, _Class<B> const second) noexcept
 	return _Class{first.x/second.x, first.y/second.y};
 }
 template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
-constexpr auto operator/=(_Class<A>& first, _Class<B> const second) noexcept -> _Class<A>& {
+constexpr _Class<A>& operator/=(_Class<A>& first, _Class<B> const second) noexcept {
 	first.x /= second.x;
 	first.y /= second.y;
 	return first;
@@ -1470,12 +1525,12 @@ constexpr auto operator/=(_Class<A>& first, _Class<B> const second) noexcept -> 
 	Creates a square 2d vector, that is a vector with both coordinates equal.
 */
 template<template<typename> typename _Vector, utils::IsNumber _Value> requires Is2dVectorTemplate<_Vector>
-constexpr auto square(_Value const side_length) -> _Vector<_Value> {
+constexpr _Vector<_Value> square(_Value const side_length) {
 	return _Vector{side_length, side_length};
 }
 
 template<std::floating_point T, template<typename> typename _Vector> requires Is2dVectorTemplate<_Vector>
-constexpr auto interpolate(_Vector<T> const a, _Vector<T> const b, T const c) -> _Vector<T> {
+constexpr _Vector<T> interpolate(_Vector<T> const a, _Vector<T> const b, T const c) {
 	return _Vector{
 		std::lerp(a.x, b.x, c),
 		std::lerp(a.y, b.y, c),
@@ -1504,7 +1559,7 @@ auto polar(IsAngle auto const angle) {
 
 template<utils::IsNumber T, template<typename> typename _Vector> requires Is2dVectorTemplate<_Vector>
 [[nodiscard]]
-constexpr auto with_negative_space_clipped(_Vector<T> vector) noexcept -> _Vector<T> {
+constexpr _Vector<T> with_negative_space_clipped(_Vector<T> vector) noexcept {
 	vector.clip_negative_space();
 	return vector;
 }
@@ -1549,7 +1604,7 @@ constexpr auto distance_squared(_Vector<A> const first, _Vector<B> const second)
 */
 template<Is2dVector T>
 [[nodiscard]]
-auto normalized(T vector) -> T {
+T normalized(T vector) {
 	vector.normalize();
 	return vector;
 }
@@ -1558,7 +1613,7 @@ auto normalized(T vector) -> T {
 */
 template<Is2dVector T>
 [[nodiscard]]
-auto normalized_fast(T vector) -> T {
+T normalized_fast(T vector) {
 	vector.normalize_fast();
 	return vector;
 }
@@ -1568,7 +1623,7 @@ auto normalized_fast(T vector) -> T {
 */
 template<Is2dVector T>
 [[nodiscard]]
-auto rotated(T vector, IsAngle auto const angle) -> T {
+T rotated(T vector, IsAngle auto const angle) {
 	vector.rotate(angle);
 	return vector;
 }
@@ -1577,7 +1632,7 @@ auto rotated(T vector, IsAngle auto const angle) -> T {
 */
 template<Is2dVector T>
 [[nodiscard]]
-auto rotated(T vector, IsAngle auto const angle, Is2dVector auto const origin) -> T {
+T rotated(T vector, IsAngle auto const angle, Is2dVector auto const origin) {
 	vector.rotate(angle, origin);
 	return vector;
 }
@@ -1587,8 +1642,8 @@ auto rotated(T vector, IsAngle auto const angle, Is2dVector auto const origin) -
 */
 template<Is2dVector T>
 [[nodiscard]]
-auto with_angle(T vector, IsAngle auto const angle) -> T {
-	vector.set_angle(angle);
+T with_angle(T vector, IsAngle auto const angle) {
+	vector.angle(angle);
 	return vector;
 }
 /*
@@ -1597,8 +1652,8 @@ auto with_angle(T vector, IsAngle auto const angle) -> T {
 */
 template<Is2dVector T>
 [[nodiscard]]
-auto with_angle(T vector, IsAngle auto const angle, Is2dVector auto const origin) -> T {
-	vector.set_angle(angle, origin);
+T with_angle(T vector, IsAngle auto const angle, Is2dVector auto const origin) {
+	vector.angle(angle, origin);
 	return vector;
 }
 
@@ -1616,21 +1671,21 @@ struct Vector2dBase {
 		Returns the magnitude of the vector, or the hypotenuse of the triangle.
 	*/
 	[[nodiscard]]
-	auto get_length() const {
+	auto length() const {
 		return std::hypot(x, y);
 	}
 	/*
 		Returns the squared magnitude of the vector, or the squared hypotenuse of the triangle.
 	*/
 	[[nodiscard]]
-	constexpr auto get_length_squared() const noexcept -> _Value {
+	constexpr _Value length_squared() const noexcept {
 		return x*x + y*y;
 	}
 
 	/*
 		Sets any negative coordinates to 0.
 	*/
-	constexpr auto clip_negative_space() noexcept -> void {
+	constexpr void clip_negative_space() noexcept {
 		x = max(_Value{}, x);
 		y = max(_Value{}, y);
 	}
@@ -1638,7 +1693,7 @@ struct Vector2dBase {
 	/*
 		Rotates the vector by an angle clockwise.
 	*/
-	auto rotate(IsAngle auto const angle) -> void {
+	void rotate(IsAngle auto const angle) {
 		// A very small change in angle could result in a very big change in cartesian coordinates.
 		// Therefore we use long double for these calculations and not _Value.
 		auto const [cos, sin] = cos_sin<long double>(angle);
@@ -1649,7 +1704,7 @@ struct Vector2dBase {
 	/*
 		Rotates the vector by an angle clockwise relative to an origin.
 	*/
-	auto rotate(IsAngle auto const angle, Is2dVector auto const origin) -> void {
+	void rotate(IsAngle auto const angle, Is2dVector auto const origin) {
 		auto const [cos, sin] = cos_sin<long double>(angle);
 		auto const x_before = x;
 		x = static_cast<_Value>((x - origin.x)*cos - (y - origin.y)*sin + origin.x);
@@ -1659,16 +1714,16 @@ struct Vector2dBase {
 	/*
 		Sets the angle of the vector measured anticlockwise from the right side.
 	*/
-	auto set_angle(IsAngle auto const angle) -> void {
+	void angle(IsAngle auto const angle) {
 		auto const [cos, sin] = cos_sin<long double>(angle);
-		auto const length = get_length();
-		x = static_cast<_Value>(cos*length);
-		y = static_cast<_Value>(sin*length);
+		auto const current_length = length();
+		x = static_cast<_Value>(cos*current_length);
+		y = static_cast<_Value>(sin*current_length);
 	}
 	/*
 		Sets the angle of the vector measured anticlockwise from the right side relative to an origin.
 	*/
-	auto set_angle(IsAngle auto const angle, Is2dVector auto const origin) -> void {
+	void angle(IsAngle auto const angle, Is2dVector auto const origin) {
 		auto const [cos, sin] = cos_sin<long double>(angle);
 		auto const length = distance(*this, origin);
 		x = static_cast<_Value>(cos*length + origin.x);
@@ -1680,7 +1735,7 @@ struct Vector2dBase {
 	*/
 	template<IsAngle _Angle>
 	[[nodiscard]]
-	auto get_angle() const -> _Angle {
+	_Angle angle() const {
 		if (!x && !y) {
 			return _Angle{};
 		}
@@ -1695,7 +1750,7 @@ struct Vector2dBase {
 	*/
 	template<IsAngle _Angle>
 	[[nodiscard]]
-	auto get_angle(Is2dVector auto const origin) const -> _Angle {
+	_Angle angle(Is2dVector auto const origin) const {
 		if (x == origin.x && y == origin.y) {
 			return _Angle{};
 		}
@@ -1712,23 +1767,23 @@ struct Vector2dBase {
 	/*
 		Keeps the angle of the vector but sets its length to 1.
 	*/
-	auto normalize() -> void {
-		auto const length = get_length();
-		x /= length;
-		y /= length;
+	void normalize() {
+		auto const current_length = length();
+		x /= current_length;
+		y /= current_length;
 	}
 	/*
 		Keeps the angle of the vector but sets its length to 1 using a slightly faster algorithm.
 	*/
-	auto normalize_fast() -> void {
-		auto const inverse_length = fast_inverse_sqrt(get_length_squared());
+	void normalize_fast() {
+		auto const inverse_length = fast_inverse_sqrt(length_squared());
 		x *= inverse_length;
 		y *= inverse_length;
 	}
 
 	template<Is2dVector _Vector>
 	[[nodiscard]]
-	constexpr auto to() const noexcept -> _Vector {
+	constexpr _Vector to() const noexcept {
 		return _Vector{
 			static_cast<typename _Vector::value_type>(x),
 			static_cast<typename _Vector::value_type>(y)
@@ -1776,7 +1831,7 @@ static_assert(dot(Vector2d{4, 2}, Vector2d{-2, -3}) == -14);
 static_assert(cross(Vector2d{4, 2}, Vector2d{-2, -3}) == -8);
 
 static_assert(Vector2d{2.f, 5.f}.to<Size<int>>() == Size{2, 5});
-#endif
+#endif // BUILD_TESTING
 
 //------------------------------
 
@@ -1788,7 +1843,7 @@ struct Transform {
 	  x_to_y{0}, y_to_y{1}, offset_y{0};
 
 	[[nodiscard]]
-	constexpr auto operator==(Transform const&) const noexcept -> bool = default;
+	constexpr bool operator==(Transform const&) const noexcept = default;
 
 	/*
 		Multiplies this 2x3 matrix to a column vector that has an implicit third column with the value 1.
@@ -1832,14 +1887,14 @@ struct Transform {
 		A *= B is equivalent to A = B*A.
 	*/
 	template<std::floating_point U>
-	constexpr auto operator*=(Transform<U> const& other) const noexcept -> Transform& {
+	constexpr Transform& operator*=(Transform<U> const& other) const noexcept {
 		return *this = other * *this;	
 	}
 
 	/*
 		Rotates transformed points anticlockwise from the right.
 	*/
-	auto rotate(IsAngle auto const angle) -> Transform& {
+	Transform& rotate(IsAngle auto const angle) {
 		/*
 			[cos -sin  0]   [x_to_x y_to_x offset_x]
 			[sin  cos  0] * [x_to_y y_to_y offset_y]
@@ -1862,7 +1917,7 @@ struct Transform {
 	/*
 		Rotates transformed points around an origin anticlockwise from the right.
 	*/
-	auto rotate(IsAngle auto const angle, Is2dVector auto const origin) -> Transform& {
+	Transform& rotate(IsAngle auto const angle, Is2dVector auto const origin) {
 		translate(-origin);
 		rotate(angle);
 		translate(origin);
@@ -1872,7 +1927,7 @@ struct Transform {
 	/*
 		Moves the translation by an offset.
 	*/
-	constexpr auto translate(Is2dVector auto const offset) noexcept -> Transform& {
+	constexpr Transform& translate(Is2dVector auto const offset) noexcept {
 		offset_x += offset.x;
 		offset_y += offset.y;
 		return *this;
@@ -1880,7 +1935,7 @@ struct Transform {
 	/*
 		Sets the absolute offset in coordinates caused by the transform.
 	*/
-	constexpr auto set_translation(Is2dVector auto const point) noexcept -> Transform& {
+	constexpr Transform& translation(Is2dVector auto const point) noexcept {
 		offset_x = point.x;
 		offset_y = point.y;
 		return *this;
@@ -1889,7 +1944,7 @@ struct Transform {
 	/*
 		Scales the transform by a horizontal and vertical factor.
 	*/
-	constexpr auto scale(Is2dVector auto const scale_factor) noexcept -> Transform& {
+	constexpr Transform& scale(Is2dVector auto const scale_factor) noexcept {
 		x_to_x *= scale_factor.x;
 		y_to_x *= scale_factor.x;
 		offset_x *= scale_factor.x;
@@ -1898,13 +1953,13 @@ struct Transform {
 		offset_y *= scale_factor.y;
 		return *this;
 	}
-	constexpr auto scale_x(utils::IsNumber auto const scale_factor) noexcept -> Transform& {
+	constexpr Transform& scale_x(utils::IsNumber auto const scale_factor) noexcept {
 		x_to_x *= scale_factor;
 		y_to_x *= scale_factor;
 		offset_x *= scale_factor;
 		return *this;
 	}
-	constexpr auto scale_y(utils::IsNumber auto const scale_factor) noexcept -> Transform& {
+	constexpr Transform& scale_y(utils::IsNumber auto const scale_factor) noexcept {
 		y_to_y *= scale_factor;
 		x_to_y *= scale_factor;
 		offset_y *= scale_factor;
@@ -1913,7 +1968,7 @@ struct Transform {
 };
 
 template<std::floating_point T>
-auto operator<<(std::ostream& stream, Transform<T> const transform) -> std::ostream& {
+std::ostream& operator<<(std::ostream& stream, Transform<T> const transform) {
 	return stream << "| " << transform.x_to_x << ' ' << transform.y_to_x << ' ' << transform.offset_x << " |\n"
 		<< "| " << transform.x_to_y << ' ' << transform.y_to_y << ' ' << transform.offset_y << " |\n";
 }
@@ -1926,7 +1981,7 @@ auto operator<<(std::ostream& stream, Transform<T> const transform) -> std::ostr
 */
 template<std::floating_point T>
 [[nodiscard]]
-constexpr auto inverse(Transform<T> const t) noexcept -> Transform<T> {
+constexpr Transform<T> inverse(Transform<T> const t) noexcept {
 	auto const divisor = t.x_to_x*t.y_to_y - t.y_to_x*t.x_to_y;
 	return Transform{
 		t.y_to_y/divisor,
@@ -1944,7 +1999,7 @@ constexpr auto inverse(Transform<T> const t) noexcept -> Transform<T> {
 */
 template<std::floating_point T>
 [[nodiscard]]
-constexpr auto rotated(Transform<T> transform, IsAngle auto const angle) -> Transform<T> {
+constexpr Transform<T> rotated(Transform<T> transform, IsAngle auto const angle) {
 	return transform.rotate(angle);
 }
 /*
@@ -1953,7 +2008,7 @@ constexpr auto rotated(Transform<T> transform, IsAngle auto const angle) -> Tran
 */
 template<std::floating_point T>
 [[nodiscard]]
-constexpr auto rotated(Transform<T> transform, IsAngle auto const angle, Is2dVector auto const origin) -> Transform<T> {
+constexpr Transform<T> rotated(Transform<T> transform, IsAngle auto const angle, Is2dVector auto const origin) {
 	return transform.rotate(angle, origin);
 }
 
@@ -1963,17 +2018,17 @@ constexpr auto rotated(Transform<T> transform, IsAngle auto const angle, Is2dVec
 */
 template<std::floating_point T>
 [[nodiscard]]
-constexpr auto translated(Transform<T> transform, Is2dVector auto const offset) -> Transform<T> {
+constexpr Transform<T> translated(Transform<T> transform, Is2dVector auto const offset) {
 	return transform.translate(offset);
 }
 /*
 	Returns a copy of the Transform argument with a specific absolute translation.
-	See Transform::set_translation.
+	See Transform::translation.
 */
 template<std::floating_point T>
 [[nodiscard]]
-constexpr auto with_translation(Transform<T> transform, Is2dVector auto const point) -> Transform<T> {
-	return transform.set_translation(point);
+constexpr Transform<T> with_translation(Transform<T> transform, Is2dVector auto const point) {
+	return transform.translation(point);
 }
 
 /*
@@ -1982,23 +2037,23 @@ constexpr auto with_translation(Transform<T> transform, Is2dVector auto const po
 */
 template<std::floating_point T>
 [[nodiscard]]
-constexpr auto scaled(Transform<T> transform, Is2dVector auto const scale_factor) noexcept -> Transform<T> {
+constexpr Transform<T> scaled(Transform<T> transform, Is2dVector auto const scale_factor) noexcept {
 	return transform.scale(scale_factor);
 }
 template<std::floating_point T>
 [[nodiscard]]
-constexpr auto scaled_x(Transform<T> transform, utils::IsNumber auto const scale_factor) noexcept -> Transform<T> {
+constexpr Transform<T> scaled_x(Transform<T> transform, utils::IsNumber auto const scale_factor) noexcept {
 	return transform.scale_x(scale_factor);
 }
 template<std::floating_point T>
 [[nodiscard]]
-constexpr auto scaled_y(Transform<T> transform, utils::IsNumber auto const scale_factor) noexcept -> Transform<T> {
+constexpr Transform<T> scaled_y(Transform<T> transform, utils::IsNumber auto const scale_factor) noexcept {
 	return transform.scale_y(scale_factor);
 }
 
 #ifdef BUILD_TESTING
 template<std::floating_point T>
-constexpr auto get_is_approximately_identity(Transform<T> const t) -> bool {
+constexpr bool get_is_approximately_identity(Transform<T> const t) {
 	return approximately_equal(t.x_to_x, T{1}) && approximately_equal(t.y_to_x, T{}) && approximately_equal(t.offset_x, T{}) &&
 		approximately_equal(t.x_to_y, T{}) && approximately_equal(t.y_to_y, T{1}) && approximately_equal(t.offset_y, T{});
 }
@@ -2032,7 +2087,7 @@ static_assert(
 );
 static_assert(
 	[]{
-		auto a = Transform{
+		constexpr auto a = Transform{
 			11.f, 2.9f, 3.5f, 
 			4.3f, 5.7f, 6.2f
 		};
@@ -2040,7 +2095,7 @@ static_assert(
 	}(),
 	"The scaling functions for avo::math::Transform do not work properly."
 );
-#endif
+#endif // BUILD_TESTING
 
 //------------------------------
 
@@ -2071,10 +2126,10 @@ struct Rectangle {
 	{}
 
 	[[nodiscard]]
-	constexpr auto operator==(Rectangle const&) const noexcept -> bool = default;
+	constexpr bool operator==(Rectangle const&) const noexcept = default;
 
 	[[nodiscard]]
-	constexpr auto operator-() const noexcept -> Rectangle {
+	constexpr Rectangle operator-() const noexcept {
 		return Rectangle{-right, -bottom, -left, -top};
 	}
 	
@@ -2102,31 +2157,31 @@ struct Rectangle {
 		return *this + (-vector);
 	}
 
-	constexpr auto offset_x(_Value const offset) noexcept -> Rectangle& {
+	constexpr Rectangle& offset_x(_Value const offset) noexcept {
 		left += offset;
 		right += offset;
 		return *this;
 	}
-	constexpr auto offset_y(_Value const offset) noexcept -> Rectangle& {
+	constexpr Rectangle& offset_y(_Value const offset) noexcept {
 		top += offset;
 		bottom += offset;
 		return *this;
 	}
-	constexpr auto offset(Is2dVector auto const offset) noexcept -> Rectangle& {
+	constexpr Rectangle& offset(Is2dVector auto const offset) noexcept {
 		offset_x(offset.x);
 		offset_y(offset.y);
 		return *this;
 	}
 	template<utils::IsNumber T>
-	constexpr auto offset(Size<T> const size_offset) noexcept -> Rectangle& {
+	constexpr Rectangle& offset(Size<T> const size_offset) noexcept {
 		right += size_offset.x;
 		bottom += size_offset.y;
 		return *this;
 	}
-	constexpr auto operator+=(Is2dVector auto const offset) noexcept -> Rectangle& {
+	constexpr Rectangle& operator+=(Is2dVector auto const offset) noexcept {
 		return offset(offset);
 	}
-	constexpr auto operator-=(Is2dVector auto const offset) noexcept -> Rectangle& {
+	constexpr Rectangle& operator-=(Is2dVector auto const offset) noexcept {
 		return offset(-offset);
 	}
 
@@ -2139,7 +2194,7 @@ struct Rectangle {
 			bottom*factor
 		};
 	}
-	constexpr auto operator*=(utils::IsNumber auto const factor) noexcept -> Rectangle& {
+	constexpr Rectangle& operator*=(utils::IsNumber auto const factor) noexcept {
 		left *= factor;
 		top *= factor;
 		right *= factor;
@@ -2155,7 +2210,7 @@ struct Rectangle {
 			bottom/divisor
 		};
 	}
-	constexpr auto operator/=(utils::IsNumber auto const divisor) noexcept -> Rectangle& {
+	constexpr Rectangle& operator/=(utils::IsNumber auto const divisor) noexcept {
 		left /= divisor;
 		top /= divisor;
 		right /= divisor;
@@ -2163,39 +2218,39 @@ struct Rectangle {
 		return *this;
 	}
 
-	constexpr auto set_width(_Value const width) noexcept -> Rectangle& {
+	constexpr Rectangle& width(_Value const width) noexcept {
 		right = left + width;
 		return *this;
 	}
-	constexpr auto set_height(_Value const height) noexcept -> Rectangle& {
+	constexpr Rectangle& height(_Value const height) noexcept {
 		bottom = top + height;
 		return *this;
 	}
-	constexpr auto set_size(Size<_Value> const size) noexcept -> Rectangle& {
-		set_width(size.x);
-		set_height(size.y);
+	constexpr Rectangle& size(Size<_Value> const size) noexcept {
+		width(size.x);
+		height(size.y);
 		return *this;
 	}
 
 	[[nodiscard]]
-	constexpr auto get_size() const noexcept -> Size<_Value> {
+	constexpr Size<_Value> size() const noexcept {
 		return Size{right - left, bottom - top};
 	}
 	[[nodiscard]]
-	constexpr auto get_width() const noexcept -> _Value {
+	constexpr _Value width() const noexcept {
 		return right - left;
 	}
 	[[nodiscard]]
-	constexpr auto get_height() const noexcept -> _Value {
+	constexpr _Value height() const noexcept {
 		return bottom - top;
 	}
 
 	[[nodiscard]]
-	constexpr auto get_top_left() const noexcept -> Point<_Value> {
+	constexpr Point<_Value> top_left() const noexcept {
 		return Point{left, top};
 	}
 	template<bool keep_size = true>
-	constexpr auto set_top_left(Point<_Value> const top_left) noexcept -> Rectangle& {
+	constexpr Rectangle& top_left(Point<_Value> const top_left) noexcept {
 		if constexpr (keep_size) {
 			right += top_left.x - left;
 			bottom += top_left.y - top;
@@ -2206,11 +2261,11 @@ struct Rectangle {
 	}
 
 	[[nodiscard]]
-	constexpr auto get_top_right() const noexcept -> Point<_Value> {
+	constexpr Point<_Value> top_right() const noexcept {
 		return Point{right, top};
 	}
 	template<bool keep_size = true>
-	constexpr auto set_top_right(Point<_Value> const top_right) noexcept -> Rectangle& {
+	constexpr Rectangle& top_right(Point<_Value> const top_right) noexcept {
 		if constexpr (keep_size) {
 			left += top_right.x - right;
 			bottom += top_right.y - top;
@@ -2221,11 +2276,11 @@ struct Rectangle {
 	}
 
 	[[nodiscard]]
-	constexpr auto get_bottom_right() const noexcept -> Point<_Value> {
+	constexpr Point<_Value> bottom_right() const noexcept {
 		return Point{right, bottom};
 	}
 	template<bool keep_size = true>
-	constexpr auto set_bottom_right(Point<_Value> const bottom_right) noexcept -> Rectangle& {
+	constexpr Rectangle& bottom_right(Point<_Value> const bottom_right) noexcept {
 		if constexpr (keep_size) {
 			left += bottom_right.x - right;
 			top += bottom_right.y - bottom;
@@ -2236,11 +2291,11 @@ struct Rectangle {
 	}
 
 	[[nodiscard]]
-	constexpr auto get_bottom_left() const noexcept -> Point<_Value> {
+	constexpr Point<_Value> bottom_left() const noexcept {
 		return Point{left, bottom};
 	}
 	template<bool keep_size = true>
-	constexpr auto set_bottom_left(Point<_Value> const bottom_left) noexcept -> Rectangle& {
+	constexpr Rectangle& bottom_left(Point<_Value> const bottom_left) noexcept {
 		if constexpr (keep_size) {
 			right += bottom_left.x - left;
 			top += bottom_left.y - bottom;
@@ -2251,7 +2306,7 @@ struct Rectangle {
 	}
 
 	template<bool keep_size = true>
-	constexpr auto set_left(_Value const new_left) noexcept -> Rectangle& {
+	constexpr Rectangle& set_left(_Value const new_left) noexcept {
 		if constexpr (keep_size) {
 			right += new_left - left;
 		}
@@ -2259,7 +2314,7 @@ struct Rectangle {
 		return *this;
 	}
 	template<bool keep_size = true>
-	constexpr auto set_top(_Value const new_top) noexcept -> Rectangle& {
+	constexpr Rectangle& set_top(_Value const new_top) noexcept {
 		if constexpr (keep_size) {
 			bottom += new_top - top;
 		}
@@ -2267,7 +2322,7 @@ struct Rectangle {
 		return *this;
 	}
 	template<bool keep_size = true>
-	constexpr auto set_right(_Value const new_right) noexcept -> Rectangle& {
+	constexpr Rectangle& set_right(_Value const new_right) noexcept {
 		if constexpr (keep_size) {
 			left += new_right - right;
 		}
@@ -2275,7 +2330,7 @@ struct Rectangle {
 		return *this;
 	}
 	template<bool keep_size = true>
-	constexpr auto set_bottom(_Value const new_bottom) noexcept -> Rectangle& {
+	constexpr Rectangle& set_bottom(_Value const new_bottom) noexcept {
 		if constexpr (keep_size) {
 			top += new_bottom - bottom;
 		}
@@ -2284,58 +2339,58 @@ struct Rectangle {
 	}
 
 	template<utils::IsNumber T>
-	constexpr auto set_center(Point<T> const center) noexcept -> Rectangle& {
-		auto const half_size = get_size()/2;
+	constexpr Rectangle& center(Point<T> const center) noexcept {
+		auto const half_size = size()/2;
 		left = static_cast<_Value>(center.x - half_size.x);
 		top = static_cast<_Value>(center.y - half_size.y);
 		right = static_cast<_Value>(center.x + half_size.x);
 		bottom = static_cast<_Value>(center.y + half_size.y);
 		return *this;
 	}
-	constexpr auto set_center_x(utils::IsNumber auto const center_x) noexcept -> Rectangle& {
-		auto const half_width = get_width()/2;
+	constexpr Rectangle& center_x(utils::IsNumber auto const center_x) noexcept {
+		auto const half_width = width()/2;
 		left = static_cast<_Value>(center_x - half_width);
 		right = static_cast<_Value>(center_x + half_width);
 		return *this;
 	}
-	constexpr auto set_center_y(utils::IsNumber auto const center_y) noexcept -> Rectangle& {
-		auto const half_height = get_height()/2;
+	constexpr Rectangle& center_y(utils::IsNumber auto const center_y) noexcept {
+		auto const half_height = height()/2;
 		top = static_cast<_Value>(center_y - half_height);
 		bottom = static_cast<_Value>(center_y + half_height);
 		return *this;
 	}
 	template<utils::IsNumber T = _Value>
 	[[nodiscard]]
-	constexpr auto get_center() const noexcept -> Point<T> {
-		return Point{get_center_x(), get_center_y()};
+	constexpr Point<T> center() const noexcept {
+		return Point{center_x(), center_y()};
 	}
 	template<utils::IsNumber T = _Value>
 	[[nodiscard]]
-	constexpr auto get_center_x() const noexcept -> T {
+	constexpr T center_x() const noexcept {
 		return std::midpoint(static_cast<T>(left), static_cast<T>(right));
 	}
 	template<utils::IsNumber T = _Value>
 	[[nodiscard]]
-	constexpr auto get_center_y() const noexcept -> T {
+	constexpr Point<T> center_y() const noexcept {
 		return std::midpoint(static_cast<T>(top), static_cast<T>(bottom));
 	}
 
-	constexpr auto move_top_left(Vector2d<_Value> const offset) noexcept -> Rectangle& {
+	constexpr Rectangle& move_top_left(Vector2d<_Value> const offset) noexcept {
 		left += offset.x;
 		top += offset.y;
 		return *this;
 	}
-	constexpr auto move_top_right(Vector2d<_Value> const offset) noexcept -> Rectangle& {
+	constexpr Rectangle& move_top_right(Vector2d<_Value> const offset) noexcept {
 		right += offset.x;
 		top += offset.y;
 		return *this;
 	}
-	constexpr auto move_bottom_left(Vector2d<_Value> const offset) noexcept -> Rectangle& {
+	constexpr Rectangle& move_bottom_left(Vector2d<_Value> const offset) noexcept {
 		left += offset.x;
 		bottom += offset.y;
 		return *this;
 	}
-	constexpr auto move_bottom_right(Vector2d<_Value> const offset) noexcept -> Rectangle& {
+	constexpr Rectangle& move_bottom_right(Vector2d<_Value> const offset) noexcept {
 		right += offset.x;
 		bottom += offset.y;
 		return *this;
@@ -2343,7 +2398,7 @@ struct Rectangle {
 
 	template<utils::IsNumber T>
 	[[nodiscard]]
-	constexpr auto to() const noexcept -> Rectangle<T> {
+	constexpr Rectangle<T> to() const noexcept {
 		return Rectangle<T>{
 			static_cast<T>(left),
 			static_cast<T>(top),
@@ -2357,20 +2412,20 @@ struct Rectangle {
 		zero by moving the most negative coordinate.
 		For example, if right < left, then right = left.
 	*/
-	constexpr auto clip_negative_space() noexcept -> Rectangle& {
+	constexpr Rectangle& clip_negative_space() noexcept {
 		right = max(left, right);
 		bottom = max(top, bottom);
 		return *this;
 	}
-	constexpr auto round_outwards() noexcept -> Rectangle& {
-		left = std::floor(left);
-		top = std::floor(top);
-		right = std::ceil(right);
-		bottom = std::ceil(bottom);
+	constexpr Rectangle& round_outwards() noexcept {
+		left = floor<_Value>(left);
+		top = floor<_Value>(top);
+		right = ceil<_Value>(right);
+		bottom = ceil<_Value>(bottom);
 		return *this;
 	}
 
-	constexpr auto bound(Rectangle<_Value> const bounds) noexcept -> Rectangle& {
+	constexpr Rectangle& bound(Rectangle<_Value> const bounds) noexcept {
 		left = std::clamp(left, bounds.left, bounds.right);
 		top = std::clamp(top, bounds.top, bounds.bottom);
 		right = std::clamp(right, bounds.left, bounds.right);
@@ -2378,16 +2433,16 @@ struct Rectangle {
 		return *this;
 	}
 	template<utils::IsNumber T>
-	constexpr auto contain(Rectangle<T> const rectangle) noexcept -> Rectangle& {
+	constexpr Rectangle& contain(Rectangle<T> const rectangle) noexcept {
 		/*
 			If this is true then we need to round "outwards" so that this 
 			rectangle also contains the other rectangle's fractional part.
 		*/
 		if constexpr (std::floating_point<T> && std::integral<_Value>) {
-			left = min(left, static_cast<_Value>(std::floor(rectangle.left)));
-			top = min(top, static_cast<_Value>(std::floor(rectangle.top)));
-			right = max(right, static_cast<_Value>(std::ceil(rectangle.right)));
-			bottom = max(bottom, static_cast<_Value>(std::ceil(rectangle.bottom)));
+			left = min(left, floor<_Value>(rectangle.left));
+			top = min(top, floor<_Value>(rectangle.top));
+			right = max(right, ceil<_Value>(rectangle.right));
+			bottom = max(bottom, ceil<_Value>(rectangle.bottom));
 		}
 		else {
 			left = min(left, rectangle.left);
@@ -2400,7 +2455,7 @@ struct Rectangle {
 
 	template<utils::IsNumber T>
 	[[nodiscard]]
-	constexpr auto contains(Point<T> const point) const noexcept -> bool {
+	constexpr bool contains(Point<T> const point) const noexcept {
 		using _Common = std::common_type_t<_Value, T>;
 		return static_cast<_Common>(point.x) >= static_cast<_Common>(left) && 
 			static_cast<_Common>(point.x) < static_cast<_Common>(right) &&
@@ -2409,7 +2464,7 @@ struct Rectangle {
 	}
 	template<utils::IsNumber T>
 	[[nodiscard]]
-	constexpr auto contains(Rectangle<T> const rectangle) const noexcept -> bool {
+	constexpr bool contains(Rectangle<T> const rectangle) const noexcept {
 		using _Common = std::common_type_t<_Value, T>;
 		return static_cast<_Common>(rectangle.left) > static_cast<_Common>(left) && 
 			static_cast<_Common>(rectangle.top) > static_cast<_Common>(top) && 
@@ -2418,7 +2473,7 @@ struct Rectangle {
 	}
 	template<utils::IsNumber T>
 	[[nodiscard]]
-	constexpr auto intersects(Rectangle<T> const rectangle) const noexcept -> bool {
+	constexpr bool intersects(Rectangle<T> const rectangle) const noexcept {
 		using _Common = std::common_type_t<_Value, T>;
 		return static_cast<_Common>(rectangle.right) > static_cast<_Common>(left) && 
 			static_cast<_Common>(rectangle.left) < static_cast<_Common>(right) &&
@@ -2432,7 +2487,7 @@ concept IsRectangle = requires(T x) { { Rectangle{x} } -> std::same_as<T>; };
 
 template<utils::IsNumber T>
 [[nodiscard]]
-constexpr auto with_negative_space_clipped(Rectangle<T> rectangle) noexcept -> Rectangle<T> {
+constexpr Rectangle<T> with_negative_space_clipped(Rectangle<T> rectangle) noexcept {
 	return rectangle.clip_negative_space();
 }
 
@@ -2445,7 +2500,7 @@ constexpr auto scaled(Rectangle<T> const rectangle, U const scale_factor) noexce
 template<template<typename> typename _Rectangle, utils::IsNumber T> 
 	requires std::same_as<_Rectangle<T>, Rectangle<T>>
 [[nodiscard]]
-constexpr auto square(T const value) noexcept -> Rectangle<T> {
+constexpr Rectangle<T> square(T const value) noexcept {
 	return Rectangle{T{}, T{}, value, value};
 }
 
@@ -2453,12 +2508,12 @@ constexpr auto square(T const value) noexcept -> Rectangle<T> {
 
 static_assert(Rectangle{Size{5, 8}}.to<float>() == Rectangle{0.f, 0.f, 5.f, 8.f});
 static_assert(Rectangle{Point{9, 1}, Point{11, 6}} == Rectangle{9, 1, 11, 6});
-static_assert(Rectangle{9, 1, 11, 6}.get_top_left() == Point{9, 1});
-static_assert(Rectangle{9, 1, 11, 6}.get_top_right() == Point{11, 1});
-static_assert(Rectangle{9, 1, 11, 6}.get_bottom_right() == Point{11, 6});
-static_assert(Rectangle{9, 1, 11, 6}.get_bottom_left() == Point{9, 6});
-static_assert(Rectangle{9, 1, 11, 6}.set_top_left<false>(Point{-2, -2}) == Rectangle{-2, -2, 11, 6});
-static_assert(Rectangle{9, 1, 11, 6}.set_top_left(Point{-2, -2}) == Rectangle{-2, -2, 0, 3});
+static_assert(Rectangle{9, 1, 11, 6}.top_left() == Point{9, 1});
+static_assert(Rectangle{9, 1, 11, 6}.top_right() == Point{11, 1});
+static_assert(Rectangle{9, 1, 11, 6}.bottom_right() == Point{11, 6});
+static_assert(Rectangle{9, 1, 11, 6}.bottom_left() == Point{9, 6});
+static_assert(Rectangle{9, 1, 11, 6}.top_left<false>(Point{-2, -2}) == Rectangle{-2, -2, 11, 6});
+static_assert(Rectangle{9, 1, 11, 6}.top_left(Point{-2, -2}) == Rectangle{-2, -2, 0, 3});
 static_assert(Rectangle{9, 1, 11, 6}.move_top_left(Vector2d{-2, -3}) == Rectangle{7, -2, 11, 6});
 static_assert(!Rectangle{3, 4, 18, 9}.contains(Rectangle{3, 4, 18, 9}));
 static_assert(!Rectangle{3.f, 4.f, 18.f, 9.f}.contains(Rectangle{3.f, 4.f, 18.f, 9.f}));
@@ -2471,7 +2526,7 @@ static_assert(with_negative_space_clipped(Rectangle{4.f, 4.5f, 3.8f, 4.7f}) == R
 static_assert(with_negative_space_clipped(Rectangle{4.f, 4.5f, 3.8f, 4.f}) == Rectangle{Point{4.f, 4.5f}});
 static_assert(Rectangle{2, 3, 4, 5} + Size{3, 1} == Rectangle{2, 3, 7, 6});
 
-#endif
+#endif // BUILD_TESTING
 
 //------------------------------
 
@@ -2492,7 +2547,7 @@ static_assert(Rectangle{2, 3, 4, 5} + Size{3, 1} == Rectangle{2, 3, 7, 6});
 struct Easing {
 	Point<> c0, c1;
 
-	constexpr auto operator==(Easing const&) const noexcept -> bool = default;
+	constexpr bool operator==(Easing const&) const noexcept = default;
 
 	static constexpr auto default_precision = 5e-3f;
 
@@ -2504,10 +2559,10 @@ struct Easing {
 		It calculates a quick newton's method estimation since the cubic bezier curve is defined as a calculation of points;
 		f(t) = (x, y) where 0 <= t <= 1, and we want to ease over x (value is x) and not t. This why we have a precision parameter.
 	*/
-	static constexpr auto ease_value(
+	static constexpr float ease_value(
 		Point<> const c0, Point<> const c1, 
 		float const value, float const precision = default_precision
-	) noexcept -> float {
+	) noexcept {
 		constexpr auto extreme_value_threshold = 1e-5f;
 		
 		if (value <= extreme_value_threshold) {
@@ -2535,12 +2590,11 @@ struct Easing {
 		return t * ((1.f - t) * (3.f * (1.f - t) * c0.y + 3.f * t * c1.y) + t * t);
 	}
 
-	auto ease_value(float const value, float const precision = default_precision) const noexcept
-		-> float
+	constexpr float ease_value(float const value, float const precision = default_precision) const noexcept
 	{
 		return ease_value(c0, c1, value, precision);
 	}
-	auto ease_value_inverse(float const value, float const precision = default_precision) const noexcept {
+	constexpr float ease_value_inverse(float const value, float const precision = default_precision) const noexcept {
 		return ease_value(Point{c0.y, c0.x}, Point{c1.y, c1.x}, value, precision);
 	}
 };
@@ -2555,20 +2609,20 @@ struct Easing {
 using ColorInt = std::uint32_t;
 
 [[nodiscard]]
-constexpr inline auto get_red_channel(ColorInt const color) noexcept -> std::uint8_t {
-	return color >> 16 & 0xff;
+constexpr inline std::uint8_t red_channel(ColorInt const color) noexcept {
+	return static_cast<std::uint8_t>(color >> 16 & 0xff);
 }
 [[nodiscard]]
-constexpr inline auto get_green_channel(ColorInt const color) noexcept -> std::uint8_t {
-	return color >> 8 & 0xff;
+constexpr inline std::uint8_t green_channel(ColorInt const color) noexcept {
+	return static_cast<std::uint8_t>(color >> 8 & 0xff);
 }
 [[nodiscard]]
-constexpr inline auto get_blue_channel(ColorInt const color) noexcept -> std::uint8_t {
-	return color & 0xff;
+constexpr inline std::uint8_t blue_channel(ColorInt const color) noexcept {
+	return static_cast<std::uint8_t>(color & 0xff);
 }
 [[nodiscard]]
-constexpr inline auto get_alpha_channel(ColorInt const color) noexcept -> std::uint8_t {
-	return color >> 24 & 0xff;
+constexpr inline std::uint8_t alpha_channel(ColorInt const color) noexcept {
+	return static_cast<std::uint8_t>(color >> 24 & 0xff);
 }
 
 /*
@@ -2577,9 +2631,9 @@ constexpr inline auto get_alpha_channel(ColorInt const color) noexcept -> std::u
 	precise and efficient operations.
 */
 struct Color {
-	float red{0.f},
-          green{0.f},
-          blue{0.f},
+	float red{},
+          green{},
+          blue{},
           alpha{1.f};
 	
 	constexpr Color() noexcept = default;
@@ -2620,7 +2674,7 @@ struct Color {
 	/*
 		Initializes the color with a grayscale value. The values are clamped to the range [0, 1].
 	*/
-	constexpr Color(float const lightness, float const p_alpha = 1.f) noexcept :
+	explicit constexpr Color(float const lightness, float const p_alpha = 1.f) noexcept :
 		red{std::clamp(lightness, 0.f, 1.f)},
 		green{std::clamp(lightness, 0.f, 1.f)},
 		blue{std::clamp(lightness, 0.f, 1.f)},
@@ -2629,7 +2683,7 @@ struct Color {
 	/*
 		Initializes the color with a grayscale value. The values are bytes in the range [0, 255].
 	*/
-	constexpr Color(std::uint8_t const lightness, std::uint8_t const p_alpha = 255u) noexcept :
+	explicit constexpr Color(std::uint8_t const lightness, std::uint8_t const p_alpha = 255u) noexcept :
 		red{lightness/255.f},
 		green{red},
 		blue{red},
@@ -2639,7 +2693,7 @@ struct Color {
 		Initializes the color with a grayscale value. The values are clamped to the range [0, 255].
 	*/
 	template<std::integral T>
-	constexpr Color(T const lightness, T const p_alpha = static_cast<T>(255)) noexcept :
+	explicit constexpr Color(T const lightness, T const p_alpha = static_cast<T>(255)) noexcept :
 		red{std::clamp(lightness / 255.f, 0.f, 1.f)},
 		green{red},
 		blue{red},
@@ -2678,30 +2732,408 @@ struct Color {
 	/*
 		Initializes with a 4-byte packed RGBA color.
 	*/
-	constexpr Color(ColorInt const color) noexcept :
-		red{get_red_channel(color) / 255.f},
-		green{get_green_channel(color) / 255.f},
-		blue{get_blue_channel(color) / 255.f},
-		alpha{get_alpha_channel(color) / 255.f}
+	explicit constexpr Color(ColorInt const color) noexcept :
+		red{red_channel(color) / 255.f},
+		green{green_channel(color) / 255.f},
+		blue{blue_channel(color) / 255.f},
+		alpha{alpha_channel(color) / 255.f}
 	{}
 
-	constexpr auto operator=(ColorInt const color) noexcept -> Color& {
+	constexpr Color& operator=(ColorInt const color) noexcept {
 		return *this = Color{color};
 	}
 
-	constexpr auto operator*(float const factor) const noexcept -> Color {
+	[[nodiscard]]
+	constexpr bool operator==(Color const&) const noexcept = default;
+
+	[[nodiscard]]
+	static constexpr Color rgba(float const red, float const green, float const blue, float const alpha = 1.f) noexcept {
+		return Color{red, green, blue, alpha};
+	}
+	[[nodiscard]]
+	static constexpr Color rgb(float const red, float const green, float const blue) noexcept {
+		return Color{red, green, blue};
+	}
+
+	/*
+		Creates a color from hue, saturation, brightness and alpha values.
+		They are all clamped to the range [0, 1].
+		The difference between HSB and HSL is that the lightness value goes from black to white 
+		while brightness goes from black to full color brightness. 
+		HSB can only be white if saturation is 0 while HSL is white as long as lightness is 1.
+	*/
+	[[nodiscard]]
+	static constexpr Color hsba(float hue, float const saturation, float brightness, float const alpha = 1.f) noexcept
+	{
+		hue -= math::floor<float>(hue);
+		brightness = std::clamp(brightness, 0.f, 1.f);
+		auto const factor = brightness * std::clamp(saturation, 0.f, 1.f);
+
+		return Color{
+			brightness + factor * (std::clamp(1.f - (hue - 1.f / 6.f) * 6.f, 0.f, 1.f) + std::clamp((hue - 4.f / 6.f) * 6.f, 0.f, 1.f) - 1.f),
+			brightness + factor * (std::min(1.f, hue * 6.f) - std::clamp((hue - 3.f / 6.f) * 6.f, 0.f, 1.f) - 1.f),
+			brightness + factor * (std::clamp((hue - 2.f / 6.f) * 6.f, 0.f, 1.f) - std::clamp((hue - 5.f / 6.f) * 6.f, 0.f, 1.f) - 1.f),
+			alpha,
+		};
+	}
+	/*
+		Calls Color::hsba.
+	*/
+	[[nodiscard]]
+	static constexpr Color hsb(float const hue, float const saturation, float const brightness) noexcept {
+		return hsba(hue, saturation, brightness);
+	}
+	[[nodiscard]]
+	static constexpr Color hsba(math::IsAngle auto const hue, float const saturation, float const brightness, float const alpha = 1.f) noexcept {
+		return hsba(math::normalized<float>(hue), saturation, brightness, alpha);
+	}
+	[[nodiscard]]
+	static constexpr Color hsb(math::IsAngle auto const hue, float const saturation, float const brightness) noexcept {
+		return hsba(math::normalized<float>(hue), saturation, brightness);
+	}
+
+	/*
+		Creates a color from hue, saturation, lightness and alpha values.
+		They are all floats in the range [0, 1].
+		The difference between HSB and HSL is that the lightness value goes from black to white 
+		while brightness goes from black to full color brightness. 
+		HSB can only be white if saturation is 0 while HSL is white as long as lightness is 1.
+	*/
+	[[nodiscard]]
+	static constexpr Color hsla(float hue, float const saturation, float lightness, float const alpha = 1.f) noexcept 
+	{
+		hue -= math::floor<float>(hue);
+		lightness = std::clamp(lightness, 0.f, 1.f);
+		auto const factor = 2.f * std::clamp(saturation, 0.f, 1.f)*(lightness < 0.5f ? lightness : (1.f - lightness));
+
+		return Color{
+			lightness + factor * (std::clamp(1.f - (hue - 1.f / 6.f) * 6.f, 0.f, 1.f) + std::clamp((hue - 4.f / 6.f) * 6.f, 0.f, 1.f) - 0.5f),
+			lightness + factor * (std::min(1.f, hue * 6.f) - std::clamp((hue - 3.f / 6.f) * 6.f, 0.f, 1.f) - 0.5f),
+			lightness + factor * (std::clamp((hue - 2.f / 6.f) * 6.f, 0.f, 1.f) - std::clamp((hue - 5.f / 6.f) * 6.f, 0.f, 1.f) - 0.5f),
+			alpha
+		};
+	}
+	/*
+		Calls Color::hsla.
+	*/
+	[[nodiscard]]
+	static constexpr Color hsl(float const hue, float const saturation, float const lightness) noexcept {
+		return hsla(hue, saturation, lightness);
+	}
+	[[nodiscard]]
+	static constexpr Color hsla(math::IsAngle auto const hue, float const saturation, float const lightness, float const p_alpha = 1.f) noexcept {
+		return hsla(math::normalized(hue), saturation, lightness, p_alpha);
+	}
+	[[nodiscard]]
+	static constexpr Color hsl(math::IsAngle auto const hue, float const saturation, float const lightness) noexcept {
+		return hsla(math::normalized(hue), saturation, lightness);
+	}
+
+	/*
+		Changes the hue of the color. The hue is a float in the range [0, 1].
+	*/
+	constexpr Color& hue(float new_hue) noexcept {
+		new_hue -= math::floor<float>(new_hue);
+
+		auto const min_channel = math::min(red, green, blue);
+		auto const max_channel = math::max(red, green, blue);
+		
+		red = min_channel + (max_channel - min_channel) * 
+			(std::clamp(1.f - (new_hue - 1.f / 6.f) * 6.f, 0.f, 1.f) + std::clamp((new_hue - 4.f / 6.f) * 6.f, 0.f, 1.f));
+			
+		green = min_channel + (max_channel - min_channel) * 
+			(std::min(1.f, new_hue * 6.f) - std::clamp((new_hue - 3.f / 6.f) * 6.f, 0.f, 1.f));
+			
+		blue = min_channel + (max_channel - min_channel) * 
+			(std::clamp((new_hue - 2.f / 6.f) * 6.f, 0.f, 1.f) - std::clamp((new_hue - 5.f / 6.f) * 6.f, 0.f, 1.f));
+			
+		return *this;
+	}
+	/*
+		Returns the hue of the color. The hue is a float in the range [0, 1].
+	*/
+	[[nodiscard]]
+	constexpr float hue() const noexcept {
+		if (red + green + blue == 0.f) {
+			return 0.f;
+		}
+
+		if (red > green) {
+			if (red > blue) {
+				if (green > blue) {
+					// (1, 0, 0) -> (1, 1, 0) : 0/6 < hue < 1/6, max = red, min = blue
+					return (green - blue) / (red - blue) / 6.f;
+				}
+				else {
+					// (1, 0, 1) -> (1, 0, 0) : 5/6 < hue < 6/6, max = red, min = green
+					return 1.f - (blue - green) / (red - green) / 6.f;
+				}
+			}
+			else {
+				// (0, 0, 1) -> (1, 0, 1) : 4/6 < hue < 5/6, max = blue, min = green
+				return (4.f + (red - green) / (blue - green)) / 6.f;
+			}
+		}
+		else {
+			if (green > blue) {
+				if (red > blue) {
+					// (1, 1, 0) -> (0, 1, 0) : 1/6 < hue < 2/6, max = green, min = blue
+					return (2.f - (red - blue) / (green - blue)) / 6.f;
+				}
+				else {
+					// (0, 1, 0) -> (0, 1, 1) : 2/6 < hue < 3/6, max = green, min = red
+					return (2.f + (blue - red) / (green - red)) / 6.f;
+				}
+			}
+			else {
+				// (0, 1, 1) -> (0, 0, 1) : 3/6 < hue < 4/6, max = blue, min = red
+				return (4.f - (green - red) / (blue - red)) / 6.f;
+			}
+		}
+	}
+	template<math::IsRadians _Return>
+	[[nodiscard]]
+	constexpr _Return hue() const noexcept {
+		using _Value = typename _Return::value_type;
+		return _Return{static_cast<_Value>(hue()*std::numbers::pi_v<typename _Return::value_type>*2)};
+	}
+	template<math::IsDegrees _Return>
+	[[nodiscard]]
+	constexpr _Return hue() const noexcept {
+		using _Value = typename _Return::value_type;
+		if constexpr (std::integral<_Value>) {
+			return _Return{static_cast<_Value>(std::round(hue()*360))};
+		}
+		return _Return{static_cast<_Value>(hue()*360)};
+	}
+
+	/*
+		Sets the HSB saturation of the color. The saturation is a float in the range [0, 1].
+		HSB saturation can change lightness, and HSL saturation can change brightness.
+		Keep in mind that you can't change the saturation if the color is grayscale, because only RGBA values are stored.
+	*/
+	constexpr Color& hsb_saturation(float saturation) noexcept {
+		if (red == green && red == blue) {
+			return *this;
+		}
+
+		saturation = std::clamp(saturation, 0.f, 1.f);
+		auto const factor = saturation/hsb_saturation();
+
+		auto const brightness = math::max(red, green, blue);
+		red = brightness + factor*(red - brightness);
+		green = brightness + factor*(green - brightness);
+		blue = brightness + factor*(blue - brightness);
+
+		return *this;
+	}
+	/*
+		Returns the HSB saturation of the color. The saturation is a float in the range [0, 1].
+	*/
+	[[nodiscard]]
+	constexpr float hsb_saturation() const noexcept {
+		if (auto const current_brightness = brightness()) {
+			return 1.f - math::min(red, green, blue)/current_brightness;
+		}
+		return 0.f;
+	}
+
+	/*
+		Sets the HSL saturation of the color. The saturation is a float in the range [0, 1].
+		HSB saturation can change lightness, and HSL saturation can change brightness.
+		Keep in mind that you can't change the saturation if the color is gray, since only RGBA values are stored.
+	*/
+	constexpr Color& hsl_saturation(float saturation) noexcept {
+		saturation = std::clamp(saturation, 0.f, 1.f);
+
+		auto const factor = saturation/hsl_saturation();
+		if (factor == saturation/0.f) {
+			return *this;
+		}
+		
+		auto const current_lightness = lightness();
+		red = current_lightness + factor*(red - current_lightness);
+		green = current_lightness + factor*(green - current_lightness);
+		blue = current_lightness + factor*(blue - current_lightness);
+
+		return *this;
+	}
+	/*
+		Returns the HSL saturation of the color. The saturation is a float in the range [0, 1].
+	*/
+	[[nodiscard]]
+	constexpr float hsl_saturation() const noexcept {
+		auto const min_channel = math::min(red, green, blue);
+		auto const max_channel = math::max(red, green, blue);
+		if (min_channel == max_channel) {
+			return 0.f;
+		}
+		return std::max(
+			(max_channel - min_channel)/(max_channel + min_channel), 
+			(max_channel - min_channel)/(2.f - max_channel - min_channel)
+		);
+	}
+
+	/*
+		Sets the brightness of the color. The brightness is a float in the range [0, 1]. A brightness of 0 makes the
+		color black, and a brightness of 1 makes the color fully bright. This only makes it white if saturation is at 0.
+	*/
+	constexpr Color& brightness(float new_brightness) noexcept {
+		new_brightness = std::clamp(new_brightness, 0.f, 1.f);
+
+		if (red == green && red == blue) {
+			red = new_brightness;
+			green = new_brightness;
+			blue = new_brightness;
+			return *this;
+		}
+
+		auto const old_brightness = brightness();
+		red *= new_brightness/old_brightness;
+		green *= new_brightness/old_brightness;
+		blue *= new_brightness/old_brightness;
+
+		return *this;
+	}
+	/*
+		Returns the brightness of the color. The brightness is a float in the range [0, 1].
+	*/
+	constexpr float brightness() const noexcept {
+		return math::max(red, green, blue);
+	}
+
+	/*
+		Changes the lightness of the color. The lightness a float in the range [0, 1]. A lightness of 0 makes the
+		color black, a lightness of 0.5 makes it normal and a lightness of 1 makes it white.
+	*/
+	constexpr Color& lightness(float new_lightness) noexcept {
+		new_lightness = std::clamp(new_lightness, 0.f, 1.f);
+
+		if (red == green && red == blue) {
+			red = new_lightness;
+			green = new_lightness;
+			blue = new_lightness;
+			return *this;
+		}
+
+		if (auto const previous_lightness = lightness(); previous_lightness <= 0.5f) {
+			if (new_lightness <= 0.5f) {
+				red = red * new_lightness / previous_lightness;
+				green = green * new_lightness / previous_lightness;
+				blue = blue * new_lightness / previous_lightness;
+			}
+			else {
+				red = (red - previous_lightness) * (1.f - new_lightness) / previous_lightness + new_lightness;
+				green = (green - previous_lightness) * (1.f - new_lightness) / previous_lightness + new_lightness;
+				blue = (blue - previous_lightness) * (1.f - new_lightness) / previous_lightness + new_lightness;
+			}
+		}
+		else {
+			if (new_lightness <= 0.5) {
+				red = (red - previous_lightness) * new_lightness / (1.f - previous_lightness) + new_lightness;
+				green = (green - previous_lightness) * new_lightness / (1.f - previous_lightness) + new_lightness;
+				blue = (blue - previous_lightness) * new_lightness / (1.f - previous_lightness) + new_lightness;
+			}
+			else {
+				red = (red - previous_lightness) * (1.f - new_lightness) / (1.f - previous_lightness) + new_lightness;
+				green = (green - previous_lightness) * (1.f - new_lightness) / (1.f - previous_lightness) + new_lightness;
+				blue = (blue - previous_lightness) * (1.f - new_lightness) / (1.f - previous_lightness) + new_lightness;
+			}
+		}
+		return *this;
+	}
+
+	/*
+		Returns the lightness of the color. The lightness is a float in the range [0, 1].
+	*/
+	[[nodiscard]]
+	constexpr float lightness() const noexcept {
+		return 0.5f*(math::min(red, green, blue) + math::max(red, green, blue));
+	}
+
+	/*
+		A contrast of 0 makes the color gray, 0.5 leaves it unchanged and 1 is maximum contrast.
+	*/
+	constexpr Color& contrast(float const contrast) noexcept {
+		if (contrast == 0.5) {
+			return *this;
+		}
+		if (contrast < 0.5f) {
+			red = (red - 0.5f) * contrast * 2.f + 0.5f;
+			green = (green - 0.5f) * contrast * 2.f + 0.5f;
+			blue = (blue - 0.5f) * contrast * 2.f + 0.5f;
+		}
+		else {
+			red = (static_cast<float>(red >= 0.5f) - red) * (contrast * 2.f - 1.f) + red;
+			green = (static_cast<float>(green >= 0.5f) - green) * (contrast * 2.f - 1.f) + green;
+			blue = (static_cast<float>(blue >= 0.5f) - blue) * (contrast * 2.f - 1.f) + blue;
+		}
+		return *this;
+	}
+
+	/*
+		Packs the color into a 32-bit integer in ARGB format.
+	*/
+	[[nodiscard]]
+	constexpr ColorInt get_packed() const noexcept {
+		return (static_cast<ColorInt>(alpha*0xff) << 24) | (static_cast<ColorInt>(red*0xff) << 16) | 
+			(static_cast<ColorInt>(green*0xff) << 8) | (static_cast<ColorInt>(blue*0xff));
+	}
+
+	[[nodiscard]]
+	constexpr Color operator*(float const factor) const noexcept {
 		return Color{red * factor, green * factor, blue * factor, alpha};
 	}
-	constexpr auto operator*=(float const factor) noexcept -> Color& {
+	constexpr Color& operator*=(float const factor) noexcept {
 		return *this = *this * factor;
 	}
-	constexpr auto operator/(float const divisor) const noexcept -> Color {
-		return {red/divisor, green/divisor, blue/divisor, alpha};
+	[[nodiscard]]
+	constexpr Color operator/(float const divisor) const noexcept {
+		return Color{red/divisor, green/divisor, blue/divisor, alpha};
 	}
-	constexpr auto operator/=(float const divisor) noexcept -> Color& {
+	constexpr Color& operator/=(float const divisor) noexcept {
 		return *this = *this / divisor;
 	}
+
+	[[nodiscard]]
+	constexpr Color operator+(float const delta) const noexcept {
+		return Color{red + delta, green + delta, blue + delta};
+	}
+	constexpr Color& operator+=(float const delta) noexcept {
+		return *this = *this + delta;
+	}
+	[[nodiscard]]
+	constexpr Color operator-(float const delta) const noexcept {
+		return Color{red - delta, green - delta, blue - delta};
+	}
+	constexpr Color& operator-=(float const delta) noexcept {
+		return *this = *this - delta;
+	}
 };
+
+[[nodiscard]]
+constexpr Color operator*(float const factor, Color const color) noexcept {
+	return color * factor;
+}
+[[nodiscard]]
+constexpr Color operator/(float const dividend, Color const color) noexcept {
+	return Color{dividend / color.red, dividend / color.green, dividend / color.blue};
+}
+[[nodiscard]]
+constexpr Color operator+(float const factor, Color const color) noexcept {
+	return color + factor;
+}
+[[nodiscard]]
+constexpr Color operator-(float const term, Color const color) noexcept {
+	return Color{term - color.red, term - color.green, term - color.blue};
+}
+
+#ifdef BUILD_TESTING
+
+static_assert(Color::hsb(math::Degrees{30}, 1.f, 1.f).hue<math::Degrees<int>>() == math::Degrees{30});
+static_assert(Color::hsb(math::Degrees{180}, 1.f, 1.f).hue() == 0.5f);
+
+#endif // BUILD_TESTING
 
 //------------------------------
 
@@ -2728,7 +3160,7 @@ public:
 		return _count;
 	}
 	[[nodiscard]]
-	constexpr auto operator==(Id const& id) const noexcept -> bool = default;
+	constexpr bool operator==(Id const& id) const noexcept = default;
 
 	constexpr explicit Id(value_type const id) noexcept :
 		_count{id}
@@ -2758,11 +3190,11 @@ private:
 
 public:
 	[[nodiscard]]
-	auto begin() noexcept -> decltype(_listeners)::iterator {
+	decltype(_listeners)::iterator begin() noexcept {
 		return _listeners.begin();
 	}
 	[[nodiscard]]
-	auto end() noexcept -> decltype(_listeners)::iterator {
+	decltype(_listeners)::iterator end() noexcept {
 		return _listeners.end();
 	}
 
@@ -2770,7 +3202,7 @@ public:
 		Adds a listener to the EventListeners instance that will be called when nofity_all or operator() is called.
 		Equivalent to EventListeners::operator+=.
 	*/
-	auto add(std::function<FunctionType> listener) -> void {
+	void add(std::function<FunctionType> listener) {
 		auto const lock = std::scoped_lock{_mutex};    
 		_listeners.emplace_back(std::move(listener));
 	}
@@ -2778,7 +3210,7 @@ public:
 		Adds a listener to the EventListeners instance that will be called when nofity_all or operator() is called.
 		Equivalent to EventListeners::add.
 	*/
-	auto operator+=(std::function<FunctionType> listener) -> EventListeners& {
+	EventListeners& operator+=(std::function<FunctionType> listener) {
 		add(std::move(listener));
 		return *this;
 	}
@@ -2787,7 +3219,7 @@ public:
 		Removes a listener from the EventListeners instance that matches the passed function.
 		Equivalent to EventListeners::operator-=.
 	*/
-	auto remove(std::function<FunctionType> const& listener) -> void {
+	void remove(std::function<FunctionType> const& listener) {
 		auto const lock = std::scoped_lock{_mutex};
 		auto const& listener_type = listener.target_type();
 		auto const found_position = std::ranges::find_if(_listeners, [&](auto const& listener_element) {
@@ -2805,7 +3237,7 @@ public:
 		Removes a listener from the EventListeners instance that matches the passed function.
 		Equivalent to EventListeners::remove.
 	*/
-	auto operator-=(std::function<FunctionType> const& listener) -> EventListeners& {
+	EventListeners& operator-=(std::function<FunctionType> const& listener) {
 		remove(listener);
 		return *this;
 	}
@@ -2814,7 +3246,7 @@ public:
 		Calls all of the listeners with event_arguments as arguments.
 		Equivalent to EventListeners::operator().
 	*/
-	auto notify_all(_Arguments&& ... event_arguments) -> void {
+	void notify_all(_Arguments&& ... event_arguments) {
 		auto const lock = std::scoped_lock{_mutex};
 		for (auto& listener : _listeners) {
 			listener(std::forward<_Arguments>(event_arguments)...);
@@ -2824,22 +3256,22 @@ public:
 		Calls all of the listeners with event_arguments as arguments.
 		Equivalent to EventListeners::notify_all.
 	*/
-	auto operator()(_Arguments&& ... event_arguments) -> void {
+	void operator()(_Arguments&& ... event_arguments) {
 		notify_all(std::forward<_Arguments>(event_arguments)...);
 	}
 
 	EventListeners() = default;
 
-	EventListeners(EventListeners&& other) :
+	EventListeners(EventListeners&& other) noexcept :
 		_listeners{std::move(other._listeners)}
 	{}
 	EventListeners(EventListeners const&) = delete;
 
-	auto operator=(EventListeners&& other) -> EventListeners& {
+	EventListeners& operator=(EventListeners&& other) noexcept {
 		_listeners = std::move(other._listeners);
 		return *this;
 	}
-	auto operator=(EventListeners const&) -> EventListeners& = delete;
+	EventListeners& operator=(EventListeners const&) = delete;
 };
 
 //------------------------------
