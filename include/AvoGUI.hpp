@@ -892,23 +892,23 @@ static_assert(
 	"avo::unicode::code_point_count does not work correctly with UTF-16."
 );
 static_assert(
-	code_point_index("🪢 här √ är knut"sv, 10) == 17 &&
-	code_point_index("🪢 här 🪢 är knut"sv, 10) == 18, 
+	code_point_index(std::string_view{"🪢 här √ är knut"}, 10) == 17 &&
+	code_point_index(std::string_view{"🪢 här 🪢 är knut"}, 10) == 18, 
 	"code_point_index does not work correctly with UTF-8."
 );
 static_assert(
-	code_point_index(u"🪢 här √ är knut"sv, 10) == 11 &&
-	code_point_index(u"🪢 här 🪢 är knut"sv, 10) == 12, 
+	code_point_index(std::u16string_view{u"🪢 här √ är knut"}, 10) == 11 &&
+	code_point_index(std::u16string_view{u"🪢 här 🪢 är knut"}, 10) == 12, 
 	"code_point_index does not work correctly with UTF-16."
 );
 static_assert(
-	character_index("🪢 här √ är knut"sv, 17) == 10 &&
-	character_index("🪢 här 🪢 är knut"sv, 18) == 10, 
+	character_index(std::string_view{"🪢 här √ är knut"}, 17) == 10 &&
+	character_index(std::string_view{"🪢 här 🪢 är knut"}, 18) == 10, 
 	"character_index does not work correctly with UTF-8."
 );
 static_assert(
-	character_index(u"🪢 här √ är knut"sv, 11) == 10 &&
-	character_index(u"🪢 här 🪢 är knut"sv, 12) == 10, 
+	character_index(std::u16string_view{u"🪢 här √ är knut"}, 11) == 10 &&
+	character_index(std::u16string_view{u"🪢 här 🪢 är knut"}, 12) == 10, 
 	"character_index does not work correctly with UTF-16."
 );
 #endif // BUILD_TESTING
@@ -2534,6 +2534,8 @@ static_assert(Rectangle{2, 3, 4, 5} + Size{3, 1} == Rectangle{2, 3, 7, 6});
 
 #endif // BUILD_TESTING
 
+} // namespace math
+
 //------------------------------
 
 /*
@@ -2551,7 +2553,7 @@ static_assert(Rectangle{2, 3, 4, 5} + Size{3, 1} == Rectangle{2, 3, 7, 6});
 	application, or different parts of it.
 */
 struct Easing {
-	Point<> c0, c1;
+	math::Point<> c0, c1;
 
 	constexpr bool operator==(Easing const&) const noexcept = default;
 
@@ -2566,7 +2568,7 @@ struct Easing {
 		f(t) = (x, y) where 0 <= t <= 1, and we want to ease over x (value is x) and not t. This why we have a precision parameter.
 	*/
 	static constexpr float ease_value(
-		Point<> const c0, Point<> const c1, 
+		math::Point<> const c0, math::Point<> const c1, 
 		float const value, float const precision = default_precision
 	) noexcept {
 		constexpr auto extreme_value_threshold = 1e-5f;
@@ -2588,7 +2590,7 @@ struct Easing {
 		*/
 
 		auto error = 1.f;
-		while (abs(error) > precision) {
+		while (math::abs(error) > precision) {
 			error = value - t * ((1.f - t) * (3.f * (1.f - t) * c0.x + 3.f * t * c1.x) + t * t);
 			t += error / (c0.x * 9.f * (t - 1.f) * (t - 1.f / 3.f) + t * (c1.x * (6.f - 9.f * t) + 3.f * t));
 		}
@@ -2601,11 +2603,16 @@ struct Easing {
 		return ease_value(c0, c1, value, precision);
 	}
 	constexpr float ease_value_inverse(float const value, float const precision = default_precision) const noexcept {
-		return ease_value(Point{c0.y, c0.x}, Point{c1.y, c1.x}, value, precision);
+		return ease_value(math::Point{c0.y, c0.x}, math::Point{c1.y, c1.x}, value, precision);
 	}
 };
 
-} // namespace math
+#ifdef BUILD_TESTING
+static_assert([]{
+	auto const easing = Easing{{0.4f, 0.1f}, {0.7f, 0.5f}};
+	return math::approximately_equal(easing.ease_value_inverse(easing.ease_value(0.35f, 1e-5f), 1e-5f), 0.35f, 1e-5f);
+}());
+#endif // BUILD_TESTING
 
 //------------------------------
 
@@ -2697,10 +2704,10 @@ struct Color {
 	*/
 	template<std::integral T>
 	explicit constexpr Color(T const lightness, T const p_alpha = static_cast<T>(255)) noexcept :
-		red{math::unit_clamp(lightness / 255.f)},
+		red{math::unit_clamp(static_cast<float>(lightness) / 255.f)},
 		green{red},
 		blue{red},
-		alpha{math::unit_clamp(p_alpha / 255.f)}
+		alpha{math::unit_clamp(static_cast<float>(p_alpha) / 255.f)}
 	{}
 
 	/*
@@ -3194,44 +3201,70 @@ static_assert(math::approximately_equal(Color{0.1f, 0.2f, 0.9f}.hsl_saturation(0
 static_assert(Color{0.1f, 0.2f, 0.9f}.hsb_saturation(0.3f).hsb_saturation() == 0.3f);
 
 static_assert(math::interpolate(Color{0.2f, 0.3f, 0.4f}, Color{0.8f, 0.7f, 0.6f}, 0.5f) == Color{0.5f});
+
+static_assert(alpha_channel(0xabcdef12) == 0xab);
+static_assert(red_channel(0xabcdef12) == 0xcd);
+static_assert(green_channel(0xabcdef12) == 0xef);
+static_assert(blue_channel(0xabcdef12) == 0x12);
 #endif // BUILD_TESTING
 
 //------------------------------
 
 /*
-	Represents an ID.
-	To generate a new unique ID, use the default constructor like this:
-		auto const id = Id{};
-	To create an ID with a specific value (not guaranteed to be unique), just assign:
-		auto const id = Id{1234};
-	An ID which converts to 0 is considered invalid, and can be created like this:
-		auto const id = Id{0};
+	To generate a new unique ID, use the function Id::next().
+	To create an ID with a specific value (not guaranteed to be unique), use the constructor.
+	An ID which converts to Id::value_type{} is considered invalid, and is the default value.
 */
 class Id {
 public:
 	using value_type = std::uint64_t;
-	
+
 private:
-	static value_type s_counter;
-	value_type _count;
+	value_type _count{};
 
 public:
 	[[nodiscard]]
-	constexpr operator value_type() const noexcept {
+	constexpr explicit operator value_type() const noexcept {
 		return _count;
 	}
+
+	[[nodiscard]]
+	constexpr value_type value() const noexcept {
+		return _count;
+	}
+
 	[[nodiscard]]
 	constexpr bool operator==(Id const& id) const noexcept = default;
 
 	constexpr explicit Id(value_type const id) noexcept :
 		_count{id}
 	{}
-	Id() noexcept :
-		_count{++s_counter}
-	{}
+	Id() noexcept = default;
+
+	/*
+		Generates a new unique ID, assuming all IDs are generated by this function.
+	*/
+	[[nodiscard]]
+	static Id next() noexcept {
+		static auto counter = value_type{};
+		return Id{++counter};
+	}
 };
 
-//------------------------------
+} // namespace avo
+
+namespace std {
+
+template<>
+struct hash<avo::Id> {
+	std::size_t operator()(avo::Id const id) const noexcept {
+		return hash<avo::Id::value_type>{}(id.value());
+	}
+};
+
+} // namespace std
+
+namespace avo {
 
 template<typename T>
 class EventListeners;
@@ -3337,6 +3370,89 @@ public:
 
 //------------------------------
 
+namespace font_families {
 
+inline constexpr auto 
+	roboto = std::string_view{"Roboto"},
+	material_icons = std::string_view{"Material Icons"};
+
+} // namespace font_families
+
+/*
+	Default theme color IDs.
+*/
+namespace theme_colors {
+
+inline auto const 
+	background = Id::next(),
+	on_background = Id::next(),
+
+	primary = Id::next(),
+	primary_on_background = Id::next(),
+	on_primary = Id::next(),
+
+	secondary = Id::next(),
+	secondary_on_background = Id::next(),
+	on_secondary = Id::next(),
+
+	selection = Id::next(),
+	shadow = Id::next();
+
+} // namespace theme_colors
+
+/*
+	Default theme easing IDs.
+*/
+namespace theme_easings {
+
+inline auto const 
+	in = Id::next(),
+	out = Id::next(),
+	in_out = Id::next(),
+	symmetrical_in_out = Id::next();
+
+} // namespace theme_easings
+
+/*
+	Default theme value names.
+*/
+namespace theme_values {
+
+inline auto const 
+	hover_animation_speed = Id::next(),
+	hover_animation_duration = Id::next();
+
+} // namespace theme_values
+
+/*
+	A theme consists of different variables that change the look and feel of the parts of the GUI that are using the theme.
+	Can be used for changing and accessing any values, colors and easings.
+	All the default IDs are in ThemeColors, ThemeEasings and ThemeValues.
+*/
+struct Theme {
+	std::unordered_map<Id, Color> colors{
+		{theme_colors::background, Color{0xfffefefe}},
+		{theme_colors::on_background, Color{0xff070707}},
+		{theme_colors::primary, Color{0xff6200ea}},
+		{theme_colors::primary_on_background, Color{0xff512da8}},
+		{theme_colors::on_primary, Color{1.f}},
+		{theme_colors::secondary, Color{0xff1de9b6}},
+		{theme_colors::secondary_on_background, Color{0xff00bfa5}},
+		{theme_colors::on_secondary, Color{0xff070707}},
+		{theme_colors::selection, Color{0x90488db5}},
+		{theme_colors::shadow, Color{0x68000000}},
+	};
+	std::unordered_map<Id, Easing> easings{
+		{theme_easings::in, Easing{{0.6f, 0.f}, {0.8f, 0.2f}}},
+		{theme_easings::out, Easing{{0.1f, 0.9f}, {0.2f, 1.f}}},
+		{theme_easings::in_out, Easing{{0.4f, 0.f}, {0.f, 1.f}}},
+		{theme_easings::symmetrical_in_out, Easing{{0.6f, 0.f}, {0.4f, 1.f}}},
+	};
+	std::unordered_map<Id, float> values{
+		// 1/frames where frames is the number of frames the animation takes to finish. If it's 0.5, it finishes in 2 frames.
+		{theme_values::hover_animation_speed, 1.f/6.f},
+		{theme_values::hover_animation_duration, 60.f},
+	};
+};
 
 } // namespace avo
