@@ -36,6 +36,7 @@ SOFTWARE.
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <numbers>
 #include <numeric>
@@ -45,6 +46,7 @@ SOFTWARE.
 #include <span>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #if __has_include(<source_location>)
 #	include <source_location>
@@ -1337,8 +1339,6 @@ static_assert(
 	of the standard library random utilities.
 */
 class Random {
-private:
-	std::default_random_engine _engine{std::random_device{}()};
 public:
 	/*
 		Generates a new uniformly distributed random floating point number in the range [min, max).
@@ -1378,6 +1378,9 @@ public:
 		_engine{seed}
 	{}
 	Random() = default;
+
+private:
+	std::default_random_engine _engine{std::random_device{}()};
 };
 
 //------------------------------
@@ -3012,6 +3015,7 @@ struct Color {
 	/*
 		Returns the brightness of the color. The brightness is a float in the range [0, 1].
 	*/
+	[[nodiscard]]
 	constexpr float brightness() const noexcept {
 		return math::max(red, green, blue);
 	}
@@ -3164,6 +3168,7 @@ namespace math {
 	Linearly interpolates a color between start and end. Each channel is faded individually.
 	If progress is 0, start is returned. If progress is 1, end is returned.
 */
+[[nodiscard]]
 constexpr Color interpolate(Color const start, Color const end, float const progress) noexcept {
 	return Color{
 		std::lerp(start.red, end.red, progress),
@@ -3219,10 +3224,6 @@ class Id {
 public:
 	using value_type = std::uint64_t;
 
-private:
-	value_type _count{};
-
-public:
 	[[nodiscard]]
 	constexpr explicit operator value_type() const noexcept {
 		return _count;
@@ -3249,6 +3250,9 @@ public:
 		static auto counter = value_type{};
 		return Id{++counter};
 	}
+
+private:
+	value_type _count{};
 };
 
 } // namespace avo
@@ -3277,18 +3281,25 @@ template<typename _Return, typename ... _Arguments>
 class EventListeners<_Return(_Arguments...)> {
 public:
 	using FunctionType = _Return(_Arguments...);
+	using ContainerType = std::vector<std::function<FunctionType>>;
 	
-private:
-	std::recursive_mutex _mutex;
-	std::vector<std::function<FunctionType>> _listeners;
-
-public:
+	using iterator = ContainerType::iterator;
+	using const_iterator = ContainerType::const_iterator;
+	
 	[[nodiscard]]
-	decltype(_listeners)::iterator begin() noexcept {
+	iterator begin() noexcept {
 		return _listeners.begin();
 	}
 	[[nodiscard]]
-	decltype(_listeners)::iterator end() noexcept {
+	const_iterator begin() const noexcept {
+		return _listeners.begin();
+	}
+	[[nodiscard]]
+	iterator end() noexcept {
+		return _listeners.end();
+	}
+	[[nodiscard]]
+	const_iterator end() const noexcept {
 		return _listeners.end();
 	}
 
@@ -3318,7 +3329,7 @@ public:
 		auto const& listener_type = listener.target_type();
 		auto const found_position = std::ranges::find_if(_listeners, [&](auto const& listener_element) {
 			// template keyword is used to expicitly tell the compiler that target is a template method for
-			// std::function<FunctionalType> and < shouldn't be parsed as the less-than operator
+			// std::function<FunctionType> and < shouldn't be parsed as the less-than operator
 			return listener_type == listener_element.target_type() &&
 				*(listener.template target<FunctionType>()) == *(listener_element.template target<FunctionType>());
 		});
@@ -3366,13 +3377,17 @@ public:
 		return *this;
 	}
 	EventListeners& operator=(EventListeners const&) = delete;
+
+private:
+	std::recursive_mutex _mutex;
+	ContainerType _listeners;
 };
 
 //------------------------------
 
 namespace font_families {
 
-inline constexpr auto 
+constexpr auto 
 	roboto = std::string_view{"Roboto"},
 	material_icons = std::string_view{"Material Icons"};
 
@@ -3453,6 +3468,84 @@ struct Theme {
 		{theme_values::hover_animation_speed, 1.f/6.f},
 		{theme_values::hover_animation_duration, 60.f},
 	};
+};
+
+//------------------------------
+
+class Node;
+
+struct NodeListener {
+	virtual void handle_child_node_added(Node&, Node&) {}
+	virtual void handle_child_node_removed(Node&, Node&) {}
+	virtual void handle_parent_node_changed(Node&, Node&) {}
+};
+
+class Node {
+public:
+	Node& add_listener(NodeListener* const listener) {
+		_listeners.push_back(listener);
+		return *this;
+	}
+
+	EventListeners<void(Node&)> child_added;
+	EventListeners<void(Node&)> child_removed;
+	EventListeners<void(Node&)> parent_changed;
+
+	using iterator = decltype(_children)::iterator;
+	using const_iterator = decltype(_children)::const_iterator;
+
+	iterator begin() {
+		return _children.begin();
+	}
+	const_iterator begin() const {
+		return _children.begin();
+	}
+	iterator end() {
+		return _children.end();
+	}
+	const_iterator end() const {
+		return _children.end();
+	}
+
+	std::size_t size() const {
+		return _children.size();
+	}
+
+	std::unique_ptr<Node> steal_child(iterator const position) {
+		auto child = std::move(*position);
+		*position = std::move(_children.back());
+		_children.pop_back();
+		return child;
+	}
+	std::unique_ptr<Node> steal_child(std::size_t const index) {
+		return steal_child(begin() + index);
+	}
+	std::unique_ptr<Node> steal_child(Node& child_to_steal) {
+		return steal_child(std::ranges::find(_children, &child_to_steal, &std::unique_ptr<Node>::get));
+	}
+
+	Node& root() const {
+		return *_root;
+	}
+
+	Node& parent() const {
+		return *_parent;
+	}
+	/*
+		Sets the parent of the node
+	*/
+	Node& parent(Node& parent) {
+		_parent = &parent;
+		return *this;
+	}
+
+private:
+	Node* _root{};
+	Node* _parent{};
+	std::vector<std::unique_ptr<Node>> _children;
+	Id _id{};
+
+	std::vector<NodeListener*> _listeners;
 };
 
 } // namespace avo
