@@ -24,6 +24,10 @@ SOFTWARE.
 
 #include "AvoGUI.hpp"
 
+#ifdef __CYGWIN__
+#	define _WIN32
+#endif
+
 #ifdef _WIN32
 #	include <windows.h>
 #else

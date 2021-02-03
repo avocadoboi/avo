@@ -25,6 +25,7 @@ SOFTWARE.
 #pragma once
 
 #include <algorithm>
+#include <any>
 #include <array>
 #include <charconv>
 #include <chrono>
@@ -44,6 +45,7 @@ SOFTWARE.
 #include <random>
 #include <ranges>
 #include <span>
+#include <stack>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -495,6 +497,46 @@ static_assert(
 	"avo::utils::enumerate with rvalue reference failed."
 );
 #endif // BUILD_TESTING
+
+//------------------------------
+
+template<typename T>
+concept IsRecursiveRange = std::ranges::range<T> && std::same_as<std::ranges::range_value_t<T>, std::remove_reference_t<T>>;
+
+template<IsRecursiveRange T>
+class FlattenedView : std::ranges::view_interface<FlattenedView<T>> {
+public:
+	using base_iterator = std::ranges::range_iterator_t<T>;
+
+	class iterator {
+	private:
+		iterator& operator++() {
+
+		}
+	
+		iterator(T& range) :
+			_range{range}
+		{}
+	private:
+		T& _range;
+		base_iterator _current_position{std::begin(_range)};
+		std::stack<base_iterator> _parent_stack;
+	};
+	using const_iterator = iterator const;
+
+
+
+private:
+	FlattenedView(T& range) :
+		_range{range}
+	{}
+	T& _range;
+};
+
+template<IsRecursiveRange T>
+FlattenedView<T> flatten(T& range) {
+	return FlattenedView{range};
+}
 
 //------------------------------
 
@@ -3472,62 +3514,47 @@ struct Theme {
 
 //------------------------------
 
-class Node;
-
-struct NodeListener {
-	virtual void handle_child_node_added(Node&, Node&) {}
-	virtual void handle_child_node_removed(Node&, Node&) {}
-	virtual void handle_parent_node_changed(Node&, Node&) {}
-};
-
 class Node {
 public:
-	Node& add_listener(NodeListener* const listener) {
-		_listeners.push_back(listener);
-		return *this;
-	}
-
-	EventListeners<void(Node&)> child_added;
-	EventListeners<void(Node&)> child_removed;
-	EventListeners<void(Node&)> parent_changed;
-
 	using iterator = decltype(_children)::iterator;
 	using const_iterator = decltype(_children)::const_iterator;
 
+	[[nodiscard]]
 	iterator begin() {
 		return _children.begin();
 	}
+	[[nodiscard]]
 	const_iterator begin() const {
 		return _children.begin();
 	}
+	[[nodiscard]]
 	iterator end() {
 		return _children.end();
 	}
+	[[nodiscard]]
 	const_iterator end() const {
 		return _children.end();
 	}
 
+	[[nodiscard]]
 	std::size_t size() const {
 		return _children.size();
 	}
 
-	std::unique_ptr<Node> steal_child(iterator const position) {
-		auto child = std::move(*position);
-		*position = std::move(_children.back());
-		_children.pop_back();
-		return child;
+	[[nodiscard]]
+	Node& operator[](std::size_t const index) {
+		return _children[index];
 	}
-	std::unique_ptr<Node> steal_child(std::size_t const index) {
-		return steal_child(begin() + index);
-	}
-	std::unique_ptr<Node> steal_child(Node& child_to_steal) {
-		return steal_child(std::ranges::find(_children, &child_to_steal, &std::unique_ptr<Node>::get));
+	[[nodiscard]]
+	Node const& operator[](std::size_t const index) const {
+		return _children[index];
 	}
 
+	[[nodiscard]]
 	Node& root() const {
 		return *_root;
 	}
-
+	[[nodiscard]]
 	Node& parent() const {
 		return *_parent;
 	}
@@ -3536,16 +3563,44 @@ public:
 	*/
 	Node& parent(Node& parent) {
 		_parent = &parent;
+		_root = parent._root;
 		return *this;
 	}
+
+	template<typename _Component>
+	[[nodiscard]]
+	_Component& component() {
+		return *std::any_cast<_Component*>(_component);
+	}
+	template<typename _Component>
+	[[nodiscard]]
+	_Component const& component() const {
+		return *std::any_cast<_Component const*>(_component);
+	}
+
+	template<typename _Component> 
+	Node(Node& parent, Id const id, _Component& component) :
+		_parent{&parent},
+		_id{id},
+		_component{&component}
+	{}
+	template<typename _Component> 
+	Node(Node& parent, _Component& component) :
+		_parent{&parent},
+		_component{&component}
+	{}
+	template<typename _Component> 
+	Node(Node& parent, Id const id) :
+		_parent{&parent},
+		_id{id}
+	{}
 
 private:
 	Node* _root{};
 	Node* _parent{};
-	std::vector<std::unique_ptr<Node>> _children;
+	std::vector<Node*> _children;
 	Id _id{};
-
-	std::vector<NodeListener*> _listeners;
+	std::any _component{};
 };
 
 } // namespace avo
