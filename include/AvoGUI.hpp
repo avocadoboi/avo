@@ -48,6 +48,7 @@ SOFTWARE.
 #include <stack>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 #if __has_include(<source_location>)
@@ -109,31 +110,17 @@ concept IsNumber = std::integral<T> || std::floating_point<T>;
 	Represents a range of integers that can be iterated to produce the integers within the range.
 */
 template<std::integral _Value, bool is_reverse = false>
-class Range {
+class Range : public std::ranges::view_interface<Range<_Value, is_reverse>> {
 public:
 	using value_type = _Value;
 
 	class Iterator {
 	public:
 		using value_type = std::remove_cv_t<_Value>;
-		using reference = value_type&;
-		using pointer = value_type*;
-		using iterator_category = std::bidirectional_iterator_tag;
-		using iterator_concept = std::bidirectional_iterator_tag;
 		using difference_type = value_type;
+		using iterator_concept = std::random_access_iterator_tag;
+		using iterator_category = std::random_access_iterator_tag;
 
-	private:
-		value_type _current_value;
-
-	public:
-		constexpr Iterator operator++(int) noexcept {
-			if constexpr (is_reverse) {
-				return Iterator{_current_value--};
-			}
-			else {
-				return Iterator{_current_value++};
-			}
-		}
 		constexpr Iterator& operator++() noexcept {
 			if constexpr (is_reverse) {
 				--_current_value;
@@ -142,6 +129,14 @@ public:
 				++_current_value;
 			}
 			return *this;
+		}
+		constexpr Iterator operator++(int) noexcept {
+			if constexpr (is_reverse) {
+				return Iterator{_current_value--};
+			}
+			else {
+				return Iterator{_current_value++};
+			}
 		}
 
 		[[nodiscard]]
@@ -201,12 +196,13 @@ public:
 		}
 
 		[[nodiscard]]
-		constexpr value_type const& operator*() const noexcept {
+		constexpr value_type operator*() const noexcept {
 			return _current_value;
 		}
+
 		[[nodiscard]]
-		constexpr value_type& operator*() noexcept {
-			return _current_value;
+		constexpr value_type operator[](difference_type const offset) const noexcept {
+			return static_cast<value_type>(_current_value + offset);
 		}
 
 		[[nodiscard]]
@@ -216,16 +212,13 @@ public:
 		constexpr Iterator(_Value const value) noexcept :
 			_current_value{value}
 		{}
+
+	private:
+		value_type _current_value;
 	};
 
-private:
-	Iterator _start;
-	Iterator _end;
-
-public:
 	[[nodiscard]]
-	constexpr Range<_Value, !is_reverse> reverse() const noexcept 
-	{
+	constexpr Range<_Value, !is_reverse> reverse() const noexcept {
 		return {*(_end - 1), *_start};
 	}
 
@@ -261,7 +254,26 @@ public:
 	{}
 
 	constexpr Range() noexcept = default;
+
+private:
+	Iterator _start;
+	Iterator _end;
 };
+
+} // namespace utils
+
+} // namespace avo
+
+namespace std::ranges {
+
+template<std::integral T, bool is_reversed>
+constexpr auto enable_borrowed_range<avo::utils::Range<T, is_reversed>> = true;
+
+} // namespace std::ranges
+
+namespace avo {
+	
+namespace utils {
 
 template<typename T, typename _Value = typename T::value_type>
 concept IsRange = requires(T range) {
@@ -341,6 +353,20 @@ static_assert(
 	}(),
 	"Reversed avo::utils::Range with two constructor arguments works incorrectly."
 );
+static_assert(
+	std::ranges::equal(
+		Range{-5, 3} | std::views::transform([](int i){ return i*2; }) | std::views::reverse,
+		std::array{6, 4, 2, 0, -2, -4, -6, -8, -10}
+	),
+	"avo::utils::Range with standard ranges library does not work."
+);
+static_assert(
+	std::ranges::equal(
+		Range{-5, 3} | std::views::reverse,
+		std::array{3, 2, 1, 0, -1, -2, -3, -4, -5}
+	),
+	"avo::utils::Range with std::views::reverse does not work."
+);
 #endif // BUILD_TESTING
 
 //------------------------------
@@ -370,7 +396,7 @@ static_assert(
 //------------------------------
 
 template<typename T>
-struct EnumeratedElement {
+struct EnumeratedElement final {
 	std::size_t index;
 	T& element;
 };
@@ -399,7 +425,7 @@ constexpr std::ranges::range auto enumerate(std::ranges::range auto&& range);
 	The original range is moved into and owned by the enumerated range.
 */
 template<std::ranges::range T> requires std::movable<T>
-class EnumeratedRange {
+class EnumeratedRange final {
 private:
 	using _BaseIterator = std::ranges::iterator_t<T const>;
 	T _range;
@@ -413,12 +439,7 @@ public:
 		using iterator_category = std::input_iterator_tag;
 		using iterator_concept = std::input_iterator_tag;
 		using difference_type = std::ptrdiff_t;
-
-	private:
-		_BaseIterator _base_iterator;
-		std::size_t _index;
 		
-	public:
 		constexpr Iterator operator++(int) {
 			return Iterator{++_base_iterator, ++_index};
 		}
@@ -443,6 +464,10 @@ public:
 			_base_iterator{base_iterator},
 			_index{index}
 		{}
+
+	private:
+		_BaseIterator _base_iterator;
+		std::size_t _index;
 	};
 
 	[[nodiscard]]
@@ -501,41 +526,150 @@ static_assert(
 //------------------------------
 
 template<typename T>
-concept IsRecursiveRange = std::ranges::range<T> && std::same_as<std::ranges::range_value_t<T>, std::remove_reference_t<T>>;
+concept IsRecursiveRange = std::ranges::range<T> && std::same_as<std::ranges::range_value_t<T>, std::remove_cvref_t<T>>;
+
+template<typename T>
+concept IsRecursiveIterator = IsRecursiveRange<std::iter_value_t<T>>;
+
+constexpr bool is_recursive_iterator_empty(IsRecursiveIterator auto const iterator) {
+	return std::begin(*iterator) == std::end(*iterator);
+}
 
 template<IsRecursiveRange T>
 class FlattenedView : std::ranges::view_interface<FlattenedView<T>> {
 public:
-	using base_iterator = std::ranges::range_iterator_t<T>;
+	using base_iterator = std::ranges::iterator_t<T>;
 
 	class iterator {
-	private:
+	public:
+		using value_type = std::iter_value_t<base_iterator>;
+		using iterator_category = std::input_iterator_tag;
+		using iterator_concept = std::input_iterator_tag;
+		using reference = value_type&;
+		using pointer = value_type*;
+		using difference_type = std::ptrdiff_t;
+	
 		iterator& operator++() {
-
+			if (std::holds_alternative<T*>(_current_position)) {
+				_current_position = std::begin(*std::get<T*>(_current_position));
+			}
+			else {
+				_increment_iterator();
+			}
+			return *this;
+		}
+		iterator operator++(int) {
+			auto previous = *this;
+			++*this;
+			return previous;
+		}
+		// void operator++(int) {
+		// 	++*this;
+		// }
+		bool operator==(std::default_sentinel_t) const noexcept {
+			return std::holds_alternative<base_iterator>(_current_position) && 
+				std::get<base_iterator>(_current_position) == _end;
+		}
+		auto& operator*() {
+			return _get_current_reference();
+		}
+		auto const& operator*() const {
+			return _get_current_reference();
 		}
 	
+		iterator() = default;
 		iterator(T& range) :
-			_range{range}
+			_current_position{&range},
+			_end{std::end(range)}
 		{}
+
 	private:
-		T& _range;
-		base_iterator _current_position{std::begin(_range)};
+		T& _get_current_reference() const {
+			return std::holds_alternative<T*>(_current_position) ?
+				*std::get<T*>(_current_position) :
+				*std::get<base_iterator>(_current_position);
+		}
+		void _increment_iterator() {
+			auto& pos = std::get<base_iterator>(_current_position);
+			if (pos == _end) {
+				return;
+			}
+			else if (is_recursive_iterator_empty(pos)) {
+				++pos;
+				while (!_parent_stack.empty() && pos == std::end(*_parent_stack.top())) {
+					pos = _parent_stack.top();
+					_parent_stack.pop();
+					++pos;
+				}
+			}
+			else {
+				_parent_stack.push(pos);
+				pos = std::begin(*pos);				
+			}
+		}
+		
+		std::variant<T*, base_iterator> _current_position;
+		base_iterator _end;
 		std::stack<base_iterator> _parent_stack;
 	};
 	using const_iterator = iterator const;
 
+	iterator begin() {
+		return iterator{_range};
+	}
+	const_iterator begin() const {
+		return const_iterator{_range};
+	}
+	std::default_sentinel_t end() const {
+		return {};
+	}
 
-
-private:
-	FlattenedView(T& range) :
+	explicit FlattenedView(T& range) :
 		_range{range}
 	{}
+
+private:
 	T& _range;
 };
 
-template<IsRecursiveRange T>
-FlattenedView<T> flatten(T& range) {
+} // namespace utils
+
+} // namespace avo
+
+namespace std::ranges {
+
+template<typename T>
+constexpr auto enable_borrowed_range<avo::utils::FlattenedView<T>> = true;
+
+} // namespace std::ranges
+
+namespace avo {
+	
+namespace utils {
+
+constexpr auto flatten = [](IsRecursiveRange auto& range) {
 	return FlattenedView{range};
+};
+
+template<IsRecursiveRange T>
+FlattenedView<T> operator|(T& range, decltype(flatten) const) {
+	return FlattenedView{range};
+}
+
+//------------------------------
+
+/*
+	Removes all elements matching the value argument from a vector, without keeping the order of the elements.
+*/
+template<std::equality_comparable T>
+std::vector<T>& unordered_erase(std::vector<T>& vector, T const& value) {
+	for (auto pos = vector.begin(); 
+		(pos = std::ranges::find(pos, vector.end(), value)) != vector.end();)
+	{
+		*pos = std::move(vector.back());
+		vector.pop_back();
+	}
+	return vector;
 }
 
 //------------------------------
@@ -568,10 +702,7 @@ inline void unreachable() {
 	Used to invoke a lambda at the end of a scope.
 */
 template<std::invocable T>
-class [[nodiscard]] Cleanup {
-private:
-	T _callable;
-	
+class [[nodiscard]] Cleanup final {
 public:
 	Cleanup(Cleanup&&) noexcept = delete;
 	Cleanup& operator=(Cleanup&&) noexcept = delete;
@@ -588,6 +719,9 @@ public:
 	~Cleanup() {
 		_callable();
 	}
+
+private:
+	T _callable;
 };
 
 //------------------------------
@@ -604,7 +738,7 @@ public:
 	using DllHandle = avo::utils::UniqueHandle<HMODULE, decltype([](auto& h){FreeLibrary(h);})>;
 */
 template<IsTrivial _Type, std::invocable<_Type> _Deleter, _Type invalid_handle = _Type{}>
-class UniqueHandle {
+class UniqueHandle final {
 	_Type _handle{invalid_handle};
 
 	void close() {
@@ -1380,7 +1514,7 @@ static_assert(
 	A random number generator, a small abstraction on top of a subset 
 	of the standard library random utilities.
 */
-class Random {
+class Random final {
 public:
 	/*
 		Generates a new uniformly distributed random floating point number in the range [min, max).
@@ -1887,7 +2021,7 @@ static_assert(Vector2d{2.f, 5.f}.to<Size<int>>() == Size{2, 5});
 //------------------------------
 
 template<std::floating_point T>
-struct Transform {
+struct Transform final {
 	using value_type = T;
 	
 	T x_to_x{1}, y_to_x{0}, offset_x{0},
@@ -2151,7 +2285,7 @@ static_assert(
 //------------------------------
 
 template<utils::IsNumber _Value>
-struct Rectangle {
+struct Rectangle final {
 	using value_type = _Value;
 
 	_Value left{}, top{}, right{}, bottom{};
@@ -2597,7 +2731,7 @@ static_assert(Rectangle{2, 3, 4, 5} + Size{3, 1} == Rectangle{2, 3, 7, 6});
 	Storing Easing objects in a Theme can be a good idea because you can use the same easings within your whole
 	application, or different parts of it.
 */
-struct Easing {
+struct Easing final {
 	math::Point<> c0, c1;
 
 	constexpr bool operator==(Easing const&) const noexcept = default;
@@ -2688,7 +2822,7 @@ constexpr inline std::uint8_t alpha_channel(ColorInt const color) noexcept {
 	This means that a Color object is 4 times as big as a packed 32-bit color, but allows for more 
 	precise and efficient operations.
 */
-struct Color {
+struct Color final {
 	float red{}, green{}, blue{}, alpha{1.f};
 	
 	constexpr Color() noexcept = default;
@@ -3262,7 +3396,7 @@ static_assert(blue_channel(0xabcdef12) == 0x12);
 	To create an ID with a specific value (not guaranteed to be unique), use the constructor.
 	An ID which converts to Id::value_type{} is considered invalid, and is the default value.
 */
-class Id {
+class Id final {
 public:
 	using value_type = std::uint64_t;
 
@@ -3320,7 +3454,7 @@ class EventListeners;
 	The return type and arguments have to be the same for all listeners added to one instance of EventListeners.
 */
 template<typename _Return, typename ... _Arguments>
-class EventListeners<_Return(_Arguments...)> {
+class EventListeners<_Return(_Arguments...)> final {
 public:
 	using FunctionType = _Return(_Arguments...);
 	using ContainerType = std::vector<std::function<FunctionType>>;
@@ -3486,7 +3620,7 @@ inline auto const
 	Can be used for changing and accessing any values, colors and easings.
 	All the default IDs are in ThemeColors, ThemeEasings and ThemeValues.
 */
-struct Theme {
+struct Theme final {
 	std::unordered_map<Id, Color> colors{
 		{theme_colors::background, Color{0xfffefefe}},
 		{theme_colors::on_background, Color{0xff070707}},
@@ -3514,26 +3648,43 @@ struct Theme {
 
 //------------------------------
 
-class Node {
+/*
+	A Node is a container that stores pointers to instances of itself.
+	This means it's a tree data structure. Nodes can have IDs which can be 
+	used to retrieve them from the tree. They can also store a pointer to
+	an arbitrary object. 
+	
+	A node does not own its child nodes - child nodes are added to a node tree
+	by constructing it with a reference to its parent. This means that nodes
+	can be stored in any way you wish; on the stack or on the heap.
+
+	This type can be used to build a tree of software components.
+	Each component stores an instance of a Node constructed with its parent node.
+	This enables retrieval of other software components in the tree by their IDs.
+*/
+class Node final {
 public:
-	using iterator = decltype(_children)::iterator;
-	using const_iterator = decltype(_children)::const_iterator;
+	using ContainerType = std::vector<Node*>;
+	// using ViewType = std::ranges::transform_view<std::ranges::ref_view<ContainerType const>, decltype(_dereference)>;
+
+	// using iterator = std::ranges::iterator_t<ViewType>;
+	// using const_iterator = std::ranges::iterator_t<ViewType> const;
 
 	[[nodiscard]]
-	iterator begin() {
-		return _children.begin();
+	auto begin() {
+		return std::begin(_children | std::views::transform([](Node* pointer) -> Node& { return *pointer; }));
 	}
 	[[nodiscard]]
-	const_iterator begin() const {
-		return _children.begin();
+	auto begin() const {
+		return std::begin(_children | std::views::transform([](Node* pointer) -> Node const& { return *pointer; }));
 	}
 	[[nodiscard]]
-	iterator end() {
-		return _children.end();
+	std::default_sentinel_t end() {
+		return {};
 	}
 	[[nodiscard]]
-	const_iterator end() const {
-		return _children.end();
+	std::default_sentinel_t end() const {
+		return {};
 	}
 
 	[[nodiscard]]
@@ -3543,17 +3694,26 @@ public:
 
 	[[nodiscard]]
 	Node& operator[](std::size_t const index) {
-		return _children[index];
+		return *_children[index];
 	}
 	[[nodiscard]]
 	Node const& operator[](std::size_t const index) const {
-		return _children[index];
+		return *_children[index];
+	}
+	[[nodiscard]]
+	Node& at(std::size_t const index) {
+		return *_children.at(index);
+	}
+	[[nodiscard]]
+	Node const& at(std::size_t const index) const {
+		return *_children.at(index);
 	}
 
 	[[nodiscard]]
 	Node& root() const {
 		return *_root;
 	}
+
 	[[nodiscard]]
 	Node& parent() const {
 		return *_parent;
@@ -3562,43 +3722,129 @@ public:
 		Sets the parent of the node
 	*/
 	Node& parent(Node& parent) {
-		_parent = &parent;
-		_root = parent._root;
+		if (&parent == this) {
+			detach();
+			return *this;
+		}
+		else {
+			_remove_from_parent();
+			
+			_parent = &parent;
+			_root = parent._root;
+
+			_add_to_parent();
+			return *this;
+		}
+	}
+	/*
+		Detaches the node from its parent, making it a root node.
+	*/
+	Node& detach() noexcept {
+		_remove_from_parent();
+		_parent = nullptr;
+		_root = this;
 		return *this;
 	}
 
+	[[nodiscard]]
+	Id id() const noexcept {
+		return _id;
+	}
+	Node& id(Id const new_id) noexcept {
+		_id = new_id;
+		return *this;
+	}
+
+	/*
+		Returns the component associated with this node.
+		It's an arbitrary object that has been associated with it at construction.
+	*/
 	template<typename _Component>
 	[[nodiscard]]
 	_Component& component() {
 		return *std::any_cast<_Component*>(_component);
 	}
+	/*
+		Returns the component associated with this node.
+		It's an arbitrary object that has been associated with it at construction.
+	*/
 	template<typename _Component>
 	[[nodiscard]]
 	_Component const& component() const {
 		return *std::any_cast<_Component const*>(_component);
 	}
 
+	Node() : _root{this}
+	{}
 	template<typename _Component> 
-	Node(Node& parent, Id const id, _Component& component) :
-		_parent{&parent},
+	Node(Id const id, _Component& component) :
+		_root{this},
 		_id{id},
 		_component{&component}
 	{}
 	template<typename _Component> 
-	Node(Node& parent, _Component& component) :
-		_parent{&parent},
+	Node(Id const id) :
+		_root{this},
+		_id{id}
+	{}
+	template<typename _Component> 
+	Node(_Component& component) :
+		_root{this},
 		_component{&component}
 	{}
 	template<typename _Component> 
+	Node(Node& parent, Id const id, _Component& component) :
+		_root{parent._root},
+		_parent{&parent},
+		_id{id},
+		_component{&component}
+	{
+		_add_to_parent();
+	}
+	template<typename _Component> 
+	Node(Node& parent, _Component& component) :
+		_root{parent._root},
+		_parent{&parent},
+		_component{&component}
+	{
+		_add_to_parent();
+	}
+	template<typename _Component> 
 	Node(Node& parent, Id const id) :
+		_root{parent._root},
 		_parent{&parent},
 		_id{id}
-	{}
+	{
+		_add_to_parent();
+	}
+	~Node() {
+		_remove_from_parent();
+		if (!_children.empty()) {
+			std::ranges::for_each(_children, &Node::detach);
+		}
+	}
+
+	Node(Node const&) = delete;
+	Node& operator=(Node const&) = delete;
+	
+	Node(Node&&) = delete;
+	Node& operator=(Node&&) = delete;
 
 private:
+	void _remove_from_parent() {
+		if (_parent) {
+			utils::unordered_erase(_parent->_children, this);
+		}
+	}
+	void _add_to_parent() {
+		if (_parent) {
+			_parent->_children.push_back(this);
+		}
+	}
+
 	Node* _root{};
 	Node* _parent{};
-	std::vector<Node*> _children;
+	ContainerType _children;
 	Id _id{};
 	std::any _component{};
 };
