@@ -525,12 +525,17 @@ static_assert(
 
 //------------------------------
 
-template<typename T>
-concept IsRecursiveRange = std::ranges::range<T> && std::same_as<std::ranges::range_value_t<T>, std::remove_cvref_t<T>>;
+template<typename T, bool has_parent_reference = false>
+concept IsRecursiveRange = std::ranges::range<T> && std::same_as<std::ranges::range_value_t<T>, std::remove_cvref_t<T>>
+	&& (!has_parent_reference || 
+		std::random_access_iterator<std::ranges::iterator_t<T>> &&
+		(IsAnyOf<decltype(T::parent), T&, T*> || 
+		requires(T range) { { range.parent() } -> IsAnyOf<T&, T*>; }));
 
 template<typename T>
 concept IsRecursiveIterator = IsRecursiveRange<std::iter_value_t<T>>;
 
+[[nodiscard]]
 constexpr bool is_recursive_iterator_empty(IsRecursiveIterator auto const iterator) {
 	return std::begin(*iterator) == std::end(*iterator);
 }
@@ -543,11 +548,10 @@ public:
 	class iterator {
 	public:
 		using value_type = std::iter_value_t<base_iterator>;
+		using reference = std::iter_reference_t<base_iterator>;
+		using difference_type = std::ptrdiff_t;
 		using iterator_category = std::input_iterator_tag;
 		using iterator_concept = std::input_iterator_tag;
-		using reference = value_type&;
-		using pointer = value_type*;
-		using difference_type = std::ptrdiff_t;
 	
 		iterator& operator++() {
 			if (std::holds_alternative<T*>(_current_position)) {
@@ -563,32 +567,27 @@ public:
 			++*this;
 			return previous;
 		}
-		// void operator++(int) {
-		// 	++*this;
-		// }
-		bool operator==(std::default_sentinel_t) const noexcept {
-			return std::holds_alternative<base_iterator>(_current_position) && 
-				std::get<base_iterator>(_current_position) == _end;
-		}
-		auto& operator*() {
-			return _get_current_reference();
-		}
-		auto const& operator*() const {
-			return _get_current_reference();
-		}
-	
-		iterator() = default;
-		iterator(T& range) :
-			_current_position{&range},
-			_end{std::end(range)}
-		{}
 
-	private:
-		T& _get_current_reference() const {
+		[[nodiscard]]
+		reference operator*() const {
 			return std::holds_alternative<T*>(_current_position) ?
 				*std::get<T*>(_current_position) :
 				*std::get<base_iterator>(_current_position);
 		}
+
+		[[nodiscard]]
+		bool operator==(std::default_sentinel_t) const noexcept {
+			return std::holds_alternative<base_iterator>(_current_position) && 
+				std::get<base_iterator>(_current_position) == _end;
+		}
+	
+		iterator() = default;
+		iterator(T* const range) :
+			_current_position{range},
+			_end{std::end(*range)}
+		{}
+
+	private:
 		void _increment_iterator() {
 			auto& pos = std::get<base_iterator>(_current_position);
 			if (pos == _end) {
@@ -612,24 +611,138 @@ public:
 		base_iterator _end;
 		std::stack<base_iterator> _parent_stack;
 	};
-	using const_iterator = iterator const;
 
-	iterator begin() {
+	[[nodiscard]]
+	iterator begin() const {
 		return iterator{_range};
 	}
-	const_iterator begin() const {
-		return const_iterator{_range};
-	}
-	std::default_sentinel_t end() const {
+	[[nodiscard]]
+	std::default_sentinel_t end() const noexcept {
 		return {};
 	}
 
-	explicit FlattenedView(T& range) :
-		_range{range}
+	FlattenedView() noexcept = default;
+	explicit FlattenedView(T& range) noexcept :
+		_range{&range}
 	{}
 
 private:
-	T& _range;
+	T* _range{};
+};
+
+template<IsRecursiveRange T> requires IsRecursiveRange<T, true>
+class FlattenedView<T> : std::ranges::view_interface<FlattenedView<T>> {
+public:
+	using base_iterator = std::ranges::iterator_t<T>;
+
+	class iterator {
+	public:
+		using value_type = std::iter_value_t<base_iterator>;
+		using reference = std::iter_reference_t<base_iterator>;
+		using difference_type = std::ptrdiff_t;
+		using iterator_category = std::input_iterator_tag;
+		using iterator_concept = std::input_iterator_tag;
+	
+		iterator& operator++() {
+			if (std::holds_alternative<T*>(_current_position)) {
+				_current_position = std::begin(*std::get<T*>(_current_position));
+			}
+			else {
+				_increment_iterator();
+			}
+			return *this;
+		}
+		iterator operator++(int) {
+			auto previous = *this;
+			++*this;
+			return previous;
+		}
+
+		[[nodiscard]]
+		reference operator*() const {
+			return std::holds_alternative<T*>(_current_position) ?
+				*std::get<T*>(_current_position) :
+				*std::get<base_iterator>(_current_position);
+		}
+
+		[[nodiscard]]
+		bool operator==(std::default_sentinel_t) const noexcept {
+			return std::holds_alternative<base_iterator>(_current_position) && 
+				std::get<base_iterator>(_current_position) == _end;
+		}
+	
+		iterator() = default;
+		iterator(T* const range) :
+			_current_position{range},
+			_end{std::end(*range)}
+		{}
+
+	private:
+		static T* get_parent_of_node(T& node) noexcept 
+			requires std::same_as<decltype(T::parent), T&> 
+		{
+			return &node.parent;
+		}
+		static T* get_parent_of_node(T& node) noexcept 
+			requires std::same_as<decltype(T::parent), T*> 
+		{
+			return node.parent;
+		}
+		static T* get_parent_of_node(T& node) noexcept 
+			requires requires { { node.parent() } -> std::same_as<T&>; } 
+		{
+			return &node.parent();
+		}
+		static T* get_parent_of_node(T& node) noexcept 
+			requires requires { { node.parent() } -> std::same_as<T*>; } 
+		{
+			return node.parent();
+		}
+	
+		static base_iterator get_iterator_of_node(T& node) {
+			auto* const parent = get_parent_of_node(node);
+			return std::begin(*parent) + (&node - &*std::begin(*parent));
+		}
+	
+		void _increment_iterator() {
+			auto& pos = std::get<base_iterator>(_current_position);
+			if (pos == _end) {
+				return;
+			}
+			else if (is_recursive_iterator_empty(pos)) {
+				auto* parent = get_parent_of_node(*pos);
+				++pos;
+				while (pos != _end && pos == std::end(*parent)) {
+					pos = get_iterator_of_node(*parent);
+					parent = get_parent_of_node(*pos);
+					++pos;
+				}
+			}
+			else {
+				pos = std::begin(*pos);				
+			}
+		}
+		
+		std::variant<T*, base_iterator> _current_position;
+		base_iterator _end;
+	};
+
+	[[nodiscard]]
+	iterator begin() const {
+		return iterator{_range};
+	}
+	[[nodiscard]]
+	std::default_sentinel_t end() const noexcept {
+		return {};
+	}
+
+	FlattenedView() noexcept = default;
+	explicit FlattenedView(T& range) noexcept :
+		_range{&range}
+	{}
+
+private:
+	T* _range{};
 };
 
 } // namespace utils
@@ -3679,10 +3792,6 @@ public:
 		return std::begin(_children | std::views::transform([](Node* pointer) -> Node const& { return *pointer; }));
 	}
 	[[nodiscard]]
-	std::default_sentinel_t end() {
-		return {};
-	}
-	[[nodiscard]]
 	std::default_sentinel_t end() const {
 		return {};
 	}
@@ -3715,16 +3824,16 @@ public:
 	}
 
 	[[nodiscard]]
-	Node& parent() const {
-		return *_parent;
+	Node* parent() const {
+		return _parent;
 	}
 	/*
-		Sets the parent of the node
+		Sets the parent of the node.
+		Returns a reference to this node.
 	*/
 	Node& parent(Node& parent) {
 		if (&parent == this) {
 			detach();
-			return *this;
 		}
 		else {
 			_remove_from_parent();
@@ -3733,8 +3842,8 @@ public:
 			_root = parent._root;
 
 			_add_to_parent();
-			return *this;
 		}
+		return *this;
 	}
 	/*
 		Detaches the node from its parent, making it a root node.
