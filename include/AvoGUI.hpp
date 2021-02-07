@@ -543,17 +543,17 @@ constexpr bool is_recursive_iterator_empty(IsRecursiveIterator auto const iterat
 template<IsRecursiveRange T>
 class FlattenedView : std::ranges::view_interface<FlattenedView<T>> {
 public:
-	using base_iterator = std::ranges::iterator_t<T>;
+	using BaseIterator = std::ranges::iterator_t<T>;
 
-	class iterator {
+	class Iterator {
 	public:
-		using value_type = std::iter_value_t<base_iterator>;
-		using reference = std::iter_reference_t<base_iterator>;
+		using value_type = std::iter_value_t<BaseIterator>;
+		using reference = std::iter_reference_t<BaseIterator>;
 		using difference_type = std::ptrdiff_t;
 		using iterator_category = std::input_iterator_tag;
 		using iterator_concept = std::input_iterator_tag;
 	
-		iterator& operator++() {
+		Iterator& operator++() {
 			if (std::holds_alternative<T*>(_current_position)) {
 				_current_position = std::begin(*std::get<T*>(_current_position));
 			}
@@ -562,7 +562,7 @@ public:
 			}
 			return *this;
 		}
-		iterator operator++(int) {
+		Iterator operator++(int) {
 			auto previous = *this;
 			++*this;
 			return previous;
@@ -572,24 +572,24 @@ public:
 		reference operator*() const {
 			return std::holds_alternative<T*>(_current_position) ?
 				*std::get<T*>(_current_position) :
-				*std::get<base_iterator>(_current_position);
+				*std::get<BaseIterator>(_current_position);
 		}
 
 		[[nodiscard]]
 		bool operator==(std::default_sentinel_t) const noexcept {
-			return std::holds_alternative<base_iterator>(_current_position) && 
-				std::get<base_iterator>(_current_position) == _end;
+			return std::holds_alternative<BaseIterator>(_current_position) && 
+				std::get<BaseIterator>(_current_position) == _end;
 		}
 	
-		iterator() = default;
-		iterator(T* const range) :
+		Iterator() = default;
+		Iterator(T* const range) :
 			_current_position{range},
 			_end{std::end(*range)}
 		{}
 
 	private:
 		void _increment_iterator() {
-			auto& pos = std::get<base_iterator>(_current_position);
+			auto& pos = std::get<BaseIterator>(_current_position);
 			if (pos == _end) {
 				return;
 			}
@@ -607,14 +607,14 @@ public:
 			}
 		}
 		
-		std::variant<T*, base_iterator> _current_position;
-		base_iterator _end;
-		std::stack<base_iterator> _parent_stack;
+		std::variant<T*, BaseIterator> _current_position;
+		BaseIterator _end;
+		std::stack<BaseIterator> _parent_stack;
 	};
 
 	[[nodiscard]]
-	iterator begin() const {
-		return iterator{_range};
+	Iterator begin() const {
+		return Iterator{_range};
 	}
 	[[nodiscard]]
 	std::default_sentinel_t end() const noexcept {
@@ -633,17 +633,17 @@ private:
 template<IsRecursiveRange T> requires IsRecursiveRange<T, true>
 class FlattenedView<T> : std::ranges::view_interface<FlattenedView<T>> {
 public:
-	using base_iterator = std::ranges::iterator_t<T>;
+	using BaseIterator = std::ranges::iterator_t<T>;
 
-	class iterator {
+	class Iterator {
 	public:
-		using value_type = std::iter_value_t<base_iterator>;
-		using reference = std::iter_reference_t<base_iterator>;
+		using value_type = std::iter_value_t<BaseIterator>;
+		using reference = std::iter_reference_t<BaseIterator>;
 		using difference_type = std::ptrdiff_t;
 		using iterator_category = std::input_iterator_tag;
 		using iterator_concept = std::input_iterator_tag;
 	
-		iterator& operator++() {
+		Iterator& operator++() {
 			if (std::holds_alternative<T*>(_current_position)) {
 				_current_position = std::begin(*std::get<T*>(_current_position));
 			}
@@ -652,7 +652,7 @@ public:
 			}
 			return *this;
 		}
-		iterator operator++(int) {
+		Iterator operator++(int) {
 			auto previous = *this;
 			++*this;
 			return previous;
@@ -662,17 +662,17 @@ public:
 		reference operator*() const {
 			return std::holds_alternative<T*>(_current_position) ?
 				*std::get<T*>(_current_position) :
-				*std::get<base_iterator>(_current_position);
+				*std::get<BaseIterator>(_current_position);
 		}
 
 		[[nodiscard]]
 		bool operator==(std::default_sentinel_t) const noexcept {
-			return std::holds_alternative<base_iterator>(_current_position) && 
-				std::get<base_iterator>(_current_position) == _end;
+			return std::holds_alternative<BaseIterator>(_current_position) && 
+				std::get<BaseIterator>(_current_position) == _end;
 		}
 	
-		iterator() = default;
-		iterator(T* const range) :
+		Iterator() = default;
+		Iterator(T* const range) :
 			_current_position{range},
 			_end{std::end(*range)}
 		{}
@@ -699,13 +699,13 @@ public:
 			return node.parent();
 		}
 	
-		static base_iterator get_iterator_of_node(T& node) {
+		static BaseIterator get_iterator_of_node(T& node) {
 			auto* const parent = get_parent_of_node(node);
 			return std::begin(*parent) + (&node - &*std::begin(*parent));
 		}
 	
 		void _increment_iterator() {
-			auto& pos = std::get<base_iterator>(_current_position);
+			auto& pos = std::get<BaseIterator>(_current_position);
 			if (pos == _end) {
 				return;
 			}
@@ -719,17 +719,17 @@ public:
 				}
 			}
 			else {
-				pos = std::begin(*pos);				
+				pos = std::begin(*pos);
 			}
 		}
 		
-		std::variant<T*, base_iterator> _current_position;
-		base_iterator _end;
+		std::variant<T*, BaseIterator> _current_position;
+		BaseIterator _end;
 	};
 
 	[[nodiscard]]
-	iterator begin() const {
-		return iterator{_range};
+	Iterator begin() const {
+		return Iterator{_range};
 	}
 	[[nodiscard]]
 	std::default_sentinel_t end() const noexcept {
@@ -3544,6 +3544,10 @@ private:
 	value_type _count{};
 };
 
+inline std::ostream& operator<<(std::ostream& stream, Id const id) {
+	return stream << id.value();
+}
+
 } // namespace avo
 
 namespace std {
@@ -3572,23 +3576,23 @@ public:
 	using FunctionType = _Return(_Arguments...);
 	using ContainerType = std::vector<std::function<FunctionType>>;
 	
-	using iterator = ContainerType::iterator;
-	using const_iterator = ContainerType::const_iterator;
+	using Iterator = std::ranges::iterator_t<ContainerType>;
+	using ConstIterator = std::ranges::iterator_t<ContainerType const>;
 	
 	[[nodiscard]]
-	iterator begin() noexcept {
+	Iterator begin() noexcept {
 		return _listeners.begin();
 	}
 	[[nodiscard]]
-	const_iterator begin() const noexcept {
+	ConstIterator begin() const noexcept {
 		return _listeners.begin();
 	}
 	[[nodiscard]]
-	iterator end() noexcept {
+	Iterator end() noexcept {
 		return _listeners.end();
 	}
 	[[nodiscard]]
-	const_iterator end() const noexcept {
+	ConstIterator end() const noexcept {
 		return _listeners.end();
 	}
 
@@ -3774,26 +3778,117 @@ struct Theme final {
 	This type can be used to build a tree of software components.
 	Each component stores an instance of a Node constructed with its parent node.
 	This enables retrieval of other software components in the tree by their IDs.
+
+	Move constructing and move assigning *can* be expensive. This is because a
+	Node holds a pointer to its current parent and to all of its current children.
+	The child pointer of the parent of the node to be moved as well as the parent
+	pointer of all of the children of the node to be moved need to be updated.
 */
 class Node final {
 public:
 	using ContainerType = std::vector<Node*>;
-	// using ViewType = std::ranges::transform_view<std::ranges::ref_view<ContainerType const>, decltype(_dereference)>;
 
-	// using iterator = std::ranges::iterator_t<ViewType>;
-	// using const_iterator = std::ranges::iterator_t<ViewType> const;
+private:
+	template<bool is_const>
+	class _Iterator {
+	public:
+		using BaseIterator = std::ranges::iterator_t<std::conditional_t<is_const, ContainerType const, ContainerType>>;
+
+		using value_type = Node;
+		using reference = std::conditional_t<is_const, Node const&, Node&>;
+		using pointer = std::remove_reference_t<reference>*;
+		using difference_type = std::iter_difference_t<BaseIterator>;
+		using iterator_category = std::iterator_traits<BaseIterator>::iterator_category;
+		using iterator_concept = iterator_category;
+
+		_Iterator& operator++() {
+			++_base_iterator;
+			return *this;
+		}
+		_Iterator operator++(int) {
+			auto before = *this;
+			++_base_iterator;
+			return before;
+		}
+		_Iterator& operator--() {
+			--_base_iterator;
+			return *this;
+		}
+		_Iterator operator--(int) {
+			auto before = *this;
+			--_base_iterator;
+			return before;
+		}
+
+		// reference operator*() {
+		// 	return **_base_iterator;
+		// }
+		[[nodiscard]]
+		reference operator*() const {
+			return **_base_iterator;
+		}
+
+		// reference operator[](std::size_t const index) {
+		// 	return *_base_iterator[index];
+		// }
+		[[nodiscard]]
+		reference operator[](std::size_t const index) const {
+			return *_base_iterator[index];
+		}
+
+		_Iterator& operator+=(difference_type const offset) {
+			_base_iterator += offset;
+			return *this;
+		}
+		_Iterator& operator-=(difference_type const offset) {
+			_base_iterator -= offset;
+			return *this;
+		}
+		
+		[[nodiscard]]
+		_Iterator operator+(difference_type const offset) const {
+			return _Iterator{_base_iterator + offset};
+		}
+		[[nodiscard]]
+		friend _Iterator operator+(difference_type const offset, _Iterator const iterator) {
+			return _Iterator{offset + iterator._base_iterator};
+		}
+		[[nodiscard]]
+		_Iterator operator-(_Iterator const offset) const {
+			return _Iterator{_base_iterator - offset};
+		}
+
+		[[nodiscard]]
+		bool operator<=>(_Iterator const&) const noexcept = default;
+	
+		_Iterator() = default;
+		explicit _Iterator(BaseIterator const base_iterator) :
+			_base_iterator{base_iterator}
+		{}
+	
+	private:
+		BaseIterator _base_iterator;
+	};
+	
+public:
+	using Iterator = _Iterator<false>;
+	using ConstIterator = _Iterator<true>;
 
 	[[nodiscard]]
-	auto begin() {
-		return std::begin(_children | std::views::transform([](Node* pointer) -> Node& { return *pointer; }));
+	Iterator begin() {
+		return Iterator{std::begin(_children)};
 	}
 	[[nodiscard]]
-	auto begin() const {
-		return std::begin(_children | std::views::transform([](Node* pointer) -> Node const& { return *pointer; }));
+	ConstIterator begin() const {
+		return ConstIterator{std::begin(_children)};
 	}
 	[[nodiscard]]
-	std::default_sentinel_t end() const {
-		return {};
+	Iterator end() {
+		return Iterator{std::end(_children)};
+	}
+	[[nodiscard]]
+	ConstIterator end() const {
+		return ConstIterator{std::end(_children)};
 	}
 
 	[[nodiscard]]
@@ -3880,7 +3975,7 @@ public:
 	template<typename _Component>
 	[[nodiscard]]
 	_Component const& component() const {
-		return *std::any_cast<_Component const*>(_component);
+		return *std::any_cast<_Component*>(_component);
 	}
 
 	Node() : _root{this}
@@ -3927,17 +4022,20 @@ public:
 		_add_to_parent();
 	}
 	~Node() {
-		_remove_from_parent();
-		if (!_children.empty()) {
-			std::ranges::for_each(_children, &Node::detach);
-		}
+		_remove_from_tree();
 	}
 
 	Node(Node const&) = delete;
 	Node& operator=(Node const&) = delete;
 	
-	Node(Node&&) = delete;
-	Node& operator=(Node&&) = delete;
+	Node(Node&& other) noexcept {
+		_move_construct(std::move(other));
+	}
+	Node& operator=(Node&& other) noexcept {
+		_remove_from_tree();
+		_move_construct(std::move(other));
+		return *this;
+	}
 
 private:
 	void _remove_from_parent() {
@@ -3950,12 +4048,58 @@ private:
 			_parent->_children.push_back(this);
 		}
 	}
+	void _remove_from_tree() {
+		_remove_from_parent();
+		if (!_children.empty()) {
+			std::ranges::for_each(_children, &Node::detach);
+		}
+	}
+	void _move_construct(Node&& other) {
+		_root = other._root;
+		if (_root == &other) {
+			_root = this;
+		}
+		
+		if (_parent = other._parent) {
+			if (auto const previous_child_pos = std::ranges::find(_parent->_children, &other);
+				previous_child_pos != _parent->_children.end()) 
+			{
+				*previous_child_pos = this;
+			}
+		}
+
+		_children = std::move(other._children);
+		for (auto* const child : _children) {
+			child->_parent = this;
+		}
+
+		_id = other._id;
+		_component = std::move(other._component);
+	}
 
 	Node* _root{};
 	Node* _parent{};
 	ContainerType _children;
+
 	Id _id{};
 	std::any _component{};
 };
+
+template<typename _Node> requires std::same_as<std::remove_cvref_t<_Node>, Node>
+[[nodiscard]]
+inline _Node& find_node_by_id(_Node& node, Id const id) {
+    constexpr auto id_from_node = [](_Node& node){ return node.id(); };
+	return *std::ranges::find(node | avo::utils::flatten, id, id_from_node);
+}
+template<typename _Component>
+[[nodiscard]]
+inline _Component const& find_component_by_id(Node const& node, Id const id) {
+	return find_node_by_id(node, id).component<_Component>();
+}
+template<typename _Component>
+[[nodiscard]]
+inline _Component& find_component_by_id(Node& node, Id const id) {
+	return find_node_by_id(node, id).component<_Component>();
+}
 
 } // namespace avo
