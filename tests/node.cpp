@@ -55,11 +55,24 @@ TEST_CASE("Nodes with IDs") {
         avo::Id{4},
         avo::Id{5},
     };
+
     constexpr auto id_from_node = [](avo::Node const& node){ return node.id(); };
     REQUIRE(std::ranges::equal(app.get_node(), std::array{avo::Id{1}, avo::Id{2}}, {}, id_from_node));
     REQUIRE(std::ranges::equal(app.get_node() | avo::utils::flatten, ids, {}, id_from_node));
-    REQUIRE(avo::find_component_by_id<SomeComponent>(app.get_node(), avo::Id{1}).value() == 3);
-    REQUIRE(avo::find_component_by_id<SomeComponent>(app.get_node(), avo::Id{5}).value() == 13);
-    REQUIRE(app.get_node()[0].component<SomeComponent>().value() == 3);
-    REQUIRE(app.get_node()[1].component<SomeComponent>().value() == 8);
+
+    REQUIRE(avo::find_node_by_id(app.get_node(), avo::Id{4})->id() == avo::Id{4});
+    REQUIRE(std::ranges::distance(avo::find_nodes_by_id(app.get_node(), avo::Id{4})) == 2);
+
+    // REQUIRE(std::ranges::distance(avo::find_components_by_id<SomeComponent>(app.get_node(), avo::Id{4})) == 2);
+    auto const found_components = avo::find_components_by_id<SomeComponent>(app.get_node(), avo::Id{4});
+    // REQUIRE((*std::ranges::begin(found_components)).value() == 11);
+    
+    REQUIRE(avo::find_component_by_id<SomeComponent>(app.get_node(), avo::Id{1})->value() == 3);
+    REQUIRE(avo::find_component_by_id<SomeComponent>(app.get_node(), avo::Id{5})->value() == 13);
+
+    REQUIRE(avo::find_component_by_id<SomeComponent>(app.get_node(), avo::Id{11}) == nullptr);
+
+    REQUIRE(app.get_node()[0].component<SomeComponent>()->value() == 3);
+    REQUIRE(app.get_node()[1].component<SomeComponent>()->value() == 8);
 }
+

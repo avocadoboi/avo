@@ -1227,26 +1227,26 @@ struct ArithmeticBase {
 };
 
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
-    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+	requires std::derived_from<_Class<A>, ArithmeticBase<A>>
 [[nodiscard]]
 constexpr bool operator==(_Class<A> const first, _Class<B> const second) noexcept {
-    return first.value == second.value;
+	return first.value == second.value;
 }
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
-    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+	requires std::derived_from<_Class<A>, ArithmeticBase<A>>
 [[nodiscard]]
 constexpr auto operator<=>(_Class<A> const first, _Class<B> const second) noexcept {
-    return first.value <=> second.value;
+	return first.value <=> second.value;
 }
 
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
-    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+	requires std::derived_from<_Class<A>, ArithmeticBase<A>>
 [[nodiscard]]
 constexpr auto operator+(_Class<A> const first, _Class<B> const second) noexcept {
 	return _Class{first.value + second.value};
 }
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
-    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+	requires std::derived_from<_Class<A>, ArithmeticBase<A>>
 constexpr _Class<A>& operator+=(_Class<A>& first, _Class<B> const second) noexcept {
 	first.value += second.value;
 	return first;
@@ -1260,45 +1260,45 @@ constexpr auto operator-(_Class<A> const value) noexcept {
 }
 
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
-    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+	requires std::derived_from<_Class<A>, ArithmeticBase<A>>
 [[nodiscard]]
 constexpr auto operator-(_Class<A> const first, _Class<B> const second) noexcept {
 	return _Class{first.value - second.value};
 }
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
-    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+	requires std::derived_from<_Class<A>, ArithmeticBase<A>>
 constexpr _Class<A>& operator-=(_Class<A>& first, _Class<B> const second) noexcept {
 	first.value -= second.value;
 	return first;
 }
 
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
-    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+	requires std::derived_from<_Class<A>, ArithmeticBase<A>>
 [[nodiscard]]
 constexpr auto operator*(_Class<A> const first, B const second) noexcept {
 	return _Class{first.value*second};
 }
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
-    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+	requires std::derived_from<_Class<A>, ArithmeticBase<A>>
 [[nodiscard]]
 constexpr auto operator*(B first, _Class<A> const second) noexcept {
 	return _Class{first*second.value};
 }
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
-    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+	requires std::derived_from<_Class<A>, ArithmeticBase<A>>
 constexpr _Class<A>& operator*=(_Class<A>& first, B const second) noexcept {
 	first.value *= second;
 	return first;
 }
 
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
-    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+	requires std::derived_from<_Class<A>, ArithmeticBase<A>>
 [[nodiscard]]
 constexpr auto operator/(_Class<A> const first, B const second) noexcept {
 	return _Class{first.value/second};
 }
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
-    requires std::derived_from<_Class<A>, ArithmeticBase<A>>
+	requires std::derived_from<_Class<A>, ArithmeticBase<A>>
 constexpr _Class<A>& operator/=(_Class<A>& first, B const second) noexcept {
 	first.value /= second;
 	return first;
@@ -1317,9 +1317,6 @@ struct Degrees : ArithmeticBase<T> {};
 
 template<typename T>
 Degrees(T) -> Degrees<T>;
-
-// template<typename T>
-// concept IsAngle = utils::IsInstantiationOfAny<T, Radians, Degrees>;
 
 template<typename T>
 concept IsDegrees = requires(T x) { { Degrees{x} } -> std::same_as<T>; };
@@ -1648,11 +1645,11 @@ public:
 	/*
 		Returns a random coin flip, true or false.
 	*/
-    template<std::same_as<bool> T>
-    [[nodiscard]]
-    T next() {
-        return static_cast<T>(std::uniform_int_distribution{0, 1}(_engine));
-    }
+	template<std::same_as<bool> T>
+	[[nodiscard]]
+	T next() {
+		return static_cast<T>(std::uniform_int_distribution{0, 1}(_engine));
+	}
 	/*
 		Generates a new random floating point number distributed according to a gaussian distribution
 		with a mean and a standard deviation.
@@ -3772,7 +3769,7 @@ struct Theme final {
 	an arbitrary object. 
 	
 	A node does not own its child nodes - child nodes are added to a node tree
-	by constructing it with a reference to its parent. This means that nodes
+	by constructing them with a reference to its parent. This means that nodes
 	can be stored in any way you wish; on the stack or on the heap.
 
 	This type can be used to build a tree of software components.
@@ -3965,8 +3962,8 @@ public:
 	*/
 	template<typename _Component>
 	[[nodiscard]]
-	_Component& component() {
-		return *std::any_cast<_Component*>(_component);
+	_Component* component() {
+		return _get_component<_Component>();
 	}
 	/*
 		Returns the component associated with this node.
@@ -3974,8 +3971,8 @@ public:
 	*/
 	template<typename _Component>
 	[[nodiscard]]
-	_Component const& component() const {
-		return *std::any_cast<_Component*>(_component);
+	_Component const* component() const {
+		return _get_component<_Component>();
 	}
 
 	Node() : _root{this}
@@ -4038,6 +4035,16 @@ public:
 	}
 
 private:
+	template<typename _Component>
+	_Component* _get_component() const {
+		if (_component.type() == typeid(_Component*)) {
+			return std::any_cast<_Component*>(_component);
+		}
+		else {
+			return nullptr;
+		}
+	}
+
 	void _remove_from_parent() {
 		if (_parent) {
 			utils::unordered_erase(_parent->_children, this);
@@ -4087,19 +4094,53 @@ private:
 
 template<typename _Node> requires std::same_as<std::remove_cvref_t<_Node>, Node>
 [[nodiscard]]
-inline _Node& find_node_by_id(_Node& node, Id const id) {
-    constexpr auto id_from_node = [](_Node& node){ return node.id(); };
-	return *std::ranges::find(node | avo::utils::flatten, id, id_from_node);
+_Node* find_node_by_id(_Node& node, Id const id) {
+	constexpr auto id_from_node = [](_Node& node){ return node.id(); };
+	auto const flattened = avo::utils::flatten(node);
+	if (auto const pos = std::ranges::find(flattened, id, id_from_node);
+		pos == std::ranges::end(flattened)) 
+	{
+		return nullptr;
+	}
+	else {
+		return &*pos;
+	}
+}
+
+template<typename _Node> requires std::same_as<std::remove_cvref_t<_Node>, Node>
+[[nodiscard]]
+std::ranges::view auto find_nodes_by_id(_Node& node, Id const id) {
+	return node | avo::utils::flatten | std::views::filter([=](_Node& node) { return node.id() == id; });
+}
+
+template<typename _Component>
+[[nodiscard]]
+_Component const* find_component_by_id(Node const& parent, Id const id) {
+	if (auto* const node = find_node_by_id(parent, id)) {
+		return node->template component<_Component>();
+	}
+	else {
+		return nullptr;
+	}
 }
 template<typename _Component>
 [[nodiscard]]
-inline _Component const& find_component_by_id(Node const& node, Id const id) {
-	return find_node_by_id(node, id).component<_Component>();
+_Component* find_component_by_id(Node& parent, Id const id) {
+	if (auto* const node = find_node_by_id(parent, id)) {
+		return node->template component<_Component>();
+	}
+	else {
+		return nullptr;
+	}
 }
-template<typename _Component>
+
+template<typename _Component, typename _Node> requires std::same_as<std::remove_cvref_t<_Node>, Node>
 [[nodiscard]]
-inline _Component& find_component_by_id(Node& node, Id const id) {
-	return find_node_by_id(node, id).component<_Component>();
+std::ranges::view auto find_components_by_id(_Node& node, Id const id) {
+	return find_nodes_by_id(node, id) 
+		| std::views::transform([](auto& found){ return found.template component<_Component>(); }) 
+		| std::views::filter([](auto* found){ return found != nullptr; })
+		| std::views::transform([](auto* found) -> auto& { return *found; });
 }
 
 } // namespace avo
