@@ -10,6 +10,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin/)
 add_library(avogui STATIC include/AvoGUI.hpp source/AvoGUI.cpp)
 add_library(${PROJECT_NAME}::avogui ALIAS avogui)
 
+#--------------------------------------------
+# Set up library target options.
+
 target_compile_features(avogui PUBLIC cxx_std_20)
 set_target_properties(avogui PROPERTIES CXX_EXTENSIONS off)
 
@@ -32,11 +35,16 @@ else ()
 	)
 endif ()
 
+#--------------------------------------------
+
 target_include_directories(avogui PUBLIC
 	# When using the library from the install tree, relative paths can be used.
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+
+#--------------------------------------------
+# Link to platform-dependent external libraries.
 
 if (WIN32)
 #     target_link_libraries(avogui PRIVATE Shlwapi Dwmapi d2d1 d3d11 dxguid dwrite windowscodecs)
@@ -48,6 +56,21 @@ else ()
 endif ()
 
 #--------------------------------------------
+# Link to cross-platform external libraries.
+
+include(FetchContent)
+
+FetchContent_Declare(
+	fmt
+	GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+	GIT_TAG 7.1.3
+)
+FetchContent_MakeAvailable(fmt)
+
+target_link_libraries(avogui PUBLIC fmt::fmt)
+
+#--------------------------------------------
+# Set up testing.
 
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 	include(CTest)
@@ -81,7 +104,7 @@ set(TARGET_EXPORT_NAME ${PROJECT_NAME}Targets)
 # Specifies the target(s) that will be installed, and where to install 
 # the compiled library (relative to package installation path ${CMAKE_INSTALL_PREFIX}).
 install(
-    TARGETS avogui
+    TARGETS avogui fmt
     EXPORT ${TARGET_EXPORT_NAME}
     ARCHIVE DESTINATION lib
 )

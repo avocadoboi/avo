@@ -60,6 +60,8 @@ SOFTWARE.
 	}
 #endif
 
+#include <fmt/format.h>
+
 //------------------------------
 // This is recommended. 
 // Remove it if it causes you any problems.
@@ -525,10 +527,22 @@ static_assert(
 
 //------------------------------
 
+/*
+	Evaluates to whether the type T is a range whose value type is the same as the base range.
+
+	If has_parent_reference is true, then:
+	* The range is a random access range.
+	* The parent of a given range can be queried through either a member variable 
+	or a member function returning a reference or pointer to the parent range. 
+	The name of this member variable or function must be "parent".
+
+	Recursive ranges with parent references do not require a separate stack 
+	to keep track of parents when traversed recursively through a FlattenedView.
+*/
 template<typename T, bool has_parent_reference = false>
 concept IsRecursiveRange = std::ranges::range<T> && std::same_as<std::ranges::range_value_t<T>, std::remove_cvref_t<T>>
 	&& (!has_parent_reference || 
-		std::random_access_iterator<std::ranges::iterator_t<T>> &&
+		std::ranges::random_access_range<T> &&
 		(IsAnyOf<decltype(T::parent), T&, T*> || 
 		requires(T range) { { range.parent() } -> IsAnyOf<T&, T*>; }));
 
@@ -550,8 +564,8 @@ public:
 		using value_type = std::iter_value_t<BaseIterator>;
 		using reference = std::iter_reference_t<BaseIterator>;
 		using difference_type = std::ptrdiff_t;
-		using iterator_category = std::input_iterator_tag;
-		using iterator_concept = std::input_iterator_tag;
+		using iterator_category = std::forward_iterator_tag;
+		using iterator_concept = std::forward_iterator_tag;
 	
 		Iterator& operator++() {
 			if (std::holds_alternative<T*>(_current_position)) {
@@ -579,6 +593,10 @@ public:
 		bool operator==(std::default_sentinel_t) const noexcept {
 			return std::holds_alternative<BaseIterator>(_current_position) && 
 				std::get<BaseIterator>(_current_position) == _end;
+		}
+		[[nodiscard]]
+		bool operator==(Iterator const& other) const noexcept {
+			return _current_position == other._current_position;
 		}
 	
 		Iterator() = default;
@@ -640,8 +658,8 @@ public:
 		using value_type = std::iter_value_t<BaseIterator>;
 		using reference = std::iter_reference_t<BaseIterator>;
 		using difference_type = std::ptrdiff_t;
-		using iterator_category = std::input_iterator_tag;
-		using iterator_concept = std::input_iterator_tag;
+		using iterator_category = std::forward_iterator_tag;
+		using iterator_concept = std::forward_iterator_tag;
 	
 		Iterator& operator++() {
 			if (std::holds_alternative<T*>(_current_position)) {
@@ -669,6 +687,10 @@ public:
 		bool operator==(std::default_sentinel_t) const noexcept {
 			return std::holds_alternative<BaseIterator>(_current_position) && 
 				std::get<BaseIterator>(_current_position) == _end;
+		}
+		[[nodiscard]]
+		bool operator==(Iterator const& other) const noexcept {
+			return _current_position == other._current_position;
 		}
 	
 		Iterator() = default;
@@ -760,10 +782,18 @@ namespace avo {
 	
 namespace utils {
 
+/*
+	Returns a view over a recursive range traversed recursively so 
+	that all children can be iterated over.
+*/
 constexpr auto flatten = [](IsRecursiveRange auto& range) {
 	return FlattenedView{range};
 };
 
+/*
+	Returns a view over a recursive range traversed recursively so 
+	that all children can be iterated over.
+*/
 template<IsRecursiveRange T>
 FlattenedView<T> operator|(T& range, decltype(flatten) const) {
 	return FlattenedView{range};
@@ -794,17 +824,14 @@ std::vector<T>& unordered_erase(std::vector<T>& vector, T const& value) {
 #ifdef __cpp_lib_source_location
 [[noreturn]]
 inline void unreachable(std::source_location const& source_location = std::source_location::current()) {
-	// TODO: use std::format when supported
-	// std::cerr << std::format("Reached an unreachable code path in file {}, in function {}, on line {}.", 
-	// 	source_location.file_name(), source_location.function_name(), source_location.line());
-	std::cerr << "Reached an unreachable code path in file " << source_location.file_name() << 
-		", in function " << source_location.function_name() << ", on line " << source_location.line() << ".\n";
+	fmt::print(stderr, "Reached an unreachable code path in file {}, in function {}, on line {}.\n", 
+		source_location.file_name(), source_location.function_name(), source_location.line());
 	std::exit(1);
 }
 #else
 [[noreturn]]
 inline void unreachable() {
-	std::cerr << "Reached an unreachable code path, exiting.\n";
+	fmt::print(stderr, "Reached an unreachable code path, exiting.\n");
 	std::exit(1);
 }
 #endif
@@ -3547,16 +3574,19 @@ inline std::ostream& operator<<(std::ostream& stream, Id const id) {
 
 } // namespace avo
 
-namespace std {
+template<>
+struct fmt::formatter<avo::Id> : fmt::formatter<avo::Id::value_type> {
+	auto format(avo::Id const id, auto& context) {
+		return formatter<avo::Id::value_type>::format(id.value(), context);
+	}
+};
 
 template<>
-struct hash<avo::Id> {
+struct std::hash<avo::Id> {
 	std::size_t operator()(avo::Id const id) const noexcept {
 		return hash<avo::Id::value_type>{}(id.value());
 	}
 };
-
-} // namespace std
 
 namespace avo {
 
@@ -4137,10 +4167,16 @@ _Component* find_component_by_id(Node& parent, Id const id) {
 template<typename _Component, typename _Node> requires std::same_as<std::remove_cvref_t<_Node>, Node>
 [[nodiscard]]
 std::ranges::view auto find_components_by_id(_Node& node, Id const id) {
-	return find_nodes_by_id(node, id) 
-		| std::views::transform([](auto& found){ return found.template component<_Component>(); }) 
-		| std::views::filter([](auto* found){ return found != nullptr; })
-		| std::views::transform([](auto* found) -> auto& { return *found; });
+	return find_nodes_by_id(node, id) | 
+		std::views::transform([](auto& found) { 
+			return found.template component<_Component>(); 
+		}) | 
+		std::views::filter([](auto* found) { 
+			return found != nullptr; 
+		}) | 
+		std::views::transform([](auto* found) -> auto& { 
+			return *found; 
+		});
 }
 
 } // namespace avo
