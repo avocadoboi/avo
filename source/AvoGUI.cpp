@@ -34,6 +34,17 @@ SOFTWARE.
 #	include <iconv.h>
 #endif
 
+#ifdef __linux__
+#include <X11/Xlib.h>
+#include <X11/keysym.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#include <GL/glx.h>
+#include <GL/glxext.h>
+#include <GL/gl.h>
+#include <GL/glext.h>
+#endif
+
 namespace avo {
 
 namespace unicode {
@@ -168,5 +179,39 @@ auto utf16_to_utf8(std::u16string_view const input) -> std::string {
 
 } // namespace unicode
 
+#ifdef _WIN32
+class Window::Implementation {
+public:
+	Implementation(WindowParameters&& parameters) :
+		_parameters{parameters}
+	{}
+private:
+	WindowParameters _parameters;
+};
+#endif
+
+#ifdef __linux__
+class Window::Implementation {
+public:
+	Implementation(WindowParameters&& parameters) :
+		_parameters{parameters}
+	{}
+private:
+	WindowParameters _parameters;
+};
+#endif
+
+Window::Window(WindowParameters&& parameters) :
+	_implementation{std::make_unique<Implementation>(std::move(parameters))}
+{}
+
+Window::~Window() = default;
+
+Window::Window(Window&&) noexcept = default;
+Window& Window::operator=(Window&&) noexcept = default;
+
+Window WindowBuilder::open() && {
+	return Window{std::move(_parameters)};
+}
 
 } // namespace avo

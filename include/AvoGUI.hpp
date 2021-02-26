@@ -48,6 +48,7 @@ SOFTWARE.
 #include <stack>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <variant>
 #include <vector>
 
@@ -61,6 +62,7 @@ SOFTWARE.
 #endif
 
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 
 //------------------------------
 // This is recommended. 
@@ -105,6 +107,9 @@ concept IsAnyOf = (std::same_as<T, U> || ...);
 
 template<typename T>
 concept IsNumber = std::integral<T> || std::floating_point<T>;
+
+template<typename T>
+concept IsByte = sizeof(T) == 1 && IsTrivial<std::remove_reference_t<T>>;
 
 //------------------------------
 
@@ -266,12 +271,12 @@ private:
 
 } // namespace avo
 
-namespace std::ranges {
+// namespace std::ranges {
 
 template<std::integral T, bool is_reversed>
-constexpr auto enable_borrowed_range<avo::utils::Range<T, is_reversed>> = true;
+constexpr bool std::ranges::enable_borrowed_range<avo::utils::Range<T, is_reversed>> = true;
 
-} // namespace std::ranges
+// } // namespace std::ranges
 
 namespace avo {
 	
@@ -555,7 +560,7 @@ constexpr bool is_recursive_iterator_empty(IsRecursiveIterator auto const iterat
 }
 
 template<IsRecursiveRange T>
-class FlattenedView : std::ranges::view_interface<FlattenedView<T>> {
+class FlattenedView : public std::ranges::view_interface<FlattenedView<T>> {
 public:
 	using BaseIterator = std::ranges::iterator_t<T>;
 
@@ -649,7 +654,7 @@ private:
 };
 
 template<IsRecursiveRange T> requires IsRecursiveRange<T, true>
-class FlattenedView<T> : std::ranges::view_interface<FlattenedView<T>> {
+class FlattenedView<T> : public std::ranges::view_interface<FlattenedView<T>> {
 public:
 	using BaseIterator = std::ranges::iterator_t<T>;
 
@@ -978,6 +983,13 @@ inline DataVector read_file(std::string const path) {
 	return result;
 }
 
+template<std::ranges::contiguous_range _DataRange> requires IsByte<std::ranges::range_value_t<_DataRange>>
+void write_to_file(_DataRange const& data, std::string const& file_name) {
+	// std::string because std::ofstream does not take std::string_view.
+	auto file_stream = std::ofstream{file_name, std::ios::binary};
+	file_stream.write(reinterpret_cast<char const*>(std::ranges::data(data)), std::ranges::size(data));
+}
+
 //------------------------------
 
 /*
@@ -1253,6 +1265,9 @@ struct ArithmeticBase {
 	}
 };
 
+template<typename T>
+concept IsArithmeticWrapper = std::derived_from<T, ArithmeticBase<typename T::value_type>>;
+
 template<utils::IsNumber A, utils::IsNumber B, template<utils::IsNumber> typename _Class>
 	requires std::derived_from<_Class<A>, ArithmeticBase<A>>
 [[nodiscard]]
@@ -1488,7 +1503,22 @@ static_assert(normalized(Degrees{90.f}) == 0.25f);
 static_assert(normalized(Radians{std::numbers::pi_v<float>/2}) == 0.25f);
 #endif // BUILD_TESTING
 
-//------------------------------
+} // namespace math
+
+} // namespace avo
+
+template<typename T> 
+struct fmt::formatter<T, std::enable_if_t<avo::math::IsArithmeticWrapper<T>, char>> 
+	: fmt::formatter<typename T::value_type> 
+{
+	auto format(T const arithmetic, auto& context) {
+		return formatter<typename T::value_type>::format(arithmetic.value, context);
+	}
+};
+
+namespace avo {
+
+namespace math {
 
 template<std::floating_point T>
 [[nodiscard]]
@@ -1712,15 +1742,7 @@ concept Is2dVectorTemplate = std::derived_from<T<float>, Vector2dBase<float>>;
 	Evaluates to whether a type is a 2d vector or not.
 */
 template<typename T>
-concept Is2dVector = requires {
-	typename T::value_type;
-	requires std::derived_from<T, Vector2dBase<typename T::value_type>>;
-}; 
-
-std::ostream& operator<<(std::ostream& stream, Is2dVector auto const vector) {
-	stream << '(' << vector.x << ", " << vector.y << ')';
-	return stream;
-}
+concept Is2dVector = std::derived_from<T, Vector2dBase<typename T::value_type>>;
 
 template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
 [[nodiscard]]
@@ -2155,7 +2177,27 @@ static_assert(cross(Vector2d{4, 2}, Vector2d{-2, -3}) == -8);
 static_assert(Vector2d{2.f, 5.f}.to<Size<int>>() == Size{2, 5});
 #endif // BUILD_TESTING
 
-//------------------------------
+} // namespace math
+
+} // namespace avo
+
+// SFINAE seems to be necessary for template specialization here.
+template<typename T>
+struct fmt::formatter<T, std::enable_if_t<avo::math::Is2dVector<T>, char>> 
+	: fmt::formatter<typename T::value_type> 
+{
+	auto format(T const vector, auto& context) {
+		fmt::format_to(context.out(), "(");
+		formatter<typename T::value_type>::format(vector.x, context);
+		fmt::format_to(context.out(), ", ");
+		formatter<typename T::value_type>::format(vector.y, context);
+		return fmt::format_to(context.out(), ")");
+	}
+};
+
+namespace avo {
+
+namespace math {
 
 template<std::floating_point T>
 struct Transform final {
@@ -2289,11 +2331,8 @@ struct Transform final {
 	}
 };
 
-template<std::floating_point T>
-std::ostream& operator<<(std::ostream& stream, Transform<T> const transform) {
-	return stream << "| " << transform.x_to_x << ' ' << transform.y_to_x << ' ' << transform.offset_x << " |\n"
-		<< "| " << transform.x_to_y << ' ' << transform.y_to_y << ' ' << transform.offset_y << " |\n";
-}
+template<typename T>
+concept IsTransform = requires(T x) { { Transform{x} } -> std::same_as<T>; };
 
 /*
 	Returns the inverse of a transformation matrix I such that:
@@ -2419,7 +2458,34 @@ static_assert(
 );
 #endif // BUILD_TESTING
 
-//------------------------------
+} // namespace math
+
+} // namespace avo
+
+template<typename T>
+struct fmt::formatter<T, std::enable_if_t<avo::math::IsTransform<T>, char>> 
+{
+    std::string_view specifier;
+	
+	auto parse(fmt::format_parse_context& context) {
+        static_assert(std::contiguous_iterator<fmt::format_parse_context::iterator>);
+        auto const end = std::ranges::find(context, '}');
+        specifier = {context.begin(), end};
+        return end;
+    }
+    auto format(T const t, auto& context) {
+        return fmt::format_to(
+            context.out(), 
+            fmt::format("[{{:{0}}} {{:{0}}} {{:{0}}}]\n[{{:{0}}} {{:{0}}} {{:{0}}}]", specifier), 
+            t.x_to_x, t.y_to_x, t.offset_x, 
+			t.x_to_y, t.y_to_y, t.offset_y
+        );
+    }
+};
+
+namespace avo {
+
+namespace math {
 
 template<utils::IsNumber _Value>
 struct Rectangle final {
@@ -2852,7 +2918,26 @@ static_assert(Rectangle{2, 3, 4, 5} + Size{3, 1} == Rectangle{2, 3, 7, 6});
 
 } // namespace math
 
-//------------------------------
+} // namespace avo
+
+template<typename T>
+struct fmt::formatter<T, std::enable_if_t<avo::math::IsRectangle<T>, char>> 
+	: fmt::formatter<typename T::value_type> 
+{
+	auto format(T const rectangle, auto& context) {
+		fmt::format_to(context.out(), "(");
+		formatter<typename T::value_type>::format(rectangle.left, context);
+		fmt::format_to(context.out(), ", ");
+		formatter<typename T::value_type>::format(rectangle.top, context);
+		fmt::format_to(context.out(), ", ");
+		formatter<typename T::value_type>::format(rectangle.right, context);
+		fmt::format_to(context.out(), ", ");
+		formatter<typename T::value_type>::format(rectangle.bottom, context);
+		return fmt::format_to(context.out(), ")");
+	}
+};
+
+namespace avo {
 
 /*
 	Cubic bezier animation easing.
@@ -2902,7 +2987,7 @@ struct Easing final {
 			f(x) = 3*t*(1-t)*(1-t)*x0 + 3*t*t*(1-t)*x1 + t*t*t
 
 			f'(x) = x0*(3 - 12*t + 9*t*t) + x1*(6*t - 9*t*t) + 3*t*t
-					= x0*9*(t - 1)*(t - 1/3) + t*(x1*(6 - 9*t) + 3*t)
+			      = x0*9*(t - 1)*(t - 1/3) + t*(x1*(6 - 9*t) + 3*t)
 		*/
 
 		auto error = 1.f;
@@ -2914,8 +2999,7 @@ struct Easing final {
 		return t * ((1.f - t) * (3.f * (1.f - t) * c0.y + 3.f * t * c1.y) + t * t);
 	}
 
-	constexpr float ease_value(float const value, float const precision = default_precision) const noexcept
-	{
+	constexpr float ease_value(float const value, float const precision = default_precision) const noexcept {
 		return ease_value(c0, c1, value, precision);
 	}
 	constexpr float ease_value_inverse(float const value, float const precision = default_precision) const noexcept {
@@ -2937,36 +3021,22 @@ static_assert([]{
 */
 using ColorInt = std::uint32_t;
 
-[[nodiscard]]
-constexpr inline std::uint8_t red_channel(ColorInt const color) noexcept {
-	return static_cast<std::uint8_t>(color >> 16 & 0xff);
-}
-[[nodiscard]]
-constexpr inline std::uint8_t green_channel(ColorInt const color) noexcept {
-	return static_cast<std::uint8_t>(color >> 8 & 0xff);
-}
-[[nodiscard]]
-constexpr inline std::uint8_t blue_channel(ColorInt const color) noexcept {
-	return static_cast<std::uint8_t>(color & 0xff);
-}
-[[nodiscard]]
-constexpr inline std::uint8_t alpha_channel(ColorInt const color) noexcept {
-	return static_cast<std::uint8_t>(color >> 24 & 0xff);
-}
-
 /*
 	Object representing a color. A Color object stores the channels as 32-bit floats with a range of [0, 1].
 	This means that a Color object is 4 times as big as a packed 32-bit color, but allows for more 
 	precise and efficient operations.
 */
 struct Color final {
-	float red{}, green{}, blue{}, alpha{1.f};
+	using value_type = float;
+	static_assert(std::floating_point<value_type>);
+	
+	value_type red{}, green{}, blue{}, alpha{1.f};
 	
 	constexpr Color() noexcept = default;
 	/*
 		The channels are clamped to the range [0, 1].
 	*/
-	constexpr Color(float const p_red, float const p_green, float const p_blue, float const p_alpha = 1.f) noexcept :
+	constexpr Color(value_type const p_red, value_type const p_green, value_type const p_blue, value_type const p_alpha = 1.f) noexcept :
 		red{math::unit_clamp(p_red)}, 
 		green{math::unit_clamp(p_green)}, 
 		blue{math::unit_clamp(p_blue)}, 
@@ -3000,7 +3070,7 @@ struct Color final {
 	/*
 		Initializes the color with a grayscale value. The values are clamped to the range [0, 1].
 	*/
-	explicit constexpr Color(float const lightness, float const p_alpha = 1.f) noexcept :
+	explicit constexpr Color(value_type const lightness, value_type const p_alpha = 1.f) noexcept :
 		red{math::unit_clamp(lightness)},
 		green{math::unit_clamp(lightness)},
 		blue{math::unit_clamp(lightness)},
@@ -3020,16 +3090,16 @@ struct Color final {
 	*/
 	template<std::integral T>
 	explicit constexpr Color(T const lightness, T const p_alpha = static_cast<T>(255)) noexcept :
-		red{math::unit_clamp(static_cast<float>(lightness) / 255.f)},
+		red{math::unit_clamp(static_cast<value_type>(lightness) / 255.f)},
 		green{red},
 		blue{red},
-		alpha{math::unit_clamp(static_cast<float>(p_alpha) / 255.f)}
+		alpha{math::unit_clamp(static_cast<value_type>(p_alpha) / 255.f)}
 	{}
 
 	/*
 		Creates a copy of another color but with a new alpha.
 	*/
-	constexpr Color(Color const color, float const p_alpha) noexcept :
+	constexpr Color(Color const color, value_type const p_alpha) noexcept :
 		red{color.red}, 
 		green{color.green}, 
 		blue{color.blue}, 
@@ -3073,11 +3143,11 @@ struct Color final {
 	constexpr bool operator==(Color const&) const noexcept = default;
 
 	[[nodiscard]]
-	static constexpr Color rgba(float const red, float const green, float const blue, float const alpha = 1.f) noexcept {
+	static constexpr Color rgba(value_type const red, value_type const green, value_type const blue, value_type const alpha = 1.f) noexcept {
 		return Color{red, green, blue, alpha};
 	}
 	[[nodiscard]]
-	static constexpr Color rgb(float const red, float const green, float const blue) noexcept {
+	static constexpr Color rgb(value_type const red, value_type const green, value_type const blue) noexcept {
 		return Color{red, green, blue};
 	}
 
@@ -3089,9 +3159,9 @@ struct Color final {
 		HSB can only be white if saturation is 0 while HSL is white as long as lightness is 1.
 	*/
 	[[nodiscard]]
-	static constexpr Color hsba(float hue, float const saturation, float brightness, float const alpha = 1.f) noexcept
+	static constexpr Color hsba(value_type hue, value_type const saturation, value_type brightness, value_type const alpha = 1.f) noexcept
 	{
-		hue -= math::floor<float>(hue);
+		hue -= math::floor<value_type>(hue);
 		brightness = math::unit_clamp(brightness);
 		auto const factor = brightness * math::unit_clamp(saturation);
 
@@ -3106,29 +3176,29 @@ struct Color final {
 		Calls Color::hsba.
 	*/
 	[[nodiscard]]
-	static constexpr Color hsb(float const hue, float const saturation, float const brightness) noexcept {
+	static constexpr Color hsb(value_type const hue, value_type const saturation, value_type const brightness) noexcept {
 		return hsba(hue, saturation, brightness);
 	}
 	[[nodiscard]]
-	static constexpr Color hsba(math::IsAngle auto const hue, float const saturation, float const brightness, float const alpha = 1.f) noexcept {
-		return hsba(math::normalized<float>(hue), saturation, brightness, alpha);
+	static constexpr Color hsba(math::IsAngle auto const hue, value_type const saturation, value_type const brightness, value_type const alpha = 1.f) noexcept {
+		return hsba(math::normalized<value_type>(hue), saturation, brightness, alpha);
 	}
 	[[nodiscard]]
-	static constexpr Color hsb(math::IsAngle auto const hue, float const saturation, float const brightness) noexcept {
-		return hsba(math::normalized<float>(hue), saturation, brightness);
+	static constexpr Color hsb(math::IsAngle auto const hue, value_type const saturation, value_type const brightness) noexcept {
+		return hsba(math::normalized<value_type>(hue), saturation, brightness);
 	}
 
 	/*
 		Creates a color from hue, saturation, lightness and alpha values.
-		They are all floats in the range [0, 1].
+		They are all value_types in the range [0, 1].
 		The difference between HSB and HSL is that the lightness value goes from black to white 
 		while brightness goes from black to full color brightness. 
 		HSB can only be white if saturation is 0 while HSL is white as long as lightness is 1.
 	*/
 	[[nodiscard]]
-	static constexpr Color hsla(float hue, float const saturation, float lightness, float const alpha = 1.f) noexcept 
+	static constexpr Color hsla(value_type hue, value_type const saturation, value_type lightness, value_type const alpha = 1.f) noexcept 
 	{
-		hue -= math::floor<float>(hue);
+		hue -= math::floor<value_type>(hue);
 		lightness = math::unit_clamp(lightness);
 		auto const factor = 2.f * math::unit_clamp(saturation)*(lightness < 0.5f ? lightness : (1.f - lightness));
 
@@ -3143,23 +3213,23 @@ struct Color final {
 		Calls Color::hsla.
 	*/
 	[[nodiscard]]
-	static constexpr Color hsl(float const hue, float const saturation, float const lightness) noexcept {
+	static constexpr Color hsl(value_type const hue, value_type const saturation, value_type const lightness) noexcept {
 		return hsla(hue, saturation, lightness);
 	}
 	[[nodiscard]]
-	static constexpr Color hsla(math::IsAngle auto const hue, float const saturation, float const lightness, float const alpha = 1.f) noexcept {
-		return hsla(math::normalized<float>(hue), saturation, lightness, alpha);
+	static constexpr Color hsla(math::IsAngle auto const hue, value_type const saturation, value_type const lightness, value_type const alpha = 1.f) noexcept {
+		return hsla(math::normalized<value_type>(hue), saturation, lightness, alpha);
 	}
 	[[nodiscard]]
-	static constexpr Color hsl(math::IsAngle auto const hue, float const saturation, float const lightness) noexcept {
-		return hsla(math::normalized<float>(hue), saturation, lightness);
+	static constexpr Color hsl(math::IsAngle auto const hue, value_type const saturation, value_type const lightness) noexcept {
+		return hsla(math::normalized<value_type>(hue), saturation, lightness);
 	}
 
 	/*
-		Changes the hue of the color. The hue is a float in the range [0, 1].
+		Changes the hue of the color. The hue is a value_type in the range [0, 1].
 	*/
-	constexpr Color& hue(float new_hue) noexcept {
-		new_hue -= math::floor<float>(new_hue);
+	constexpr Color& hue(value_type new_hue) noexcept {
+		new_hue -= math::floor<value_type>(new_hue);
 
 		auto const min_channel = math::min(red, green, blue);
 		auto const max_channel = math::max(red, green, blue);
@@ -3176,13 +3246,13 @@ struct Color final {
 		return *this;
 	}
 	constexpr Color& hue(math::IsAngle auto const hue_angle) noexcept {
-		return hue(math::normalized<float>(hue_angle));
+		return hue(math::normalized<value_type>(hue_angle));
 	}
 	/*
-		Returns the hue of the color. The hue is a float in the range [0, 1].
+		Returns the hue of the color. The hue is a value_type in the range [0, 1].
 	*/
 	[[nodiscard]]
-	constexpr float hue() const noexcept {
+	constexpr value_type hue() const noexcept {
 		if (red + green + blue == 0.f) {
 			return 0.f;
 		}
@@ -3237,11 +3307,11 @@ struct Color final {
 	}
 
 	/*
-		Sets the HSB saturation of the color. The saturation is a float in the range [0, 1].
+		Sets the HSB saturation of the color. The saturation is a value_type in the range [0, 1].
 		HSB saturation can change lightness, and HSL saturation can change brightness.
 		Keep in mind that you can't change the saturation if the color is grayscale, because only RGBA values are stored.
 	*/
-	constexpr Color& hsb_saturation(float saturation) noexcept {
+	constexpr Color& hsb_saturation(value_type saturation) noexcept {
 		if (red == green && red == blue) {
 			return *this;
 		}
@@ -3257,10 +3327,10 @@ struct Color final {
 		return *this;
 	}
 	/*
-		Returns the HSB saturation of the color. The saturation is a float in the range [0, 1].
+		Returns the HSB saturation of the color. The saturation is a value_type in the range [0, 1].
 	*/
 	[[nodiscard]]
-	constexpr float hsb_saturation() const noexcept {
+	constexpr value_type hsb_saturation() const noexcept {
 		if (auto const current_brightness = brightness()) {
 			return 1.f - math::min(red, green, blue)/current_brightness;
 		}
@@ -3268,11 +3338,11 @@ struct Color final {
 	}
 
 	/*
-		Sets the HSL saturation of the color. The saturation is a float in the range [0, 1].
+		Sets the HSL saturation of the color. The saturation is a value_type in the range [0, 1].
 		HSB saturation can change lightness, and HSL saturation can change brightness.
 		Keep in mind that you can't change the saturation if the color is gray, since only RGBA values are stored.
 	*/
-	constexpr Color& hsl_saturation(float saturation) noexcept {
+	constexpr Color& hsl_saturation(value_type saturation) noexcept {
 		saturation = math::unit_clamp(saturation);
 
 		auto const saturation_before = hsl_saturation();
@@ -3289,10 +3359,10 @@ struct Color final {
 		return *this;
 	}
 	/*
-		Returns the HSL saturation of the color. The saturation is a float in the range [0, 1].
+		Returns the HSL saturation of the color. The saturation is a value_type in the range [0, 1].
 	*/
 	[[nodiscard]]
-	constexpr float hsl_saturation() const noexcept {
+	constexpr value_type hsl_saturation() const noexcept {
 		auto const min_channel = math::min(red, green, blue);
 		auto const max_channel = math::max(red, green, blue);
 		if (min_channel == max_channel) {
@@ -3305,10 +3375,10 @@ struct Color final {
 	}
 
 	/*
-		Sets the brightness of the color. The brightness is a float in the range [0, 1]. A brightness of 0 makes the
+		Sets the brightness of the color. The brightness is a value_type in the range [0, 1]. A brightness of 0 makes the
 		color black, and a brightness of 1 makes the color fully bright. This only makes it white if saturation is at 0.
 	*/
-	constexpr Color& brightness(float new_brightness) noexcept {
+	constexpr Color& brightness(value_type new_brightness) noexcept {
 		new_brightness = math::unit_clamp(new_brightness);
 
 		if (red == green && red == blue) {
@@ -3326,18 +3396,18 @@ struct Color final {
 		return *this;
 	}
 	/*
-		Returns the brightness of the color. The brightness is a float in the range [0, 1].
+		Returns the brightness of the color. The brightness is a value_type in the range [0, 1].
 	*/
 	[[nodiscard]]
-	constexpr float brightness() const noexcept {
+	constexpr value_type brightness() const noexcept {
 		return math::max(red, green, blue);
 	}
 
 	/*
-		Changes the lightness of the color. The lightness a float in the range [0, 1]. A lightness of 0 makes the
+		Changes the lightness of the color. The lightness a value_type in the range [0, 1]. A lightness of 0 makes the
 		color black, a lightness of 0.5 makes it normal and a lightness of 1 makes it white.
 	*/
-	constexpr Color& lightness(float new_lightness) noexcept {
+	constexpr Color& lightness(value_type new_lightness) noexcept {
 		new_lightness = math::unit_clamp(new_lightness);
 
 		if (red == green && red == blue) {
@@ -3375,17 +3445,17 @@ struct Color final {
 	}
 
 	/*
-		Returns the lightness of the color. The lightness is a float in the range [0, 1].
+		Returns the lightness of the color. The lightness is a value_type in the range [0, 1].
 	*/
 	[[nodiscard]]
-	constexpr float lightness() const noexcept {
+	constexpr value_type lightness() const noexcept {
 		return 0.5f*(math::min(red, green, blue) + math::max(red, green, blue));
 	}
 
 	/*
 		A contrast of 0 makes the color gray, 0.5 leaves it unchanged and 1 is maximum contrast.
 	*/
-	constexpr Color& contrast(float const contrast) noexcept {
+	constexpr Color& contrast(value_type const contrast) noexcept {
 		if (contrast == 0.5) {
 			return *this;
 		}
@@ -3395,9 +3465,9 @@ struct Color final {
 			blue = (blue - 0.5f) * contrast * 2.f + 0.5f;
 		}
 		else {
-			red = (static_cast<float>(red >= 0.5f) - red) * (contrast * 2.f - 1.f) + red;
-			green = (static_cast<float>(green >= 0.5f) - green) * (contrast * 2.f - 1.f) + green;
-			blue = (static_cast<float>(blue >= 0.5f) - blue) * (contrast * 2.f - 1.f) + blue;
+			red = (static_cast<value_type>(red >= 0.5f) - red) * (contrast * 2.f - 1.f) + red;
+			green = (static_cast<value_type>(green >= 0.5f) - green) * (contrast * 2.f - 1.f) + green;
+			blue = (static_cast<value_type>(blue >= 0.5f) - blue) * (contrast * 2.f - 1.f) + blue;
 		}
 		return *this;
 	}
@@ -3427,52 +3497,66 @@ struct Color final {
 	}
 
 	[[nodiscard]]
-	constexpr Color operator*(float const factor) const noexcept {
+	constexpr Color operator*(value_type const factor) const noexcept {
 		return Color{red * factor, green * factor, blue * factor, alpha};
 	}
-	constexpr Color& operator*=(float const factor) noexcept {
+	constexpr Color& operator*=(value_type const factor) noexcept {
 		return *this = *this * factor;
 	}
 	[[nodiscard]]
-	constexpr Color operator/(float const divisor) const noexcept {
+	constexpr Color operator/(value_type const divisor) const noexcept {
 		return Color{red/divisor, green/divisor, blue/divisor, alpha};
 	}
-	constexpr Color& operator/=(float const divisor) noexcept {
+	constexpr Color& operator/=(value_type const divisor) noexcept {
 		return *this = *this / divisor;
 	}
 
 	[[nodiscard]]
-	constexpr Color operator+(float const delta) const noexcept {
+	constexpr Color operator+(value_type const delta) const noexcept {
 		return Color{red + delta, green + delta, blue + delta};
 	}
-	constexpr Color& operator+=(float const delta) noexcept {
+	constexpr Color& operator+=(value_type const delta) noexcept {
 		return *this = *this + delta;
 	}
 	[[nodiscard]]
-	constexpr Color operator-(float const delta) const noexcept {
+	constexpr Color operator-(value_type const delta) const noexcept {
 		return Color{red - delta, green - delta, blue - delta};
 	}
-	constexpr Color& operator-=(float const delta) noexcept {
+	constexpr Color& operator-=(value_type const delta) noexcept {
 		return *this = *this - delta;
+	}
+
+	//------------------------------
+
+	[[nodiscard]]
+	static constexpr std::uint8_t red_channel(ColorInt const color) noexcept {
+		return static_cast<std::uint8_t>(color >> 16 & 0xff);
+	}
+	[[nodiscard]]
+	static constexpr std::uint8_t green_channel(ColorInt const color) noexcept {
+		return static_cast<std::uint8_t>(color >> 8 & 0xff);
+	}
+	[[nodiscard]]
+	static constexpr std::uint8_t blue_channel(ColorInt const color) noexcept {
+		return static_cast<std::uint8_t>(color & 0xff);
+	}
+	[[nodiscard]]
+	static constexpr std::uint8_t alpha_channel(ColorInt const color) noexcept {
+		return static_cast<std::uint8_t>(color >> 24 & 0xff);
 	}
 };
 
 [[nodiscard]]
-constexpr Color operator*(float const factor, Color const color) noexcept {
+constexpr Color operator*(Color::value_type const factor, Color const color) noexcept {
 	return color * factor;
 }
 [[nodiscard]]
-constexpr Color operator+(float const factor, Color const color) noexcept {
+constexpr Color operator+(Color::value_type const factor, Color const color) noexcept {
 	return color + factor;
 }
 [[nodiscard]]
-constexpr Color operator-(float const term, Color const color) noexcept {
+constexpr Color operator-(Color::value_type const term, Color const color) noexcept {
 	return Color{term - color.red, term - color.green, term - color.blue};
-}
-
-inline std::ostream& operator<<(std::ostream& stream, Color const color) {
-	return stream << "rgba(" << color.red << ", " << color.green 
-		<< ", " << color.blue << ", " << color.alpha << ")";
 }
 
 namespace math {
@@ -3482,7 +3566,7 @@ namespace math {
 	If progress is 0, start is returned. If progress is 1, end is returned.
 */
 [[nodiscard]]
-constexpr Color interpolate(Color const start, Color const end, float const progress) noexcept {
+constexpr Color interpolate(Color const start, Color const end, Color::value_type const progress) noexcept {
 	return Color{
 		std::lerp(start.red, end.red, progress),
 		std::lerp(start.green, end.green, progress),
@@ -3520,13 +3604,50 @@ static_assert(Color{0.1f, 0.2f, 0.9f}.hsb_saturation(0.3f).hsb_saturation() == 0
 
 static_assert(math::interpolate(Color{0.2f, 0.3f, 0.4f}, Color{0.8f, 0.7f, 0.6f}, 0.5f) == Color{0.5f});
 
-static_assert(alpha_channel(0xabcdef12) == 0xab);
-static_assert(red_channel(0xabcdef12) == 0xcd);
-static_assert(green_channel(0xabcdef12) == 0xef);
-static_assert(blue_channel(0xabcdef12) == 0x12);
+static_assert(Color::alpha_channel(0xabcdef12) == 0xab);
+static_assert(Color::red_channel(0xabcdef12) == 0xcd);
+static_assert(Color::green_channel(0xabcdef12) == 0xef);
+static_assert(Color::blue_channel(0xabcdef12) == 0x12);
 #endif // BUILD_TESTING
 
-//------------------------------
+} // namespace avo
+
+template<>
+struct fmt::formatter<avo::Color> : fmt::formatter<avo::Color::value_type> {
+	auto format(avo::Color const color, auto& context) {
+		fmt::format_to(context.out(), "rgba(");
+		formatter<avo::Color::value_type>::format(color.red, context);
+		fmt::format_to(context.out(), ", ");
+		formatter<avo::Color::value_type>::format(color.green, context);
+		fmt::format_to(context.out(), ", ");
+		formatter<avo::Color::value_type>::format(color.blue, context);
+		fmt::format_to(context.out(), ", ");
+		formatter<avo::Color::value_type>::format(color.alpha, context);
+		return fmt::format_to(context.out(), ")");
+	}
+};
+
+// An alternative:
+// template<>
+// struct fmt::formatter<avo::Color> {
+//     std::string_view specifier;
+	
+// 	auto parse(fmt::format_parse_context& context) {
+//         static_assert(std::contiguous_iterator<fmt::format_parse_context::iterator>);
+//         auto const end = std::ranges::find(context, '}');
+//         specifier = {context.begin(), end};
+//         return end;
+//     }
+//     auto format(avo::Color const color, auto& context) {
+//         return fmt::format_to(
+//             context.out(), 
+//             fmt::format("rgba({{:{0}}}, {{:{0}}}, {{:{0}}}, {{:{0}}})", specifier), 
+//             color.red, color.green, color.blue, color.alpha
+//         );
+//     }
+// };
+
+namespace avo {
 
 /*
 	To generate a new unique ID, use the function Id::next().
@@ -3568,10 +3689,6 @@ private:
 	value_type _count{};
 };
 
-inline std::ostream& operator<<(std::ostream& stream, Id const id) {
-	return stream << id.value();
-}
-
 } // namespace avo
 
 template<>
@@ -3589,6 +3706,48 @@ struct std::hash<avo::Id> {
 };
 
 namespace avo {
+
+enum class CornerType {
+	Round,
+	Cut
+};
+
+struct Corner {
+	math::Size<Dip> size;
+	CornerType type;
+
+	constexpr bool operator==(Corner const&) const noexcept = default;
+};
+
+template<typename _Corner = Corner>
+struct RectangleCorners {
+	using value_type = _Corner;
+	
+	_Corner top_left;
+	_Corner top_right;
+	_Corner bottom_left;
+	_Corner bottom_right;
+
+	constexpr bool operator==(RectangleCorners const&) const noexcept 
+		requires std::equality_comparable<_Corner> 
+		= default;
+
+	static constexpr RectangleCorners uniform(_Corner const corner) {
+		return {corner, corner, corner, corner};
+	}
+};
+
+#ifdef BUILD_TESTING
+static_assert([]{
+	auto corners = RectangleCorners{
+		.top_left{{5.f, 5.f}}, .top_right{{5.f, 5.f}}, 
+		.bottom_left{{5.f, 5.f}}, .bottom_right{{5.f, 5.f}}
+	};
+	return RectangleCorners<>::uniform({math::Size{5.f, 5.f}, CornerType::Round}) == corners;
+}());
+#endif
+
+//------------------------------
 
 template<typename T>
 class EventListeners;
@@ -3702,6 +3861,143 @@ private:
 	std::recursive_mutex _mutex;
 	ContainerType _listeners;
 };
+
+//------------------------------
+
+enum class WindowBorderArea {
+	None = 0, // The area of the window is not part of the window border, meaning any mouse events are handled only by the GUI.
+	TopLeftResize,
+	TopResize,
+	TopRightResize,
+	LeftResize,
+	RightResize,
+	BottomLeftResize,
+	BottomResize,
+	BottomRightResize,
+	Dragging // The area of the window is used for dragging the window, normally the title bar.
+};
+
+enum class WindowState {
+	Minimized,
+	Maximized,
+	Restored
+};
+
+enum class WindowStyleFlags : std::uint32_t {
+	None =            0, // Borderless window.
+	CloseButton =     1,
+	Invisible =       1 << 1, // Makes the window invisible at first. You can make it visible afterwards.
+	MinimizeButton =  1 << 2,
+	MaximizeButton =  1 << 3,
+	Resizable =       1 << 4,
+	CustomBorder =    1 << 5, // This makes the client area take up the full window, and the GUI determines which areas are for resizing and moving the window.
+	DefaultCustom =   CustomBorder | MaximizeButton | MinimizeButton | Resizable,
+	Default =         CloseButton | MinimizeButton | MaximizeButton | Resizable,
+	DefaultNoResize = CloseButton | MinimizeButton
+};
+
+constexpr WindowStyleFlags operator|(WindowStyleFlags const left, WindowStyleFlags const right) noexcept 
+{
+	return static_cast<WindowStyleFlags>(static_cast<std::uint32_t>(left) | static_cast<std::uint32_t>(right));
+}
+constexpr WindowStyleFlags& operator|=(WindowStyleFlags& left, WindowStyleFlags const right) noexcept 
+{
+	return left = left | right;
+}
+constexpr WindowStyleFlags operator&(WindowStyleFlags const left, WindowStyleFlags const right) noexcept 
+{
+	return static_cast<WindowStyleFlags>(static_cast<std::uint32_t>(left) & static_cast<std::uint32_t>(right));
+}
+constexpr WindowStyleFlags& operator&=(WindowStyleFlags& left, WindowStyleFlags const right) noexcept 
+{
+	return left = left & right;
+}
+
+struct WindowParameters {
+	std::string title;
+	math::Vector2d<Factor> position_factor;
+	math::Size<Dip> size;
+	math::Size<Dip> min_size;
+	math::Size<Dip> max_size;
+	WindowStyleFlags style;
+	WindowState state;
+};
+
+class Window {
+	friend class WindowBuilder;
+	
+public:
+	std::any native_handle() const;
+	
+	Window() = delete;
+	~Window(); // = default in .cpp
+
+	Window(Window&&) noexcept; // = default in .cpp
+	Window& operator=(Window&&) noexcept; // = default in .cpp
+
+	Window(Window const&) = delete;
+	Window& operator=(Window const&) = delete;
+	
+private:
+	class Implementation;
+	std::unique_ptr<Implementation> _implementation;
+
+	explicit Window(WindowParameters&& parameters);
+};
+
+class WindowBuilder {	
+public:
+	[[nodiscard]]
+	Window open() &&;
+
+	[[nodiscard]]
+	WindowBuilder&& position(math::Vector2d<Factor> const pos) && noexcept {
+		_parameters.position_factor = pos;
+		return std::move(*this);
+	}
+	[[nodiscard]]
+	WindowBuilder&& size(math::Size<Dip> const size) && noexcept {
+		_parameters.size = size;
+		return std::move(*this);
+	}
+	[[nodiscard]]
+	WindowBuilder&& min_size(math::Size<Dip> const min_size) && noexcept {
+		_parameters.min_size = min_size;
+		return std::move(*this);
+	}
+	[[nodiscard]]
+	WindowBuilder&& max_size(math::Size<Dip> const max_size) && noexcept {
+		_parameters.max_size = max_size;
+		return std::move(*this);
+	}
+	[[nodiscard]]
+	WindowBuilder&& min_max_size(math::Size<Dip> const min_size, math::Size<Dip> const max_size) && noexcept {
+		_parameters.min_size = min_size;
+		_parameters.max_size = max_size;
+		return std::move(*this);
+	}
+
+	WindowBuilder() = delete;
+	~WindowBuilder() = default;
+
+	WindowBuilder(WindowBuilder&&) noexcept = delete;
+	WindowBuilder& operator=(WindowBuilder&&) = delete;
+	WindowBuilder(WindowBuilder const&) noexcept = delete;
+	WindowBuilder& operator=(WindowBuilder const&) = delete;
+
+private:
+	WindowParameters _parameters;
+
+	WindowBuilder(std::string title) :
+		_parameters{.title = std::move(title)}
+	{}
+
+	friend WindowBuilder window(std::string);
+};
+
+inline WindowBuilder window(std::string title) {
+	return {std::move(title)};
+}
 
 //------------------------------
 

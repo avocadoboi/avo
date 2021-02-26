@@ -615,68 +615,6 @@ public:
 
 //------------------------------
 
-enum class RectangleCornerType {
-	Round,
-	Cut
-};
-struct RectangleCorners {
-	RectangleCornerType top_left_type;
-	RectangleCornerType top_right_type;
-	RectangleCornerType bottom_left_type;
-	RectangleCornerType bottom_right_type;
-
-	Dip top_left_size_x;
-	Dip top_left_size_y;
-
-	Dip top_right_size_x;
-	Dip top_right_size_y;
-
-	Dip bottom_left_size_x;
-	Dip bottom_left_size_y;
-
-	Dip bottom_right_size_x;
-	Dip bottom_right_size_y;
-
-	RectangleCorners() :
-		top_left_size_x{0.f}, top_left_size_y{0.f}, top_right_size_x{0.f}, top_right_size_y{0.f},
-		bottom_left_size_x{0.f}, bottom_left_size_y{0.f}, bottom_right_size_x{0.f}, bottom_right_size_y{0.f},
-		top_left_type{RectangleCornerType::Round}, top_right_type{RectangleCornerType::Round},
-		bottom_left_type{RectangleCornerType::Round}, bottom_right_type{RectangleCornerType::Round}
-	{}
-	explicit RectangleCorners(Dip const corner_size, RectangleCornerType const corner_type = RectangleCornerType::Round) :
-		top_left_size_x{corner_size}, top_left_size_y{corner_size},
-		top_right_size_x{corner_size}, top_right_size_y{corner_size},
-		bottom_left_size_x{corner_size}, bottom_left_size_y{corner_size},
-		bottom_right_size_x{corner_size}, bottom_right_size_y{corner_size},
-		top_left_type{corner_type}, top_right_type{corner_type},
-		bottom_left_type{corner_type}, bottom_right_type{corner_type}
-	{
-	}
-	RectangleCorners(Dip const corner_size_x, Dip const corner_size_y, RectangleCornerType const corner_type = RectangleCornerType::Cut) :
-		top_left_size_x{corner_size_x}, top_left_size_y{corner_size_y},
-		top_right_size_x{corner_size_x}, top_right_size_y{corner_size_y},
-		bottom_left_size_x{corner_size_x}, bottom_left_size_y{corner_size_y},
-		bottom_right_size_x{corner_size_x}, bottom_right_size_y{corner_size_y},
-		top_left_type{corner_type}, top_right_type{corner_type},
-		bottom_left_type{corner_type}, bottom_right_type{corner_type}
-	{
-	}
-
-	RectangleCorners(Dip const top_left_size, Dip const top_right_size, 
-			Dip const bottom_left_size, Dip const bottom_right_size, 
-			RectangleCornerType const corner_type = RectangleCornerType::Round) :
-		top_left_size_x{top_left_size}, top_left_size_y{top_left_size},
-		top_right_size_x{top_right_size}, top_right_size_y{top_right_size},
-		bottom_left_size_x{bottom_left_size}, bottom_left_size_y{bottom_left_size},
-		bottom_right_size_x{bottom_right_size}, bottom_right_size_y{bottom_right_size},
-		top_left_type{corner_type}, top_right_type{corner_type},
-		bottom_left_type{corner_type}, bottom_right_type{corner_type}
-	{
-	}
-};
-
-//------------------------------
-
 class View;
 
 template<typename T>
