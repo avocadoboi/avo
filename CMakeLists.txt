@@ -49,9 +49,18 @@ target_include_directories(avogui PUBLIC
 if (WIN32)
 #     target_link_libraries(avogui PRIVATE Shlwapi Dwmapi d2d1 d3d11 dxguid dwrite windowscodecs)
 else ()
+	find_package(X11 REQUIRED)
+	target_link_libraries(avogui PRIVATE X11)
+	
+	find_package(OpenGL REQUIRED)
+	target_link_libraries(avogui PRIVATE OpenGL::OpenGL OpenGL::GLX)
+	
+	find_package(Threads REQUIRED)
+	target_link_libraries(avogui PRIVATE Threads::Threads)
+
 	find_package(Iconv REQUIRED)
 	if (NOT Iconv_IS_BUILT_IN)
-		target_link_libraries(avogui PRIVATE ${Iconv_LIBRARIES})
+		target_link_libraries(avogui PRIVATE Iconv::Iconv)
 	endif ()
 endif ()
 

@@ -191,15 +191,198 @@ private:
 #endif
 
 #ifdef __linux__
+template<utils::IsTrivial T, std::invocable<::Display*, T> _Deleter>
+class XDisplayResourceHandle {
+public:
+	T get() const noexcept {
+		return _value;
+	}
+
+	XDisplayResourceHandle(::Display* const server, T const value) :
+		_server{server},
+		_value{value}
+	{}
+
+	XDisplayResourceHandle() = default;
+	~XDisplayResourceHandle() {
+		if (_server) {
+			_Deleter{}(_server, _value);
+		}
+	}
+
+	XDisplayResourceHandle(XDisplayResourceHandle const&) = delete;
+	XDisplayResourceHandle& operator=(XDisplayResourceHandle const&) = delete;
+	
+	XDisplayResourceHandle(XDisplayResourceHandle&& other) noexcept :
+		_server{other._server},
+		_value{other._value}
+	{
+		other._server = nullptr;
+	}
+	XDisplayResourceHandle& operator=(XDisplayResourceHandle&& other) noexcept {
+		_server = other._server;
+		_value = other._value;
+		other._server = nullptr;
+		return *this;
+	}
+
+private:
+	::Display* _server{};
+	T _value{};
+};
+
+using XDisplayHandle = std::unique_ptr<::Display, decltype([](auto* const x){ ::XCloseDisplay(x); })>;
+
+using XColormapHandle = XDisplayResourceHandle<::Colormap, decltype([](auto a, auto b){ ::XFreeColormap(a, b); })>;
+
+using XWindowHandle = XDisplayResourceHandle<::Window, decltype([](auto a, auto b){ ::XDestroyWindow(a, b); })>;
+
+template<typename T>
+using XFreeHandle = std::unique_ptr<T, decltype([](T* info){ ::XFree(info); })>;
+
+XFreeHandle<::XVisualInfo> select_opengl_visual(::Display* const server) {
+	constexpr auto framebuffer_attributes = std::array{
+		GLX_X_RENDERABLE, 1,
+		GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+		GLX_RENDER_TYPE, GLX_RGBA_BIT,
+		GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
+		GLX_RED_SIZE, 8,
+		GLX_GREEN_SIZE, 8,
+		GLX_BLUE_SIZE, 8,
+		GLX_DEPTH_SIZE, 0, // 2D graphics, no z-buffering.
+		GLX_STENCIL_SIZE, 0,
+		GLX_DOUBLEBUFFER, 1,
+		0 // Null terminator
+	};
+
+	auto number_of_matching_configurations = 0;
+	auto const framebuffer_configurations = XFreeHandle<::GLXFBConfig>{::glXChooseFBConfig(
+		server, 
+		DefaultScreen(server), 
+		framebuffer_attributes.data(), 
+		&number_of_matching_configurations
+	)};
+	return XFreeHandle<::XVisualInfo>{::glXGetVisualFromFBConfig(server, *framebuffer_configurations.get())};
+}
+
+Factor calculate_dip_to_pixel_factor(::Display* const display) {
+	constexpr auto normal_dpi = 96.f;
+	return static_cast<Factor>(::XDisplayWidth(display, 0))/static_cast<Factor>(::XDisplayWidthMM(display, 0))*25.4f/normal_dpi;
+}
+
+math::Size<Pixels> get_screen_size(::Display* const display) {
+	return math::Size{
+		static_cast<Pixels>(::XDisplayWidth(display, 0)),
+		static_cast<Pixels>(::XDisplayHeight(display, 0)),
+	};
+}
+
 class Window::Implementation {
 public:
+	void title(std::string title) {
+		auto text_property = XTextProperty{
+			.value = reinterpret_cast<unsigned char*>(title.data()),
+			#ifdef X_HAVE_UTF8_STRING
+			.encoding = XInternAtom(_server.get(), "UTF8_STRING", 0),
+			#else
+			.encoding = XA_STRING,
+			#endif
+			.format = 8,
+			.nitems = static_cast<unsigned long>(title.size()),
+		};
+		XSetWMName(_server.get(), _handle.get(), &text_property);
+		XSetWMIconName(_server.get(), _handle.get(), &text_property);
+		XFlush(_server.get());
+	}
+
+	void position(math::Point<Pixels> const position) {
+		XMoveWindow(_server.get(), _handle.get(), position.x, position.y);
+		XFlush(_server.get());
+	}
+
+	::Window native_handle() const {
+		return _handle.get();
+	}
+
 	Implementation(WindowParameters&& parameters) :
-		_parameters{parameters}
+		_parameters{parameters},
+		_thread{utils::bind(&Implementation::_run, this)}
 	{}
+
 private:
+	void _run() {
+		// If an automatic thread locking mechanism for Xlib is required in the future
+		// XInitThreads();
+
+		_server = XDisplayHandle{::XOpenDisplay(nullptr)};
+
+		_dip_to_pixel_factor = calculate_dip_to_pixel_factor(_server.get());
+		_screen_size = get_screen_size(_server.get());
+
+		_create_window();
+		_run_event_loop();
+	}
+	void _create_window() {
+		auto const visual_info = select_opengl_visual(_server.get());
+		_colormap = XColormapHandle{
+			_server.get(), 
+			::XCreateColormap(_server.get(), RootWindow(_server.get(), visual_info->screen), visual_info->visual, 0)
+		};
+
+		auto window_attributes = ::XSetWindowAttributes{
+			.event_mask = ExposureMask | 
+				EnterWindowMask | LeaveWindowMask |
+				StructureNotifyMask |
+				PointerMotionMask |
+				ButtonPressMask | ButtonReleaseMask |
+				ButtonMotionMask |
+				KeyPressMask | KeyReleaseMask,
+			.colormap = _colormap.get(),
+		};
+		_handle = XWindowHandle{
+			_server.get(),
+			::XCreateWindow(
+				_server.get(),
+				_parameters.parent 
+					? std::any_cast<::Window>(_parameters.parent->native_handle()) 
+					: RootWindow(_server.get(), visual_info->screen),
+				0, 0, // Initial x and y are ignored by the window manager
+				static_cast<unsigned int>(_parameters.size.x*_dip_to_pixel_factor),
+				static_cast<unsigned int>(_parameters.size.y*_dip_to_pixel_factor),
+				0,
+				visual_info->depth,
+				InputOutput,
+				visual_info->visual,
+				CWEventMask | CWBorderPixel | CWColormap,
+				&window_attributes
+			)
+		};
+		title(_parameters.title);
+		::XMapWindow(_server.get(), _handle.get());
+		position({
+			static_cast<Pixels>(std::lerp(0.f, static_cast<float>(_screen_size.x) - _parameters.size.x, _parameters.position_factor.x)),
+			static_cast<Pixels>(std::lerp(0.f, static_cast<float>(_screen_size.y) - _parameters.size.y, _parameters.position_factor.y))
+		});
+	}
+	void _run_event_loop() {
+		std::this_thread::sleep_for(20s);
+	}
+
 	WindowParameters _parameters;
+	math::Size<Pixels> _screen_size;
+	Factor _dip_to_pixel_factor;
+
+	XDisplayHandle _server;
+	XColormapHandle _colormap;
+	XWindowHandle _handle;
+
+	std::jthread _thread;
 };
 #endif
+
+std::any Window::native_handle() const {
+	return _implementation->native_handle();
+}
 
 Window::Window(WindowParameters&& parameters) :
 	_implementation{std::make_unique<Implementation>(std::move(parameters))}

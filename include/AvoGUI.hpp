@@ -48,6 +48,7 @@ SOFTWARE.
 #include <stack>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <tuple>
 #include <variant>
 #include <vector>
@@ -3864,6 +3865,39 @@ private:
 
 //------------------------------
 
+enum class KeyboardKey {
+	None = 0,
+	Backspace,
+	Clear,
+	Tab,
+	Return, // Enter and return have the same value.
+	Enter = Return, // Enter and return have the same value.
+	Shift,
+	Control,
+	Menu,
+	Alt,
+	CapsLock,
+	Escape,
+	Spacebar,
+	PageUp, PageDown, Home, End,
+	PrintScreen,
+	Insert,
+	Delete,
+	Pause,
+	Help,
+	Separator,
+	Left, Right, Up, Down,
+	NumLock,
+	Numpad0, Numpad1, Numpad2, Numpad3, Numpad4, Numpad5, Numpad6, Numpad7, Numpad8, Numpad9,
+	Add, Subtract, Multiply, Divide, Decimal,
+	Number0, Number1, Number2, Number3, Number4, Number5, Number6, Number7, Number8, Number9,
+	A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+	F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24,
+	Comma, Period, Plus, Minus,
+	// These keys vary by country/region.
+	Regional1, Regional2, Regional3, Regional4, Regional5, Regional6, Regional7, Regional8
+};
+
 enum class WindowBorderArea {
 	None = 0, // The area of the window is not part of the window border, meaning any mouse events are handled only by the GUI.
 	TopLeftResize,
@@ -3913,6 +3947,8 @@ constexpr WindowStyleFlags& operator&=(WindowStyleFlags& left, WindowStyleFlags 
 	return left = left & right;
 }
 
+class Window;
+
 struct WindowParameters {
 	std::string title;
 	math::Vector2d<Factor> position_factor;
@@ -3921,12 +3957,15 @@ struct WindowParameters {
 	math::Size<Dip> max_size;
 	WindowStyleFlags style;
 	WindowState state;
+	Window* parent;
 };
 
 class Window {
 	friend class WindowBuilder;
 	
 public:
+	
+
 	std::any native_handle() const;
 	
 	Window() = delete;
@@ -3974,6 +4013,21 @@ public:
 	WindowBuilder&& min_max_size(math::Size<Dip> const min_size, math::Size<Dip> const max_size) && noexcept {
 		_parameters.min_size = min_size;
 		_parameters.max_size = max_size;
+		return std::move(*this);
+	}
+	[[nodiscard]]
+	WindowBuilder&& style(WindowStyleFlags const style) && noexcept {
+		_parameters.style = style;
+		return std::move(*this);
+	}
+	[[nodiscard]]
+	WindowBuilder&& state(WindowState const state) && noexcept {
+		_parameters.state = state;
+		return std::move(*this);
+	}
+	[[nodiscard]]
+	WindowBuilder&& with_parent(Window* const parent) && noexcept {
+		_parameters.parent = parent;
 		return std::move(*this);
 	}
 

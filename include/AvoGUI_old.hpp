@@ -3184,39 +3184,7 @@ struct MouseEvent
 
 //------------------------------
 
-enum class KeyboardKey
-{
-	None = 0,
-	Backspace,
-	Clear,
-	Tab,
-	Return, // Enter and return have the same value.
-	Enter = Return, // Enter and return have the same value.
-	Shift,
-	Control,
-	Menu,
-	Alt,
-	CapsLock,
-	Escape,
-	Spacebar,
-	PageUp, PageDown, Home, End,
-	PrintScreen,
-	Insert,
-	Delete,
-	Pause,
-	Help,
-	Separator,
-	Left, Right, Up, Down,
-	NumLock,
-	Numpad0, Numpad1, Numpad2, Numpad3, Numpad4, Numpad5, Numpad6, Numpad7, Numpad8, Numpad9,
-	Add, Subtract, Multiply, Divide, Decimal,
-	Number0, Number1, Number2, Number3, Number4, Number5, Number6, Number7, Number8, Number9,
-	A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
-	F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24,
-	Comma, Period, Plus, Minus,
-	// These keys vary by country/region.
-	Regional1, Regional2, Regional3, Regional4, Regional5, Regional6, Regional7, Regional8
-};
+
 
 struct KeyboardEvent
 {
@@ -3397,56 +3365,6 @@ struct WindowEvent {
 };
 
 //------------------------------
-
-enum class WindowStyleFlags {
-	None = 0x0UL, // Borderless window.
-	CloseButton = 0x1UL,
-	Invisible = 0x2UL, // Makes the window invisible at first. You can make it visible afterwards.
-	Minimized = 0x8UL,
-	Maximized = 0x10UL,
-	MinimizeButton = 0x20UL,
-	MaximizeButton = 0x40UL,
-	Resizable = 0x80UL,
-	CustomBorder = 0x100UL, // This makes the client area take up the full window, and the GUI determines which areas are for resizing and moving the window.
-	DefaultCustom = CustomBorder | MaximizeButton | MinimizeButton | Resizable,
-	Default = CloseButton | MinimizeButton | MaximizeButton | Resizable,
-	DefaultNoResize = CloseButton | MinimizeButton
-};
-
-constexpr auto operator&(WindowStyleFlags left, WindowStyleFlags right) noexcept -> WindowStyleFlags
-{
-	return static_cast<WindowStyleFlags>(static_cast<uint32>(left) & static_cast<uint32>(right));
-}
-constexpr auto operator|(WindowStyleFlags left, WindowStyleFlags right) noexcept -> WindowStyleFlags
-{
-	return static_cast<WindowStyleFlags>(static_cast<uint32>(left) | static_cast<uint32>(right));
-}
-constexpr auto operator|=(WindowStyleFlags& left, WindowStyleFlags right) noexcept -> WindowStyleFlags&
-{
-	left = left | right;
-	return left;
-}
-
-enum class WindowBorderArea
-{
-	None = 0, // The area of the window is not part of the window border, meaning any mouse events are handled only by the GUI.
-	TopLeftResize,
-	TopResize,
-	TopRightResize,
-	LeftResize,
-	RightResize,
-	BottomLeftResize,
-	BottomResize,
-	BottomRightResize,
-	Dragging // The area of the window is used for dragging the window, normally the title bar.
-};
-
-enum class WindowState
-{
-	Minimized,
-	Maximized,
-	Restored
-};
 
 /*
 	An abstract window, which has an OS-specific implementation.

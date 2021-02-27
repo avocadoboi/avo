@@ -4139,44 +4139,7 @@ private:
 		_size.set(p_width*_dip_to_pixel_factor, p_height*_dip_to_pixel_factor);
 
 		//------------------------------
-		// Select the OpenGL visual to be used when creating the window.
-
-		int framebufferAttributes[] =
-		{
-			GLX_X_RENDERABLE, 1,
-			GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
-			GLX_RENDER_TYPE, GLX_RGBA_BIT,
-			GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
-			GLX_RED_SIZE, 8,
-			GLX_GREEN_SIZE, 8,
-			GLX_BLUE_SIZE, 8,
-			GLX_DEPTH_SIZE, 0, // 2D graphics, no z-buffering.
-			GLX_STENCIL_SIZE, 0,
-			GLX_DOUBLEBUFFER, 1,
-			0 // Null terminator
-		};
-
-		int numberOfMatchingConfigurations = 0;
-		GLXFBConfig* framebufferConfigurations = glXChooseFBConfig(_server, DefaultScreen(_server), framebufferAttributes, &numberOfMatchingConfigurations);
-
-		XVisualInfo* visualInfo = glXGetVisualFromFBConfig(_server, *framebufferConfigurations);
-
-		XFree(framebufferConfigurations);
-
-		//------------------------------
 		// Create window
-
-		_colormap = XCreateColormap(_server, RootWindow(_server, visualInfo->screen), visualInfo->visual, 0);
-		XSetWindowAttributes windowAttributes = {};
-		windowAttributes.colormap = _colormap;
-		windowAttributes.event_mask =
-			ExposureMask |
-			EnterWindowMask | LeaveWindowMask |
-			StructureNotifyMask |
-			PointerMotionMask |
-			ButtonPressMask | ButtonReleaseMask |
-			ButtonMotionMask |
-			KeyPressMask | KeyReleaseMask;
 
 		_window_handle = XCreateWindow(
 			_server, parent ? (XWindow)parent->get_native_handle() : RootWindow(_server, visualInfo->screen),
