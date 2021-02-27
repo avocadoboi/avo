@@ -231,11 +231,14 @@ private:
 	T _value{};
 };
 
-using XDisplayHandle = std::unique_ptr<::Display, decltype([](auto* const x){ ::XCloseDisplay(x); })>;
+using XDisplayHandle = std::unique_ptr<::Display, decltype([](auto x){ ::XCloseDisplay(x); })>;
 
 using XColormapHandle = XDisplayResourceHandle<::Colormap, decltype([](auto a, auto b){ ::XFreeColormap(a, b); })>;
 
 using XWindowHandle = XDisplayResourceHandle<::Window, decltype([](auto a, auto b){ ::XDestroyWindow(a, b); })>;
+
+using XInputMethodHandle = utils::UniqueHandle<XIM, decltype([](auto x){ ::XCloseIM(x); })>;
+using XInputContextHandle = utils::UniqueHandle<XIC, decltype([](auto x){ ::XDestroyIC(x); })>;
 
 template<typename T>
 using XFreeHandle = std::unique_ptr<T, decltype([](T* info){ ::XFree(info); })>;
@@ -279,25 +282,40 @@ math::Size<Pixels> get_screen_size(::Display* const display) {
 
 class Window::Implementation {
 public:
-	void title(std::string title) {
-		auto text_property = XTextProperty{
-			.value = reinterpret_cast<unsigned char*>(title.data()),
+	void title(std::string_view const title) {
+		auto text_property = ::XTextProperty{
+			// It's not going to modify the value.
+			.value = const_cast<unsigned char*>(reinterpret_cast<unsigned char const*>(title.data())),
 			#ifdef X_HAVE_UTF8_STRING
-			.encoding = XInternAtom(_server.get(), "UTF8_STRING", 0),
+			.encoding = ::XInternAtom(_server.get(), "UTF8_STRING", 0),
 			#else
 			.encoding = XA_STRING,
 			#endif
 			.format = 8,
 			.nitems = static_cast<unsigned long>(title.size()),
 		};
-		XSetWMName(_server.get(), _handle.get(), &text_property);
-		XSetWMIconName(_server.get(), _handle.get(), &text_property);
-		XFlush(_server.get());
+		
+		::XSetWMName(_server.get(), _handle.get(), &text_property);
+		::XSetWMIconName(_server.get(), _handle.get(), &text_property);
+
+		::XFlush(_server.get());
+	}
+	std::string title() const {
+		XTextProperty text_property;
+		auto const cleanup = utils::Cleanup{[&]{ ::XFree(text_property.value); }};
+		
+		::XGetWMName(_server.get(), _handle.get(), &text_property);
+
+		return std::string(reinterpret_cast<char*>(text_property.value), text_property.nitems);
 	}
 
 	void position(math::Point<Pixels> const position) {
-		XMoveWindow(_server.get(), _handle.get(), position.x, position.y);
-		XFlush(_server.get());
+		_position = position;
+		::XMoveWindow(_server.get(), _handle.get(), position.x, position.y);
+		::XFlush(_server.get());
+	}
+	math::Point<Pixels> position() const {
+		return _position;
 	}
 
 	::Window native_handle() const {
@@ -305,25 +323,38 @@ public:
 	}
 
 	Implementation(WindowParameters&& parameters) :
-		_parameters{parameters},
-		_thread{utils::bind(&Implementation::_run, this)}
-	{}
-
-private:
-	void _run() {
-		// If an automatic thread locking mechanism for Xlib is required in the future
-		// XInitThreads();
-
+		_parameters{parameters}
+	{
 		_server = XDisplayHandle{::XOpenDisplay(nullptr)};
 
 		_dip_to_pixel_factor = calculate_dip_to_pixel_factor(_server.get());
 		_screen_size = get_screen_size(_server.get());
 
 		_create_window();
+
+		_open_keyboard_input();
+
+		_setup_events();
+
+		_thread = std::jthread{utils::bind(&Implementation::_run, this)};
+	}
+
+private:
+	void _run() {
+		// Thread locking mechanism for Xlib
+		XInitThreads();
+
+		// _server = XDisplayHandle{::XOpenDisplay(nullptr)};
+
+		// _dip_to_pixel_factor = calculate_dip_to_pixel_factor(_server.get());
+		// _screen_size = get_screen_size(_server.get());
+
+		// _create_window();
 		_run_event_loop();
 	}
 	void _create_window() {
 		auto const visual_info = select_opengl_visual(_server.get());
+
 		_colormap = XColormapHandle{
 			_server.get(), 
 			::XCreateColormap(_server.get(), RootWindow(_server.get(), visual_info->screen), visual_info->visual, 0)
@@ -332,7 +363,7 @@ private:
 		auto window_attributes = ::XSetWindowAttributes{
 			.event_mask = ExposureMask | 
 				EnterWindowMask | LeaveWindowMask |
-				StructureNotifyMask |
+				StructureNotifyMask | 
 				PointerMotionMask |
 				ButtonPressMask | ButtonReleaseMask |
 				ButtonMotionMask |
@@ -357,18 +388,75 @@ private:
 				&window_attributes
 			)
 		};
+
 		title(_parameters.title);
+		
 		::XMapWindow(_server.get(), _handle.get());
+
 		position({
 			static_cast<Pixels>(std::lerp(0.f, static_cast<float>(_screen_size.x) - _parameters.size.x, _parameters.position_factor.x)),
 			static_cast<Pixels>(std::lerp(0.f, static_cast<float>(_screen_size.y) - _parameters.size.y, _parameters.position_factor.y))
 		});
 	}
+	void _open_keyboard_input() {
+		_input_method = XInputMethodHandle{::XOpenIM(_server.get(), nullptr, nullptr, nullptr)};
+
+		_input_context = XInputContextHandle{::XCreateIC(
+			_input_method.get(),
+			XNInputStyle, XIMPreeditNothing | XIMStatusNothing, // Input style flags.
+			XNClientWindow, _handle.get(),
+			XNFocusWindow, _handle.get(),
+			nullptr // Null terminator.
+		)};
+	}
+	void _setup_events() {
+		// We want the window manager to tell us when the window should be closed.
+		// WM_PROTOCOLS is the atom used to identify messages sent from the window manager in a ClientMessage.
+		_window_manager_client_message_type = ::XInternAtom(_server.get(), "WM_PROTOCOLS", true);
+		
+		// This is the atom sent as the data in a ClientMessage with type WM_PROTOCOLS, to indicate the close event.
+		_window_close_event = ::XInternAtom(_server.get(), "WM_DELETE_WINDOW", 0);
+		
+		// Tell the window manager that we want it to send the event through WM_PROTOCOLS.
+		::XSetWMProtocols(_server.get(), _handle.get(), &_window_close_event, 1);
+
+		::XFlush(_server.get());
+	}
 	void _run_event_loop() {
-		std::this_thread::sleep_for(20s);
+		for (::XEvent event; _is_open;) {
+			::XNextEvent(_server.get(), &event);
+
+			if (XFilterEvent(&event, _handle.get())) {
+				continue;
+			}
+
+			switch (event.type) {
+				case ConfigureNotify:
+					_handle_configure_notify(event);
+					break;
+				case ClientMessage:
+					_handle_client_message(event);
+					break;
+			};
+		}
+	}
+	void _handle_client_message(::XEvent const& event) {
+		if (event.xclient.message_type == _window_manager_client_message_type) {
+			// Sent from the window manager when the user has tried to close the window,
+			// it is up to us to decide whether to actually close and exit the application.
+			if (static_cast<::Atom>(event.xclient.data.l[0]) == _window_close_event) {
+				_is_open = false;
+			}
+		}
+	}
+	void _handle_configure_notify(::XEvent const& event) {
+		_position = {event.xconfigure.x, event.xconfigure.y};
 	}
 
+	bool _is_open{true};
+
 	WindowParameters _parameters;
+	math::Point<Pixels> _position;
 	math::Size<Pixels> _screen_size;
 	Factor _dip_to_pixel_factor;
 
@@ -376,9 +464,28 @@ private:
 	XColormapHandle _colormap;
 	XWindowHandle _handle;
 
+	::Atom _window_manager_client_message_type;
+	::Atom _window_close_event;
+	XInputMethodHandle _input_method;
+	XInputContextHandle _input_context;
+
 	std::jthread _thread;
 };
 #endif
+
+void Window::title(std::string_view const title) {
+	_implementation->title(title);
+}
+std::string Window::title() const {
+	return _implementation->title();
+}
+
+void Window::position(math::Point<Pixels> const position) {
+	_implementation->position(position);
+}
+math::Point<Pixels> Window::position() const {
+	return _implementation->position();
+}
 
 std::any Window::native_handle() const {
 	return _implementation->native_handle();

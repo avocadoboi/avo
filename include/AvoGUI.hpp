@@ -2187,11 +2187,13 @@ template<typename T>
 struct fmt::formatter<T, std::enable_if_t<avo::math::Is2dVector<T>, char>> 
 	: fmt::formatter<typename T::value_type> 
 {
+	using formatter<typename T::value_type>::format;
+
 	auto format(T const vector, auto& context) {
 		fmt::format_to(context.out(), "(");
-		formatter<typename T::value_type>::format(vector.x, context);
+		format(vector.x, context);
 		fmt::format_to(context.out(), ", ");
-		formatter<typename T::value_type>::format(vector.y, context);
+		format(vector.y, context);
 		return fmt::format_to(context.out(), ")");
 	}
 };
@@ -2465,23 +2467,25 @@ static_assert(
 
 template<typename T>
 struct fmt::formatter<T, std::enable_if_t<avo::math::IsTransform<T>, char>> 
+	: fmt::formatter<typename T::value_type> 
 {
-    std::string_view specifier;
-	
-	auto parse(fmt::format_parse_context& context) {
-        static_assert(std::contiguous_iterator<fmt::format_parse_context::iterator>);
-        auto const end = std::ranges::find(context, '}');
-        specifier = {context.begin(), end};
-        return end;
-    }
-    auto format(T const t, auto& context) {
-        return fmt::format_to(
-            context.out(), 
-            fmt::format("[{{:{0}}} {{:{0}}} {{:{0}}}]\n[{{:{0}}} {{:{0}}} {{:{0}}}]", specifier), 
-            t.x_to_x, t.y_to_x, t.offset_x, 
-			t.x_to_y, t.y_to_y, t.offset_y
-        );
-    }
+	using formatter<typename T::value_type>::format;
+
+	auto format(T const t, auto& context) {
+		fmt::format_to(context.out(), "[");
+		format(t.x_to_x, context);
+		fmt::format_to(context.out(), " ");
+		format(t.y_to_x, context);
+		fmt::format_to(context.out(), " ");
+		format(t.offset_x, context);
+		fmt::format_to(context.out(), "]\n[");
+		format(t.x_to_y, context);
+		fmt::format_to(context.out(), " ");		
+		format(t.y_to_y, context);
+		fmt::format_to(context.out(), " ");
+		format(t.offset_y, context);
+		return fmt::format_to(context.out(), "]");
+	}
 };
 
 namespace avo {
@@ -2925,15 +2929,17 @@ template<typename T>
 struct fmt::formatter<T, std::enable_if_t<avo::math::IsRectangle<T>, char>> 
 	: fmt::formatter<typename T::value_type> 
 {
+	using formatter<typename T::value_type>::format;
+	
 	auto format(T const rectangle, auto& context) {
 		fmt::format_to(context.out(), "(");
-		formatter<typename T::value_type>::format(rectangle.left, context);
+		format(rectangle.left, context);
 		fmt::format_to(context.out(), ", ");
-		formatter<typename T::value_type>::format(rectangle.top, context);
+		format(rectangle.top, context);
 		fmt::format_to(context.out(), ", ");
-		formatter<typename T::value_type>::format(rectangle.right, context);
+		format(rectangle.right, context);
 		fmt::format_to(context.out(), ", ");
-		formatter<typename T::value_type>::format(rectangle.bottom, context);
+		format(rectangle.bottom, context);
 		return fmt::format_to(context.out(), ")");
 	}
 };
@@ -2988,7 +2994,7 @@ struct Easing final {
 			f(x) = 3*t*(1-t)*(1-t)*x0 + 3*t*t*(1-t)*x1 + t*t*t
 
 			f'(x) = x0*(3 - 12*t + 9*t*t) + x1*(6*t - 9*t*t) + 3*t*t
-			      = x0*9*(t - 1)*(t - 1/3) + t*(x1*(6 - 9*t) + 3*t)
+				  = x0*9*(t - 1)*(t - 1/3) + t*(x1*(6 - 9*t) + 3*t)
 		*/
 
 		auto error = 1.f;
@@ -3615,15 +3621,17 @@ static_assert(Color::blue_channel(0xabcdef12) == 0x12);
 
 template<>
 struct fmt::formatter<avo::Color> : fmt::formatter<avo::Color::value_type> {
+	using formatter<avo::Color::value_type>::format;
+	
 	auto format(avo::Color const color, auto& context) {
 		fmt::format_to(context.out(), "rgba(");
-		formatter<avo::Color::value_type>::format(color.red, context);
+		format(color.red, context);
 		fmt::format_to(context.out(), ", ");
-		formatter<avo::Color::value_type>::format(color.green, context);
+		format(color.green, context);
 		fmt::format_to(context.out(), ", ");
-		formatter<avo::Color::value_type>::format(color.blue, context);
+		format(color.blue, context);
 		fmt::format_to(context.out(), ", ");
-		formatter<avo::Color::value_type>::format(color.alpha, context);
+		format(color.alpha, context);
 		return fmt::format_to(context.out(), ")");
 	}
 };
@@ -3930,6 +3938,7 @@ enum class WindowStyleFlags : std::uint32_t {
 	DefaultNoResize = CloseButton | MinimizeButton
 };
 
+[[nodiscard]]
 constexpr WindowStyleFlags operator|(WindowStyleFlags const left, WindowStyleFlags const right) noexcept 
 {
 	return static_cast<WindowStyleFlags>(static_cast<std::uint32_t>(left) | static_cast<std::uint32_t>(right));
@@ -3938,6 +3947,7 @@ constexpr WindowStyleFlags& operator|=(WindowStyleFlags& left, WindowStyleFlags 
 {
 	return left = left | right;
 }
+[[nodiscard]]
 constexpr WindowStyleFlags operator&(WindowStyleFlags const left, WindowStyleFlags const right) noexcept 
 {
 	return static_cast<WindowStyleFlags>(static_cast<std::uint32_t>(left) & static_cast<std::uint32_t>(right));
@@ -3964,8 +3974,15 @@ class Window {
 	friend class WindowBuilder;
 	
 public:
-	
+	void title(std::string_view);
+	[[nodiscard]]
+	std::string title() const;
 
+	void position(math::Point<Pixels>);
+	[[nodiscard]]
+	math::Point<Pixels> position() const;
+
+	[[nodiscard]]
 	std::any native_handle() const;
 	
 	Window() = delete;
@@ -4049,6 +4066,7 @@ private:
 	friend WindowBuilder window(std::string);
 };
 
+[[nodiscard]]
 inline WindowBuilder window(std::string title) {
 	return {std::move(title)};
 }

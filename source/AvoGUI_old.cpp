@@ -4129,62 +4129,9 @@ private:
 	std::thread _messageThread;
 	void thread_runEventLoop(std::string_view title, float p_x, float p_y, float p_width, float p_height, Avo::Window* parent)
 	{
-		XInitThreads();
-
-		_server = XOpenDisplay(nullptr); // Open connection to server
-
-		auto displayWidth = (float)XDisplayWidth(_server, 0);
-		auto displayHeight = (float)XDisplayHeight(_server, 0);
-		_dip_to_pixel_factor = displayWidth/(float)XDisplayWidthMM(_server, 0)*25.4f/NORMAL_DPI;
-		_size.set(p_width*_dip_to_pixel_factor, p_height*_dip_to_pixel_factor);
-
-		//------------------------------
-		// Create window
-
-		_window_handle = XCreateWindow(
-			_server, parent ? (XWindow)parent->get_native_handle() : RootWindow(_server, visualInfo->screen),
-			0, 0, // Initial x and y are ignored by the window manager
-			(unsigned int)(p_width*_dip_to_pixel_factor),
-			(unsigned int)(p_height*_dip_to_pixel_factor),
-			0,
-			visualInfo->depth,
-			InputOutput,
-			visualInfo->visual,
-			CWEventMask | CWBorderPixel | CWColormap,
-			&windowAttributes
-		);
-
-		XFree(visualInfo);
-
-		set_title(title);
-		XMapWindow(_server, _window_handle); // Show the window
-		setPosition(p_x*(displayWidth - p_width*_dip_to_pixel_factor), p_y*(displayHeight - p_height*_dip_to_pixel_factor));
-
-		//------------------------------
-		// Open keyboard input
-
-		_inputMethod = XOpenIM(_server, nullptr, nullptr, nullptr);
-		_inputContext = XCreateIC(
-			_inputMethod,
-			XNInputStyle, XIMPreeditNothing | XIMStatusNothing, // Input style flags
-			XNClientWindow, _window_handle,
-			XNFocusWindow, _window_handle,
-			nullptr // Null terminator
-		);
-
-		//------------------------------
 
 		_backgroundColorMessageType = XInternAtom(_server, "AVOGUI_SET_BACKGROUND_COLOR", false);
 
-		// We want the window manager to tell us when the window should be closed.
-		// WM_PROTOCOLS is the atom used to identify messages sent from the window manager in a ClientMessage.
-		_windowManagerProtocolsMessageType = XInternAtom(_server, "WM_PROTOCOLS", true);
-		// This is the atom sent as the data in a ClientMessage with type WM_PROTOCOLS, to indicate the close event.
-		_windowCloseEvent = XInternAtom(_server, "WM_DELETE_WINDOW", 0);
-		// Tell the window manager that we want it to send the event through WM_PROTOCOLS.
-		XSetWMProtocols(_server, _window_handle, &_windowCloseEvent, 1);
-
-		XFlush(_server); // Execute the command queue
 
 		//------------------------------
 
