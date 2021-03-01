@@ -1742,8 +1742,8 @@ concept Is2dVectorTemplate = std::derived_from<T<float>, Vector2dBase<float>>;
 /*
 	Evaluates to whether a type is a 2d vector or not.
 */
-template<typename T>
-concept Is2dVector = std::derived_from<T, Vector2dBase<typename T::value_type>>;
+template<typename T, typename _Value = typename T::value_type>
+concept Is2dVector = std::derived_from<T, Vector2dBase<_Value>>;
 
 template<utils::IsNumber A, utils::IsNumber B, template<typename> typename _Class> requires Is2dVectorTemplate<_Class>
 [[nodiscard]]
@@ -2011,6 +2011,10 @@ struct Vector2dBase {
 	using value_type = _Value;
 
 	_Value x, y;
+
+	constexpr operator bool() const noexcept {
+		return x || y;
+	}
 
 	/*
 		Returns the magnitude of the vector, or the hypotenuse of the triangle.
@@ -3965,8 +3969,8 @@ struct WindowParameters {
 	math::Size<Dip> size;
 	math::Size<Dip> min_size;
 	math::Size<Dip> max_size;
-	WindowStyleFlags style;
-	WindowState state;
+	WindowStyleFlags style{WindowStyleFlags::Default};
+	WindowState state{WindowState::Restored};
 	Window* parent;
 };
 
@@ -3979,8 +3983,12 @@ public:
 	std::string title() const;
 
 	void position(math::Point<Pixels>);
+
+	void size(math::Size<Dip>);
+	math::Size<Dip> size() const;
+
 	[[nodiscard]]
-	math::Point<Pixels> position() const;
+	bool is_open() const;
 
 	[[nodiscard]]
 	std::any native_handle() const;
@@ -4043,8 +4051,8 @@ public:
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	WindowBuilder&& with_parent(Window* const parent) && noexcept {
-		_parameters.parent = parent;
+	WindowBuilder&& with_parent(Window& parent) && noexcept {
+		_parameters.parent = &parent;
 		return std::move(*this);
 	}
 

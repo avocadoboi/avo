@@ -43,6 +43,10 @@ SOFTWARE.
 #include <GL/glxext.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
+
+#ifdef None
+#	undef None
+#endif
 #endif
 
 namespace avo {
@@ -191,35 +195,39 @@ private:
 #endif
 
 #ifdef __linux__
+
+namespace utils::x11 {
+
 template<utils::IsTrivial T, std::invocable<::Display*, T> _Deleter>
-class XDisplayResourceHandle {
+class DisplayResourceHandle {
 public:
+	[[nodiscard]]
 	T get() const noexcept {
 		return _value;
 	}
 
-	XDisplayResourceHandle(::Display* const server, T const value) :
+	DisplayResourceHandle(::Display* const server, T const value) :
 		_server{server},
 		_value{value}
 	{}
 
-	XDisplayResourceHandle() = default;
-	~XDisplayResourceHandle() {
+	DisplayResourceHandle() = default;
+	~DisplayResourceHandle() {
 		if (_server) {
 			_Deleter{}(_server, _value);
 		}
 	}
 
-	XDisplayResourceHandle(XDisplayResourceHandle const&) = delete;
-	XDisplayResourceHandle& operator=(XDisplayResourceHandle const&) = delete;
+	DisplayResourceHandle(DisplayResourceHandle const&) = delete;
+	DisplayResourceHandle& operator=(DisplayResourceHandle const&) = delete;
 	
-	XDisplayResourceHandle(XDisplayResourceHandle&& other) noexcept :
+	DisplayResourceHandle(DisplayResourceHandle&& other) noexcept :
 		_server{other._server},
 		_value{other._value}
 	{
 		other._server = nullptr;
 	}
-	XDisplayResourceHandle& operator=(XDisplayResourceHandle&& other) noexcept {
+	DisplayResourceHandle& operator=(DisplayResourceHandle&& other) noexcept {
 		_server = other._server;
 		_value = other._value;
 		other._server = nullptr;
@@ -231,19 +239,22 @@ private:
 	T _value{};
 };
 
-using XDisplayHandle = std::unique_ptr<::Display, decltype([](auto x){ ::XCloseDisplay(x); })>;
+using DisplayHandle = std::unique_ptr<::Display, decltype([](auto x){ ::XCloseDisplay(x); })>;
 
-using XColormapHandle = XDisplayResourceHandle<::Colormap, decltype([](auto a, auto b){ ::XFreeColormap(a, b); })>;
+using ColormapHandle = DisplayResourceHandle<::Colormap, decltype([](auto a, auto b){ ::XFreeColormap(a, b); })>;
 
-using XWindowHandle = XDisplayResourceHandle<::Window, decltype([](auto a, auto b){ ::XDestroyWindow(a, b); })>;
+using WindowHandle = DisplayResourceHandle<::Window, decltype([](auto a, auto b){ ::XDestroyWindow(a, b); })>;
 
-using XInputMethodHandle = utils::UniqueHandle<XIM, decltype([](auto x){ ::XCloseIM(x); })>;
-using XInputContextHandle = utils::UniqueHandle<XIC, decltype([](auto x){ ::XDestroyIC(x); })>;
+using InputMethodHandle = utils::UniqueHandle<XIM, decltype([](auto x){ ::XCloseIM(x); })>;
+using InputContextHandle = utils::UniqueHandle<XIC, decltype([](auto x){ ::XDestroyIC(x); })>;
 
 template<typename T>
 using XFreeHandle = std::unique_ptr<T, decltype([](T* info){ ::XFree(info); })>;
 
-XFreeHandle<::XVisualInfo> select_opengl_visual(::Display* const server) {
+//------------------------------
+
+[[nodiscard]]
+XFreeHandle<::XVisualInfo> select_opengl_visual(::Display* const server) noexcept {
 	constexpr auto framebuffer_attributes = std::array{
 		GLX_X_RENDERABLE, 1,
 		GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
@@ -268,97 +279,215 @@ XFreeHandle<::XVisualInfo> select_opengl_visual(::Display* const server) {
 	return XFreeHandle<::XVisualInfo>{::glXGetVisualFromFBConfig(server, *framebuffer_configurations.get())};
 }
 
-Factor calculate_dip_to_pixel_factor(::Display* const display) {
+//------------------------------
+
+[[nodiscard]]
+Factor calculate_dip_to_pixel_factor(::Display* const display) noexcept {
 	constexpr auto normal_dpi = 96.f;
 	return static_cast<Factor>(::XDisplayWidth(display, 0))/static_cast<Factor>(::XDisplayWidthMM(display, 0))*25.4f/normal_dpi;
 }
 
-math::Size<Pixels> get_screen_size(::Display* const display) {
+[[nodiscard]]
+math::Size<Pixels> get_screen_size(::Display* const display) noexcept {
 	return math::Size{
 		static_cast<Pixels>(::XDisplayWidth(display, 0)),
 		static_cast<Pixels>(::XDisplayHeight(display, 0)),
 	};
 }
 
+//------------------------------
+
+void set_window_title(::Display* const server, ::Window const window, std::string_view const title) noexcept {
+	auto text_property = ::XTextProperty{
+		// It's not going to modify the value.
+		.value = const_cast<unsigned char*>(reinterpret_cast<unsigned char const*>(title.data())),
+		#ifdef X_HAVE_UTF8_STRING
+		.encoding = ::XInternAtom(server, "UTF8_STRING", 0),
+		#else
+		.encoding = XA_STRING,
+		#endif
+		.format = 8,
+		.nitems = static_cast<unsigned long>(title.size()),
+	};
+	
+	::XSetWMName(server, window, &text_property);
+	::XSetWMIconName(server, window, &text_property);
+
+	::XFlush(server);
+}
+
+[[nodiscard]]
+std::string get_window_title(::Display* const server, ::Window const window) {
+	::XTextProperty text_property;
+	auto const cleanup = utils::Cleanup{[&]{ ::XFree(text_property.value); }};
+	
+	::XGetWMName(server, window, &text_property);
+
+	return std::string(reinterpret_cast<char*>(text_property.value), text_property.nitems);
+}
+
+//------------------------------
+
+math::Point<Pixels> get_window_position(::Display* const server, ::Window const window) noexcept {
+	math::Point<Pixels> result;
+	::Window child;
+	::XTranslateCoordinates(server, window, DefaultRootWindow(server), 0, 0, &result.x, &result.y, &child);
+	return result;
+}
+
+} // namespace utils::x11
+
+//------------------------------
+
+class WindowStyleManager {
+public:
+	[[nodiscard]]
+	Pixels dip_to_pixels(Dip const dip) const noexcept {
+		return static_cast<Pixels>(dip * _dip_to_pixel_factor);
+	}
+	template<template<typename> typename _Vector>
+	[[nodiscard]]
+	_Vector<Pixels> dip_to_pixels(_Vector<Dip> const dip) const noexcept {
+		return _Vector{
+			dip_to_pixels(dip.x),
+			dip_to_pixels(dip.y)
+		};
+	}
+	
+	[[nodiscard]]
+	Dip pixels_to_dip(Pixels const pixels) const noexcept {
+		return static_cast<Dip>(pixels) / _dip_to_pixel_factor;
+	}
+	template<template<typename> typename _Vector>
+	[[nodiscard]]
+	_Vector<Dip> pixels_to_dip(_Vector<Pixels> const pixels) const noexcept {
+		return _Vector{
+			pixels_to_dip(pixels.x),
+			pixels_to_dip(pixels.y)
+		};
+	}
+
+	//------------------------------
+
+	[[nodiscard]]
+	bool get_is_resizable() const noexcept {
+		return (_parameters.style & WindowStyleFlags::Resizable) != WindowStyleFlags::None;
+	}
+
+	void initialize_styles(::Display* const server, ::Window const window) const noexcept {
+		utils::x11::set_window_title(server, window, _parameters.title);
+
+		update_resizable(server, window);
+		update_min_max_sizes(server, window);
+	}
+	void update_resizable(::Display* const server, ::Window const window) const noexcept {
+		if (!get_is_resizable()) {
+			auto const size = dip_to_pixels(_parameters.size);
+			auto size_hints = ::XSizeHints{
+				.flags = PMinSize | PMaxSize,
+				.min_width = size.x,
+				.min_height = size.y,
+				.max_width = size.x,
+				.max_height = size.y,
+			};
+			XSetWMNormalHints(server, window, &size_hints);
+		}
+	}
+	void update_min_max_sizes(::Display* const server, ::Window const window) const noexcept {
+		if (get_is_resizable() && (_parameters.min_size || _parameters.max_size)) {
+			auto const min = dip_to_pixels(_parameters.min_size);
+			auto const max = dip_to_pixels(_parameters.max_size);
+			auto size_hints = ::XSizeHints{
+				.flags = PMinSize | PMaxSize,
+				.min_width = min.x,
+				.min_height = min.y,
+				.max_width = max.x,
+				.max_height = max.y,
+			};
+			XSetWMNormalHints(server, window, &size_hints);
+		}
+	}
+
+	WindowParameters const& parameters() const noexcept {
+		return _parameters;
+	}
+
+	WindowStyleManager(::Display* const server, WindowParameters&& parameters) :
+		_parameters{std::move(parameters)}
+	{
+		_dip_to_pixel_factor = utils::x11::calculate_dip_to_pixel_factor(server);
+	}
+
+private:
+	WindowParameters _parameters;
+	Factor _dip_to_pixel_factor;
+};
+
+class WindowEventManager {
+public:
+private:
+};
+
 class Window::Implementation {
 public:
-	void title(std::string_view const title) {
-		auto text_property = ::XTextProperty{
-			// It's not going to modify the value.
-			.value = const_cast<unsigned char*>(reinterpret_cast<unsigned char const*>(title.data())),
-			#ifdef X_HAVE_UTF8_STRING
-			.encoding = ::XInternAtom(_server.get(), "UTF8_STRING", 0),
-			#else
-			.encoding = XA_STRING,
-			#endif
-			.format = 8,
-			.nitems = static_cast<unsigned long>(title.size()),
-		};
-		
-		::XSetWMName(_server.get(), _handle.get(), &text_property);
-		::XSetWMIconName(_server.get(), _handle.get(), &text_property);
-
-		::XFlush(_server.get());
+	void title(std::string_view const title) noexcept {
+		utils::x11::set_window_title(_server.get(), _handle.get(), title);
 	}
+	[[nodiscard]]
 	std::string title() const {
-		XTextProperty text_property;
-		auto const cleanup = utils::Cleanup{[&]{ ::XFree(text_property.value); }};
-		
-		::XGetWMName(_server.get(), _handle.get(), &text_property);
-
-		return std::string(reinterpret_cast<char*>(text_property.value), text_property.nitems);
+		return utils::x11::get_window_title(_server.get(), _handle.get());
 	}
 
-	void position(math::Point<Pixels> const position) {
-		_position = position;
+	void position(math::Point<Pixels> const position) noexcept {
 		::XMoveWindow(_server.get(), _handle.get(), position.x, position.y);
 		::XFlush(_server.get());
 	}
-	math::Point<Pixels> position() const {
-		return _position;
+
+	void size(math::Size<Dip> const size) {
+		_size = size;
+		auto const pixel_size = _style_manager.dip_to_pixels(size);//.to<math::Size<unsigned int>>();
+		::XResizeWindow(_server.get(), _handle.get(), pixel_size.x, pixel_size.y);
+		::XFlush(_server.get());
+	}
+	[[nodiscard]]
+	math::Size<Dip> size() const noexcept {
+		return _size;
 	}
 
+	[[nodiscard]]
+	bool is_open() const noexcept {
+		return _is_open;
+	}
+
+	[[nodiscard]]
 	::Window native_handle() const {
 		return _handle.get();
 	}
 
 	Implementation(WindowParameters&& parameters) :
-		_parameters{parameters}
+		_server{::XOpenDisplay(nullptr)},
+		_size{parameters.size},
+		_style_manager{_server.get(), std::move(parameters)}
 	{
-		_server = XDisplayHandle{::XOpenDisplay(nullptr)};
-
-		_dip_to_pixel_factor = calculate_dip_to_pixel_factor(_server.get());
-		_screen_size = get_screen_size(_server.get());
-
 		_create_window();
 
 		_open_keyboard_input();
 
 		_setup_events();
 
-		_thread = std::jthread{utils::bind(&Implementation::_run, this)};
+		_thread = std::jthread{utils::bind(&Implementation::_run_event_loop_thread, this)};
 	}
 
 private:
-	void _run() {
-		// Thread locking mechanism for Xlib
-		XInitThreads();
-
-		// _server = XDisplayHandle{::XOpenDisplay(nullptr)};
-
-		// _dip_to_pixel_factor = calculate_dip_to_pixel_factor(_server.get());
-		// _screen_size = get_screen_size(_server.get());
-
-		// _create_window();
-		_run_event_loop();
-	}
 	void _create_window() {
-		auto const visual_info = select_opengl_visual(_server.get());
+		auto const visual_info = utils::x11::select_opengl_visual(_server.get());
 
-		_colormap = XColormapHandle{
+		_colormap = utils::x11::ColormapHandle{
 			_server.get(), 
 			::XCreateColormap(_server.get(), RootWindow(_server.get(), visual_info->screen), visual_info->visual, 0)
 		};
+
+		auto const& parameters = _style_manager.parameters();
 
 		auto window_attributes = ::XSetWindowAttributes{
 			.event_mask = ExposureMask | 
@@ -370,16 +499,16 @@ private:
 				KeyPressMask | KeyReleaseMask,
 			.colormap = _colormap.get(),
 		};
-		_handle = XWindowHandle{
+		_handle = utils::x11::WindowHandle{
 			_server.get(),
 			::XCreateWindow(
 				_server.get(),
-				_parameters.parent 
-					? std::any_cast<::Window>(_parameters.parent->native_handle()) 
+				parameters.parent 
+					? std::any_cast<::Window>(parameters.parent->native_handle()) 
 					: RootWindow(_server.get(), visual_info->screen),
 				0, 0, // Initial x and y are ignored by the window manager
-				static_cast<unsigned int>(_parameters.size.x*_dip_to_pixel_factor),
-				static_cast<unsigned int>(_parameters.size.y*_dip_to_pixel_factor),
+				static_cast<unsigned int>(_style_manager.dip_to_pixels(_size.x)),
+				static_cast<unsigned int>(_style_manager.dip_to_pixels(_size.y)),
 				0,
 				visual_info->depth,
 				InputOutput,
@@ -389,19 +518,21 @@ private:
 			)
 		};
 
-		title(_parameters.title);
+		_style_manager.initialize_styles(_server.get(), _handle.get());
 		
+		// Show the window.
 		::XMapWindow(_server.get(), _handle.get());
 
+		auto const screen_size = utils::x11::get_screen_size(_server.get());
 		position({
-			static_cast<Pixels>(std::lerp(0.f, static_cast<float>(_screen_size.x) - _parameters.size.x, _parameters.position_factor.x)),
-			static_cast<Pixels>(std::lerp(0.f, static_cast<float>(_screen_size.y) - _parameters.size.y, _parameters.position_factor.y))
+			static_cast<Pixels>(std::lerp(0.f, static_cast<float>(screen_size.x) - parameters.size.x, parameters.position_factor.x)),
+			static_cast<Pixels>(std::lerp(0.f, static_cast<float>(screen_size.y) - parameters.size.y, parameters.position_factor.y))
 		});
 	}
 	void _open_keyboard_input() {
-		_input_method = XInputMethodHandle{::XOpenIM(_server.get(), nullptr, nullptr, nullptr)};
+		_input_method = utils::x11::InputMethodHandle{::XOpenIM(_server.get(), nullptr, nullptr, nullptr)};
 
-		_input_context = XInputContextHandle{::XCreateIC(
+		_input_context = utils::x11::InputContextHandle{::XCreateIC(
 			_input_method.get(),
 			XNInputStyle, XIMPreeditNothing | XIMStatusNothing, // Input style flags.
 			XNClientWindow, _handle.get(),
@@ -422,7 +553,10 @@ private:
 
 		::XFlush(_server.get());
 	}
-	void _run_event_loop() {
+
+	void _run_event_loop_thread() {
+		XInitThreads();
+
 		for (::XEvent event; _is_open;) {
 			::XNextEvent(_server.get(), &event);
 
@@ -430,15 +564,18 @@ private:
 				continue;
 			}
 
-			switch (event.type) {
-				case ConfigureNotify:
-					_handle_configure_notify(event);
-					break;
-				case ClientMessage:
-					_handle_client_message(event);
-					break;
-			};
+			_handle_event(event);
 		}
+	}
+	void _handle_event(::XEvent const& event) {
+		switch (event.type) {
+			case ConfigureNotify:
+				_handle_configure_notify(event);
+				break;
+			case ClientMessage:
+				_handle_client_message(event);
+				break;
+		};
 	}
 	void _handle_client_message(::XEvent const& event) {
 		if (event.xclient.message_type == _window_manager_client_message_type) {
@@ -450,24 +587,23 @@ private:
 		}
 	}
 	void _handle_configure_notify(::XEvent const& event) {
-		_position = {event.xconfigure.x, event.xconfigure.y};
+		_size = _style_manager.pixels_to_dip(math::Size{event.xconfigure.width, event.xconfigure.height});
 	}
 
 	bool _is_open{true};
 
-	WindowParameters _parameters;
-	math::Point<Pixels> _position;
-	math::Size<Pixels> _screen_size;
-	Factor _dip_to_pixel_factor;
+	utils::x11::DisplayHandle _server;
+	utils::x11::WindowHandle _handle;
+	utils::x11::ColormapHandle _colormap;
+	
+	math::Size<Dip> _size;
 
-	XDisplayHandle _server;
-	XColormapHandle _colormap;
-	XWindowHandle _handle;
+	WindowStyleManager _style_manager;
 
 	::Atom _window_manager_client_message_type;
 	::Atom _window_close_event;
-	XInputMethodHandle _input_method;
-	XInputContextHandle _input_context;
+	utils::x11::InputMethodHandle _input_method;
+	utils::x11::InputContextHandle _input_context;
 
 	std::jthread _thread;
 };
@@ -483,8 +619,16 @@ std::string Window::title() const {
 void Window::position(math::Point<Pixels> const position) {
 	_implementation->position(position);
 }
-math::Point<Pixels> Window::position() const {
-	return _implementation->position();
+
+void Window::size(math::Size<Dip> const size) {
+	_implementation->size(size);
+}
+math::Size<Dip> Window::size() const {
+	return _implementation->size();
+}
+
+bool Window::is_open() const {
+	return _implementation->is_open();
 }
 
 std::any Window::native_handle() const {
