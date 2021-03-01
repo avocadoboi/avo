@@ -2,23 +2,17 @@
 
 AvoGUI is a light, modern framework for desktop applications written in C++20.
 
-The project was started because I wanted a graphical framework designed from the user's perspective. The goal is a modern design that allows creative coding and interactive programs yet is scalable for writing larger applications. The API should be intuitive with documentation that explains things clearly and doesn't assume too much knowledge.
+The framework was initially written in C++17, but now it is being rewritten from scratch in C++20 and with a better design that is less object oriented.
 
-The project was inspired by Google's Material Design guidelines and includes some Material Design controls to help you make good looking applications quickly.
+## Aims and features
 
-Warning: the project is still in development and a lot of breaking changes are being made.
+* A modern design that allows creative coding and interactive programs yet is scalable for writing larger applications. 
+* Interfaces are hard to misuse and as many errors as possible are catched at compile time.
+* Library code follows C++ Core Guidelines.
+* Written with modules when build systems and compilers have good support for modules. Until then, one source and one header file.
+* Support for Windows, Linux and MacOS.
+* UTF-8 support.
+* Free from warnings with all useful warning flags turned on.
+* Modern CMake integration.
 
-## CMake usage
-TODO: write about CMake integration.
-
-## Getting started
-
-Take a look at the documentation in AvoGUI.hpp for more information about anything. If there's something you wonder about not addressed in the documentation, please open an issue! More guides will also be made at some point, when the API has gotten somewhat stable. Meanwhile, the programs in the examples directory can be useful for learning about how to use the framework. They should be up to date with the API.
-
-## Compatible platforms
-
-The goal is to support Windows, Linux and MacOS. Currently, only Windows is fully supported and Linux development is in progress.
-
-## Contributing
-
-Don't be afraid to submit issues about the little things! All issues are very welcome, and they help the development of the library a lot. Pull requests are also welcome.
+(Document is work in progress)
