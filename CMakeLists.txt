@@ -7,7 +7,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin/)
 #--------------------------------------------
 # Library target.
 
-add_library(avogui STATIC include/AvoGUI.hpp source/AvoGUI.cpp)
+add_library(avogui STATIC include/Avo.hpp source/Avo.cpp)
 add_library(${PROJECT_NAME}::avogui ALIAS avogui)
 
 #--------------------------------------------
@@ -32,6 +32,8 @@ else ()
 		
 		-Wno-parentheses
 		-Wno-missing-field-initializers
+
+		-fconcepts-diagnostics-depth=2
 	)
 endif ()
 

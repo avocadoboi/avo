@@ -63,8 +63,8 @@ TEST_CASE("Nodes with IDs") {
 	REQUIRE(std::ranges::equal(app.get_node(), std::array{avo::Id{1}, avo::Id{2}}, {}, id_from_node));
 	REQUIRE(std::ranges::equal(app.get_node() | avo::utils::flatten, ids, {}, id_from_node));
 
-	REQUIRE(avo::find_node_by_id(app.get_node(), avo::Id{4})->id() == avo::Id{4});
-	REQUIRE(std::ranges::distance(avo::find_nodes_by_id(app.get_node(), avo::Id{4})) == 2);
+	REQUIRE(app.get_node().find_by_id(avo::Id{4})->id() == avo::Id{4});
+	REQUIRE(std::ranges::distance(app.get_node().find_all_by_id(avo::Id{4})) == 2);
 
 	// Note: cannot be const because of the constant-time amortization for begin() on filter views.
 	auto found_components = avo::find_components_by_id<SomeComponent>(app.get_node(), avo::Id{4});

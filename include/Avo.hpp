@@ -90,18 +90,16 @@ namespace utils {
 template<typename T>
 concept IsTrivial = std::is_trivial_v<T>;
 
-/*
-	At the moment, trying to instantiate this concept crashes GCC...
-	TODO: Take advantage of this in the code when this GCC bug is fixed:
-	https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98611
-*/
-// template<typename T, template<typename...> typename _Class>
-// concept IsInstantiationOf = requires(T object) {
-// 	{ _Class{object} } -> std::same_as<T>;
-// };
+template<typename T>
+concept IsObject = std::is_object_v<T>;
 
-// template<typename T, template<typename...> typename ... U>
-// concept IsInstantiationOfAny = (IsInstantiationOf<T, U> || ...);
+template<typename T, template<typename...> typename _Class>
+concept IsInstantiationOf = requires(T object) {
+	{ _Class{object} } -> std::same_as<T>;
+};
+
+template<typename T, template<typename...> typename ... U>
+concept IsInstantiationOfAny = (IsInstantiationOf<T, U> || ...);
 
 template<typename T, typename ... U>
 concept IsAnyOf = (std::same_as<T, U> || ...);
@@ -115,14 +113,75 @@ concept IsByte = sizeof(T) == 1 && IsTrivial<std::remove_reference_t<T>>;
 //------------------------------
 
 /*
+	This can be called when the program reaches a path that should never be reachable.
+	It prints error output and exits the program.
+*/
+#ifdef __cpp_lib_source_location
+[[noreturn]]
+inline void unreachable(std::source_location const& source_location = std::source_location::current()) {
+	fmt::print(stderr, "Reached an unreachable code path in file {}, in function {}, on line {}.\n", 
+		source_location.file_name(), source_location.function_name(), source_location.line());
+	std::exit(1);
+}
+#else
+[[noreturn]]
+inline void unreachable() {
+	fmt::print(stderr, "Reached an unreachable code path, exiting.\n");
+	std::exit(1);
+}
+#endif
+
+//------------------------------
+
+template<std::three_way_comparable T>
+struct MinMax { 
+	T min, max;
+
+	[[nodiscard]]
+	constexpr bool valid() const noexcept {
+		return min < max;
+	}
+
+	[[nodiscard]]
+	constexpr operator bool() const noexcept 
+		requires std::convertible_to<T, bool>
+	{
+		return min || max;
+	}
+
+	[[nodiscard]]
+	constexpr bool operator==(MinMax const&) const noexcept = default;
+};
+
+template<typename T>
+concept IsMinMax = IsInstantiationOf<T, MinMax>;
+
+//------------------------------
+
+template<typename T>
+concept IsBitflag = requires(T a, T b) {
+	requires IsTrivial<T>;
+	{ a | b } -> std::same_as<T>;
+	{ a |= b } -> std::same_as<T&>;
+	{ a & b } -> std::same_as<T>;
+};
+
+template<IsBitflag T>
+constexpr bool has_flag(T const flags, T const flag) noexcept {
+	return (flags & flag) != T{};
+}
+
+//------------------------------
+
+/*
 	Represents a range of integers that can be iterated to produce the integers within the range.
 */
 template<std::integral _Value, bool is_reverse = false>
-class Range : public std::ranges::view_interface<Range<_Value, is_reverse>> {
+class Range final : public std::ranges::view_interface<Range<_Value, is_reverse>> {
 public:
 	using value_type = _Value;
 
-	class Iterator {
+	class Iterator final {
 	public:
 		using value_type = std::remove_cv_t<_Value>;
 		using difference_type = value_type;
@@ -272,17 +331,17 @@ private:
 
 } // namespace avo
 
-// namespace std::ranges {
-
 template<std::integral T, bool is_reversed>
 constexpr bool std::ranges::enable_borrowed_range<avo::utils::Range<T, is_reversed>> = true;
-
-// } // namespace std::ranges
 
 namespace avo {
 	
 namespace utils {
 
+/*
+	Has nothing to do with the std::ranges::range concept.
+	Is true if T is an instance of avo::utils::Range.
+*/
 template<typename T, typename _Value = typename T::value_type>
 concept IsRange = requires(T range) {
 	{ Range{range} } -> std::same_as<T>;
@@ -439,7 +498,7 @@ private:
 	T _range;
 
 public:
-	class Iterator {
+	class Iterator final {
 	public:
 		using value_type = EnumeratedElement<std::ranges::range_value_t<T> const>;
 		using reference = value_type&;
@@ -480,11 +539,11 @@ public:
 
 	[[nodiscard]]
 	constexpr Iterator begin() const {
-		return Iterator{std::begin(_range), std::size_t{}};
+		return Iterator{std::ranges::begin(_range), std::size_t{}};
 	}
 	[[nodiscard]]
 	constexpr Iterator end() const {
-		return Iterator{std::end(_range), std::size_t{}};
+		return Iterator{std::ranges::end(_range), std::size_t{}};
 	}
 
 	friend constexpr std::ranges::range auto enumerate<>(T&& range);
@@ -555,17 +614,39 @@ concept IsRecursiveRange = std::ranges::range<T> && std::same_as<std::ranges::ra
 template<typename T>
 concept IsRecursiveIterator = IsRecursiveRange<std::iter_value_t<T>>;
 
+template<typename T> requires IsRecursiveRange<T, true>
+[[nodiscard]]
+constexpr T* get_parent(T& range) {
+	if constexpr (requires { { range.parent() } -> std::same_as<T*>; })
+	{
+		return range.parent();
+	}
+	else if constexpr (requires { { range.parent() } -> std::same_as<T&>; })
+	{
+		return &range.parent();
+	}
+	else if constexpr (std::same_as<decltype(range.parent), T*>)
+	{
+		return range.parent;
+	}
+	else if constexpr (std::same_as<decltype(range.parent), T&>)
+	{
+		return &range.parent;
+	}
+	unreachable();
+}
+
 [[nodiscard]]
 constexpr bool is_recursive_iterator_empty(IsRecursiveIterator auto const iterator) {
-	return std::begin(*iterator) == std::end(*iterator);
+	return std::ranges::begin(*iterator) == std::ranges::end(*iterator);
 }
 
 template<IsRecursiveRange T>
-class FlattenedView : public std::ranges::view_interface<FlattenedView<T>> {
+class FlattenedView final : public std::ranges::view_interface<FlattenedView<T>> {
 public:
 	using BaseIterator = std::ranges::iterator_t<T>;
 
-	class Iterator {
+	class Iterator final {
 	public:
 		using value_type = std::iter_value_t<BaseIterator>;
 		using reference = std::iter_reference_t<BaseIterator>;
@@ -575,7 +656,7 @@ public:
 	
 		Iterator& operator++() {
 			if (std::holds_alternative<T*>(_current_position)) {
-				_current_position = std::begin(*std::get<T*>(_current_position));
+				_current_position = std::ranges::begin(*std::get<T*>(_current_position));
 			}
 			else {
 				_increment_iterator();
@@ -608,7 +689,7 @@ public:
 		Iterator() = default;
 		Iterator(T* const range) :
 			_current_position{range},
-			_end{std::end(*range)}
+			_end{std::ranges::end(*range)}
 		{}
 
 	private:
@@ -619,7 +700,7 @@ public:
 			}
 			else if (is_recursive_iterator_empty(pos)) {
 				++pos;
-				while (!_parent_stack.empty() && pos == std::end(*_parent_stack.top())) {
+				while (!_parent_stack.empty() && pos == std::ranges::end(*_parent_stack.top())) {
 					pos = _parent_stack.top();
 					_parent_stack.pop();
 					++pos;
@@ -627,7 +708,7 @@ public:
 			}
 			else {
 				_parent_stack.push(pos);
-				pos = std::begin(*pos);				
+				pos = std::ranges::begin(*pos);				
 			}
 		}
 		
@@ -655,11 +736,11 @@ private:
 };
 
 template<IsRecursiveRange T> requires IsRecursiveRange<T, true>
-class FlattenedView<T> : public std::ranges::view_interface<FlattenedView<T>> {
+class FlattenedView<T> final : public std::ranges::view_interface<FlattenedView<T>> {
 public:
 	using BaseIterator = std::ranges::iterator_t<T>;
 
-	class Iterator {
+	class Iterator final {
 	public:
 		using value_type = std::iter_value_t<BaseIterator>;
 		using reference = std::iter_reference_t<BaseIterator>;
@@ -669,7 +750,7 @@ public:
 	
 		Iterator& operator++() {
 			if (std::holds_alternative<T*>(_current_position)) {
-				_current_position = std::begin(*std::get<T*>(_current_position));
+				_current_position = std::ranges::begin(*std::get<T*>(_current_position));
 			}
 			else {
 				_increment_iterator();
@@ -702,34 +783,13 @@ public:
 		Iterator() = default;
 		Iterator(T* const range) :
 			_current_position{range},
-			_end{std::end(*range)}
+			_end{std::ranges::end(*range)}
 		{}
 
 	private:
-		static T* get_parent_of_node(T& node) noexcept 
-			requires std::same_as<decltype(T::parent), T&> 
-		{
-			return &node.parent;
-		}
-		static T* get_parent_of_node(T& node) noexcept 
-			requires std::same_as<decltype(T::parent), T*> 
-		{
-			return node.parent;
-		}
-		static T* get_parent_of_node(T& node) noexcept 
-			requires requires { { node.parent() } -> std::same_as<T&>; } 
-		{
-			return &node.parent();
-		}
-		static T* get_parent_of_node(T& node) noexcept 
-			requires requires { { node.parent() } -> std::same_as<T*>; } 
-		{
-			return node.parent();
-		}
-	
 		static BaseIterator get_iterator_of_node(T& node) {
-			auto* const parent = get_parent_of_node(node);
-			return std::begin(*parent) + (&node - &*std::begin(*parent));
+			auto* const parent = get_parent(node);
+			return std::ranges::begin(*parent) + (&node - &*std::ranges::begin(*parent));
 		}
 	
 		void _increment_iterator() {
@@ -738,16 +798,16 @@ public:
 				return;
 			}
 			else if (is_recursive_iterator_empty(pos)) {
-				auto* parent = get_parent_of_node(*pos);
+				auto* parent = get_parent(*pos);
 				++pos;
-				while (pos != _end && pos == std::end(*parent)) {
+				while (pos != _end && pos == std::ranges::end(*parent)) {
 					pos = get_iterator_of_node(*parent);
-					parent = get_parent_of_node(*pos);
+					parent = get_parent(*pos);
 					++pos;
 				}
 			}
 			else {
-				pos = std::begin(*pos);
+				pos = std::ranges::begin(*pos);
 			}
 		}
 		
@@ -807,6 +867,169 @@ FlattenedView<T> operator|(T& range, decltype(flatten) const) {
 
 //------------------------------
 
+template<std::regular_invocable _Generator> requires 
+	std::copy_constructible<_Generator> && 
+	IsInstantiationOf<std::invoke_result_t<_Generator>, std::optional>
+class GeneratorView : public std::ranges::view_interface<GeneratorView<_Generator>>
+{
+public:
+	class Iterator {
+	public:
+		using value_type = std::invoke_result_t<_Generator>::value_type;
+		using reference = value_type const&;
+		using difference_type = std::ptrdiff_t;
+		using iterator_category = std::input_iterator_tag;
+		using iterator_concept = std::input_iterator_tag;
+	
+		[[nodiscard]]
+		constexpr reference operator*() const& {
+			return _last_value;
+		}
+		[[nodiscard]]
+		constexpr value_type operator*() && {
+			return std::move(_last_value);
+		}
+
+		constexpr Iterator& operator++() 
+		{
+			if (_generate) {
+				if (auto value = (*_generate)()) {
+					_last_value = std::move(*value);
+				}
+				else {
+					_generate = std::nullopt;
+				}
+			}
+			return *this;
+		}
+		[[nodiscard("Use prefix increment if you don't need the previous iterator.")]]
+		constexpr Iterator operator++(int) 
+		{
+			auto before = *this;
+			operator++();
+			return before;
+		}
+		[[nodiscard]]
+		constexpr bool operator==(std::default_sentinel_t) const noexcept {
+			return !_generate;
+		}
+		[[nodiscard]]
+		constexpr bool operator==(Iterator const&) const noexcept
+			requires std::equality_comparable<value_type> &&
+				std::equality_comparable<_Generator>
+			= default;
+
+		constexpr Iterator(_Generator const& generate) :
+			_generate{generate}
+		{
+			operator++();
+		}
+
+		constexpr Iterator() = default;
+		constexpr ~Iterator() = default;
+
+		constexpr Iterator(Iterator const&) = default;
+
+		constexpr Iterator& operator=(Iterator const&) 
+			requires std::copyable<_Generator>
+			= default;
+		constexpr Iterator& operator=(Iterator const& other)
+			requires (!std::copyable<_Generator>)
+		{
+			if (other._generate) {
+				_generate.emplace(*other._generate);
+			}
+			else {
+				_generate = std::nullopt;
+			}
+			_last_value = other._last_value;
+			return *this;
+		}
+
+		constexpr Iterator(Iterator&&) noexcept = default;
+
+		constexpr Iterator& operator=(Iterator&&) noexcept 
+			requires std::movable<_Generator> 
+			= default;
+		constexpr Iterator& operator=(Iterator&& other) noexcept 
+			requires (!std::movable<_Generator>) 
+		{
+			if (other._generate) {
+				_generate.emplace(std::move(*other._generate));
+			}
+			else {
+				_generate = std::nullopt;
+			}
+			_last_value = std::move(other._last_value);
+			return *this;
+		}
+
+	private:
+		value_type _last_value{};
+		std::optional<_Generator> _generate{};
+	};
+	
+	[[nodiscard]]
+	constexpr Iterator begin() const& {
+		return Iterator{_generate};
+	}
+	[[nodiscard]]
+	constexpr Iterator begin() && {
+		return Iterator{std::move(_generate)};
+	}
+
+	[[nodiscard]]
+	constexpr std::default_sentinel_t end() const noexcept {
+		return {};
+	}
+	
+	constexpr GeneratorView(_Generator generate) noexcept :
+		_generate{std::move(generate)}
+	{}
+
+private:
+	_Generator _generate;
+};
+
+} // namespace utils
+
+} // namespace avo
+
+namespace std::ranges {
+
+template<typename T>
+constexpr auto enable_borrowed_range<avo::utils::GeneratorView<T>> = true;
+
+} // namespace std::ranges
+
+namespace avo {
+
+namespace utils {
+
+template<typename _Generator>
+constexpr GeneratorView<_Generator> generate(_Generator&& generator) {
+	return GeneratorView{std::forward<_Generator>(generator)};
+}
+
+//------------------------------
+
+/*
+	Returns a range of a recursive range's parents, traversed upwards.
+*/
+template<typename _Range> 
+	requires IsRecursiveRange<_Range, true>
+[[nodiscard]]
+constexpr auto parents(_Range& range) {
+	return generate([current = &range]() mutable -> std::optional<_Range*> {
+		if (current = get_parent(*current)) {
+			return current;
+		}
+		return {};
+	});
+}
+
+//------------------------------
+
 /*
 	Removes all elements matching the value argument from a vector, without keeping the order of the elements.
 */
@@ -820,27 +1043,6 @@ std::vector<T>& unordered_erase(std::vector<T>& vector, T const& value) {
 	}
 	return vector;
 }
-
-//------------------------------
-
-/*
-	This can be called when the program reaches a path that should never be reachable.
-	It prints error output and exits the program.
-*/
-#ifdef __cpp_lib_source_location
-[[noreturn]]
-inline void unreachable(std::source_location const& source_location = std::source_location::current()) {
-	fmt::print(stderr, "Reached an unreachable code path in file {}, in function {}, on line {}.\n", 
-		source_location.file_name(), source_location.function_name(), source_location.line());
-	std::exit(1);
-}
-#else
-[[noreturn]]
-inline void unreachable() {
-	fmt::print(stderr, "Reached an unreachable code path, exiting.\n");
-	std::exit(1);
-}
-#endif
 
 //------------------------------
 
@@ -993,62 +1195,70 @@ void write_to_file(_DataRange const& data, std::string const& file_name) {
 
 //------------------------------
 
-/*
-	Binds a const object to a member method of its class, so that the returned object can be invoked without providing the instance.
-*/
-template<typename _ReturnType, typename _Class, typename ... _Arguments>
-[[nodiscard]] 
-constexpr auto bind(auto (_Class::* const function)(_Arguments...) const -> _ReturnType, _Class const* const instance)
-{
-	return [instance, function](_Arguments&& ... arguments) { 
-		return (instance->*function)(std::forward<_Arguments>(arguments)...); 
-	};
-}
+template<typename T, std::size_t _capacity>
+class StaticVector final {
+public:
+	static constexpr auto capacity = _capacity;
 
-/*
-	Binds a mutable object to a member method of its class, so that the returned object can be invoked without providing the instance.
-*/
-template<typename _ReturnType, typename _Class, typename ... _Arguments>
-[[nodiscard]] 
-constexpr auto bind(auto (_Class::* const function)(_Arguments...) -> _ReturnType, _Class* const instance)
-{
-	return [instance, function](_Arguments&& ... arguments) { 
-		return (instance->*function)(std::forward<_Arguments>(arguments)...); 
-	};
-}
+	constexpr StaticVector& push_back(T&& element) {
+		_array.at(_current_size++) = std::forward<T>(element);
+		return *this;
+	}
+	constexpr StaticVector& pop_back() {
+		--_current_size;
+		return *this;
+	}
 
-#ifdef BUILD_TESTING
-static_assert(
-	[]{
-		struct Test {
-			bool b{};
+	constexpr auto begin() const {
+		return _array.begin();
+	}
+	constexpr auto begin() {
+		return _array.begin();
+	}
+	constexpr auto end() const {
+		return _array.end();
+	}
+	constexpr auto end() {
+		return _array.end();
+	}
 
-			constexpr bool get() const {
-				return b;
-			}
-		};
-		auto const instance = Test{true};
-		auto const get_function = bind(&Test::get, &instance);
-		return get_function() == true;
-	}(),
-	"avo::utils::bind does not work with const objects."
-);
-static_assert(
-	[]{
-		struct Test {
-			bool b{};
+	constexpr T& operator[](std::size_t const i) {
+		return _array[i];
+	}
+	constexpr T const& operator[](std::size_t const i) const {
+		return _array[i];
+	}
 
-			constexpr bool get() {
-				return b;
-			}
-		};
-		auto instance = Test{true};
-		auto const get_function = bind(&Test::get, &instance);
-		return get_function() == true;
-	}(),
-	"avo::utils::bind does not work with mutable objects."
-);
-#endif // BUILD_TESTING
+	constexpr T& back() {
+		return _array.at(_current_size - 1);
+	}
+	constexpr T const& back() const {
+		return _array.at(_current_size - 1);
+	}
+	
+	constexpr T* data() {
+		return _array.data();
+	}
+	constexpr T const* data() const {
+		return _array.data();
+	}
+
+	constexpr std::size_t size() const noexcept {
+		return _current_size;
+	}
+
+	constexpr StaticVector() = default;
+
+	template<std::same_as<T> ... _Elements> 
+	constexpr StaticVector(_Elements&& ... elements) :
+		_array{std::forward<_Elements>(elements)...},
+		_current_size{sizeof...(elements)}
+	{}
+
+private:
+	std::array<T, capacity> _array;
+	std::size_t _current_size{};
+};
 
 } // namespace utils
 
@@ -1362,10 +1572,10 @@ template<typename T>
 Degrees(T) -> Degrees<T>;
 
 template<typename T>
-concept IsDegrees = requires(T x) { { Degrees{x} } -> std::same_as<T>; };
+concept IsDegrees = utils::IsInstantiationOf<T, Degrees>;
 
 template<typename T>
-concept IsRadians = requires(T x) { { Radians{x} } -> std::same_as<T>; };
+concept IsRadians = utils::IsInstantiationOf<T, Radians>;
 
 template<typename T>
 concept IsAngle = IsRadians<T> || IsDegrees<T>;
@@ -2339,7 +2549,7 @@ struct Transform final {
 };
 
 template<typename T>
-concept IsTransform = requires(T x) { { Transform{x} } -> std::same_as<T>; };
+concept IsTransform = utils::IsInstantiationOf<T, Transform>;
 
 /*
 	Returns the inverse of a transformation matrix I such that:
@@ -2880,7 +3090,7 @@ struct Rectangle final {
 };
 
 template<typename T>
-concept IsRectangle = requires(T x) { { Rectangle{x} } -> std::same_as<T>; };
+concept IsRectangle = utils::IsInstantiationOf<T, Rectangle>;
 
 template<utils::IsNumber T>
 [[nodiscard]]
@@ -3640,26 +3850,6 @@ struct fmt::formatter<avo::Color> : fmt::formatter<avo::Color::value_type> {
 	}
 };
 
-// An alternative:
-// template<>
-// struct fmt::formatter<avo::Color> {
-//     std::string_view specifier;
-	
-// 	auto parse(fmt::format_parse_context& context) {
-//         static_assert(std::contiguous_iterator<fmt::format_parse_context::iterator>);
-//         auto const end = std::ranges::find(context, '}');
-//         specifier = {context.begin(), end};
-//         return end;
-//     }
-//     auto format(avo::Color const color, auto& context) {
-//         return fmt::format_to(
-//             context.out(), 
-//             fmt::format("rgba({{:{0}}}, {{:{0}}}, {{:{0}}}, {{:{0}}})", specifier), 
-//             color.red, color.green, color.blue, color.alpha
-//         );
-//     }
-// };
-
 namespace avo {
 
 /*
@@ -3673,6 +3863,10 @@ public:
 
 	[[nodiscard]]
 	constexpr explicit operator value_type() const noexcept {
+		return _count;
+	}
+	[[nodiscard]]
+	constexpr operator bool() const noexcept {
 		return _count;
 	}
 
@@ -3799,7 +3993,8 @@ public:
 		Adds a listener to the EventListeners instance that will be called when nofity_all or operator() is called.
 		Equivalent to EventListeners::operator+=.
 	*/
-	void add(std::function<FunctionType> listener) {
+	void add(std::function<FunctionType> listener) 
+	{
 		auto const lock = std::scoped_lock{_mutex};    
 		_listeners.emplace_back(std::move(listener));
 	}
@@ -3807,7 +4002,8 @@ public:
 		Adds a listener to the EventListeners instance that will be called when nofity_all or operator() is called.
 		Equivalent to EventListeners::add.
 	*/
-	EventListeners& operator+=(std::function<FunctionType> listener) {
+	EventListeners& operator+=(std::function<FunctionType> listener) 
+	{
 		add(std::move(listener));
 		return *this;
 	}
@@ -3816,8 +4012,10 @@ public:
 		Removes a listener from the EventListeners instance that matches the passed function.
 		Equivalent to EventListeners::operator-=.
 	*/
-	void remove(std::function<FunctionType> const& listener) {
+	void remove(std::function<FunctionType> const& listener) 
+	{
 		auto const lock = std::scoped_lock{_mutex};
+
 		auto const& listener_type = listener.target_type();
 		auto const found_position = std::ranges::find_if(_listeners, [&](auto const& listener_element) {
 			// template keyword is used to expicitly tell the compiler that target is a template method for
@@ -3825,7 +4023,9 @@ public:
 			return listener_type == listener_element.target_type() &&
 				*(listener.template target<FunctionType>()) == *(listener_element.template target<FunctionType>());
 		});
-		if (found_position != _listeners.end()) {
+
+		if (found_position != _listeners.end()) 
+		{
 			*found_position = std::move(_listeners.back());
 			_listeners.pop_back();
 		}
@@ -3834,7 +4034,8 @@ public:
 		Removes a listener from the EventListeners instance that matches the passed function.
 		Equivalent to EventListeners::remove.
 	*/
-	EventListeners& operator-=(std::function<FunctionType> const& listener) {
+	EventListeners& operator-=(std::function<FunctionType> const& listener) 
+	{
 		remove(listener);
 		return *this;
 	}
@@ -3843,7 +4044,8 @@ public:
 		Calls all of the listeners with event_arguments as arguments.
 		Equivalent to EventListeners::operator().
 	*/
-	void notify_all(_Arguments&& ... event_arguments) {
+	void notify_all(_Arguments&& ... event_arguments) 
+	{
 		auto const lock = std::scoped_lock{_mutex};
 		for (auto& listener : _listeners) {
 			listener(std::forward<_Arguments>(event_arguments)...);
@@ -3853,7 +4055,8 @@ public:
 		Calls all of the listeners with event_arguments as arguments.
 		Equivalent to EventListeners::notify_all.
 	*/
-	void operator()(_Arguments&& ... event_arguments) {
+	void operator()(_Arguments&& ... event_arguments) 
+	{
 		notify_all(std::forward<_Arguments>(event_arguments)...);
 	}
 
@@ -3864,7 +4067,8 @@ public:
 	{}
 	EventListeners(EventListeners const&) = delete;
 
-	EventListeners& operator=(EventListeners&& other) noexcept {
+	EventListeners& operator=(EventListeners&& other) noexcept 
+	{
 		_listeners = std::move(other._listeners);
 		return *this;
 	}
@@ -3876,6 +4080,8 @@ private:
 };
 
 //------------------------------
+
+namespace window {
 
 enum class KeyboardKey {
 	None = 0,
@@ -3910,7 +4116,7 @@ enum class KeyboardKey {
 	Regional1, Regional2, Regional3, Regional4, Regional5, Regional6, Regional7, Regional8
 };
 
-enum class WindowBorderArea {
+enum class BorderArea {
 	None = 0, // The area of the window is not part of the window border, meaning any mouse events are handled only by the GUI.
 	TopLeftResize,
 	TopResize,
@@ -3923,14 +4129,16 @@ enum class WindowBorderArea {
 	Dragging // The area of the window is used for dragging the window, normally the title bar.
 };
 
-enum class WindowState {
+enum class State {
 	Minimized,
 	Maximized,
 	Restored
 };
 
-enum class WindowStyleFlags : std::uint32_t {
-	None =            0, // Borderless window.
+//------------------------------
+
+enum class StyleFlags : std::uint32_t {
+	None =            0,
 	CloseButton =     1,
 	Invisible =       1 << 1, // Makes the window invisible at first. You can make it visible afterwards.
 	MinimizeButton =  1 << 2,
@@ -3943,48 +4151,74 @@ enum class WindowStyleFlags : std::uint32_t {
 };
 
 [[nodiscard]]
-constexpr WindowStyleFlags operator|(WindowStyleFlags const left, WindowStyleFlags const right) noexcept 
+constexpr StyleFlags operator|(StyleFlags const left, StyleFlags const right) noexcept 
 {
-	return static_cast<WindowStyleFlags>(static_cast<std::uint32_t>(left) | static_cast<std::uint32_t>(right));
+	return static_cast<StyleFlags>(static_cast<std::uint32_t>(left) | static_cast<std::uint32_t>(right));
 }
-constexpr WindowStyleFlags& operator|=(WindowStyleFlags& left, WindowStyleFlags const right) noexcept 
+constexpr StyleFlags& operator|=(StyleFlags& left, StyleFlags const right) noexcept 
 {
 	return left = left | right;
 }
 [[nodiscard]]
-constexpr WindowStyleFlags operator&(WindowStyleFlags const left, WindowStyleFlags const right) noexcept 
+constexpr StyleFlags operator&(StyleFlags const left, StyleFlags const right) noexcept 
 {
-	return static_cast<WindowStyleFlags>(static_cast<std::uint32_t>(left) & static_cast<std::uint32_t>(right));
+	return static_cast<StyleFlags>(static_cast<std::uint32_t>(left) & static_cast<std::uint32_t>(right));
 }
-constexpr WindowStyleFlags& operator&=(WindowStyleFlags& left, WindowStyleFlags const right) noexcept 
+constexpr StyleFlags& operator&=(StyleFlags& left, StyleFlags const right) noexcept 
 {
 	return left = left & right;
 }
 
+//------------------------------
+
 class Window;
 
-struct WindowParameters {
-	std::string title;
+template<utils::IsNumber T>
+using MinMaxSizes = utils::MinMax<math::Size<T>>;
+
+struct Parameters {
+	std::string_view title;
 	math::Vector2d<Factor> position_factor;
 	math::Size<Dip> size;
-	math::Size<Dip> min_size;
-	math::Size<Dip> max_size;
-	WindowStyleFlags style{WindowStyleFlags::Default};
-	WindowState state{WindowState::Restored};
+	MinMaxSizes<Dip> size_bounds;
+	StyleFlags style{StyleFlags::Default};
+	State state{State::Restored};
 	Window* parent;
 };
 
-class Window {
-	friend class WindowBuilder;
+//------------------------------
+
+class Window final {
+	friend class Builder;
 	
 public:
 	void title(std::string_view);
+
 	[[nodiscard]]
 	std::string title() const;
 
+	bool toggle_fullscreen();
+
 	void position(math::Point<Pixels>);
 
+	void min_max_size(MinMaxSizes<Dip>);
+	
+	[[nodiscard]]
+	MinMaxSizes<Dip> min_max_size() const;
+
+	void max_size(math::Size<Dip>);
+	
+	[[nodiscard]]
+	math::Size<Dip> max_size() const;
+	
+	void min_size(math::Size<Dip>);
+	
+	[[nodiscard]]
+	math::Size<Dip> min_size() const;
+
 	void size(math::Size<Dip>);
+	
+	[[nodiscard]]
 	math::Size<Dip> size() const;
 
 	[[nodiscard]]
@@ -4006,78 +4240,90 @@ private:
 	class Implementation;
 	std::unique_ptr<Implementation> _implementation;
 
-	explicit Window(WindowParameters&& parameters);
+	explicit Window(Parameters&& parameters);
 };
 
-class WindowBuilder {	
+//------------------------------
+
+class Builder final {	
 public:
 	[[nodiscard]]
 	Window open() &&;
 
 	[[nodiscard]]
-	WindowBuilder&& position(math::Vector2d<Factor> const pos) && noexcept {
+	Builder&& position(math::Vector2d<Factor> const pos) && noexcept 
+	{
 		_parameters.position_factor = pos;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	WindowBuilder&& size(math::Size<Dip> const size) && noexcept {
+	Builder&& size(math::Size<Dip> const size) && noexcept 
+	{
 		_parameters.size = size;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	WindowBuilder&& min_size(math::Size<Dip> const min_size) && noexcept {
-		_parameters.min_size = min_size;
+	Builder&& min_size(math::Size<Dip> const min_size) && noexcept 
+	{
+		_parameters.size_bounds.min = min_size;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	WindowBuilder&& max_size(math::Size<Dip> const max_size) && noexcept {
-		_parameters.max_size = max_size;
+	Builder&& max_size(math::Size<Dip> const max_size) && noexcept 
+	{
+		_parameters.size_bounds.max = max_size;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	WindowBuilder&& min_max_size(math::Size<Dip> const min_size, math::Size<Dip> const max_size) && noexcept {
-		_parameters.min_size = min_size;
-		_parameters.max_size = max_size;
+	Builder&& min_max_size(MinMaxSizes<Dip> const min_max) && noexcept 
+	{
+		_parameters.size_bounds = min_max;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	WindowBuilder&& style(WindowStyleFlags const style) && noexcept {
+	Builder&& style(StyleFlags const style) && noexcept 
+	{
 		_parameters.style = style;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	WindowBuilder&& state(WindowState const state) && noexcept {
+	Builder&& state(State const state) && noexcept 
+	{
 		_parameters.state = state;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	WindowBuilder&& with_parent(Window& parent) && noexcept {
+	Builder&& with_parent(Window& parent) && noexcept 
+	{
 		_parameters.parent = &parent;
 		return std::move(*this);
 	}
 
-	WindowBuilder() = delete;
-	~WindowBuilder() = default;
+	Builder() = delete;
+	~Builder() = default;
 
-	WindowBuilder(WindowBuilder&&) noexcept = delete;
-	WindowBuilder& operator=(WindowBuilder&&) = delete;
-	WindowBuilder(WindowBuilder const&) noexcept = delete;
-	WindowBuilder& operator=(WindowBuilder const&) = delete;
+	Builder(Builder&&) noexcept = delete;
+	Builder& operator=(Builder&&) = delete;
+	Builder(Builder const&) noexcept = delete;
+	Builder& operator=(Builder const&) = delete;
 
 private:
-	WindowParameters _parameters;
+	Parameters _parameters;
 
-	WindowBuilder(std::string title) :
-		_parameters{.title = std::move(title)}
+	Builder(std::string_view const title) :
+		_parameters{.title = title}
 	{}
 
-	friend WindowBuilder window(std::string);
+	friend Builder window(std::string_view);
 };
 
 [[nodiscard]]
-inline WindowBuilder window(std::string title) {
-	return {std::move(title)};
+inline Builder window(std::string_view const title) 
+{
+	return {title};
 }
+
+} // namespace window
 
 //------------------------------
 
@@ -4223,17 +4469,11 @@ private:
 			return before;
 		}
 
-		// reference operator*() {
-		// 	return **_base_iterator;
-		// }
 		[[nodiscard]]
 		reference operator*() const {
 			return **_base_iterator;
 		}
 
-		// reference operator[](std::size_t const index) {
-		// 	return *_base_iterator[index];
-		// }
 		[[nodiscard]]
 		reference operator[](std::size_t const index) const {
 			return *_base_iterator[index];
@@ -4253,16 +4493,24 @@ private:
 			return _Iterator{_base_iterator + offset};
 		}
 		[[nodiscard]]
-		friend _Iterator operator+(difference_type const offset, _Iterator const iterator) {
+		friend _Iterator operator+(difference_type const offset, _Iterator const& iterator) {
 			return _Iterator{offset + iterator._base_iterator};
 		}
 		[[nodiscard]]
-		_Iterator operator-(_Iterator const offset) const {
+		_Iterator operator-(difference_type const offset) const {
 			return _Iterator{_base_iterator - offset};
+		}
+		[[nodiscard]]
+		friend _Iterator operator-(difference_type const offset, _Iterator const& iterator) {
+			return _Iterator{offset - iterator._base_iterator};
+		}
+		[[nodiscard]]
+		difference_type operator-(_Iterator const& offset) const {
+			return _base_iterator - offset._base_iterator;
 		}
 
 		[[nodiscard]]
-		bool operator<=>(_Iterator const&) const noexcept = default;
+		auto operator<=>(_Iterator const&) const noexcept = default;
 	
 		_Iterator() = default;
 		explicit _Iterator(BaseIterator const base_iterator) :
@@ -4279,19 +4527,19 @@ public:
 
 	[[nodiscard]]
 	Iterator begin() {
-		return Iterator{std::begin(_children)};
+		return Iterator{std::ranges::begin(_children)};
 	}
 	[[nodiscard]]
 	ConstIterator begin() const {
-		return ConstIterator{std::begin(_children)};
+		return ConstIterator{std::ranges::begin(_children)};
 	}
 	[[nodiscard]]
 	Iterator end() {
-		return Iterator{std::end(_children)};
+		return Iterator{std::ranges::end(_children)};
 	}
 	[[nodiscard]]
 	ConstIterator end() const {
-		return ConstIterator{std::end(_children)};
+		return ConstIterator{std::ranges::end(_children)};
 	}
 
 	[[nodiscard]]
@@ -4317,12 +4565,24 @@ public:
 	}
 
 	[[nodiscard]]
-	Node& root() const {
-		return *_root;
+	Node* root() {
+		return const_cast<Node*>(static_cast<Node const*>(this)->root());
+	}
+	[[nodiscard]]
+	Node const* root() const {
+		auto root = this;
+		while (auto const parent = root->parent()) {
+			root = parent;
+		}
+		return root;
 	}
 
 	[[nodiscard]]
-	Node* parent() const {
+	Node* parent() {
+		return _parent;
+	}
+	[[nodiscard]]
+	Node const* parent() const {
 		return _parent;
 	}
 	/*
@@ -4337,7 +4597,6 @@ public:
 			_remove_from_parent();
 			
 			_parent = &parent;
-			_root = parent._root;
 
 			_add_to_parent();
 		}
@@ -4346,10 +4605,9 @@ public:
 	/*
 		Detaches the node from its parent, making it a root node.
 	*/
-	Node& detach() noexcept {
+	Node& detach() {
 		_remove_from_parent();
 		_parent = nullptr;
-		_root = this;
 		return *this;
 	}
 
@@ -4357,9 +4615,34 @@ public:
 	Id id() const noexcept {
 		return _id;
 	}
-	Node& id(Id const new_id) noexcept {
+	Node& id(Id const new_id) {
 		_id = new_id;
 		return *this;
+	}
+
+	[[nodiscard]]
+	Node* find_by_id(Id const id) {
+		return const_cast<Node*>(static_cast<Node const*>(this)->find_by_id(id));
+	}
+	[[nodiscard]]
+	Node const* find_by_id(Id const id) const
+	{
+		if (auto const node = std::ranges::find(_id_nodes, id, &Node::_id);
+			node != _id_nodes.end())
+		{
+			return *node;
+		}
+		return nullptr;
+	}
+	[[nodiscard]]
+	std::ranges::view auto find_all_by_id(Id const id) {
+		return _id_nodes | std::views::filter([id](Node* node) { return node->id() == id; })
+			| std::views::transform([](Node* node) -> Node& { return *node; });
+	}
+	[[nodiscard]]
+	std::ranges::view auto find_all_by_id(Id const id) const {
+		return _id_nodes | std::views::filter([id](Node* node) { return node->id() == id; })
+			| std::views::transform([](Node* node) -> Node const& { return *node; });
 	}
 
 	/*
@@ -4381,27 +4664,21 @@ public:
 		return _get_component<_Component>();
 	}
 
-	Node() : _root{this}
-	{}
 	template<typename _Component> 
 	Node(Id const id, _Component& component) :
-		_root{this},
 		_id{id},
 		_component{&component}
 	{}
 	template<typename _Component> 
 	Node(Id const id) :
-		_root{this},
 		_id{id}
 	{}
 	template<typename _Component> 
 	Node(_Component& component) :
-		_root{this},
 		_component{&component}
 	{}
 	template<typename _Component> 
 	Node(Node& parent, Id const id, _Component& component) :
-		_root{parent._root},
 		_parent{&parent},
 		_id{id},
 		_component{&component}
@@ -4410,7 +4687,6 @@ public:
 	}
 	template<typename _Component> 
 	Node(Node& parent, _Component& component) :
-		_root{parent._root},
 		_parent{&parent},
 		_component{&component}
 	{
@@ -4418,7 +4694,6 @@ public:
 	}
 	template<typename _Component> 
 	Node(Node& parent, Id const id) :
-		_root{parent._root},
 		_parent{&parent},
 		_id{id}
 	{
@@ -4451,78 +4726,72 @@ private:
 		}
 	}
 
-	void _remove_from_parent() {
+	void _remove_from_parent() 
+	{
 		if (_parent) {
 			utils::unordered_erase(_parent->_children, this);
+
+			for (Node* const parent : utils::parents(*this)) {
+				utils::unordered_erase(parent->_id_nodes, this);
+			}
 		}
 	}
 	void _add_to_parent() {
 		if (_parent) {
 			_parent->_children.push_back(this);
+
+			for (Node* const parent : utils::parents(*this)) {
+				parent->_id_nodes.push_back(this);
+			}
 		}
 	}
-	void _remove_from_tree() {
+	void _remove_from_tree() 
+	{
 		_remove_from_parent();
 		if (!_children.empty()) {
 			std::ranges::for_each(_children, &Node::detach);
+			_children.clear();
+			_id_nodes.clear();
 		}
 	}
-	void _move_construct(Node&& other) {
-		_root = other._root;
-		if (_root == &other) {
-			_root = this;
-		}
-		
-		if (_parent = other._parent) {
-			if (auto const previous_child_pos = std::ranges::find(_parent->_children, &other);
-				previous_child_pos != _parent->_children.end()) 
-			{
-				*previous_child_pos = this;
+	void _move_construct(Node&& other) 
+	{
+		_parent = other._parent;
+		_id = other._id;
+
+		if (_parent) 
+		{ // If we have a parent, update all pointers that pointed to the old node.
+			*std::ranges::find(_parent->_children, &other) = this;
+
+			if (_id) {
+				for (Node* const parent : utils::parents(*this)) {
+					*std::ranges::find(parent->_id_nodes, &other) = this;
+				}
 			}
 		}
 
 		_children = std::move(other._children);
-		for (auto* const child : _children) {
+		for (Node* const child : _children) {
 			child->_parent = this;
 		}
-
-		_id = other._id;
+		
+		_id_nodes = std::move(other._id_nodes);
 		_component = std::move(other._component);
 	}
 
-	Node* _root{};
 	Node* _parent{};
 	ContainerType _children;
+	std::vector<Node*> _id_nodes;
 
 	Id _id{};
 	std::any _component{};
 };
 
-template<typename _Node> requires std::same_as<std::remove_cvref_t<_Node>, Node>
-[[nodiscard]]
-_Node* find_node_by_id(_Node& node, Id const id) {
-	constexpr auto id_from_node = [](_Node& node){ return node.id(); };
-	auto const flattened = avo::utils::flatten(node);
-	if (auto const pos = std::ranges::find(flattened, id, id_from_node);
-		pos == std::ranges::end(flattened)) 
-	{
-		return nullptr;
-	}
-	else {
-		return &*pos;
-	}
-}
-
-template<typename _Node> requires std::same_as<std::remove_cvref_t<_Node>, Node>
-[[nodiscard]]
-std::ranges::view auto find_nodes_by_id(_Node& node, Id const id) {
-	return node | avo::utils::flatten | std::views::filter([=](_Node& node) { return node.id() == id; });
-}
-
 template<typename _Component>
 [[nodiscard]]
-_Component const* find_component_by_id(Node const& parent, Id const id) {
-	if (auto* const node = find_node_by_id(parent, id)) {
+_Component const* find_component_by_id(Node const& parent, Id const id) 
+{
+	if (auto const node = parent.find_by_id(id)) {
 		return node->template component<_Component>();
 	}
 	else {
@@ -4531,19 +4800,16 @@ _Component const* find_component_by_id(Node const& parent, Id const id) {
 }
 template<typename _Component>
 [[nodiscard]]
-_Component* find_component_by_id(Node& parent, Id const id) {
-	if (auto* const node = find_node_by_id(parent, id)) {
-		return node->template component<_Component>();
-	}
-	else {
-		return nullptr;
-	}
+_Component* find_component_by_id(Node& parent, Id const id) 
+{
+	return const_cast<_Component*>(find_component_by_id<_Component>(static_cast<Node const&>(parent), id));
 }
 
 template<typename _Component, typename _Node> requires std::same_as<std::remove_cvref_t<_Node>, Node>
 [[nodiscard]]
-std::ranges::view auto find_components_by_id(_Node& node, Id const id) {
-	return find_nodes_by_id(node, id) | 
+std::ranges::view auto find_components_by_id(_Node& node, Id const id) 
+{
+	return node.find_all_by_id(id) | 
 		std::views::transform([](auto& found) { 
 			return found.template component<_Component>(); 
 		}) | 

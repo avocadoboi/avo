@@ -23,25 +23,6 @@ void test_flatten_with_node_type(_Node& tree, std::vector<int> const& expected_i
     CHECK(std::ranges::all_of(tree | avo::utils::flatten, [](int id){ return id == 2; }, &_Node::id));
 }
 
-struct TestNode {
-    std::vector<TestNode> children;
-    int id;
-
-    auto begin() const {
-        return children.begin();
-    }
-    auto begin() {
-        return children.begin();
-    }
-    auto end() const {
-        return children.end();
-    }
-    auto end() {
-        return children.end();
-    }
-};
-static_assert(avo::utils::IsRecursiveRange<TestNode, false>);
-
 std::pair<TestNode, std::vector<int>> construct_test_without_parent_nodes() {
     auto tree = TestNode{
         .children = std::vector{
@@ -80,27 +61,6 @@ TEST_CASE("avo::utils::flatten with nodes without parents") {
     auto [tree, expected_ids] = construct_test_without_parent_nodes();
     test_flatten_with_node_type(tree, expected_ids);
 }
-
-struct TestNodeWithParent {
-    std::vector<TestNodeWithParent> children;
-    TestNodeWithParent* parent;
-    int id;
-
-    auto begin() const {
-        return children.begin();
-    }
-    auto begin() {
-        return children.begin();
-    }
-    auto end() const {
-        return children.end();
-    }
-    auto end() {
-        return children.end();
-    }
-};
-
-static_assert(avo::utils::IsRecursiveRange<TestNodeWithParent, true>);
 
 std::pair<std::unique_ptr<TestNodeWithParent>, std::vector<int>> construct_test_with_parent_nodes() {
     auto root = std::unique_ptr<TestNodeWithParent>{new TestNodeWithParent{.id=1}};
