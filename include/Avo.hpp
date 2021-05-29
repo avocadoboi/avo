@@ -608,7 +608,9 @@ public:
 	};
 	
 	[[nodiscard]]
-	constexpr T base() const& {
+	constexpr T base() const& 
+		requires std::copy_constructible<T>
+	{
 		return _base;
 	}
 	[[nodiscard]]
@@ -623,14 +625,7 @@ public:
 
 	[[nodiscard]]
 	constexpr Iterator end() const {
-		return {std::ranges::end(_base), std::size_t{}};
-	}
-
-	[[nodiscard]]
-	constexpr Iterator end() const 
-		requires std::ranges::sized_range<T>
-	{
-		return {std::ranges::end(_base), size()};
+		return {std::ranges::end(_base), std::ranges::distance(_base)};
 	}
 
 	[[nodiscard]]
