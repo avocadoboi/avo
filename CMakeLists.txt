@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18.0)
-project(AvoGUI VERSION 0.1.0 LANGUAGES CXX)
+project(Avo VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib/)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin/)
@@ -7,24 +7,24 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin/)
 #--------------------------------------------
 # Library target.
 
-add_library(avogui STATIC include/Avo.hpp source/Avo.cpp)
-add_library(${PROJECT_NAME}::avogui ALIAS avogui)
+add_library(avo STATIC include/Avo.hpp source/Avo.cpp)
+add_library(${PROJECT_NAME}::avo ALIAS avo)
 
 #--------------------------------------------
 # Set up library target options.
 
-target_compile_features(avogui PUBLIC cxx_std_20)
-set_target_properties(avogui PROPERTIES CXX_EXTENSIONS off)
+target_compile_features(avo PUBLIC cxx_std_20)
+set_target_properties(avo PROPERTIES CXX_EXTENSIONS off)
 
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
-	target_compile_options(avogui PUBLIC
+	target_compile_options(avo PUBLIC
 		/experimental:external
 		/external:anglebrackets
 		/external:W0 
 		/WX /Wall
 	)
 else ()
-	target_compile_options(avogui PUBLIC
+	target_compile_options(avo PUBLIC
 		-Werror -Wall -Wpedantic -Wextra 
 		-Wimplicit-fallthrough=5 
 		-Wduplicated-branches -Wduplicated-cond 
@@ -39,7 +39,7 @@ endif ()
 
 #--------------------------------------------
 
-target_include_directories(avogui PUBLIC
+target_include_directories(avo PUBLIC
 	# When using the library from the install tree, relative paths can be used.
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -49,20 +49,20 @@ target_include_directories(avogui PUBLIC
 # Link to platform-dependent external libraries.
 
 if (WIN32)
-#     target_link_libraries(avogui PRIVATE Shlwapi Dwmapi d2d1 d3d11 dxguid dwrite windowscodecs)
+#     target_link_libraries(avo PRIVATE Shlwapi Dwmapi d2d1 d3d11 dxguid dwrite windowscodecs)
 else ()
 	find_package(X11 REQUIRED)
-	target_link_libraries(avogui PRIVATE X11)
+	target_link_libraries(avo PRIVATE X11)
 	
 	find_package(OpenGL REQUIRED)
-	target_link_libraries(avogui PRIVATE OpenGL::OpenGL OpenGL::GLX)
+	target_link_libraries(avo PRIVATE OpenGL::OpenGL OpenGL::GLX)
 	
 	find_package(Threads REQUIRED)
-	target_link_libraries(avogui PRIVATE Threads::Threads)
+	target_link_libraries(avo PRIVATE Threads::Threads)
 
 	find_package(Iconv REQUIRED)
 	if (NOT Iconv_IS_BUILT_IN)
-		target_link_libraries(avogui PRIVATE Iconv::Iconv)
+		target_link_libraries(avo PRIVATE Iconv::Iconv)
 	endif ()
 endif ()
 
@@ -78,7 +78,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fmt)
 
-target_link_libraries(avogui PUBLIC fmt::fmt)
+target_link_libraries(avo PUBLIC fmt::fmt)
 
 #--------------------------------------------
 # Set up testing.
@@ -115,7 +115,7 @@ set(TARGET_EXPORT_NAME ${PROJECT_NAME}Targets)
 # Specifies the target(s) that will be installed, and where to install 
 # the compiled library (relative to package installation path ${CMAKE_INSTALL_PREFIX}).
 install(
-    TARGETS avogui fmt
+    TARGETS avo fmt
     EXPORT ${TARGET_EXPORT_NAME}
     ARCHIVE DESTINATION lib
 )

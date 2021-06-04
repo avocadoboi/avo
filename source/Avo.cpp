@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "Avo.hpp"
+#include "avo.hpp"
 
 #ifdef __CYGWIN__
 #	define _WIN32
@@ -192,13 +192,264 @@ std::string utf16_to_utf8(std::u16string_view const input) {
 namespace window {
 
 #ifdef _WIN32
+namespace win {
+
+[[nodiscard]]
+constexpr DWORD style_flags_to_native(StyleFlags const flags, bool const has_parent) noexcept {
+	auto native_flags = DWORD{};
+
+	using enum StyleFlags;
+
+	if (has_parent || utils::has_flag(flags, CustomBorder)) {
+		native_flags |= WS_POPUP;
+	}
+	if (!utils::has_flag(flags, Invisible)) {
+		native_flags |= WS_VISIBLE;
+	}
+	if (utils::has_flag(flags, CloseButton | CustomBorder)) 
+	{ // CloseButton or CustomBorder is true; not necessarily both
+		native_flags |= WS_CAPTION | WS_SYSMENU;
+	}
+	if (utils::has_flag(flags, MinimizeButton)) {
+		native_flags |= WS_MINIMIZEBOX;
+	}
+	if (utils::has_flag(flags, MaximizeButton)) {
+		native_flags |= WS_MAXIMIZEBOX;
+	}
+	if (utils::has_flag(flags, Resizable)) {
+		native_flags |= WS_THICKFRAME;
+	}
+
+	return native_flags;
+}
+
+constexpr auto native_mouse_button_map = [] {
+	using enum MouseButton;
+	return utils::StaticMap<int, MouseButton, 5>{
+		{VK_LBUTTON, Left},
+		{VK_MBUTTON, Middle},
+		{VK_RBUTTON, Right},
+		{VK_XBUTTON1, X0},
+		{VK_XBUTTON2, X1},
+	};
+}();
+
+constexpr auto native_key_map = [] {
+	using enum KeyboardKey;
+	return utils::StaticMap<int, KeyboardKey, 110>{
+		{VK_APPS, Menu},
+		{VK_BACK, Backspace},
+		{VK_CLEAR, Clear},
+		{VK_TAB, Tab},
+		{VK_RETURN, Return},
+		{VK_SHIFT, Shift},
+		{VK_CONTROL, Control},
+		{VK_MENU, Alt},
+		{VK_PAUSE, Pause},
+		{VK_CAPITAL, CapsLock},
+		{VK_ESCAPE, Escape},
+		{VK_SPACE, Spacebar},
+		{VK_PRIOR, PageUp},
+		{VK_NEXT, PageDown},
+		{VK_END, End},
+		{VK_HOME, Home},
+		{VK_LEFT, Left},
+		{VK_RIGHT, Right},
+		{VK_UP, Up},
+		{VK_DOWN, Down},
+		{VK_SNAPSHOT, PrintScreen},
+		{VK_INSERT, Insert},
+		{VK_DELETE, Delete},
+		{VK_HELP, Help},
+		{VK_NUMPAD0, Numpad0},
+		{VK_NUMPAD1, Numpad1},
+		{VK_NUMPAD2, Numpad2},
+		{VK_NUMPAD3, Numpad3},
+		{VK_NUMPAD4, Numpad4},
+		{VK_NUMPAD5, Numpad5},
+		{VK_NUMPAD6, Numpad6},
+		{VK_NUMPAD7, Numpad7},
+		{VK_NUMPAD8, Numpad8},
+		{VK_NUMPAD9, Numpad9},
+		{VK_ADD, Add},
+		{VK_SUBTRACT, Subtract},
+		{VK_MULTIPLY, Multiply},
+		{VK_DIVIDE, Divide},
+		{VK_F1, F1},
+		{VK_F2, F2},
+		{VK_F3, F3},
+		{VK_F4, F4},
+		{VK_F5, F5},
+		{VK_F6, F6},
+		{VK_F7, F7},
+		{VK_F8, F8},
+		{VK_F9, F9},
+		{VK_F10, F10},
+		{VK_F11, F11},
+		{VK_F12, F12},
+		{VK_F13, F13},
+		{VK_F14, F14},
+		{VK_F15, F15},
+		{VK_F16, F16},
+		{VK_F17, F17},
+		{VK_F18, F18},
+		{VK_F19, F19},
+		{VK_F20, F20},
+		{VK_F21, F21},
+		{VK_F22, F22},
+		{VK_F23, F23},
+		{VK_F24, F24},
+		{VK_NUMLOCK, NumLock},
+		{0x30, Number0},
+		{0x31, Number1},
+		{0x32, Number2},
+		{0x33, Number3},
+		{0x34, Number4},
+		{0x35, Number5},
+		{0x36, Number6},
+		{0x37, Number7},
+		{0x38, Number8},
+		{0x39, Number9},
+		{0x41, A},
+		{0x42, B},
+		{0x43, C},
+		{0x44, D},
+		{0x45, E},
+		{0x46, F},
+		{0x47, G},
+		{0x48, H},
+		{0x49, I},
+		{0x4A, J},
+		{0x4B, K},
+		{0x4C, L},
+		{0x4D, M},
+		{0x4E, N},
+		{0x4F, O},
+		{0x50, P},
+		{0x51, Q},
+		{0x52, R},
+		{0x53, S},
+		{0x54, T},
+		{0x55, U},
+		{0x56, V},
+		{0x57, W},
+		{0x58, X},
+		{0x59, Y},
+		{0x5A, Z},
+		{VK_OEM_COMMA, Comma},
+		{VK_OEM_PERIOD, Period},
+		{VK_OEM_PLUS, Plus},
+		{VK_OEM_MINUS, Minus},
+		{VK_OEM_1, Regional1},
+		{VK_OEM_2, Regional2},
+		{VK_OEM_3, Regional3},
+		{VK_OEM_4, Regional4},
+		{VK_OEM_5, Regional5},
+		{VK_OEM_6, Regional6},
+		{VK_OEM_7, Regional7},
+	};
+}();
+
+//------------------------------
+
+[[nodiscard]]
+bool get_is_vkey_down(int const vkey) {
+	return GetAsyncKeyState(*native_key) & (1 << 16);
+}
+
+//------------------------------
+
+class WindowThread {
+public:
+	
+	WindowThread(Parameters const&) {
+
+	}
+
+private:
+
+
+	std::jthread _thread;
+};
+
+} // namespace win
+
+//------------------------------
+
+bool get_is_key_down(KeyboardKey const key) 
+{
+	if (auto const native_key = win::native_key_map.find(key)) 
+	{
+		return win::get_is_vkey_down(*native_key);
+	}
+	return false;
+}
+bool get_is_mouse_button_down(MouseButton const button)
+{
+	if (auto const native_key = win::native_mouse_button_map.find(button))
+	{
+		return win::get_is_vkey_down(*native_key);
+	}
+	return false;
+}
+
+//------------------------------
+
 class Window::Implementation {
 public:
-	Implementation(WindowParameters&& parameters) :
-		_parameters{parameters}
-	{}
+	void title(std::string_view const) {
+	}
+	std::string title() const {
+		return {};
+	}
+
+	bool toggle_fullscreen() {
+		return {};
+	}
+
+	void position(math::Point<Pixels> const) {
+	}
+	
+	void min_max_size(MinMaxSizes<Dip> const) {
+	}
+	MinMaxSizes<Dip> min_max_size() const {
+		return {};
+	}
+
+	void min_size(math::Size<Dip> const) {
+	}
+	math::Size<Dip> min_size() const {
+		return {};
+	}
+
+	void max_size(math::Size<Dip> const) {
+	}
+	math::Size<Dip> max_size() const {
+		return {};
+	}
+
+	void size(math::Size<Dip> const) {
+	}
+	math::Size<Dip> size() const {
+		return {};
+	}
+
+	bool is_open() const {
+		return {};
+	}
+
+	std::any native_handle() const {
+		return 0;
+	}
+
+	Implementation(Parameters const& parameters) :
+		_window_thread{parameters}
+	{
+
+	}
+
 private:
-	WindowParameters _parameters;
+	win::WindowThread _window_thread;
 };
 #endif
 
@@ -262,63 +513,10 @@ using XFreeHandle = std::unique_ptr<T, decltype([](T* info){ ::XFree(info); })>;
 //------------------------------
 
 [[nodiscard]]
-Factor calculate_dip_to_pixel_factor(::Display* const display) noexcept 
+float get_dpi(::Display* const display) noexcept 
 {
-	constexpr auto normal_dpi = 96.f;
-	return static_cast<Factor>(::XDisplayWidth(display, 0))/static_cast<Factor>(::XDisplayWidthMM(display, 0))*25.4f/normal_dpi;
+	return static_cast<float>(::XDisplayWidth(display, 0))/static_cast<float>(::XDisplayWidthMM(display, 0))*25.4f;
 }
-
-class UnitConverter {
-public:
-	[[nodiscard]]
-	Pixels dip_to_pixels(Dip const dip) const noexcept {
-		return static_cast<Pixels>(dip * _dip_to_pixel_factor);
-	}
-	template<template<typename> typename _Vector> requires math::Is2dVectorTemplate<_Vector>
-	[[nodiscard]]
-	_Vector<Pixels> dip_to_pixels(_Vector<Dip> const dip) const noexcept {
-		return _Vector{
-			dip_to_pixels(dip.x),
-			dip_to_pixels(dip.y)
-		};
-	}
-	[[nodiscard]]
-	utils::IsMinMax auto dip_to_pixels(utils::IsMinMax auto const dip) const noexcept {
-		return utils::MinMax{
-			dip_to_pixels(dip.min),
-			dip_to_pixels(dip.max)
-		};
-	}
-	
-	[[nodiscard]]
-	Dip pixels_to_dip(Pixels const pixels) const noexcept {
-		return static_cast<Dip>(pixels) / _dip_to_pixel_factor;
-	}
-	template<template<typename> typename _Vector> requires math::Is2dVectorTemplate<_Vector>
-	[[nodiscard]]
-	_Vector<Dip> pixels_to_dip(_Vector<Pixels> const pixels) const noexcept {
-		return _Vector{
-			pixels_to_dip(pixels.x),
-			pixels_to_dip(pixels.y)
-		};
-	}
-	[[nodiscard]]
-	utils::IsMinMax auto pixels_to_dip(utils::IsMinMax auto const pixels) const noexcept {
-		return utils::MinMax{
-			pixels_to_dip(pixels.min),
-			pixels_to_dip(pixels.max)
-		};
-	}
-
-	//------------------------------
-
-	UnitConverter(::Display* const server) noexcept :
-		_dip_to_pixel_factor{x11::calculate_dip_to_pixel_factor(server)}
-	{}
-
-private:
-	Factor _dip_to_pixel_factor;
-};
 
 //------------------------------
 
@@ -360,7 +558,7 @@ ColormapHandle create_colormap(::Display* const server, ::XVisualInfo const* con
 
 [[nodiscard]]
 x11::WindowHandle create_window_handle(::Display* const server, ::XVisualInfo const* const visual_info, 
-	XSetWindowAttributes& attributes, window::Window* const parent, math::Size<Pixels> const size)
+	XSetWindowAttributes& attributes, Window* const parent, math::Size<Pixels> const size)
 {
 	return x11::WindowHandle{
 		server,
@@ -550,7 +748,7 @@ void make_window_borderless(::Display* const server, ::Window const window) noex
 //------------------------------
 
 void initialize_styles(::Display* const server, ::Window const window, 
-	window::Parameters const& parameters, UnitConverter const& converter) noexcept 
+	Parameters const& parameters, ScreenUnitConverter const& converter) noexcept 
 {
 	set_title(server, window, parameters.title);
 
@@ -608,10 +806,6 @@ void set_window_state(::Display* const server, ::Window const window,
 
 	XSendEvent(server, window, false, SubstructureNotifyMask, &event);
 }
-
-} // namespace x11
-
-//------------------------------
 
 // template<typename T>
 // concept IsXEventHandler = requires(T x, ::XEvent const& event) {
@@ -706,6 +900,8 @@ private:
 	x11::InputContextHandle _input_context;
 };
 
+} // namespace x11
+
 class Window::Implementation {
 public:
 	void title(std::string_view const title) noexcept {
@@ -773,10 +969,10 @@ public:
 		return _handle.get();
 	}
 
-	Implementation(window::Parameters const& parameters) :
+	Implementation(Parameters const& parameters) :
 		_server{::XOpenDisplay(nullptr)},
 		_size{parameters.size},
-		_unit_converter{_server.get()}
+		_unit_converter{x11::get_dpi(_server.get())}
 	{
 		_create_window(parameters);
 
@@ -795,7 +991,7 @@ public:
 	}
 
 private:
-	void _create_window(window::Parameters const& parameters) {
+	void _create_window(Parameters const& parameters) {
 		auto const visual_info = x11::select_opengl_visual(_server.get());
 
 		_colormap = x11::create_colormap(_server.get(), visual_info.get());
@@ -803,7 +999,7 @@ private:
 		auto const pixel_size = _unit_converter.dip_to_pixels(parameters.size);
 
 		auto window_attributes = ::XSetWindowAttributes{
-			.event_mask = EventManager<Implementation>::event_mask,
+			.event_mask = x11::EventManager<Implementation>::event_mask,
 			.colormap = _colormap.get(),
 		};
 		_handle = x11::create_window_handle(_server.get(), visual_info.get(), 
@@ -832,11 +1028,11 @@ private:
 	bool _is_fullscreen{};
 	math::Size<Dip> _size;
 
-	x11::UnitConverter _unit_converter;
+	ScreenUnitConverter _unit_converter;
 
-	std::optional<EventManager<Window::Implementation>> _event_manager;
+	std::optional<x11::EventManager<Window::Implementation>> _event_manager;
 };
-#endif
+#endif // __linux__
 
 void Window::title(std::string_view const title) {
 	_implementation->title(title);
@@ -889,7 +1085,7 @@ std::any Window::native_handle() const {
 	return _implementation->native_handle();
 }
 
-Window::Window(Parameters&& parameters) :
+Window::Window(Parameters const& parameters) :
 	_implementation{std::make_unique<Implementation>(parameters)}
 {}
 
@@ -899,7 +1095,7 @@ Window::Window(Window&&) noexcept = default;
 Window& Window::operator=(Window&&) noexcept = default;
 
 Window Builder::open() && {
-	return Window{std::move(_parameters)};
+	return Window{_parameters};
 }
 
 } // namespace window

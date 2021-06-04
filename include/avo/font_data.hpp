@@ -1,6 +1,31 @@
-#include <array>
+/*
+MIT License
 
-// Font data
+Copyright (c) 2021 Björn Sundin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+#ifndef AVO_FONT_DATA_HPP_BJORN_SUNDIN_JUNE_2021
+#define AVO_FONT_DATA_HPP_BJORN_SUNDIN_JUNE_2021
+
+#include <array>
 
 namespace avo::font_data {
 
@@ -1914,7 +1939,6 @@ constexpr auto roboto_regular = std::array{
 	0,6,1,-127,0,1,0,1,0,19,0,6,0,0,0,1,0,8,0,3,0,1,0,18,0,1,0,108,0,0,0,1,0,0,0,24,0,2,0,3,1,-108,1,-108,0,0,1,-59,1,-57,0,1,2,31,2,37,0,4,0,1,0,0,0,1,0,8,0,2,0,60,0,10,1,-57,1,-58,1,-59,2,31,2,32,2,33,2,34,2,35,2,36,
 	2,37,0,1,0,0,0,1,0,8,0,2,0,26,0,10,2,62,0,122,0,115,0,116,2,63,2,64,2,65,2,66,2,67,2,68,0,2,0,1,0,20,0,29,0,0,0
 };
-// unsigned int const FONT_DATA_SIZE_ROBOTO_REGULAR = 171676;
 
 constexpr auto roboto_medium = std::array{
 	0,1,0,0,0,18,1,0,0,4,0,32,71,68,69,70,-76,66,-80,-126,0,2,34,-4,0,0,2,98,71,80,79,83,-7,110,75,-122,0,2,37,96,0,0,101,46,71,83,85,66,-21,-126,-28,89,0,2,-118,-112,0,0,21,-112,79,83,47,50,-105,-26,-79,-70,0,0,1,-88,0,0,0,96,99,109,97,112,1,119,88,30,0,0,27,88,0,0,
@@ -3830,7 +3854,6 @@ constexpr auto roboto_medium = std::array{
 	2,83,2,83,0,8,2,85,2,94,0,9,2,101,2,101,0,19,0,1,0,0,0,1,0,8,0,1,0,6,1,-127,0,1,0,1,0,19,0,6,0,0,0,1,0,8,0,3,0,1,0,18,0,1,0,108,0,0,0,1,0,0,0,24,0,2,0,3,1,-108,1,-108,0,0,1,-59,1,-57,0,1,2,31,2,37,0,4,0,1,0,0,
 	0,1,0,8,0,2,0,60,0,10,1,-57,1,-58,1,-59,2,31,2,32,2,33,2,34,2,35,2,36,2,37,0,1,0,0,0,1,0,8,0,2,0,26,0,10,2,62,0,122,0,115,0,116,2,63,2,64,2,65,2,66,2,67,2,68,0,2,0,1,0,20,0,29,0,0,0
 };
-// unsigned int const FONT_DATA_SIZE_ROBOTO_MEDIUM = 172064;
 
 constexpr auto roboo_light = std::array{
 	0,1,0,0,0,18,1,0,0,4,0,32,71,68,69,70,-76,66,-80,-126,0,2,35,-12,0,0,2,98,71,80,79,83,-1,26,18,-41,0,2,38,88,0,0,93,-52,71,83,85,66,-21,-126,-28,89,0,2,-124,36,0,0,21,-112,79,83,47,50,-105,30,-79,-111,0,0,1,-88,0,0,0,96,99,109,97,112,1,119,88,30,0,0,27,88,0,0,
@@ -5728,7 +5751,6 @@ constexpr auto roboo_light = std::array{
 	0,8,0,1,0,6,1,-127,0,1,0,1,0,19,0,6,0,0,0,1,0,8,0,3,0,1,0,18,0,1,0,108,0,0,0,1,0,0,0,24,0,2,0,3,1,-108,1,-108,0,0,1,-59,1,-57,0,1,2,31,2,37,0,4,0,1,0,0,0,1,0,8,0,2,0,60,0,10,1,-57,1,-58,1,-59,2,31,2,32,2,33,2,34,
 	2,35,2,36,2,37,0,1,0,0,0,1,0,8,0,2,0,26,0,10,2,62,0,122,0,115,0,116,2,63,2,64,2,65,2,66,2,67,2,68,0,2,0,1,0,20,0,29,0,0,0
 };
-// unsigned int const FONT_DATA_SIZE_ROBOTO_LIGHT = 170420;
 
 constexpr auto roboto_bold = std::array{
 	0,1,0,0,0,18,1,0,0,4,0,32,71,68,69,70,-76,66,-80,-126,0,2,29,-28,0,0,2,98,71,80,79,83,-7,110,75,-122,0,2,32,72,0,0,101,46,71,83,85,66,-21,-126,-28,89,0,2,-123,120,0,0,21,-112,79,83,47,50,-104,-82,-79,-87,0,0,1,-88,0,0,0,96,99,109,97,112,1,119,88,30,0,0,27,88,0,0,
@@ -7630,7 +7652,6 @@ constexpr auto roboto_bold = std::array{
 	0,8,0,3,0,1,0,18,0,1,0,108,0,0,0,1,0,0,0,24,0,2,0,3,1,-108,1,-108,0,0,1,-59,1,-57,0,1,2,31,2,37,0,4,0,1,0,0,0,1,0,8,0,2,0,60,0,10,1,-57,1,-58,1,-59,2,31,2,32,2,33,2,34,2,35,2,36,2,37,0,1,0,0,0,1,0,8,0,2,0,26,0,10,
 	2,62,0,122,0,115,0,116,2,63,2,64,2,65,2,66,2,67,2,68,0,2,0,1,0,20,0,29,0,0,0
 };
-// unsigned int const FONT_DATA_SIZE_ROBOTO_BOLD = 170760u;
 
 constexpr auto material_icons = std::array{
 	0,1,0,0,0,15,0,-128,0,3,0,112,71,68,69,70,4,0,0,83,0,1,-117,8,0,0,0,36,71,80,79,83,-32,24,-17,-100,0,1,-117,44,0,0,0,54,71,83,85,66,-28,-46,-87,81,0,1,-117,100,0,0,105,80,79,83,47,50,10,115,34,99,0,0,1,120,0,0,0,96,99,109,97,112,-15,-16,49,-32,0,0,9,120,0,0,
@@ -9059,6 +9080,7 @@ constexpr auto material_icons = std::array{
 	0,21,0,18,0,17,0,13,0,19,0,28,0,31,0,3,0,8,0,34,0,52,2,95,0,12,0,28,0,28,0,26,0,13,0,28,0,34,0,33,0,13,0,26,0,14,0,29,3,-111,0,8,0,28,0,28,0,26,0,13,0,28,0,34,0,33,3,-112,0,7,0,28,0,28,0,26,0,13,0,22,0,27,0,2,0,4,0,6,0,6,
 	0,0,0,14,0,22,0,1,0,24,0,36,0,10,0,38,0,39,0,23,0
 };
-// unsigned int const FONT_DATA_SIZE_MATERIAL_ICONS = 128180u;
 
 } // namespace avo::font_data
+
+#endif
