@@ -25,6 +25,11 @@ SOFTWARE.
 #ifndef AVO_UTILS_STATIC_VECTOR_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_STATIC_VECTOR_HPP_BJORN_SUNDIN_JUNE_2021
 
+#include <algorithm>
+#include <array>
+#include <concepts>
+#include <stdexcept>
+
 namespace avo::utils {
 
 template<class T, std::size_t _capacity>

@@ -25,7 +25,13 @@ SOFTWARE.
 #ifndef AVO_UNICODE_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UNICODE_HPP_BJORN_SUNDIN_JUNE_2021
 
-#include "../utils/concepts.hpp"
+#include "utils/concepts.hpp"
+
+#include <algorithm>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
 
 /*
 	Unicode support library.
@@ -176,46 +182,6 @@ template<IsCodePoint T>
 constexpr std::size_t character_count(std::basic_string_view<T> const string) {
 	return character_index(string, string.size()) + 1;
 }
-
-#ifdef BUILD_TESTING
-static_assert(
-	code_point_count('a') == 1 &&
-	code_point_count("å"[0]) == 2 &&
-	code_point_count("√"[0]) == 3 &&
-	code_point_count("🪢"[0]) == 4 &&
-	code_point_count(static_cast<char>(0b10101010)) == 0 &&
-	code_point_count(static_cast<char>(0b11111111)) == -1,
-	"avo::unicode::code_point_count does not work correctly with UTF-8."
-);
-static_assert(
-	code_point_count(u'a') == 1 &&
-	code_point_count(u"å"[0]) == 1 &&
-	code_point_count(u"√"[0]) == 1 &&
-	code_point_count(u"🪢"[0]) == 2 &&
-	code_point_count(static_cast<char16_t>(0b1101111010000011)) == 0,
-	"avo::unicode::code_point_count does not work correctly with UTF-16."
-);
-static_assert(
-	code_point_index(std::string_view{"🪢 här √ är knut"}, 10) == 17 &&
-	code_point_index(std::string_view{"🪢 här 🪢 är knut"}, 10) == 18, 
-	"code_point_index does not work correctly with UTF-8."
-);
-static_assert(
-	code_point_index(std::u16string_view{u"🪢 här √ är knut"}, 10) == 11 &&
-	code_point_index(std::u16string_view{u"🪢 här 🪢 är knut"}, 10) == 12, 
-	"code_point_index does not work correctly with UTF-16."
-);
-static_assert(
-	character_index(std::string_view{"🪢 här √ är knut"}, 17) == 10 &&
-	character_index(std::string_view{"🪢 här 🪢 är knut"}, 18) == 10, 
-	"character_index does not work correctly with UTF-8."
-);
-static_assert(
-	character_index(std::u16string_view{u"🪢 här √ är knut"}, 11) == 10 &&
-	character_index(std::u16string_view{u"🪢 här 🪢 är knut"}, 12) == 10, 
-	"character_index does not work correctly with UTF-16."
-);
-#endif // BUILD_TESTING
 
 } // namespace avo::unicode
 

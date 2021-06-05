@@ -1,4 +1,6 @@
-#include "testing_header.hpp"
+#include <avo/utils/miscellaneous.hpp>
+
+#include <catch.hpp>
 
 TEST_CASE("avo::utils::unordered_erase single element in middle") {
     auto list = std::vector{1, 2, 3, 4, 5, 6, 7};

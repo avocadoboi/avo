@@ -1,4 +1,6 @@
-#include "testing_header.hpp"
+#include <avo/event_listeners.hpp>
+
+#include <catch.hpp>
 
 TEST_CASE("avo::EventListeners test") {
     auto result = 0.f;

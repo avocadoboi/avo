@@ -25,6 +25,8 @@ SOFTWARE.
 #ifndef AVO_UTILS_UNIQUE_HANDLE_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_UNIQUE_HANDLE_HPP_BJORN_SUNDIN_JUNE_2021
 
+#include "concepts.hpp"
+
 namespace avo::utils {
 
 /*

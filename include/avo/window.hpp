@@ -1,8 +1,38 @@
+/*
+MIT License
+
+Copyright (c) 2021 Björn Sundin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 
 #ifndef AVO_WINDOW_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_WINDOW_HPP_BJORN_SUNDIN_JUNE_2021
 
+#include "graphics/miscellaneous.hpp"
+#include "math/miscellaneous.hpp"
+#include "math/vector2d.hpp"
+#include "utils/miscellaneous.hpp"
+
 namespace avo::window {
+
+using graphics::Dip, graphics::Pixels;
 
 /*
 	Converts between pixel and DIP (density independent pixel) units.
@@ -63,7 +93,7 @@ public:
 	{}
 
 private:
-	Factor _dip_to_pixel_factor{1};
+	math::Factor _dip_to_pixel_factor{1};
 };
 
 //------------------------------
@@ -185,7 +215,7 @@ using MinMaxSizes = utils::MinMax<math::Size<T>>;
 
 struct Parameters {
 	std::string_view title;
-	math::Vector2d<Factor> position_factor{};
+	math::Vector2d<math::Factor> position_factor{};
 	math::Size<Dip> size{};
 	MinMaxSizes<Dip> size_bounds{};
 	StyleFlags style{StyleFlags::Default};
@@ -258,7 +288,7 @@ public:
 	Window open() &&;
 
 	[[nodiscard]]
-	Builder&& position(math::Vector2d<Factor> const pos) && noexcept 
+	Builder&& position(math::Vector2d<math::Factor> const pos) && noexcept 
 	{
 		_parameters.position_factor = pos;
 		return std::move(*this);

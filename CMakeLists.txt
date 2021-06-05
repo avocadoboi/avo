@@ -7,7 +7,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin/)
 #--------------------------------------------
 # Library target.
 
-add_library(avo STATIC include/Avo.hpp source/Avo.cpp)
+add_library(avo STATIC include/avo.hpp source/avo.cpp)
 add_library(${PROJECT_NAME}::avo ALIAS avo)
 
 #--------------------------------------------
@@ -67,7 +67,7 @@ else ()
 endif ()
 
 #--------------------------------------------
-# Link to cross-platform external libraries.
+# Add cross-platform external libraries.
 
 include(FetchContent)
 
@@ -79,6 +79,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(fmt)
 
 target_link_libraries(avo PUBLIC fmt::fmt)
+# target_precompile_headers(avo PRIVATE <fmt/format.h> <fmt/ranges.h>)
 
 #--------------------------------------------
 # Set up testing.

@@ -1,4 +1,6 @@
-#include "testing_header.hpp"
+#include <avo/node.hpp>
+
+#include <catch.hpp>
 
 class SomeComponent {
 public:

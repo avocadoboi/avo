@@ -25,6 +25,8 @@ SOFTWARE.
 #ifndef AVO_UTILS_ENUMERATE_VIEW_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_ENUMERATE_VIEW_HPP_BJORN_SUNDIN_JUNE_2021
 
+#include <ranges>
+
 namespace avo::utils {
 
 template<class T>

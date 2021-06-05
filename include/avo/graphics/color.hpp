@@ -25,6 +25,9 @@ SOFTWARE.
 #ifndef AVO_GRAPHICS_COLOR_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_GRAPHICS_COLOR_HPP_BJORN_SUNDIN_JUNE_2021
 
+#include "../math/angle.hpp"
+#include "../math/operations.hpp"
+
 #include <fmt/format.h>
 
 namespace avo::graphics {
@@ -581,8 +584,8 @@ namespace avo::math {
 	If progress is 0, start is returned. If progress is 1, end is returned.
 */
 [[nodiscard]]
-constexpr Color interpolate(Color const start, Color const end, Color::value_type const progress) noexcept {
-	return Color{
+constexpr graphics::Color interpolate(graphics::Color const start, graphics::Color const end, graphics::Color::value_type const progress) noexcept {
+	return graphics::Color{
 		std::lerp(start.red, end.red, progress),
 		std::lerp(start.green, end.green, progress),
 		std::lerp(start.blue, end.blue, progress),
@@ -593,10 +596,10 @@ constexpr Color interpolate(Color const start, Color const end, Color::value_typ
 } // namespace avo::math
 
 template<>
-struct fmt::formatter<avo::Color> : fmt::formatter<avo::Color::value_type> {
-	using formatter<avo::Color::value_type>::format;
+struct fmt::formatter<avo::graphics::Color> : fmt::formatter<avo::graphics::Color::value_type> {
+	using formatter<avo::graphics::Color::value_type>::format;
 	
-	auto format(avo::Color const color, auto& context) {
+	auto format(avo::graphics::Color const color, auto& context) {
 		fmt::format_to(context.out(), "rgba(");
 		format(color.red, context);
 		fmt::format_to(context.out(), ", ");
@@ -608,42 +611,5 @@ struct fmt::formatter<avo::Color> : fmt::formatter<avo::Color::value_type> {
 		return fmt::format_to(context.out(), ")");
 	}
 };
-
-namespace avo::graphics {
-
-#ifdef BUILD_TESTING
-static_assert(Color::hsb(math::Degrees{30}, 1.f, 1.f).hue<math::Degrees<int>>() == math::Degrees{30});
-static_assert(Color::hsb(math::Degrees{180}, 1.f, 1.f).hue() == 0.5f);
-static_assert(Color::hsb(math::Degrees{30}, 0.77f, 1.f).hsb_saturation() == 0.77f);
-
-static_assert(Color::hsl(math::Degrees{30}, 1.f, 0.8f).hue<math::Degrees<int>>() == math::Degrees{30});
-static_assert(Color::hsl(math::Degrees{180}, 1.f, 0.8f).hue() == 0.5f);
-static_assert(Color::hsl(math::Degrees{30}, 0.77f, 0.8f).hsl_saturation() == 0.77f);
-
-static_assert(Color{0.1f} == Color{0.1f, 0.1f, 0.1f, 1.f});
-static_assert(Color{0.1f} == Color::rgb(0.1f, 0.1f, 0.1f));
-static_assert(Color{0.1f, 0.2f, 0.3f} + Color{1.f, 0.7f, 0.5f} == Color{1.f, 0.9f, 0.8f});
-static_assert(Color{1.f, 0.9f, 0.8f} - Color{1.f, 0.7f, 0.5f, 0.5f} == Color{0.f, 0.9f - 0.7f, 0.8f - 0.5f, 0.5f});
-static_assert(Color{0.1f, 0.2f, 0.3f} + 0.2f == Color{0.3f, 0.4f, 0.5f});
-static_assert(Color{0.2f, 0.3f, 0.4f} - 0.2f == Color{0.f, 0.3f - 0.2f, 0.2f});
-static_assert(1.f - Color{0.2f, 0.3f, 0.4f} == Color{0.8f, 0.7f, 0.6f});
-static_assert(Color{0.2f, 0.3f, 0.4f} * 2.f == Color{0.4f, 0.6f, 0.8f});
-
-static_assert(Color{0.1f, 0.2f, 0.9f}.hue(math::Degrees{71}).hue<math::Degrees<int>>() == math::Degrees{71});
-static_assert(Color{0.1f, 0.2f, 0.9f}.hue(0.3f).hue() == 0.3f);
-static_assert(Color{0.1f, 0.2f, 0.9f}.brightness(0.3f).brightness() == 0.3f);
-static_assert(Color{0.1f, 0.2f, 0.9f}.lightness(0.3f).lightness() == 0.3f);
-static_assert(math::approximately_equal(Color{0.1f, 0.2f, 0.9f}.hsl_saturation(0.3f).hsl_saturation(), 0.3f));
-static_assert(Color{0.1f, 0.2f, 0.9f}.hsb_saturation(0.3f).hsb_saturation() == 0.3f);
-
-static_assert(math::interpolate(Color{0.2f, 0.3f, 0.4f}, Color{0.8f, 0.7f, 0.6f}, 0.5f) == Color{0.5f});
-
-static_assert(Color::alpha_channel(0xabcdef12) == 0xab);
-static_assert(Color::red_channel(0xabcdef12) == 0xcd);
-static_assert(Color::green_channel(0xabcdef12) == 0xef);
-static_assert(Color::blue_channel(0xabcdef12) == 0x12);
-#endif // BUILD_TESTING
-
-} // namespace avo::graphics
 
 #endif

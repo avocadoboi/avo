@@ -1,4 +1,9 @@
-#include "testing_header.hpp"
+#include <avo/utils/enumerate_view.hpp>
+#include <avo/utils/int_range.hpp>
+
+#include <array>
+
+#include <catch.hpp>
 
 TEST_CASE("avo::utils::enumerate") {
 	constexpr auto container = std::array{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 6};

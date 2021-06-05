@@ -1,9 +1,34 @@
+/*
+MIT License
 
+Copyright (c) 2021 Björn Sundin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 
 #ifndef AVO_MATH_ANGLE_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_MATH_ANGLE_HPP_BJORN_SUNDIN_JUNE_2021
 
 #include "arithmetic_wrapper.hpp"
+
+#include <numbers>
+#include <cmath>
 
 namespace avo::math {
 
@@ -131,36 +156,6 @@ using namespace angle_literals;
 
 } // namespace literals
 
-#ifdef BUILD_TESTING
-static_assert(utils::IsTrivial<Degrees<int>>);
-static_assert(std::same_as<decltype(Degrees{5} + Degrees{3.1}), Degrees<double>>);
-static_assert(std::same_as<decltype(Degrees{5}*3.1), Degrees<double>>);
-static_assert(3.f*(Radians{5.f} + Radians{3.f}*3.f)/2.f - Radians{3.f} == Radians{18.f}, "Radian arithmetic does not work");
-static_assert([]{
-	auto angle = Radians{5.f};
-	angle += Radians{2.f};
-	if (angle != Radians{7.f}) return false;
-	angle -= Radians{2.f};
-	if (angle != Radians{5.f}) return false;
-	angle /= 2.f;
-	if (angle != Radians{2.5f}) return false;
-	angle *= 4.f;
-	if (angle != Radians{10.f}) return false;
-	return true;
-}(), "Radian arithmetic does not work.");
-static_assert(80_deg == Degrees{80} && -80_deg == Degrees{-80});
-static_assert(80._deg == Degrees{80.} && 80._degf == Degrees{80.f});
-static_assert(3.14_rad == Radians{3.14} && 3.14_radf == Radians{3.14f});
-static_assert(Degrees{80} > Degrees{-30} && Degrees{-30} < Degrees{80});
-static_assert(Degrees{50} == Degrees{50} && Degrees{50} != Degrees{51});
-static_assert(to_radians<float>(Degrees{180.f}) == Radians{std::numbers::pi_v<float>});
-static_assert(to_degrees<int>(Radians{std::numbers::pi_v<float>}) == Degrees{180});
-static_assert(to_degrees<float>(Degrees{50}) == Degrees{50.f});
-static_assert(normalized<float>(Degrees{90}) == 0.25f);
-static_assert(normalized(Degrees{90.f}) == 0.25f);
-static_assert(normalized(Radians{std::numbers::pi_v<float>/2}) == 0.25f);
-#endif // BUILD_TESTING
-	
 } // namespace avo::math
 
 #endif 

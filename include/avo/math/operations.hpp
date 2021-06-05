@@ -1,6 +1,34 @@
+/*
+MIT License
+
+Copyright (c) 2021 Björn Sundin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 
 #ifndef AVO_MATH_OPERATIONS_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_MATH_OPERATIONS_HPP_BJORN_SUNDIN_JUNE_2021
+
+#include "angle.hpp"
+
+#include <cmath>
+#include <cstring>
 
 namespace avo::math {
 
@@ -139,26 +167,6 @@ constexpr decltype(auto) min(T0&& first, T1&& second, T2&& ... arguments)
 		min(std::forward<T1>(second), std::forward<T2>(arguments)...);
 }
 
-#ifdef BUILD_TESTING
-static_assert(floor<double>(-4.5) == -5. && floor<int>(-4.4) == -5);
-static_assert(floor<double>(4.5) == 4. && floor<int>(4.7) == 4);
-static_assert(ceil<double>(-4.5) == -4. && ceil<int>(-4.4) == -4);
-static_assert(ceil<double>(4.5) == 5. && ceil<int>(4.7) == 5);
-
-static_assert(
-	min(1, 9.89, 3, 6.1, -6, 0., 1845, 14) == -6 &&
-	min(-1, 2) == -1 &&
-	min(-1) == -1,
-	"avo::math::min works incorrectly."
-);
-static_assert(
-	max(1, 9.89, 3, 6.1, -6, 0., 1845, 14) == 1845 &&
-	max(-1, 2) == 2 &&
-	max(-1) == -1,
-	"avo::math::max works incorrectly."
-);
-#endif // BUILD_TESTING
-	
 } // namespace avo::math
 
 #endif

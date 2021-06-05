@@ -22,7 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "avo.hpp"
+#include <avo.hpp>
+
+#include <thread>
 
 #ifdef __CYGWIN__
 #	define _WIN32
@@ -354,7 +356,7 @@ constexpr auto native_key_map = [] {
 
 [[nodiscard]]
 bool get_is_vkey_down(int const vkey) {
-	return GetAsyncKeyState(*native_key) & (1 << 16);
+	return GetAsyncKeyState(vkey) & (1 << 16);
 }
 
 //------------------------------

@@ -1,9 +1,34 @@
+/*
+MIT License
 
+Copyright (c) 2021 Björn Sundin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 
 #ifndef AVO_MATH_VECTOR2D_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_MATH_VECTOR2D_HPP_BJORN_SUNDIN_JUNE_2021
 
-#include "../utils/concepts.hpp"
+#include "angle.hpp"
+#include "operations.hpp"
+
+#include <cmath>
 
 namespace avo::math {
 
@@ -14,7 +39,7 @@ struct Vector2dBase;
 	Evaluates to whether a class template is a 2d vector or not.
 */
 template<template<class> class T>
-concept Is2dVectorTemplate = std::derived_from<T<float>, Vector2dBase<float>>;
+concept Is2dVectorTemplate = std::derived_from<T<float>, Vector2dBase<float>> || std::derived_from<T<int>, Vector2dBase<int>>;
 // Assuming all other instantiations also derive from Vector2dBase<T>.
 
 /*
@@ -435,30 +460,6 @@ struct Size : Vector2dBase<Value_> {};
 
 template<class T>
 Size(T, T) -> Size<T>;
-
-#ifdef BUILD_TESTING
-static_assert(utils::IsTrivial<Vector2d<float>>);
-static_assert(Vector2d{5.f, 3.f} != Vector2d{5.f, 3.1f});
-static_assert(Vector2d{5.f, 3.f} == Vector2d{5.f, 3.f});
-static_assert(Vector2d{-2.f, -3.f} < Vector2d{5.f, 3.f} && Vector2d{5.f, 3.f} > Vector2d{-2.f, -3.f});
-static_assert(Vector2d{-2.f, 1.f}*2.f == Vector2d{16.f, -8.f}/-4.f);
-static_assert(Vector2d{-2.f, 1.f}*2.f == 2.f*Vector2d{-2.f, 1.f});
-static_assert(2.f/Vector2d{2.f, -4.f} == Vector2d{1.f, -0.5f});
-static_assert(100/(3*Vector2d{4, 3} + Vector2d{2, 1}*2) == Vector2d{100/16, 100/11});
-
-static_assert(interpolate(Vector2d{0.f, 0.f}, Vector2d{1.f, 1.f}, 0.5f) == Vector2d{0.5f, 0.5f});
-
-static_assert(with_negative_space_clipped(Size{-4.f, 8.f}) == Size{0.f, 8.f});
-static_assert(with_negative_space_clipped(Size{-4.f, -8.f}) == Size{});
-
-static_assert(square<Vector2d>(5.f) == Vector2d{5.f, 5.f});
-static_assert(square(5.f) == 25.f);
-
-static_assert(dot(Vector2d{4, 2}, Vector2d{-2, -3}) == -14);
-static_assert(cross(Vector2d{4, 2}, Vector2d{-2, -3}) == -8);
-
-static_assert(Vector2d{2.f, 5.f}.to<Size<int>>() == Size{2, 5});
-#endif // BUILD_TESTING
 
 } // namespace avo::math
 

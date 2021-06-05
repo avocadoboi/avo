@@ -1,8 +1,33 @@
+/*
+MIT License
+
+Copyright (c) 2021 Björn Sundin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 
 #ifndef AVO_MATH_RECTANGLE_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_MATH_RECTANGLE_HPP_BJORN_SUNDIN_JUNE_2021
 
 #include "vector2d.hpp"
+
+#include <numeric>
 
 namespace avo::math {
 
@@ -410,30 +435,6 @@ template<template<class> class Rectangle_, utils::IsNumber T>
 constexpr Rectangle<T> square(T const value) noexcept {
 	return Rectangle{T{}, T{}, value, value};
 }
-
-#ifdef BUILD_TESTING
-
-static_assert(Rectangle{Size{5, 8}}.to<float>() == Rectangle{0.f, 0.f, 5.f, 8.f});
-static_assert(Rectangle{Point{9, 1}, Point{11, 6}} == Rectangle{9, 1, 11, 6});
-static_assert(Rectangle{9, 1, 11, 6}.top_left() == Point{9, 1});
-static_assert(Rectangle{9, 1, 11, 6}.top_right() == Point{11, 1});
-static_assert(Rectangle{9, 1, 11, 6}.bottom_right() == Point{11, 6});
-static_assert(Rectangle{9, 1, 11, 6}.bottom_left() == Point{9, 6});
-static_assert(Rectangle{9, 1, 11, 6}.top_left<false>(Point{-2, -2}) == Rectangle{-2, -2, 11, 6});
-static_assert(Rectangle{9, 1, 11, 6}.top_left(Point{-2, -2}) == Rectangle{-2, -2, 0, 3});
-static_assert(Rectangle{9, 1, 11, 6}.move_top_left(Vector2d{-2, -3}) == Rectangle{7, -2, 11, 6});
-static_assert(!Rectangle{3, 4, 18, 9}.contains(Rectangle{3, 4, 18, 9}));
-static_assert(!Rectangle{3.f, 4.f, 18.f, 9.f}.contains(Rectangle{3.f, 4.f, 18.f, 9.f}));
-static_assert(!Rectangle{3, 4, 18, 9}.contains(Rectangle{3.1f, 4.f, 18.f, 9.f}));
-static_assert(Rectangle{3, 4, 18, 9}.contains(Rectangle{3.1f, 4.1f, 17.9f, 8.9f}));
-static_assert(Rectangle{-10, -4, 1, -1}.intersects(Rectangle{0, -2, 100, 128}));
-static_assert(!Rectangle{-10, -4, 1, -1}.intersects(Rectangle{1, -1, 100, 128}));
-static_assert(square<Rectangle>(5.f) == Rectangle{0.f, 0.f, 5.f, 5.f});
-static_assert(with_negative_space_clipped(Rectangle{4.f, 4.5f, 3.8f, 4.7f}) == Rectangle{4.f, 4.5f, 4.f, 4.7f});
-static_assert(with_negative_space_clipped(Rectangle{4.f, 4.5f, 3.8f, 4.f}) == Rectangle{Point{4.f, 4.5f}});
-static_assert(Rectangle{2, 3, 4, 5} + Size{3, 1} == Rectangle{2, 3, 7, 6});
-
-#endif // BUILD_TESTING
 
 } // namespace avo::math
 

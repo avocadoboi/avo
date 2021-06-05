@@ -1,9 +1,9 @@
 add_definitions(-DBUILD_TESTING=${BUILD_TESTING})
 
-file(GLOB TEST_SOURCES *.cpp)
+file(GLOB_RECURSE TEST_SOURCES *.cpp)
 
 add_executable(avogui_test ${TEST_SOURCES})
 target_include_directories(avogui_test PRIVATE "../external/catch2/")
-target_link_libraries(avogui_test PRIVATE avogui)
+target_link_libraries(avogui_test PRIVATE avo)
 
 add_test(NAME unit_tests COMMAND avogui_test)

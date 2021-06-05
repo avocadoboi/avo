@@ -1,4 +1,6 @@
-#include "testing_header.hpp"
+#include <avo/utils/static_map.hpp>
+
+#include <catch.hpp>
 
 constexpr void test_static_map(auto& map)
 {

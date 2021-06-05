@@ -1,3 +1,26 @@
+/*
+MIT License
+
+Copyright (c) 2021 Björn Sundin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 
 #ifndef AVO_MATH_TRANSFORM_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_MATH_TRANSFORM_HPP_BJORN_SUNDIN_JUNE_2021
@@ -218,52 +241,6 @@ template<std::floating_point T>
 constexpr Transform<T> scaled_y(Transform<T> transform, utils::IsNumber auto const scale_factor) noexcept {
 	return transform.scale_y(scale_factor);
 }
-
-#ifdef BUILD_TESTING
-template<std::floating_point T>
-constexpr bool get_is_approximately_identity(Transform<T> const t) {
-	return approximately_equal(t.x_to_x, T{1}) && approximately_equal(t.y_to_x, T{}) && approximately_equal(t.offset_x, T{}) &&
-		approximately_equal(t.x_to_y, T{}) && approximately_equal(t.y_to_y, T{1}) && approximately_equal(t.offset_y, T{});
-}
-
-static_assert(
-	[]{
-		constexpr auto a = Transform{
-			11., 2.9, 3.5, 
-			4.3, 5.7, 6.2
-		};
-		// return get_is_approximately_identity(a*inverse(a));// && get_is_approximately_identity(inverse(a)*a);
-		return get_is_approximately_identity(a*inverse(a)) && get_is_approximately_identity(inverse(a)*a);
-	}()
-);
-static_assert(
-	[]{
-		constexpr auto a = Transform{
-			11.f, 2.9f, 3.5f, 
-			4.3f, 5.7f, 6.2f
-		};
-		constexpr auto b = Transform{
-			-4.8f, -3.6f, -2.6f, 
-			-1.2f, 1.5f, -3.31f
-		};
-
-		constexpr auto c = Vector2d{3.14f, 5.158f};
-
-		return a*(b*c) == (a*b)*c && a*b != b*a;
-	}(),
-	"avo::math::Transform does not hold the composition and non-commutative properties."
-);
-static_assert(
-	[]{
-		constexpr auto a = Transform{
-			11.f, 2.9f, 3.5f, 
-			4.3f, 5.7f, 6.2f
-		};
-		return scaled(a, square<Vector2d>(0.6f)) == scaled_x(a, 0.6f).scale_y(0.6f);
-	}(),
-	"The scaling functions for avo::math::Transform do not work properly."
-);
-#endif // BUILD_TESTING
 
 } // namespace avo::math
 

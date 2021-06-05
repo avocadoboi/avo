@@ -25,6 +25,13 @@ SOFTWARE.
 #ifndef AVO_UTILS_RECURSIVE_RANGE_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_RECURSIVE_RANGE_HPP_BJORN_SUNDIN_JUNE_2021
 
+#include "concepts.hpp"
+#include "generate_view.hpp"
+#include "miscellaneous.hpp"
+
+#include <stack>
+#include <variant>
+
 namespace avo::utils {
 
 /*

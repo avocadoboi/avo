@@ -1,4 +1,49 @@
-#include "testing_header.hpp"
+#include <avo/utils/recursive_range.hpp>
+
+#include <catch.hpp>
+
+//------------------------------
+
+struct TestNode {
+    std::vector<TestNode> children;
+    int id;
+
+    auto begin() const {
+        return children.begin();
+    }
+    auto begin() {
+        return children.begin();
+    }
+    auto end() const {
+        return children.end();
+    }
+    auto end() {
+        return children.end();
+    }
+};
+static_assert(avo::utils::IsRecursiveRange<TestNode, false>);
+
+struct TestNodeWithParent {
+    std::vector<TestNodeWithParent> children;
+    TestNodeWithParent* parent;
+    int id;
+
+    auto begin() const {
+        return children.begin();
+    }
+    auto begin() {
+        return children.begin();
+    }
+    auto end() const {
+        return children.end();
+    }
+    auto end() {
+        return children.end();
+    }
+};
+static_assert(avo::utils::IsRecursiveRange<TestNodeWithParent, true>);
+
+//------------------------------
 
 template<typename _Node> requires 
     std::same_as<decltype(_Node::children), std::vector<_Node>> &&
@@ -22,6 +67,8 @@ void test_flatten_with_node_type(_Node& tree, std::vector<int> const& expected_i
     }
     CHECK(std::ranges::all_of(tree | avo::utils::flatten, [](int id){ return id == 2; }, &_Node::id));
 }
+
+//------------------------------
 
 std::pair<TestNode, std::vector<int>> construct_test_without_parent_nodes() {
     auto tree = TestNode{
@@ -61,6 +108,8 @@ TEST_CASE("avo::utils::flatten with nodes without parents") {
     auto [tree, expected_ids] = construct_test_without_parent_nodes();
     test_flatten_with_node_type(tree, expected_ids);
 }
+
+//------------------------------
 
 std::pair<std::unique_ptr<TestNodeWithParent>, std::vector<int>> construct_test_with_parent_nodes() {
     auto root = std::unique_ptr<TestNodeWithParent>{new TestNodeWithParent{.id=1}};
@@ -102,4 +151,29 @@ std::pair<std::unique_ptr<TestNodeWithParent>, std::vector<int>> construct_test_
 TEST_CASE("avo::utils::flatten with nodes with stored parent") {
     auto [tree, expected_ids] = construct_test_with_parent_nodes();
     test_flatten_with_node_type(*tree, expected_ids);
+}
+
+//------------------------------
+
+TEST_CASE("avo::utils::view_parents") {
+    auto root = TestNodeWithParent{};
+    auto child_0 = TestNodeWithParent{.parent = &root};
+    auto child_1 = TestNodeWithParent{.parent = &child_0};
+    auto child_2 = TestNodeWithParent{.parent = &child_1};
+
+    auto const parent_range = avo::utils::view_parents(child_2);
+    auto iterator = parent_range.begin();
+    REQUIRE(*iterator == &child_1);
+    REQUIRE(*iterator == &child_1);
+    REQUIRE(iterator != parent_range.end());
+    ++iterator;
+    REQUIRE(*iterator == &child_0);
+    REQUIRE(*iterator == &child_0);
+    REQUIRE(iterator != parent_range.end());
+    ++iterator;
+    REQUIRE(*iterator == &root);
+    REQUIRE(*iterator == &root);
+    REQUIRE(iterator != parent_range.end());
+    ++iterator;
+    REQUIRE(iterator == parent_range.end());
 }

@@ -22,10 +22,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef AVO_GRAPHICS_HPP_BJORN_SUNDIN_JUNE_2021
-#define AVO_GRAPHICS_HPP_BJORN_SUNDIN_JUNE_2021
+#ifndef AVO_MATH_MISCELLANEOUS_HPP_BJORN_SUNDIN_JUNE_2021
+#define AVO_MATH_MISCELLANEOUS_HPP_BJORN_SUNDIN_JUNE_2021
 
-#include "graphics/color.hpp"
-#include "graphics/miscellaneous.hpp"
+namespace avo::math {
+
+// Represents a proportion of something. Something that will be multiplied with a value.
+using Factor = float;
+
+} // namespace avo::math
 
 #endif

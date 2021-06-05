@@ -25,6 +25,20 @@ SOFTWARE.
 #ifndef AVO_UTILS_MISCELLANEOUS_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_MISCELLANEOUS_HPP_BJORN_SUNDIN_JUNE_2021
 
+//------------------------------
+
+#include "concepts.hpp"
+
+#include <fstream>
+#include <source_location>
+#include <span>
+#include <string>
+#include <vector>
+
+#include <fmt/format.h>
+
+//------------------------------
+
 namespace avo::utils {
 
 template<class T, bool is_const>

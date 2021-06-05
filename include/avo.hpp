@@ -22,10 +22,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifndef AVO_GRAPHICS_HPP_BJORN_SUNDIN_JUNE_2021
-#define AVO_GRAPHICS_HPP_BJORN_SUNDIN_JUNE_2021
+#ifndef AVO_HPP_BJORN_SUNDIN_JUNE_2021
+#define AVO_HPP_BJORN_SUNDIN_JUNE_2021
 
-#include "graphics/color.hpp"
-#include "graphics/miscellaneous.hpp"
+#include "avo/event_listeners.hpp"
+#include "avo/graphics.hpp"
+#include "avo/gui.hpp"
+#include "avo/id.hpp"
+#include "avo/math.hpp"
+#include "avo/miscellaneous.hpp"
+#include "avo/node.hpp"
+#include "avo/unicode.hpp"
+#include "avo/utils.hpp"
+#include "avo/window.hpp"
 
 #endif

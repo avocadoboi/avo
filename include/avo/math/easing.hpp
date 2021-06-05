@@ -1,6 +1,31 @@
+/*
+MIT License
+
+Copyright (c) 2021 Björn Sundin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 
 #ifndef AVO_MATH_EASING_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_MATH_EASING_HPP_BJORN_SUNDIN_JUNE_2021
+
+#include "vector2d.hpp"
 
 namespace avo::math {
 
@@ -55,8 +80,7 @@ struct Easing final {
 				  = x0*9*(t - 1)*(t - 1/3) + t*(x1*(6 - 9*t) + 3*t)
 		*/
 
-		auto error = 1.f;
-		while (abs(error) > precision) {
+		for (auto error = 1.f; math::abs(error) > precision;) {
 			error = value - t * ((1.f - t) * (3.f * (1.f - t) * c0.x + 3.f * t * c1.x) + t * t);
 			t += error / (c0.x * 9.f * (t - 1.f) * (t - 1.f / 3.f) + t * (c1.x * (6.f - 9.f * t) + 3.f * t));
 		}
@@ -71,13 +95,6 @@ struct Easing final {
 		return ease_value(Point{c0.y, c0.x}, Point{c1.y, c1.x}, value, precision);
 	}
 };
-
-#ifdef BUILD_TESTING
-static_assert([]{
-	auto const easing = Easing{{0.4f, 0.1f}, {0.7f, 0.5f}};
-	return approximately_equal(easing.ease_value_inverse(easing.ease_value(0.35f, 1e-5f), 1e-5f), 0.35f, 1e-5f);
-}());
-#endif // BUILD_TESTING
 
 } // namespace avo::math
 

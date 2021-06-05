@@ -25,6 +25,10 @@ SOFTWARE.
 #ifndef AVO_UTILS_GENERATE_VIEW_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_GENERATE_VIEW_HPP_BJORN_SUNDIN_JUNE_2021
 
+#include "concepts.hpp"
+
+#include <optional>
+
 namespace avo::utils {
 
 template<std::regular_invocable Generator_> requires 

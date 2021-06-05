@@ -25,6 +25,11 @@ SOFTWARE.
 #ifndef AVO_UTILS_STATIC_MAP_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_STATIC_MAP_HPP_BJORN_SUNDIN_JUNE_2021
 
+#include "concepts.hpp"
+
+#include <algorithm>
+#include <stdexcept>
+
 namespace avo::utils {
 
 template<std::move_constructible A, std::move_constructible B, std::size_t _size>
