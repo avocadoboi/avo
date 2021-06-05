@@ -26,8 +26,8 @@ SOFTWARE.
 #define AVO_GUI_THEME_HPP_BJORN_SUNDIN_JUNE_2021
 
 #include "../graphics/color.hpp"
-#include "../math/easing.hpp"
 #include "../id.hpp"
+#include "../math/easing.hpp"
 
 #include <string_view>
 #include <unordered_map>

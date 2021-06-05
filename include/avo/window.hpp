@@ -144,12 +144,12 @@ enum class MouseButton {
 	Returns whether a keyboard key is currently pressed.
 */
 [[nodiscard]]
-bool is_key_down(KeyboardKey);
+bool get_is_key_down(KeyboardKey);
 /*
 	Returns whether a mouse button is currently pressed.
 */
 [[nodiscard]]
-bool is_mouse_button_down(MouseButton);
+bool get_is_mouse_button_down(MouseButton);
 
 //------------------------------
 

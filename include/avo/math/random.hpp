@@ -25,7 +25,6 @@ SOFTWARE.
 #ifndef AVO_MATH_RANDOM_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_MATH_RANDOM_HPP_BJORN_SUNDIN_JUNE_2021
 
-#include <concepts>
 #include <random>
 #include <ranges>
 

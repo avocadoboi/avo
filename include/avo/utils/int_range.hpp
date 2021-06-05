@@ -25,7 +25,6 @@ SOFTWARE.
 #ifndef AVO_UTILS_INT_RANGE_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_INT_RANGE_HPP_BJORN_SUNDIN_JUNE_2021
 
-#include <concepts>
 #include <ranges>
 
 namespace avo::utils {

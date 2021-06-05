@@ -25,9 +25,9 @@ SOFTWARE.
 #ifndef AVO_MATH_ARITHMETIC_WRAPPER_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_MATH_ARITHMETIC_WRAPPER_HPP_BJORN_SUNDIN_JUNE_2021
 
-#include <fmt/format.h>
-
 #include "../utils/concepts.hpp"
+
+#include <fmt/format.h>
 
 namespace avo::math {
 
