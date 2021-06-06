@@ -11,8 +11,8 @@ namespace avo::utils {
 template<std::move_constructible A, std::move_constructible B, std::size_t size_>
 class StaticMap {
 public:
-    using first_type = A;
-    using second_type = B;
+	using first_type = A;
+	using second_type = B;
 	using value_type = std::pair<A, B>;
 
 	using ContainerType = std::array<value_type, size_>;
@@ -148,10 +148,10 @@ public:
 		});
 	}
 
-    template<IsInstantiationOf<std::pair> ... Element_>
-    constexpr StaticMap(Element_&& ... element) :
-        array_{std::forward<Element_>(element)...}
-    {
+	template<IsInstantiationOf<std::pair> ... Element_>
+	constexpr StaticMap(Element_&& ... element) :
+		array_{std::forward<Element_>(element)...}
+	{
 		static_assert(sizeof...(element) == size_, "StaticMap was initialized with wrong number of pairs.");
 	}
 	constexpr StaticMap(std::initializer_list<std::pair<A, B>>&& elements) 

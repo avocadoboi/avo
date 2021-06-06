@@ -35,6 +35,6 @@ TEST_CASE("Runtime operations on 2D vectors") {
 }
 
 TEST_CASE("avo::math::Vector2dBase formatting") {
-    REQUIRE(fmt::format("{}", Vector2d{1.5f, -0.9f}) == "(1.5, -0.9)");
-    REQUIRE(fmt::format("{:.2f}", Vector2d{std::numbers::pi, std::numbers::e}) == "(3.14, 2.72)");
+	REQUIRE(fmt::format("{}", Vector2d{1.5f, -0.9f}) == "(1.5, -0.9)");
+	REQUIRE(fmt::format("{:.2f}", Vector2d{std::numbers::pi, std::numbers::e}) == "(3.14, 2.72)");
 }

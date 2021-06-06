@@ -25,5 +25,5 @@ static_assert(with_negative_space_clipped(Rectangle{4.f, 4.5f, 3.8f, 4.f}) == Re
 static_assert(Rectangle{2, 3, 4, 5} + Size{3, 1} == Rectangle{2, 3, 7, 6});
 
 TEST_CASE("avo::math::Rectangle formatting") {
-    REQUIRE(fmt::format("{:.1f}", Rectangle{0.18f, 0.83f, 0.46f, 0.77f}) == "(0.2, 0.8, 0.5, 0.8)");
+	REQUIRE(fmt::format("{:.1f}", Rectangle{0.18f, 0.83f, 0.46f, 0.77f}) == "(0.2, 0.8, 0.5, 0.8)");
 }

@@ -41,8 +41,8 @@ endif ()
 
 target_include_directories(avo PUBLIC
 	# When using the library from the install tree, relative paths can be used.
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+	$<INSTALL_INTERFACE:include>
 )
 
 add_subdirectory(source)
@@ -83,29 +83,29 @@ set(CONFIG_VERSION_FILE_NAME ${PROJECT_NAME}ConfigVersion.cmake)
 
 # Create a file that contains information about package versioning.
 write_basic_package_version_file(
-    ${CONFIG_VERSION_FILE_NAME}
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY AnyNewerVersion
+	${CONFIG_VERSION_FILE_NAME}
+	VERSION ${PROJECT_VERSION}
+	COMPATIBILITY AnyNewerVersion
 )
 
 # During installation, the version file will be installed.
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_VERSION_FILE_NAME}"
-    DESTINATION lib/cmake/${PROJECT_NAME}) # Relative to the installation path.
+	DESTINATION lib/cmake/${PROJECT_NAME}) # Relative to the installation path.
 
 set(TARGET_EXPORT_NAME ${PROJECT_NAME}Targets)
 
 # Specifies the target(s) that will be installed, and where to install 
 # the compiled library (relative to package installation path ${CMAKE_INSTALL_PREFIX}).
 install(
-    TARGETS avo fmt
-    EXPORT ${TARGET_EXPORT_NAME}
-    ARCHIVE DESTINATION lib
+	TARGETS avo fmt
+	EXPORT ${TARGET_EXPORT_NAME}
+	ARCHIVE DESTINATION lib
 )
 
 # During installation, a target configuration file will be exported to a *Targets.cmake file
 # that is included by the *Config.cmake.in file which finds the dependencies of the library.
 install(
-    EXPORT ${TARGET_EXPORT_NAME}
+	EXPORT ${TARGET_EXPORT_NAME}
 	FILE ${TARGET_EXPORT_NAME}.cmake
 	NAMESPACE ${PROJECT_NAME}::
 	DESTINATION lib/cmake/${PROJECT_NAME}

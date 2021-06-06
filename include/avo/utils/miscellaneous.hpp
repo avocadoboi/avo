@@ -19,8 +19,8 @@ namespace avo::utils {
 
 template<class T, bool is_const>
 using MaybeConst = std::conditional_t<is_const, 
-    std::conditional_t<std::is_lvalue_reference_v<T>, std::remove_reference_t<T> const&,
-        std::conditional_t<std::is_rvalue_reference_v<T>, std::remove_reference_t<T> const&&, T const>
+	std::conditional_t<std::is_lvalue_reference_v<T>, std::remove_reference_t<T> const&,
+		std::conditional_t<std::is_rvalue_reference_v<T>, std::remove_reference_t<T> const&&, T const>
 	>, T>;
 
 //------------------------------

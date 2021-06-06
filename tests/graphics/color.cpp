@@ -37,5 +37,5 @@ static_assert(Color::green_channel(0xabcdef12) == 0xef);
 static_assert(Color::blue_channel(0xabcdef12) == 0x12);
 
 TEST_CASE("avo::Color formatting") {
-    REQUIRE(fmt::format("{:.1f}", Color{0.18f, 0.83f, 0.46f}) == "rgba(0.2, 0.8, 0.5, 1.0)");
+	REQUIRE(fmt::format("{:.1f}", Color{0.18f, 0.83f, 0.46f}) == "rgba(0.2, 0.8, 0.5, 1.0)");
 }

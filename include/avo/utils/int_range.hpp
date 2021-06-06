@@ -82,7 +82,7 @@ public:
 			}
 			else {
 				return current_value_ - offset;
-			}        
+			}
 		}
 		constexpr Iterator& operator-=(difference_type const offset) noexcept {
 			if constexpr (is_reverse) {

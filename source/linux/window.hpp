@@ -258,11 +258,11 @@ math::Point<Pixels> get_position(::Display* const server, ::Window const window)
 // Black magic I guess? Only found in some StackOverflow answers...
 
 struct MwmHints {
-    unsigned long flags;
-    unsigned long functions;
-    unsigned long decorations;
-    long input_mode;
-    unsigned long status;
+	unsigned long flags;
+	unsigned long functions;
+	unsigned long decorations;
+	long input_mode;
+	unsigned long status;
 };
 enum {
 	MWM_HINTS_FUNCTIONS = (1L << 0),
