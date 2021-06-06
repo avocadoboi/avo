@@ -1,27 +1,3 @@
-/*
-MIT License
-
-Copyright (c) 2021 Björn Sundin
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 #ifndef AVO_UTILS_ENUMERATE_VIEW_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_ENUMERATE_VIEW_HPP_BJORN_SUNDIN_JUNE_2021
 
@@ -54,8 +30,8 @@ public:
 		using iterator_concept = iterator_category;
 
 		constexpr Iterator& operator++() {
-			++_base_iterator;
-			++_index;
+			++base_iterator_;
+			++index_;
 			return *this;
 		}
 		constexpr void operator++(int) {
@@ -64,34 +40,34 @@ public:
 		constexpr Iterator operator++(int) 
 			requires std::ranges::forward_range<T>
 		{
-			return Iterator{_base_iterator++, _index++};
+			return Iterator{base_iterator_++, index_++};
 		}
 
 		constexpr Iterator& operator--() 
 			requires std::ranges::bidirectional_range<T>
 		{
-			--_base_iterator;
-			--_index;
+			--base_iterator_;
+			--index_;
 			return *this;
 		}
 		constexpr Iterator operator--(int) 
 			requires std::ranges::bidirectional_range<T>
 		{
-			return Iterator{_base_iterator--, _index--};
+			return Iterator{base_iterator_--, index_--};
 		}
 
 		constexpr Iterator& operator+=(difference_type const offset)
 			requires std::ranges::random_access_range<T>
 		{
-			_base_iterator += offset;
-			_index += offset;
+			base_iterator_ += offset;
+			index_ += offset;
 			return *this;
 		}
 		constexpr Iterator& operator-=(difference_type const offset)
 			requires std::ranges::random_access_range<T>
 		{
-			_base_iterator -= offset;
-			_index -= offset;
+			base_iterator_ -= offset;
+			index_ -= offset;
 			return *this;
 		}
 
@@ -99,105 +75,105 @@ public:
 		constexpr value_type operator[](difference_type const i) const
 			requires std::ranges::random_access_range<T>
 		{
-			return {_index + i, _base_iterator[i]};
+			return {index_ + i, base_iterator_[i]};
 		}
 
 		[[nodiscard]]
 		constexpr Iterator operator+(difference_type const offset) const
 			requires std::ranges::random_access_range<T>
 		{
-			return Iterator{_base_iterator + offset, _index + offset};
+			return Iterator{base_iterator_ + offset, index_ + offset};
 		}
 		[[nodiscard]]
 		friend constexpr Iterator operator+(difference_type const offset, Iterator const& iterator)
 			requires std::ranges::random_access_range<T>
 		{
-			return Iterator{iterator._base_iterator + offset, iterator._index + offset};
+			return Iterator{iterator.base_iterator_ + offset, iterator.index_ + offset};
 		}
 		[[nodiscard]]
 		constexpr Iterator operator-(difference_type const offset) const
 			requires std::ranges::random_access_range<T>
 		{
-			return Iterator{_base_iterator - offset, _index - offset};
+			return Iterator{base_iterator_ - offset, index_ - offset};
 		}
 		[[nodiscard]]
 		constexpr difference_type operator-(Iterator const& other) const
 			requires std::ranges::random_access_range<T>
 		{
-			return _base_iterator - other._base_iterator;
+			return base_iterator_ - other.base_iterator_;
 		}
 
 		[[nodiscard]]
 		constexpr bool operator==(Iterator const& other) const noexcept 
 			requires std::equality_comparable<BaseIterator>
 		{
-			return _base_iterator == other._base_iterator;
+			return base_iterator_ == other.base_iterator_;
 		}
 		[[nodiscard]]
 		constexpr auto operator<=>(Iterator const& other) const noexcept
 			requires std::ranges::random_access_range<T> && std::three_way_comparable<BaseIterator>
 		{
-			return _base_iterator <=> other._base_iterator;
+			return base_iterator_ <=> other.base_iterator_;
 		}
 
 		[[nodiscard]]
 		constexpr value_type operator*() const {
-			return value_type{_index, *_base_iterator};
+			return value_type{index_, *base_iterator_};
 		}
 
 		constexpr Iterator() = default;
 		constexpr Iterator(BaseIterator const base_iterator, std::size_t const index) :
-			_base_iterator{base_iterator},
-			_index{index}
+			base_iterator_{base_iterator},
+			index_{index}
 		{}
 
 	private:
-		BaseIterator _base_iterator;
-		std::size_t _index{};
+		BaseIterator base_iterator_;
+		std::size_t index_{};
 	};
 	
 	[[nodiscard]]
 	constexpr T base() const& 
 		requires std::copy_constructible<T>
 	{
-		return _base;
+		return base_;
 	}
 	[[nodiscard]]
 	constexpr T base() && {
-		return std::move(_base);
+		return std::move(base_);
 	}
 
 	[[nodiscard]]
 	constexpr Iterator begin() const {
-		return {std::ranges::begin(_base), std::size_t{}};
+		return {std::ranges::begin(base_), std::size_t{}};
 	}
 
 	[[nodiscard]]
 	constexpr Iterator end() const {
-		return {std::ranges::end(_base), static_cast<std::size_t>(std::ranges::distance(_base))};
+		return {std::ranges::end(base_), static_cast<std::size_t>(std::ranges::distance(base_))};
 	}
 
 	[[nodiscard]]
 	constexpr auto size() const 
 		requires std::ranges::sized_range<T>
 	{
-		return std::ranges::size(_base);
+		return std::ranges::size(base_);
 	}
 
 	template<std::ranges::input_range Range_>
 		requires std::ranges::viewable_range<Range_>
 	constexpr explicit EnumerateView(Range_&& range) :
-		_base{std::views::all(std::forward<Range_>(range))}
+		base_{std::views::all(std::forward<Range_>(range))}
 	{}
 
 	constexpr explicit EnumerateView(T view) :
-		_base{std::move(view)}
+		base_{std::move(view)}
 	{}
 
 	constexpr EnumerateView() = default;
 
 private:
-	T _base;
+	T base_;
 };
 
 template<class T>

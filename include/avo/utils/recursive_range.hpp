@@ -1,27 +1,3 @@
-/*
-MIT License
-
-Copyright (c) 2021 Björn Sundin
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 #ifndef AVO_UTILS_RECURSIVE_RANGE_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_RECURSIVE_RANGE_HPP_BJORN_SUNDIN_JUNE_2021
 
@@ -115,11 +91,11 @@ public:
 		using iterator_concept = std::forward_iterator_tag;
 	
 		Iterator& operator++() {
-			if (std::holds_alternative<T*>(_current_position)) {
-				_current_position = std::ranges::begin(*std::get<T*>(_current_position));
+			if (std::holds_alternative<T*>(current_position_)) {
+				current_position_ = std::ranges::begin(*std::get<T*>(current_position_));
 			}
 			else {
-				_increment_iterator();
+				increment_iterator_();
 			}
 			return *this;
 		}
@@ -131,55 +107,55 @@ public:
 
 		[[nodiscard]]
 		reference operator*() const {
-			return std::holds_alternative<T*>(_current_position) ?
-				*std::get<T*>(_current_position) :
-				*std::get<BaseIterator>(_current_position);
+			return std::holds_alternative<T*>(current_position_) ?
+				*std::get<T*>(current_position_) :
+				*std::get<BaseIterator>(current_position_);
 		}
 
 		[[nodiscard]]
 		bool operator==(std::default_sentinel_t) const noexcept {
-			return std::holds_alternative<BaseIterator>(_current_position) && 
-				std::get<BaseIterator>(_current_position) == _end;
+			return std::holds_alternative<BaseIterator>(current_position_) && 
+				std::get<BaseIterator>(current_position_) == end_;
 		}
 		[[nodiscard]]
 		bool operator==(Iterator const& other) const noexcept {
-			return _current_position == other._current_position;
+			return current_position_ == other.current_position_;
 		}
 	
 		Iterator() = default;
 		explicit Iterator(T* const range) :
-			_current_position{range},
-			_end{std::ranges::end(*range)}
+			current_position_{range},
+			end_{std::ranges::end(*range)}
 		{}
 
 	private:
-		void _increment_iterator() {
-			auto& pos = std::get<BaseIterator>(_current_position);
-			if (pos == _end) {
+		void increment_iterator_() {
+			auto& pos = std::get<BaseIterator>(current_position_);
+			if (pos == end_) {
 				return;
 			}
 			else if (is_recursive_iterator_empty(pos)) {
 				++pos;
-				while (!_parent_stack.empty() && pos == std::ranges::end(*_parent_stack.top())) {
-					pos = _parent_stack.top();
-					_parent_stack.pop();
+				while (!parent_stack_.empty() && pos == std::ranges::end(*parent_stack_.top())) {
+					pos = parent_stack_.top();
+					parent_stack_.pop();
 					++pos;
 				}
 			}
 			else {
-				_parent_stack.push(pos);
+				parent_stack_.push(pos);
 				pos = std::ranges::begin(*pos);				
 			}
 		}
 		
-		std::variant<T*, BaseIterator> _current_position;
-		BaseIterator _end;
-		std::stack<BaseIterator> _parent_stack;
+		std::variant<T*, BaseIterator> current_position_;
+		BaseIterator end_;
+		std::stack<BaseIterator> parent_stack_;
 	};
 
 	[[nodiscard]]
 	Iterator begin() const {
-		return Iterator{_range};
+		return Iterator{range_};
 	}
 	[[nodiscard]]
 	std::default_sentinel_t end() const noexcept {
@@ -188,11 +164,11 @@ public:
 
 	FlattenedView() = default;
 	explicit FlattenedView(T& range) noexcept :
-		_range{&range}
+		range_{&range}
 	{}
 
 private:
-	T* _range{};
+	T* range_{};
 };
 
 template<IsRecursiveRange T> requires IsRecursiveRange<T, true>
@@ -209,11 +185,11 @@ public:
 		using iterator_concept = std::forward_iterator_tag;
 	
 		Iterator& operator++() {
-			if (std::holds_alternative<T*>(_current_position)) {
-				_current_position = std::ranges::begin(*std::get<T*>(_current_position));
+			if (std::holds_alternative<T*>(current_position_)) {
+				current_position_ = std::ranges::begin(*std::get<T*>(current_position_));
 			}
 			else {
-				_increment_iterator();
+				increment_iterator_();
 			}
 			return *this;
 		}
@@ -225,43 +201,43 @@ public:
 
 		[[nodiscard]]
 		reference operator*() const {
-			return std::holds_alternative<T*>(_current_position) ?
-				*std::get<T*>(_current_position) :
-				*std::get<BaseIterator>(_current_position);
+			return std::holds_alternative<T*>(current_position_) ?
+				*std::get<T*>(current_position_) :
+				*std::get<BaseIterator>(current_position_);
 		}
 
 		[[nodiscard]]
 		bool operator==(std::default_sentinel_t) const noexcept {
-			return std::holds_alternative<BaseIterator>(_current_position) && 
-				std::get<BaseIterator>(_current_position) == _end;
+			return std::holds_alternative<BaseIterator>(current_position_) && 
+				std::get<BaseIterator>(current_position_) == end_;
 		}
 		[[nodiscard]]
 		bool operator==(Iterator const& other) const noexcept {
-			return _current_position == other._current_position;
+			return current_position_ == other.current_position_;
 		}
 	
 		Iterator() = default;
 		Iterator(T* const range) :
-			_current_position{range},
-			_end{std::ranges::end(*range)}
+			current_position_{range},
+			end_{std::ranges::end(*range)}
 		{}
 
 	private:
-		static BaseIterator _get_iterator_of_node(T& node) {
+		static BaseIterator get_iterator_of_node_(T& node) {
 			T* const parent = get_parent(node);
 			return std::ranges::begin(*parent) + (&node - &*std::ranges::begin(*parent));
 		}
 	
-		void _increment_iterator() {
-			auto& pos = std::get<BaseIterator>(_current_position);
-			if (pos == _end) {
+		void increment_iterator_() {
+			auto& pos = std::get<BaseIterator>(current_position_);
+			if (pos == end_) {
 				return;
 			}
 			else if (is_recursive_iterator_empty(pos)) {
 				T* parent = get_parent(*pos);
 				++pos;
-				while (pos != _end && pos == std::ranges::end(*parent)) {
-					pos = _get_iterator_of_node(*parent);
+				while (pos != end_ && pos == std::ranges::end(*parent)) {
+					pos = get_iterator_of_node_(*parent);
 					parent = get_parent(*pos);
 					++pos;
 				}
@@ -271,13 +247,13 @@ public:
 			}
 		}
 		
-		std::variant<T*, BaseIterator> _current_position;
-		BaseIterator _end;
+		std::variant<T*, BaseIterator> current_position_;
+		BaseIterator end_;
 	};
 
 	[[nodiscard]]
 	Iterator begin() const {
-		return Iterator{_range};
+		return Iterator{range_};
 	}
 	[[nodiscard]]
 	std::default_sentinel_t end() const noexcept {
@@ -286,11 +262,11 @@ public:
 
 	FlattenedView() = default;
 	explicit FlattenedView(T& range) noexcept :
-		_range{&range}
+		range_{&range}
 	{}
 
 private:
-	T* _range{};
+	T* range_{};
 };
 
 } // namespace avo::utils

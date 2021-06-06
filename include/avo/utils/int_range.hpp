@@ -1,27 +1,3 @@
-/*
-MIT License
-
-Copyright (c) 2021 Björn Sundin
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 #ifndef AVO_UTILS_INT_RANGE_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_INT_RANGE_HPP_BJORN_SUNDIN_JUNE_2021
 
@@ -46,55 +22,55 @@ public:
 
 		constexpr Iterator& operator++() noexcept {
 			if constexpr (is_reverse) {
-				--_current_value;
+				--current_value_;
 			}
 			else {
-				++_current_value;
+				++current_value_;
 			}
 			return *this;
 		}
 		constexpr Iterator operator++(int) noexcept {
 			if constexpr (is_reverse) {
-				return Iterator{_current_value--};
+				return Iterator{current_value_--};
 			}
 			else {
-				return Iterator{_current_value++};
+				return Iterator{current_value_++};
 			}
 		}
 
 		[[nodiscard]]
 		constexpr Iterator operator+(difference_type const offset) const noexcept {
 			if constexpr (is_reverse) {
-				return _current_value - offset;
+				return current_value_ - offset;
 			}
 			else {
-				return _current_value + offset;
+				return current_value_ + offset;
 			}
 		}
 		constexpr Iterator& operator+=(difference_type const offset) noexcept {
 			if constexpr (is_reverse) {
-				_current_value -= offset;
+				current_value_ -= offset;
 			}
 			else {
-				_current_value += offset;
+				current_value_ += offset;
 			}
 			return *this;
 		}
 
 		constexpr Iterator operator--(int) noexcept {
 			if constexpr (is_reverse) {
-				return Iterator{_current_value++};
+				return Iterator{current_value_++};
 			}
 			else {
-				return Iterator{_current_value--};
+				return Iterator{current_value_--};
 			}
 		}
 		constexpr Iterator& operator--() noexcept {
 			if constexpr (is_reverse) {
-				++_current_value;
+				++current_value_;
 			}
 			else {
-				--_current_value;
+				--current_value_;
 			}
 			return *this;
 		}
@@ -102,30 +78,30 @@ public:
 		[[nodiscard]]
 		constexpr Iterator operator-(difference_type const offset) const noexcept {
 			if constexpr (is_reverse) {
-				return _current_value + offset;
+				return current_value_ + offset;
 			}
 			else {
-				return _current_value - offset;
+				return current_value_ - offset;
 			}        
 		}
 		constexpr Iterator& operator-=(difference_type const offset) noexcept {
 			if constexpr (is_reverse) {
-				_current_value += offset;
+				current_value_ += offset;
 			}
 			else {
-				_current_value -= offset;
+				current_value_ -= offset;
 			}
 			return *this;
 		}
 
 		[[nodiscard]]
 		constexpr value_type operator*() const noexcept {
-			return _current_value;
+			return current_value_;
 		}
 
 		[[nodiscard]]
 		constexpr value_type operator[](difference_type const offset) const noexcept {
-			return static_cast<value_type>(_current_value + offset);
+			return static_cast<value_type>(current_value_ + offset);
 		}
 
 		[[nodiscard]]
@@ -133,26 +109,26 @@ public:
 
 		constexpr Iterator() = default;
 		constexpr Iterator(Value_ const value) noexcept :
-			_current_value{value}
+			current_value_{value}
 		{}
 
 	private:
-		value_type _current_value;
+		value_type current_value_;
 	};
 
 	[[nodiscard]]
 	constexpr Range<Value_, !is_reverse> reverse() const noexcept {
-		return {*(_end - 1), *_start};
+		return {*(end_ - 1), *start_};
 	}
 
 	[[nodiscard]]
 	constexpr Iterator begin() const noexcept{
-		return _start;
+		return start_;
 	}
 
 	[[nodiscard]]
 	constexpr Iterator end() const noexcept {
-		return _end;
+		return end_;
 	}
 
 	constexpr bool operator==(Range const&) const = default;
@@ -161,26 +137,26 @@ public:
 		Creates a range of integers starting with start and ending with inclusive_end.
 	*/
 	constexpr Range(Value_ const start, Value_ const inclusive_end) noexcept requires (!is_reverse) :
-		_start{start},
-		_end{inclusive_end + 1}
+		start_{start},
+		end_{inclusive_end + 1}
 	{}
 	constexpr Range(Value_ const start, Value_ const inclusive_end) noexcept requires is_reverse :
-		_start{start},
-		_end{inclusive_end - 1}
+		start_{start},
+		end_{inclusive_end - 1}
 	{}
 	/*
 		Creates a range of integers starting with 0 and ending with count - 1.
 	*/
 	constexpr Range(Value_ const count) noexcept :
-		_start{0},
-		_end{count}
+		start_{0},
+		end_{count}
 	{}
 
 	constexpr Range() = default;
 
 private:
-	Iterator _start;
-	Iterator _end;
+	Iterator start_;
+	Iterator end_;
 };
 
 } // namespace avo::utils

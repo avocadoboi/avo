@@ -1,27 +1,3 @@
-/*
-MIT License
-
-Copyright (c) 2021 Björn Sundin
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 #ifndef AVO_WINDOW_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_WINDOW_HPP_BJORN_SUNDIN_JUNE_2021
 
@@ -29,6 +5,8 @@ SOFTWARE.
 #include "math/miscellaneous.hpp"
 #include "math/vector2d.hpp"
 #include "utils/miscellaneous.hpp"
+
+#include <any>
 
 namespace avo::window {
 
@@ -41,7 +19,7 @@ class ScreenUnitConverter {
 public:
 	[[nodiscard]]
 	constexpr Pixels dip_to_pixels(Dip const dip) const noexcept {
-		return static_cast<Pixels>(dip * _dip_to_pixel_factor);
+		return static_cast<Pixels>(dip * dip_to_pixel_factor_);
 	}
 	template<template<class> class Vector_> requires math::Is2dVectorTemplate<Vector_>
 	[[nodiscard]]
@@ -63,7 +41,7 @@ public:
 	
 	[[nodiscard]]
 	constexpr Dip pixels_to_dip(Pixels const pixels) const noexcept {
-		return static_cast<Dip>(pixels) / _dip_to_pixel_factor;
+		return static_cast<Dip>(pixels) / dip_to_pixel_factor_;
 	}
 	template<template<class> class Vector_> requires math::Is2dVectorTemplate<Vector_>
 	[[nodiscard]]
@@ -89,11 +67,11 @@ public:
 
 	constexpr ScreenUnitConverter() = default;
 	constexpr explicit ScreenUnitConverter(float const dpi) noexcept :
-		_dip_to_pixel_factor{dpi/normal_dpi}
+		dip_to_pixel_factor_{dpi/normal_dpi}
 	{}
 
 private:
-	math::Factor _dip_to_pixel_factor{1};
+	math::Factor dip_to_pixel_factor_{1};
 };
 
 //------------------------------
@@ -275,7 +253,7 @@ public:
 	
 private:
 	class Implementation;
-	std::unique_ptr<Implementation> _implementation;
+	std::unique_ptr<Implementation> implementation_;
 
 	explicit Window(Parameters const& parameters);
 };
@@ -290,49 +268,49 @@ public:
 	[[nodiscard]]
 	Builder&& position(math::Vector2d<math::Factor> const pos) && noexcept 
 	{
-		_parameters.position_factor = pos;
+		parameters_.position_factor = pos;
 		return std::move(*this);
 	}
 	[[nodiscard]]
 	Builder&& size(math::Size<Dip> const size) && noexcept 
 	{
-		_parameters.size = size;
+		parameters_.size = size;
 		return std::move(*this);
 	}
 	[[nodiscard]]
 	Builder&& min_size(math::Size<Dip> const min_size) && noexcept 
 	{
-		_parameters.size_bounds.min = min_size;
+		parameters_.size_bounds.min = min_size;
 		return std::move(*this);
 	}
 	[[nodiscard]]
 	Builder&& max_size(math::Size<Dip> const max_size) && noexcept 
 	{
-		_parameters.size_bounds.max = max_size;
+		parameters_.size_bounds.max = max_size;
 		return std::move(*this);
 	}
 	[[nodiscard]]
 	Builder&& min_max_size(MinMaxSizes<Dip> const min_max) && noexcept 
 	{
-		_parameters.size_bounds = min_max;
+		parameters_.size_bounds = min_max;
 		return std::move(*this);
 	}
 	[[nodiscard]]
 	Builder&& style(StyleFlags const style) && noexcept 
 	{
-		_parameters.style = style;
+		parameters_.style = style;
 		return std::move(*this);
 	}
 	[[nodiscard]]
 	Builder&& state(State const state) && noexcept 
 	{
-		_parameters.state = state;
+		parameters_.state = state;
 		return std::move(*this);
 	}
 	[[nodiscard]]
 	Builder&& with_parent(Window& parent) && noexcept 
 	{
-		_parameters.parent = &parent;
+		parameters_.parent = &parent;
 		return std::move(*this);
 	}
 
@@ -345,10 +323,10 @@ public:
 	Builder& operator=(Builder const&) = delete;
 
 private:
-	Parameters _parameters;
+	Parameters parameters_;
 
 	Builder(std::string_view const title) :
-		_parameters{.title = title}
+		parameters_{.title = title}
 	{}
 
 	friend Builder window(std::string_view);

@@ -1,33 +1,8 @@
-/*
-MIT License
-
-Copyright (c) 2021 Björn Sundin
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 #ifndef AVO_EVENT_LISTENERS_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_EVENT_LISTENERS_HPP_BJORN_SUNDIN_JUNE_2021
 
 #include <algorithm>
 #include <functional>
-#include <mutex>
 #include <ranges>
 
 namespace avo {
@@ -49,20 +24,20 @@ public:
 	using ConstIterator = std::ranges::iterator_t<ContainerType const>;
 	
 	[[nodiscard]]
-	Iterator begin() noexcept {
-		return _listeners.begin();
+	Iterator begin() {
+		return listeners_.begin();
 	}
 	[[nodiscard]]
-	ConstIterator begin() const noexcept {
-		return _listeners.begin();
+	ConstIterator begin() const {
+		return listeners_.begin();
 	}
 	[[nodiscard]]
-	Iterator end() noexcept {
-		return _listeners.end();
+	Iterator end() {
+		return listeners_.end();
 	}
 	[[nodiscard]]
-	ConstIterator end() const noexcept {
-		return _listeners.end();
+	ConstIterator end() const {
+		return listeners_.end();
 	}
 
 	/*
@@ -71,8 +46,7 @@ public:
 	*/
 	void add(std::function<FunctionType> listener) 
 	{
-		auto const lock = std::scoped_lock{_mutex};    
-		_listeners.emplace_back(std::move(listener));
+		listeners_.emplace_back(std::move(listener));
 	}
 	/*
 		Adds a listener to the EventListeners instance that will be called when nofity_all or operator() is called.
@@ -90,20 +64,18 @@ public:
 	*/
 	void remove(std::function<FunctionType> const& listener) 
 	{
-		auto const lock = std::scoped_lock{_mutex};
-
 		auto const& listener_type = listener.target_type();
-		auto const found_position = std::ranges::find_if(_listeners, [&](auto const& listener_element) {
+		auto const found_position = std::ranges::find_if(listeners_, [&](auto const& listener_element) {
 			// template keyword is used to expicitly tell the compiler that target is a template method for
 			// std::function<FunctionType> and < shouldn't be parsed as the less-than operator
 			return listener_type == listener_element.target_type() &&
 				*(listener.template target<FunctionType>()) == *(listener_element.template target<FunctionType>());
 		});
 
-		if (found_position != _listeners.end()) 
+		if (found_position != listeners_.end()) 
 		{
-			*found_position = std::move(_listeners.back());
-			_listeners.pop_back();
+			*found_position = std::move(listeners_.back());
+			listeners_.pop_back();
 		}
 	}
 	/*
@@ -122,8 +94,7 @@ public:
 	*/
 	void notify_all(Arguments_&& ... event_arguments) 
 	{
-		auto const lock = std::scoped_lock{_mutex};
-		for (auto& listener : _listeners) {
+		for (auto& listener : listeners_) {
 			listener(std::forward<Arguments_>(event_arguments)...);
 		}
 	}
@@ -136,23 +107,8 @@ public:
 		notify_all(std::forward<Arguments_>(event_arguments)...);
 	}
 
-	EventListeners() = default;
-
-	EventListeners(EventListeners&& other) noexcept :
-		_listeners{std::move(other._listeners)}
-	{}
-	EventListeners(EventListeners const&) = delete;
-
-	EventListeners& operator=(EventListeners&& other) noexcept 
-	{
-		_listeners = std::move(other._listeners);
-		return *this;
-	}
-	EventListeners& operator=(EventListeners const&) = delete;
-
 private:
-	std::recursive_mutex _mutex;
-	ContainerType _listeners;
+	ContainerType listeners_;
 };
 
 } // namespace avo

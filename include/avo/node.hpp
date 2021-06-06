@@ -1,27 +1,3 @@
-/*
-MIT License
-
-Copyright (c) 2021 Björn Sundin
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 #ifndef AVO_NODE_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_NODE_HPP_BJORN_SUNDIN_JUNE_2021
 
@@ -70,58 +46,58 @@ private:
 		using iterator_concept = iterator_category;
 
 		Iterator_& operator++() {
-			++_base_iterator;
+			++base_iterator_;
 			return *this;
 		}
 		Iterator_ operator++(int) {
-			return Iterator_{_base_iterator++};
+			return Iterator_{base_iterator_++};
 		}
 		Iterator_& operator--() {
-			--_base_iterator;
+			--base_iterator_;
 			return *this;
 		}
 		Iterator_ operator--(int) {
-			return Iterator_{_base_iterator--};
+			return Iterator_{base_iterator_--};
 		}
 
 		[[nodiscard]]
 		reference operator*() const {
-			return **_base_iterator;
+			return **base_iterator_;
 		}
 
 		[[nodiscard]]
 		reference operator[](std::size_t const index) const {
-			return *_base_iterator[index];
+			return *base_iterator_[index];
 		}
 
 		Iterator_& operator+=(difference_type const offset) {
-			_base_iterator += offset;
+			base_iterator_ += offset;
 			return *this;
 		}
 		Iterator_& operator-=(difference_type const offset) {
-			_base_iterator -= offset;
+			base_iterator_ -= offset;
 			return *this;
 		}
 		
 		[[nodiscard]]
 		Iterator_ operator+(difference_type const offset) const {
-			return Iterator_{_base_iterator + offset};
+			return Iterator_{base_iterator_ + offset};
 		}
 		[[nodiscard]]
 		friend Iterator_ operator+(difference_type const offset, Iterator_ const& iterator) {
-			return Iterator_{offset + iterator._base_iterator};
+			return Iterator_{offset + iterator.base_iterator_};
 		}
 		[[nodiscard]]
 		Iterator_ operator-(difference_type const offset) const {
-			return Iterator_{_base_iterator - offset};
+			return Iterator_{base_iterator_ - offset};
 		}
 		[[nodiscard]]
 		friend Iterator_ operator-(difference_type const offset, Iterator_ const& iterator) {
-			return Iterator_{offset - iterator._base_iterator};
+			return Iterator_{offset - iterator.base_iterator_};
 		}
 		[[nodiscard]]
 		difference_type operator-(Iterator_ const& offset) const {
-			return _base_iterator - offset._base_iterator;
+			return base_iterator_ - offset.base_iterator_;
 		}
 
 		[[nodiscard]]
@@ -129,11 +105,11 @@ private:
 	
 		Iterator_() = default;
 		explicit Iterator_(BaseIterator const base_iterator) :
-			_base_iterator{base_iterator}
+			base_iterator_{base_iterator}
 		{}
 	
 	private:
-		BaseIterator _base_iterator;
+		BaseIterator base_iterator_;
 	};
 	
 public:
@@ -142,41 +118,41 @@ public:
 
 	[[nodiscard]]
 	Iterator begin() {
-		return Iterator{std::ranges::begin(_children)};
+		return Iterator{std::ranges::begin(children_)};
 	}
 	[[nodiscard]]
 	ConstIterator begin() const {
-		return ConstIterator{std::ranges::begin(_children)};
+		return ConstIterator{std::ranges::begin(children_)};
 	}
 	[[nodiscard]]
 	Iterator end() {
-		return Iterator{std::ranges::end(_children)};
+		return Iterator{std::ranges::end(children_)};
 	}
 	[[nodiscard]]
 	ConstIterator end() const {
-		return ConstIterator{std::ranges::end(_children)};
+		return ConstIterator{std::ranges::end(children_)};
 	}
 
 	[[nodiscard]]
 	std::size_t size() const {
-		return _children.size();
+		return children_.size();
 	}
 
 	[[nodiscard]]
 	Node& operator[](std::size_t const index) {
-		return *_children[index];
+		return *children_[index];
 	}
 	[[nodiscard]]
 	Node const& operator[](std::size_t const index) const {
-		return *_children[index];
+		return *children_[index];
 	}
 	[[nodiscard]]
 	Node& at(std::size_t const index) {
-		return *_children.at(index);
+		return *children_.at(index);
 	}
 	[[nodiscard]]
 	Node const& at(std::size_t const index) const {
-		return *_children.at(index);
+		return *children_.at(index);
 	}
 
 	[[nodiscard]]
@@ -194,11 +170,11 @@ public:
 
 	[[nodiscard]]
 	Node* parent() {
-		return _parent;
+		return parent_;
 	}
 	[[nodiscard]]
 	Node const* parent() const {
-		return _parent;
+		return parent_;
 	}
 	/*
 		Sets the parent of the node.
@@ -209,11 +185,11 @@ public:
 			detach();
 		}
 		else {
-			_remove_from_parent();
+			remove_from_parent_();
 			
-			_parent = &parent;
+			parent_ = &parent;
 
-			_add_to_parent();
+			add_to_parent_();
 		}
 		return *this;
 	}
@@ -221,17 +197,17 @@ public:
 		Detaches the node from its parent, making it a root node.
 	*/
 	Node& detach() {
-		_remove_from_parent();
-		_parent = nullptr;
+		remove_from_parent_();
+		parent_ = nullptr;
 		return *this;
 	}
 
 	[[nodiscard]]
 	Id id() const noexcept {
-		return _id;
+		return id_;
 	}
 	Node& id(Id const new_id) {
-		_id = new_id;
+		id_ = new_id;
 		return *this;
 	}
 
@@ -242,8 +218,8 @@ public:
 	[[nodiscard]]
 	Node const* find_by_id(Id const id) const
 	{
-		if (auto const node = std::ranges::find(_id_nodes, id, &Node::_id);
-			node != _id_nodes.end())
+		if (auto const node = std::ranges::find(id_nodes_, id, &Node::id_);
+			node != id_nodes_.end())
 		{
 			return *node;
 		}
@@ -255,7 +231,7 @@ public:
 	*/
 	[[nodiscard]]
 	std::ranges::view auto find_all_by_id(Id const id) {
-		return _id_nodes | std::views::filter([id](Node* node) { return node->id() == id; })
+		return id_nodes_ | std::views::filter([id](Node* node) { return node->id() == id; })
 			| std::views::transform([](Node* node) -> Node& { return *node; });
 	}
 	/*
@@ -263,7 +239,7 @@ public:
 	*/
 	[[nodiscard]]
 	std::ranges::view auto find_all_by_id(Id const id) const {
-		return _id_nodes | std::views::filter([id](Node* node) { return node->id() == id; })
+		return id_nodes_ | std::views::filter([id](Node* node) { return node->id() == id; })
 			| std::views::transform([](Node* node) -> Node const& { return *node; });
 	}
 
@@ -274,7 +250,7 @@ public:
 	template<class Component_>
 	[[nodiscard]]
 	Component_* component() {
-		return _get_component<Component_>();
+		return get_component_<Component_>();
 	}
 	/*
 		Returns the component associated with this node.
@@ -283,133 +259,133 @@ public:
 	template<class Component_>
 	[[nodiscard]]
 	Component_ const* component() const {
-		return _get_component<Component_>();
+		return get_component_<Component_>();
 	}
 
 	template<class Component_> 
 	Node(Id const id, Component_& component) :
-		_id{id},
-		_component{&component}
+		id_{id},
+		component_{&component}
 	{}
 	template<class Component_> 
 	Node(Id const id) :
-		_id{id}
+		id_{id}
 	{}
 	template<class Component_> 
 	Node(Component_& component) :
-		_component{&component}
+		component_{&component}
 	{}
 
 	template<class Component_> 
 	Node(Node& parent, Id const id, Component_& component) :
-		_parent{&parent},
-		_id{id},
-		_component{&component}
+		parent_{&parent},
+		id_{id},
+		component_{&component}
 	{
-		_add_to_parent();
+		add_to_parent_();
 	}
 	template<class Component_> 
 	Node(Node& parent, Component_& component) :
-		_parent{&parent},
-		_component{&component}
+		parent_{&parent},
+		component_{&component}
 	{
-		_add_to_parent();
+		add_to_parent_();
 	}
 	template<class Component_> 
 	Node(Node& parent, Id const id) :
-		_parent{&parent},
-		_id{id}
+		parent_{&parent},
+		id_{id}
 	{
-		_add_to_parent();
+		add_to_parent_();
 	}
 	
 	Node() = default;
 	~Node() {
-		_remove_from_tree();
+		remove_from_tree_();
 	}
 
 	Node(Node const&) = delete;
 	Node& operator=(Node const&) = delete;
 	
 	Node(Node&& other) noexcept {
-		_move_construct(std::move(other));
+		move_construct_(std::move(other));
 	}
 	Node& operator=(Node&& other) noexcept {
-		_remove_from_tree();
-		_move_construct(std::move(other));
+		remove_from_tree_();
+		move_construct_(std::move(other));
 		return *this;
 	}
 
 private:
 	template<class Component_>
-	Component_* _get_component() const {
-		if (_component.type() == typeid(Component_*)) {
-			return std::any_cast<Component_*>(_component);
+	Component_* get_component_() const {
+		if (component_.type() == typeid(Component_*)) {
+			return std::any_cast<Component_*>(component_);
 		}
 		else {
 			return nullptr;
 		}
 	}
 
-	void _remove_from_parent() 
+	void remove_from_parent_() 
 	{
-		if (_parent) {
-			utils::unordered_erase(_parent->_children, this);
+		if (parent_) {
+			utils::unordered_erase(parent_->children_, this);
 
 			for (Node* const parent : utils::view_parents(*this)) {
-				utils::unordered_erase(parent->_id_nodes, this);
+				utils::unordered_erase(parent->id_nodes_, this);
 			}
 		}
 	}
-	void _add_to_parent() {
-		if (_parent) {
-			_parent->_children.push_back(this);
+	void add_to_parent_() {
+		if (parent_) {
+			parent_->children_.push_back(this);
 
 			for (Node* const parent : utils::view_parents(*this)) {
-				parent->_id_nodes.push_back(this);
+				parent->id_nodes_.push_back(this);
 			}
 		}
 	}
-	void _remove_from_tree() 
+	void remove_from_tree_() 
 	{
-		_remove_from_parent();
-		if (!_children.empty()) {
-			std::ranges::for_each(_children, &Node::detach);
-			_children.clear();
-			_id_nodes.clear();
+		remove_from_parent_();
+		if (!children_.empty()) {
+			std::ranges::for_each(children_, &Node::detach);
+			children_.clear();
+			id_nodes_.clear();
 		}
 	}
-	void _move_construct(Node&& other) 
+	void move_construct_(Node&& other) 
 	{
-		_parent = other._parent;
-		_id = other._id;
+		parent_ = other.parent_;
+		id_ = other.id_;
 
-		if (_parent) 
+		if (parent_) 
 		{ // If we have a parent, update all pointers that pointed to the old node.
-			*std::ranges::find(_parent->_children, &other) = this;
+			*std::ranges::find(parent_->children_, &other) = this;
 
-			if (_id) {
+			if (id_) {
 				for (Node* const parent : utils::view_parents(*this)) {
-					*std::ranges::find(parent->_id_nodes, &other) = this;
+					*std::ranges::find(parent->id_nodes_, &other) = this;
 				}
 			}
 		}
 
-		_children = std::move(other._children);
-		for (Node* const child : _children) {
-			child->_parent = this;
+		children_ = std::move(other.children_);
+		for (Node* const child : children_) {
+			child->parent_ = this;
 		}
 		
-		_id_nodes = std::move(other._id_nodes);
-		_component = std::move(other._component);
+		id_nodes_ = std::move(other.id_nodes_);
+		component_ = std::move(other.component_);
 	}
 
-	Node* _parent{};
-	ContainerType _children;
-	std::vector<Node*> _id_nodes;
+	Node* parent_{};
+	ContainerType children_;
+	std::vector<Node*> id_nodes_;
 
-	Id _id{};
-	std::any _component{};
+	Id id_{};
+	std::any component_{};
 };
 
 template<class Component_>

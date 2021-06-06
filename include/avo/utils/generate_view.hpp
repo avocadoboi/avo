@@ -1,27 +1,3 @@
-/*
-MIT License
-
-Copyright (c) 2021 Björn Sundin
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 #ifndef AVO_UTILS_GENERATE_VIEW_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_GENERATE_VIEW_HPP_BJORN_SUNDIN_JUNE_2021
 
@@ -47,21 +23,21 @@ public:
 	
 		[[nodiscard]]
 		constexpr reference operator*() const& {
-			return _last_value;
+			return last_value_;
 		}
 		[[nodiscard]]
 		constexpr value_type operator*() && {
-			return std::move(_last_value);
+			return std::move(last_value_);
 		}
 
 		constexpr Iterator& operator++() 
 		{
-			if (_generate) {
-				if (auto value = (*_generate)()) {
-					_last_value = std::move(*value);
+			if (generate_) {
+				if (auto value = (*generate_)()) {
+					last_value_ = std::move(*value);
 				}
 				else {
-					_generate = std::nullopt;
+					generate_ = std::nullopt;
 				}
 			}
 			return *this;
@@ -75,7 +51,7 @@ public:
 		}
 		[[nodiscard]]
 		constexpr bool operator==(std::default_sentinel_t) const noexcept {
-			return !_generate;
+			return !generate_;
 		}
 		[[nodiscard]]
 		constexpr bool operator==(Iterator const&) const noexcept
@@ -84,7 +60,7 @@ public:
 			= default;
 
 		constexpr Iterator(Generator_ const& generate) :
-			_generate{generate}
+			generate_{generate}
 		{
 			operator++();
 		}
@@ -100,13 +76,13 @@ public:
 		constexpr Iterator& operator=(Iterator const& other)
 			requires (!std::copyable<Generator_>)
 		{
-			if (other._generate) {
-				_generate.emplace(*other._generate);
+			if (other.generate_) {
+				generate_.emplace(*other.generate_);
 			}
 			else {
-				_generate = std::nullopt;
+				generate_ = std::nullopt;
 			}
-			_last_value = other._last_value;
+			last_value_ = other.last_value_;
 			return *this;
 		}
 
@@ -116,28 +92,28 @@ public:
 		constexpr Iterator& operator=(Iterator&& other) noexcept 
 			requires (!std::movable<Generator_>) 
 		{
-			if (other._generate) {
-				_generate.emplace(std::move(*other._generate));
+			if (other.generate_) {
+				generate_.emplace(std::move(*other.generate_));
 			}
 			else {
-				_generate = std::nullopt;
+				generate_ = std::nullopt;
 			}
-			_last_value = std::move(other._last_value);
+			last_value_ = std::move(other.last_value_);
 			return *this;
 		}
 
 	private:
-		value_type _last_value{};
-		std::optional<Generator_> _generate{};
+		value_type last_value_{};
+		std::optional<Generator_> generate_{};
 	};
 	
 	[[nodiscard]]
 	constexpr Iterator begin() const& {
-		return Iterator{_generate};
+		return Iterator{generate_};
 	}
 	[[nodiscard]]
 	constexpr Iterator begin() && {
-		return Iterator{std::move(_generate)};
+		return Iterator{std::move(generate_)};
 	}
 
 	[[nodiscard]]
@@ -146,11 +122,11 @@ public:
 	}
 	
 	constexpr GenerateView(Generator_ generate) noexcept :
-		_generate{std::move(generate)}
+		generate_{std::move(generate)}
 	{}
 
 private:
-	Generator_ _generate;
+	Generator_ generate_;
 };
 
 } // namespace avo::utils

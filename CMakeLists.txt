@@ -7,7 +7,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin/)
 #--------------------------------------------
 # Library target.
 
-add_library(avo STATIC include/avo.hpp source/avo.cpp)
+add_library(avo STATIC)
 add_library(${PROJECT_NAME}::avo ALIAS avo)
 
 #--------------------------------------------
@@ -45,26 +45,7 @@ target_include_directories(avo PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-#--------------------------------------------
-# Link to platform-dependent external libraries.
-
-if (WIN32)
-#     target_link_libraries(avo PRIVATE Shlwapi Dwmapi d2d1 d3d11 dxguid dwrite windowscodecs)
-else ()
-	find_package(X11 REQUIRED)
-	target_link_libraries(avo PRIVATE X11)
-	
-	find_package(OpenGL REQUIRED)
-	target_link_libraries(avo PRIVATE OpenGL::OpenGL OpenGL::GLX)
-	
-	find_package(Threads REQUIRED)
-	target_link_libraries(avo PRIVATE Threads::Threads)
-
-	find_package(Iconv REQUIRED)
-	if (NOT Iconv_IS_BUILT_IN)
-		target_link_libraries(avo PRIVATE Iconv::Iconv)
-	endif ()
-endif ()
+add_subdirectory(source)
 
 #--------------------------------------------
 # Add cross-platform external libraries.

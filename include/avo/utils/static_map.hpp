@@ -1,27 +1,3 @@
-/*
-MIT License
-
-Copyright (c) 2021 Björn Sundin
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 #ifndef AVO_UTILS_STATIC_MAP_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_STATIC_MAP_HPP_BJORN_SUNDIN_JUNE_2021
 
@@ -32,43 +8,43 @@ SOFTWARE.
 
 namespace avo::utils {
 
-template<std::move_constructible A, std::move_constructible B, std::size_t _size>
+template<std::move_constructible A, std::move_constructible B, std::size_t size_>
 class StaticMap {
 public:
     using first_type = A;
     using second_type = B;
 	using value_type = std::pair<A, B>;
 
-	using ContainerType = std::array<value_type, _size>;
+	using ContainerType = std::array<value_type, size_>;
 
 	[[nodiscard]]
 	constexpr auto begin() {
-		return std::ranges::begin(_array);
+		return std::ranges::begin(array_);
 	}
 	[[nodiscard]]
 	constexpr auto begin() const {
-		return std::ranges::begin(_array);
+		return std::ranges::begin(array_);
 	}
 	[[nodiscard]]
 	constexpr auto end() {
-		return std::ranges::end(_array);
+		return std::ranges::end(array_);
 	}
 	[[nodiscard]]
 	constexpr auto end() const {
-		return std::ranges::end(_array);
+		return std::ranges::end(array_);
 	}
 
 	[[nodiscard]]
 	constexpr std::size_t size() const noexcept {
-		return _size;
+		return size_;
 	}
 	[[nodiscard]]
 	constexpr value_type* data() noexcept {
-		return std::ranges::data(_array);
+		return std::ranges::data(array_);
 	}
 	[[nodiscard]]
 	constexpr value_type const* data() const noexcept {
-		return std::ranges::data(_array);
+		return std::ranges::data(array_);
 	}
 
 	[[nodiscard]]
@@ -78,8 +54,8 @@ public:
 	[[nodiscard]]
 	constexpr second_type const* find(first_type const& key) const
 	{
-		if (auto const pos = std::ranges::find(_array, key, &value_type::first);
-			pos != std::ranges::end(_array)) 
+		if (auto const pos = std::ranges::find(array_, key, &value_type::first);
+			pos != std::ranges::end(array_)) 
 		{
 			return &pos->second;
 		}
@@ -89,8 +65,8 @@ public:
 	[[nodiscard]]
 	constexpr second_type const& find_or(first_type const& key, second_type const& default_value) const
 	{
-		if (auto const pos = std::ranges::find(_array, key, &value_type::first);
-			pos != std::ranges::end(_array)) 
+		if (auto const pos = std::ranges::find(array_, key, &value_type::first);
+			pos != std::ranges::end(array_)) 
 		{
 			return pos->second;
 		}
@@ -100,7 +76,7 @@ public:
 	[[nodiscard]]
 	constexpr std::ranges::view auto find_all(first_type const& key) 
 	{
-		return _array | std::views::filter([&](value_type& pair) {
+		return array_ | std::views::filter([&](value_type& pair) {
 			return pair.first == key;
 		}) | std::views::transform([&](value_type& pair) -> second_type& {
 			return pair.second;
@@ -109,7 +85,7 @@ public:
 	[[nodiscard]]
 	constexpr std::ranges::view auto find_all(first_type const& key) const 
 	{
-		return _array | std::views::filter([&](value_type const& pair) {
+		return array_ | std::views::filter([&](value_type const& pair) {
 			return pair.first == key;
 		}) | std::views::transform([&](value_type const& pair) -> second_type const& {
 			return pair.second;
@@ -128,8 +104,8 @@ public:
 	constexpr first_type const* find(second_type const& key) const
 		requires (!std::same_as<first_type, second_type>) || is_key_second_type
 	{
-		if (auto const pos = std::ranges::find(_array, key, &value_type::second);
-			pos != std::ranges::end(_array)) 
+		if (auto const pos = std::ranges::find(array_, key, &value_type::second);
+			pos != std::ranges::end(array_)) 
 		{
 			return &pos->first;
 		}
@@ -141,8 +117,8 @@ public:
 	constexpr first_type const& find_or(second_type const& key, first_type const& default_value) const
 		requires (!std::same_as<first_type, second_type>) || is_key_second_type
 	{
-		if (auto const pos = std::ranges::find(_array, key, &value_type::second);
-			pos != std::ranges::end(_array)) 
+		if (auto const pos = std::ranges::find(array_, key, &value_type::second);
+			pos != std::ranges::end(array_)) 
 		{
 			return pos->first;
 		}
@@ -154,7 +130,7 @@ public:
 	constexpr std::ranges::view auto find_all(second_type const& key) 
 		requires (!std::same_as<first_type, second_type>) || is_key_second_type
 	{
-		return _array | std::views::filter([&](value_type& pair) {
+		return array_ | std::views::filter([&](value_type& pair) {
 			return pair.second == key;
 		}) | std::views::transform([&](value_type& pair) -> first_type& {
 			return pair.first;
@@ -165,7 +141,7 @@ public:
 	constexpr std::ranges::view auto find_all(second_type const& key) const 
 		requires (!std::same_as<first_type, second_type>) || is_key_second_type
 	{
-		return _array | std::views::filter([&](value_type const& pair) {
+		return array_ | std::views::filter([&](value_type const& pair) {
 			return pair.second == key;
 		}) | std::views::transform([&](value_type const& pair) -> first_type const& {
 			return pair.first;
@@ -174,27 +150,27 @@ public:
 
     template<IsInstantiationOf<std::pair> ... Element_>
     constexpr StaticMap(Element_&& ... element) :
-        _array{std::forward<Element_>(element)...}
+        array_{std::forward<Element_>(element)...}
     {
-		static_assert(sizeof...(element) == _size, "StaticMap was initialized with wrong number of pairs.");
+		static_assert(sizeof...(element) == size_, "StaticMap was initialized with wrong number of pairs.");
 	}
 	constexpr StaticMap(std::initializer_list<std::pair<A, B>>&& elements) 
 	{
-		if (elements.size() != _size) {
+		if (elements.size() != size_) {
 			throw std::length_error{"StaticMap was initialized with wrong number of pairs."};
 		}
-		std::ranges::move(elements, _array.begin());
+		std::ranges::move(elements, array_.begin());
 	}
 	constexpr StaticMap(std::initializer_list<std::pair<A, B>> const& elements) 
 	{
-		if (elements.size() != _size) {
+		if (elements.size() != size_) {
 			throw std::length_error{"StaticMap was initialized with wrong number of pairs."};
 		}
-		std::ranges::copy(elements, _array.begin());
+		std::ranges::copy(elements, array_.begin());
 	}
 
 private:
-	ContainerType _array;
+	ContainerType array_;
 };
 
 template<IsInstantiationOf<std::pair> ... Element_>

@@ -1,27 +1,3 @@
-/*
-MIT License
-
-Copyright (c) 2021 Björn Sundin
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
 #ifndef AVO_MATH_RANDOM_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_MATH_RANDOM_HPP_BJORN_SUNDIN_JUNE_2021
 
@@ -42,7 +18,7 @@ public:
 	template<std::floating_point T>
 	[[nodiscard]]
 	T next(T const min, T const max) {
-		return std::uniform_real_distribution<T>{min, max}(_engine);
+		return std::uniform_real_distribution<T>{min, max}(engine_);
 	}
 	/*
 		Generates a new uniformly distributed random floating point number in the range [0, max).
@@ -58,7 +34,7 @@ public:
 	template<std::integral T> requires (!std::same_as<T, bool>)
 	[[nodiscard]]
 	T next(T const min, T const max) {
-		return std::uniform_int_distribution<T>{min, max}(_engine);
+		return std::uniform_int_distribution<T>{min, max}(engine_);
 	}
 	/*
 		Generates a new uniformly distributed random integer in the range [0, max].
@@ -94,16 +70,16 @@ public:
 	template<std::floating_point T>
 	[[nodiscard]]
 	T next_normal(T const mean, T const standard_deviation) {
-		return std::normal_distribution<T>{mean, standard_deviation}(_engine);
+		return std::normal_distribution<T>{mean, standard_deviation}(engine_);
 	}
 
 	Random() = default;
 	Random(std::uint_fast32_t const seed) :
-		_engine{seed}
+		engine_{seed}
 	{}
 
 private:
-	std::mt19937 _engine{std::random_device{}()};
+	std::mt19937 engine_{std::random_device{}()};
 };
 	
 } // namespace avo::math

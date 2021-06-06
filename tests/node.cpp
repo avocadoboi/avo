@@ -5,45 +5,45 @@
 class SomeComponent {
 public:
 	int value() const noexcept {
-		return _value;
+		return value_;
 	}
 	avo::Node& get_node() noexcept {
-		return _node;
+		return node_;
 	}
 
 	SomeComponent(avo::Node& parent, avo::Id const id, int const value) :
-		_node{parent, id, *this},
-		_value{value}
+		node_{parent, id, *this},
+		value_{value}
 	{}
 
 private:
-	avo::Node _node;
-	int _value;
+	avo::Node node_;
+	int value_;
 };
 
 class App {
 public:
-	App() : _node{*this}
+	App() : node_{*this}
 	{
-		_other_components.emplace_back(_component_0.get_node(), avo::Id{3}, 10);
-		_other_components.emplace_back(_component_0.get_node(), avo::Id{4}, 11);
-		_other_components.emplace_back(_component_1.get_node(), avo::Id{4}, 12);
-		_other_components.emplace_back(_component_1.get_node(), avo::Id{5}, 13);
+		other_components_.emplace_back(component_0_.get_node(), avo::Id{3}, 10);
+		other_components_.emplace_back(component_0_.get_node(), avo::Id{4}, 11);
+		other_components_.emplace_back(component_1_.get_node(), avo::Id{4}, 12);
+		other_components_.emplace_back(component_1_.get_node(), avo::Id{5}, 13);
 	}
 
 	avo::Node const& get_node() const noexcept {
-		return _node;
+		return node_;
 	}
 	avo::Node& get_node() noexcept {
-		return _node;
+		return node_;
 	}
 
 private:
-	avo::Node _node;
+	avo::Node node_;
 
-	std::vector<SomeComponent> _other_components;
-	SomeComponent _component_0{_node, avo::Id{1}, 3};
-	SomeComponent _component_1{_node, avo::Id{2}, 8};
+	std::vector<SomeComponent> other_components_;
+	SomeComponent component_0_{node_, avo::Id{1}, 3};
+	SomeComponent component_1_{node_, avo::Id{2}, 8};
 };
 
 TEST_CASE("Nodes with IDs") {
