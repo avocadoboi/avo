@@ -11,7 +11,7 @@ Currently, only GCC supports all C++20 features used in the library. There are a
 * A modern design that allows creative coding and interactive programs yet is scalable for writing larger applications. 
 * Interfaces are hard to misuse and as many errors as possible are catched at compile time.
 * Library code follows C++ Core Guidelines.
-* Written with modules when build systems and compilers have good support for modules. Until then, one source and one header file.
+* Written with modules when build systems and compilers have good support for modules.
 * Support for Windows, Linux and MacOS.
 * UTF-8 support.
 * Free from warnings with all useful warning flags turned on.
