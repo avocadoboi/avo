@@ -30,12 +30,12 @@ public:
 	/*
 		Adds a message onto the queue.
 	*/
-	template<class Message_>
-		requires std::same_as<std::remove_cvref_t<Message_>, T>
-	void push(Message_&& message) {
+	template<class ... Argument_>
+		requires std::constructible_from<T, Argument_&&...>
+	void push(Argument_&& ... argument) {
 		{
 			auto const lock = std::lock_guard{mutex_};
-			queue_.push(std::forward<Message_>(message));
+			queue_.emplace(std::forward<Argument_>(argument)...);
 		}
 		notify_next_message_();
 	}
@@ -43,14 +43,14 @@ public:
 	/*
 		Adds a message onto the queue and waits until it has been removed from the queue by another thread.
 	*/
-	template<class Message_>
-		requires std::same_as<std::remove_cvref_t<Message_>, T>
-	void push_wait(Message_&& message) {
+	template<class ... Argument_>
+		requires std::constructible_from<T, Argument_&&...>
+	void push_wait(Argument_&& ... argument) {
 		{
 			auto const lock = std::lock_guard{mutex_};
 
-			queue_.push(std::forward<Message_>(message));
-
+			queue_.emplace(std::forward<Argument_>(argument)...);
+		
 			// Set the number of messages left to remove before this function exits.
 			push_wait_pop_index_ = queue_.size();
 			push_wait_flag_.clear();
@@ -83,7 +83,9 @@ public:
 		Returning a reference would not be thread-safe.
 	*/
 	[[nodiscard]]
-	T peek_next() const {
+	T peek_next() const 
+		requires std::copy_constructible<T>
+	{
 		wait_for_next_();
 		
 		auto const lock = std::lock_guard{mutex_};
@@ -176,30 +178,18 @@ public:
 	/*
 		Sends a message through the channel without waiting.
 	*/
-	void send(T&& message) {
-		queue_->push(std::move(message));
-	}
-	/*
-		Sends a message through the channel without waiting.
-	*/
-	void send(T const& message) 
-		requires std::copy_constructible<T>
-	{
-		queue_->push(message);
+	template<class ... Argument_> 
+		requires std::constructible_from<T, Argument_&&...>
+	void send(Argument_&& ... argument) {
+		queue_->push(std::forward<Argument_>(argument)...);
 	}
 	/*
 		Sends a message through the channel and waits until it has been received and taken off the queue.
 	*/
-	void send_wait(T&& message) {
-		queue_->push_wait(std::move(message));
-	}
-	/*
-		Sends a message through the channel and waits until it has been received and taken off the queue.
-	*/
-	void send_wait(T const& message) 
-		requires std::copy_constructible<T>
-	{
-		queue_->push_wait(message);
+	template<class ... Argument_> 
+		requires std::constructible_from<T, Argument_&&...>
+	void send_wait(Argument_&& ... message) {
+		queue_->push_wait(std::forward<Argument_>(message)...);
 	}
 
 	/*
@@ -238,7 +228,9 @@ public:
 		It is still left in the queue.
 	*/
 	[[nodiscard]]
-	T receive_peek() const {
+	T receive_peek() const 
+		requires std::copy_constructible<T>
+	{
 		return queue_->peek_next();
 	}
 	/*
@@ -284,7 +276,7 @@ struct Channel final {
 	The sender and receiver privately share a thread-safe message queue (avo::concurrency::MessageQueue<T>) which they push and pop messages on. 
 	The sender can wait for its message to be received and the receiver can wait for new messages to be sent.
 */
-template<class T>
+template<std::move_constructible T>
 [[nodiscard]]
 Channel<T> create_channel() {
 	auto message_queue = std::make_shared<MessageQueue<T>>();
