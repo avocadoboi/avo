@@ -171,7 +171,7 @@ private:
 };
 
 template<std::move_constructible T>
-class Sender {
+class Sender final {
 public:
 	/*
 		Sends a message through the channel without waiting.
@@ -224,7 +224,7 @@ private:
 };
 
 template<std::move_constructible T>
-class Receiver {
+class Receiver final {
 public:
 	/*
 		Waits for the next message and moves it from the queue.
