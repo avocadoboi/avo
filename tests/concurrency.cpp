@@ -20,8 +20,7 @@ TEST_CASE("Message channel, send all at once and receive one at a time") {
 		}
 	}};
 
-	for (auto const expected_message : messages)
-	{
+	for (auto const expected_message : messages) {
 		REQUIRE(receiver.receive() == expected_message);
 	}
 }
@@ -40,7 +39,8 @@ TEST_CASE("Message channel, send all at once and receive all at once") {
 
 	sent_all.wait(false);
 
-	for (auto i = std::size_t{}; !receiver.is_queue_empty(); ++i) {
+	for (auto i = std::size_t{}; !receiver.is_queue_empty(); ++i) 
+	{
 		REQUIRE(receiver.queue_size() == messages.size() - i);
 		REQUIRE(receiver.receive() == messages.at(i));
 	}
