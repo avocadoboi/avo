@@ -147,9 +147,10 @@ inline DataVector read_file(std::string const path) {
 		return {};
 	}
 
-	auto result = DataVector(file.tellg());
+	// tellg() only returns a negative value if fail() is true (which it isn't because we just checked).
+	auto result = DataVector(static_cast<std::size_t>(file.tellg()));
 	file.seekg(0, std::ios::beg);
-	file.read(reinterpret_cast<char*>(result.data()), result.size());
+	file.read(reinterpret_cast<char*>(result.data()), static_cast<std::streamsize>(result.size()));
 
 	return result;
 }

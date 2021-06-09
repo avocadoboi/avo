@@ -27,7 +27,7 @@ TEST_CASE("Random access avo::utils::enumerate") {
 	
 	for (auto const correct_index : avo::utils::indices(container)) 
 	{
-		auto const [index, element] = range[container.size() - 1 - correct_index];
+		auto const [index, element] = range[static_cast<std::ptrdiff_t>(container.size() - 1 - correct_index)];
 		CHECK(index == correct_index);
 		CHECK(element == container[correct_index]);
 	}
@@ -40,7 +40,7 @@ TEST_CASE("Random access avo::utils::enumerate pipe") {
 	
 	for (auto const correct_index : avo::utils::indices(container)) 
 	{
-		auto const [index, element] = range[correct_index];
+		auto const [index, element] = range[static_cast<std::ptrdiff_t>(correct_index)];
 		CHECK(index == correct_index);
 		CHECK(element == container[container.size() - 1 - correct_index]);
 	}

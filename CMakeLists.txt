@@ -26,14 +26,17 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
 else ()
 	target_compile_options(avo PUBLIC
 		-Werror -Wall -Wpedantic -Wextra 
-		-Wimplicit-fallthrough=5 
-		-Wduplicated-branches -Wduplicated-cond 
-		-Wcast-qual -Wconversion
-		
+		-Wduplicated-branches 
+		-Wduplicated-cond 
+		-Wcast-qual 
+		-Wcast-align
+		-Wconversion
+
 		-Wno-parentheses
 		-Wno-missing-field-initializers
 
 		-fconcepts-diagnostics-depth=2
+		-fmax-errors=5
 	)
 endif ()
 

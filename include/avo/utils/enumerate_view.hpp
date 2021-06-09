@@ -72,7 +72,7 @@ public:
 		}
 
 		[[nodiscard]]
-		constexpr value_type operator[](difference_type const i) const
+		constexpr value_type operator[](std::size_t const i) const
 			requires std::ranges::random_access_range<T>
 		{
 			return {index_ + i, base_iterator_[i]};
@@ -118,18 +118,18 @@ public:
 
 		[[nodiscard]]
 		constexpr value_type operator*() const {
-			return value_type{index_, *base_iterator_};
+			return value_type{static_cast<std::size_t>(index_), *base_iterator_};
 		}
 
 		constexpr Iterator() = default;
-		constexpr Iterator(BaseIterator const base_iterator, std::size_t const index) :
+		constexpr Iterator(BaseIterator const base_iterator, difference_type const index) :
 			base_iterator_{base_iterator},
 			index_{index}
 		{}
 
 	private:
 		BaseIterator base_iterator_;
-		std::size_t index_{};
+		difference_type index_{};
 	};
 	
 	[[nodiscard]]
@@ -145,12 +145,12 @@ public:
 
 	[[nodiscard]]
 	constexpr Iterator begin() const {
-		return {std::ranges::begin(base_), std::size_t{}};
+		return {std::ranges::begin(base_), {}};
 	}
 
 	[[nodiscard]]
 	constexpr Iterator end() const {
-		return {std::ranges::end(base_), static_cast<std::size_t>(std::ranges::distance(base_))};
+		return {std::ranges::end(base_), std::ranges::distance(base_)};
 	}
 
 	[[nodiscard]]

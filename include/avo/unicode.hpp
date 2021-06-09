@@ -25,26 +25,26 @@ void enable_utf8_console();
 /*
 	Converts a UTF-8 encoded char string to a UTF-16 encoded char16 string.
 	Returns the length of the converted string, in code point units (char16_t).
-	If no value is returned then the output span is too small to fit the whole converted string.
+	If no value is returned then the output span is too small to fit the whole converted string or the input string contains invalid UTF-8.
 */
-std::optional<std::size_t> utf8_to_utf16(std::string_view input, std::span<char16_t> output);
+std::optional<std::size_t> utf8_to_utf16(std::string_view input, std::span<char16_t> output) noexcept;
 /*
 	Converts a UTF-8 encoded string to a UTF-16 encoded std::u16string.
 */
 [[nodiscard]]
-std::u16string utf8_to_utf16(std::string_view input);
+std::u16string utf8_to_utf16(std::string_view input) noexcept;
 
 /*
 	Converts a UTF-16 encoded char16 string to a UTF-8 encoded char string.
 	Returns the length of the converted string, in code point units (char).
-	If no value is returned then the output span is too small to fit the whole converted string.
+	If no value is returned then the output span is too small to fit the whole converted string or the input string contains invalid UTF-16.
 */
-std::optional<std::size_t> utf16_to_utf8(std::u16string_view input, std::span<char> output);
+std::optional<std::size_t> utf16_to_utf8(std::u16string_view input, std::span<char> output) noexcept;
 /*
 	Converts a UTF-16 char16 string to a UTF-8 encoded std::string.
 */
 [[nodiscard]]
-std::string utf16_to_utf8(std::u16string_view input);
+std::string utf16_to_utf8(std::u16string_view input) noexcept;
 
 //------------------------------
 
@@ -125,7 +125,7 @@ constexpr std::size_t code_point_index(std::basic_string_view<T> const string, s
 			return is_first_code_point(code_point) && char_count++ == character_index;
 		}
 	);
-	return position - string.begin();
+	return static_cast<std::size_t>(position - string.begin());
 }
 
 /*
@@ -144,10 +144,10 @@ constexpr std::size_t character_index(std::basic_string_view<T> const string, st
 		return string.size();
 	}
 
-	return std::ranges::count_if(
+	return static_cast<std::size_t>(std::ranges::count_if(
 		string.begin() + 1, string.begin() + code_point_index + 1,
 		[](T const code_point) { return is_first_code_point(code_point); }
-	);
+	));
 }
 
 /*
