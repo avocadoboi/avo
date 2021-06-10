@@ -10,23 +10,21 @@
 namespace avo {
 
 /*
-	A Node is a container that stores pointers to instances of itself.
-	This means it's a tree data structure. Nodes can have IDs which can be 
-	used to retrieve them from the tree. They can also store a pointer to
-	an arbitrary object. 
+	A Node is a container that stores pointers to instances of itself. 
+	This means it's a tree data structure. 
+	Nodes can have IDs which can be used to retrieve them from the tree. 
+	They can also store a pointer to an arbitrary object. 
 	
-	A node does not own its child nodes - child nodes are added to a node tree
-	by constructing them with a reference to its parent. This means that nodes
-	can be stored in any way you wish; on the stack or on the heap.
+	A node does not own its child nodes - child nodes are added to a node tree by constructing them with a reference to its parent. 
+	This means that nodes can be stored in any way you wish; on the stack or on the heap.
 
 	This type can be used to build a tree of software components.
 	Each component stores an instance of a Node constructed with its parent node.
 	This enables retrieval of other software components in the tree by their IDs.
 
-	Move constructing and move assigning *can* be expensive. This is because a
-	Node holds a pointer to its current parent and to all of its current children.
-	The child pointer of the parent of the node to be moved as well as the parent
-	pointer of all of the children of the node to be moved need to be updated.
+	Nodes cannot be copied nor moved since that would be error-prone. 
+	The component pointer could be invalidated, for example.
+	Instead wrap the node or the object that owns the node in a smart pointer.
 */
 class Node final {
 public:
@@ -307,14 +305,8 @@ public:
 	Node(Node const&) = delete;
 	Node& operator=(Node const&) = delete;
 	
-	Node(Node&& other) noexcept {
-		move_construct_(std::move(other));
-	}
-	Node& operator=(Node&& other) noexcept {
-		remove_from_tree_();
-		move_construct_(std::move(other));
-		return *this;
-	}
+	Node(Node&& other) = delete;
+	Node& operator=(Node&& other) = delete;
 
 private:
 	template<class Component_>
@@ -354,30 +346,6 @@ private:
 			children_.clear();
 			id_nodes_.clear();
 		}
-	}
-	void move_construct_(Node&& other) 
-	{
-		parent_ = other.parent_;
-		id_ = other.id_;
-
-		if (parent_) 
-		{ // If we have a parent, update all pointers that pointed to the old node.
-			*std::ranges::find(parent_->children_, &other) = this;
-
-			if (id_) {
-				for (Node* const parent : utils::view_parents(*this)) {
-					*std::ranges::find(parent->id_nodes_, &other) = this;
-				}
-			}
-		}
-
-		children_ = std::move(other.children_);
-		for (Node* const child : children_) {
-			child->parent_ = this;
-		}
-		
-		id_nodes_ = std::move(other.id_nodes_);
-		component_ = std::move(other.component_);
 	}
 
 	Node* parent_{};

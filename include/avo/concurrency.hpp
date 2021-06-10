@@ -48,18 +48,13 @@ public:
 	void push_wait(Argument_&& ... argument) {
 		{
 			auto const lock = std::lock_guard{mutex_};
-
 			queue_.emplace(std::forward<Argument_>(argument)...);
-		
-			// Set the number of messages left to remove before this function exits.
-			push_wait_pop_index_ = queue_.size();
-			push_wait_flag_.clear();
 		}
 
 		notify_next_message_();
 
-		// Wait until the pushed message has been removed from the queue.
-		push_wait_flag_.wait(false);
+		// Wait until the queue is empty (this message has been removed by the other thread).
+		has_messages_flag_.wait(true);
 	}
 
 	/*
@@ -73,7 +68,7 @@ public:
 		auto const lock = std::lock_guard{mutex_};
 
 		auto message = std::move(queue_.front());
-		pop_message_unprotected_();
+		pop_message_(lock);
 
 		return message;
 	}
@@ -98,7 +93,7 @@ public:
 	*/
 	void remove_next() {
 		auto const lock = std::lock_guard{mutex_};
-		pop_message_unprotected_();
+		pop_message_(lock);
 	}
 	
 	/*
@@ -128,17 +123,12 @@ public:
 	MessageQueue& operator=(MessageQueue const&) = delete;
 		
 private:
-	void pop_message_unprotected_() {
+	void pop_message_(std::lock_guard<std::mutex> const&) {
 		queue_.pop();
-
-		if (push_wait_pop_index_ != 0 && --push_wait_pop_index_ == 0) {
-			push_wait_flag_.test_and_set();
-			push_wait_flag_.notify_one();
-		}
 
 		// If the queue has been emptied then update the flag used by wait_for_next.
 		if (queue_.empty()) {
-			next_wait_flag_.clear();
+			has_messages_flag_.clear();
 		}
 	}
 
@@ -147,8 +137,8 @@ private:
 		only if the queue was previously empty.
 	*/
 	void notify_next_message_() {
-		if (!next_wait_flag_.test_and_set()) {
-			next_wait_flag_.notify_one();
+		if (!has_messages_flag_.test_and_set()) {
+			has_messages_flag_.notify_one();
 		}
 	}
 
@@ -157,19 +147,14 @@ private:
 		Returns immediately if the queue already contains message(s).
 	*/
 	void wait_for_next_() const {
-		next_wait_flag_.wait(false);
+		has_messages_flag_.wait(false);
 	}
 
 	std::queue<T> queue_;
 	mutable std::mutex mutex_;
 
-	// The number of messages left to remove until the element pushed with push_wait has been removed from the queue.
-	std::size_t push_wait_pop_index_{};
-	// True when push_wait_pop_index_ has reached zero.
-	std::atomic_flag push_wait_flag_{};
-
 	// True when the queue is not empty.
-	std::atomic_flag next_wait_flag_{};
+	std::atomic_flag has_messages_flag_{};
 };
 
 template<std::move_constructible T>
@@ -188,8 +173,8 @@ public:
 	*/
 	template<class ... Argument_> 
 		requires std::constructible_from<T, Argument_&&...>
-	void send_wait(Argument_&& ... message) {
-		queue_->push_wait(std::forward<Argument_>(message)...);
+	void send_wait(Argument_&& ... argument) {
+		queue_->push_wait(std::forward<Argument_>(argument)...);
 	}
 
 	/*
@@ -201,8 +186,9 @@ public:
 	/*
 		Returns whether any messages have been sent but not yet taken off the queue by the receiver.
 	*/
+	[[nodiscard]]
 	bool is_queue_empty() const {
-		return queue_->empty();
+		return queue_->is_empty();
 	}
 
 	Sender(std::shared_ptr<MessageQueue<T>> queue) :

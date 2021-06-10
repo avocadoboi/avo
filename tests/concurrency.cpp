@@ -13,14 +13,16 @@ TEST_CASE("Message channel, send all at once and receive one at a time") {
 
 	REQUIRE(receiver.queue_size() == 0);
 	REQUIRE(receiver.is_queue_empty());
+	REQUIRE(sender.queue_size() == 0);
+	REQUIRE(sender.is_queue_empty());
 
 	auto const thread = std::jthread{[sender = std::move(sender)]() mutable {
-		for (auto const message : messages) {
+		for (int const message : messages) {
 			sender.send(message);
 		}
 	}};
 
-	for (auto const expected_message : messages) {
+	for (int const expected_message : messages) {
 		REQUIRE(receiver.receive() == expected_message);
 	}
 }
@@ -29,6 +31,9 @@ TEST_CASE("Message channel, send all at once and receive all at once") {
 	auto [sender, receiver] = avo::concurrency::create_channel<int>();
 
 	auto sent_all = std::atomic_flag{};
+
+	REQUIRE(!sent_all.test());
+	
 	auto const thread = std::jthread{[&sent_all, sender = std::move(sender)]() mutable {
 		for (int const message : messages) {
 			sender.send(message);
@@ -52,7 +57,7 @@ TEST_CASE("Message channel, send waiting and receive waiting") {
 	auto counter = std::atomic<std::size_t>{};
 
 	auto const thread = std::jthread{[&counter, sender = std::move(sender)]() mutable {
-		for (auto const message : messages) {
+		for (int const message : messages) {
 			sender.send_wait(message);
 			++counter;
 		}
