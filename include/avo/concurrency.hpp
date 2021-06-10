@@ -100,7 +100,7 @@ public:
 		Returns the number of messages currently in the queue.
 	*/
 	[[nodiscard]]
-	std::size_t size() const {
+	std::size_t recent_size() const {
 		auto const lock = std::lock_guard{mutex_};
 		return queue_.size();
 	}
@@ -108,7 +108,7 @@ public:
 		Returns whether the message queue is currently empty.
 	*/
 	[[nodiscard]]
-	bool is_empty() const {
+	bool was_recently_empty() const {
 		auto const lock = std::lock_guard{mutex_};
 		return queue_.empty();
 	}
@@ -180,15 +180,15 @@ public:
 	/*
 		Returns the number of messages that have been sent but not yet taken off the queue by the receiver.
 	*/
-	std::size_t queue_size() const {
-		return queue_->size();
+	std::size_t recent_queue_size() const {
+		return queue_->recent_size();
 	}
 	/*
 		Returns whether any messages have been sent but not yet taken off the queue by the receiver.
 	*/
 	[[nodiscard]]
-	bool is_queue_empty() const {
-		return queue_->is_empty();
+	bool was_queue_recently_empty() const {
+		return queue_->was_recently_empty();
 	}
 
 	Sender(std::shared_ptr<MessageQueue<T>> queue) :
@@ -231,15 +231,15 @@ public:
 		Returns the number of messages currently waiting in the queue to be received immediately.
 	*/
 	[[nodiscard]]
-	std::size_t queue_size() const {
-		return queue_->size();
+	std::size_t recent_queue_size() const {
+		return queue_->recent_size();
 	}
 	/*
 		Returns whether there are any messages waiting in the queue to be received immediately.
 	*/
 	[[nodiscard]]
-	bool is_queue_empty() const {
-		return queue_->is_empty();
+	bool was_queue_recently_empty() const {
+		return queue_->was_recently_empty();
 	}
 
 	Receiver(std::shared_ptr<MessageQueue<T>> queue) :

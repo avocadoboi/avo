@@ -11,10 +11,10 @@ constexpr auto messages = std::array{5, 184, 9, -4, 77, 1};
 TEST_CASE("Message channel, send all at once and receive one at a time") {
 	auto [sender, receiver] = avo::concurrency::create_channel<int>();
 
-	REQUIRE(receiver.queue_size() == 0);
-	REQUIRE(receiver.is_queue_empty());
-	REQUIRE(sender.queue_size() == 0);
-	REQUIRE(sender.is_queue_empty());
+	REQUIRE(receiver.recent_queue_size() == 0);
+	REQUIRE(receiver.was_queue_recently_empty());
+	REQUIRE(sender.recent_queue_size() == 0);
+	REQUIRE(sender.was_queue_recently_empty());
 
 	auto const thread = std::jthread{[sender = std::move(sender)]() mutable {
 		for (int const message : messages) {
@@ -44,9 +44,9 @@ TEST_CASE("Message channel, send all at once and receive all at once") {
 
 	sent_all.wait(false);
 
-	for (auto i = std::size_t{}; !receiver.is_queue_empty(); ++i) 
+	for (auto i = std::size_t{}; !receiver.was_queue_recently_empty(); ++i) 
 	{
-		REQUIRE(receiver.queue_size() == messages.size() - i);
+		REQUIRE(receiver.recent_queue_size() == messages.size() - i);
 		REQUIRE(receiver.receive() == messages.at(i));
 	}
 }
