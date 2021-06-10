@@ -126,7 +126,7 @@ private:
 	void pop_message_(std::lock_guard<std::mutex> const&) {
 		queue_.pop();
 
-		// If the queue has been emptied then update the flag used by wait_for_next.
+		// If the queue has been emptied then update the flag.
 		if (queue_.empty()) {
 			has_messages_flag_.clear();
 		}
