@@ -34,10 +34,13 @@ else ()
 
 		-Wno-parentheses
 		-Wno-missing-field-initializers
+	)
 
+	target_compile_options(avo PRIVATE
 		-fconcepts-diagnostics-depth=2
 		-fmax-errors=5
 	)
+	target_link_options(avo PRIVATE -fsanitize=thread)
 endif ()
 
 #--------------------------------------------

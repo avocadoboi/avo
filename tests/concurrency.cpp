@@ -3,7 +3,6 @@
 
 #include <catch.hpp>
 
-#include <atomic>
 #include <thread>
 
 constexpr auto messages = std::array{5, 184, 9, -4, 77, 1};
