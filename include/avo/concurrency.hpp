@@ -8,7 +8,7 @@
 #include <optional>
 #include <queue>
 
-#include <fmt/format.h>
+// #include <fmt/format.h>
 
 namespace avo::concurrency {
 
@@ -56,9 +56,9 @@ public:
 		notify_next_message_();
 
 		// Wait until the queue is empty (this message has been removed by the other thread).
-		fmt::print("Waiting to be received\n");
+		// fmt::print("Waiting to be received\n");
 		has_messages_flag_.wait(true);
-		fmt::print("Finished waiting to be received\n");
+		// fmt::print("Finished waiting to be received\n");
 	}
 
 	/*
@@ -152,9 +152,9 @@ private:
 		Returns immediately if the queue already contains message(s).
 	*/
 	void wait_for_next_() const {
-		fmt::print("Waiting to receive\n");
+		// fmt::print("Waiting to receive\n");
 		has_messages_flag_.wait(false);
-		fmt::print("Finished waiting to receive\n");
+		// fmt::print("Finished waiting to receive\n");
 	}
 
 	std::queue<T> queue_;

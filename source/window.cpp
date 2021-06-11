@@ -1,3 +1,7 @@
+#pragma GCC diagnostic push
+// GCC doesn't know that these headers will only ever be included in this translation unit.
+#pragma GCC diagnostic ignored "-Wsubobject-linkage"
+
 #ifdef __linux__
 #	include "linux/window.hpp"
 #endif
@@ -5,6 +9,8 @@
 #ifdef _WIN32
 #	include "windows/window.hpp"
 #endif
+
+#pragma GCC diagnostic pop
 
 //------------------------------
 

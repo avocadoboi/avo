@@ -1,7 +1,10 @@
 // Included exactly once.
 
+#include <avo/concurrency.hpp>
 #include <avo/utils/unique_handle.hpp>
 #include <avo/window.hpp>
+
+#include <thread>
 
 //------------------------------
 
@@ -71,8 +74,8 @@ using ColormapHandle = DisplayResourceHandle<::Colormap, decltype([](auto a, aut
 
 using WindowHandle = DisplayResourceHandle<::Window, decltype([](auto a, auto b){ ::XDestroyWindow(a, b); })>;
 
-using InputMethodHandle = utils::UniqueHandle<XIM, decltype([](auto x){ ::XCloseIM(x); })>;
-using InputContextHandle = utils::UniqueHandle<XIC, decltype([](auto x){ ::XDestroyIC(x); })>;
+using InputMethodHandle = utils::UniqueHandle<::XIM, decltype([](auto x){ ::XCloseIM(x); })>;
+using InputContextHandle = utils::UniqueHandle<::XIC, decltype([](auto x){ ::XDestroyIC(x); })>;
 
 template<typename T>
 using XFreeHandle = std::unique_ptr<T, decltype([](T* info){ ::XFree(info); })>;
@@ -158,7 +161,7 @@ math::Size<Pixels> get_screen_size(::Display* const display) noexcept
 }
 
 void set_factor_position(::Display* const server, ::Window const window, 
-	math::Size<Pixels> const window_size, math::Vector2d<Factor> const position_factor) noexcept
+	math::Size<Pixels> const window_size, math::Vector2d<math::Factor> const position_factor) noexcept
 {
 	auto const screen_size = get_screen_size(server);
 	auto const position = math::Point{

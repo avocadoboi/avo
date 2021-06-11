@@ -13,7 +13,7 @@ void enable_utf8_console() {
 
 using IconvHandle = utils::UniqueHandle<iconv_t, decltype([](iconv_t const handle){ iconv_close(handle); })>;
 
-std::optional<std::size_t> utf8_to_utf16(std::string_view const input, std::span<char16_t> const output) 
+std::optional<std::size_t> utf8_to_utf16(std::string_view const input, std::span<char16_t> const output) noexcept
 {
 	// I have no idea why the input string data parameter isn't char const**.
 	// It shouldn't be modified, so a const_cast is made here.
@@ -37,7 +37,7 @@ std::optional<std::size_t> utf8_to_utf16(std::string_view const input, std::span
 	return output.size() - out_bytes_left/sizeof(char16_t);
 }
 
-std::u16string utf8_to_utf16(std::string_view const input) 
+std::u16string utf8_to_utf16(std::string_view const input) noexcept
 {
 	auto output = std::u16string(input.size(), u'\0');
 	if (auto const length = utf8_to_utf16(input, std::span{output})) 
@@ -49,7 +49,7 @@ std::u16string utf8_to_utf16(std::string_view const input)
 	return {};
 }
 
-std::optional<std::size_t> utf16_to_utf8(std::u16string_view const input, std::span<char> const output) 
+std::optional<std::size_t> utf16_to_utf8(std::u16string_view const input, std::span<char> const output) noexcept
 {
 	auto in_pointer = const_cast<char*>(reinterpret_cast<char const*>(input.data()));
 	auto in_bytes_left = input.size()*sizeof(char16_t);
@@ -69,7 +69,7 @@ std::optional<std::size_t> utf16_to_utf8(std::u16string_view const input, std::s
 	return output.size() - out_bytes_left;
 }
 
-std::string utf16_to_utf8(std::u16string_view const input) 
+std::string utf16_to_utf8(std::u16string_view const input) noexcept
 {
 	auto output = std::string(input.size()*3, '\0');
 	if (auto const length = utf16_to_utf8(input, std::span{output})) 
