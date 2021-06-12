@@ -26,6 +26,25 @@ TEST_CASE("Message channel, send all at once and receive one at a time") {
 	}
 }
 
+TEST_CASE("Message channel, send all at once and receive one at a time, reversed") {
+	auto [sender, receiver] = avo::concurrency::create_channel<int>();
+
+	REQUIRE(receiver.recent_queue_size() == 0);
+	REQUIRE(receiver.was_queue_recently_empty());
+	REQUIRE(sender.recent_queue_size() == 0);
+	REQUIRE(sender.was_queue_recently_empty());
+
+	auto const thread = std::jthread{[receiver = std::move(receiver)]() mutable {
+		for (int const expected_message : messages) {
+			REQUIRE(receiver.receive() == expected_message);
+		}
+	}};
+
+	for (int const message : messages) {
+		sender.send(message);
+	}
+}
+
 TEST_CASE("Message channel, send all at once and receive all at once") {
 	auto [sender, receiver] = avo::concurrency::create_channel<int>();
 

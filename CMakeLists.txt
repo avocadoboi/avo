@@ -40,7 +40,6 @@ else ()
 		-fconcepts-diagnostics-depth=2
 		-fmax-errors=5
 	)
-	target_link_options(avo PRIVATE -fsanitize=thread)
 endif ()
 
 #--------------------------------------------
