@@ -431,32 +431,6 @@ auto make_com_reference(Arguments&& ... arguments) -> ComReference<T> {
 
 //------------------------------
 
-auto convert_windows_key_state_to_modifier_key_flags(unsigned short const key_state) noexcept -> Avo::ModifierKeyFlags
-{
-	auto modifier_flags = Avo::ModifierKeyFlags::None;
-
-	if (key_state & MK_CONTROL)
-		modifier_flags |= Avo::ModifierKeyFlags::Control;
-	if (key_state & MK_SHIFT)
-		modifier_flags |= Avo::ModifierKeyFlags::Shift;
-	if (key_state & MK_LBUTTON)
-		modifier_flags |= Avo::ModifierKeyFlags::LeftMouse;
-	if (key_state & MK_MBUTTON)
-		modifier_flags |= Avo::ModifierKeyFlags::MiddleMouse;
-	if (key_state & MK_RBUTTON)
-		modifier_flags |= Avo::ModifierKeyFlags::RightMouse;
-	if (key_state & MK_XBUTTON1)
-		modifier_flags |= Avo::ModifierKeyFlags::X0Mouse;
-	if (key_state & MK_XBUTTON2)
-		modifier_flags |= Avo::ModifierKeyFlags::X1Mouse;
-	if (GetKeyState(VK_MENU) < 0)
-		modifier_flags |= Avo::ModifierKeyFlags::Alt;
-
-	return modifier_flags;
-}
-
-//------------------------------
-
 class OleFormatEnumerator : public IEnumFORMATETC {
 	IUnknownDefinition(IEnumFORMATETC)
 
@@ -2912,33 +2886,6 @@ public:
 			}
 		}
 		return ~0LL;
-	}
-
-	static auto CALLBACK handleGlobalEvents(
-		HWND const p_windowHandle, UINT const p_message, 
-		WPARAM const p_data_a, LPARAM const p_data_b
-	) -> LRESULT
-	{
-		WindowsWindow* window;
-		if (p_message == WM_CREATE)
-		{
-			window = static_cast<WindowsWindow*>(reinterpret_cast<CREATESTRUCT*>(p_data_b)->lpCreateParams);
-			SetWindowLongPtr(p_windowHandle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window));
-			window->set_native_handle(p_windowHandle);
-		}
-		else
-		{
-			window = reinterpret_cast<WindowsWindow*>(GetWindowLongPtr(p_windowHandle, GWLP_USERDATA));
-		}
-		if (window)
-		{
-			if (auto result = window->handleEvent(p_message, p_data_a, p_data_b);
-			    result != ~0LL)
-			{
-				return result;
-			}
-		}
-		return DefWindowProc(p_windowHandle, p_message, p_data_a, p_data_b);
 	}
 
 	//------------------------------

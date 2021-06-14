@@ -2,14 +2,60 @@
 
 #include "common.hpp"
 
-#include <avo/utils/static_map.hpp>
-#include <avo/window.hpp>
+#include "avo/concurrency.hpp"
+#include "avo/utils/static_map.hpp"
+#include "avo/window.hpp"
+
+#include <functional>
+#include <thread>
 
 //------------------------------
 
 namespace avo::window {
 
 namespace win {
+
+[[nodiscard]]
+bool get_is_vkey_down(int const vkey) {
+	return GetAsyncKeyState(vkey) & (1 << 16);
+}
+
+//------------------------------
+
+[[nodiscard]]
+ModifierKeyFlags modifier_key_flags_from_native(DWORD const native) noexcept 
+{
+	using enum ModifierKeyFlags;
+	
+	auto result = None;
+
+	if (native & MK_CONTROL) {
+		result |= Control;
+	}
+	if (native & MK_SHIFT) {
+		result |= Shift;
+	}
+	if (native & MK_LBUTTON) {
+		result |= LeftMouse;
+	}
+	if (native & MK_MBUTTON) {
+		result |= MiddleMouse;
+	}
+	if (native & MK_RBUTTON) {
+		result |= RightMouse;
+	}
+	if (native & MK_XBUTTON1) {
+		result |= X0Mouse;
+	}
+	if (native & MK_XBUTTON2) {
+		result |= X1Mouse;
+	}
+	if (get_is_vkey_down(VK_MENU)) {
+		result |= Alt;
+	}
+
+	return result;
+}
 
 [[nodiscard]]
 constexpr DWORD style_flags_to_native(StyleFlags const flags, bool const has_parent) noexcept {
@@ -169,21 +215,72 @@ constexpr auto native_key_map = [] {
 
 //------------------------------
 
-[[nodiscard]]
-bool get_is_vkey_down(int const vkey) {
-	return GetAsyncKeyState(vkey) & (1 << 16);
-}
+struct NativeEvent {
+	UINT message;
+	WPARAM w_data;
+	LPARAM l_data;
+};
 
 //------------------------------
 
 class WindowThread {
-public:
+	static WindowThread* instance_from_event(HWND const handle, UINT const message, LPARAM const l_data) 
+	{
+		if (message == WM_CREATE) 
+		{
+			auto const window = static_cast<WindowThread*>(reinterpret_cast<CREATESTRUCT*>(l_data)->lpCreateParams);
+			SetWindowLongPtr(handle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window));
+			window->set_window_handle(handle);
+			return window;
+		}
+		else {
+			return reinterpret_cast<WindowThread*>(GetWindowLongPtr(handle, GWLP_USERDATA));
+		}
+	}
 	
-	WindowThread(Parameters const& /* parameters */) {
+	static LRESULT CALLBACK handle_any_window_event(
+		HWND const window_handle, UINT const message, WPARAM const w_data, LPARAM const l_data)
+	{
+		if (auto const instance = instance_from_event(window_handle, message, l_data))
+		{
+			if (auto const result = instance->handle_event(message, w_data, l_data))
+			{
+				return *result;
+			}
+		}
+		return DefWindowProc(window_handle, message, w_data, l_data);
+	}
+	
+public:
+	void set_window_handle(HWND const handle) {
+		handle_ = handle;
+	}
+
+	std::optional<LRESULT> handle_event(UINT const message, WPARAM const w_data, LPARAM const l_data)
+	{
+		channel_.send(message, w_data, l_data);
+
+		switch (message) {
+		case WM_CREATE:
+			
+			return 0;
+		}
+		return std::nullopt;
+	}
+
+	WindowThread(Parameters const& parameters, concurrency::Sender<NativeEvent> channel) :
+		channel_{std::move(channel)},
+		thread_{run_, this, parameters}
+	{}
+
+private:
+	void run_(Parameters const& parameters) {
 
 	}
 
-private:
+	HWND handle_;
+	concurrency::Sender<NativeEvent> channel_;
+	std::jthread thread_;
 };
 
 } // namespace win
@@ -263,6 +360,22 @@ public:
 	}
 
 private:
+	Event event_from_native(win::NativeEvent event) {
+		switch (event.message) {
+		case WM_MOUSEMOVE: {
+			auto const pos = unit_converter_.pixels_to_dip(math::Point{GET_X_LPARAM(event.l_data), GET_Y_LPARAM(event.l_data)})
+			
+			
+			return event::MouseMove{
+				.position{pos},
+				.movement{}
+			}
+		}
+			// return mouse_move_from_native_event(event);
+		}
+	}
+
+	concurrency::Receiver<win::NativeEvent> channel_;
 	win::WindowThread window_thread_;
 };
 

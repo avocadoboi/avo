@@ -2,7 +2,7 @@
 
 #include "common.hpp"
 
-#include <avo/unicode.hpp>
+#include "avo/unicode.hpp"
 
 namespace avo::unicode {
 

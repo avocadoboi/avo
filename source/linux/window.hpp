@@ -1,8 +1,8 @@
 // Included exactly once.
 
-#include <avo/concurrency.hpp>
-#include <avo/utils/unique_handle.hpp>
-#include <avo/window.hpp>
+#include "avo/concurrency.hpp"
+#include "avo/utils/unique_handle.hpp"
+#include "avo/window.hpp"
 
 #include <thread>
 
@@ -408,7 +408,7 @@ public:
 	{
 		open_keyboard_input_();
 		setup_events_();
-		thread_ = std::jthread{std::bind_front(&EventManager::run_event_loop_thread_, this)};
+		thread_ = std::jthread{&EventManager::run_event_loop_thread_, this};
 	}
 	~EventManager() = default;
 

@@ -71,18 +71,50 @@ concept IsMinMax = IsInstantiationOf<T, MinMax>;
 
 //------------------------------
 
+/*
+	Whether an enumeration type is a bit flag.
+	The following operators are defined for types that specialize this constant as true:
+		operator|, operator|=, operator&, operator&=.
+	Specializations for types outside this library can be added.
+*/
+template<IsEnum T>
+inline constexpr bool is_bit_flag = false;
+
 template<class T>
-concept IsBitFlag = requires(T a, T const b) {
-	requires IsEnum<T>;
-	{ b | b } -> std::same_as<T>;
-	{ a |= b } -> std::same_as<T&>;
-	{ b & b } -> std::same_as<T>;
-};
+concept IsBitFlag = is_bit_flag<T>;
+
+} // namespace avo::utils
+
+template<avo::utils::IsBitFlag T>
+[[nodiscard]]
+constexpr T operator|(T const left, T const right) noexcept 
+{
+	return static_cast<T>(static_cast<std::underlying_type_t<T>>(left) | static_cast<std::underlying_type_t<T>>(right));
+}
+template<avo::utils::IsBitFlag T>
+constexpr T& operator|=(T& left, T const right) noexcept 
+{
+	return left = left | right;
+}
+template<avo::utils::IsBitFlag T>
+[[nodiscard]]
+constexpr T operator&(T const left, T const right) noexcept 
+{
+	return static_cast<T>(static_cast<std::underlying_type_t<T>>(left) & static_cast<std::underlying_type_t<T>>(right));
+}
+template<avo::utils::IsBitFlag T>
+constexpr T& operator&=(T& left, T const right) noexcept 
+{
+	return left = left & right;
+}
+
+namespace avo::utils {
 
 /*
 	Returns true if "flag" is a bitwise subset of "flags".
 */
-template<IsBitFlag T>
+template<class T>
+	requires IsBitFlag<T> || std::integral<T>
 [[nodiscard]]
 constexpr bool has_flag(T const flags, T const flag) noexcept {
 	return (flags & flag) != T{};

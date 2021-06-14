@@ -13,6 +13,9 @@ class EventListeners;
 /*
 	This is a class used to easily manage event listeners. Any type of callable can be a listener.
 	The return type and arguments have to be the same for all listeners added to one instance of EventListeners.
+
+	This class is NOT thread safe and should only be used in one thread.
+	Use the avo::concurrency namespace for communication between threads.
 */
 template<class Return_, class ... Arguments_>
 class EventListeners<Return_(Arguments_...)> final {
@@ -38,6 +41,15 @@ public:
 	[[nodiscard]]
 	ConstIterator end() const {
 		return listeners_.end();
+	}
+
+	[[nodiscard]]
+	std::size_t size() const {
+		return listeners_.size();
+	}
+	[[nodiscard]]
+	bool is_empty() const {
+		return listeners_.empty();
 	}
 
 	/*

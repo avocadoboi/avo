@@ -1,20 +1,26 @@
-#include <Avo.hpp>
+#include <avo.hpp>
+
+#include <magic_enum.hpp>
+#include <fmt/ostream.h>
+
+#include <thread>
+
+using namespace magic_enum::ostream_operators;
+using namespace std::chrono_literals;
 
 int main() {
 	using namespace avo::math;
 
-	using avo::window::StyleFlags;
-	
-	auto window = avo::window::window("Hello AvoGUI!")
+	namespace event = avo::window::event;
+
+	auto window = avo::window::create("Hello AvoGUI!")
 		.position(Vector2d{0.5f, 0.5f})
 		.size(Size{500.f, 400.f})
 		.min_max_size({Size{200.f, 300.f}, Size{700.f, 500.f}})
-		.style(StyleFlags::Default)
 		.open();
 
 	auto update = [&, i = 0]() mutable {
-		window.title(fmt::format("{}. Size: {}.", i, window.size()));
-		++i;
+		window.title(fmt::format("{}. Size: {}.", i++, window.size()));
 	};
 
 	update();
@@ -23,10 +29,13 @@ int main() {
 	window.position(Point{300, 200});
 
 	update();
-	
-	while (window.is_open()) {
-		std::this_thread::sleep_for(1s);
-		update();
-		window.toggle_fullscreen();
-	}
+
+	auto event_manager = avo::window::EventManager{window};
+	event_manager.add_listener([](event::KeyDown const& event) {
+		fmt::print("The key '{}' was pressed.\n", event.key);
+	});
+	event_manager.add_listener([](event::KeyUp const& event) {
+		fmt::print("The key '{}' was released.\n", event.key);
+	});
+	event_manager.run();
 }

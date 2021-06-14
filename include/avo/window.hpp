@@ -1,12 +1,14 @@
 #ifndef AVO_WINDOW_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_WINDOW_HPP_BJORN_SUNDIN_JUNE_2021
 
+#include "event_listeners.hpp"
 #include "graphics/miscellaneous.hpp"
 #include "math/miscellaneous.hpp"
 #include "math/vector2d.hpp"
 #include "utils/miscellaneous.hpp"
 
 #include <any>
+#include <variant>
 
 namespace avo::window {
 
@@ -81,8 +83,7 @@ enum class KeyboardKey {
 	Backspace,
 	Clear,
 	Tab,
-	Return, // Enter and return have the same value.
-	Enter = Return, // Enter and return have the same value.
+	Enter,
 	Shift,
 	Control,
 	Menu,
@@ -103,7 +104,8 @@ enum class KeyboardKey {
 	Add, Subtract, Multiply, Divide, Decimal,
 	Number0, Number1, Number2, Number3, Number4, Number5, Number6, Number7, Number8, Number9,
 	A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
-	F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24,
+	F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, 
+	F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24,
 	Comma, Period, Plus, Minus,
 	// These keys vary by country/region.
 	Regional1, Regional2, Regional3, Regional4, Regional5, Regional6, Regional7, Regional8
@@ -131,19 +133,6 @@ bool get_is_mouse_button_down(MouseButton);
 
 //------------------------------
 
-enum class BorderArea {
-	None = 0, // The area of the window is not part of the window border, meaning any mouse events are handled only by the GUI.
-	TopLeftResize,
-	TopResize,
-	TopRightResize,
-	LeftResize,
-	RightResize,
-	BottomLeftResize,
-	BottomResize,
-	BottomRightResize,
-	Dragging // The area of the window is used for dragging the window, normally the title bar.
-};
-
 enum class State {
 	Minimized,
 	Maximized,
@@ -165,24 +154,103 @@ enum class StyleFlags : std::uint32_t {
 	DefaultNoResize = CloseButton | MinimizeButton
 };
 
-[[nodiscard]]
-constexpr StyleFlags operator|(StyleFlags const left, StyleFlags const right) noexcept 
-{
-	return static_cast<StyleFlags>(static_cast<std::uint32_t>(left) | static_cast<std::uint32_t>(right));
-}
-constexpr StyleFlags& operator|=(StyleFlags& left, StyleFlags const right) noexcept 
-{
-	return left = left | right;
-}
-[[nodiscard]]
-constexpr StyleFlags operator&(StyleFlags const left, StyleFlags const right) noexcept 
-{
-	return static_cast<StyleFlags>(static_cast<std::uint32_t>(left) & static_cast<std::uint32_t>(right));
-}
-constexpr StyleFlags& operator&=(StyleFlags& left, StyleFlags const right) noexcept 
-{
-	return left = left & right;
-}
+} // namespace avo::window
+
+namespace avo::utils {
+
+template<>
+inline constexpr bool is_bit_flag<avo::window::StyleFlags> = true;
+
+} // namespace avo::utils
+
+//------------------------------
+
+namespace avo::window {
+
+enum class ModifierKeyFlags : std::uint32_t {
+	None =        0,
+	Control =     1,
+	Shift =       1 << 1,
+	LeftMouse =   1 << 2,
+	MiddleMouse = 1 << 3,
+	RightMouse =  1 << 4,
+	X0Mouse =     1 << 5,
+	X1Mouse =     1 << 6,
+	Alt =         1 << 7
+};
+
+} // namespace avo::window
+
+namespace avo::utils {
+
+template<>
+inline constexpr bool is_bit_flag<avo::window::ModifierKeyFlags> = true;
+
+} // namespace avo::utils
+
+//------------------------------
+
+namespace avo::window {
+
+namespace event {
+
+struct MouseMove {
+	math::Point<Dip> position{};
+	math::Vector2d<Dip> movement{};
+	ModifierKeyFlags modifier_keys{};
+};
+struct MouseEnter : public MouseMove {};
+struct MouseLeave : public MouseMove {};
+struct MouseScroll {
+	float scroll_delta{};
+	ModifierKeyFlags modifier_keys{};
+};
+struct MouseDown {
+	math::Point<Dip> position{};
+	MouseButton button{};
+	ModifierKeyFlags modifier_keys{};
+	bool is_double_click{};
+};
+struct MouseUp {
+	math::Point<Dip> position{};
+	MouseButton button{};
+	ModifierKeyFlags modifier_keys{};
+};
+struct KeyDown {
+	KeyboardKey key{KeyboardKey::None};
+	bool is_repeated{};
+	std::string character;
+};
+struct KeyUp {
+	KeyboardKey key{KeyboardKey::None};
+	bool is_repeated{};
+	std::string character;
+};
+struct FocusGain {};
+struct FocusLose {};
+struct SizeChange {
+	math::Size<Dip> size;
+};
+struct StateChange {
+	State state;
+};
+
+} // namespace event
+
+using Event = std::variant<
+	event::MouseMove, 
+	event::MouseEnter, 
+	event::MouseLeave,
+	event::MouseScroll, 
+	event::MouseDown, 
+	event::MouseUp,
+	event::KeyDown,
+	event::KeyUp,
+	event::FocusGain,
+	event::FocusLose,
+	event::SizeChange,
+	event::StateChange
+>;
 
 //------------------------------
 
@@ -204,8 +272,6 @@ struct Parameters {
 //------------------------------
 
 class Window final {
-	friend class Builder;
-	
 public:
 	void title(std::string_view);
 
@@ -237,11 +303,22 @@ public:
 	math::Size<Dip> size() const;
 
 	[[nodiscard]]
+	float dpi() const;
+
+	[[nodiscard]]
 	bool is_open() const;
 
 	[[nodiscard]]
 	std::any native_handle() const;
+
+	[[nodiscard]]
+	Event await_event();
+
+	[[nodiscard]]
+	std::optional<Event> take_event();
 	
+	explicit Window(Parameters const& parameters);
+
 	Window() = delete;
 	~Window(); // = default in .cpp
 
@@ -254,8 +331,6 @@ public:
 private:
 	class Implementation;
 	std::unique_ptr<Implementation> implementation_;
-
-	explicit Window(Parameters const& parameters);
 };
 
 //------------------------------
@@ -325,17 +400,83 @@ public:
 private:
 	Parameters parameters_;
 
-	Builder(std::string_view const title) :
+	explicit Builder(std::string_view const title) :
 		parameters_{.title = title}
 	{}
-
-	friend Builder window(std::string_view);
 };
 
 [[nodiscard]]
-inline Builder window(std::string_view const title) {
-	return {title};
+inline Builder create(std::string_view const title) {
+	return Builder{title};
 }
+
+//------------------------------
+
+namespace detail {
+
+template<class T>
+struct ListenerVariant;
+
+template<class ... Event_>
+struct ListenerVariant<std::variant<Event_...>> {
+	using type = std::variant<std::function<void(Event_ const&)>...>;
+};
+
+} // namespace detail
+
+using EventListener = detail::ListenerVariant<Event>::type;
+
+//------------------------------
+
+class EventManager {
+public:
+	void update() 
+	{
+		if (auto const event = window_->take_event()) {
+			send_event_(*event);
+		}
+	}
+	void update_wait() {
+		send_event_(window_->await_event());
+	}
+	void run() {
+		while (true) {
+			update_wait();
+		}
+	}
+
+	template<class Listener_> // Not sure how or if to constrain this.
+	void add_listener(Listener_&& listener) {
+		listeners_.emplace_back(std::function{std::forward<Listener_>(listener)});
+	}
+
+	template<class Listener_> 
+		requires std::constructible_from<EventListener, Listener_>
+	void add_listener(Listener_&& listener) {
+		listeners_.emplace_back(std::forward<Listener_>(listener));
+	}
+
+	explicit EventManager(Window& window) :
+		window_{&window}
+	{}
+
+private:
+	void send_event_(Event const& event_variant)
+	{
+		auto const listener = std::ranges::find_if(listeners_, [&](auto const& listener) {
+			return listener.index() == event_variant.index();
+		});
+		if (listener != listeners_.end()) {
+			std::visit([](auto& listener, auto const& event) {
+				listener(event);
+			}, *listener, event_variant);
+		}
+	}
+
+	Window* window_;
+
+	std::vector<EventListener> listeners_;
+};
 
 } // namespace avo::window
 
