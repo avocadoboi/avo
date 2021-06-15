@@ -61,12 +61,24 @@ math::Size<Dip> Window::size() const {
 	return implementation_->size();
 }
 
+float Window::dpi() const {
+	return implementation_->dpi();
+}
+
 bool Window::is_open() const {
 	return implementation_->is_open();
 }
 
 std::any Window::native_handle() const {
 	return implementation_->native_handle();
+}
+
+Event Window::await_event() {
+	return implementation_->await_event();
+}
+
+std::optional<Event> Window::take_event() {
+	return implementation_->take_event();
 }
 
 Window::Window(Parameters const& parameters) :

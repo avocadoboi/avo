@@ -121,6 +121,12 @@ enum class MouseButton {
 };
 
 /*
+	Returns the current mouse position in pixel screen coordinates.
+*/
+[[nodiscard]]
+math::Point<Pixels> get_mouse_position();
+
+/*
 	Returns whether a keyboard key is currently pressed.
 */
 [[nodiscard]]
@@ -234,6 +240,9 @@ struct SizeChange {
 struct StateChange {
 	State state;
 };
+struct DpiChange {
+	float dpi;
+};
 
 } // namespace event
 
@@ -249,7 +258,8 @@ using Event = std::variant<
 	event::FocusGain,
 	event::FocusLose,
 	event::SizeChange,
-	event::StateChange
+	event::StateChange,
+	event::DpiChange
 >;
 
 //------------------------------
@@ -403,6 +413,8 @@ private:
 	explicit Builder(std::string_view const title) :
 		parameters_{.title = title}
 	{}
+
+	friend inline Builder create(std::string_view);
 };
 
 [[nodiscard]]
@@ -463,13 +475,17 @@ public:
 private:
 	void send_event_(Event const& event_variant)
 	{
-		auto const listener = std::ranges::find_if(listeners_, [&](auto const& listener) {
+		auto listener = std::ranges::find_if(listeners_, [&](auto const& listener) {
 			return listener.index() == event_variant.index();
 		});
-		if (listener != listeners_.end()) {
-			std::visit([](auto& listener, auto const& event) {
-				listener(event);
-			}, *listener, event_variant);
+		if (listener != listeners_.end()) 
+		{
+			std::visit([]<class Listener_, class Event_>
+				(Listener_& listener, Event_ const& event) {
+					if constexpr (std::same_as<Listener_, std::function<void(Event_ const&)>>) {
+						listener(event);
+					}
+				}, *listener, event_variant);
 		}
 	}
 

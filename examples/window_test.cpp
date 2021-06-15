@@ -37,5 +37,8 @@ int main() {
 	event_manager.add_listener([](event::KeyUp const& event) {
 		fmt::print("The key '{}' was released.\n", event.key);
 	});
+	event_manager.add_listener([](event::MouseMove const& event) {
+		fmt::print("The mouse moved {} and is now at {}.", event.movement, event.position);
+	});
 	event_manager.run();
 }

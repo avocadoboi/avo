@@ -109,8 +109,7 @@ public:
 	*/
 	[[nodiscard]]
 	bool was_recently_empty() const {
-		auto const lock = std::lock_guard{mutex_};
-		return queue_.empty();
+		return !has_messages_flag_.test();
 	}
 
 	MessageQueue() = default;

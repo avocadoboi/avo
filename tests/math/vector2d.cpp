@@ -26,6 +26,10 @@ static_assert(cross(Vector2d{4, 2}, Vector2d{-2, -3}) == -8);
 
 static_assert(Vector2d{2.f, 5.f}.to<Size<int>>() == Size{2, 5});
 
+static_assert(Vector2d{2.8f, 5.1f}.to<int>() == Vector2d{2, 5});
+static_assert(Point{2.3f, 5.f}.to<int>() == Point{2, 5});
+static_assert(Size{2.f, 5.4f}.to<int>() == Size{2, 5});
+
 TEST_CASE("Runtime operations on 2D vectors") {
 	CHECK(Vector2d{3, 4}.length() == 5.);
 	CHECK(distance(Vector2d{2, 1}, Vector2d{-1, -3}) == 5.);

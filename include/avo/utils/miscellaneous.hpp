@@ -56,7 +56,7 @@ struct MinMax {
 	}
 
 	[[nodiscard]]
-	constexpr operator bool() const noexcept 
+	constexpr explicit operator bool() const noexcept 
 		requires std::convertible_to<T, bool>
 	{
 		return static_cast<bool>(min) || static_cast<bool>(max);

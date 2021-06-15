@@ -1324,54 +1324,12 @@ private:
 		Avo::Size<> const size, 
 	    Avo::Window* const parent
 	) -> void {
-		if (_window_handle) {
-			DestroyWindow(_window_handle);
-			s_number_of_windows--;
-		}
-		else if (!s_number_of_windows) {
-			auto const windowClass = WNDCLASSW{
-				.style = CS_DBLCLKS,
-				.lpfnWndProc = handleGlobalEvents,
-				.hInstance = GetModuleHandle(0),
-				.hIcon = nullptr,
-				.hCursor = nullptr,
-				.hbrBackground = nullptr,
-				.lpszMenuName = nullptr,
-				.lpszClassName = WINDOW_CLASS_NAME,
-			};
-			RegisterClassW(&windowClass);
-		}
-
-		//------------------------------
-
-		SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-
-		_dip_to_pixel_factor = GetDpiForSystem()/(float)USER_DEFAULT_SCREEN_DPI;
 
 		// Calculate nonclient window rectangle from client size.
 		auto window_rect = RECT{0, 0, (int)std::ceil(size.x*_dip_to_pixel_factor), (int)std::ceil(size.y*_dip_to_pixel_factor)};
 		_size = {window_rect.right, window_rect.bottom}; // Client area
 		
 		AdjustWindowRect(&window_rect, _styles, 0);
-
-		//------------------------------
-
-		auto cursorPosition = POINT{};
-		GetCursorPos(&cursorPosition);
-		_mouse_position = {cursorPosition.x, cursorPosition.y};
-
-		auto parentRect = RECT{};
-
-		if (parent) {
-			GetWindowRect(static_cast<HWND>(parent->get_native_handle()), &parentRect);
-		}
-		else {
-			auto const monitor = MonitorFromPoint(cursorPosition, MONITOR_DEFAULTTONEAREST);
-			auto monitorInfo = MONITORINFO{};
-			monitorInfo.cbSize = sizeof(MONITORINFO);
-			GetMonitorInfo(monitor, &monitorInfo);
-			parentRect = monitorInfo.rcWork;
-		}
 
 		//------------------------------
 

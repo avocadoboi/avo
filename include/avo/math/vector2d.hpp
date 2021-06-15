@@ -1,7 +1,6 @@
 #ifndef AVO_MATH_VECTOR2D_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_MATH_VECTOR2D_HPP_BJORN_SUNDIN_JUNE_2021
 
-#include "angle.hpp"
 #include "operations.hpp"
 
 #include <cmath>
@@ -291,7 +290,7 @@ struct Vector2dBase {
 
 	Value_ x, y;
 
-	constexpr operator bool() const noexcept {
+	constexpr explicit operator bool() const noexcept {
 		return x || y;
 	}
 
@@ -420,19 +419,70 @@ struct Vector2dBase {
 };
 
 template<utils::IsNumber Value_ = float>
-struct Vector2d : Vector2dBase<Value_> {};
+struct Vector2d : Vector2dBase<Value_> {
+	using Vector2dBase<Value_>::x;
+	using Vector2dBase<Value_>::y;
+	
+	using Vector2dBase<Value_>::to;
+	
+	template<utils::IsNumber T>
+	[[nodiscard]]
+	constexpr Vector2d<T> to() const noexcept {
+		return {static_cast<T>(x), static_cast<T>(y)};
+	}
+};
 
 template<class T>
 Vector2d(T, T) -> Vector2d<T>;
 
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+[[nodiscard]]
+constexpr auto operator*(Vector2d<A> const factor, Class_<B> const vector) noexcept {
+	return Class_{factor.x*vector.x, factor.y*vector.y};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+[[nodiscard]]
+constexpr auto operator*(Class_<A> const vector, Vector2d<B> const factor) noexcept {
+	return Class_{factor.x*vector.x, factor.y*vector.y};
+}
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+[[nodiscard]]
+constexpr Class_<A>& operator*=(Class_<A>& vector, Vector2d<B> const factor) noexcept {
+	vector.x *= factor.x;
+	vector.y *= factor.y;
+	return vector;
+}
+
 template<utils::IsNumber Value_ = float>
-struct Point : Vector2dBase<Value_> {};
+struct Point : Vector2dBase<Value_> {
+	using Vector2dBase<Value_>::x;
+	using Vector2dBase<Value_>::y;
+
+	using Vector2dBase<Value_>::to;
+	
+	template<utils::IsNumber T>
+	[[nodiscard]]
+	constexpr Point<T> to() const noexcept {
+		return {static_cast<T>(x), static_cast<T>(y)};
+	}
+};
 
 template<class T>
 Point(T, T) -> Point<T>;
 
 template<utils::IsNumber Value_ = float>
-struct Size : Vector2dBase<Value_> {};
+struct Size : Vector2dBase<Value_> {
+	using Vector2dBase<Value_>::x;
+	using Vector2dBase<Value_>::y;
+
+	using Vector2dBase<Value_>::to;
+
+	template<utils::IsNumber T>
+	[[nodiscard]]
+	constexpr Size<T> to() const noexcept {
+		return {static_cast<T>(x), static_cast<T>(y)};
+	}
+};
 
 template<class T>
 Size(T, T) -> Size<T>;

@@ -1,13 +1,20 @@
 // Included exactly once.
 
-#include "common.hpp"
-
 #include "avo/concurrency.hpp"
+#include "avo/math/rectangle.hpp"
+#include "avo/unicode.hpp"
 #include "avo/utils/static_map.hpp"
 #include "avo/window.hpp"
 
 #include <functional>
 #include <thread>
+
+#include "common.hpp"
+#include <windowsx.h>
+
+//------------------------------
+
+using namespace std::string_view_literals;
 
 //------------------------------
 
@@ -58,7 +65,8 @@ ModifierKeyFlags modifier_key_flags_from_native(DWORD const native) noexcept
 }
 
 [[nodiscard]]
-constexpr DWORD style_flags_to_native(StyleFlags const flags, bool const has_parent) noexcept {
+constexpr DWORD style_flags_to_native(StyleFlags const flags, bool const has_parent) noexcept 
+{
 	auto native_flags = DWORD{};
 
 	using enum StyleFlags;
@@ -86,6 +94,35 @@ constexpr DWORD style_flags_to_native(StyleFlags const flags, bool const has_par
 	return native_flags;
 }
 
+[[nodiscard]]
+math::Rectangle<Pixels> window_rectangle_from_client_size(math::Size<Pixels> size, ::DWORD const native_flags) 
+{
+	auto rect = ::RECT{0, 0, size.x, size.y};
+	::AdjustWindowRect(&rect, native_flags, ::WINBOOL{});
+	return {rect.left, rect.top, rect.right, rect.bottom};
+}
+
+[[nodiscard]]
+math::Rectangle<Pixels> get_parent_rectangle(Window const* parent)
+{
+	::RECT rect;
+	if (parent) {
+		::GetWindowRect(std::any_cast<::HWND>(parent->native_handle()), &rect);
+	}
+	else 
+	{ // No parent window, return the work area of the monitor at the cursor position.
+		::POINT cursor_position;
+		::GetCursorPos(&cursor_position);
+		
+		auto const monitor = ::MonitorFromPoint(cursor_position, MONITOR_DEFAULTTONEAREST);
+		auto monitor_info = ::MONITORINFO{.cbSize{static_cast<::DWORD>(sizeof(::MONITORINFO))}};
+		::GetMonitorInfo(monitor, &monitor_info);
+
+		rect = monitor_info.rcWork;
+	}
+	return {rect.left, rect.top, rect.right, rect.bottom};
+}
+
 constexpr auto native_mouse_button_map = [] {
 	using enum MouseButton;
 	return utils::StaticMap<int, MouseButton, 5>{
@@ -104,7 +141,7 @@ constexpr auto native_key_map = [] {
 		{VK_BACK, Backspace},
 		{VK_CLEAR, Clear},
 		{VK_TAB, Tab},
-		{VK_RETURN, Return},
+		{VK_RETURN, Enter},
 		{VK_SHIFT, Shift},
 		{VK_CONTROL, Control},
 		{VK_MENU, Alt},
@@ -215,77 +252,189 @@ constexpr auto native_key_map = [] {
 
 //------------------------------
 
-struct NativeEvent {
-	UINT message;
-	WPARAM w_data;
-	LPARAM l_data;
-};
+HINSTANCE get_instance_handle() {
+	return GetModuleHandle(nullptr);
+}
 
 //------------------------------
 
 class WindowThread {
-	static WindowThread* instance_from_event(HWND const handle, UINT const message, LPARAM const l_data) 
-	{
-		if (message == WM_CREATE) 
-		{
-			auto const window = static_cast<WindowThread*>(reinterpret_cast<CREATESTRUCT*>(l_data)->lpCreateParams);
-			SetWindowLongPtr(handle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window));
-			window->set_window_handle(handle);
-			return window;
-		}
-		else {
-			return reinterpret_cast<WindowThread*>(GetWindowLongPtr(handle, GWLP_USERDATA));
-		}
-	}
-	
-	static LRESULT CALLBACK handle_any_window_event(
-		HWND const window_handle, UINT const message, WPARAM const w_data, LPARAM const l_data)
-	{
-		if (auto const instance = instance_from_event(window_handle, message, l_data))
-		{
-			if (auto const result = instance->handle_event(message, w_data, l_data))
-			{
-				return *result;
+private:
+	/*
+		Manages the "window class", properties common to the window instances created by this library in this process.
+		Each window instance has its own WindowClass instance to manage the window class lifetime.
+	*/
+	class WindowClass {
+	public:
+		static constexpr auto class_name = L"AVO Window Class"sv;
+
+		WindowClass() {
+			if (!s_instance_count_++) {
+				auto const properties = ::WNDCLASSW{
+					.style = CS_DBLCLKS, // We want double click events
+					.lpfnWndProc = s_handle_any_window_event_,
+					.hInstance = get_instance_handle(),
+					.lpszClassName = class_name.data()
+				};
+				::RegisterClassW(&properties);
 			}
 		}
-		return DefWindowProc(window_handle, message, w_data, l_data);
-	}
+		~WindowClass() {
+			if (!--s_instance_count_) {
+				::UnregisterClassW(class_name.data(), get_instance_handle());
+			}
+		}
+
+		WindowClass(WindowClass&&) = delete;
+		WindowClass& operator=(WindowClass&&) = delete;
+		WindowClass(WindowClass const&) = delete;
+		WindowClass& operator=(WindowClass const&) = delete;
+
+	private:
+		static WindowThread* s_instance_from_event_(HWND const handle, UINT const message, LPARAM const l_data) 
+		{
+			if (message == WM_CREATE)
+			{
+				auto const window = static_cast<WindowThread*>(reinterpret_cast<CREATESTRUCT*>(l_data)->lpCreateParams);
+				::SetWindowLongPtr(handle, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window));
+				window->set_window_handle_(handle);
+				return window;
+			}
+			else {
+				return reinterpret_cast<WindowThread*>(::GetWindowLongPtr(handle, GWLP_USERDATA));
+			}
+		}
+		
+		static LRESULT CALLBACK s_handle_any_window_event_(
+			HWND const window_handle, UINT const message, WPARAM const w_data, LPARAM const l_data)
+		{
+			if (auto const instance = s_instance_from_event_(window_handle, message, l_data))
+			{
+				if (auto const result = instance->handle_event_(message, w_data, l_data))
+				{
+					return *result;
+				}
+			}
+			return ::DefWindowProc(window_handle, message, w_data, l_data);
+		}
 	
-public:
-	void set_window_handle(HWND const handle) {
+		static inline std::atomic<int> s_instance_count_{};
+	};
+	
+	//------------------------------
+
+	void set_window_handle_(HWND const handle) {
 		handle_ = handle;
 	}
 
-	std::optional<LRESULT> handle_event(UINT const message, WPARAM const w_data, LPARAM const l_data)
+	std::optional<LRESULT> handle_event_(UINT const message, WPARAM const /* w_data */, LPARAM const l_data)
 	{
-		channel_.send(message, w_data, l_data);
-
 		switch (message) {
-		case WM_CREATE:
+		case WM_MOUSEMOVE: {
+			auto const new_position = math::Point{GET_X_LPARAM(l_data), GET_Y_LPARAM(l_data)};
 			
-			return 0;
+			channel_.send(event::MouseMove{
+				.position{unit_converter_.pixels_to_dip(new_position)},
+				.movement{unit_converter_.pixels_to_dip(new_position - mouse_position_)}
+			});
+
+			mouse_position_ = new_position;
+
+			return LRESULT{};
+		}
+			// return mouse_move_from_native_event(event);
 		}
 		return std::nullopt;
 	}
+	
+public:
+	/*
+		Waits until the window handle is valid.
+	*/
+	void wait_until_window_created() const {
+		window_created_flag_.wait(false);
+	}
+	/*
+		Must only be called after window creation.
+	*/
+	::HWND get_handle() const {
+		return handle_;
+	}
 
-	WindowThread(Parameters const& parameters, concurrency::Sender<NativeEvent> channel) :
+	WindowThread(Parameters const& parameters, concurrency::Sender<Event> channel) :
 		channel_{std::move(channel)},
 		thread_{run_, this, parameters}
 	{}
 
 private:
 	void run_(Parameters const& parameters) {
-
+		create_window_(parameters);
+		run_event_loop_();
 	}
 
-	HWND handle_;
-	concurrency::Sender<NativeEvent> channel_;
+	void create_window_(Parameters const& parameters) {
+		initialize_dpi_();
+		
+		auto const styles = style_flags_to_native(parameters.style, parameters.parent);
+
+		auto const pixel_size = unit_converter_.dip_to_pixels(parameters.size).to<Pixels>();
+		auto const window_rect = window_rectangle_from_client_size(pixel_size, styles);
+
+		auto const parent_rect = get_parent_rectangle(parameters.parent);
+
+		auto const window_position = parent_rect.top_left() + window_rect.top_left() 
+			+ (parameters.position_factor * (parent_rect.size() - window_rect.size()).to<float>()).to<math::Point<Pixels>>();
+
+		::CreateWindowW(
+			WindowClass::class_name.data(),
+			reinterpret_cast<LPCWSTR>(unicode::utf8_to_utf16(parameters.title).data()),
+			styles,
+			window_position.x, window_position.y,
+			pixel_size.x, pixel_size.y,
+			std::any_cast<HWND>(parameters.parent->native_handle()),
+			nullptr,
+			get_instance_handle(),
+			this // Additional window data, the WindowThread instance.
+		);
+
+		window_created_flag_.test_and_set();
+		window_created_flag_.notify_one();
+	}
+	void run_event_loop_() {
+		::MSG message;
+
+		while (::GetMessageW(&message, nullptr, UINT{}, UINT{}))
+		{
+			TranslateMessage(&message);
+			DispatchMessage(&message);
+		}
+	}
+
+	void initialize_dpi_() {
+		::SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+		unit_converter_ = ScreenUnitConverter{static_cast<float>(GetDpiForSystem())};
+	}
+
+	ScreenUnitConverter unit_converter_{};
+	math::Point<Pixels> mouse_position_{};
+
+	WindowClass window_class_;
+	::HWND handle_{};
+	std::atomic_flag window_created_flag_{};
+
+	concurrency::Sender<Event> channel_;
 	std::jthread thread_;
 };
 
 } // namespace win
 
 //------------------------------
+
+math::Point<Pixels> get_mouse_position() {
+	::POINT result;
+	::GetCursorPos(&result);
+	return {result.x, result.y};
+}
 
 bool get_is_key_down(KeyboardKey const key) 
 {
@@ -310,6 +459,7 @@ class Window::Implementation {
 public:
 	void title(std::string_view const) {
 	}
+	[[nodiscard]]
 	std::string title() const {
 		return {};
 	}
@@ -323,59 +473,77 @@ public:
 	
 	void min_max_size(MinMaxSizes<Dip> const) {
 	}
+	[[nodiscard]]
 	MinMaxSizes<Dip> min_max_size() const {
 		return {};
 	}
 
 	void min_size(math::Size<Dip> const) {
 	}
+	[[nodiscard]]
 	math::Size<Dip> min_size() const {
 		return {};
 	}
 
 	void max_size(math::Size<Dip> const) {
 	}
+	[[nodiscard]]
 	math::Size<Dip> max_size() const {
 		return {};
 	}
 
 	void size(math::Size<Dip> const) {
 	}
+	[[nodiscard]]
 	math::Size<Dip> size() const {
 		return {};
 	}
 
+	[[nodiscard]]
 	bool is_open() const {
 		return {};
 	}
 
-	std::any native_handle() const {
-		return 0;
+	[[nodiscard]]
+	float dpi() const {
+		return dpi_;
 	}
 
-	Implementation(Parameters const& parameters) :
-		window_thread_{parameters}
-	{
+	[[nodiscard]]
+	std::any native_handle() const {
+		return window_thread_.get_handle();
+	}
 
+	[[nodiscard]]
+	Event await_event() {
+		auto event = channel_.receive();
+
+		if (auto const dpi_event = std::get_if<event::DpiChange>(&event))
+		{
+			dpi_ = dpi_event->dpi;
+		}
+
+		return event;
+	}
+	[[nodiscard]]
+	std::optional<Event> take_event() {
+		if (!channel_.was_queue_recently_empty()) {
+			return await_event();
+		}
+		return std::nullopt;
+	}
+
+	Implementation(Parameters const& parameters, concurrency::Channel<Event> channel = concurrency::create_channel<Event>()) :
+		channel_{std::move(channel.receiver)},
+		window_thread_{win::WindowThread{parameters, std::move(channel.sender)}}
+	{
+		window_thread_.wait_until_window_created();
 	}
 
 private:
-	Event event_from_native(win::NativeEvent event) {
-		switch (event.message) {
-		case WM_MOUSEMOVE: {
-			auto const pos = unit_converter_.pixels_to_dip(math::Point{GET_X_LPARAM(event.l_data), GET_Y_LPARAM(event.l_data)})
-			
-			
-			return event::MouseMove{
-				.position{pos},
-				.movement{}
-			}
-		}
-			// return mouse_move_from_native_event(event);
-		}
-	}
+	float dpi_{ScreenUnitConverter::normal_dpi};
 
-	concurrency::Receiver<win::NativeEvent> channel_;
+	concurrency::Receiver<Event> channel_;
 	win::WindowThread window_thread_;
 };
 
