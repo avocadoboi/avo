@@ -1382,18 +1382,6 @@ private:
 				this // Additional window data - the instance
 			);
 		}
-		s_number_of_windows++;
-
-		if (!_is_running) {
-			auto lock = std::unique_lock{_isRunningMutex};
-			_isRunningConditionVariable.wait(lock, [=]() -> bool { return _is_running; });
-		}
-
-		auto message = MSG{};
-		while (GetMessageW(&message, 0, 0, 0)) {
-			TranslateMessage(&message);
-			DispatchMessageW(&message);
-		}
 	}
 
 private:
@@ -1416,11 +1404,6 @@ public:
 		_styles = convertWindowStyleFlagsToWindowsWindowStyleFlags(p_styleFlags, parent);
 		
 		_messageThread = std::thread{&WindowsWindow::thread_createAndRun, this, title, p_position, size, parent};
-		if (!_has_created_window)
-		{
-			auto lock = std::unique_lock{_hasCreatedWindowMutex};
-			_hasCreatedWindowConditionVariable.wait(lock, [=]() -> bool { return _has_created_window; });
-		}
 	}
 
 	auto close() -> void override {

@@ -6,6 +6,7 @@
 #include "avo/utils/static_map.hpp"
 #include "avo/window.hpp"
 
+#include <cassert>
 #include <functional>
 #include <thread>
 
@@ -95,11 +96,15 @@ constexpr DWORD style_flags_to_native(StyleFlags const flags, bool const has_par
 }
 
 [[nodiscard]]
-math::Rectangle<Pixels> window_rectangle_from_client_size(math::Size<Pixels> size, ::DWORD const native_flags) 
+math::Rectangle<Pixels> window_rectangle_from_client_size(::DWORD const native_flags, math::Size<Pixels> const size) 
 {
 	auto rect = ::RECT{0, 0, size.x, size.y};
 	::AdjustWindowRect(&rect, native_flags, ::WINBOOL{});
 	return {rect.left, rect.top, rect.right, rect.bottom};
+}
+[[nodiscard]]
+math::Rectangle<Pixels> window_rectangle_from_client_size(::HWND const handle, math::Size<Pixels> const size) {
+	return window_rectangle_from_client_size(::GetWindowLong(handle, GWL_STYLE), size);
 }
 
 [[nodiscard]]
@@ -122,6 +127,35 @@ math::Rectangle<Pixels> get_parent_rectangle(Window const* parent)
 	}
 	return {rect.left, rect.top, rect.right, rect.bottom};
 }
+
+//------------------------------
+
+void set_window_size(::HWND const handle, math::Size<Pixels> const size) {
+	auto const full_rect = window_rectangle_from_client_size(handle, size);
+	::SetWindowPos(handle, ::HWND{}, 0, 0, full_rect.width(), full_rect.height(), SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER);
+}
+
+//------------------------------
+
+void set_window_title(::HWND const handle, std::string_view const title)
+{
+	auto const wide_title = unicode::utf8_to_utf16(title);
+	::SetWindowText(handle, reinterpret_cast<LPCWSTR>(wide_title.data()));
+}
+
+[[nodiscard]]
+std::string get_window_title(::HWND const handle)
+{
+	constexpr auto max_length = std::size_t{256};
+	std::array<char16_t, max_length> buffer;
+
+	auto const length = ::GetWindowText(handle, reinterpret_cast<LPWSTR>(buffer.data()), max_length);
+	assert(length >= 0); // According to the GetWindowTextW docs it will never return a negative value.
+
+	return unicode::utf16_to_utf8(std::u16string_view{buffer.data(), static_cast<std::size_t>(length)});
+}
+
+//------------------------------
 
 constexpr auto native_mouse_button_map = [] {
 	using enum MouseButton;
@@ -271,17 +305,18 @@ private:
 		WindowClass() {
 			if (!s_instance_count_++) {
 				auto const properties = ::WNDCLASSW{
-					.style = CS_DBLCLKS, // We want double click events
-					.lpfnWndProc = s_handle_any_window_event_,
-					.hInstance = get_instance_handle(),
-					.lpszClassName = class_name.data()
+					.style{CS_DBLCLKS}, // We want double click events
+					.lpfnWndProc{s_handle_any_window_event_},
+					.hInstance{get_instance_handle()},
+					.hCursor{::LoadCursor(nullptr, IDC_ARROW)},
+					.lpszClassName{class_name.data()}
 				};
-				::RegisterClassW(&properties);
+				::RegisterClass(&properties);
 			}
 		}
 		~WindowClass() {
 			if (!--s_instance_count_) {
-				::UnregisterClassW(class_name.data(), get_instance_handle());
+				::UnregisterClass(class_name.data(), get_instance_handle());
 			}
 		}
 
@@ -323,28 +358,69 @@ private:
 	
 	//------------------------------
 
-	void set_window_handle_(HWND const handle) {
+	void set_window_handle_(::HWND const handle) {
 		handle_ = handle;
 	}
 
-	std::optional<LRESULT> handle_event_(UINT const message, WPARAM const /* w_data */, LPARAM const l_data)
+	std::optional<::LRESULT> handle_event_(::UINT const message, ::WPARAM const w_data, ::LPARAM const l_data)
 	{
 		switch (message) {
-		case WM_MOUSEMOVE: {
-			auto const new_position = math::Point{GET_X_LPARAM(l_data), GET_Y_LPARAM(l_data)};
-			
-			channel_.send(event::MouseMove{
-				.position{unit_converter_.pixels_to_dip(new_position)},
-				.movement{unit_converter_.pixels_to_dip(new_position - mouse_position_)}
-			});
-
-			mouse_position_ = new_position;
-
-			return LRESULT{};
-		}
-			// return mouse_move_from_native_event(event);
+		case WM_MOUSEMOVE:
+			return handle_mouse_move_(l_data);
+		case WM_SIZE:
+			return handle_size_change_(w_data, l_data);
+		case WM_DESTROY:
+			return handle_closed_();
 		}
 		return std::nullopt;
+	}
+
+	::LRESULT handle_mouse_move_(::LPARAM const l_data) 
+	{
+		auto const new_position = math::Point{GET_X_LPARAM(l_data), GET_Y_LPARAM(l_data)};
+		
+		channel_.send(event::MouseMove{
+			.position{unit_converter_.pixels_to_dip(new_position)},
+			.movement{unit_converter_.pixels_to_dip(new_position - mouse_position_)}
+		});
+
+		mouse_position_ = new_position;
+
+		return ::LRESULT{};
+	}
+
+	::LRESULT handle_size_change_(::WPARAM const w_data, ::LPARAM const l_data)
+	{
+		if (w_data == SIZE_MINIMIZED)
+		{
+			state_ = State::Minimized;
+			channel_.send(event::StateChange{state_});
+		}
+		else {
+			if (w_data == SIZE_MAXIMIZED) 
+			{
+				state_ = State::Maximized;
+				channel_.send(event::StateChange{state_});
+			}
+			else if (w_data == SIZE_RESTORED && state_ != State::Restored)
+			{
+				state_ = State::Restored;
+				channel_.send(event::StateChange{state_});
+			}
+
+			channel_.send(event::SizeChange{
+				unit_converter_.pixels_to_dip(math::Size{static_cast<int>(LOWORD(l_data)), static_cast<int>(HIWORD(l_data))})
+			});
+		}
+
+		return ::LRESULT{};
+	}
+
+	::LRESULT handle_closed_() {
+		channel_.send(event::Closed{});
+		
+		PostQuitMessage(0);
+		return ::LRESULT{};
 	}
 	
 public:
@@ -377,21 +453,22 @@ private:
 		
 		auto const styles = style_flags_to_native(parameters.style, parameters.parent);
 
-		auto const pixel_size = unit_converter_.dip_to_pixels(parameters.size).to<Pixels>();
-		auto const window_rect = window_rectangle_from_client_size(pixel_size, styles);
+		auto const window_rect = window_rectangle_from_client_size(styles, unit_converter_.dip_to_pixels(parameters.size));
 
 		auto const parent_rect = get_parent_rectangle(parameters.parent);
 
 		auto const window_position = parent_rect.top_left() + window_rect.top_left() 
 			+ (parameters.position_factor * (parent_rect.size() - window_rect.size()).to<float>()).to<math::Point<Pixels>>();
 
-		::CreateWindowW(
+		auto const wide_title = unicode::utf8_to_utf16(parameters.title);
+
+		::CreateWindow(
 			WindowClass::class_name.data(),
-			reinterpret_cast<LPCWSTR>(unicode::utf8_to_utf16(parameters.title).data()),
+			reinterpret_cast<::LPCWSTR>(wide_title.data()),
 			styles,
 			window_position.x, window_position.y,
-			pixel_size.x, pixel_size.y,
-			std::any_cast<HWND>(parameters.parent->native_handle()),
+			window_rect.width(), window_rect.height(),
+			parameters.parent ? std::any_cast<::HWND>(parameters.parent->native_handle()) : ::HWND{},
 			nullptr,
 			get_instance_handle(),
 			this // Additional window data, the WindowThread instance.
@@ -403,7 +480,7 @@ private:
 	void run_event_loop_() {
 		::MSG message;
 
-		while (::GetMessageW(&message, nullptr, UINT{}, UINT{}))
+		while (::GetMessage(&message, nullptr, ::UINT{}, ::UINT{}))
 		{
 			TranslateMessage(&message);
 			DispatchMessage(&message);
@@ -417,6 +494,7 @@ private:
 
 	ScreenUnitConverter unit_converter_{};
 	math::Point<Pixels> mouse_position_{};
+	State state_{State::Restored};
 
 	WindowClass window_class_;
 	::HWND handle_{};
@@ -457,11 +535,12 @@ bool get_is_mouse_button_down(MouseButton const button)
 
 class Window::Implementation {
 public:
-	void title(std::string_view const) {
+	void title(std::string_view const title) {
+		win::set_window_title(window_thread_.get_handle(), title);
 	}
 	[[nodiscard]]
 	std::string title() const {
-		return {};
+		return win::get_window_title(window_thread_.get_handle());
 	}
 
 	bool toggle_fullscreen() {
@@ -492,16 +571,17 @@ public:
 		return {};
 	}
 
-	void size(math::Size<Dip> const) {
+	void size(math::Size<Dip> const size) {
+		win::set_window_size(window_thread_.get_handle(), ScreenUnitConverter{dpi_}.dip_to_pixels(size));
 	}
 	[[nodiscard]]
 	math::Size<Dip> size() const {
-		return {};
+		return size_;
 	}
 
 	[[nodiscard]]
 	bool is_open() const {
-		return {};
+		return is_open_;
 	}
 
 	[[nodiscard]]
@@ -522,6 +602,14 @@ public:
 		{
 			dpi_ = dpi_event->dpi;
 		}
+		else if (auto const size_event = std::get_if<event::SizeChange>(&event))
+		{
+			size_ = size_event->size;
+		}
+		else if (std::holds_alternative<event::Closed>(event))
+		{
+			is_open_ = false;
+		}
 
 		return event;
 	}
@@ -533,7 +621,13 @@ public:
 		return std::nullopt;
 	}
 
-	Implementation(Parameters const& parameters, concurrency::Channel<Event> channel = concurrency::create_channel<Event>()) :
+	static constexpr auto max_queue_size = std::size_t{128};
+
+	Implementation(
+		Parameters const& parameters, 
+		concurrency::Channel<Event> channel = concurrency::create_channel<Event>(max_queue_size)
+	) : 
+		size_{parameters.size},
 		channel_{std::move(channel.receiver)},
 		window_thread_{win::WindowThread{parameters, std::move(channel.sender)}}
 	{
@@ -542,6 +636,8 @@ public:
 
 private:
 	float dpi_{ScreenUnitConverter::normal_dpi};
+	math::Size<Dip> size_;
+	bool is_open_{true};
 
 	concurrency::Receiver<Event> channel_;
 	win::WindowThread window_thread_;

@@ -29,25 +29,40 @@ class MessageQueue final {
 public:
 	/*
 		Adds a message onto the queue.
+		Does nothing and returns false if the queue has reached its maximum size.
 	*/
 	template<class ... Argument_>
 		requires std::constructible_from<T, Argument_&&...>
-	void push(Argument_&& ... argument) {
+	bool push(Argument_&& ... argument) {
 		{
 			auto const lock = std::lock_guard{mutex_};
+
+			if (queue_.size() >= max_size_) {
+				return false;
+			}
+			
 			queue_.emplace(std::forward<Argument_>(argument)...);
 		}
+
 		notify_next_message_();
+
+		return true;
 	}
 
 	/*
 		Adds a message onto the queue and waits until it has been removed from the queue by another thread.
+		Does nothing and returns false if the queue has reached its maximum size.
 	*/
 	template<class ... Argument_>
 		requires std::constructible_from<T, Argument_&&...>
-	void push_wait(Argument_&& ... argument) {
+	bool push_wait(Argument_&& ... argument) {
 		{
 			auto const lock = std::lock_guard{mutex_};
+
+			if (queue_.size() >= max_size_) {
+				return false;
+			}
+			
 			queue_.emplace(std::forward<Argument_>(argument)...);
 		}
 
@@ -55,6 +70,8 @@ public:
 
 		// Wait until the queue is empty (this message has been removed by the other thread).
 		has_messages_flag_.wait(true);
+
+		return true;
 	}
 
 	/*
@@ -112,7 +129,17 @@ public:
 		return !has_messages_flag_.test();
 	}
 
-	MessageQueue() = default;
+	/*
+		Returns the maximum number of messages in the queue.
+	*/
+	[[nodiscard]]
+	std::size_t max_size() const {
+		return max_size_;
+	}
+
+	MessageQueue(std::size_t const max_size = static_cast<std::size_t>(-1)) :
+		max_size_{max_size}
+	{} 
 	~MessageQueue() = default;
 
 	MessageQueue(MessageQueue&&) = default;
@@ -150,6 +177,8 @@ private:
 		has_messages_flag_.wait(false);
 	}
 
+	std::size_t max_size_;
+
 	std::queue<T> queue_;
 	mutable std::mutex mutex_;
 
@@ -162,19 +191,21 @@ class Sender final {
 public:
 	/*
 		Sends a message through the channel without waiting.
+		Returns false and does nothing if the message queue has reached its maximum size.
 	*/
 	template<class ... Argument_> 
 		requires std::constructible_from<T, Argument_&&...>
-	void send(Argument_&& ... argument) {
-		queue_->push(std::forward<Argument_>(argument)...);
+	bool send(Argument_&& ... argument) {
+		return queue_->push(std::forward<Argument_>(argument)...);
 	}
 	/*
 		Sends a message through the channel and waits until it has been received and taken off the queue.
+		Returns false and does nothing if the message queue has reached its maximum size.
 	*/
 	template<class ... Argument_> 
 		requires std::constructible_from<T, Argument_&&...>
-	void send_wait(Argument_&& ... argument) {
-		queue_->push_wait(std::forward<Argument_>(argument)...);
+	bool send_wait(Argument_&& ... argument) {
+		return queue_->push_wait(std::forward<Argument_>(argument)...);
 	}
 
 	/*
@@ -264,8 +295,8 @@ struct Channel final {
 */
 template<std::move_constructible T>
 [[nodiscard]]
-Channel<T> create_channel() {
-	auto message_queue = std::make_shared<MessageQueue<T>>();
+Channel<T> create_channel(std::size_t const max_queue_size = static_cast<std::size_t>(-1)) {
+	auto message_queue = std::make_shared<MessageQueue<T>>(max_queue_size);
 	return Channel{
 		.sender = Sender{message_queue},
 		.receiver = Receiver{std::move(message_queue)}

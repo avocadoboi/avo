@@ -240,6 +240,7 @@ struct SizeChange {
 struct StateChange {
 	State state;
 };
+struct Closed {};
 struct DpiChange {
 	float dpi;
 };
@@ -259,6 +260,7 @@ using Event = std::variant<
 	event::FocusLose,
 	event::SizeChange,
 	event::StateChange,
+	event::Closed,
 	event::DpiChange
 >;
 
@@ -281,6 +283,12 @@ struct Parameters {
 
 //------------------------------
 
+/*
+	A Window creates a new window and automatically runs an event loop in a separate thread to keep it responsive and prevent blocking behavior.
+	Events are safely sent to the thread of the Window class and can be retrieved using await_event and take_event.
+	If you don't call await_event or take_event regularly, the properties that can be retrieved using the accessor methods of this class will not be 
+	updated. The window would still be responsive however.
+*/
 class Window final {
 public:
 	void title(std::string_view);
@@ -452,7 +460,7 @@ public:
 		send_event_(window_->await_event());
 	}
 	void run() {
-		while (true) {
+		while (window_->is_open()) {
 			update_wait();
 		}
 	}

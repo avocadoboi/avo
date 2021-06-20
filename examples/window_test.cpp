@@ -1,11 +1,9 @@
 #include <avo.hpp>
 
 #include <magic_enum.hpp>
-#include <fmt/ostream.h>
 
 #include <thread>
 
-using namespace magic_enum::ostream_operators;
 using namespace std::chrono_literals;
 
 int main() {
@@ -38,7 +36,15 @@ int main() {
 		fmt::print("The key '{}' was released.\n", event.key);
 	});
 	event_manager.add_listener([](event::MouseMove const& event) {
-		fmt::print("The mouse moved {} and is now at {}.", event.movement, event.position);
+		fmt::print("The mouse moved {} and is now at {}.\n", event.movement, event.position);
+	});
+	event_manager.add_listener([&](event::SizeChange const& event) {
+		update();
+		fmt::print("The window resized and now has size {}.\n", event.size);
+	});
+	event_manager.add_listener([](event::StateChange const& event) {
+		fmt::print("The window state changed and is now '{}'.\n", magic_enum::enum_name(event.state));
 	});
 	event_manager.run();
+	fmt::print("Finished running.\n");
 }
