@@ -8,8 +8,9 @@ using namespace std::chrono_literals;
 
 int main() {
 	using namespace avo::math;
-
 	namespace event = avo::window::event;
+
+	using magic_enum::enum_name;
 
 	auto window = avo::window::create("Hello AvoGUI!")
 		.position(Vector2d{0.5f, 0.5f})
@@ -29,11 +30,21 @@ int main() {
 	update();
 
 	auto event_manager = avo::window::EventManager{window};
+
 	event_manager.add_listener([](event::KeyDown const& event) {
-		fmt::print("The key '{}' was pressed.\n", event.key);
+		fmt::print("The key '{}' was pressed. Repeat: {}\n", enum_name(event.key), event.is_repeated);
 	});
 	event_manager.add_listener([](event::KeyUp const& event) {
-		fmt::print("The key '{}' was released.\n", event.key);
+		fmt::print("The key '{}' was released.\n", enum_name(event.key));
+	});
+	event_manager.add_listener([](event::CharacterInput const& event) {
+		fmt::print("The character '{}' was input. Repeat: {}\n", event.character, event.is_repeated);
+	});
+	event_manager.add_listener([](event::MouseDown const& event) {
+		fmt::print("The mouse button '{}' was {}.\n", enum_name(event.button), event.is_double_click ? "double clicked" : "pressed");
+	});
+	event_manager.add_listener([](event::MouseUp const& event) {
+		fmt::print("The mouse button '{}' was released.\n", enum_name(event.button));
 	});
 	event_manager.add_listener([](event::MouseMove const& event) {
 		fmt::print("The mouse moved {} and is now at {}.\n", event.movement, event.position);
@@ -43,8 +54,10 @@ int main() {
 		fmt::print("The window resized and now has size {}.\n", event.size);
 	});
 	event_manager.add_listener([](event::StateChange const& event) {
-		fmt::print("The window state changed and is now '{}'.\n", magic_enum::enum_name(event.state));
+		fmt::print("The window state changed and is now '{}'.\n", enum_name(event.state));
 	});
+
 	event_manager.run();
+
 	fmt::print("Finished running.\n");
 }

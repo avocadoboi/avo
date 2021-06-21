@@ -88,7 +88,9 @@ public:
 
 		constexpr Iterator(Iterator&&) = default;
 
-		constexpr Iterator& operator=(Iterator&&) requires std::movable<Generator_> = default;
+		constexpr Iterator& operator=(Iterator&&) 
+			requires std::movable<Generator_> 
+			= default;
 		constexpr Iterator& operator=(Iterator&& other) noexcept 
 			requires (!std::movable<Generator_>) 
 		{

@@ -99,7 +99,7 @@ constexpr DWORD style_flags_to_native(StyleFlags const flags, bool const has_par
 math::Rectangle<Pixels> window_rectangle_from_client_size(::DWORD const native_flags, math::Size<Pixels> const size) 
 {
 	auto rect = ::RECT{0, 0, size.x, size.y};
-	::AdjustWindowRect(&rect, native_flags, ::WINBOOL{});
+	::AdjustWindowRect(&rect, native_flags, ::BOOL{});
 	return {rect.left, rect.top, rect.right, rect.bottom};
 }
 [[nodiscard]]
@@ -153,6 +153,16 @@ std::string get_window_title(::HWND const handle)
 	assert(length >= 0); // According to the GetWindowTextW docs it will never return a negative value.
 
 	return unicode::utf16_to_utf8(std::u16string_view{buffer.data(), static_cast<std::size_t>(length)});
+}
+
+//------------------------------
+
+constexpr bool get_is_key_repeated(::LPARAM const l_data) noexcept {
+	return l_data & (1 << 30);
+}
+
+constexpr MouseButton x_button_from_w_data(::WPARAM const w_data) noexcept {
+	return HIWORD(w_data) == XBUTTON1 ? MouseButton::X0 : MouseButton::X1;
 }
 
 //------------------------------
@@ -293,6 +303,25 @@ HINSTANCE get_instance_handle() {
 //------------------------------
 
 class WindowThread {
+public:
+	/*
+		Waits until the window handle is valid.
+	*/
+	void wait_until_window_created() const {
+		window_created_flag_.wait(false);
+	}
+	/*
+		Must only be called after window creation.
+	*/
+	::HWND get_handle() const {
+		return handle_;
+	}
+
+	WindowThread(Parameters const& parameters, concurrency::Sender<Event> channel) :
+		channel_{std::move(channel)},
+		thread_{&run_, this, parameters}
+	{}
+
 private:
 	/*
 		Manages the "window class", properties common to the window instances created by this library in this process.
@@ -367,6 +396,36 @@ private:
 		switch (message) {
 		case WM_MOUSEMOVE:
 			return handle_mouse_move_(l_data);
+		case WM_LBUTTONDBLCLK:
+			return handle_mouse_down_(w_data, l_data, MouseButton::Left, true);
+		case WM_MBUTTONDBLCLK:
+			return handle_mouse_down_(w_data, l_data, MouseButton::Middle, true);
+		case WM_RBUTTONDBLCLK:
+			return handle_mouse_down_(w_data, l_data, MouseButton::Right, true);
+		case WM_XBUTTONDBLCLK:
+			return handle_mouse_down_(w_data, l_data, x_button_from_w_data(w_data), true);
+		case WM_LBUTTONDOWN:
+			return handle_mouse_down_(w_data, l_data, MouseButton::Left, false);
+		case WM_MBUTTONDOWN:
+			return handle_mouse_down_(w_data, l_data, MouseButton::Middle, false);
+		case WM_RBUTTONDOWN:
+			return handle_mouse_down_(w_data, l_data, MouseButton::Right, false);
+		case WM_XBUTTONDOWN:
+			return handle_mouse_down_(w_data, l_data, x_button_from_w_data(w_data), false);
+		case WM_LBUTTONUP:
+			return handle_mouse_up_(w_data, l_data, MouseButton::Left);
+		case WM_MBUTTONUP:
+			return handle_mouse_up_(w_data, l_data, MouseButton::Middle);
+		case WM_RBUTTONUP:
+			return handle_mouse_up_(w_data, l_data, MouseButton::Right);
+		case WM_XBUTTONUP:
+			return handle_mouse_up_(w_data, l_data, x_button_from_w_data(w_data));
+		case WM_CHAR:
+			return handle_character_input_(w_data, l_data);
+		case WM_KEYDOWN:
+			return handle_key_down_(w_data, l_data);
+		case WM_KEYUP:
+			return handle_key_up_(w_data);
 		case WM_SIZE:
 			return handle_size_change_(w_data, l_data);
 		case WM_DESTROY:
@@ -386,6 +445,56 @@ private:
 
 		mouse_position_ = new_position;
 
+		return ::LRESULT{};
+	}
+	::LRESULT handle_mouse_down_(::WPARAM const w_data, ::LPARAM const l_data, MouseButton const button, bool const is_double_click)
+	{
+		channel_.send(event::MouseDown{
+			.position{unit_converter_.pixels_to_dip(math::Point{GET_X_LPARAM(l_data), GET_Y_LPARAM(l_data)})},
+			.button{button},
+			.modifier_keys{modifier_key_flags_from_native(LOWORD(w_data))},
+			.is_double_click{is_double_click}
+		});
+		return ::LRESULT{};
+	}
+	::LRESULT handle_mouse_up_(::WPARAM const w_data, ::LPARAM const l_data, MouseButton const button)
+	{
+		channel_.send(event::MouseUp{
+			.position{unit_converter_.pixels_to_dip(math::Point{GET_X_LPARAM(l_data), GET_Y_LPARAM(l_data)})},
+			.button{button},
+			.modifier_keys{modifier_key_flags_from_native(LOWORD(w_data))}
+		});
+		return ::LRESULT{};
+	}
+
+	::LRESULT handle_character_input_(::WPARAM const w_data, ::LPARAM const l_data)
+	{
+		// The size is 5 because 4 is the maximum number of code points in a UTF-8 encoded character,
+		// and the null terminator is included.
+		std::array<char, 5> character;
+
+		auto const length = unicode::utf16_to_utf8(reinterpret_cast<char16_t const*>(&w_data), character);
+
+		if (length && *length) {
+			channel_.send(event::CharacterInput{
+				.character{character.data(), *length},
+				.is_repeated{get_is_key_repeated(l_data)}
+			});
+		}
+
+		return ::LRESULT{};
+	}
+	::LRESULT handle_key_down_(::WPARAM const w_data, ::LPARAM const l_data)
+	{
+		channel_.send(event::KeyDown{
+			.key{native_key_map.find_or(static_cast<int>(w_data), KeyboardKey::None)},
+			.is_repeated{get_is_key_repeated(l_data)}
+		});
+		return ::LRESULT{};
+	}
+	::LRESULT handle_key_up_(::WPARAM const w_data)
+	{
+		channel_.send(event::KeyUp{native_key_map.find_or(static_cast<int>(w_data), KeyboardKey::None)});
 		return ::LRESULT{};
 	}
 
@@ -416,39 +525,24 @@ private:
 		return ::LRESULT{};
 	}
 
-	::LRESULT handle_closed_() {
+	::LRESULT handle_closed_() 
+	{
 		channel_.send(event::Closed{});
 		
 		PostQuitMessage(0);
 		return ::LRESULT{};
 	}
-	
-public:
-	/*
-		Waits until the window handle is valid.
-	*/
-	void wait_until_window_created() const {
-		window_created_flag_.wait(false);
-	}
-	/*
-		Must only be called after window creation.
-	*/
-	::HWND get_handle() const {
-		return handle_;
-	}
 
-	WindowThread(Parameters const& parameters, concurrency::Sender<Event> channel) :
-		channel_{std::move(channel)},
-		thread_{run_, this, parameters}
-	{}
+	//------------------------------
 
-private:
-	void run_(Parameters const& parameters) {
+	void run_(Parameters const& parameters) 
+	{
 		create_window_(parameters);
 		run_event_loop_();
 	}
 
-	void create_window_(Parameters const& parameters) {
+	void create_window_(Parameters const& parameters) 
+	{
 		initialize_dpi_();
 		
 		auto const styles = style_flags_to_native(parameters.style, parameters.parent);
@@ -477,6 +571,7 @@ private:
 		window_created_flag_.test_and_set();
 		window_created_flag_.notify_one();
 	}
+
 	void run_event_loop_() {
 		::MSG message;
 
@@ -487,7 +582,8 @@ private:
 		}
 	}
 
-	void initialize_dpi_() {
+	void initialize_dpi_() 
+	{
 		::SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 		unit_converter_ = ScreenUnitConverter{static_cast<float>(GetDpiForSystem())};
 	}
@@ -508,7 +604,8 @@ private:
 
 //------------------------------
 
-math::Point<Pixels> get_mouse_position() {
+math::Point<Pixels> get_mouse_position() 
+{
 	::POINT result;
 	::GetCursorPos(&result);
 	return {result.x, result.y};

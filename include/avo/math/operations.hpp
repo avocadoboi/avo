@@ -1,19 +1,13 @@
 #ifndef AVO_MATH_OPERATIONS_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_MATH_OPERATIONS_HPP_BJORN_SUNDIN_JUNE_2021
 
-#include "angle.hpp"
+#include "../utils/concepts.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 
 namespace avo::math {
-
-template<std::floating_point T>
-[[nodiscard]]
-constexpr bool approximately_equal(T const a, T const b, T const max_difference = static_cast<T>(1e-6))  
-{
-	return std::abs(a - b) <= max_difference;
-}
 
 /*
 	Returns 1 if the number is positive, 0 if it is 0 and -1 if it is negative.
@@ -21,7 +15,7 @@ constexpr bool approximately_equal(T const a, T const b, T const max_difference 
 template<utils::IsNumber T>
 [[nodiscard]]
 constexpr T sign(T const number) {
-	return std::copysign(T{1}, number);
+	return static_cast<T>((number > T{}) - (number < T{}));
 }
 
 template<std::floating_point T>
@@ -30,7 +24,7 @@ constexpr T unit_clamp(T const value) {
 	return std::clamp(value, T{}, T{1});
 }
 
-template<utils::IsNumber Return_, utils::IsNumber T>
+template<utils::IsNumber Return_, std::floating_point T>
 [[nodiscard]]
 constexpr Return_ floor(T const number) {
 	if (std::is_constant_evaluated()) {
@@ -40,7 +34,7 @@ constexpr Return_ floor(T const number) {
 		return static_cast<Return_>(std::floor(number));
 	}
 }
-template<utils::IsNumber Return_, utils::IsNumber T>
+template<utils::IsNumber Return_, std::floating_point T>
 [[nodiscard]]
 constexpr Return_ ceil(T const number) {
 	if (std::is_constant_evaluated()) {
@@ -48,6 +42,17 @@ constexpr Return_ ceil(T const number) {
 	}
 	else {
 		return static_cast<Return_>(std::ceil(number));
+	}
+}
+
+template<utils::IsNumber Return_, std::floating_point T>
+[[nodiscard]]
+constexpr Return_ round(T const number) {
+	if (std::is_constant_evaluated()) {
+		return static_cast<Return_>(static_cast<std::int64_t>(number + T{0.5}*sign(number)));
+	}
+	else {
+		return static_cast<Return_>(std::round(number));
 	}
 }
 
@@ -60,6 +65,13 @@ constexpr T abs(T const number) {
 	else {
 		return std::abs(number);
 	}
+}
+
+template<std::floating_point T>
+[[nodiscard]]
+constexpr bool approximately_equal(T const a, T const b, T const max_difference = static_cast<T>(1e-6))
+{
+	return math::abs(a - b) <= max_difference;
 }
 
 /*
@@ -92,15 +104,6 @@ inline float fast_inverse_sqrt(float const input) noexcept
 	std::memcpy(&approximation, &bits, 4);
 
 	return approximation*(1.5f - 0.5f*input*approximation*approximation);
-}
-
-/*
-	Returns the pair of cosine and sine values for any angle.
-*/
-template<std::floating_point Return_>
-std::pair<Return_, Return_> cos_sin(IsAngle auto angle) {
-	auto const radians = to_radians<Return_>(angle);
-	return std::pair{std::cos(radians.value), std::sin(radians.value)};
 }
 
 template<class T>

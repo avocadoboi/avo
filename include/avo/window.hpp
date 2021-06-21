@@ -205,8 +205,8 @@ struct MouseMove {
 	math::Vector2d<Dip> movement{};
 	ModifierKeyFlags modifier_keys{};
 };
-struct MouseEnter : public MouseMove {};
-struct MouseLeave : public MouseMove {};
+struct MouseEnter : MouseMove {};
+struct MouseLeave : MouseMove {};
 struct MouseScroll {
 	float scroll_delta{};
 	ModifierKeyFlags modifier_keys{};
@@ -225,12 +225,13 @@ struct MouseUp {
 struct KeyDown {
 	KeyboardKey key{KeyboardKey::None};
 	bool is_repeated{};
-	std::string character;
 };
 struct KeyUp {
 	KeyboardKey key{KeyboardKey::None};
-	bool is_repeated{};
+};
+struct CharacterInput {
 	std::string character;
+	bool is_repeated{};
 };
 struct FocusGain {};
 struct FocusLose {};
@@ -256,6 +257,7 @@ using Event = std::variant<
 	event::MouseUp,
 	event::KeyDown,
 	event::KeyUp,
+	event::CharacterInput,
 	event::FocusGain,
 	event::FocusLose,
 	event::SizeChange,
@@ -448,29 +450,65 @@ using EventListener = detail::ListenerVariant<Event>::type;
 
 //------------------------------
 
+namespace detail {
+
+template<class T, class EventVariant_>
+struct IsEventListener;
+
+template<class T, class ... Event_>
+struct IsEventListener<T, std::variant<Event_...>> {
+	static constexpr bool value = (std::invocable<T, Event_ const&> || ...);
+};
+
+} // namespace detail
+
+/*
+	True for types which are invocable with a const reference to any of the Event variants in the avo::window::event namespace.
+*/
+template<typename T>
+concept IsEventListener = detail::IsEventListener<T, Event>::value;
+
+//------------------------------
+
 class EventManager {
 public:
-	void update() 
-	{
-		if (auto const event = window_->take_event()) {
+	/*
+		Notifies listeners of any events currently available from the window.
+	*/
+	void update() {
+		while (auto const event = window_->take_event()) {
 			send_event_(*event);
 		}
 	}
+	/*
+		Waits for one event from the window and notifies any listeners.
+	*/
 	void update_wait() {
 		send_event_(window_->await_event());
 	}
+	/*
+		Blocks until the window has been closed, automatically notifying event listeners of new events from the window.
+	*/
 	void run() {
 		while (window_->is_open()) {
 			update_wait();
 		}
 	}
 
-	template<class Listener_> // Not sure how or if to constrain this.
+	/*
+		Adds an event listener invocable to be notified when an event of the type of its parameter is available.
+		This overload takes any invocable that isn't a std::function instantiation.
+	*/
+	template<IsEventListener Listener_>
 	void add_listener(Listener_&& listener) {
 		listeners_.emplace_back(std::function{std::forward<Listener_>(listener)});
 	}
 
-	template<class Listener_> 
+	/*
+		Adds an event listener invocable to be notified when an event of the type of its parameter is available.
+		This overload only takes std::function instantiations.
+	*/
+	template<IsEventListener Listener_> 
 		requires std::constructible_from<EventListener, Listener_>
 	void add_listener(Listener_&& listener) {
 		listeners_.emplace_back(std::forward<Listener_>(listener));

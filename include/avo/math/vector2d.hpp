@@ -1,7 +1,7 @@
 #ifndef AVO_MATH_VECTOR2D_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_MATH_VECTOR2D_HPP_BJORN_SUNDIN_JUNE_2021
 
-#include "operations.hpp"
+#include "angle.hpp"
 
 #include <cmath>
 

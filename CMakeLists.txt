@@ -21,7 +21,7 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
 		/experimental:external
 		/external:anglebrackets
 		/external:W0 
-		/WX /Wall
+		/WX /W4
 	)
 else ()
 	target_compile_options(avo PUBLIC

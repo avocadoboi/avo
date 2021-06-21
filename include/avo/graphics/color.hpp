@@ -293,7 +293,7 @@ struct Color final {
 	constexpr Return_ hue() const noexcept {
 		using Value_ = typename Return_::value_type;
 		if constexpr (std::integral<Value_>) {
-			return Return_{static_cast<Value_>(std::round(hue()*360))};
+			return Return_{math::round<Value_>(hue()*360)};
 		}
 		return Return_{static_cast<Value_>(hue()*360)};
 	}

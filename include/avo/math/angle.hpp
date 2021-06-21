@@ -2,6 +2,7 @@
 #define AVO_MATH_ANGLE_HPP_BJORN_SUNDIN_JUNE_2021
 
 #include "arithmetic_wrapper.hpp"
+#include "operations.hpp"
 
 #include <numbers>
 #include <cmath>
@@ -37,7 +38,7 @@ template<utils::IsNumber To_, std::floating_point From_>
 [[nodiscard]]
 constexpr Degrees<To_> to_degrees(Radians<From_> const radians) noexcept {
 	if constexpr (std::integral<To_>) {
-		return Degrees{static_cast<To_>(std::round(radians.value / std::numbers::pi_v<From_> * static_cast<From_>(180)))};
+		return Degrees{math::round<To_>(radians.value / std::numbers::pi_v<From_> * static_cast<From_>(180))};
 	}
 	return Degrees{static_cast<To_>(radians.value / std::numbers::pi_v<From_> * static_cast<From_>(180))};
 }
@@ -49,7 +50,7 @@ template<utils::IsNumber To_, utils::IsNumber From_>
 [[nodiscard]]
 constexpr Degrees<To_> to_degrees(Degrees<From_> const degrees) noexcept {
 	if constexpr (std::integral<To_> && std::floating_point<From_>) {
-		return Degrees{static_cast<To_>(std::round(degrees.value))};
+		return Degrees{math::round<To_>(degrees.value)};
 	}
 	return Degrees{static_cast<To_>(degrees.value)};
 }
@@ -104,6 +105,15 @@ template<std::floating_point T>
 [[nodiscard]]
 constexpr T normalized(Radians<T> const radians) noexcept {
 	return radians.value / (std::numbers::pi_v<T>*2);
+}
+
+/*
+	Returns the pair of cosine and sine values for any angle.
+*/
+template<std::floating_point Return_>
+std::pair<Return_, Return_> cos_sin(IsAngle auto angle) {
+	auto const radians = to_radians<Return_>(angle);
+	return std::pair{ std::cos(radians.value), std::sin(radians.value) };
 }
 
 inline namespace angle_literals {

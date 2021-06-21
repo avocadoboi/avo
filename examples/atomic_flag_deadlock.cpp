@@ -1,7 +1,7 @@
 #include <atomic>
 #include <thread>
 
-constexpr auto count_limit = 10'000;
+constexpr auto count_limit = 1'000'000;
 
 auto atomic_flag = std::atomic_flag{};
 auto counter = std::atomic<int>{};
