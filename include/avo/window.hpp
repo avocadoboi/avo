@@ -86,6 +86,7 @@ enum class KeyboardKey {
 	Enter,
 	Shift,
 	Control,
+	Super,
 	Menu,
 	Alt,
 	CapsLock,
@@ -173,65 +174,39 @@ inline constexpr bool is_bit_flag<avo::window::StyleFlags> = true;
 
 namespace avo::window {
 
-enum class ModifierKeyFlags : std::uint32_t {
-	None =        0,
-	Control =     1,
-	Shift =       1 << 1,
-	LeftMouse =   1 << 2,
-	MiddleMouse = 1 << 3,
-	RightMouse =  1 << 4,
-	X0Mouse =     1 << 5,
-	X1Mouse =     1 << 6,
-	Alt =         1 << 7
-};
-
-} // namespace avo::window
-
-namespace avo::utils {
-
-template<>
-inline constexpr bool is_bit_flag<avo::window::ModifierKeyFlags> = true;
-
-} // namespace avo::utils
-
-//------------------------------
-
-namespace avo::window {
-
 namespace event {
 
 struct MouseMove {
-	math::Point<Dip> position{};
-	math::Vector2d<Dip> movement{};
-	ModifierKeyFlags modifier_keys{};
+	math::Point<Dip> position;
+	math::Vector2d<Dip> movement;
 };
-struct MouseEnter : MouseMove {};
-struct MouseLeave : MouseMove {};
+struct MouseLeave {
+	math::Point<Dip> position;
+	math::Vector2d<Dip> movement;
+};
 struct MouseScroll {
-	float scroll_delta{};
-	ModifierKeyFlags modifier_keys{};
+	math::Point<Dip> position;
+	float scroll_delta;
 };
 struct MouseDown {
-	math::Point<Dip> position{};
-	MouseButton button{};
-	ModifierKeyFlags modifier_keys{};
-	bool is_double_click{};
+	math::Point<Dip> position;
+	MouseButton button;
+	bool is_double_click;
 };
 struct MouseUp {
-	math::Point<Dip> position{};
-	MouseButton button{};
-	ModifierKeyFlags modifier_keys{};
+	math::Point<Dip> position;
+	MouseButton button;
 };
 struct KeyDown {
-	KeyboardKey key{KeyboardKey::None};
-	bool is_repeated{};
+	KeyboardKey key;
+	bool is_repeated;
 };
 struct KeyUp {
-	KeyboardKey key{KeyboardKey::None};
+	KeyboardKey key;
 };
 struct CharacterInput {
 	std::string character;
-	bool is_repeated{};
+	bool is_repeated;
 };
 struct FocusGain {};
 struct FocusLose {};
@@ -250,7 +225,6 @@ struct DpiChange {
 
 using Event = std::variant<
 	event::MouseMove, 
-	event::MouseEnter, 
 	event::MouseLeave,
 	event::MouseScroll, 
 	event::MouseDown, 

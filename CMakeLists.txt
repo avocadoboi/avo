@@ -17,11 +17,14 @@ target_compile_features(avo PUBLIC cxx_std_20)
 set_target_properties(avo PROPERTIES CXX_EXTENSIONS off)
 
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
+	add_compile_options(/utf-8)
+
 	target_compile_options(avo PUBLIC
 		/experimental:external
 		/external:anglebrackets
 		/external:W0 
-		/WX /W4
+		/WX 
+		/W4
 	)
 else ()
 	target_compile_options(avo PUBLIC

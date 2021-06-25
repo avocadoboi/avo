@@ -31,41 +31,6 @@ bool get_is_vkey_down(int const vkey) {
 //------------------------------
 
 [[nodiscard]]
-ModifierKeyFlags modifier_key_flags_from_native(DWORD const native) noexcept 
-{
-	using enum ModifierKeyFlags;
-	
-	auto result = None;
-
-	if (native & MK_CONTROL) {
-		result |= Control;
-	}
-	if (native & MK_SHIFT) {
-		result |= Shift;
-	}
-	if (native & MK_LBUTTON) {
-		result |= LeftMouse;
-	}
-	if (native & MK_MBUTTON) {
-		result |= MiddleMouse;
-	}
-	if (native & MK_RBUTTON) {
-		result |= RightMouse;
-	}
-	if (native & MK_XBUTTON1) {
-		result |= X0Mouse;
-	}
-	if (native & MK_XBUTTON2) {
-		result |= X1Mouse;
-	}
-	if (get_is_vkey_down(VK_MENU)) {
-		result |= Alt;
-	}
-
-	return result;
-}
-
-[[nodiscard]]
 constexpr DWORD style_flags_to_native(StyleFlags const flags, bool const has_parent) noexcept 
 {
 	auto native_flags = DWORD{};
@@ -130,9 +95,14 @@ math::Rectangle<Pixels> get_parent_rectangle(Window const* parent)
 
 //------------------------------
 
-void set_window_size(::HWND const handle, math::Size<Pixels> const size) {
+void set_window_size(::HWND const handle, math::Size<Pixels> const size) 
+{
 	auto const full_rect = window_rectangle_from_client_size(handle, size);
-	::SetWindowPos(handle, ::HWND{}, 0, 0, full_rect.width(), full_rect.height(), SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER);
+	::SetWindowPos(
+		handle, ::HWND{}, 0, 0, 
+		full_rect.width(), full_rect.height(), 
+		SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER
+	);
 }
 
 //------------------------------
@@ -180,7 +150,7 @@ constexpr auto native_mouse_button_map = [] {
 
 constexpr auto native_key_map = [] {
 	using enum KeyboardKey;
-	return utils::StaticMap<int, KeyboardKey, 110>{
+	return utils::StaticMap<int, KeyboardKey, 112>{
 		{VK_APPS, Menu},
 		{VK_BACK, Backspace},
 		{VK_CLEAR, Clear},
@@ -188,6 +158,8 @@ constexpr auto native_key_map = [] {
 		{VK_RETURN, Enter},
 		{VK_SHIFT, Shift},
 		{VK_CONTROL, Control},
+		{VK_LWIN, Super},
+		{VK_RWIN, Super},
 		{VK_MENU, Alt},
 		{VK_PAUSE, Pause},
 		{VK_CAPITAL, CapsLock},
@@ -302,6 +274,17 @@ HINSTANCE get_instance_handle() {
 
 //------------------------------
 
+[[nodiscard]]
+math::Point<Pixels> get_window_mouse_position(::HWND const handle)
+{
+	::POINT result;
+	::GetCursorPos(&result);
+	::ScreenToClient(handle, &result);
+	return {result.x, result.y};
+}
+
+//------------------------------
+
 class WindowThread {
 public:
 	/*
@@ -331,8 +314,10 @@ private:
 	public:
 		static constexpr auto class_name = L"AVO Window Class"sv;
 
-		WindowClass() {
-			if (!s_instance_count_++) {
+		WindowClass() 
+		{
+			if (!s_instance_count_++) 
+			{
 				auto const properties = ::WNDCLASSW{
 					.style{CS_DBLCLKS}, // We want double click events
 					.lpfnWndProc{s_handle_any_window_event_},
@@ -394,32 +379,38 @@ private:
 	std::optional<::LRESULT> handle_event_(::UINT const message, ::WPARAM const w_data, ::LPARAM const l_data)
 	{
 		switch (message) {
+		case WM_DPICHANGED:
+			return handle_dpi_change_(w_data, l_data);
 		case WM_MOUSEMOVE:
 			return handle_mouse_move_(l_data);
+		case WM_MOUSEWHEEL:
+			return handle_mouse_scroll_(w_data);
+		case WM_MOUSELEAVE:
+			return handle_mouse_leave_();
 		case WM_LBUTTONDBLCLK:
-			return handle_mouse_down_(w_data, l_data, MouseButton::Left, true);
+			return handle_mouse_down_(l_data, MouseButton::Left, true);
 		case WM_MBUTTONDBLCLK:
-			return handle_mouse_down_(w_data, l_data, MouseButton::Middle, true);
+			return handle_mouse_down_(l_data, MouseButton::Middle, true);
 		case WM_RBUTTONDBLCLK:
-			return handle_mouse_down_(w_data, l_data, MouseButton::Right, true);
+			return handle_mouse_down_(l_data, MouseButton::Right, true);
 		case WM_XBUTTONDBLCLK:
-			return handle_mouse_down_(w_data, l_data, x_button_from_w_data(w_data), true);
+			return handle_mouse_down_(l_data, x_button_from_w_data(w_data), true);
 		case WM_LBUTTONDOWN:
-			return handle_mouse_down_(w_data, l_data, MouseButton::Left, false);
+			return handle_mouse_down_(l_data, MouseButton::Left, false);
 		case WM_MBUTTONDOWN:
-			return handle_mouse_down_(w_data, l_data, MouseButton::Middle, false);
+			return handle_mouse_down_(l_data, MouseButton::Middle, false);
 		case WM_RBUTTONDOWN:
-			return handle_mouse_down_(w_data, l_data, MouseButton::Right, false);
+			return handle_mouse_down_(l_data, MouseButton::Right, false);
 		case WM_XBUTTONDOWN:
-			return handle_mouse_down_(w_data, l_data, x_button_from_w_data(w_data), false);
+			return handle_mouse_down_(l_data, x_button_from_w_data(w_data), false);
 		case WM_LBUTTONUP:
-			return handle_mouse_up_(w_data, l_data, MouseButton::Left);
+			return handle_mouse_up_(l_data, MouseButton::Left);
 		case WM_MBUTTONUP:
-			return handle_mouse_up_(w_data, l_data, MouseButton::Middle);
+			return handle_mouse_up_(l_data, MouseButton::Middle);
 		case WM_RBUTTONUP:
-			return handle_mouse_up_(w_data, l_data, MouseButton::Right);
+			return handle_mouse_up_(l_data, MouseButton::Right);
 		case WM_XBUTTONUP:
-			return handle_mouse_up_(w_data, l_data, x_button_from_w_data(w_data));
+			return handle_mouse_up_(l_data, x_button_from_w_data(w_data));
 		case WM_CHAR:
 			return handle_character_input_(w_data, l_data);
 		case WM_KEYDOWN:
@@ -428,43 +419,98 @@ private:
 			return handle_key_up_(w_data);
 		case WM_SIZE:
 			return handle_size_change_(w_data, l_data);
+		case WM_SETFOCUS:
+			return handle_focus_gain_();
+		case WM_KILLFOCUS:
+			return handle_focus_lose_();
 		case WM_DESTROY:
 			return handle_closed_();
 		}
 		return std::nullopt;
 	}
 
+	::LRESULT handle_dpi_change_(::WPARAM const w_data, ::LPARAM const l_data)
+	{
+		channel_.send(event::DpiChange{.dpi{static_cast<float>(HIWORD(w_data))}});
+
+		auto const new_rectangle = reinterpret_cast<RECT const*>(l_data);
+		::SetWindowPos(
+			handle_, nullptr,
+			new_rectangle->left,
+			new_rectangle->top,
+			new_rectangle->right - new_rectangle->left,
+			new_rectangle->bottom - new_rectangle->top,
+			SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOZORDER
+		);
+		return {};
+	}
 	::LRESULT handle_mouse_move_(::LPARAM const l_data) 
 	{
+		if (!is_mouse_hovering_)
+		{
+			is_mouse_hovering_ = true;
+
+			auto track_parameters = ::TRACKMOUSEEVENT{
+				.cbSize{sizeof(::TRACKMOUSEEVENT)},
+				.dwFlags{TME_LEAVE},
+				.hwndTrack = handle_,
+			};
+			TrackMouseEvent(&track_parameters);
+		}
+
 		auto const new_position = math::Point{GET_X_LPARAM(l_data), GET_Y_LPARAM(l_data)};
 		
-		channel_.send(event::MouseMove{
+		if (new_position != mouse_position_) 
+		{
+			channel_.send(event::MouseMove{
+				.position{unit_converter_.pixels_to_dip(new_position)},
+				.movement{unit_converter_.pixels_to_dip(new_position - mouse_position_)}
+			});
+
+			mouse_position_ = new_position;
+		}
+		
+		return {};
+	}
+	::LRESULT handle_mouse_scroll_(::WPARAM const w_data)
+	{
+		channel_.send(event::MouseScroll{
+			.position{unit_converter_.pixels_to_dip(mouse_position_)},
+			.scroll_delta{GET_WHEEL_DELTA_WPARAM(w_data)/120.f}
+		});
+
+		return {};
+	}
+	
+	::LRESULT handle_mouse_leave_()
+	{
+		is_mouse_hovering_ = false;
+
+		auto const new_position = get_window_mouse_position(handle_);
+
+		channel_.send(event::MouseLeave{
 			.position{unit_converter_.pixels_to_dip(new_position)},
 			.movement{unit_converter_.pixels_to_dip(new_position - mouse_position_)}
 		});
-
-		mouse_position_ = new_position;
-
-		return ::LRESULT{};
+		
+		return {};
 	}
-	::LRESULT handle_mouse_down_(::WPARAM const w_data, ::LPARAM const l_data, MouseButton const button, bool const is_double_click)
+	::LRESULT handle_mouse_down_(::LPARAM const l_data, MouseButton const button, bool const is_double_click)
 	{
 		channel_.send(event::MouseDown{
 			.position{unit_converter_.pixels_to_dip(math::Point{GET_X_LPARAM(l_data), GET_Y_LPARAM(l_data)})},
 			.button{button},
-			.modifier_keys{modifier_key_flags_from_native(LOWORD(w_data))},
 			.is_double_click{is_double_click}
 		});
-		return ::LRESULT{};
+		return {};
 	}
-	::LRESULT handle_mouse_up_(::WPARAM const w_data, ::LPARAM const l_data, MouseButton const button)
+	::LRESULT handle_mouse_up_(::LPARAM const l_data, MouseButton const button)
 	{
 		channel_.send(event::MouseUp{
 			.position{unit_converter_.pixels_to_dip(math::Point{GET_X_LPARAM(l_data), GET_Y_LPARAM(l_data)})},
 			.button{button},
-			.modifier_keys{modifier_key_flags_from_native(LOWORD(w_data))}
 		});
-		return ::LRESULT{};
+		return {};
 	}
 
 	::LRESULT handle_character_input_(::WPARAM const w_data, ::LPARAM const l_data)
@@ -482,7 +528,7 @@ private:
 			});
 		}
 
-		return ::LRESULT{};
+		return {};
 	}
 	::LRESULT handle_key_down_(::WPARAM const w_data, ::LPARAM const l_data)
 	{
@@ -490,12 +536,12 @@ private:
 			.key{native_key_map.find_or(static_cast<int>(w_data), KeyboardKey::None)},
 			.is_repeated{get_is_key_repeated(l_data)}
 		});
-		return ::LRESULT{};
+		return {};
 	}
 	::LRESULT handle_key_up_(::WPARAM const w_data)
 	{
 		channel_.send(event::KeyUp{native_key_map.find_or(static_cast<int>(w_data), KeyboardKey::None)});
-		return ::LRESULT{};
+		return {};
 	}
 
 	::LRESULT handle_size_change_(::WPARAM const w_data, ::LPARAM const l_data)
@@ -522,7 +568,16 @@ private:
 			});
 		}
 
-		return ::LRESULT{};
+		return {};
+	}
+
+	::LRESULT handle_focus_gain_() {
+		channel_.send(event::FocusGain{});
+		return {};
+	}
+	::LRESULT handle_focus_lose_() {
+		channel_.send(event::FocusLose{});
+		return {};
 	}
 
 	::LRESULT handle_closed_() 
@@ -530,7 +585,7 @@ private:
 		channel_.send(event::Closed{});
 		
 		PostQuitMessage(0);
-		return ::LRESULT{};
+		return {};
 	}
 
 	//------------------------------
@@ -590,6 +645,7 @@ private:
 
 	ScreenUnitConverter unit_converter_{};
 	math::Point<Pixels> mouse_position_{};
+	bool is_mouse_hovering_{};
 	State state_{State::Restored};
 
 	WindowClass window_class_;

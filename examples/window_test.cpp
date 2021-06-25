@@ -49,6 +49,12 @@ int main() {
 	event_manager.add_listener([](event::MouseMove const& event) {
 		fmt::print("The mouse moved {} and is now at {}.\n", event.movement, event.position);
 	});
+	event_manager.add_listener([](event::MouseScroll const& event) {
+		fmt::print("The mouse scrolled with delta {}.\n", event.scroll_delta);
+	});
+	event_manager.add_listener([](event::MouseLeave const& event) {
+		fmt::print("The mouse left the window by moving {} and is now at {}.\n", event.movement, event.position);
+	});
 	event_manager.add_listener([&](event::SizeChange const& event) {
 		update();
 		fmt::print("The window resized and now has size {}.\n", event.size);
@@ -56,7 +62,15 @@ int main() {
 	event_manager.add_listener([](event::StateChange const& event) {
 		fmt::print("The window state changed and is now '{}'.\n", enum_name(event.state));
 	});
-
+	event_manager.add_listener([](event::FocusGain const&) {
+		fmt::print("The window gained focus.\n");
+	});
+	event_manager.add_listener([](event::FocusLose const&) {
+		fmt::print("The window lost focus.\n");
+	});
+	event_manager.add_listener([](event::DpiChange const& event) {
+		fmt::print("DPI changed and is now {}.\n", event.dpi);
+	});
 	event_manager.run();
 
 	fmt::print("Finished running.\n");
