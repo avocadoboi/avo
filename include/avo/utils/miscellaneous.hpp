@@ -126,19 +126,23 @@ constexpr bool has_flag(T const flags, T const flag) noexcept {
 	Removes all elements matching the value argument from a vector, without keeping the order of the elements.
 */
 template<std::equality_comparable T>
-std::vector<T>& unordered_erase(std::vector<T>& vector, T const& value) {
+std::vector<T>& unordered_erase(std::vector<T>& vector, T const& value) 
+{
 	auto pos = vector.begin();
 	auto end = vector.end();
+
 	while (true)
 	{
 		pos = std::ranges::find(pos, end, value);
 		if (pos == end) {
 			break;
 		}
-		*pos = std::move(vector.back());
 		--end;
+		*pos = std::move(*end);
 	}
+
 	vector.erase(end, vector.end());
+
 	return vector;
 }
 
