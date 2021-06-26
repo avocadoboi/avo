@@ -11,25 +11,20 @@ template<utils::IsNumber>
 struct Vector2dBase;
 
 /*
-	Evaluates to whether a class template is a 2d vector or not.
-*/
-template<template<class> class T>
-concept Is2dVectorTemplate = std::derived_from<T<float>, Vector2dBase<float>> || std::derived_from<T<int>, Vector2dBase<int>>;
-// Assuming all other instantiations also derive from Vector2dBase<T>.
-
-/*
 	Evaluates to whether a type is a 2d vector or not.
 */
 template<class T, class Value_ = typename T::value_type>
 concept Is2dVector = std::derived_from<T, Vector2dBase<Value_>>;
 
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 [[nodiscard]]
 constexpr bool operator==(Class_<A> const first, Class_<B> const second) noexcept {
 	return first.x == second.x && first.y == second.y;
 }
 
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 [[nodiscard]]
 constexpr std::partial_ordering operator<=>(Class_<A> const first, Class_<B> const second) noexcept 
 {
@@ -45,99 +40,115 @@ constexpr std::partial_ordering operator<=>(Class_<A> const first, Class_<B> con
 	return std::partial_ordering::unordered;
 }
 
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> 
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 [[nodiscard]]
 constexpr auto operator+(Class_<A> const first, Class_<B> const second) noexcept {
 	return Class_{first.x + second.x, first.y + second.y};
 }
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 constexpr Class_<A>& operator+=(Class_<A>& first, Class_<B> const second) noexcept {
 	first.x += second.x;
 	first.y += second.y;
 	return first;
 }
 
-template<utils::IsNumber A, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<Is2dVector Vector_>
 [[nodiscard]]
-constexpr auto operator-(Class_<A> const vector) noexcept {
-	return Class_{vector.x, vector.y};
+constexpr Vector_ operator-(Vector_ const vector) noexcept {
+	return Vector_{vector.x, vector.y};
 }
 
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 [[nodiscard]]
 constexpr auto operator-(Class_<A> const first, Class_<B> const second) noexcept {
 	return Class_{first.x - second.x, first.y - second.y};
 }
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 constexpr Class_<A>& operator-=(Class_<A>& first, Class_<B> const second) noexcept {
 	first.x -= second.x;
 	first.y -= second.y;
 	return first;
 }
 
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 [[nodiscard]]
 constexpr auto operator*(Class_<A> const first, B const second) noexcept {
 	return Class_{first.x*second, first.y*second};
 }
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 [[nodiscard]]
 constexpr auto operator*(B const first, Class_<A> const second) noexcept {
 	return Class_{second.x*first, second.y*first};
 }
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 constexpr Class_<A>& operator*=(Class_<A>& first, B const second) noexcept {
 	first.x *= second;
 	first.y *= second;
 	return first;
 }
 
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 [[nodiscard]]
 constexpr auto operator*(Class_<A> const first, Class_<B> const second) noexcept {
 	return Class_{first.x*second.x, first.y*second.y};
 }
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 constexpr Class_<A>& operator*=(Class_<A>& first, Class_<B> const second) noexcept {
 	first.x *= second.x;
 	first.y *= second.y;
 	return first;
 }
 
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 [[nodiscard]]
 constexpr auto scaled(Class_<A> const first, B const second) noexcept {
 	return first * second;
 }
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 [[nodiscard]]
 constexpr auto scaled(Class_<A> const first, Class_<B> const second) noexcept {
 	return first * second;
 }
 
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 [[nodiscard]]
 constexpr auto operator/(Class_<A> const first, B const second) noexcept {
 	return Class_{first.x/second, first.y/second};
 }
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 [[nodiscard]]
 constexpr auto operator/(B const first, Class_<A> const second) noexcept {
 	return Class_{first/second.x, first/second.y};
 }
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 constexpr Class_<A>& operator/=(Class_<A>& first, B const second) noexcept {
 	first.x /= second;
 	first.y /= second;
 	return first;
 }
 
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 [[nodiscard]]
 constexpr auto operator/(Class_<A> const first, Class_<B> const second) noexcept {
 	return Class_{first.x/second.x, first.y/second.y};
 }
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_>
+	requires Is2dVector<Class_<A>> && Is2dVector<Class_<B>>
 constexpr Class_<A>& operator/=(Class_<A>& first, Class_<B> const second) noexcept {
 	first.x /= second.x;
 	first.y /= second.y;
@@ -147,12 +158,12 @@ constexpr Class_<A>& operator/=(Class_<A>& first, Class_<B> const second) noexce
 /*
 	Creates a square 2d vector, that is a vector with both coordinates equal.
 */
-template<template<class> class Vector_, utils::IsNumber Value_> requires Is2dVectorTemplate<Vector_>
+template<template<class> class Vector_, utils::IsNumber Value_> requires Is2dVector<Vector_<Value_>>
 constexpr Vector_<Value_> square(Value_ const side_length) noexcept {
 	return Vector_{side_length, side_length};
 }
 
-template<std::floating_point T, template<class> class Vector_> requires Is2dVectorTemplate<Vector_>
+template<std::floating_point T, template<class> class Vector_> requires Is2dVector<Vector_<T>>
 constexpr Vector_<T> interpolate(Vector_<T> const a, Vector_<T> const b, T const c) noexcept {
 	return Vector_{
 		std::lerp(a.x, b.x, c),
@@ -164,7 +175,7 @@ constexpr Vector_<T> interpolate(Vector_<T> const a, Vector_<T> const b, T const
 	Creates a 2d vector from polar coordinates.
 	The angle goes anticlockwise.
 */
-template<template<class> class Vector_, std::floating_point Length_> requires Is2dVectorTemplate<Vector_>
+template<template<class> class Vector_, std::floating_point Length_> requires Is2dVector<Vector_<Length_>>
 [[nodiscard]]
 auto polar(IsAngle auto const angle, Length_ const length) noexcept {
 	auto const [x, y] = cos_sin(angle);
@@ -173,16 +184,16 @@ auto polar(IsAngle auto const angle, Length_ const length) noexcept {
 /*
 	Creates a unit 2d vector from an angle that goes anticlockwise.
 */
-template<template<class> class Vector_> requires Is2dVectorTemplate<Vector_>
+template<template<class> class Vector_> requires Is2dVector<Vector_<float>>
 [[nodiscard]]
 auto polar(IsAngle auto const angle) noexcept {
 	auto const [x, y] = cos_sin(angle);
 	return Vector_{x, y};
 }
 
-template<utils::IsNumber T, template<class> class Vector_> requires Is2dVectorTemplate<Vector_>
+template<Is2dVector Vector_>
 [[nodiscard]]
-constexpr Vector_<T> with_negative_space_clipped(Vector_<T> vector) noexcept {
+constexpr Vector_ with_negative_space_clipped(Vector_ vector) noexcept {
 	vector.clip_negative_space();
 	return vector;
 }
@@ -190,7 +201,8 @@ constexpr Vector_<T> with_negative_space_clipped(Vector_<T> vector) noexcept {
 /*
 	Returns the dot product of two 2d vectors.
 */
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Vector_> requires Is2dVectorTemplate<Vector_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Vector_>
+	requires Is2dVector<Vector_<A>> && Is2dVector<Vector_<B>>
 [[nodiscard]]
 constexpr auto dot(Vector_<A> const first, Vector_<B> const second) noexcept {
 	return first.x*second.x + first.y*second.y;
@@ -199,7 +211,8 @@ constexpr auto dot(Vector_<A> const first, Vector_<B> const second) noexcept {
 /*
 	Returns the cross product of two 2d vectors.
 */
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Vector_> requires Is2dVectorTemplate<Vector_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Vector_>
+	requires Is2dVector<Vector_<A>> && Is2dVector<Vector_<B>>
 [[nodiscard]]
 constexpr auto cross(Vector_<A> const first, Vector_<B> const second) noexcept {
 	return first.x*second.y - first.y*second.x;
@@ -208,7 +221,8 @@ constexpr auto cross(Vector_<A> const first, Vector_<B> const second) noexcept {
 /*
 	Returns the euclidean distance between two 2d vectors.
 */
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Vector_> requires Is2dVectorTemplate<Vector_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Vector_>
+	requires Is2dVector<Vector_<A>> && Is2dVector<Vector_<B>>
 [[nodiscard]]
 auto distance(Vector_<A> const first, Vector_<B> const second) noexcept {
 	return std::hypot(second.x - first.x, second.y - first.y);
@@ -216,7 +230,8 @@ auto distance(Vector_<A> const first, Vector_<B> const second) noexcept {
 /*
 	Returns the squared euclidean distance between two 2d vectors.
 */
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Vector_> requires Is2dVectorTemplate<Vector_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Vector_>
+	requires Is2dVector<Vector_<A>> && Is2dVector<Vector_<B>>
 [[nodiscard]]
 constexpr auto distance_squared(Vector_<A> const first, Vector_<B> const second) noexcept {
 	return square(second.x - first.x) + square(second.y - first.y);
@@ -407,7 +422,14 @@ struct Vector2dBase {
 		x *= inverse_length;
 		y *= inverse_length;
 	}
+};
 
+template<utils::IsNumber Value_ = float>
+struct Vector2d : Vector2dBase<Value_> {
+	using Vector2dBase<Value_>::x;
+	using Vector2dBase<Value_>::y;
+	
+	// using Vector2dBase<Value_>::to;
 	template<Is2dVector Vector_>
 	[[nodiscard]]
 	constexpr Vector_ to() const noexcept {
@@ -416,14 +438,6 @@ struct Vector2dBase {
 			static_cast<typename Vector_::value_type>(y)
 		};
 	}
-};
-
-template<utils::IsNumber Value_ = float>
-struct Vector2d : Vector2dBase<Value_> {
-	using Vector2dBase<Value_>::x;
-	using Vector2dBase<Value_>::y;
-	
-	using Vector2dBase<Value_>::to;
 	
 	template<utils::IsNumber T>
 	[[nodiscard]]
@@ -435,19 +449,22 @@ struct Vector2d : Vector2dBase<Value_> {
 template<class T>
 Vector2d(T, T) -> Vector2d<T>;
 
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Vector_>
+	requires Is2dVector<Vector_<A>> && Is2dVector<Vector_<B>>
 [[nodiscard]]
-constexpr auto operator*(Vector2d<A> const factor, Class_<B> const vector) noexcept {
-	return Class_{factor.x*vector.x, factor.y*vector.y};
+constexpr auto operator*(Vector2d<A> const factor, Vector_<B> const vector) noexcept {
+	return Vector_{factor.x*vector.x, factor.y*vector.y};
 }
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Vector_>
+	requires Is2dVector<Vector_<A>> && Is2dVector<Vector_<B>>
 [[nodiscard]]
-constexpr auto operator*(Class_<A> const vector, Vector2d<B> const factor) noexcept {
-	return Class_{factor.x*vector.x, factor.y*vector.y};
+constexpr auto operator*(Vector_<A> const vector, Vector2d<B> const factor) noexcept {
+	return Vector_{factor.x*vector.x, factor.y*vector.y};
 }
-template<utils::IsNumber A, utils::IsNumber B, template<class> class Class_> requires Is2dVectorTemplate<Class_>
+template<utils::IsNumber A, utils::IsNumber B, template<class> class Vector_>
+	requires Is2dVector<Vector_<A>> && Is2dVector<Vector_<B>>
 [[nodiscard]]
-constexpr Class_<A>& operator*=(Class_<A>& vector, Vector2d<B> const factor) noexcept {
+constexpr Vector_<A>& operator*=(Vector_<A>& vector, Vector2d<B> const factor) noexcept {
 	vector.x *= factor.x;
 	vector.y *= factor.y;
 	return vector;
@@ -458,7 +475,15 @@ struct Point : Vector2dBase<Value_> {
 	using Vector2dBase<Value_>::x;
 	using Vector2dBase<Value_>::y;
 
-	using Vector2dBase<Value_>::to;
+	// using Vector2dBase<Value_>::to;
+	template<Is2dVector Vector_>
+	[[nodiscard]]
+	constexpr Vector_ to() const noexcept {
+		return Vector_{
+			static_cast<typename Vector_::value_type>(x),
+			static_cast<typename Vector_::value_type>(y)
+		};
+	}
 	
 	template<utils::IsNumber T>
 	[[nodiscard]]
@@ -475,7 +500,15 @@ struct Size : Vector2dBase<Value_> {
 	using Vector2dBase<Value_>::x;
 	using Vector2dBase<Value_>::y;
 
-	using Vector2dBase<Value_>::to;
+	// using Vector2dBase<Value_>::to;
+	template<Is2dVector Vector_>
+	[[nodiscard]]
+	constexpr Vector_ to() const noexcept {
+		return Vector_{
+			static_cast<typename Vector_::value_type>(x),
+			static_cast<typename Vector_::value_type>(y)
+		};
+	}
 
 	template<utils::IsNumber T>
 	[[nodiscard]]
@@ -496,7 +529,8 @@ struct fmt::formatter<T, std::enable_if_t<avo::math::Is2dVector<T>, char>>
 {
 	using formatter<typename T::value_type>::format;
 
-	auto format(T const vector, auto& context) {
+	// TODO: Replace this concept with just T const when MSVC stops complaining. Same for the other custom formatters.
+	auto format(std::same_as<T> auto const vector, auto& context) {
 		fmt::format_to(context.out(), "(");
 		format(vector.x, context);
 		fmt::format_to(context.out(), ", ");

@@ -71,31 +71,31 @@ void test_flatten_with_node_type(_Node& tree, std::vector<int> const& expected_i
 //------------------------------
 
 std::pair<TestNode, std::vector<int>> construct_test_without_parent_nodes() {
+	// TODO: add designated initializers when MSVC doesn't crash.
+	
 	auto tree = TestNode{
-		.children = std::vector{
+		std::vector{
 			TestNode{
-				.children = std::vector{
-					TestNode{.id = 2},
-					TestNode{.id = 4},
+				std::vector{
+					TestNode{{}, 2},
+					TestNode{{}, 4},
 				},
-				.id = 3,
+				3,
 			},
 			TestNode{
-				.children = std::vector{
+				std::vector{
 					TestNode{
-						.children = std::vector{
-							TestNode{.id = -10},
+						std::vector{
+							TestNode{{}, -10},
 						},
-						.id = -3
+						-3,
 					},
 				},
-				.id = -5,
+				-5,
 			},
-			TestNode{
-				.id = -1
-			},
+			TestNode{{}, -1},
 		},
-		.id = 1,
+		1,
 	};
 
 	return {

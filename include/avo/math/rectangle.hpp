@@ -420,7 +420,7 @@ struct fmt::formatter<T, std::enable_if_t<avo::math::IsRectangle<T>, char>>
 {
 	using formatter<typename T::value_type>::format;
 	
-	auto format(T const rectangle, auto& context) {
+	auto format(std::same_as<T> auto const rectangle, auto& context) {
 		fmt::format_to(context.out(), "(");
 		format(rectangle.left, context);
 		fmt::format_to(context.out(), ", ");

@@ -40,7 +40,9 @@ constexpr Degrees<To_> to_degrees(Radians<From_> const radians) noexcept {
 	if constexpr (std::integral<To_>) {
 		return Degrees{math::round<To_>(radians.value / std::numbers::pi_v<From_> * static_cast<From_>(180))};
 	}
-	return Degrees{static_cast<To_>(radians.value / std::numbers::pi_v<From_> * static_cast<From_>(180))};
+	else {
+		return Degrees{static_cast<To_>(radians.value / std::numbers::pi_v<From_> * static_cast<From_>(180))};
+	}
 }
 /*
 	Converts an angle to degrees.

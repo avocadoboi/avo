@@ -23,7 +23,8 @@ public:
 	constexpr Pixels dip_to_pixels(Dip const dip) const noexcept {
 		return static_cast<Pixels>(dip * dip_to_pixel_factor_);
 	}
-	template<template<class> class Vector_> requires math::Is2dVectorTemplate<Vector_>
+	template<template<class> class Vector_>
+		requires math::Is2dVector<Vector_<Pixels>> && math::Is2dVector<Vector_<Dip>>
 	[[nodiscard]]
 	constexpr Vector_<Pixels> dip_to_pixels(Vector_<Dip> const dip) const noexcept 
 	{
@@ -45,7 +46,8 @@ public:
 	constexpr Dip pixels_to_dip(Pixels const pixels) const noexcept {
 		return static_cast<Dip>(pixels) / dip_to_pixel_factor_;
 	}
-	template<template<class> class Vector_> requires math::Is2dVectorTemplate<Vector_>
+	template<template<class> class Vector_> 
+		requires math::Is2dVector<Vector_<Pixels>> && math::Is2dVector<Vector_<Dip>>
 	[[nodiscard]]
 	constexpr Vector_<Dip> pixels_to_dip(Vector_<Pixels> const pixels) const noexcept 
 	{

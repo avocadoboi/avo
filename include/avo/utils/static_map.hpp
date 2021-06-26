@@ -2,6 +2,7 @@
 #define AVO_UTILS_STATIC_MAP_HPP_BJORN_SUNDIN_JUNE_2021
 
 #include "concepts.hpp"
+#include "miscellaneous.hpp"
 
 #include <algorithm>
 #include <stdexcept>
@@ -174,7 +175,11 @@ private:
 };
 
 template<IsInstantiationOf<std::pair> ... Element_>
-StaticMap(Element_&& ... element) -> StaticMap<decltype((element, ...).first), decltype((element, ...).second), sizeof...(Element_)>;
+StaticMap(Element_&& ... element) -> StaticMap<
+	decltype(get_first_argument(element...).first), 
+	decltype(get_first_argument(element...).second), 
+	sizeof...(Element_)
+>;
 
 } // namespace avo::utils
 

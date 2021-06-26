@@ -70,9 +70,21 @@ public:
 
 		constexpr Iterator(Iterator const&) = default;
 
+// TODO: remove MSVC special treatment when it stops being buggy
+#ifdef _MSC_VER
+		constexpr Iterator& operator=(Iterator const& other)
+			requires std::copyable<Generator_>
+		{
+			last_value_ = other.last_value_;
+			generate_ = other.generate_;
+			return *this;
+		}
+#else
 		constexpr Iterator& operator=(Iterator const&) 
 			requires std::copyable<Generator_>
 			= default;
+#endif
+			
 		constexpr Iterator& operator=(Iterator const& other)
 			requires (!std::copyable<Generator_>)
 		{
@@ -88,9 +100,19 @@ public:
 
 		constexpr Iterator(Iterator&&) = default;
 
+#ifdef _MSC_VER
+		constexpr Iterator& operator=(Iterator&& other)
+			requires std::movable<Generator_>
+		{
+			last_value_ = std::move(other.last_value_);
+			generate_ = std::move(other.generate_);
+			return *this;
+		}
+#else
 		constexpr Iterator& operator=(Iterator&&) 
 			requires std::movable<Generator_> 
 			= default;
+#endif
 		constexpr Iterator& operator=(Iterator&& other) noexcept 
 			requires (!std::movable<Generator_>) 
 		{

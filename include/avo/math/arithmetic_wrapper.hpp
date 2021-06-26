@@ -110,7 +110,7 @@ template<class T>
 struct fmt::formatter<T, std::enable_if_t<avo::math::IsArithmeticWrapper<T>, char>> 
 	: fmt::formatter<typename T::value_type> 
 {
-	auto format(T const arithmetic, auto& context) {
+	auto format(std::same_as<T> auto const arithmetic, auto& context) {
 		return formatter<typename T::value_type>::format(arithmetic.value, context);
 	}
 };

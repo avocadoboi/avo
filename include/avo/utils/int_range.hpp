@@ -105,7 +105,7 @@ public:
 		}
 
 		[[nodiscard]]
-		constexpr auto operator<=>(Iterator const& other) const = default;
+		constexpr auto operator<=>(Iterator const&) const = default;
 
 		constexpr Iterator() = default;
 		constexpr Iterator(Value_ const value) noexcept :
@@ -122,7 +122,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr Iterator begin() const noexcept{
+	constexpr Iterator begin() const noexcept {
 		return start_;
 	}
 
@@ -131,7 +131,14 @@ public:
 		return end_;
 	}
 
+// TODO: Remove when MSVC doesn't get confused by the = default.
+#ifdef _MSC_VER
+	constexpr bool operator==(Range const& other) const {
+		return start_ == other.start_ && end_ == other.end_;
+	}
+#else
 	constexpr bool operator==(Range const&) const = default;
+#endif
 
 	/*
 		Creates a range of integers starting with start and ending with inclusive_end.

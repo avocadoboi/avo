@@ -30,6 +30,22 @@ concept IsRecursiveRange = std::ranges::range<T> && std::same_as<std::ranges::ra
 template<class T>
 concept IsRecursiveIterator = IsRecursiveRange<std::iter_value_t<T>>;
 
+namespace detail
+{
+
+// TODO: Put these requires-expressions inline in get_parent when MSVC accepts that.
+
+template<class T>
+concept HasPointerParentFunction = requires (T range) { 
+	{ range.parent() } -> std::same_as<T*>; 
+};
+template<class T>
+concept HasReferenceParentFunction = requires (T range) { 
+	{ range.parent() } -> std::same_as<T&>; 
+};
+
+} // namespace detail
+
 /*
 	Returns a pointer to the parent of a recursive range.
 	See avo::utils::IsRecursiveRange.
@@ -37,11 +53,11 @@ concept IsRecursiveIterator = IsRecursiveRange<std::iter_value_t<T>>;
 template<IsRecursiveRange<true> T>
 [[nodiscard]]
 constexpr T* get_parent(T& range) {
-	if constexpr (requires { { range.parent() } -> std::same_as<T*>; })
+	if constexpr (detail::HasPointerParentFunction<T>)
 	{
 		return range.parent();
 	}
-	else if constexpr (requires { { range.parent() } -> std::same_as<T&>; })
+	else if constexpr (detail::HasReferenceParentFunction<T>)
 	{
 		return &range.parent();
 	}
@@ -53,7 +69,9 @@ constexpr T* get_parent(T& range) {
 	{
 		return &range.parent;
 	}
-	unreachable();
+	else {
+		unreachable();
+	}
 }
 
 /*
@@ -65,7 +83,8 @@ template<IsRecursiveRange<true> Range_>
 constexpr auto view_parents(Range_& range) 
 {
 	return generate([current = &range]() mutable -> std::optional<Range_*> {
-		if (current = get_parent(*current)) {
+		current = get_parent(*current);
+		if (current) {
 			return current;
 		}
 		return {};
@@ -115,6 +134,7 @@ public:
 		[[nodiscard]]
 		bool operator==(std::default_sentinel_t) const noexcept {
 			return std::holds_alternative<BaseIterator>(current_position_) && 
+				parent_stack_.empty() &&
 				std::get<BaseIterator>(current_position_) == end_;
 		}
 		[[nodiscard]]
@@ -131,7 +151,7 @@ public:
 	private:
 		void increment_iterator_() {
 			auto& pos = std::get<BaseIterator>(current_position_);
-			if (pos == end_) {
+			if (parent_stack_.empty() && pos == end_) {
 				return;
 			}
 			else if (is_recursive_iterator_empty(pos)) {
@@ -209,6 +229,7 @@ public:
 		[[nodiscard]]
 		bool operator==(std::default_sentinel_t) const noexcept {
 			return std::holds_alternative<BaseIterator>(current_position_) && 
+				!parent_count_ &&
 				std::get<BaseIterator>(current_position_) == end_;
 		}
 		[[nodiscard]]
@@ -230,25 +251,28 @@ public:
 	
 		void increment_iterator_() {
 			auto& pos = std::get<BaseIterator>(current_position_);
-			if (pos == end_) {
+			if (!parent_count_ && pos == end_) {
 				return;
 			}
 			else if (is_recursive_iterator_empty(pos)) {
 				T* parent = get_parent(*pos);
 				++pos;
-				while (pos != end_ && pos == std::ranges::end(*parent)) {
+				while (parent_count_ && pos == std::ranges::end(*parent)) {
 					pos = get_iterator_of_node_(*parent);
 					parent = get_parent(*pos);
 					++pos;
+					--parent_count_;
 				}
 			}
 			else {
 				pos = std::ranges::begin(*pos);
+				++parent_count_;
 			}
 		}
 		
 		std::variant<T*, BaseIterator> current_position_;
 		BaseIterator end_;
+		std::size_t parent_count_{};
 	};
 
 	[[nodiscard]]

@@ -127,13 +127,26 @@ constexpr bool has_flag(T const flags, T const flag) noexcept {
 */
 template<std::equality_comparable T>
 std::vector<T>& unordered_erase(std::vector<T>& vector, T const& value) {
-	for (auto pos = vector.begin(); 
-		(pos = std::ranges::find(pos, vector.end(), value)) != vector.end();)
+	auto pos = vector.begin();
+	auto end = vector.end();
+	while (true)
 	{
+		pos = std::ranges::find(pos, end, value);
+		if (pos == end) {
+			break;
+		}
 		*pos = std::move(vector.back());
-		vector.pop_back();
+		--end;
 	}
+	vector.erase(end, vector.end());
 	return vector;
+}
+
+//------------------------------
+
+template<class First_, class ... Rest_>
+constexpr First_&& get_first_argument(First_&& first, Rest_&& ...) {
+	return std::forward<First_>(first);
 }
 
 //------------------------------

@@ -1,7 +1,7 @@
 #include <avo/graphics/miscellaneous.hpp>
 
 static_assert([]{
-	constexpr auto corners = avo::graphics::RectangleCorners{
+	constexpr auto corners = avo::graphics::RectangleCorners<>{
 		.top_left{{5.f, 5.f}}, .top_right{{5.f, 5.f}}, 
 		.bottom_left{{5.f, 5.f}}, .bottom_right{{5.f, 5.f}}
 	};

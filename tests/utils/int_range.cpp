@@ -1,13 +1,14 @@
 #include <avo/utils/int_range.hpp>
 
 #include <algorithm>
+#include <array>
 #include <ranges>
 
 using avo::utils::Range;
 
 static_assert(
 	[] {
-		constexpr auto check_with = [](avo::utils::IsIntRange<int> auto const range) {
+		constexpr auto check_with = []<avo::utils::IsIntRange<int> T>(T const range) {
 			return range.reverse().reverse() == range;
 		};
 		return check_with(Range{31415}) && check_with(Range{-6283, 31415});

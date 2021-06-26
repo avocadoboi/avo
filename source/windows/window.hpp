@@ -302,7 +302,7 @@ public:
 
 	WindowThread(Parameters const& parameters, concurrency::Sender<Event> channel) :
 		channel_{std::move(channel)},
-		thread_{&run_, this, parameters}
+		thread_{&WindowThread::run_, this, parameters}
 	{}
 
 private:
