@@ -476,8 +476,9 @@ public:
 		This overload takes any invocable that isn't a std::function instantiation.
 	*/
 	template<IsEventListener Listener_>
-	void add_listener(Listener_&& listener) {
+	EventManager& add_listener(Listener_&& listener) {
 		listeners_.emplace_back(std::function{std::forward<Listener_>(listener)});
+		return *this;
 	}
 
 	/*
@@ -486,8 +487,9 @@ public:
 	*/
 	template<IsEventListener Listener_> 
 		requires std::constructible_from<EventListener, Listener_>
-	void add_listener(Listener_&& listener) {
+	EventManager& add_listener(Listener_&& listener) {
 		listeners_.emplace_back(std::forward<Listener_>(listener));
+		return *this;
 	}
 
 	explicit EventManager(Window& window) :

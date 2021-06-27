@@ -4,6 +4,8 @@ include(CMakeFindDependencyMacro)
 
 # Find dependency packages
 
+find_dependency(fmt CONFIG REQUIRED)
+
 if (WIN32)
 
 else ()

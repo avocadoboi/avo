@@ -58,16 +58,8 @@ add_subdirectory(source)
 #--------------------------------------------
 # Add cross-platform external libraries.
 
-include(FetchContent)
-
-FetchContent_Declare(
-	fmt
-	GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-	GIT_TAG 7.1.3
-)
-FetchContent_MakeAvailable(fmt)
-
-target_link_libraries(avo PUBLIC fmt::fmt)
+find_package(fmt CONFIG REQUIRED)
+target_link_libraries(avo PUBLIC fmt::fmt-header-only)
 # target_precompile_headers(avo PRIVATE <fmt/format.h> <fmt/ranges.h>)
 
 #--------------------------------------------
@@ -105,7 +97,7 @@ set(TARGET_EXPORT_NAME ${PROJECT_NAME}Targets)
 # Specifies the target(s) that will be installed, and where to install 
 # the compiled library (relative to package installation path ${CMAKE_INSTALL_PREFIX}).
 install(
-	TARGETS avo fmt
+	TARGETS avo
 	EXPORT ${TARGET_EXPORT_NAME}
 	ARCHIVE DESTINATION lib
 )
