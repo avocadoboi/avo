@@ -4,7 +4,7 @@
 
 using namespace avo::math;
 
-static_assert(avo::utils::IsTrivial<Vector2d<float>>);
+static_assert(avo::util::IsTrivial<Vector2d<float>>);
 static_assert(Vector2d{5.f, 3.f} != Vector2d{5.f, 3.1f});
 static_assert(Vector2d{5.f, 3.f} == Vector2d{5.f, 3.f});
 static_assert(Vector2d{-2.f, -3.f} < Vector2d{5.f, 3.f} && Vector2d{5.f, 3.f} > Vector2d{-2.f, -3.f});

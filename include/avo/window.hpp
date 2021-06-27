@@ -5,7 +5,7 @@
 #include "graphics/miscellaneous.hpp"
 #include "math/miscellaneous.hpp"
 #include "math/vector2d.hpp"
-#include "utils/miscellaneous.hpp"
+#include "util/miscellaneous.hpp"
 
 #include <any>
 #include <variant>
@@ -34,9 +34,9 @@ public:
 		};
 	}
 	[[nodiscard]]
-	constexpr utils::IsMinMax auto dip_to_pixels(utils::IsMinMax auto const dip) const noexcept 
+	constexpr util::IsMinMax auto dip_to_pixels(util::IsMinMax auto const dip) const noexcept 
 	{
-		return utils::MinMax{
+		return util::MinMax{
 			dip_to_pixels(dip.min),
 			dip_to_pixels(dip.max)
 		};
@@ -57,9 +57,9 @@ public:
 		};
 	}
 	[[nodiscard]]
-	constexpr utils::IsMinMax auto pixels_to_dip(utils::IsMinMax auto const pixels) const noexcept 
+	constexpr util::IsMinMax auto pixels_to_dip(util::IsMinMax auto const pixels) const noexcept 
 	{
-		return utils::MinMax{
+		return util::MinMax{
 			pixels_to_dip(pixels.min),
 			pixels_to_dip(pixels.max)
 		};
@@ -165,12 +165,12 @@ enum class StyleFlags : std::uint32_t {
 
 } // namespace avo::window
 
-namespace avo::utils {
+namespace avo::util {
 
 template<>
 inline constexpr bool is_bit_flag<avo::window::StyleFlags> = true;
 
-} // namespace avo::utils
+} // namespace avo::util
 
 //------------------------------
 
@@ -246,8 +246,8 @@ using Event = std::variant<
 
 class Window;
 
-template<utils::IsNumber T>
-using MinMaxSizes = utils::MinMax<math::Size<T>>;
+template<util::IsNumber T>
+using MinMaxSizes = util::MinMax<math::Size<T>>;
 
 struct Parameters {
 	std::string_view title;

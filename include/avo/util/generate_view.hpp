@@ -5,7 +5,7 @@
 
 #include <optional>
 
-namespace avo::utils {
+namespace avo::util {
 
 template<std::regular_invocable Generator_> requires 
 	std::copy_constructible<Generator_> && 
@@ -153,22 +153,22 @@ private:
 	Generator_ generate_;
 };
 
-} // namespace avo::utils
+} // namespace avo::util
 
 namespace std::ranges {
 
 template<class T>
-constexpr auto enable_borrowed_range<avo::utils::GenerateView<T>> = true;
+constexpr auto enable_borrowed_range<avo::util::GenerateView<T>> = true;
 
 } // namespace std::ranges
 
-namespace avo::utils {
+namespace avo::util {
 
 template<class Generator_>
 constexpr GenerateView<Generator_> generate(Generator_&& generator) {
 	return GenerateView{std::forward<Generator_>(generator)};
 }
 
-} // namespace avo::utils
+} // namespace avo::util
 
 #endif

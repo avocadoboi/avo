@@ -1,7 +1,7 @@
 #ifndef AVO_MATH_OPERATIONS_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_MATH_OPERATIONS_HPP_BJORN_SUNDIN_JUNE_2021
 
-#include "../utils/concepts.hpp"
+#include "../util/concepts.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -12,7 +12,7 @@ namespace avo::math {
 /*
 	Returns 1 if the number is positive, 0 if it is 0 and -1 if it is negative.
 */
-template<utils::IsNumber T>
+template<util::IsNumber T>
 [[nodiscard]]
 constexpr T sign(T const number) {
 	return static_cast<T>((number > T{}) - (number < T{}));
@@ -24,7 +24,7 @@ constexpr T unit_clamp(T const value) {
 	return std::clamp(value, T{}, T{1});
 }
 
-template<utils::IsNumber Return_, std::floating_point T>
+template<util::IsNumber Return_, std::floating_point T>
 [[nodiscard]]
 constexpr Return_ floor(T const number) {
 	if (std::is_constant_evaluated()) {
@@ -34,7 +34,7 @@ constexpr Return_ floor(T const number) {
 		return static_cast<Return_>(std::floor(number));
 	}
 }
-template<utils::IsNumber Return_, std::floating_point T>
+template<util::IsNumber Return_, std::floating_point T>
 [[nodiscard]]
 constexpr Return_ ceil(T const number) {
 	if (std::is_constant_evaluated()) {
@@ -45,7 +45,7 @@ constexpr Return_ ceil(T const number) {
 	}
 }
 
-template<utils::IsNumber Return_, std::floating_point T>
+template<util::IsNumber Return_, std::floating_point T>
 [[nodiscard]]
 constexpr Return_ round(T const number) {
 	if (std::is_constant_evaluated()) {
@@ -56,7 +56,7 @@ constexpr Return_ round(T const number) {
 	}
 }
 
-template<utils::IsNumber T>
+template<util::IsNumber T>
 [[nodiscard]]
 constexpr T abs(T const number) {
 	if (std::is_constant_evaluated()) {
@@ -78,7 +78,7 @@ constexpr bool approximately_equal(T const a, T const b, T const max_difference 
 	Returns a number multiplied by itself.
 	Can be useful if you want to quickly square a longer expression.
 */
-template<utils::IsNumber T>
+template<util::IsNumber T>
 [[nodiscard]]
 constexpr T square(T const x) noexcept {
 	return x*x;

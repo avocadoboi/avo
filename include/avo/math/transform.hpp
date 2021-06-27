@@ -22,7 +22,7 @@ struct Transform final {
 		[d e f] * [y] = [dx+ey+f]
 		          [1]
 	*/
-	template<utils::IsNumber U, template<class> class Vector_> requires Is2dVector<Vector_<U>>
+	template<util::IsNumber U, template<class> class Vector_> requires Is2dVector<Vector_<U>>
 	[[nodiscard]]
 	constexpr auto operator*(Vector_<U> const vector) const noexcept {
 		return Vector_{
@@ -123,13 +123,13 @@ struct Transform final {
 		offset_y *= scale_factor.y;
 		return *this;
 	}
-	constexpr decltype(auto) scale_x(utils::IsNumber auto const scale_factor) noexcept {
+	constexpr decltype(auto) scale_x(util::IsNumber auto const scale_factor) noexcept {
 		x_to_x *= scale_factor;
 		y_to_x *= scale_factor;
 		offset_x *= scale_factor;
 		return *this;
 	}
-	constexpr decltype(auto) scale_y(utils::IsNumber auto const scale_factor) noexcept {
+	constexpr decltype(auto) scale_y(util::IsNumber auto const scale_factor) noexcept {
 		y_to_y *= scale_factor;
 		x_to_y *= scale_factor;
 		offset_y *= scale_factor;
@@ -138,7 +138,7 @@ struct Transform final {
 };
 
 template<class T>
-concept IsTransform = utils::IsInstantiationOf<T, Transform>;
+concept IsTransform = util::IsInstantiationOf<T, Transform>;
 
 /*
 	Returns the inverse of a transformation matrix I such that:
@@ -209,12 +209,12 @@ constexpr Transform<T> scaled(Transform<T> transform, Is2dVector auto const scal
 }
 template<std::floating_point T>
 [[nodiscard]]
-constexpr Transform<T> scaled_x(Transform<T> transform, utils::IsNumber auto const scale_factor) noexcept {
+constexpr Transform<T> scaled_x(Transform<T> transform, util::IsNumber auto const scale_factor) noexcept {
 	return transform.scale_x(scale_factor);
 }
 template<std::floating_point T>
 [[nodiscard]]
-constexpr Transform<T> scaled_y(Transform<T> transform, utils::IsNumber auto const scale_factor) noexcept {
+constexpr Transform<T> scaled_y(Transform<T> transform, util::IsNumber auto const scale_factor) noexcept {
 	return transform.scale_y(scale_factor);
 }
 

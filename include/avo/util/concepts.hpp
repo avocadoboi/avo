@@ -3,7 +3,7 @@
 
 #include <ranges>
 
-namespace avo::utils {
+namespace avo::util {
 
 template<class T>
 concept IsTrivial = std::is_trivial_v<T>;
@@ -88,6 +88,6 @@ concept IsNumber = std::integral<T> || std::floating_point<T>;
 template<class T>
 concept IsByte = sizeof(T) == 1 && IsTrivial<std::remove_reference_t<T>>;
 
-} // namespace avo::utils
+} // namespace avo::util
 
 #endif

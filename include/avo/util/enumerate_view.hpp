@@ -3,7 +3,7 @@
 
 #include <ranges>
 
-namespace avo::utils {
+namespace avo::util {
 
 template<class T>
 struct EnumeratedElement final {
@@ -194,12 +194,12 @@ constexpr auto operator|(T&& range, decltype(enumerate)) {
 	return enumerate(std::forward<T>(range));
 }
 
-} // namespace avo::utils
+} // namespace avo::util
 
 namespace std::ranges {
 
 template<class T>
-constexpr auto enable_borrowed_range<avo::utils::EnumerateView<T>> = std::ranges::borrowed_range<T>;
+constexpr auto enable_borrowed_range<avo::util::EnumerateView<T>> = std::ranges::borrowed_range<T>;
 
 } // namespace std::ranges
 

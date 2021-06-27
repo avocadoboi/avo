@@ -2,8 +2,8 @@
 #define AVO_NODE_HPP_BJORN_SUNDIN_JUNE_2021
 
 #include "id.hpp"
-#include "utils/miscellaneous.hpp"
-#include "utils/recursive_range.hpp"
+#include "util/miscellaneous.hpp"
+#include "util/recursive_range.hpp"
 
 #include <any>
 
@@ -34,11 +34,11 @@ private:
 	template<bool is_const>
 	class Iterator_ {
 	public:
-		using BaseIterator = std::ranges::iterator_t<utils::MaybeConst<ContainerType, is_const>>;
+		using BaseIterator = std::ranges::iterator_t<util::MaybeConst<ContainerType, is_const>>;
 
 		using value_type = Node;
-		using reference = utils::MaybeConst<Node, is_const>&;
-		using pointer = utils::MaybeConst<Node, is_const>*;
+		using reference = util::MaybeConst<Node, is_const>&;
+		using pointer = util::MaybeConst<Node, is_const>*;
 		using difference_type = std::iter_difference_t<BaseIterator>;
 		using iterator_category = std::iterator_traits<BaseIterator>::iterator_category;
 		using iterator_concept = iterator_category;
@@ -322,10 +322,10 @@ private:
 	void remove_from_parent_() 
 	{
 		if (parent_) {
-			utils::unordered_erase(parent_->children_, this);
+			util::unordered_erase(parent_->children_, this);
 
-			for (Node* const parent : utils::view_parents(*this)) {
-				utils::unordered_erase(parent->id_nodes_, this);
+			for (Node* const parent : util::view_parents(*this)) {
+				util::unordered_erase(parent->id_nodes_, this);
 			}
 		}
 	}
@@ -333,7 +333,7 @@ private:
 		if (parent_) {
 			parent_->children_.push_back(this);
 
-			for (Node* const parent : utils::view_parents(*this)) {
+			for (Node* const parent : util::view_parents(*this)) {
 				parent->id_nodes_.push_back(this);
 			}
 		}

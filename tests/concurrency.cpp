@@ -1,5 +1,5 @@
 #include <avo/concurrency.hpp>
-#include <avo/utils/int_range.hpp>
+#include <avo/util/int_range.hpp>
 
 #include <catch.hpp>
 
@@ -81,7 +81,7 @@ TEST_CASE("Message channel, send waiting and receive waiting") {
 		}
 	}};
 
-	for (auto const i : avo::utils::indices(messages))
+	for (auto const i : avo::util::indices(messages))
 	{
 		REQUIRE(receiver.receive() == messages[i]);
 		REQUIRE((counter == i || counter == i + 1));

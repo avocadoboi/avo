@@ -9,7 +9,7 @@
 #include "avo/miscellaneous.hpp"
 #include "avo/node.hpp"
 #include "avo/unicode.hpp"
-#include "avo/utils.hpp"
+#include "avo/util.hpp"
 #include "avo/window.hpp"
 
 #endif

@@ -7,7 +7,7 @@
 
 namespace avo::math {
 
-template<utils::IsNumber Value_>
+template<util::IsNumber Value_>
 struct Rectangle final {
 	using value_type = Value_;
 
@@ -50,7 +50,7 @@ struct Rectangle final {
 			bottom + vector.y
 		};
 	}
-	template<utils::IsNumber T>
+	template<util::IsNumber T>
 	[[nodiscard]]
 	constexpr auto operator+(Size<T> const size) const noexcept {
 		return Rectangle<std::common_type_t<Value_, T>>{
@@ -80,7 +80,7 @@ struct Rectangle final {
 		offset_y(offset.y);
 		return *this;
 	}
-	template<utils::IsNumber T>
+	template<util::IsNumber T>
 	constexpr Rectangle& offset(Size<T> const size_offset) noexcept {
 		right += size_offset.x;
 		bottom += size_offset.y;
@@ -94,7 +94,7 @@ struct Rectangle final {
 	}
 
 	[[nodiscard]]
-	constexpr auto operator*(utils::IsNumber auto const factor) const noexcept {
+	constexpr auto operator*(util::IsNumber auto const factor) const noexcept {
 		return Rectangle<decltype(left*factor)>{
 			left*factor,
 			top*factor,
@@ -102,7 +102,7 @@ struct Rectangle final {
 			bottom*factor
 		};
 	}
-	constexpr Rectangle& operator*=(utils::IsNumber auto const factor) noexcept {
+	constexpr Rectangle& operator*=(util::IsNumber auto const factor) noexcept {
 		left *= factor;
 		top *= factor;
 		right *= factor;
@@ -110,7 +110,7 @@ struct Rectangle final {
 		return *this;
 	}
 	[[nodiscard]]
-	constexpr auto operator/(utils::IsNumber auto const divisor) const noexcept {
+	constexpr auto operator/(util::IsNumber auto const divisor) const noexcept {
 		return Rectangle<decltype(left/divisor)>{
 			left/divisor,
 			top/divisor,
@@ -118,7 +118,7 @@ struct Rectangle final {
 			bottom/divisor
 		};
 	}
-	constexpr Rectangle& operator/=(utils::IsNumber auto const divisor) noexcept {
+	constexpr Rectangle& operator/=(util::IsNumber auto const divisor) noexcept {
 		left /= divisor;
 		top /= divisor;
 		right /= divisor;
@@ -246,7 +246,7 @@ struct Rectangle final {
 		return *this;
 	}
 
-	template<utils::IsNumber T>
+	template<util::IsNumber T>
 	constexpr Rectangle& center(Point<T> const center) noexcept {
 		auto const half_size = size()/2;
 		left = static_cast<Value_>(center.x - half_size.x);
@@ -255,29 +255,29 @@ struct Rectangle final {
 		bottom = static_cast<Value_>(center.y + half_size.y);
 		return *this;
 	}
-	constexpr Rectangle& center_x(utils::IsNumber auto const center_x) noexcept {
+	constexpr Rectangle& center_x(util::IsNumber auto const center_x) noexcept {
 		auto const half_width = width()/2;
 		left = static_cast<Value_>(center_x - half_width);
 		right = static_cast<Value_>(center_x + half_width);
 		return *this;
 	}
-	constexpr Rectangle& center_y(utils::IsNumber auto const center_y) noexcept {
+	constexpr Rectangle& center_y(util::IsNumber auto const center_y) noexcept {
 		auto const half_height = height()/2;
 		top = static_cast<Value_>(center_y - half_height);
 		bottom = static_cast<Value_>(center_y + half_height);
 		return *this;
 	}
-	template<utils::IsNumber T = Value_>
+	template<util::IsNumber T = Value_>
 	[[nodiscard]]
 	constexpr Point<T> center() const noexcept {
 		return Point{center_x(), center_y()};
 	}
-	template<utils::IsNumber T = Value_>
+	template<util::IsNumber T = Value_>
 	[[nodiscard]]
 	constexpr T center_x() const noexcept {
 		return std::midpoint(static_cast<T>(left), static_cast<T>(right));
 	}
-	template<utils::IsNumber T = Value_>
+	template<util::IsNumber T = Value_>
 	[[nodiscard]]
 	constexpr Point<T> center_y() const noexcept {
 		return std::midpoint(static_cast<T>(top), static_cast<T>(bottom));
@@ -304,7 +304,7 @@ struct Rectangle final {
 		return *this;
 	}
 
-	template<utils::IsNumber T>
+	template<util::IsNumber T>
 	[[nodiscard]]
 	constexpr Rectangle<T> to() const noexcept {
 		return Rectangle<T>{
@@ -340,7 +340,7 @@ struct Rectangle final {
 		bottom = std::clamp(bottom, bounds.top, bounds.bottom);
 		return *this;
 	}
-	template<utils::IsNumber T>
+	template<util::IsNumber T>
 	constexpr Rectangle& contain(Rectangle<T> const rectangle) noexcept {
 		/*
 			If this is true then we need to round "outwards" so that this 
@@ -361,7 +361,7 @@ struct Rectangle final {
 		return *this;
 	}
 
-	template<utils::IsNumber T>
+	template<util::IsNumber T>
 	[[nodiscard]]
 	constexpr bool contains(Point<T> const point) const noexcept {
 		using Common_ = std::common_type_t<Value_, T>;
@@ -370,7 +370,7 @@ struct Rectangle final {
 			static_cast<Common_>(point.y) >= static_cast<Common_>(top) && 
 			static_cast<Common_>(point.y) < static_cast<Common_>(bottom);
 	}
-	template<utils::IsNumber T>
+	template<util::IsNumber T>
 	[[nodiscard]]
 	constexpr bool contains(Rectangle<T> const rectangle) const noexcept {
 		using Common_ = std::common_type_t<Value_, T>;
@@ -379,7 +379,7 @@ struct Rectangle final {
 			static_cast<Common_>(rectangle.right) < static_cast<Common_>(right) && 
 			static_cast<Common_>(rectangle.bottom) < static_cast<Common_>(bottom);
 	}
-	template<utils::IsNumber T>
+	template<util::IsNumber T>
 	[[nodiscard]]
 	constexpr bool intersects(Rectangle<T> const rectangle) const noexcept {
 		using Common_ = std::common_type_t<Value_, T>;
@@ -391,21 +391,21 @@ struct Rectangle final {
 };
 
 template<class T>
-concept IsRectangle = utils::IsInstantiationOf<T, Rectangle>;
+concept IsRectangle = util::IsInstantiationOf<T, Rectangle>;
 
-template<utils::IsNumber T>
+template<util::IsNumber T>
 [[nodiscard]]
 constexpr Rectangle<T> with_negative_space_clipped(Rectangle<T> rectangle) noexcept {
 	return rectangle.clip_negative_space();
 }
 
-template<utils::IsNumber T, utils::IsNumber U>
+template<util::IsNumber T, util::IsNumber U>
 [[nodiscard]]
 constexpr auto scaled(Rectangle<T> const rectangle, U const scale_factor) noexcept {
 	return rectangle * scale_factor;
 }
 
-template<template<class> class Rectangle_, utils::IsNumber T> 
+template<template<class> class Rectangle_, util::IsNumber T> 
 	requires std::same_as<Rectangle_<T>, Rectangle<T>>
 [[nodiscard]]
 constexpr Rectangle<T> square(T const value) noexcept {

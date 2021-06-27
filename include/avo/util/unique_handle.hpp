@@ -3,7 +3,7 @@
 
 #include "concepts.hpp"
 
-namespace avo::utils {
+namespace avo::util {
 
 /*
 	Similar to std::unique_ptr except that non-pointer types can be held
@@ -14,7 +14,7 @@ namespace avo::utils {
 	functor type. 
 	
 	Example:
-	using DllHandle = avo::utils::UniqueHandle<HMODULE, decltype([](auto& h){ FreeLibrary(h); })>;
+	using DllHandle = avo::util::UniqueHandle<HMODULE, decltype([](auto& h){ FreeLibrary(h); })>;
 */
 template<IsTrivial T, std::invocable<T> Deleter_, T invalid_handle = T{}>
 class UniqueHandle final {
@@ -97,6 +97,6 @@ public:
 	UniqueHandle& operator=(UniqueHandle const&) = delete;
 };
 
-} // namespace avo::utils
+} // namespace avo::util
 
 #endif

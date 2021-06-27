@@ -4,7 +4,7 @@ using avo::math::Degrees, avo::math::Radians;
 
 using namespace avo::math::angle_literals;
 
-static_assert(avo::utils::IsTrivial<Degrees<int>>);
+static_assert(avo::util::IsTrivial<Degrees<int>>);
 static_assert(std::same_as<decltype(Degrees{5} + Degrees{3.1}), Degrees<double>>);
 static_assert(std::same_as<decltype(Degrees{5}*3.1), Degrees<double>>);
 static_assert(3.f*(Radians{5.f} + Radians{3.f}*3.f)/2.f - Radians{3.f} == Radians{18.f}, "Radian arithmetic does not work");

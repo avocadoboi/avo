@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-namespace avo::utils {
+namespace avo::util {
 
 template<std::move_constructible A, std::move_constructible B, std::size_t size_>
 class StaticMap {
@@ -181,6 +181,6 @@ StaticMap(Element_&& ... element) -> StaticMap<
 	sizeof...(Element_)
 >;
 
-} // namespace avo::utils
+} // namespace avo::util
 
 #endif

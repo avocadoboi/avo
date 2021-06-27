@@ -8,7 +8,7 @@
 #include <stack>
 #include <variant>
 
-namespace avo::utils {
+namespace avo::util {
 
 /*
 	Evaluates to whether the type T is a range whose value type is the same as the base range.
@@ -48,7 +48,7 @@ concept HasReferenceParentFunction = requires (T range) {
 
 /*
 	Returns a pointer to the parent of a recursive range.
-	See avo::utils::IsRecursiveRange.
+	See avo::util::IsRecursiveRange.
 */
 template<IsRecursiveRange<true> T>
 [[nodiscard]]
@@ -76,7 +76,7 @@ constexpr T* get_parent(T& range) {
 
 /*
 	Returns a range of a recursive range's parents, traversed upwards.
-	See avo::utils::IsRecursiveRange.
+	See avo::util::IsRecursiveRange.
 */
 template<IsRecursiveRange<true> Range_> 
 [[nodiscard]]
@@ -293,16 +293,16 @@ private:
 	T* range_{};
 };
 
-} // namespace avo::utils
+} // namespace avo::util
 
 namespace std::ranges {
 
 template<class T>
-constexpr auto enable_borrowed_range<avo::utils::FlattenedView<T>> = true;
+constexpr auto enable_borrowed_range<avo::util::FlattenedView<T>> = true;
 
 } // namespace std::ranges
 
-namespace avo::utils {
+namespace avo::util {
 
 /*
 	Returns a view over a recursive range traversed recursively so 
@@ -321,6 +321,6 @@ constexpr FlattenedView<T> operator|(T& range, decltype(flatten) const) {
 	return FlattenedView{range};
 }
 
-} // namespace avo::utils
+} // namespace avo::util
 
 #endif

@@ -15,17 +15,17 @@ struct Radians : ArithmeticBase<T> {};
 template<class T>
 Radians(T) -> Radians<T>;
 
-template<utils::IsNumber T>
+template<util::IsNumber T>
 struct Degrees : ArithmeticBase<T> {};
 
 template<class T>
 Degrees(T) -> Degrees<T>;
 
 template<class T>
-concept IsDegrees = utils::IsInstantiationOf<T, Degrees>;
+concept IsDegrees = util::IsInstantiationOf<T, Degrees>;
 
 template<class T>
-concept IsRadians = utils::IsInstantiationOf<T, Radians>;
+concept IsRadians = util::IsInstantiationOf<T, Radians>;
 
 template<class T>
 concept IsAngle = IsRadians<T> || IsDegrees<T>;
@@ -34,7 +34,7 @@ concept IsAngle = IsRadians<T> || IsDegrees<T>;
 	Converts an angle to degrees.
 	If the destination type is integral then the value is rounded.
 */
-template<utils::IsNumber To_, std::floating_point From_>
+template<util::IsNumber To_, std::floating_point From_>
 [[nodiscard]]
 constexpr Degrees<To_> to_degrees(Radians<From_> const radians) noexcept {
 	if constexpr (std::integral<To_>) {
@@ -48,7 +48,7 @@ constexpr Degrees<To_> to_degrees(Radians<From_> const radians) noexcept {
 	Converts an angle to degrees.
 	If the destination type is integral then the value is rounded.
 */
-template<utils::IsNumber To_, utils::IsNumber From_>
+template<util::IsNumber To_, util::IsNumber From_>
 [[nodiscard]]
 constexpr Degrees<To_> to_degrees(Degrees<From_> const degrees) noexcept {
 	if constexpr (std::integral<To_> && std::floating_point<From_>) {
@@ -60,7 +60,7 @@ constexpr Degrees<To_> to_degrees(Degrees<From_> const degrees) noexcept {
 /*
 	Converts an angle to radians.
 */
-template<std::floating_point To_, utils::IsNumber From_>
+template<std::floating_point To_, util::IsNumber From_>
 [[nodiscard]]
 constexpr Radians<To_> to_radians(Degrees<From_> const degrees) noexcept {
 	return Radians{static_cast<To_>(degrees.value / static_cast<To_>(180) * std::numbers::pi_v<To_>)};

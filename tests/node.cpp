@@ -63,7 +63,7 @@ TEST_CASE("Nodes with IDs") {
 
 	constexpr auto id_from_node = [](avo::Node const& node){ return node.id(); };
 	REQUIRE(std::ranges::equal(app.get_node(), std::array{avo::Id{1}, avo::Id{2}}, {}, id_from_node));
-	REQUIRE(std::ranges::equal(app.get_node() | avo::utils::flatten, ids, {}, id_from_node));
+	REQUIRE(std::ranges::equal(app.get_node() | avo::util::flatten, ids, {}, id_from_node));
 
 	REQUIRE(app.get_node().find_by_id(avo::Id{4})->id() == avo::Id{4});
 	REQUIRE(std::ranges::distance(app.get_node().find_all_by_id(avo::Id{4})) == 2);

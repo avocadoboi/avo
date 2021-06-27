@@ -3,7 +3,7 @@
 #include "avo/concurrency.hpp"
 #include "avo/math/rectangle.hpp"
 #include "avo/unicode.hpp"
-#include "avo/utils/static_map.hpp"
+#include "avo/util/static_map.hpp"
 #include "avo/window.hpp"
 
 #include <cassert>
@@ -37,23 +37,23 @@ constexpr DWORD style_flags_to_native(StyleFlags const flags, bool const has_par
 
 	using enum StyleFlags;
 
-	if (has_parent || utils::has_flag(flags, CustomBorder)) {
+	if (has_parent || util::has_flag(flags, CustomBorder)) {
 		native_flags |= WS_POPUP;
 	}
-	if (!utils::has_flag(flags, Invisible)) {
+	if (!util::has_flag(flags, Invisible)) {
 		native_flags |= WS_VISIBLE;
 	}
-	if (utils::has_flag(flags, CloseButton | CustomBorder)) 
+	if (util::has_flag(flags, CloseButton | CustomBorder)) 
 	{ // CloseButton or CustomBorder is true; not necessarily both
 		native_flags |= WS_CAPTION | WS_SYSMENU;
 	}
-	if (utils::has_flag(flags, MinimizeButton)) {
+	if (util::has_flag(flags, MinimizeButton)) {
 		native_flags |= WS_MINIMIZEBOX;
 	}
-	if (utils::has_flag(flags, MaximizeButton)) {
+	if (util::has_flag(flags, MaximizeButton)) {
 		native_flags |= WS_MAXIMIZEBOX;
 	}
-	if (utils::has_flag(flags, Resizable)) {
+	if (util::has_flag(flags, Resizable)) {
 		native_flags |= WS_THICKFRAME;
 	}
 
@@ -139,7 +139,7 @@ constexpr MouseButton x_button_from_w_data(::WPARAM const w_data) noexcept {
 
 constexpr auto native_mouse_button_map = [] {
 	using enum MouseButton;
-	return utils::StaticMap<int, MouseButton, 5>{
+	return util::StaticMap<int, MouseButton, 5>{
 		{VK_LBUTTON, Left},
 		{VK_MBUTTON, Middle},
 		{VK_RBUTTON, Right},
@@ -150,7 +150,7 @@ constexpr auto native_mouse_button_map = [] {
 
 constexpr auto native_key_map = [] {
 	using enum KeyboardKey;
-	return utils::StaticMap<int, KeyboardKey, 112>{
+	return util::StaticMap<int, KeyboardKey, 112>{
 		{VK_APPS, Menu},
 		{VK_BACK, Backspace},
 		{VK_CLEAR, Clear},

@@ -1,19 +1,19 @@
-#include <avo/utils/int_range.hpp>
+#include <avo/util/int_range.hpp>
 
 #include <algorithm>
 #include <array>
 #include <ranges>
 
-using avo::utils::Range;
+using avo::util::Range;
 
 static_assert(
 	[] {
-		constexpr auto check_with = []<avo::utils::IsIntRange<int> T>(T const range) {
+		constexpr auto check_with = []<avo::util::IsIntRange<int> T>(T const range) {
 			return range.reverse().reverse() == range;
 		};
 		return check_with(Range{31415}) && check_with(Range{-6283, 31415});
 	}(), 
-	"Inverse property of avo::utils::Range::reverse() is not held"
+	"Inverse property of avo::util::Range::reverse() is not held"
 );
 static_assert(
 	[] {
@@ -28,7 +28,7 @@ static_assert(
 		}
 		return a == number_of_iterations;
 	}(),
-	"avo::utils::Range with single constructor argument works incorrectly."
+	"avo::util::Range with single constructor argument works incorrectly."
 );
 static_assert(
 	[] {
@@ -43,7 +43,7 @@ static_assert(
 		}
 		return a == 0;
 	}(),
-	"Reversed avo::utils::Range with single constructor argument works incorrectly."
+	"Reversed avo::util::Range with single constructor argument works incorrectly."
 );
 static_assert(
 	[] {
@@ -59,7 +59,7 @@ static_assert(
 		}
 		return a == max + 1;
 	}(),
-	"avo::utils::Range with two constructor arguments works incorrectly."
+	"avo::util::Range with two constructor arguments works incorrectly."
 );
 static_assert(
 	[] {
@@ -75,31 +75,31 @@ static_assert(
 		}
 		return a == min - 1;
 	}(),
-	"Reversed avo::utils::Range with two constructor arguments works incorrectly."
+	"Reversed avo::util::Range with two constructor arguments works incorrectly."
 );
 static_assert(
 	std::ranges::equal(
 		Range{-5, 3} | std::views::transform([](int i){ return i*2; }) | std::views::reverse,
 		std::array{6, 4, 2, 0, -2, -4, -6, -8, -10}
 	),
-	"avo::utils::Range with standard ranges library does not work."
+	"avo::util::Range with standard ranges library does not work."
 );
 static_assert(
 	std::ranges::equal(
 		Range{-5, 3} | std::views::reverse,
 		std::array{3, 2, 1, 0, -1, -2, -3, -4, -5}
 	),
-	"avo::utils::Range with std::views::reverse does not work."
+	"avo::util::Range with std::views::reverse does not work."
 );
 
 static_assert(
 	[] {
 		constexpr auto container = std::array{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 6};
-		return avo::utils::indices(container) == Range{container.size()} && (container | avo::utils::indices) == Range{container.size()};
+		return avo::util::indices(container) == Range{container.size()} && (container | avo::util::indices) == Range{container.size()};
 	}(),
-	"avo::utils::indices with lvalue reference failed."
+	"avo::util::indices with lvalue reference failed."
 );
 static_assert(
-	avo::utils::indices(std::array{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 6}) == Range{std::size_t{11}},
-	"avo::utils::indices with rvalue reference failed."
+	avo::util::indices(std::array{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 6}) == Range{std::size_t{11}},
+	"avo::util::indices with rvalue reference failed."
 );

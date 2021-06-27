@@ -1,4 +1,4 @@
-#include <avo/utils/static_map.hpp>
+#include <avo/util/static_map.hpp>
 
 #include <catch.hpp>
 
@@ -18,7 +18,7 @@ constexpr void test_static_map(auto& map)
 }
 
 TEST_CASE("StaticMap with initializer_list") {
-	constexpr auto map = avo::utils::StaticMap<int, char, 6>{
+	constexpr auto map = avo::util::StaticMap<int, char, 6>{
 		{-2, 'a'},
 		{5, 'e'},
 		{-9, '+'},
@@ -29,7 +29,7 @@ TEST_CASE("StaticMap with initializer_list") {
 	test_static_map(map);
 }
 TEST_CASE("StaticMap with pairs") {
-	constexpr auto map = avo::utils::StaticMap{
+	constexpr auto map = avo::util::StaticMap{
 		std::pair{-2, 'a'},
 		std::pair{5, 'e'},
 		std::pair{-9, '+'},
@@ -41,7 +41,7 @@ TEST_CASE("StaticMap with pairs") {
 }
 
 TEST_CASE("Mutable StaticMap") {
-	auto map = avo::utils::StaticMap<int, char, 6>{
+	auto map = avo::util::StaticMap<int, char, 6>{
 		{-2, 'a'},
 		{5, 'e'},
 		{-9, '+'},

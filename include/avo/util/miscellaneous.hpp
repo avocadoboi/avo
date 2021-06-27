@@ -15,7 +15,7 @@
 
 //------------------------------
 
-namespace avo::utils {
+namespace avo::util {
 
 template<class T, bool is_const>
 using MaybeConst = std::conditional_t<is_const, 
@@ -83,32 +83,32 @@ inline constexpr bool is_bit_flag = false;
 template<class T>
 concept IsBitFlag = is_bit_flag<T>;
 
-} // namespace avo::utils
+} // namespace avo::util
 
-template<avo::utils::IsBitFlag T>
+template<avo::util::IsBitFlag T>
 [[nodiscard]]
 constexpr T operator|(T const left, T const right) noexcept 
 {
 	return static_cast<T>(static_cast<std::underlying_type_t<T>>(left) | static_cast<std::underlying_type_t<T>>(right));
 }
-template<avo::utils::IsBitFlag T>
+template<avo::util::IsBitFlag T>
 constexpr T& operator|=(T& left, T const right) noexcept 
 {
 	return left = left | right;
 }
-template<avo::utils::IsBitFlag T>
+template<avo::util::IsBitFlag T>
 [[nodiscard]]
 constexpr T operator&(T const left, T const right) noexcept 
 {
 	return static_cast<T>(static_cast<std::underlying_type_t<T>>(left) & static_cast<std::underlying_type_t<T>>(right));
 }
-template<avo::utils::IsBitFlag T>
+template<avo::util::IsBitFlag T>
 constexpr T& operator&=(T& left, T const right) noexcept 
 {
 	return left = left & right;
 }
 
-namespace avo::utils {
+namespace avo::util {
 
 /*
 	Returns true if "flag" is a bitwise subset of "flags".
@@ -211,6 +211,6 @@ void write_to_file(DataRange_ const& data, std::string const& file_name) {
 	file_stream.write(reinterpret_cast<char const*>(std::ranges::data(data)), std::ranges::size(data));
 }
 
-} // namespace avo::utils
+} // namespace avo::util
 
 #endif

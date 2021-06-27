@@ -1,7 +1,7 @@
 // Included exactly once.
 
 #include <avo/unicode.hpp>
-#include <avo/utils/unique_handle.hpp>
+#include <avo/util/unique_handle.hpp>
 
 #include <iconv.h>
 
@@ -11,7 +11,7 @@ void enable_utf8_console() {
 	// Pretty much everyone but Windows uses UTF-8 by default.
 }
 
-using IconvHandle = utils::UniqueHandle<iconv_t, decltype([](iconv_t const handle){ iconv_close(handle); })>;
+using IconvHandle = util::UniqueHandle<iconv_t, decltype([](iconv_t const handle){ iconv_close(handle); })>;
 
 std::optional<std::size_t> utf8_to_utf16(std::string_view const input, std::span<char16_t> const output) noexcept
 {

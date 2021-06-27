@@ -3,7 +3,7 @@
 
 #include <ranges>
 
-namespace avo::utils {
+namespace avo::util {
 
 /*
 	Represents a range of integers that can be iterated to produce the integers within the range.
@@ -166,16 +166,16 @@ private:
 	Iterator end_;
 };
 
-} // namespace avo::utils
+} // namespace avo::util
 
 template<std::integral T, bool is_reversed>
-constexpr bool std::ranges::enable_borrowed_range<avo::utils::Range<T, is_reversed>> = true;
+constexpr bool std::ranges::enable_borrowed_range<avo::util::Range<T, is_reversed>> = true;
 
-namespace avo::utils {
+namespace avo::util {
 
 /*
 	Has nothing to do with the std::ranges::range concept.
-	Is true if T is an instance of avo::utils::Range.
+	Is true if T is an instance of avo::util::Range.
 */
 template<class T, class Value_ = typename T::value_type>
 concept IsIntRange = requires(T range) {
@@ -200,6 +200,6 @@ constexpr auto operator|(std::ranges::sized_range auto&& range, decltype(indices
 	return std::ranges::size(range);
 }
 
-} // namespace avo::utils
+} // namespace avo::util
 
 #endif

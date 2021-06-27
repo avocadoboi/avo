@@ -1,14 +1,14 @@
-#include <avo/utils/generate_view.hpp>
-#include <avo/utils/int_range.hpp>
+#include <avo/util/generate_view.hpp>
+#include <avo/util/int_range.hpp>
 
 #include <catch.hpp>
 
-TEST_CASE("avo::utils::generate") {
-	auto generator = avo::utils::generate([i = 0]() mutable {
+TEST_CASE("avo::util::generate") {
+	auto generator = avo::util::generate([i = 0]() mutable {
 		return i < 10 ? std::optional{i++} : std::nullopt;
 	}) | std::views::drop(1);
 
-	for ([[maybe_unused]] auto a : avo::utils::Range{2})
+	for ([[maybe_unused]] auto a : avo::util::Range{2})
 	{
 		for (auto i = 1; auto const value : generator) 
 		{
@@ -18,8 +18,8 @@ TEST_CASE("avo::utils::generate") {
 		}
 	}
 }
-TEST_CASE("avo::utils::generate with views") {
-	constexpr auto generator = avo::utils::generate([i = 0]() mutable {
+TEST_CASE("avo::util::generate with views") {
+	constexpr auto generator = avo::util::generate([i = 0]() mutable {
 		return i < 10 ? std::optional{i++} : std::nullopt;
 	});
 

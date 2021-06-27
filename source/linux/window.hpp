@@ -1,7 +1,7 @@
 // Included exactly once.
 
 #include "avo/concurrency.hpp"
-#include "avo/utils/unique_handle.hpp"
+#include "avo/util/unique_handle.hpp"
 #include "avo/window.hpp"
 
 #include <thread>
@@ -27,7 +27,7 @@ namespace avo::window {
 
 namespace x11 {
 
-template<utils::IsTrivial T, std::invocable<::Display*, T> Deleter_>
+template<util::IsTrivial T, std::invocable<::Display*, T> Deleter_>
 class DisplayResourceHandle {
 public:
 	[[nodiscard]]
@@ -74,8 +74,8 @@ using ColormapHandle = DisplayResourceHandle<::Colormap, decltype([](auto a, aut
 
 using WindowHandle = DisplayResourceHandle<::Window, decltype([](auto a, auto b){ ::XDestroyWindow(a, b); })>;
 
-using InputMethodHandle = utils::UniqueHandle<::XIM, decltype([](auto x){ ::XCloseIM(x); })>;
-using InputContextHandle = utils::UniqueHandle<::XIC, decltype([](auto x){ ::XDestroyIC(x); })>;
+using InputMethodHandle = util::UniqueHandle<::XIM, decltype([](auto x){ ::XCloseIM(x); })>;
+using InputContextHandle = util::UniqueHandle<::XIC, decltype([](auto x){ ::XDestroyIC(x); })>;
 
 template<typename T>
 using XFreeHandle = std::unique_ptr<T, decltype([](T* info){ ::XFree(info); })>;
@@ -195,7 +195,7 @@ void set_title(::Display* const server, ::Window const window, std::string_view 
 std::string get_title(::Display* const server, ::Window const window) 
 {
 	::XTextProperty text_property;
-	auto const cleanup = utils::Cleanup{[&]{ ::XFree(text_property.value); }};
+	auto const cleanup = util::Cleanup{[&]{ ::XFree(text_property.value); }};
 	
 	::XGetWMName(server, window, &text_property);
 
@@ -298,13 +298,13 @@ void set_allowed_actions(::Display* const server, ::Window const window, StyleFl
 		.functions = MWM_FUNC_MOVE | MWM_FUNC_RESIZE
 	};
 
-	if (utils::has_flag(style, StyleFlags::MinimizeButton)) {
+	if (util::has_flag(style, StyleFlags::MinimizeButton)) {
 		hints.functions |= MWM_FUNC_MINIMIZE;
 	}
-	if (utils::has_flag(style, StyleFlags::MaximizeButton)) {
+	if (util::has_flag(style, StyleFlags::MaximizeButton)) {
 		hints.functions |= MWM_FUNC_MAXIMIZE;
 	}
-	if (utils::has_flag(style, StyleFlags::CloseButton)) {
+	if (util::has_flag(style, StyleFlags::CloseButton)) {
 		hints.functions |= MWM_FUNC_CLOSE;
 	}
 
@@ -324,11 +324,11 @@ void initialize_styles(::Display* const server, ::Window const window,
 
 	set_allowed_actions(server, window, parameters.style);
 
-	if (utils::has_flag(parameters.style, StyleFlags::CustomBorder)) {
+	if (util::has_flag(parameters.style, StyleFlags::CustomBorder)) {
 		make_window_borderless(server, window);
 	}
 
-	if (!utils::has_flag(parameters.style, StyleFlags::Resizable)) {
+	if (!util::has_flag(parameters.style, StyleFlags::Resizable)) {
 		auto const size = converter.dip_to_pixels(parameters.size);
 		set_min_max_size(server, window, {.min=size, .max=size});
 	}
@@ -337,7 +337,7 @@ void initialize_styles(::Display* const server, ::Window const window,
 	}	
 
 	// Show the window.
-	if (!utils::has_flag(parameters.style, StyleFlags::Invisible)) {
+	if (!util::has_flag(parameters.style, StyleFlags::Invisible)) {
 		::XMapWindow(server, window);
 	}
 

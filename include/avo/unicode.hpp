@@ -1,7 +1,7 @@
 #ifndef AVO_UNICODE_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UNICODE_HPP_BJORN_SUNDIN_JUNE_2021
 
-#include "utils/concepts.hpp"
+#include "util/concepts.hpp"
 
 #include <algorithm>
 #include <optional>
@@ -103,7 +103,7 @@ constexpr bool is_first_code_point(char16_t const code_point) noexcept {
 }
 
 template<class T>
-concept IsCodePoint = utils::IsAnyOf<T, char, char16_t>;
+concept IsCodePoint = util::IsAnyOf<T, char, char16_t>;
 
 /*
 	Returns the index of the code point at a certain character index in a UTF-8 or UTF-16 encoded string.

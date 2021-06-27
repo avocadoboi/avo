@@ -1,4 +1,4 @@
-#include <avo/utils/recursive_range.hpp>
+#include <avo/util/recursive_range.hpp>
 
 #include <catch.hpp>
 
@@ -21,7 +21,7 @@ struct TestNode {
 		return children.end();
 	}
 };
-static_assert(avo::utils::IsRecursiveRange<TestNode, false>);
+static_assert(avo::util::IsRecursiveRange<TestNode, false>);
 
 struct TestNodeWithParent {
 	std::vector<TestNodeWithParent> children;
@@ -41,7 +41,7 @@ struct TestNodeWithParent {
 		return children.end();
 	}
 };
-static_assert(avo::utils::IsRecursiveRange<TestNodeWithParent, true>);
+static_assert(avo::util::IsRecursiveRange<TestNodeWithParent, true>);
 
 //------------------------------
 
@@ -51,21 +51,21 @@ template<typename _Node> requires
 void test_flatten_with_node_type(_Node& tree, std::vector<int> const& expected_ids) {
 	auto const& const_tree = tree;
 	
-	CHECK(std::ranges::equal(avo::utils::flatten(const_tree), expected_ids, {}, &_Node::id));
-	CHECK(std::ranges::equal(const_tree | avo::utils::flatten, expected_ids, {}, &_Node::id));
+	CHECK(std::ranges::equal(avo::util::flatten(const_tree), expected_ids, {}, &_Node::id));
+	CHECK(std::ranges::equal(const_tree | avo::util::flatten, expected_ids, {}, &_Node::id));
 
-	CHECK(std::ranges::equal(avo::utils::flatten(tree), expected_ids, {}, &_Node::id));
-	CHECK(std::ranges::equal(tree | avo::utils::flatten, expected_ids, {}, &_Node::id));
+	CHECK(std::ranges::equal(avo::util::flatten(tree), expected_ids, {}, &_Node::id));
+	CHECK(std::ranges::equal(tree | avo::util::flatten, expected_ids, {}, &_Node::id));
 
 	CHECK(std::ranges::equal(
-		tree | avo::utils::flatten | std::views::transform([](_Node& n){ return n.id*2; }), 
+		tree | avo::util::flatten | std::views::transform([](_Node& n){ return n.id*2; }), 
 		expected_ids | std::views::transform([](int const id){ return id*2; })
 	));
 
-	for (auto& node : tree | avo::utils::flatten) {
+	for (auto& node : tree | avo::util::flatten) {
 		node.id = 2;
 	}
-	CHECK(std::ranges::all_of(tree | avo::utils::flatten, [](int id){ return id == 2; }, &_Node::id));
+	CHECK(std::ranges::all_of(tree | avo::util::flatten, [](int id){ return id == 2; }, &_Node::id));
 }
 
 //------------------------------
@@ -104,7 +104,7 @@ std::pair<TestNode, std::vector<int>> construct_test_without_parent_nodes() {
 	};
 }
 
-TEST_CASE("avo::utils::flatten with nodes without parents") {
+TEST_CASE("avo::util::flatten with nodes without parents") {
 	auto [tree, expected_ids] = construct_test_without_parent_nodes();
 	test_flatten_with_node_type(tree, expected_ids);
 }
@@ -148,20 +148,20 @@ std::pair<std::unique_ptr<TestNodeWithParent>, std::vector<int>> construct_test_
 	};
 }
 
-TEST_CASE("avo::utils::flatten with nodes with stored parent") {
+TEST_CASE("avo::util::flatten with nodes with stored parent") {
 	auto [tree, expected_ids] = construct_test_with_parent_nodes();
 	test_flatten_with_node_type(*tree, expected_ids);
 }
 
 //------------------------------
 
-TEST_CASE("avo::utils::view_parents") {
+TEST_CASE("avo::util::view_parents") {
 	auto root = TestNodeWithParent{};
 	auto child_0 = TestNodeWithParent{.parent = &root};
 	auto child_1 = TestNodeWithParent{.parent = &child_0};
 	auto child_2 = TestNodeWithParent{.parent = &child_1};
 
-	auto const parent_range = avo::utils::view_parents(child_2);
+	auto const parent_range = avo::util::view_parents(child_2);
 	auto iterator = parent_range.begin();
 	REQUIRE(*iterator == &child_1);
 	REQUIRE(*iterator == &child_1);

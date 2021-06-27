@@ -6,7 +6,7 @@
 #include <concepts>
 #include <stdexcept>
 
-namespace avo::utils {
+namespace avo::util {
 
 template<class T, std::size_t capacity_>
 class StaticVector final {
@@ -98,6 +98,6 @@ private:
 	std::size_t current_size_{};
 };
 
-} // avo::utils
+} // avo::util
 
 #endif
