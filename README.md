@@ -25,11 +25,18 @@ Avo currently consists of:
 * Modern CMake integration.
 
 # CMake usage
+## Dependencies
+Besides native libraries, Avo currently only depends on the [fmt](https://github.com/fmtlib/fmt) library, which needs to be found by CMake to build Avo.
 
 ## Building and installing
+Below are the basic commands to build and install Avo using CMake.
+You don't have to do this if you want to use it as a subproject or with FetchContent.
+You might have to run the install command as administrator on Windows or add `sudo` to it on Linux/MacOS.
+To help CMake find dependencies you might want to add a `CMAKE_PREFIX_PATH` or `CMAKE_TOOLCHAIN_FILE` to the configuration command.
 ```
 git clone https://github.com/avocadoboi/avo.git
-mkdir avo/build; cd avo/build
+mkdir avo/build
+cd avo/build
 cmake ..
 cmake --build . --target avo --config Release
 cmake --install .
