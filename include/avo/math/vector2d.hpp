@@ -423,7 +423,7 @@ struct Vector2dBase {
 		y *= inverse_length;
 	}
 
-	// TODO: Define this function in this class when MSVC stops breaking from the using declaration.
+	// TODO: Define these templates in this class when MSVC stops breaking from the using declaration.
 	// template<Is2dVector Vector_>
 	// [[nodiscard]]
 	// constexpr Vector_ to() const noexcept {
@@ -431,6 +431,13 @@ struct Vector2dBase {
 	// 		static_cast<typename Vector_::value_type>(x),
 	// 		static_cast<typename Vector_::value_type>(y)
 	// 	};
+	// }
+
+	// template<template<class> class Vector_>
+	// 	requires Is2dVector<Vector_<Value_>>
+	// [[nodiscard]]
+	// constexpr Vector_<Value_> to() const noexcept {
+	// 	return Vector_{x, y};
 	// }
 };
 
@@ -447,6 +454,12 @@ struct Vector2d : Vector2dBase<Value_> {
 			static_cast<typename Vector_::value_type>(x),
 			static_cast<typename Vector_::value_type>(y)
 		};
+	}
+	template<template<class> class Vector_>
+		requires Is2dVector<Vector_<Value_>>
+	[[nodiscard]]
+	constexpr Vector_<Value_> to() const noexcept {
+		return Vector_{x, y};
 	}
 	
 	template<util::IsNumber T>
@@ -480,6 +493,14 @@ constexpr Vector_<A>& operator*=(Vector_<A>& vector, Vector2d<B> const factor) n
 	return vector;
 }
 
+template<std::floating_point T, template<class> class Vector_> requires Is2dVector<Vector_<T>>
+constexpr Vector_<T> interpolate(Vector_<T> const a, Vector_<T> const b, Vector2d<T> const c) noexcept {
+	return Vector_{
+		std::lerp(a.x, b.x, c.x),
+		std::lerp(a.y, b.y, c.y),
+	};
+}
+
 template<util::IsNumber Value_ = float>
 struct Point : Vector2dBase<Value_> {
 	using Vector2dBase<Value_>::x;
@@ -493,6 +514,12 @@ struct Point : Vector2dBase<Value_> {
 			static_cast<typename Vector_::value_type>(x),
 			static_cast<typename Vector_::value_type>(y)
 		};
+	}
+	template<template<class> class Vector_>
+		requires Is2dVector<Vector_<Value_>>
+	[[nodiscard]]
+	constexpr Vector_<Value_> to() const noexcept {
+		return Vector_{x, y};
 	}
 	
 	template<util::IsNumber T>
@@ -518,6 +545,12 @@ struct Size : Vector2dBase<Value_> {
 			static_cast<typename Vector_::value_type>(x),
 			static_cast<typename Vector_::value_type>(y)
 		};
+	}
+	template<template<class> class Vector_>
+		requires Is2dVector<Vector_<Value_>>
+	[[nodiscard]]
+	constexpr Vector_<Value_> to() const noexcept {
+		return Vector_{x, y};
 	}
 
 	template<util::IsNumber T>

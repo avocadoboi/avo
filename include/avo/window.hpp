@@ -266,6 +266,8 @@ struct Parameters {
 	Events are safely sent to the thread of the Window class and can be retrieved using await_event and take_event.
 	If you don't call await_event or take_event regularly, the properties that can be retrieved using the accessor methods of this class will not be 
 	updated. The window would still be responsive however.
+
+	A window can be safely created with a parent window created and/or mutated on another thread.
 */
 class Window final {
 public:
@@ -397,7 +399,7 @@ private:
 	Parameters parameters_;
 
 	explicit Builder(std::string_view const title) :
-		parameters_{.title = title}
+		parameters_{.title{title}, .position_factor{0.5f, 0.5f}}
 	{}
 
 	friend inline Builder create(std::string_view);

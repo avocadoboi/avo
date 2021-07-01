@@ -41,7 +41,7 @@ struct TestNodeWithParent {
 		return children.end();
 	}
 };
-static_assert(avo::util::IsRecursiveRange<TestNodeWithParent, true>);
+static_assert(avo::util::IsRecursiveRange<TestNodeWithParent, true> && std::ranges::contiguous_range<TestNodeWithParent>);
 
 //------------------------------
 

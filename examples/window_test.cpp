@@ -12,22 +12,15 @@ int main() {
 
 	using magic_enum::enum_name;
 
-	auto window = avo::window::create("Hello AvoGUI!")
-		.position(Vector2d{0.5f, 0.5f})
+	auto window = avo::window::create("Hello Avo!")
 		.size(Size{500.f, 400.f})
 		.min_max_size({Size{200.f, 300.f}, Size{700.f, 500.f}})
 		.open();
 
-	auto update = [&, i = 0]() mutable {
-		window.title(fmt::format("{}. Size: {}.", i++, window.size()));
-	};
-
-	update();
-	
-	window.size(Size{300.f, 300.f});
-	window.position(Point{300, 200});
-
-	update();
+	auto child = avo::window::create("Smol")
+		.size(Size{200.f, 150.f})
+		.with_parent(window)
+		.open();
 
 	auto event_manager = avo::window::EventManager{window};
 
@@ -55,8 +48,7 @@ int main() {
 	event_manager.add_listener([](event::MouseLeave const& event) {
 		fmt::print("The mouse left the window by moving {} and is now at {}.\n", event.movement, event.position);
 	});
-	event_manager.add_listener([&](event::SizeChange const& event) {
-		update();
+	event_manager.add_listener([](event::SizeChange const& event) {
 		fmt::print("The window resized and now has size {}.\n", event.size);
 	});
 	event_manager.add_listener([](event::StateChange const& event) {

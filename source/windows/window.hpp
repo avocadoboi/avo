@@ -73,11 +73,19 @@ math::Rectangle<Pixels> window_rectangle_from_client_size(::HWND const handle, m
 }
 
 [[nodiscard]]
-math::Rectangle<Pixels> get_parent_rectangle(Window const* parent)
+math::Rectangle<Pixels> get_parent_rectangle(::HWND const parent)
 {
 	::RECT rect;
 	if (parent) {
-		::GetWindowRect(std::any_cast<::HWND>(parent->native_handle()), &rect);
+		::RECT window_rect;
+		::GetClientRect(parent, &window_rect);
+		::AdjustWindowRect(&window_rect, GetWindowStyle(parent), false);
+		
+		::GetWindowRect(parent, &rect);
+		rect.left -= window_rect.left;
+		rect.top -= window_rect.top;
+		rect.right += window_rect.left;
+		rect.bottom += window_rect.left;
 	}
 	else 
 	{ // No parent window, return the work area of the monitor at the cursor position.
@@ -95,6 +103,15 @@ math::Rectangle<Pixels> get_parent_rectangle(Window const* parent)
 
 //------------------------------
 
+void set_window_position(::HWND const handle, math::Point<Pixels> const position)
+{
+	::SetWindowPos(
+		handle, ::HWND{}, 
+		position.x, position.y, 
+		0, 0, 
+		SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOOWNERZORDER | SWP_NOZORDER
+	);
+}
 void set_window_size(::HWND const handle, math::Size<Pixels> const size) 
 {
 	auto const full_rect = window_rectangle_from_client_size(handle, size);
@@ -103,6 +120,22 @@ void set_window_size(::HWND const handle, math::Size<Pixels> const size)
 		full_rect.width(), full_rect.height(), 
 		SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER
 	);
+}
+
+[[nodiscard]]
+math::Point<Pixels> position_from_parent_relative_factor(math::Vector2d<float> const factor, math::Size<Pixels> const pixel_size, 
+	math::Rectangle<Pixels> const window_rect, ::HWND const parent)
+{
+	auto const parent_rect = get_parent_rectangle(parent);
+	
+	return math::interpolate(
+		// At (0.f, 0.f) we want it to show the title but not the shadow/left border.
+		(parent_rect.top_left() + math::Point{window_rect.left, 0}).to<float>(),
+		// At (1.f, 1.f) we want to subtract the space to the left and above the client area from the window position so that the bottom right 
+		// corner of the client rectangle touches the bottom right corner of the parent rectangle.
+		(parent_rect.bottom_right() + window_rect.top_left() - pixel_size.to<math::Point>()).to<math::Point<float>>(),
+		factor
+	).to<Pixels>();
 }
 
 //------------------------------
@@ -602,12 +635,12 @@ private:
 		
 		auto const styles = style_flags_to_native(parameters.style, parameters.parent);
 
-		auto const window_rect = window_rectangle_from_client_size(styles, unit_converter_.dip_to_pixels(parameters.size));
+		auto const pixel_size = unit_converter_.dip_to_pixels(parameters.size);
+		auto const window_rect = window_rectangle_from_client_size(styles, pixel_size);
 
-		auto const parent_rect = get_parent_rectangle(parameters.parent);
+		auto const parent = parameters.parent ? std::any_cast<::HWND>(parameters.parent->native_handle()) : ::HWND{};
 
-		auto const window_position = parent_rect.top_left() + window_rect.top_left() 
-			+ (parameters.position_factor * (parent_rect.size() - window_rect.size()).to<float>()).to<math::Point<Pixels>>();
+		auto const window_position = position_from_parent_relative_factor(parameters.position_factor, pixel_size, window_rect, parent);
 
 		auto const wide_title = unicode::utf8_to_utf16(parameters.title);
 
@@ -617,7 +650,7 @@ private:
 			styles,
 			window_position.x, window_position.y,
 			window_rect.width(), window_rect.height(),
-			parameters.parent ? std::any_cast<::HWND>(parameters.parent->native_handle()) : ::HWND{},
+			parent,
 			nullptr,
 			get_instance_handle(),
 			this // Additional window data, the WindowThread instance.
@@ -700,7 +733,8 @@ public:
 		return {};
 	}
 
-	void position(math::Point<Pixels> const) {
+	void position(math::Point<Pixels> const position) {
+		win::set_window_position(window_thread_.get_handle(), position);
 	}
 	
 	void min_max_size(MinMaxSizes<Dip> const) {
