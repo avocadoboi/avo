@@ -18,31 +18,6 @@ set_target_properties(avo PROPERTIES CXX_EXTENSIONS off)
 
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
 	add_compile_options(/utf-8)
-
-	target_compile_options(avo PUBLIC
-		/experimental:external
-		/external:anglebrackets
-		/external:W0 
-		/WX 
-		/W4
-	)
-else ()
-	target_compile_options(avo PUBLIC
-		-Werror -Wall -Wpedantic -Wextra 
-		-Wduplicated-branches 
-		-Wduplicated-cond 
-		-Wcast-qual 
-		-Wcast-align
-		-Wconversion
-
-		-Wno-parentheses
-		-Wno-missing-field-initializers
-	)
-
-	target_compile_options(avo PRIVATE
-		-fconcepts-diagnostics-depth=2
-		-fmax-errors=5
-	)
 endif ()
 
 #--------------------------------------------

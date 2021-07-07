@@ -12,7 +12,7 @@ int main() {
 
 	using magic_enum::enum_name;
 
-	auto window = avo::window::create("Hello Avo!")
+	auto window = avo::window::create("BIG G")
 		.size(Size{500.f, 400.f})
 		.min_max_size({Size{200.f, 300.f}, Size{700.f, 500.f}})
 		.open();

@@ -1,11 +1,11 @@
 *
 !*.hpp
 !*.cpp
+!CMakeLists.txt
 !*.md
-!*.txt
+!sources
+!*.cmake
 !*.cmake.in
 !*/
 
 build
-cmake-build
-cmake-build-debug
