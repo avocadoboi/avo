@@ -37,10 +37,10 @@ void Window::position(math::Point<Pixels> const position) {
 	implementation_->position(position);
 }
 
-void Window::min_max_size(MinMaxSizes<Dip> const min_max) {
+void Window::min_max_size(MinMaxSize<Dip> const min_max) {
 	implementation_->min_max_size(min_max);
 }
-MinMaxSizes<Dip> Window::min_max_size() const {
+MinMaxSize<Dip> Window::min_max_size() const {
 	return implementation_->min_max_size();
 }
 

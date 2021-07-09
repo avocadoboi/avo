@@ -2,6 +2,8 @@
 
 #include <catch.hpp>
 
+static_assert(avo::util::IsTrivial<avo::util::MinMax<int>>);
+
 TEST_CASE("avo::util::unordered_erase single element in middle") {
 	auto list = std::vector{1, 2, 3, 4, 5, 6, 7};
 	avo::util::unordered_erase(list, 4);

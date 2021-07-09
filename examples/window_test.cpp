@@ -12,17 +12,17 @@ int main() {
 
 	using magic_enum::enum_name;
 
-	auto window = avo::window::create("BIG G")
+	auto parent = avo::window::create("BIG G")
 		.size(Size{500.f, 400.f})
 		.min_max_size({Size{200.f, 300.f}, Size{700.f, 500.f}})
 		.open();
 
 	auto child = avo::window::create("Smol")
 		.size(Size{200.f, 150.f})
-		.with_parent(window)
+		.with_parent(parent)
 		.open();
 
-	auto event_manager = avo::window::EventManager{window};
+	auto event_manager = avo::window::EventManager{parent};
 
 	event_manager.add_listener([](event::KeyDown const& event) {
 		fmt::print("The key '{}' was pressed. Repeat: {}\n", enum_name(event.key), event.is_repeated);

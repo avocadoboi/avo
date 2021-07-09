@@ -333,6 +333,19 @@ public:
 		return handle_;
 	}
 
+	void set_min_max_size(MinMaxSize<Dip> const sizes) {
+		min_max_size_ = unit_converter_.dip_to_pixels(sizes);
+	}
+	void set_min_size(math::Size<Dip> const size) {
+		min_max_size_ = util::MinMax{unit_converter_.dip_to_pixels(size), min_max_size_.load().max};
+	}
+	void set_max_size(math::Size<Dip> const size) {
+		min_max_size_ = util::MinMax{min_max_size_.load().min, unit_converter_.dip_to_pixels(size)};
+	}
+	MinMaxSize<Dip> get_min_max_size() const {
+		return unit_converter_.pixels_to_dip(min_max_size_.load());
+	}
+
 	WindowThread(Parameters const& parameters, concurrency::Sender<Event> channel) :
 		channel_{std::move(channel)},
 		thread_{&WindowThread::run_, this, parameters}
@@ -412,6 +425,8 @@ private:
 	std::optional<::LRESULT> handle_event_(::UINT const message, ::WPARAM const w_data, ::LPARAM const l_data)
 	{
 		switch (message) {
+		case WM_GETMINMAXINFO:
+			return handle_min_max_size_query(l_data);
 		case WM_DPICHANGED:
 			return handle_dpi_change_(w_data, l_data);
 		case WM_MOUSEMOVE:
@@ -462,6 +477,18 @@ private:
 		return std::nullopt;
 	}
 
+	::LRESULT handle_min_max_size_query(::LPARAM const l_data) 
+	{
+		if (auto const sizes = min_max_size_.load();
+			sizes.max > math::Size<Pixels>{})
+		{
+			auto* const info = reinterpret_cast<::LPMINMAXINFO>(l_data);
+			info->ptMinTrackSize = ::POINT{sizes.min.x, sizes.min.y};
+			info->ptMaxTrackSize = ::POINT{sizes.max.x, sizes.max.y};
+		}
+		
+		return {};
+	}
 	::LRESULT handle_dpi_change_(::WPARAM const w_data, ::LPARAM const l_data)
 	{
 		channel_.send(event::DpiChange{.dpi{static_cast<float>(HIWORD(w_data))}});
@@ -632,6 +659,8 @@ private:
 	void create_window_(Parameters const& parameters) 
 	{
 		initialize_dpi_();
+
+		min_max_size_ = unit_converter_.dip_to_pixels(parameters.min_max_size);
 		
 		auto const styles = style_flags_to_native(parameters.style, parameters.parent);
 
@@ -680,6 +709,8 @@ private:
 	math::Point<Pixels> mouse_position_{};
 	bool is_mouse_hovering_{};
 	State state_{State::Restored};
+
+	std::atomic<MinMaxSize<Pixels>> min_max_size_{};
 
 	WindowClass window_class_;
 	::HWND handle_{};
@@ -737,25 +768,28 @@ public:
 		win::set_window_position(window_thread_.get_handle(), position);
 	}
 	
-	void min_max_size(MinMaxSizes<Dip> const) {
+	void min_max_size(MinMaxSize<Dip> const sizes) {
+		window_thread_.set_min_max_size(sizes);
 	}
 	[[nodiscard]]
-	MinMaxSizes<Dip> min_max_size() const {
-		return {};
+	MinMaxSize<Dip> min_max_size() const {
+		return window_thread_.get_min_max_size();
 	}
 
-	void min_size(math::Size<Dip> const) {
+	void min_size(math::Size<Dip> const size) {
+		window_thread_.set_min_size(size);
 	}
 	[[nodiscard]]
 	math::Size<Dip> min_size() const {
-		return {};
+		return window_thread_.get_min_max_size().min;
 	}
 
-	void max_size(math::Size<Dip> const) {
+	void max_size(math::Size<Dip> const size) {
+		window_thread_.set_max_size(size);
 	}
 	[[nodiscard]]
 	math::Size<Dip> max_size() const {
-		return {};
+		return window_thread_.get_min_max_size().max;
 	}
 
 	void size(math::Size<Dip> const size) {

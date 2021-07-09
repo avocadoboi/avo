@@ -247,13 +247,13 @@ using Event = std::variant<
 class Window;
 
 template<util::IsNumber T>
-using MinMaxSizes = util::MinMax<math::Size<T>>;
+using MinMaxSize = util::MinMax<math::Size<T>>;
 
 struct Parameters {
 	std::string_view title;
 	math::Vector2d<math::Factor> position_factor{};
 	math::Size<Dip> size{};
-	MinMaxSizes<Dip> size_bounds{};
+	MinMaxSize<Dip> min_max_size{};
 	StyleFlags style{StyleFlags::Default};
 	State state{State::Restored};
 	Window* parent{};
@@ -280,10 +280,10 @@ public:
 
 	void position(math::Point<Pixels>);
 
-	void min_max_size(MinMaxSizes<Dip>);
+	void min_max_size(MinMaxSize<Dip>);
 	
 	[[nodiscard]]
-	MinMaxSizes<Dip> min_max_size() const;
+	MinMaxSize<Dip> min_max_size() const;
 
 	void max_size(math::Size<Dip>);
 	
@@ -353,19 +353,19 @@ public:
 	[[nodiscard]]
 	Builder&& min_size(math::Size<Dip> const min_size) && noexcept 
 	{
-		parameters_.size_bounds.min = min_size;
+		parameters_.min_max_size.min = min_size;
 		return std::move(*this);
 	}
 	[[nodiscard]]
 	Builder&& max_size(math::Size<Dip> const max_size) && noexcept 
 	{
-		parameters_.size_bounds.max = max_size;
+		parameters_.min_max_size.max = max_size;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	Builder&& min_max_size(MinMaxSizes<Dip> const min_max) && noexcept 
+	Builder&& min_max_size(MinMaxSize<Dip> const min_max) && noexcept 
 	{
-		parameters_.size_bounds = min_max;
+		parameters_.min_max_size = min_max;
 		return std::move(*this);
 	}
 	[[nodiscard]]
