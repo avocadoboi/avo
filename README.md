@@ -1,6 +1,6 @@
 # What is Avo?
 
-Avo is a light, modern C++20 library containing various modular components useful for writing applications.
+Avo is a light, modern C++20 library with a clean design containing various modular components useful for writing applications.
 
 The library was initially written in C++17, but now it is being rewritten from scratch in C++20 and with a better design that is less object oriented.
 
@@ -32,9 +32,11 @@ Besides native libraries, Avo currently only depends on the [fmt](https://github
 Below are the basic commands to build and install Avo using CMake.
 You don't have to do this if you want to use it as a subproject or with FetchContent.
 You might have to run the install command as administrator on Windows or add `sudo` to it on Linux/MacOS.
+
 To help CMake find dependencies you might want to add a `CMAKE_PREFIX_PATH` or `CMAKE_TOOLCHAIN_FILE` to the configuration command.
+
 If you are making changes to the library, use one of the toolchain files in the `cmake` directory to add warning flags.
-These automatically also include the VCPKG toolchain file if the environment variable `VCPKG_ROOT` is defined.
+These automatically also include the [VCPKG](https://vcpkg.io/en/index.html) toolchain file if the environment variable `VCPKG_ROOT` is defined.
 ```
 git clone https://github.com/avocadoboi/avo.git
 mkdir avo/build

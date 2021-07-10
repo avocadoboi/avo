@@ -31,7 +31,7 @@ public:
 	/*
 		Generates a new uniformly distributed random integer in the range [min, max].
 	*/
-	template<std::integral T> requires (!std::same_as<T, bool>)
+	template<std::integral T> requires (not std::same_as<T, bool>)
 	[[nodiscard]]
 	T next(T const min, T const max) {
 		return std::uniform_int_distribution<T>{min, max}(engine_);
@@ -39,7 +39,7 @@ public:
 	/*
 		Generates a new uniformly distributed random integer in the range [0, max].
 	*/
-	template<std::integral T> requires (!std::same_as<T, bool>)
+	template<std::integral T> requires (not std::same_as<T, bool>)
 	[[nodiscard]]
 	T next(T const max) {
 		return next(T{}, max);

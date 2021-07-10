@@ -117,7 +117,7 @@ public:
 	};
 
 	[[nodiscard]]
-	constexpr Range<Value_, !is_reverse> reverse() const noexcept {
+	constexpr Range<Value_, not is_reverse> reverse() const noexcept {
 		return {*(end_ - 1), *start_};
 	}
 
@@ -143,7 +143,7 @@ public:
 	/*
 		Creates a range of integers starting with start and ending with inclusive_end.
 	*/
-	constexpr Range(Value_ const start, Value_ const inclusive_end) noexcept requires (!is_reverse) :
+	constexpr Range(Value_ const start, Value_ const inclusive_end) noexcept requires (not is_reverse) :
 		start_{start},
 		end_{inclusive_end + 1}
 	{}

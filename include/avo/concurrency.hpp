@@ -126,7 +126,7 @@ public:
 	*/
 	[[nodiscard]]
 	bool was_recently_empty() const {
-		return !has_messages_flag_.test();
+		return not has_messages_flag_.test();
 	}
 
 	/*
@@ -164,7 +164,7 @@ private:
 		only if the queue was previously empty.
 	*/
 	void notify_next_message_() {
-		if (!has_messages_flag_.test_and_set()) {
+		if (not has_messages_flag_.test_and_set()) {
 			has_messages_flag_.notify_one();
 		}
 	}
@@ -222,7 +222,7 @@ public:
 		return queue_->was_recently_empty();
 	}
 
-	Sender(std::shared_ptr<MessageQueue<T>> queue) :
+	explicit Sender(std::shared_ptr<MessageQueue<T>> queue) :
 		queue_{std::move(queue)}
 	{}
 	
@@ -273,7 +273,7 @@ public:
 		return queue_->was_recently_empty();
 	}
 
-	Receiver(std::shared_ptr<MessageQueue<T>> queue) :
+	explicit Receiver(std::shared_ptr<MessageQueue<T>> queue) :
 		queue_{std::move(queue)}
 	{}
 

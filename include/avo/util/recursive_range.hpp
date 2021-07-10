@@ -24,7 +24,7 @@ namespace avo::util {
 */
 template<class T, bool has_parent_reference = false>
 concept IsRecursiveRange = std::ranges::range<T> && std::same_as<std::ranges::range_value_t<T>, std::remove_cvref_t<T>>
-	&& (!has_parent_reference || std::ranges::forward_range<T> &&
+	&& (not has_parent_reference || std::ranges::forward_range<T> &&
 		(IsAnyOf<decltype(T::parent), T&, T*> || requires(T range) { { range.parent() } -> IsAnyOf<T&, T*>; }));
 
 template<class T>
@@ -135,7 +135,7 @@ public:
 		[[nodiscard]]
 		bool operator==(Iterator const& other) const noexcept {
 			return 
-				!parent_stack_.empty() && 
+				not parent_stack_.empty() && 
 				parent_stack_.size() == other.parent_stack_.size() &&
 				parent_stack_.top() == other.parent_stack_.top() && 
 				pos_ == other.pos_;
@@ -155,7 +155,7 @@ public:
 			}
 			else if (std::ranges::empty(*pos)) {
 				++pos;
-				while (!parent_stack_.empty() && pos == std::ranges::end(*parent_stack_.top())) {
+				while (not parent_stack_.empty() && pos == std::ranges::end(*parent_stack_.top())) {
 					pos = parent_stack_.top();
 					parent_stack_.pop();
 					++pos;

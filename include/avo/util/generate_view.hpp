@@ -51,7 +51,7 @@ public:
 		}
 		[[nodiscard]]
 		constexpr bool operator==(std::default_sentinel_t) const noexcept {
-			return !generate_;
+			return not generate_;
 		}
 		[[nodiscard]]
 		constexpr bool operator==(Iterator const&) const noexcept
@@ -86,7 +86,7 @@ public:
 #endif
 			
 		constexpr Iterator& operator=(Iterator const& other)
-			requires (!std::copyable<Generator_>)
+			requires (not std::copyable<Generator_>)
 		{
 			if (other.generate_) {
 				generate_.emplace(*other.generate_);
@@ -114,7 +114,7 @@ public:
 			= default;
 #endif
 		constexpr Iterator& operator=(Iterator&& other) noexcept 
-			requires (!std::movable<Generator_>) 
+			requires (not std::movable<Generator_>) 
 		{
 			if (other.generate_) {
 				generate_.emplace(std::move(*other.generate_));

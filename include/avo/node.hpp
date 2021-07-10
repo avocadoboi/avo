@@ -341,7 +341,7 @@ private:
 	void remove_from_tree_() 
 	{
 		remove_from_parent_();
-		if (!children_.empty()) {
+		if (not children_.empty()) {
 			std::ranges::for_each(children_, &Node::detach);
 			children_.clear();
 			id_nodes_.clear();

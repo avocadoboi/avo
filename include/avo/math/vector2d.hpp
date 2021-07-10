@@ -378,7 +378,7 @@ struct Vector2dBase {
 	template<IsAngle Angle_>
 	[[nodiscard]]
 	Angle_ angle() const noexcept {
-		if (!x && !y) {
+		if (x == 0 && y == 0) {
 			return Angle_{};
 		}
 		auto const atan2 = std::atan2(static_cast<long double>(y), static_cast<long double>(x));

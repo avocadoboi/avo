@@ -50,7 +50,7 @@ TEST_CASE("Message channel, send all at once and receive all at once") {
 
 	auto sent_all = std::atomic_flag{};
 
-	REQUIRE(!sent_all.test());
+	REQUIRE(not sent_all.test());
 	
 	auto const thread = std::jthread{[&sent_all, sender = std::move(sender)]() mutable {
 		for (int const message : messages) {
@@ -62,7 +62,7 @@ TEST_CASE("Message channel, send all at once and receive all at once") {
 
 	sent_all.wait(false);
 
-	for (auto i = std::size_t{}; !receiver.was_queue_recently_empty(); ++i) 
+	for (auto i = std::size_t{}; not receiver.was_queue_recently_empty(); ++i) 
 	{
 		REQUIRE(receiver.recent_queue_size() == messages.size() - i);
 		REQUIRE(receiver.receive() == messages.at(i));

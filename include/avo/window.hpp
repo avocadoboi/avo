@@ -278,6 +278,9 @@ public:
 
 	bool toggle_fullscreen();
 
+	[[nodiscard]]
+	bool is_fullscreen() const;
+
 	void position(math::Point<Pixels>);
 
 	void min_max_size(MinMaxSize<Dip>);

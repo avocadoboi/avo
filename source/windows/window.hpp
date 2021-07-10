@@ -10,6 +10,8 @@
 #include <functional>
 #include <thread>
 
+//------------------------------
+
 #include "common.hpp"
 #include <windowsx.h>
 
@@ -40,7 +42,7 @@ constexpr DWORD style_flags_to_native(StyleFlags const flags, bool const has_par
 	if (has_parent || util::has_flag(flags, CustomBorder)) {
 		native_flags |= WS_POPUP;
 	}
-	if (!util::has_flag(flags, Invisible)) {
+	if (not util::has_flag(flags, Invisible)) {
 		native_flags |= WS_VISIBLE;
 	}
 	if (util::has_flag(flags, CloseButton | CustomBorder)) 
@@ -75,17 +77,30 @@ math::Rectangle<Pixels> window_rectangle_from_client_size(::HWND const handle, m
 [[nodiscard]]
 math::Rectangle<Pixels> get_parent_rectangle(::HWND const parent)
 {
-	::RECT rect;
 	if (parent) {
+		// The result should be the client rectangle of the parent window in screen coordinates.
+		// There is no native function to get this directly.
+
+		// window_rect is used to get the width of the non-client area to the left of the client area,
+		// and the height of the non-client area to the top of the client area.
+		// First, we get the client area, which is really just the size because it's always at (0, 0), 
+		// and then we use AdjustWindowRect to expand the window borders.
+		// This results in the left and top coordinates being negative if there is any non-client area there.
 		::RECT window_rect;
 		::GetClientRect(parent, &window_rect);
 		::AdjustWindowRect(&window_rect, GetWindowStyle(parent), false);
 		
-		::GetWindowRect(parent, &rect);
-		rect.left -= window_rect.left;
-		rect.top -= window_rect.top;
-		rect.right += window_rect.left;
-		rect.bottom += window_rect.left;
+		// Get the non-client rectangle of the parent in screen coordinates.
+		::RECT result;
+		::GetWindowRect(parent, &result);
+
+		// Subtract the borders assuming the left, bottom and right non-client sizes are the same.
+		return {
+			result.left - window_rect.left,
+			result.top - window_rect.top,
+			result.right + window_rect.left,
+			result.bottom + window_rect.left,
+		};
 	}
 	else 
 	{ // No parent window, return the work area of the monitor at the cursor position.
@@ -93,12 +108,18 @@ math::Rectangle<Pixels> get_parent_rectangle(::HWND const parent)
 		::GetCursorPos(&cursor_position);
 		
 		auto const monitor = ::MonitorFromPoint(cursor_position, MONITOR_DEFAULTTONEAREST);
-		auto monitor_info = ::MONITORINFO{.cbSize{static_cast<::DWORD>(sizeof(::MONITORINFO))}};
+		auto monitor_info = ::MONITORINFO{
+			.cbSize{static_cast<::DWORD>(sizeof(::MONITORINFO))}
+		};
 		::GetMonitorInfo(monitor, &monitor_info);
 
-		rect = monitor_info.rcWork;
+		return {
+			monitor_info.rcWork.left,
+			monitor_info.rcWork.top,
+			monitor_info.rcWork.right,
+			monitor_info.rcWork.bottom,
+		};
 	}
-	return {rect.left, rect.top, rect.right, rect.bottom};
 }
 
 //------------------------------
@@ -137,6 +158,83 @@ math::Point<Pixels> position_from_parent_relative_factor(math::Vector2d<float> c
 		factor
 	).to<Pixels>();
 }
+
+//------------------------------
+
+class FullscreenToggle {
+public:
+	bool toggle() {
+		assert(window_);
+		if (is_fullscreen_) {
+			restore_();
+		}
+		else {
+			make_fullscreen_();
+		}
+		return is_fullscreen_ = not is_fullscreen_;
+	}
+	[[nodiscard]]
+	bool is_fullscreen() const noexcept {
+		return is_fullscreen_;
+	}
+
+	/*
+		Assumes the window is not fullscreen initially.
+	*/
+	explicit FullscreenToggle(::HWND const window) :
+		window_{window}
+	{}
+
+	FullscreenToggle() = default;
+
+private:
+	void restore_() {
+		::SetWindowLong(window_, GWL_STYLE, style_before_);
+		if (was_maximized_) {
+			::SendMessage(window_, WM_SYSCOMMAND, SC_MAXIMIZE, {});
+		}
+		else {
+			::SetWindowPos(
+				window_, nullptr,
+				rectangle_before_.left, 
+				rectangle_before_.top, 
+				rectangle_before_.right - rectangle_before_.left,
+				rectangle_before_.bottom - rectangle_before_.top,
+				SWP_ASYNCWINDOWPOS | SWP_NOOWNERZORDER | SWP_NOZORDER
+			);
+		}
+	}
+	void make_fullscreen_() {
+		was_maximized_ = static_cast<bool>(::IsZoomed(window_));
+		if (not was_maximized_) {
+			::GetWindowRect(window_, &rectangle_before_);
+		}
+		style_before_ = ::GetWindowLong(window_, GWL_STYLE);
+
+		::SetWindowLong(window_, GWL_STYLE, WS_VISIBLE | WS_MAXIMIZE);
+
+		auto monitor = ::MONITORINFO{
+			.cbSize{sizeof(::MONITORINFO)}
+		};
+		::GetMonitorInfo(::MonitorFromWindow(window_, MONITOR_DEFAULTTONEAREST), &monitor);
+
+		::SetWindowPos(
+			window_, nullptr,
+			monitor.rcMonitor.left, monitor.rcMonitor.top,
+			monitor.rcMonitor.right - monitor.rcMonitor.left,
+			monitor.rcMonitor.bottom - monitor.rcMonitor.top,
+			SWP_ASYNCWINDOWPOS | SWP_NOOWNERZORDER | SWP_NOZORDER
+		);
+	}
+
+	::HWND window_;
+
+	bool is_fullscreen_{};
+	
+	bool was_maximized_;
+	::DWORD style_before_;
+	::RECT rectangle_before_;
+};
 
 //------------------------------
 
@@ -301,6 +399,7 @@ constexpr auto native_key_map = [] {
 
 //------------------------------
 
+[[nodiscard]]
 HINSTANCE get_instance_handle() {
 	return GetModuleHandle(nullptr);
 }
@@ -362,7 +461,7 @@ private:
 
 		WindowClass() 
 		{
-			if (!s_instance_count_++) 
+			if (not s_instance_count_++) 
 			{
 				auto const properties = ::WNDCLASSW{
 					.style{CS_DBLCLKS}, // We want double click events
@@ -375,7 +474,7 @@ private:
 			}
 		}
 		~WindowClass() {
-			if (!--s_instance_count_) {
+			if (not --s_instance_count_) {
 				::UnregisterClass(class_name.data(), get_instance_handle());
 			}
 		}
@@ -483,8 +582,18 @@ private:
 			sizes.max > math::Size<Pixels>{})
 		{
 			auto* const info = reinterpret_cast<::LPMINMAXINFO>(l_data);
-			info->ptMinTrackSize = ::POINT{sizes.min.x, sizes.min.y};
-			info->ptMaxTrackSize = ::POINT{sizes.max.x, sizes.max.y};
+
+			if (sizes.min > math::Size<Pixels>{}) 
+			{
+				auto const adjusted = window_rectangle_from_client_size(handle_, sizes.min);
+				info->ptMinTrackSize = ::POINT{adjusted.width(), adjusted.height()};
+			}
+			else {
+				info->ptMinTrackSize = ::POINT{};
+			}
+
+			auto const adjusted = window_rectangle_from_client_size(handle_, sizes.max);
+			info->ptMaxTrackSize = ::POINT{adjusted.width(), adjusted.height()};
 		}
 		
 		return {};
@@ -506,7 +615,7 @@ private:
 	}
 	::LRESULT handle_mouse_move_(::LPARAM const l_data) 
 	{
-		if (!is_mouse_hovering_)
+		if (not is_mouse_hovering_)
 		{
 			is_mouse_hovering_ = true;
 
@@ -515,7 +624,7 @@ private:
 				.dwFlags{TME_LEAVE},
 				.hwndTrack = handle_,
 			};
-			TrackMouseEvent(&track_parameters);
+			::TrackMouseEvent(&track_parameters);
 		}
 
 		auto const new_position = math::Point{GET_X_LPARAM(l_data), GET_Y_LPARAM(l_data)};
@@ -689,7 +798,8 @@ private:
 		window_created_flag_.notify_one();
 	}
 
-	void run_event_loop_() {
+	void run_event_loop_() 
+	{
 		::MSG message;
 
 		while (::GetMessage(&message, nullptr, ::UINT{}, ::UINT{}))
@@ -706,10 +816,17 @@ private:
 	}
 
 	ScreenUnitConverter unit_converter_{};
+
+	// Used to provide mouse movement for events.
 	math::Point<Pixels> mouse_position_{};
+
+	// Used to tell when to call ::TrackMouseEvent to receive WM_MOUSELEAVE when the mouse leaves the window.
 	bool is_mouse_hovering_{};
+
+	// Used to tell when a WM_SIZE message indicates that the window was restored and not just resized.
 	State state_{State::Restored};
 
+	// Used to respond to WM_GETMINMAXINFO. It's atomic because it is set by user code.
 	std::atomic<MinMaxSize<Pixels>> min_max_size_{};
 
 	WindowClass window_class_;
@@ -761,7 +878,11 @@ public:
 	}
 
 	bool toggle_fullscreen() {
-		return {};
+		return fullscreen_toggle_.toggle();
+	}
+	[[nodiscard]]
+	bool is_fullscreen() const {
+		return fullscreen_toggle_.is_fullscreen();
 	}
 
 	void position(math::Point<Pixels> const position) {
@@ -816,7 +937,8 @@ public:
 	}
 
 	[[nodiscard]]
-	Event await_event() {
+	Event await_event() 
+	{
 		auto event = channel_.receive();
 
 		if (auto const dpi_event = std::get_if<event::DpiChange>(&event))
@@ -834,9 +956,11 @@ public:
 
 		return event;
 	}
+
 	[[nodiscard]]
-	std::optional<Event> take_event() {
-		if (!channel_.was_queue_recently_empty()) {
+	std::optional<Event> take_event() 
+	{
+		if (not channel_.was_queue_recently_empty()) {
 			return await_event();
 		}
 		return std::nullopt;
@@ -853,12 +977,14 @@ public:
 		window_thread_{win::WindowThread{parameters, std::move(channel.sender)}}
 	{
 		window_thread_.wait_until_window_created();
+		fullscreen_toggle_ = win::FullscreenToggle{window_thread_.get_handle()};
 	}
 
 private:
 	float dpi_{ScreenUnitConverter::normal_dpi};
 	math::Size<Dip> size_;
 	bool is_open_{true};
+	win::FullscreenToggle fullscreen_toggle_;
 
 	concurrency::Receiver<Event> channel_;
 	win::WindowThread window_thread_;

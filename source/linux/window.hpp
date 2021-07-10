@@ -328,7 +328,7 @@ void initialize_styles(::Display* const server, ::Window const window,
 		make_window_borderless(server, window);
 	}
 
-	if (!util::has_flag(parameters.style, StyleFlags::Resizable)) {
+	if (not util::has_flag(parameters.style, StyleFlags::Resizable)) {
 		auto const size = converter.dip_to_pixels(parameters.size);
 		set_min_max_size(server, window, {.min=size, .max=size});
 	}
@@ -337,7 +337,7 @@ void initialize_styles(::Display* const server, ::Window const window,
 	}	
 
 	// Show the window.
-	if (!util::has_flag(parameters.style, StyleFlags::Invisible)) {
+	if (not util::has_flag(parameters.style, StyleFlags::Invisible)) {
 		::XMapWindow(server, window);
 	}
 
@@ -370,7 +370,7 @@ void set_window_state(::Display* const server, ::Window const window,
 	};
 	event.xclient.data.l[0] = static_cast<long>(state_action);
 	event.xclient.data.l[1] = ::XInternAtom(server, action_0.data(), false);
-	if (!action_1.empty()) {
+	if (not action_1.empty()) {
 		event.xclient.data.l[2] = ::XInternAtom(server, action_1.data(), false);
 	}
 
@@ -486,7 +486,7 @@ public:
 	bool toggle_fullscreen() {
 		x11::set_window_state(server_.get(), handle_.get(), x11::StateAction::Toggle, "_NET_WM_STATE_FULLSCREEN");
 		::XFlush(server_.get());
-		return is_fullscreen_ = !is_fullscreen_;
+		return is_fullscreen_ = not is_fullscreen_;
 	}
 
 	void position(math::Point<Pixels> const position) noexcept {

@@ -14,11 +14,11 @@ int main() {
 
 	auto parent = avo::window::create("BIG G")
 		.size(Size{500.f, 400.f})
-		.min_max_size({Size{200.f, 300.f}, Size{700.f, 500.f}})
 		.open();
 
 	auto child = avo::window::create("Smol")
 		.size(Size{200.f, 150.f})
+		.min_max_size({Size{100.f, 100.f}, Size{700.f, 500.f}})
 		.with_parent(parent)
 		.open();
 
@@ -27,8 +27,12 @@ int main() {
 	event_manager.add_listener([](event::KeyDown const& event) {
 		fmt::print("The key '{}' was pressed. Repeat: {}\n", enum_name(event.key), event.is_repeated);
 	});
-	event_manager.add_listener([](event::KeyUp const& event) {
+	event_manager.add_listener([&](event::KeyUp const& event) {
 		fmt::print("The key '{}' was released.\n", enum_name(event.key));
+
+		if (event.key == avo::window::KeyboardKey::F) {
+			fmt::print("Fullscreen: {}\n", parent.toggle_fullscreen());
+		}
 	});
 	event_manager.add_listener([](event::CharacterInput const& event) {
 		fmt::print("The character '{}' was input. Repeat: {}\n", event.character, event.is_repeated);

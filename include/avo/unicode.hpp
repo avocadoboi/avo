@@ -57,7 +57,7 @@ std::string utf16_to_utf8(std::u16string_view input) noexcept;
 [[nodiscard]]
 constexpr int code_point_count(char const first_code_point_in_character) noexcept {
 	// http://www.unicode.org/versions/Unicode12.1.0/ch03.pdf , page 126
-	if (!(first_code_point_in_character & 0x80)) // 0xxxxxxx
+	if (not (first_code_point_in_character & 0x80)) // 0xxxxxxx
 		return 1;
 	if ((first_code_point_in_character & 0xc0) == 0x80) // 10??????
 		return 0;
@@ -113,7 +113,7 @@ template<IsCodePoint T>
 [[nodiscard]]
 constexpr std::size_t code_point_index(std::basic_string_view<T> const string, std::size_t const character_index) 
 {
-	if (!character_index) {
+	if (character_index == 0) {
 		return {};
 	}
 	if (character_index >= string.size()) {
@@ -137,7 +137,7 @@ template<IsCodePoint T>
 [[nodiscard]]
 constexpr std::size_t character_index(std::basic_string_view<T> const string, std::size_t const code_point_index) 
 {
-	if (!code_point_index) {
+	if (code_point_index == 0) {
 		return {};
 	}
 	if (code_point_index >= string.size()) {

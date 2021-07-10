@@ -192,7 +192,7 @@ using DataRange = std::span<std::byte>;
 inline DataVector read_file(std::string const path) {
 	auto file = std::ifstream(path.data(), std::ios::ate | std::ios::binary);
 
-	if (!file) {
+	if (not file) {
 		return {};
 	}
 

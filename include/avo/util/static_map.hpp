@@ -96,14 +96,14 @@ public:
 	template<bool is_key_second_type = false>
 	[[nodiscard]]
 	constexpr first_type* find(second_type const& key) 
-		requires (!std::same_as<first_type, second_type>) || is_key_second_type
+		requires (not std::same_as<first_type, second_type>) || is_key_second_type
 	{
 		return const_cast<first_type*>(static_cast<StaticMap const*>(this)->find(key));
 	}
 	template<bool is_key_second_type = false>
 	[[nodiscard]]
 	constexpr first_type const* find(second_type const& key) const
-		requires (!std::same_as<first_type, second_type>) || is_key_second_type
+		requires (not std::same_as<first_type, second_type>) || is_key_second_type
 	{
 		if (auto const pos = std::ranges::find(array_, key, &value_type::second);
 			pos != std::ranges::end(array_)) 
@@ -116,7 +116,7 @@ public:
 	template<bool is_key_second_type = false>
 	[[nodiscard]]
 	constexpr first_type const& find_or(second_type const& key, first_type const& default_value) const
-		requires (!std::same_as<first_type, second_type>) || is_key_second_type
+		requires (not std::same_as<first_type, second_type>) || is_key_second_type
 	{
 		if (auto const pos = std::ranges::find(array_, key, &value_type::second);
 			pos != std::ranges::end(array_)) 
@@ -129,7 +129,7 @@ public:
 	template<bool is_key_second_type = false>
 	[[nodiscard]]
 	constexpr std::ranges::view auto find_all(second_type const& key) 
-		requires (!std::same_as<first_type, second_type>) || is_key_second_type
+		requires (not std::same_as<first_type, second_type>) || is_key_second_type
 	{
 		return array_ | std::views::filter([&](value_type& pair) {
 			return pair.second == key;
@@ -140,7 +140,7 @@ public:
 	template<bool is_key_second_type = false>
 	[[nodiscard]]
 	constexpr std::ranges::view auto find_all(second_type const& key) const 
-		requires (!std::same_as<first_type, second_type>) || is_key_second_type
+		requires (not std::same_as<first_type, second_type>) || is_key_second_type
 	{
 		return array_ | std::views::filter([&](value_type const& pair) {
 			return pair.second == key;
