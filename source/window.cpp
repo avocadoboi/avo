@@ -32,6 +32,9 @@ std::string Window::title() const {
 bool Window::toggle_fullscreen() {
 	return implementation_->toggle_fullscreen();
 }
+bool Window::is_fullscreen() const {
+	return implementation_->is_fullscreen();
+}
 
 void Window::position(math::Point<Pixels> const position) {
 	implementation_->position(position);

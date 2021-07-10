@@ -5,20 +5,23 @@
 #include <thread>
 
 using namespace std::chrono_literals;
+using magic_enum::enum_name;
+namespace event = avo::window::event;
 
 int main() {
 	using namespace avo::math;
-	namespace event = avo::window::event;
+	using enum avo::window::StyleFlags;
 
-	using magic_enum::enum_name;
+	auto const min_max_size = avo::util::MinMax{Size{150.f, 150.f}, Size{700.f, 500.f}};
 
 	auto parent = avo::window::create("BIG G")
 		.size(Size{500.f, 400.f})
+		.min_max_size(min_max_size)
+		.style(CloseButton | MinimizeButton | Resizable)
 		.open();
 
 	auto child = avo::window::create("Smol")
 		.size(Size{200.f, 150.f})
-		.min_max_size({Size{100.f, 100.f}, Size{700.f, 500.f}})
 		.with_parent(parent)
 		.open();
 
@@ -31,6 +34,12 @@ int main() {
 		fmt::print("The key '{}' was released.\n", enum_name(event.key));
 
 		if (event.key == avo::window::KeyboardKey::F) {
+			if (parent.is_fullscreen()) {
+				parent.min_max_size(min_max_size);
+			}
+			else {
+				parent.min_max_size({});
+			}
 			fmt::print("Fullscreen: {}\n", parent.toggle_fullscreen());
 		}
 	});
