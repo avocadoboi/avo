@@ -320,7 +320,6 @@ public:
 	
 	explicit Window(Parameters const& parameters);
 
-	Window() = delete;
 	~Window(); // = default in .cpp
 
 	Window(Window&&) noexcept; // = default in .cpp
@@ -456,23 +455,23 @@ public:
 	/*
 		Notifies listeners of any events currently available from the window.
 	*/
-	void update() {
-		while (auto const event = window_->take_event()) {
+	void update(Window& window) {
+		while (auto const event = window.take_event()) {
 			send_event_(*event);
 		}
 	}
 	/*
 		Waits for one event from the window and notifies any listeners.
 	*/
-	void update_wait() {
-		send_event_(window_->await_event());
+	void update_wait(Window& window) {
+		send_event_(window.await_event());
 	}
 	/*
 		Blocks until the window has been closed, automatically notifying event listeners of new events from the window.
 	*/
-	void run() {
-		while (window_->is_open()) {
-			update_wait();
+	void run(Window& window) {
+		while (window.is_open()) {
+			update_wait(window);
 		}
 	}
 
@@ -497,10 +496,6 @@ public:
 		return *this;
 	}
 
-	explicit EventManager(Window& window) :
-		window_{&window}
-	{}
-
 private:
 	void send_event_(Event const& event_variant)
 	{
@@ -517,8 +512,6 @@ private:
 				}, *listener, event_variant);
 		}
 	}
-
-	Window* window_;
 
 	std::vector<EventListener> listeners_;
 };

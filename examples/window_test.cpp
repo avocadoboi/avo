@@ -25,7 +25,7 @@ int main() {
 		.with_parent(parent)
 		.open();
 
-	auto event_manager = avo::window::EventManager{parent};
+	auto event_manager = avo::window::EventManager{};
 
 	event_manager.add_listener([](event::KeyDown const& event) {
 		fmt::print("The key '{}' was pressed. Repeat: {}\n", enum_name(event.key), event.is_repeated);
@@ -76,7 +76,7 @@ int main() {
 	event_manager.add_listener([](event::DpiChange const& event) {
 		fmt::print("DPI changed and is now {}.\n", event.dpi);
 	});
-	event_manager.run();
+	event_manager.run(parent);
 
 	fmt::print("Finished running.\n");
 }
