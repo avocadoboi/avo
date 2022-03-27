@@ -2,7 +2,7 @@
 
 #include <magic_enum.hpp>
 
-#include <thread>
+#include <chrono>
 
 using namespace std::chrono_literals;
 using magic_enum::enum_name;

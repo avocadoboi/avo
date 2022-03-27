@@ -13,7 +13,7 @@ add_library(${PROJECT_NAME}::avo ALIAS avo)
 #--------------------------------------------
 # Set up library target options.
 
-target_compile_features(avo PUBLIC cxx_std_20)
+target_compile_features(avo PUBLIC cxx_std_23)
 set_target_properties(avo PROPERTIES CXX_EXTENSIONS off)
 
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
@@ -35,7 +35,7 @@ add_subdirectory(source)
 
 find_package(fmt CONFIG REQUIRED)
 target_link_libraries(avo PUBLIC fmt::fmt-header-only)
-target_link_libraries(avo PUBLIC atomic)
+# target_link_libraries(avo PUBLIC atomic)
 # target_precompile_headers(avo PRIVATE <fmt/format.h> <fmt/ranges.h>)
 
 #--------------------------------------------
