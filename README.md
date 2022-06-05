@@ -65,6 +65,7 @@ include(FetchContent)
 FetchContent_Declare(
   Avo
   GIT_REPOSITORY https://github.com/avocadoboi/avo.git
+  GIT_TAG cpp20-rewrite
 )
 FetchContent_MakeAvailable(Avo)
 
