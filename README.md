@@ -6,13 +6,15 @@ The library was initially written in C++17, but now it is being rewritten from s
 
 It can currently be built by GCC and MSVC, but not Clang because it does not yet support all the features used.
 
-Avo currently consists of:
+Avo consists of:
 * Various modern utilities
 * Mathematical types and functions
 * A windowing library
-* A graphics drawing library
+* A graphics drawing library (not yet)
 
 # Aims and features
+
+Note: The new version of this library has only begun development and is very far from finished.
 
 * The design of the library is modular and different parts can be used (and tested) separately.
 * The library utilizes different programming paradigms and avoids inheritance hierarchies to be more flexible.
