@@ -449,6 +449,13 @@ public:
 		channel_{std::move(channel)},
 		thread_{&WindowThread::run_, this, parameters}
 	{}
+	~WindowThread() = default;
+
+	WindowThread(WindowThread const&) = delete;
+	WindowThread& operator=(WindowThread const&) = delete;
+
+	WindowThread(WindowThread&&) = delete;
+	WindowThread& operator=(WindowThread&&) = delete;
 
 private:
 	/*
@@ -485,7 +492,7 @@ private:
 		WindowClass& operator=(WindowClass const&) = delete;
 
 	private:
-		static WindowThread* s_instance_from_event_(HWND const handle, UINT const message, LPARAM const l_data) 
+		static WindowThread* s_instance_from_event_(::HWND const handle, ::UINT const message, ::LPARAM const l_data) 
 		{
 			if (message == WM_CREATE)
 			{
@@ -499,8 +506,8 @@ private:
 			}
 		}
 		
-		static LRESULT CALLBACK s_handle_any_window_event_(
-			HWND const window_handle, UINT const message, WPARAM const w_data, LPARAM const l_data)
+		static ::LRESULT CALLBACK s_handle_any_window_event_(
+			::HWND const window_handle, ::UINT const message, ::WPARAM const w_data, ::LPARAM const l_data)
 		{
 			if (auto const instance = s_instance_from_event_(window_handle, message, l_data))
 			{
@@ -602,7 +609,7 @@ private:
 	{
 		channel_.send(event::DpiChange{.dpi{static_cast<float>(HIWORD(w_data))}});
 
-		auto const new_rectangle = reinterpret_cast<RECT const*>(l_data);
+		auto const new_rectangle = reinterpret_cast<::RECT const*>(l_data);
 		::SetWindowPos(
 			handle_, nullptr,
 			new_rectangle->left,

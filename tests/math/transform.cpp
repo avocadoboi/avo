@@ -54,8 +54,8 @@ TEST_CASE("Runtime operations with transforms and 2D vectors") {
 		.translate(Vector2d{-1.5f, -4.5f})
 		.scale(square<Vector2d>(0.6f)) * to_transform;
 	auto const result_1 = (rotated(to_transform, Degrees{40}) + Vector2d{-1.5f, -4.5f}) * 0.6f;
-	CHECK(result_0.x == Approx{result_1.x});
-	CHECK(result_0.y == Approx{result_1.y});
+	CHECK(result_0.x == Catch::Approx{result_1.x});
+	CHECK(result_0.y == Catch::Approx{result_1.y});
 }
 
 TEST_CASE("avo::math::Transform formatting") {

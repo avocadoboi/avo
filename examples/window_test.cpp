@@ -20,10 +20,10 @@ int main() {
 		.style(CloseButton | MinimizeButton | Resizable)
 		.open();
 
-	auto child = avo::window::create("Smol")
-		.size(Size{200.f, 150.f})
-		.with_parent(parent)
-		.open();
+	// auto child = avo::window::create("Smol")
+	// 	.size(Size{200.f, 150.f})
+	// 	.with_parent(parent)
+	// 	.open();
 
 	auto event_manager = avo::window::EventManager{};
 

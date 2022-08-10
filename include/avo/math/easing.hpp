@@ -15,14 +15,11 @@ namespace avo::math {
 	Ease out example:
 	Easing{Point{0.f, 0.f}, Point{0.3f, 1.f}}.ease_value(x)
 	See Easing::ease_value() for more info.
-
-	Storing Easing objects in a Theme can be a good idea because you can use the same easings within your whole
-	application, or different parts of it.
 */
 struct Easing final {
 	Point<> c0, c1;
 
-	constexpr bool operator==(Easing const&) const = default;
+	constexpr bool operator==(Easing const&) const noexcept = default;
 
 	static constexpr auto default_precision = 5e-3f;
 
