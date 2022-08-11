@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cassert>
 #include <concepts>
+#include <memory>
 #include <type_traits>
 
 namespace avo::util {
@@ -17,46 +18,104 @@ public:
 		using value_type = T;
 		using reference = std::conditional_t<is_const, value_type const&,  value_type&>;
 		using pointer = std::conditional_t<is_const, value_type const*, value_type*>;
-		// using iterator_category = std::random_access_iterator;
+		using difference_type = std::ptrdiff_t;
+		using iterator_category = std::forward_iterator_tag;
+		using iterator_concept = iterator_category;
+
+		constexpr Iterator& operator++() {
+			++pos_;
+			if (pos_ == buffer_ + capacity) {
+				pos_ = buffer_;
+			}
+			is_at_end_ = pos_ == tail_;
+			
+			return *this;
+		}
+		constexpr Iterator operator++(int) {
+			auto previous = *this;
+			++*this;
+			return previous;
+		}
+		[[nodiscard]]
+		constexpr reference operator*() const {
+			return *pos_;
+		}
+
+		[[nodiscard]]
+		constexpr bool operator==(Iterator const&) const = default;
+		[[nodiscard]]
+		constexpr bool operator==(std::default_sentinel_t) const {
+			return is_at_end_;
+		}
+		[[nodiscard]]
+		constexpr bool operator!=(std::default_sentinel_t) const {
+			return !is_at_end_;
+		}
+
+		constexpr Iterator() = default;
+		constexpr Iterator(pointer const buffer, pointer const pos, pointer const tail) :
+			buffer_{buffer},
+			pos_{pos},
+			tail_{tail}
+		{}
+
 	private:
+		pointer buffer_;
+		pointer pos_;
+		pointer tail_;
+		bool is_at_end_{false};
 	};
 
+	[[nodiscard]]
 	constexpr Iterator<false> begin() {
-
+		return Iterator<false>{buffer_.begin(), buffer_.begin() + head_, buffer_.begin() + tail_};
 	}
+	[[nodiscard]]
 	constexpr Iterator<true> begin() const {
-
+		return Iterator<true>{buffer_.begin(), buffer_.begin() + head_, buffer_.begin() + tail_};
+	}
+	[[nodiscard]]
+	constexpr std::default_sentinel_t end() const {
+		return {};
 	}
 
+	[[nodiscard]]
 	constexpr std::size_t size() const {
 		return tail_ > head_ ? tail_ - head_ : is_empty_ ? 0 : capacity - head_ + tail_;
 	}
+	[[nodiscard]]
 	constexpr bool is_empty() const {
 		return is_empty_;
 	}
 
+	[[nodiscard]]
 	constexpr T const& front() const {
 		assert(not is_empty_);
 		return buffer_[head_];
 	}
+	[[nodiscard]]
 	constexpr T& front() {
 		assert(not is_empty_);
 		return buffer_[head_];
 	}
 
+	[[nodiscard]]
 	constexpr T const& back() const {
 		assert(not is_empty_);
 		return buffer_[tail_ == 0 ? capacity - 1 : tail_ - 1];
 	}
+	[[nodiscard]]
 	constexpr T& back() {
 		assert(not is_empty_);
 		return buffer_[tail_ == 0 ? capacity - 1 : tail_ - 1];
 	}
 
+	[[nodiscard]]
 	constexpr T const& operator[](std::size_t const i) const {
 		assert(i < size());
 		return buffer_[(head_ + i) % capacity];
 	}
+	[[nodiscard]]
 	constexpr T& operator[](std::size_t const i) {
 		assert(i < size());
 		return buffer_[(head_ + i) % capacity];
@@ -83,6 +142,7 @@ public:
 			}
 		}
 	}
+
 	constexpr void pop_front() {
 		if (is_empty_) {
 			return;
@@ -124,6 +184,15 @@ public:
 		if (tail_ == head_) {
 			is_empty_ = true;
 		}
+	}
+
+	constexpr void resize(std::size_t const new_size) {
+		auto const new_tail = (head_ + new_size) % capacity;
+		if (new_size < size()) {
+			std::ranges::destroy(Iterator<false>{buffer_.begin(), buffer_.begin() + new_tail, buffer_.begin() + tail_}, std::default_sentinel);
+		}
+		tail_ = new_tail;
+		is_empty_ = new_size == std::size_t{};
 	}
 
 private:

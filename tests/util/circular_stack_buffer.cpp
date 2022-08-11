@@ -116,3 +116,27 @@ TEST_CASE("CircularStackBuffer pop_front and pop_back") {
 	REQUIRE(stack_buffer.back() == 2);
 	REQUIRE(stack_buffer[0] == 2);
 }
+
+TEST_CASE("CircularStackBuffer std::ranges::copy and std::ranges::equal") {
+	constexpr auto source_buffer = std::array{-81, 74, -44, -82, -37, 87, -52, -52, 8, -68};
+	
+	using Buffer = avo::util::CircularStackBuffer<int, source_buffer.size()>;
+	
+	auto buffer_a = Buffer{};
+	for (auto const n : source_buffer) {
+		buffer_a.push_back(n);
+	}
+
+	auto buffer_b = Buffer{};
+	buffer_b.resize(buffer_a.size());
+	std::ranges::copy(source_buffer, buffer_b.begin());
+
+	REQUIRE(std::ranges::equal(buffer_a, buffer_b));
+	REQUIRE(buffer_a.size() == source_buffer.size());
+	REQUIRE(buffer_a.size() == buffer_b.size());
+
+	for (auto const i : avo::util::indices(source_buffer)) {
+		REQUIRE(buffer_a[i] == source_buffer[i]);
+		REQUIRE(buffer_b[i] == source_buffer[i]);
+	}
+}
