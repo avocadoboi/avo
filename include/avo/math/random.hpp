@@ -10,8 +10,18 @@ namespace avo::math {
 	A random number generator, a small abstraction on top of a subset 
 	of the standard library random utilities.
 */
+template<std::uniform_random_bit_generator Engine_ = std::mt19937>
 class Random final {
 public:
+	Engine_& engine() {
+		return engine_;
+	}
+	/*
+		Generates a new random integer.
+	*/
+	Engine_::result_type next() {
+		return engine_();
+	}
 	/*
 		Generates a new uniformly distributed random floating point number in the range [min, max).
 	*/
@@ -74,12 +84,12 @@ public:
 	}
 
 	Random() = default;
-	Random(std::uint_fast32_t const seed) :
+	explicit Random(Engine_::result_type const seed) :
 		engine_{seed}
 	{}
 
 private:
-	std::mt19937 engine_{std::random_device{}()};
+	Engine_ engine_{std::random_device{}()};
 };
 	
 } // namespace avo::math
