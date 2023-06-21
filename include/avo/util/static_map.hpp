@@ -36,15 +36,15 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::size_t size() const noexcept {
+	constexpr std::size_t size() const {
 		return size_;
 	}
 	[[nodiscard]]
-	constexpr value_type* data() noexcept {
+	constexpr value_type* data() {
 		return std::ranges::data(array_);
 	}
 	[[nodiscard]]
-	constexpr value_type const* data() const noexcept {
+	constexpr value_type const* data() const {
 		return std::ranges::data(array_);
 	}
 

@@ -19,7 +19,7 @@ namespace avo::math {
 struct Easing final {
 	Point<> c0, c1;
 
-	constexpr bool operator==(Easing const&) const noexcept = default;
+	constexpr bool operator==(Easing const&) const = default;
 
 	static constexpr auto default_precision = 5e-3f;
 
@@ -34,7 +34,7 @@ struct Easing final {
 	static constexpr float ease_value(
 		Point<> const c0, Point<> const c1, 
 		float const value, float const precision = default_precision
-	) noexcept {
+	) {
 		constexpr auto extreme_value_threshold = 1e-5f;
 		
 		if (value <= extreme_value_threshold) {
@@ -61,10 +61,10 @@ struct Easing final {
 		return t * ((1.f - t) * (3.f * (1.f - t) * c0.y + 3.f * t * c1.y) + t * t);
 	}
 
-	constexpr float ease_value(float const value, float const precision = default_precision) const noexcept {
+	constexpr float ease_value(float const value, float const precision = default_precision) const {
 		return ease_value(c0, c1, value, precision);
 	}
-	constexpr float ease_value_inverse(float const value, float const precision = default_precision) const noexcept {
+	constexpr float ease_value_inverse(float const value, float const precision = default_precision) const {
 		return ease_value(Point{c0.y, c0.x}, Point{c1.y, c1.x}, value, precision);
 	}
 };

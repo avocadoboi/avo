@@ -50,13 +50,13 @@ public:
 	DisplayResourceHandle(DisplayResourceHandle const&) = delete;
 	DisplayResourceHandle& operator=(DisplayResourceHandle const&) = delete;
 	
-	DisplayResourceHandle(DisplayResourceHandle&& other) noexcept :
+	DisplayResourceHandle(DisplayResourceHandle&& other) :
 		server_{other.server_},
 		value_{other.value_}
 	{
 		other.server_ = nullptr;
 	}
-	DisplayResourceHandle& operator=(DisplayResourceHandle&& other) noexcept {
+	DisplayResourceHandle& operator=(DisplayResourceHandle&& other) {
 		server_ = other.server_;
 		value_ = other.value_;
 		other.server_ = nullptr;

@@ -51,12 +51,12 @@ struct MinMax {
 	T min, max;
 
 	[[nodiscard]]
-	constexpr bool valid() const noexcept {
+	constexpr bool valid() const {
 		return min < max;
 	}
 
 	[[nodiscard]]
-	constexpr explicit operator bool() const noexcept 
+	constexpr explicit operator bool() const 
 		requires std::convertible_to<T, bool>
 	{
 		return static_cast<bool>(min) || static_cast<bool>(max);
@@ -87,23 +87,23 @@ concept IsBitFlag = is_bit_flag<T>;
 
 template<avo::util::IsBitFlag T>
 [[nodiscard]]
-constexpr T operator|(T const left, T const right) noexcept 
+constexpr T operator|(T const left, T const right) 
 {
 	return static_cast<T>(static_cast<std::underlying_type_t<T>>(left) | static_cast<std::underlying_type_t<T>>(right));
 }
 template<avo::util::IsBitFlag T>
-constexpr T& operator|=(T& left, T const right) noexcept 
+constexpr T& operator|=(T& left, T const right) 
 {
 	return left = left | right;
 }
 template<avo::util::IsBitFlag T>
 [[nodiscard]]
-constexpr T operator&(T const left, T const right) noexcept 
+constexpr T operator&(T const left, T const right) 
 {
 	return static_cast<T>(static_cast<std::underlying_type_t<T>>(left) & static_cast<std::underlying_type_t<T>>(right));
 }
 template<avo::util::IsBitFlag T>
-constexpr T& operator&=(T& left, T const right) noexcept 
+constexpr T& operator&=(T& left, T const right) 
 {
 	return left = left & right;
 }
@@ -116,7 +116,7 @@ namespace avo::util {
 template<class T>
 	requires IsBitFlag<T> || std::integral<T>
 [[nodiscard]]
-constexpr bool has_flag(T const flags, T const flag) noexcept {
+constexpr bool has_flag(T const flags, T const flag) {
 	return (flags & flag) != T{};
 }
 

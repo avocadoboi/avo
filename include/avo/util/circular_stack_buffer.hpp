@@ -47,10 +47,10 @@ public:
 		constexpr bool operator==(std::default_sentinel_t) const {
 			return is_at_end_;
 		}
-		[[nodiscard]]
-		constexpr bool operator!=(std::default_sentinel_t) const {
-			return !is_at_end_;
-		}
+		// [[nodiscard]]
+		// constexpr bool operator!=(std::default_sentinel_t) const {
+		// 	return !is_at_end_;
+		// }
 
 		constexpr Iterator() = default;
 		constexpr Iterator(pointer const buffer, pointer const pos, pointer const tail) :
@@ -68,11 +68,11 @@ public:
 
 	[[nodiscard]]
 	constexpr Iterator<false> begin() {
-		return Iterator<false>{buffer_.begin(), buffer_.begin() + head_, buffer_.begin() + tail_};
+		return Iterator<false>{buffer_.data(), buffer_.data() + head_, buffer_.data() + tail_};
 	}
 	[[nodiscard]]
 	constexpr Iterator<true> begin() const {
-		return Iterator<true>{buffer_.begin(), buffer_.begin() + head_, buffer_.begin() + tail_};
+		return Iterator<true>{buffer_.data(), buffer_.data() + head_, buffer_.data() + tail_};
 	}
 	[[nodiscard]]
 	constexpr std::default_sentinel_t end() const {
@@ -189,7 +189,7 @@ public:
 	constexpr void resize(std::size_t const new_size) {
 		auto const new_tail = (head_ + new_size) % capacity;
 		if (new_size < size()) {
-			std::ranges::destroy(Iterator<false>{buffer_.begin(), buffer_.begin() + new_tail, buffer_.begin() + tail_}, std::default_sentinel);
+			std::ranges::destroy(Iterator<false>{buffer_.data(), buffer_.data() + new_tail, buffer_.data() + tail_}, std::default_sentinel);
 		}
 		tail_ = new_tail;
 		is_empty_ = new_size == std::size_t{};

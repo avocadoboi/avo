@@ -201,7 +201,7 @@ public:
 	}
 
 	[[nodiscard]]
-	Id id() const noexcept {
+	Id id() const {
 		return id_;
 	}
 	Node& id(Id const new_id) {

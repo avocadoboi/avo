@@ -82,12 +82,12 @@ public:
 		close();
 	}
 
-	UniqueHandle(UniqueHandle&& handle) noexcept :
+	UniqueHandle(UniqueHandle&& handle) :
 		handle_{handle.handle_}
 	{
 		handle.handle_ = invalid_handle;
 	}
-	UniqueHandle& operator=(UniqueHandle&& handle) noexcept {
+	UniqueHandle& operator=(UniqueHandle&& handle) {
 		handle_ = handle.handle_;
 		handle.handle_ = invalid_handle;
 		return *this;

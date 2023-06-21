@@ -1,7 +1,7 @@
 #ifdef __GNUG__
-#pragma GCC diagnostic push
+#	pragma GCC diagnostic push
 // GCC doesn't know that these headers will only ever be included in this translation unit.
-#pragma GCC diagnostic ignored "-Wsubobject-linkage"
+#	pragma GCC diagnostic ignored "-Wsubobject-linkage"
 #endif
 
 #ifdef __linux__

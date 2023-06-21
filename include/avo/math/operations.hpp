@@ -80,7 +80,7 @@ constexpr bool approximately_equal(T const a, T const b, T const max_difference 
 */
 template<util::IsNumber T>
 [[nodiscard]]
-constexpr T square(T const x) noexcept {
+constexpr T square(T const x) {
 	return x*x;
 }
 
@@ -89,12 +89,11 @@ constexpr T square(T const x) noexcept {
 	It is about 8% to 15% faster than 1.f/std::sqrt(x) with gcc -O3 on my computer.
 */
 [[nodiscard]]
-inline float fast_inverse_sqrt(float const input) noexcept 
+inline float fast_inverse_sqrt(float const input) 
 {
 	static_assert(std::numeric_limits<float>::is_iec559, "fast_inverse_sqrt error: float type must follow IEEE 754-1985 standard.");
 	static_assert(sizeof(float) == 4, "fast_inverse_sqrt error: sizeof(float) must be 4.");
 
-	// Only way to do type punning without undefined behavior it seems.
 	std::uint32_t bits;
 	std::memcpy(&bits, &input, 4);
 

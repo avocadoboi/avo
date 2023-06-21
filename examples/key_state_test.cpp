@@ -8,13 +8,11 @@ int main()
 {
 	while (true) 
 	{
-		using namespace avo::window;
-
-		if (get_is_key_down(KeyboardKey::Left)) 
+		if (avo::window::get_is_key_down(avo::window::KeyboardKey::Left)) 
 		{
 			fmt::print("Left keyboard key is pressed!\n");
 		}
-		if (get_is_mouse_button_down(MouseButton::Left)) 
+		if (avo::window::get_is_mouse_button_down(avo::window::MouseButton::Left)) 
 		{
 			fmt::print("Left mouse button is pressed!\n");
 		}

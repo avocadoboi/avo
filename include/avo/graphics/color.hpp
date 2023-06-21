@@ -28,7 +28,7 @@ struct Color final {
 	/*
 		The channels are clamped to the range [0, 1].
 	*/
-	constexpr Color(value_type const p_red, value_type const p_green, value_type const p_blue, value_type const p_alpha = 1.f) noexcept :
+	constexpr Color(value_type const p_red, value_type const p_green, value_type const p_blue, value_type const p_alpha = 1.f) :
 		red{math::unit_clamp(p_red)}, 
 		green{math::unit_clamp(p_green)}, 
 		blue{math::unit_clamp(p_blue)}, 
@@ -42,7 +42,7 @@ struct Color final {
 		std::uint8_t const p_green, 
 		std::uint8_t const p_blue, 
 		std::uint8_t const p_alpha = static_cast<std::uint8_t>(255)
-	) noexcept :
+	) :
 		red{p_red / 255.f},
 		green{p_green / 255.f},
 		blue{p_blue / 255.f},
@@ -52,7 +52,7 @@ struct Color final {
 		The channels are clamped to the range [0, 255]
 	*/
 	template<std::integral T>
-	constexpr Color(T const p_red, T const p_green, T const p_blue, T const p_alpha = static_cast<T>(255)) noexcept :
+	constexpr Color(T const p_red, T const p_green, T const p_blue, T const p_alpha = static_cast<T>(255)) :
 		red{math::unit_clamp(p_red / 255.f)},
 		green{math::unit_clamp(p_green / 255.f)},
 		blue{math::unit_clamp(p_blue / 255.f)},
@@ -62,7 +62,7 @@ struct Color final {
 	/*
 		Initializes the color with a grayscale value. The values are clamped to the range [0, 1].
 	*/
-	explicit constexpr Color(value_type const lightness, value_type const p_alpha = 1.f) noexcept :
+	explicit constexpr Color(value_type const lightness, value_type const p_alpha = 1.f) :
 		red{math::unit_clamp(lightness)},
 		green{math::unit_clamp(lightness)},
 		blue{math::unit_clamp(lightness)},
@@ -71,7 +71,7 @@ struct Color final {
 	/*
 		Initializes the color with a grayscale value. The values are bytes in the range [0, 255].
 	*/
-	explicit constexpr Color(std::uint8_t const lightness, std::uint8_t const p_alpha = 255u) noexcept :
+	explicit constexpr Color(std::uint8_t const lightness, std::uint8_t const p_alpha = 255u) :
 		red{lightness/255.f},
 		green{red},
 		blue{red},
@@ -81,7 +81,7 @@ struct Color final {
 		Initializes the color with a grayscale value. The values are clamped to the range [0, 255].
 	*/
 	template<std::integral T>
-	explicit constexpr Color(T const lightness, T const p_alpha = static_cast<T>(255)) noexcept :
+	explicit constexpr Color(T const lightness, T const p_alpha = static_cast<T>(255)) :
 		red{math::unit_clamp(static_cast<value_type>(lightness) / 255.f)},
 		green{red},
 		blue{red},
@@ -91,7 +91,7 @@ struct Color final {
 	/*
 		Creates a copy of another color but with a new alpha.
 	*/
-	constexpr Color(Color const color, value_type const p_alpha) noexcept :
+	constexpr Color(Color const color, value_type const p_alpha) :
 		red{color.red}, 
 		green{color.green}, 
 		blue{color.blue}, 
@@ -100,7 +100,7 @@ struct Color final {
 	/*
 		Creates a copy of another color but with a new alpha.
 	*/
-	constexpr Color(Color const color, std::uint8_t const p_alpha) noexcept :
+	constexpr Color(Color const color, std::uint8_t const p_alpha) :
 		red{color.red / 255.f},
 		green{color.green / 255.f},
 		blue{color.blue / 255.f},
@@ -110,7 +110,7 @@ struct Color final {
 		Creates a copy of another color but with a new alpha.
 	*/
 	template<std::integral T>
-	constexpr Color(Color const color, T const p_alpha) noexcept :
+	constexpr Color(Color const color, T const p_alpha) :
 		red{color.red},
 		green{color.green},
 		blue{color.blue},
@@ -120,14 +120,14 @@ struct Color final {
 	/*
 		Initializes with a 4-byte packed RGBA color.
 	*/
-	explicit constexpr Color(ColorInt const color) noexcept :
+	explicit constexpr Color(ColorInt const color) :
 		red{red_channel(color) / 255.f},
 		green{green_channel(color) / 255.f},
 		blue{blue_channel(color) / 255.f},
 		alpha{alpha_channel(color) / 255.f}
 	{}
 
-	constexpr Color& operator=(ColorInt const color) noexcept {
+	constexpr Color& operator=(ColorInt const color) {
 		return *this = Color{color};
 	}
 
@@ -135,11 +135,11 @@ struct Color final {
 	constexpr bool operator==(Color const&) const = default;
 
 	[[nodiscard]]
-	static constexpr Color rgba(value_type const red, value_type const green, value_type const blue, value_type const alpha = 1.f) noexcept {
+	static constexpr Color rgba(value_type const red, value_type const green, value_type const blue, value_type const alpha = 1.f) {
 		return Color{red, green, blue, alpha};
 	}
 	[[nodiscard]]
-	static constexpr Color rgb(value_type const red, value_type const green, value_type const blue) noexcept {
+	static constexpr Color rgb(value_type const red, value_type const green, value_type const blue) {
 		return Color{red, green, blue};
 	}
 
@@ -151,7 +151,7 @@ struct Color final {
 		HSB can only be white if saturation is 0 while HSL is white as long as lightness is 1.
 	*/
 	[[nodiscard]]
-	static constexpr Color hsba(value_type hue, value_type const saturation, value_type brightness, value_type const alpha = 1.f) noexcept
+	static constexpr Color hsba(value_type hue, value_type const saturation, value_type brightness, value_type const alpha = 1.f)
 	{
 		hue -= math::floor<value_type>(hue);
 		brightness = math::unit_clamp(brightness);
@@ -168,15 +168,15 @@ struct Color final {
 		Calls Color::hsba.
 	*/
 	[[nodiscard]]
-	static constexpr Color hsb(value_type const hue, value_type const saturation, value_type const brightness) noexcept {
+	static constexpr Color hsb(value_type const hue, value_type const saturation, value_type const brightness) {
 		return hsba(hue, saturation, brightness);
 	}
 	[[nodiscard]]
-	static constexpr Color hsba(math::IsAngle auto const hue, value_type const saturation, value_type const brightness, value_type const alpha = 1.f) noexcept {
+	static constexpr Color hsba(math::IsAngle auto const hue, value_type const saturation, value_type const brightness, value_type const alpha = 1.f) {
 		return hsba(math::normalized<value_type>(hue), saturation, brightness, alpha);
 	}
 	[[nodiscard]]
-	static constexpr Color hsb(math::IsAngle auto const hue, value_type const saturation, value_type const brightness) noexcept {
+	static constexpr Color hsb(math::IsAngle auto const hue, value_type const saturation, value_type const brightness) {
 		return hsba(math::normalized<value_type>(hue), saturation, brightness);
 	}
 
@@ -188,7 +188,7 @@ struct Color final {
 		HSB can only be white if saturation is 0 while HSL is white as long as lightness is 1.
 	*/
 	[[nodiscard]]
-	static constexpr Color hsla(value_type hue, value_type const saturation, value_type lightness, value_type const alpha = 1.f) noexcept 
+	static constexpr Color hsla(value_type hue, value_type const saturation, value_type lightness, value_type const alpha = 1.f) 
 	{
 		hue -= math::floor<value_type>(hue);
 		lightness = math::unit_clamp(lightness);
@@ -205,22 +205,22 @@ struct Color final {
 		Calls Color::hsla.
 	*/
 	[[nodiscard]]
-	static constexpr Color hsl(value_type const hue, value_type const saturation, value_type const lightness) noexcept {
+	static constexpr Color hsl(value_type const hue, value_type const saturation, value_type const lightness) {
 		return hsla(hue, saturation, lightness);
 	}
 	[[nodiscard]]
-	static constexpr Color hsla(math::IsAngle auto const hue, value_type const saturation, value_type const lightness, value_type const alpha = 1.f) noexcept {
+	static constexpr Color hsla(math::IsAngle auto const hue, value_type const saturation, value_type const lightness, value_type const alpha = 1.f) {
 		return hsla(math::normalized<value_type>(hue), saturation, lightness, alpha);
 	}
 	[[nodiscard]]
-	static constexpr Color hsl(math::IsAngle auto const hue, value_type const saturation, value_type const lightness) noexcept {
+	static constexpr Color hsl(math::IsAngle auto const hue, value_type const saturation, value_type const lightness) {
 		return hsla(math::normalized<value_type>(hue), saturation, lightness);
 	}
 
 	/*
 		Changes the hue of the color. The hue is a value_type in the range [0, 1].
 	*/
-	constexpr Color& hue(value_type new_hue) noexcept {
+	constexpr Color& hue(value_type new_hue) {
 		new_hue -= math::floor<value_type>(new_hue);
 
 		auto const min_channel = math::min(red, green, blue);
@@ -237,14 +237,14 @@ struct Color final {
 			
 		return *this;
 	}
-	constexpr Color& hue(math::IsAngle auto const hue_angle) noexcept {
+	constexpr Color& hue(math::IsAngle auto const hue_angle) {
 		return hue(math::normalized<value_type>(hue_angle));
 	}
 	/*
 		Returns the hue of the color. The hue is a value_type in the range [0, 1].
 	*/
 	[[nodiscard]]
-	constexpr value_type hue() const noexcept {
+	constexpr value_type hue() const {
 		if (red + green + blue == 0.f) {
 			return 0.f;
 		}
@@ -284,13 +284,13 @@ struct Color final {
 	}
 	template<math::IsRadians Return_>
 	[[nodiscard]]
-	constexpr Return_ hue() const noexcept {
+	constexpr Return_ hue() const {
 		using Value_ = typename Return_::value_type;
 		return Return_{static_cast<Value_>(hue()*std::numbers::pi_v<typename Return_::value_type>*2)};
 	}
 	template<math::IsDegrees Return_>
 	[[nodiscard]]
-	constexpr Return_ hue() const noexcept {
+	constexpr Return_ hue() const {
 		using Value_ = typename Return_::value_type;
 		if constexpr (std::integral<Value_>) {
 			return Return_{math::round<Value_>(hue()*360)};
@@ -303,7 +303,7 @@ struct Color final {
 		HSB saturation can change lightness, and HSL saturation can change brightness.
 		Keep in mind that you can't change the saturation if the color is grayscale, because only RGBA values are stored.
 	*/
-	constexpr Color& hsb_saturation(value_type saturation) noexcept {
+	constexpr Color& hsb_saturation(value_type saturation) {
 		if (red == green && red == blue) {
 			return *this;
 		}
@@ -322,7 +322,7 @@ struct Color final {
 		Returns the HSB saturation of the color. The saturation is a value_type in the range [0, 1].
 	*/
 	[[nodiscard]]
-	constexpr value_type hsb_saturation() const noexcept {
+	constexpr value_type hsb_saturation() const {
 		if (auto const current_brightness = brightness()) {
 			return 1.f - math::min(red, green, blue)/current_brightness;
 		}
@@ -334,7 +334,7 @@ struct Color final {
 		HSB saturation can change lightness, and HSL saturation can change brightness.
 		Keep in mind that you can't change the saturation if the color is gray, since only RGBA values are stored.
 	*/
-	constexpr Color& hsl_saturation(value_type saturation) noexcept {
+	constexpr Color& hsl_saturation(value_type saturation) {
 		saturation = math::unit_clamp(saturation);
 
 		auto const saturation_before = hsl_saturation();
@@ -354,7 +354,7 @@ struct Color final {
 		Returns the HSL saturation of the color. The saturation is a value_type in the range [0, 1].
 	*/
 	[[nodiscard]]
-	constexpr value_type hsl_saturation() const noexcept {
+	constexpr value_type hsl_saturation() const {
 		auto const min_channel = math::min(red, green, blue);
 		auto const max_channel = math::max(red, green, blue);
 		if (min_channel == max_channel) {
@@ -370,7 +370,7 @@ struct Color final {
 		Sets the brightness of the color. The brightness is a value_type in the range [0, 1]. A brightness of 0 makes the
 		color black, and a brightness of 1 makes the color fully bright. This only makes it white if saturation is at 0.
 	*/
-	constexpr Color& brightness(value_type new_brightness) noexcept {
+	constexpr Color& brightness(value_type new_brightness) {
 		new_brightness = math::unit_clamp(new_brightness);
 
 		if (red == green && red == blue) {
@@ -391,7 +391,7 @@ struct Color final {
 		Returns the brightness of the color. The brightness is a value_type in the range [0, 1].
 	*/
 	[[nodiscard]]
-	constexpr value_type brightness() const noexcept {
+	constexpr value_type brightness() const {
 		return math::max(red, green, blue);
 	}
 
@@ -399,7 +399,7 @@ struct Color final {
 		Changes the lightness of the color. The lightness a value_type in the range [0, 1]. A lightness of 0 makes the
 		color black, a lightness of 0.5 makes it normal and a lightness of 1 makes it white.
 	*/
-	constexpr Color& lightness(value_type new_lightness) noexcept {
+	constexpr Color& lightness(value_type new_lightness) {
 		new_lightness = math::unit_clamp(new_lightness);
 
 		if (red == green && red == blue) {
@@ -440,14 +440,14 @@ struct Color final {
 		Returns the lightness of the color. The lightness is a value_type in the range [0, 1].
 	*/
 	[[nodiscard]]
-	constexpr value_type lightness() const noexcept {
+	constexpr value_type lightness() const {
 		return 0.5f*(math::min(red, green, blue) + math::max(red, green, blue));
 	}
 
 	/*
 		A contrast of 0 makes the color gray, 0.5 leaves it unchanged and 1 is maximum contrast.
 	*/
-	constexpr Color& contrast(value_type const contrast) noexcept {
+	constexpr Color& contrast(value_type const contrast) {
 		if (contrast == 0.5) {
 			return *this;
 		}
@@ -468,86 +468,86 @@ struct Color final {
 		Packs the color into a 32-bit integer in ARGB format.
 	*/
 	[[nodiscard]]
-	constexpr ColorInt get_packed() const noexcept {
+	constexpr ColorInt get_packed() const {
 		return (static_cast<ColorInt>(alpha*0xff) << 24) | (static_cast<ColorInt>(red*0xff) << 16) | 
 			(static_cast<ColorInt>(green*0xff) << 8) | (static_cast<ColorInt>(blue*0xff));
 	}
 
 	[[nodiscard]]
-	constexpr Color operator+(Color const other) const noexcept {
+	constexpr Color operator+(Color const other) const {
 		return Color{red + other.red, green + other.green, blue + other.blue, alpha + other.alpha};
 	}
-	constexpr Color& operator+=(Color const other) noexcept {
+	constexpr Color& operator+=(Color const other) {
 		return *this = *this + other;
 	}
 	[[nodiscard]]
-	constexpr Color operator-(Color const other) const noexcept {
+	constexpr Color operator-(Color const other) const {
 		return Color{red - other.red, green - other.green, blue - other.blue, alpha - other.alpha};
 	}
-	constexpr Color& operator-=(Color const other) noexcept {
+	constexpr Color& operator-=(Color const other) {
 		return *this = *this - other;
 	}
 
 	[[nodiscard]]
-	constexpr Color operator*(value_type const factor) const noexcept {
+	constexpr Color operator*(value_type const factor) const {
 		return Color{red * factor, green * factor, blue * factor, alpha};
 	}
-	constexpr Color& operator*=(value_type const factor) noexcept {
+	constexpr Color& operator*=(value_type const factor) {
 		return *this = *this * factor;
 	}
 	[[nodiscard]]
-	constexpr Color operator/(value_type const divisor) const noexcept {
+	constexpr Color operator/(value_type const divisor) const {
 		return Color{red/divisor, green/divisor, blue/divisor, alpha};
 	}
-	constexpr Color& operator/=(value_type const divisor) noexcept {
+	constexpr Color& operator/=(value_type const divisor) {
 		return *this = *this / divisor;
 	}
 
 	[[nodiscard]]
-	constexpr Color operator+(value_type const delta) const noexcept {
+	constexpr Color operator+(value_type const delta) const {
 		return Color{red + delta, green + delta, blue + delta};
 	}
-	constexpr Color& operator+=(value_type const delta) noexcept {
+	constexpr Color& operator+=(value_type const delta) {
 		return *this = *this + delta;
 	}
 	[[nodiscard]]
-	constexpr Color operator-(value_type const delta) const noexcept {
+	constexpr Color operator-(value_type const delta) const {
 		return Color{red - delta, green - delta, blue - delta};
 	}
-	constexpr Color& operator-=(value_type const delta) noexcept {
+	constexpr Color& operator-=(value_type const delta) {
 		return *this = *this - delta;
 	}
 
 	//------------------------------
 
 	[[nodiscard]]
-	static constexpr std::uint8_t red_channel(ColorInt const color) noexcept {
+	static constexpr std::uint8_t red_channel(ColorInt const color) {
 		return static_cast<std::uint8_t>(color >> 16 & 0xff);
 	}
 	[[nodiscard]]
-	static constexpr std::uint8_t green_channel(ColorInt const color) noexcept {
+	static constexpr std::uint8_t green_channel(ColorInt const color) {
 		return static_cast<std::uint8_t>(color >> 8 & 0xff);
 	}
 	[[nodiscard]]
-	static constexpr std::uint8_t blue_channel(ColorInt const color) noexcept {
+	static constexpr std::uint8_t blue_channel(ColorInt const color) {
 		return static_cast<std::uint8_t>(color & 0xff);
 	}
 	[[nodiscard]]
-	static constexpr std::uint8_t alpha_channel(ColorInt const color) noexcept {
+	static constexpr std::uint8_t alpha_channel(ColorInt const color) {
 		return static_cast<std::uint8_t>(color >> 24 & 0xff);
 	}
 };
 
 [[nodiscard]]
-constexpr Color operator*(Color::value_type const factor, Color const color) noexcept {
+constexpr Color operator*(Color::value_type const factor, Color const color) {
 	return color * factor;
 }
 [[nodiscard]]
-constexpr Color operator+(Color::value_type const factor, Color const color) noexcept {
+constexpr Color operator+(Color::value_type const factor, Color const color) {
 	return color + factor;
 }
 [[nodiscard]]
-constexpr Color operator-(Color::value_type const term, Color const color) noexcept {
+constexpr Color operator-(Color::value_type const term, Color const color) {
 	return Color{term - color.red, term - color.green, term - color.blue};
 }
 
@@ -560,7 +560,7 @@ namespace avo::math {
 	If progress is 0, start is returned. If progress is 1, end is returned.
 */
 [[nodiscard]]
-constexpr graphics::Color interpolate(graphics::Color const start, graphics::Color const end, graphics::Color::value_type const progress) noexcept {
+constexpr graphics::Color interpolate(graphics::Color const start, graphics::Color const end, graphics::Color::value_type const progress) {
 	return graphics::Color{
 		std::lerp(start.red, end.red, progress),
 		std::lerp(start.green, end.green, progress),

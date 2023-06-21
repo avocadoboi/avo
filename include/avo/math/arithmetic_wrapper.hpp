@@ -18,7 +18,7 @@ struct ArithmeticBase {
 	value_type value;
 
 	[[nodiscard]]
-	constexpr explicit operator value_type() const noexcept {
+	constexpr explicit operator value_type() const {
 		return value;
 	}
 };
@@ -29,25 +29,25 @@ concept IsArithmeticWrapper = std::derived_from<T, ArithmeticBase<typename T::va
 template<util::IsNumber A, util::IsNumber B, template<util::IsNumber> class Class_>
 	requires std::derived_from<Class_<A>, ArithmeticBase<A>>
 [[nodiscard]]
-constexpr bool operator==(Class_<A> const first, Class_<B> const second) noexcept {
+constexpr bool operator==(Class_<A> const first, Class_<B> const second) {
 	return first.value == second.value;
 }
 template<util::IsNumber A, util::IsNumber B, template<util::IsNumber> class Class_>
 	requires std::derived_from<Class_<A>, ArithmeticBase<A>>
 [[nodiscard]]
-constexpr auto operator<=>(Class_<A> const first, Class_<B> const second) noexcept {
+constexpr auto operator<=>(Class_<A> const first, Class_<B> const second) {
 	return first.value <=> second.value;
 }
 
 template<util::IsNumber A, util::IsNumber B, template<util::IsNumber> class Class_>
 	requires std::derived_from<Class_<A>, ArithmeticBase<A>>
 [[nodiscard]]
-constexpr auto operator+(Class_<A> const first, Class_<B> const second) noexcept {
+constexpr auto operator+(Class_<A> const first, Class_<B> const second) {
 	return Class_{first.value + second.value};
 }
 template<util::IsNumber A, util::IsNumber B, template<util::IsNumber> class Class_>
 	requires std::derived_from<Class_<A>, ArithmeticBase<A>>
-constexpr Class_<A>& operator+=(Class_<A>& first, Class_<B> const second) noexcept {
+constexpr Class_<A>& operator+=(Class_<A>& first, Class_<B> const second) {
 	first.value += second.value;
 	return first;
 }
@@ -55,19 +55,19 @@ constexpr Class_<A>& operator+=(Class_<A>& first, Class_<B> const second) noexce
 template<util::IsNumber A, template<util::IsNumber> class Class_>
 	requires std::derived_from<Class_<A>, ArithmeticBase<A>>
 [[nodiscard]]
-constexpr auto operator-(Class_<A> const value) noexcept {
+constexpr auto operator-(Class_<A> const value) {
 	return Class_{-value.value};
 }
 
 template<util::IsNumber A, util::IsNumber B, template<util::IsNumber> class Class_>
 	requires std::derived_from<Class_<A>, ArithmeticBase<A>>
 [[nodiscard]]
-constexpr auto operator-(Class_<A> const first, Class_<B> const second) noexcept {
+constexpr auto operator-(Class_<A> const first, Class_<B> const second) {
 	return Class_{first.value - second.value};
 }
 template<util::IsNumber A, util::IsNumber B, template<util::IsNumber> class Class_>
 	requires std::derived_from<Class_<A>, ArithmeticBase<A>>
-constexpr Class_<A>& operator-=(Class_<A>& first, Class_<B> const second) noexcept {
+constexpr Class_<A>& operator-=(Class_<A>& first, Class_<B> const second) {
 	first.value -= second.value;
 	return first;
 }
@@ -75,18 +75,18 @@ constexpr Class_<A>& operator-=(Class_<A>& first, Class_<B> const second) noexce
 template<util::IsNumber A, util::IsNumber B, template<util::IsNumber> class Class_>
 	requires std::derived_from<Class_<A>, ArithmeticBase<A>>
 [[nodiscard]]
-constexpr auto operator*(Class_<A> const first, B const second) noexcept {
+constexpr auto operator*(Class_<A> const first, B const second) {
 	return Class_{first.value*second};
 }
 template<util::IsNumber A, util::IsNumber B, template<util::IsNumber> class Class_>
 	requires std::derived_from<Class_<A>, ArithmeticBase<A>>
 [[nodiscard]]
-constexpr auto operator*(B first, Class_<A> const second) noexcept {
+constexpr auto operator*(B first, Class_<A> const second) {
 	return Class_{first*second.value};
 }
 template<util::IsNumber A, util::IsNumber B, template<util::IsNumber> class Class_>
 	requires std::derived_from<Class_<A>, ArithmeticBase<A>>
-constexpr Class_<A>& operator*=(Class_<A>& first, B const second) noexcept {
+constexpr Class_<A>& operator*=(Class_<A>& first, B const second) {
 	first.value *= second;
 	return first;
 }
@@ -94,12 +94,12 @@ constexpr Class_<A>& operator*=(Class_<A>& first, B const second) noexcept {
 template<util::IsNumber A, util::IsNumber B, template<util::IsNumber> class Class_>
 	requires std::derived_from<Class_<A>, ArithmeticBase<A>>
 [[nodiscard]]
-constexpr auto operator/(Class_<A> const first, B const second) noexcept {
+constexpr auto operator/(Class_<A> const first, B const second) {
 	return Class_{first.value/second};
 }
 template<util::IsNumber A, util::IsNumber B, template<util::IsNumber> class Class_>
 	requires std::derived_from<Class_<A>, ArithmeticBase<A>>
-constexpr Class_<A>& operator/=(Class_<A>& first, B const second) noexcept {
+constexpr Class_<A>& operator/=(Class_<A>& first, B const second) {
 	first.value /= second;
 	return first;
 }

@@ -20,13 +20,13 @@ using graphics::Dip, graphics::Pixels;
 class ScreenUnitConverter {
 public:
 	[[nodiscard]]
-	constexpr Pixels dip_to_pixels(Dip const dip) const noexcept {
+	constexpr Pixels dip_to_pixels(Dip const dip) const {
 		return static_cast<Pixels>(dip * dip_to_pixel_factor_);
 	}
 	template<template<class> class Vector_>
 		requires math::Is2dVector<Vector_<Pixels>> && math::Is2dVector<Vector_<Dip>>
 	[[nodiscard]]
-	constexpr Vector_<Pixels> dip_to_pixels(Vector_<Dip> const dip) const noexcept 
+	constexpr Vector_<Pixels> dip_to_pixels(Vector_<Dip> const dip) const 
 	{
 		return Vector_{
 			dip_to_pixels(dip.x),
@@ -34,7 +34,7 @@ public:
 		};
 	}
 	[[nodiscard]]
-	constexpr util::IsMinMax auto dip_to_pixels(util::IsMinMax auto const dip) const noexcept 
+	constexpr util::IsMinMax auto dip_to_pixels(util::IsMinMax auto const dip) const 
 	{
 		return util::MinMax{
 			dip_to_pixels(dip.min),
@@ -43,13 +43,13 @@ public:
 	}
 	
 	[[nodiscard]]
-	constexpr Dip pixels_to_dip(Pixels const pixels) const noexcept {
+	constexpr Dip pixels_to_dip(Pixels const pixels) const {
 		return static_cast<Dip>(pixels) / dip_to_pixel_factor_;
 	}
 	template<template<class> class Vector_> 
 		requires math::Is2dVector<Vector_<Pixels>> && math::Is2dVector<Vector_<Dip>>
 	[[nodiscard]]
-	constexpr Vector_<Dip> pixels_to_dip(Vector_<Pixels> const pixels) const noexcept 
+	constexpr Vector_<Dip> pixels_to_dip(Vector_<Pixels> const pixels) const 
 	{
 		return Vector_{
 			pixels_to_dip(pixels.x),
@@ -57,7 +57,7 @@ public:
 		};
 	}
 	[[nodiscard]]
-	constexpr util::IsMinMax auto pixels_to_dip(util::IsMinMax auto const pixels) const noexcept 
+	constexpr util::IsMinMax auto pixels_to_dip(util::IsMinMax auto const pixels) const 
 	{
 		return util::MinMax{
 			pixels_to_dip(pixels.min),
@@ -70,7 +70,7 @@ public:
 	static constexpr float normal_dpi = 96.f;
 
 	constexpr ScreenUnitConverter() = default;
-	constexpr explicit ScreenUnitConverter(float const dpi) noexcept :
+	constexpr explicit ScreenUnitConverter(float const dpi) :
 		dip_to_pixel_factor_{dpi/normal_dpi}
 	{}
 
@@ -341,49 +341,49 @@ public:
 	Window open() &&;
 
 	[[nodiscard]]
-	Builder&& position(math::Vector2d<math::Factor> const pos) && noexcept 
+	Builder&& position(math::Vector2d<math::Factor> const pos) && 
 	{
 		parameters_.position_factor = pos;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	Builder&& size(math::Size<Dip> const size) && noexcept 
+	Builder&& size(math::Size<Dip> const size) && 
 	{
 		parameters_.size = size;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	Builder&& min_size(math::Size<Dip> const min_size) && noexcept 
+	Builder&& min_size(math::Size<Dip> const min_size) && 
 	{
 		parameters_.min_max_size.min = min_size;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	Builder&& max_size(math::Size<Dip> const max_size) && noexcept 
+	Builder&& max_size(math::Size<Dip> const max_size) && 
 	{
 		parameters_.min_max_size.max = max_size;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	Builder&& min_max_size(MinMaxSize<Dip> const min_max) && noexcept 
+	Builder&& min_max_size(MinMaxSize<Dip> const min_max) && 
 	{
 		parameters_.min_max_size = min_max;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	Builder&& style(StyleFlags const style) && noexcept 
+	Builder&& style(StyleFlags const style) && 
 	{
 		parameters_.style = style;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	Builder&& state(State const state) && noexcept 
+	Builder&& state(State const state) && 
 	{
 		parameters_.state = state;
 		return std::move(*this);
 	}
 	[[nodiscard]]
-	Builder&& with_parent(Window& parent) && noexcept 
+	Builder&& with_parent(Window& parent) && 
 	{
 		parameters_.parent = &parent;
 		return std::move(*this);

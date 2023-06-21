@@ -13,7 +13,7 @@ struct Transform final {
 	  x_to_y{0}, y_to_y{1}, offset_y{0};
 
 	[[nodiscard]]
-	constexpr bool operator==(Transform const&) const noexcept = default;
+	constexpr bool operator==(Transform const&) const = default;
 
 	/*
 		Multiplies this 2x3 matrix to a column vector that has an implicit third column with the value 1.
@@ -24,7 +24,7 @@ struct Transform final {
 	*/
 	template<util::IsNumber U, template<class> class Vector_> requires Is2dVector<Vector_<U>>
 	[[nodiscard]]
-	constexpr auto operator*(Vector_<U> const vector) const noexcept {
+	constexpr auto operator*(Vector_<U> const vector) const {
 		return Vector_{
 			x_to_x*vector.x + y_to_x*vector.y + offset_x, 
 			x_to_y*vector.x + y_to_y*vector.y + offset_y
@@ -43,7 +43,7 @@ struct Transform final {
 	*/
 	template<std::floating_point U>
 	[[nodiscard]]
-	constexpr auto operator*(Transform<U> const& other) const noexcept {
+	constexpr auto operator*(Transform<U> const& other) const {
 		return Transform<std::common_type_t<T, U>>{
 			.x_to_x = x_to_x*other.x_to_x + y_to_x*other.x_to_y,
 			.y_to_x = x_to_x*other.y_to_x + y_to_x*other.y_to_y,
@@ -57,7 +57,7 @@ struct Transform final {
 		A *= B is equivalent to A = B*A.
 	*/
 	template<std::floating_point U>
-	constexpr Transform& operator*=(Transform<U> const& other) const noexcept {
+	constexpr Transform& operator*=(Transform<U> const& other) const {
 		return *this = other * *this;	
 	}
 
@@ -97,7 +97,7 @@ struct Transform final {
 	/*
 		Moves the translation by an offset.
 	*/
-	constexpr decltype(auto) translate(Is2dVector auto const offset) noexcept {
+	constexpr decltype(auto) translate(Is2dVector auto const offset) {
 		offset_x += offset.x;
 		offset_y += offset.y;
 		return *this;
@@ -105,7 +105,7 @@ struct Transform final {
 	/*
 		Sets the absolute offset in coordinates caused by the transform.
 	*/
-	constexpr decltype(auto) translation(Is2dVector auto const point) noexcept {
+	constexpr decltype(auto) translation(Is2dVector auto const point) {
 		offset_x = point.x;
 		offset_y = point.y;
 		return *this;
@@ -114,7 +114,7 @@ struct Transform final {
 	/*
 		Scales the transform by a horizontal and vertical factor.
 	*/
-	constexpr decltype(auto) scale(Is2dVector auto const scale_factor) noexcept {
+	constexpr decltype(auto) scale(Is2dVector auto const scale_factor) {
 		x_to_x *= scale_factor.x;
 		y_to_x *= scale_factor.x;
 		offset_x *= scale_factor.x;
@@ -123,13 +123,13 @@ struct Transform final {
 		offset_y *= scale_factor.y;
 		return *this;
 	}
-	constexpr decltype(auto) scale_x(util::IsNumber auto const scale_factor) noexcept {
+	constexpr decltype(auto) scale_x(util::IsNumber auto const scale_factor) {
 		x_to_x *= scale_factor;
 		y_to_x *= scale_factor;
 		offset_x *= scale_factor;
 		return *this;
 	}
-	constexpr decltype(auto) scale_y(util::IsNumber auto const scale_factor) noexcept {
+	constexpr decltype(auto) scale_y(util::IsNumber auto const scale_factor) {
 		y_to_y *= scale_factor;
 		x_to_y *= scale_factor;
 		offset_y *= scale_factor;
@@ -148,7 +148,7 @@ concept IsTransform = util::IsInstantiationOf<T, Transform>;
 */
 template<std::floating_point T>
 [[nodiscard]]
-constexpr Transform<T> inverse(Transform<T> const t) noexcept {
+constexpr Transform<T> inverse(Transform<T> const t) {
 	auto const divisor = t.x_to_x*t.y_to_y - t.y_to_x*t.x_to_y;
 	return Transform{
 		t.y_to_y/divisor,
@@ -204,17 +204,17 @@ constexpr Transform<T> with_translation(Transform<T> transform, Is2dVector auto 
 */
 template<std::floating_point T>
 [[nodiscard]]
-constexpr Transform<T> scaled(Transform<T> transform, Is2dVector auto const scale_factor) noexcept {
+constexpr Transform<T> scaled(Transform<T> transform, Is2dVector auto const scale_factor) {
 	return transform.scale(scale_factor);
 }
 template<std::floating_point T>
 [[nodiscard]]
-constexpr Transform<T> scaled_x(Transform<T> transform, util::IsNumber auto const scale_factor) noexcept {
+constexpr Transform<T> scaled_x(Transform<T> transform, util::IsNumber auto const scale_factor) {
 	return transform.scale_x(scale_factor);
 }
 template<std::floating_point T>
 [[nodiscard]]
-constexpr Transform<T> scaled_y(Transform<T> transform, util::IsNumber auto const scale_factor) noexcept {
+constexpr Transform<T> scaled_y(Transform<T> transform, util::IsNumber auto const scale_factor) {
 	return transform.scale_y(scale_factor);
 }
 

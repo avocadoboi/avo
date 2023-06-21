@@ -24,8 +24,8 @@ TEST_CASE("avo::util::generate with views") {
 	});
 
 	for (auto i = 0; auto const value : generator 
-			| std::views::filter([](int const i) { return i % 2 == 0; })
-			| std::views::transform([](int const i) { return 1./i; })) 
+		| std::views::filter([](int const i) { return i % 2 == 0; })
+		| std::views::transform([](int const i) { return 1./i; })) 
 	{
 		REQUIRE(value == 1./i);
 		REQUIRE(i < 10);

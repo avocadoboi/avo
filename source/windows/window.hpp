@@ -6,6 +6,7 @@
 #include "avo/util/static_map.hpp"
 #include "avo/window.hpp"
 
+#include <array>
 #include <cassert>
 #include <functional>
 #include <thread>
@@ -33,7 +34,7 @@ bool get_is_vkey_down(int const vkey) {
 //------------------------------
 
 [[nodiscard]]
-constexpr DWORD style_flags_to_native(StyleFlags const flags, bool const has_parent) noexcept 
+constexpr DWORD style_flags_to_native(StyleFlags const flags, bool const has_parent) 
 {
 	auto native_flags = DWORD{};
 
@@ -174,7 +175,7 @@ public:
 		return is_fullscreen_ = not is_fullscreen_;
 	}
 	[[nodiscard]]
-	bool is_fullscreen() const noexcept {
+	bool is_fullscreen() const {
 		return is_fullscreen_;
 	}
 
@@ -258,11 +259,11 @@ std::string get_window_title(::HWND const handle)
 
 //------------------------------
 
-constexpr bool get_is_key_repeated(::LPARAM const l_data) noexcept {
+constexpr bool get_is_key_repeated(::LPARAM const l_data) {
 	return l_data & (1 << 30);
 }
 
-constexpr MouseButton x_button_from_w_data(::WPARAM const w_data) noexcept {
+constexpr MouseButton x_button_from_w_data(::WPARAM const w_data) {
 	return HIWORD(w_data) == XBUTTON1 ? MouseButton::X0 : MouseButton::X1;
 }
 

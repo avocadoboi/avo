@@ -55,7 +55,7 @@ std::string utf16_to_utf8(std::u16string_view input) noexcept;
 	Returns -1 if the code point is an invalid UTF-8 code point.
 */
 [[nodiscard]]
-constexpr int code_point_count(char const first_code_point_in_character) noexcept {
+constexpr int code_point_count(char const first_code_point_in_character) {
 	// http://www.unicode.org/versions/Unicode12.1.0/ch03.pdf , page 126
 	if (not (first_code_point_in_character & 0x80)) // 0xxxxxxx
 		return 1;
@@ -77,7 +77,7 @@ constexpr int code_point_count(char const first_code_point_in_character) noexcep
 	Returns -1 if the code point is an invalid UTF-16 code point.
 */
 [[nodiscard]]
-constexpr int code_point_count(char16_t const first_code_point_in_character) noexcept {
+constexpr int code_point_count(char16_t const first_code_point_in_character) {
 	// http://www.unicode.org/versions/Unicode12.1.0/ch03.pdf , page 125
 	if ((first_code_point_in_character & 0xfc00) == 0xd800) // 110110wwwwxxxxxx
 		return 2;
@@ -90,7 +90,7 @@ constexpr int code_point_count(char16_t const first_code_point_in_character) noe
 	Returns whether the passed code point is the start of a UTF-8 encoded character.
 */
 [[nodiscard]]
-constexpr bool is_first_code_point(char const code_point) noexcept {
+constexpr bool is_first_code_point(char const code_point) {
 	return (code_point & 0xc0) != 0x80;
 }
 
@@ -98,7 +98,7 @@ constexpr bool is_first_code_point(char const code_point) noexcept {
 	Returns whether p_unit is the start of a UTF-16 encoded character
 */
 [[nodiscard]]
-constexpr bool is_first_code_point(char16_t const code_point) noexcept {
+constexpr bool is_first_code_point(char16_t const code_point) {
 	return (code_point & 0xfc00) != 0xdc00;
 }
 

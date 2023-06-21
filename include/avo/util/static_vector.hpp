@@ -67,7 +67,7 @@ public:
 	}
 
 	[[nodiscard]]
-	constexpr std::size_t size() const noexcept {
+	constexpr std::size_t size() const {
 		return current_size_;
 	}
 

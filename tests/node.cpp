@@ -4,10 +4,10 @@
 
 class SomeComponent {
 public:
-	int value() const noexcept {
+	int value() const {
 		return value_;
 	}
-	avo::Node& get_node() noexcept {
+	avo::Node& get_node() {
 		return node_;
 	}
 
@@ -31,10 +31,10 @@ public:
 		other_components_.emplace_back(std::make_unique<SomeComponent>(component_1_.get_node(), avo::Id{5}, 13));
 	}
 
-	avo::Node const& get_node() const noexcept {
+	avo::Node const& get_node() const {
 		return node_;
 	}
-	avo::Node& get_node() noexcept {
+	avo::Node& get_node() {
 		return node_;
 	}
 

@@ -127,13 +127,13 @@ public:
 		}
 
 		[[nodiscard]]
-		bool operator==(std::default_sentinel_t) const noexcept {
+		bool operator==(std::default_sentinel_t) const {
 			return std::holds_alternative<BaseIterator>(pos_) && 
 				parent_stack_.empty() &&
 				std::get<BaseIterator>(pos_) == end_;
 		}
 		[[nodiscard]]
-		bool operator==(Iterator const& other) const noexcept {
+		bool operator==(Iterator const& other) const {
 			return 
 				not parent_stack_.empty() && 
 				parent_stack_.size() == other.parent_stack_.size() &&
@@ -179,12 +179,12 @@ public:
 		return Iterator{range_};
 	}
 	[[nodiscard]]
-	std::default_sentinel_t end() const noexcept {
+	std::default_sentinel_t end() const {
 		return {};
 	}
 
 	FlattenedView() = default;
-	explicit FlattenedView(T& range) noexcept :
+	explicit FlattenedView(T& range) :
 		range_{&range}
 	{}
 
@@ -238,11 +238,11 @@ public:
 		}
 
 		[[nodiscard]]
-		constexpr bool operator==(std::default_sentinel_t) const noexcept {
+		constexpr bool operator==(std::default_sentinel_t) const {
 			return pos_ == end_;
 		}
 		[[nodiscard]]
-		constexpr bool operator==(Iterator const&) const noexcept = default;
+		constexpr bool operator==(Iterator const&) const = default;
 	
 		constexpr Iterator() = default;
 		constexpr Iterator(T* const range) :
@@ -261,12 +261,12 @@ public:
 		return Iterator{range_};
 	}
 	[[nodiscard]]
-	constexpr std::default_sentinel_t end() const noexcept {
+	constexpr std::default_sentinel_t end() const {
 		return {};
 	}
 
 	constexpr FlattenedView() = default;
-	constexpr explicit FlattenedView(T& range) noexcept :
+	constexpr explicit FlattenedView(T& range) :
 		range_{&range}
 	{}
 

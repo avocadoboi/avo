@@ -104,13 +104,13 @@ public:
 		}
 
 		[[nodiscard]]
-		constexpr bool operator==(Iterator const& other) const noexcept 
+		constexpr bool operator==(Iterator const& other) const 
 			requires std::equality_comparable<BaseIterator>
 		{
 			return base_iterator_ == other.base_iterator_;
 		}
 		[[nodiscard]]
-		constexpr auto operator<=>(Iterator const& other) const noexcept
+		constexpr auto operator<=>(Iterator const& other) const
 			requires std::ranges::random_access_range<T> && std::three_way_comparable<BaseIterator>
 		{
 			return base_iterator_ <=> other.base_iterator_;
