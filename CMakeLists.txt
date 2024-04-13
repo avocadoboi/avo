@@ -31,14 +31,6 @@ target_include_directories(avo PUBLIC
 add_subdirectory(source)
 
 #--------------------------------------------
-# Add cross-platform external libraries.
-
-find_package(fmt CONFIG REQUIRED)
-target_link_libraries(avo PUBLIC fmt::fmt-header-only)
-# target_link_libraries(avo PUBLIC atomic)
-# target_precompile_headers(avo PRIVATE <fmt/format.h> <fmt/ranges.h>)
-
-#--------------------------------------------
 # Set up testing.
 
 if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)

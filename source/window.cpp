@@ -80,11 +80,11 @@ std::any Window::native_handle() const {
 	return implementation_->native_handle();
 }
 
-Event Window::await_event() {
+Event Window::await_event() const {
 	return implementation_->await_event();
 }
 
-std::optional<Event> Window::take_event() {
+std::optional<Event> Window::take_event() const {
 	return implementation_->take_event();
 }
 

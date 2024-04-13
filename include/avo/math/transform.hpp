@@ -220,26 +220,25 @@ constexpr Transform<T> scaled_y(Transform<T> transform, util::IsNumber auto cons
 
 } // namespace avo::math
 
-template<class T>
-struct fmt::formatter<T, std::enable_if_t<avo::math::IsTransform<T>, char>> 
-	: fmt::formatter<typename T::value_type> 
+template<avo::math::IsTransform T>
+struct std::formatter<T> : std::formatter<typename T::value_type> 
 {
 	using formatter<typename T::value_type>::format;
-
-	auto format(std::same_as<T> auto const t, auto& context) {
-		fmt::format_to(context.out(), "[");
+	
+	auto format(T const t, std::format_context& context) const {
+		std::format_to(context.out(), "[");
 		format(t.x_to_x, context);
-		fmt::format_to(context.out(), " ");
+		std::format_to(context.out(), " ");
 		format(t.y_to_x, context);
-		fmt::format_to(context.out(), " ");
+		std::format_to(context.out(), " ");
 		format(t.offset_x, context);
-		fmt::format_to(context.out(), "]\n[");
+		std::format_to(context.out(), "]\n[");
 		format(t.x_to_y, context);
-		fmt::format_to(context.out(), " ");		
+		std::format_to(context.out(), " ");		
 		format(t.y_to_y, context);
-		fmt::format_to(context.out(), " ");
+		std::format_to(context.out(), " ");
 		format(t.offset_y, context);
-		return fmt::format_to(context.out(), "]");
+		return std::format_to(context.out(), "]");
 	}
 };
 

@@ -313,10 +313,10 @@ public:
 	std::any native_handle() const;
 
 	[[nodiscard]]
-	Event await_event();
+	Event await_event() const;
 
 	[[nodiscard]]
-	std::optional<Event> take_event();
+	std::optional<Event> take_event() const;
 	
 	explicit Window(Parameters const& parameters);
 

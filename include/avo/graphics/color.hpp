@@ -4,8 +4,6 @@
 #include "../math/angle.hpp"
 #include "../math/operations.hpp"
 
-#include <fmt/format.h>
-
 namespace avo::graphics {
 
 /*
@@ -572,19 +570,19 @@ constexpr graphics::Color interpolate(graphics::Color const start, graphics::Col
 } // namespace avo::math
 
 template<>
-struct fmt::formatter<avo::graphics::Color> : fmt::formatter<avo::graphics::Color::value_type> {
+struct std::formatter<avo::graphics::Color> : std::formatter<avo::graphics::Color::value_type> {
 	using formatter<avo::graphics::Color::value_type>::format;
 	
-	auto format(avo::graphics::Color const color, auto& context) {
-		fmt::format_to(context.out(), "rgba(");
+	auto format(avo::graphics::Color const color, std::format_context& context) const {
+		std::format_to(context.out(), "rgba(");
 		format(color.red, context);
-		fmt::format_to(context.out(), ", ");
+		std::format_to(context.out(), ", ");
 		format(color.green, context);
-		fmt::format_to(context.out(), ", ");
+		std::format_to(context.out(), ", ");
 		format(color.blue, context);
-		fmt::format_to(context.out(), ", ");
+		std::format_to(context.out(), ", ");
 		format(color.alpha, context);
-		return fmt::format_to(context.out(), ")");
+		return std::format_to(context.out(), ")");
 	}
 };
 

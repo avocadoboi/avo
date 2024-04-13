@@ -565,20 +565,17 @@ Size(T, T) -> Size<T>;
 
 } // namespace avo::math
 
-// SFINAE seems to be necessary for template specialization here.
-template<class T>
-struct fmt::formatter<T, std::enable_if_t<avo::math::Is2dVector<T>, char>> 
-	: fmt::formatter<typename T::value_type> 
+template<avo::math::Is2dVector T>
+struct std::formatter<T> : std::formatter<typename T::value_type> 
 {
 	using formatter<typename T::value_type>::format;
 
-	// TODO: Replace this concept with just T const when MSVC stops complaining. Same for the other custom formatters.
-	auto format(std::same_as<T> auto const vector, auto& context) {
-		fmt::format_to(context.out(), "(");
+	auto format(T const vector, std::format_context& context) const {
+		std::format_to(context.out(), "(");
 		format(vector.x, context);
-		fmt::format_to(context.out(), ", ");
+		std::format_to(context.out(), ", ");
 		format(vector.y, context);
-		return fmt::format_to(context.out(), ")");
+		return std::format_to(context.out(), ")");
 	}
 };	
 	

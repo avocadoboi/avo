@@ -6,12 +6,11 @@
 #include "concepts.hpp"
 
 #include <fstream>
+#include <print>
 #include <source_location>
 #include <span>
 #include <string>
 #include <vector>
-
-#include <fmt/format.h>
 
 //------------------------------
 
@@ -32,14 +31,14 @@ using MaybeConst = std::conditional_t<is_const,
 #ifdef __cpp_lib_source_location
 [[noreturn]]
 inline void unreachable(std::source_location const& source_location = std::source_location::current()) {
-	fmt::print(stderr, "Reached an unreachable code path in file {}, in function {}, on line {}.\n", 
+	std::println(stderr, "Reached an unreachable code path in file {}, in function {}, on line {}.", 
 		source_location.file_name(), source_location.function_name(), source_location.line());
 	std::exit(1);
 }
 #else
 [[noreturn]]
 inline void unreachable() {
-	fmt::print(stderr, "Reached an unreachable code path, exiting.\n");
+	std::println(stderr, "Reached an unreachable code path, exiting.");
 	std::exit(1);
 }
 #endif

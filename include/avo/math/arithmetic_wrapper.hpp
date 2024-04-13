@@ -3,7 +3,7 @@
 
 #include "../util/concepts.hpp"
 
-#include <fmt/format.h>
+#include <format>
 
 namespace avo::math {
 
@@ -106,11 +106,10 @@ constexpr Class_<A>& operator/=(Class_<A>& first, B const second) {
 
 } // namespace avo::math
 
-template<class T> 
-struct fmt::formatter<T, std::enable_if_t<avo::math::IsArithmeticWrapper<T>, char>> 
-	: fmt::formatter<typename T::value_type> 
+template<avo::math::IsArithmeticWrapper T> 
+struct std::formatter<T> : std::formatter<typename T::value_type> 
 {
-	auto format(std::same_as<T> auto const arithmetic, auto& context) {
+	auto format(T const arithmetic, std::format_context& context) const {
 		return formatter<typename T::value_type>::format(arithmetic.value, context);
 	}
 };

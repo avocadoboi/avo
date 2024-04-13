@@ -5,6 +5,7 @@
 #include "util/miscellaneous.hpp"
 #include "util/recursive_range.hpp"
 
+#include <algorithm>
 #include <any>
 
 namespace avo {

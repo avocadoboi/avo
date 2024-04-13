@@ -3,6 +3,7 @@
 #include <magic_enum.hpp>
 
 #include <chrono>
+#include <print>
 
 using namespace std::chrono_literals;
 using magic_enum::enum_name;
@@ -28,10 +29,10 @@ int main() {
 	auto event_manager = avo::window::EventManager{};
 
 	event_manager.add_listener([](event::KeyDown const& event) {
-		fmt::print("The key '{}' was pressed. Repeat: {}\n", enum_name(event.key), event.is_repeated);
+		std::println("The key '{}' was pressed. Repeat: {}", enum_name(event.key), event.is_repeated);
 	});
 	event_manager.add_listener([&](event::KeyUp const& event) {
-		fmt::print("The key '{}' was released.\n", enum_name(event.key));
+		std::println("The key '{}' was released.", enum_name(event.key));
 
 		if (event.key == avo::window::KeyboardKey::F) {
 			if (parent.is_fullscreen()) {
@@ -40,43 +41,43 @@ int main() {
 			else {
 				parent.min_max_size({});
 			}
-			fmt::print("Fullscreen: {}\n", parent.toggle_fullscreen());
+			std::println("Fullscreen: {}", parent.toggle_fullscreen());
 		}
 	});
 	event_manager.add_listener([](event::CharacterInput const& event) {
-		fmt::print("The character '{}' was input. Repeat: {}\n", event.character, event.is_repeated);
+		std::println("The character '{}' was input. Repeat: {}", event.character, event.is_repeated);
 	});
 	event_manager.add_listener([](event::MouseDown const& event) {
-		fmt::print("The mouse button '{}' was {}.\n", enum_name(event.button), event.is_double_click ? "double clicked" : "pressed");
+		std::println("The mouse button '{}' was {}.", enum_name(event.button), event.is_double_click ? "double clicked" : "pressed");
 	});
 	event_manager.add_listener([](event::MouseUp const& event) {
-		fmt::print("The mouse button '{}' was released.\n", enum_name(event.button));
+		std::println("The mouse button '{}' was released.", enum_name(event.button));
 	});
 	event_manager.add_listener([](event::MouseMove const& event) {
-		fmt::print("The mouse moved {} and is now at {}.\n", event.movement, event.position);
+		std::println("The mouse moved {} and is now at {}.", event.movement, event.position);
 	});
 	event_manager.add_listener([](event::MouseScroll const& event) {
-		fmt::print("The mouse scrolled with delta {}.\n", event.scroll_delta);
+		std::println("The mouse scrolled with delta {}.", event.scroll_delta);
 	});
 	event_manager.add_listener([](event::MouseLeave const& event) {
-		fmt::print("The mouse left the window by moving {} and is now at {}.\n", event.movement, event.position);
+		std::println("The mouse left the window by moving {} and is now at {}.", event.movement, event.position);
 	});
 	event_manager.add_listener([](event::SizeChange const& event) {
-		fmt::print("The window resized and now has size {}.\n", event.size);
+		std::println("The window resized and now has size {}.", event.size);
 	});
 	event_manager.add_listener([](event::StateChange const& event) {
-		fmt::print("The window state changed and is now '{}'.\n", enum_name(event.state));
+		std::println("The window state changed and is now '{}'.", enum_name(event.state));
 	});
 	event_manager.add_listener([](event::FocusGain const&) {
-		fmt::print("The window gained focus.\n");
+		std::println("The window gained focus.");
 	});
 	event_manager.add_listener([](event::FocusLose const&) {
-		fmt::print("The window lost focus.\n");
+		std::println("The window lost focus.");
 	});
 	event_manager.add_listener([](event::DpiChange const& event) {
-		fmt::print("DPI changed and is now {}.\n", event.dpi);
+		std::println("DPI changed and is now {}.", event.dpi);
 	});
 	event_manager.run(parent);
 
-	fmt::print("Finished running.\n");
+	std::println("Finished running.");
 }

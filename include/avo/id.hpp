@@ -1,7 +1,7 @@
 #ifndef AVO_ID_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_ID_HPP_BJORN_SUNDIN_JUNE_2021
 
-#include <fmt/format.h>
+#include <format>
 
 namespace avo {
 
@@ -52,8 +52,8 @@ private:
 } // namespace avo
 
 template<>
-struct fmt::formatter<avo::Id> : fmt::formatter<avo::Id::value_type> {
-	auto format(avo::Id const id, auto& context) {
+struct std::formatter<avo::Id> : std::formatter<avo::Id::value_type> {
+	auto format(avo::Id const id, std::format_context& context) const {
 		return formatter<avo::Id::value_type>::format(id.value(), context);
 	}
 };

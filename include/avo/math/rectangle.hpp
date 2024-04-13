@@ -414,22 +414,21 @@ constexpr Rectangle<T> square(T const value) {
 
 } // namespace avo::math
 
-template<class T>
-struct fmt::formatter<T, std::enable_if_t<avo::math::IsRectangle<T>, char>> 
-	: fmt::formatter<typename T::value_type> 
+template<avo::math::IsRectangle T>
+struct std::formatter<T> : std::formatter<typename T::value_type> 
 {
 	using formatter<typename T::value_type>::format;
-	
-	auto format(std::same_as<T> auto const rectangle, auto& context) {
-		fmt::format_to(context.out(), "(");
+
+	auto format(T const rectangle, std::format_context& context) const {
+		std::format_to(context.out(), "(");
 		format(rectangle.left, context);
-		fmt::format_to(context.out(), ", ");
+		std::format_to(context.out(), ", ");
 		format(rectangle.top, context);
-		fmt::format_to(context.out(), ", ");
+		std::format_to(context.out(), ", ");
 		format(rectangle.right, context);
-		fmt::format_to(context.out(), ", ");
+		std::format_to(context.out(), ", ");
 		format(rectangle.bottom, context);
-		return fmt::format_to(context.out(), ")");
+		return std::format_to(context.out(), ")");
 	}
 };
 

@@ -28,7 +28,7 @@ Note: The new version of this library has only begun development and is very far
 
 # CMake usage
 ## Dependencies
-Besides native libraries, Avo currently only depends on the [fmt](https://github.com/fmtlib/fmt) library, which needs to be found by CMake to build Avo.
+Avo currently only depends on native libraries and the C++ standard library.
 
 ## Building and installing
 Below are the basic commands to build and install Avo using CMake.
