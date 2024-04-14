@@ -467,8 +467,8 @@ struct Color final {
 	*/
 	[[nodiscard]]
 	constexpr ColorInt get_packed() const {
-		return (static_cast<ColorInt>(std::clamp(alpha, 0.f, 1.f)*0xff) << 24) | (static_cast<ColorInt>(std::clamp(red, 0.f, 1.f)*0xff) << 16) | 
-			(static_cast<ColorInt>(std::clamp(green, 0.f, 1.f)*0xff) << 8) | (static_cast<ColorInt>(std::clamp(blue, 0.f, 1.f)*0xff));
+		return (static_cast<ColorInt>(alpha*0xff) << 24) | (static_cast<ColorInt>(red*0xff) << 16) | 
+			(static_cast<ColorInt>(green*0xff) << 8) | (static_cast<ColorInt>(blue*0xff));
 	}
 
 	[[nodiscard]]
