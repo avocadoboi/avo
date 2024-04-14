@@ -12,10 +12,10 @@ namespace avo::graphics {
 using ColorInt = std::uint32_t;
 
 template<std::floating_point T>
-constexpr ColorInt pack_color(T const red, T const green, T const blue, T const alpha = T{1}) 
+constexpr ColorInt pack_color_rgba(T const red, T const green, T const blue, T const alpha = T{1}) 
 {
-	return (static_cast<ColorInt>(math::unit_clamp(alpha)*0xff) << 24) | (static_cast<ColorInt>(math::unit_clamp(red)*0xff) << 16) | 
-		(static_cast<ColorInt>(math::unit_clamp(green)*0xff) << 8) | (static_cast<ColorInt>(math::unit_clamp(blue)*0xff));
+	return (static_cast<ColorInt>(math::unit_clamp(red)*0xff) << 24) | (static_cast<ColorInt>(math::unit_clamp(green)*0xff) << 16) | 
+		(static_cast<ColorInt>(math::unit_clamp(blue)*0xff) << 8) | (static_cast<ColorInt>(math::unit_clamp(alpha)*0xff));
 }
 
 /*
@@ -470,13 +470,19 @@ struct Color final {
 	}
 
 	/*
-		Packs the color into a 32-bit integer in ARGB format.
+		Packs the color into a 32-bit integer in RGBA format.
 	*/
 	[[nodiscard]]
-	constexpr ColorInt get_packed() const {
+	constexpr ColorInt pack_rgba() const {
+		return (static_cast<ColorInt>(red*0xff) << 24) | (static_cast<ColorInt>(green*0xff) << 16) | 
+			(static_cast<ColorInt>(blue*0xff) << 8) | (static_cast<ColorInt>(alpha*0xff));
+	}
+	[[nodiscard]]
+	constexpr ColorInt pack_argb() const {
 		return (static_cast<ColorInt>(alpha*0xff) << 24) | (static_cast<ColorInt>(red*0xff) << 16) | 
 			(static_cast<ColorInt>(green*0xff) << 8) | (static_cast<ColorInt>(blue*0xff));
 	}
+
 
 	[[nodiscard]]
 	constexpr Color operator+(Color const other) const {
