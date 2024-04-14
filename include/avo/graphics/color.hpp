@@ -11,6 +11,13 @@ namespace avo::graphics {
 */
 using ColorInt = std::uint32_t;
 
+template<std::floating_point T>
+constexpr ColorInt pack_color(T const red, T const green, T const blue, T const alpha = T{1}) 
+{
+	return (static_cast<ColorInt>(math::unit_clamp(alpha)*0xff) << 24) | (static_cast<ColorInt>(math::unit_clamp(red)*0xff) << 16) | 
+		(static_cast<ColorInt>(math::unit_clamp(green)*0xff) << 8) | (static_cast<ColorInt>(math::unit_clamp(blue)*0xff));
+}
+
 /*
 	Object representing a color. A Color object stores the channels as 32-bit floats with a range of [0, 1].
 	This means that a Color object is 4 times as big as a packed 32-bit color, but allows for more 
