@@ -217,7 +217,7 @@ struct Indices {
 
 	// Static extents
 	template<std::integral I, std::size_t ... dimensions>
-	constexpr auto operator()(std::extents<I, dimensions...> const span) const 
+	constexpr auto operator()(std::extents<I, dimensions...>) const 
 	{
 		return std::views::cartesian_product(Range{dimensions} ...);
 	}
