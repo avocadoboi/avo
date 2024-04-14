@@ -1,6 +1,7 @@
 #ifndef AVO_UTILS_INT_RANGE_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_INT_RANGE_HPP_BJORN_SUNDIN_JUNE_2021
 
+#include <mdspan>
 #include <ranges>
 
 namespace avo::util {
@@ -16,7 +17,7 @@ public:
 	class Iterator final {
 	public:
 		using value_type = std::remove_cv_t<Value_>;
-		using difference_type = value_type;
+		using difference_type = std::ptrdiff_t;
 		using iterator_concept = std::random_access_iterator_tag;
 		using iterator_category = std::random_access_iterator_tag;
 
@@ -46,6 +47,10 @@ public:
 			else {
 				return current_value_ + offset;
 			}
+		}
+		[[nodiscard]]
+		friend constexpr Iterator operator+(difference_type const offset, Iterator const iterator) {
+			return iterator + offset;
 		}
 		constexpr Iterator& operator+=(difference_type const offset) {
 			if constexpr (is_reverse) {
@@ -82,6 +87,15 @@ public:
 			}
 			else {
 				return current_value_ - offset;
+			}
+		}
+		[[nodiscard]]
+		constexpr difference_type operator-(Iterator const other) const {
+			if constexpr (is_reverse) {
+				return other.current_value_ - current_value_;
+			}
+			else {
+				return current_value_ - other.current_value_;
 			}
 		}
 		constexpr Iterator& operator-=(difference_type const offset) {
@@ -131,6 +145,11 @@ public:
 		return end_;
 	}
 
+	[[nodiscard]]
+	constexpr Value_ size() const {
+		return end_ - start_;
+	}
+
 // TODO: Remove when MSVC doesn't get confused by the = default.
 #ifdef _MSC_VER
 	constexpr bool operator==(Range const& other) const {
@@ -154,7 +173,7 @@ public:
 	/*
 		Creates a range of integers starting with 0 and ending with count - 1.
 	*/
-	constexpr Range(Value_ const count) :
+	constexpr explicit Range(Value_ const count) :
 		start_{0},
 		end_{count}
 	{}
@@ -185,20 +204,49 @@ concept IsIntRange = requires(T range) {
 
 //------------------------------
 
+namespace detail {
+
+struct Indices {
+	constexpr Range<std::size_t> operator()(std::ranges::sized_range auto const& range) const {
+		return Range{std::ranges::size(range)};
+	}
+	template<typename T, std::integral I, std::size_t ... dimensions>
+	constexpr auto operator()(std::mdspan<T, std::extents<I, dimensions...>> const span) const {
+		return operator()(span.extents());
+	}
+
+	// Static extents
+	template<std::integral I, std::size_t ... dimensions>
+	constexpr auto operator()(std::extents<I, dimensions...> const span) const 
+	{
+		return std::views::cartesian_product(Range{dimensions} ...);
+	}
+
+	// Dynamic extents
+	template<std::integral I, std::size_t ... dimensions>
+	constexpr auto operator()(std::extents<I, dimensions...> const span) const 
+		requires ((dimensions == std::dynamic_extent) && ...)
+	{
+		return helper_(span, std::make_index_sequence<sizeof...(dimensions)>{});
+	}
+	
+private:
+	template<std::integral I, std::size_t ... dimensions, std::size_t ... indices>
+	constexpr auto helper_(std::extents<I, dimensions...> const span, std::index_sequence<indices...>) const {
+		return std::views::cartesian_product(Range{span.extent(indices)} ...);
+	}
+};
+
+constexpr auto operator|(auto const& range, Indices const indices) {
+	return indices(range);
+}
+
+}
+
 /*
 	Takes any range and returns a range containing the indices of the elements of the original range.
 */
-constexpr auto indices = [](std::ranges::sized_range auto&& range) 
-	-> Range<std::size_t> 
-{
-	return std::ranges::size(range);
-};
-
-constexpr auto operator|(std::ranges::sized_range auto&& range, decltype(indices))
-	-> Range<std::size_t>
-{
-	return std::ranges::size(range);
-}
+constexpr auto indices = detail::Indices{};
 
 } // namespace avo::util
 

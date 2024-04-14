@@ -56,6 +56,7 @@ constexpr Return_ round(T const number) {
 	}
 }
 
+// TODO: remove when std::abs is constexpr on MSVC (c++23)
 template<util::IsNumber T>
 [[nodiscard]]
 constexpr T abs(T const number) {
