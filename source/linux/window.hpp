@@ -12,10 +12,10 @@
 #include <X11/keysym.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
-#include <GL/glx.h>
-#include <GL/glxext.h>
-#include <GL/gl.h>
-#include <GL/glext.h>
+// #include <GL/glx.h>
+// #include <GL/glxext.h>
+// #include <GL/gl.h>
+// #include <GL/glext.h>
 
 #ifdef None
 #	undef None
@@ -90,44 +90,44 @@ float get_dpi(::Display* const display)
 
 //------------------------------
 
-[[nodiscard]]
-XFreeHandle<::XVisualInfo> select_opengl_visual(::Display* const server) 
-{
-	constexpr auto framebuffer_attributes = std::array{
-		GLX_X_RENDERABLE, 1,
-		GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
-		GLX_RENDER_TYPE, GLX_RGBA_BIT,
-		GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
-		GLX_RED_SIZE, 8,
-		GLX_GREEN_SIZE, 8,
-		GLX_BLUE_SIZE, 8,
-		GLX_DEPTH_SIZE, 0, // 2D graphics, no z-buffering.
-		GLX_STENCIL_SIZE, 0,
-		GLX_DOUBLEBUFFER, 1,
-		0 // Null terminator
-	};
+// [[nodiscard]]
+// XFreeHandle<::XVisualInfo> select_opengl_visual(::Display* const server) 
+// {
+// 	constexpr auto framebuffer_attributes = std::array{
+// 		GLX_X_RENDERABLE, 1,
+// 		GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
+// 		GLX_RENDER_TYPE, GLX_RGBA_BIT,
+// 		GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
+// 		GLX_RED_SIZE, 8,
+// 		GLX_GREEN_SIZE, 8,
+// 		GLX_BLUE_SIZE, 8,
+// 		GLX_DEPTH_SIZE, 0, // 2D graphics, no z-buffering.
+// 		GLX_STENCIL_SIZE, 0,
+// 		GLX_DOUBLEBUFFER, 1,
+// 		0 // Null terminator
+// 	};
 
-	auto number_of_matching_configurations = 0;
-	auto const framebuffer_configurations = XFreeHandle<::GLXFBConfig>{::glXChooseFBConfig(
-		server, 
-		DefaultScreen(server), 
-		framebuffer_attributes.data(), 
-		&number_of_matching_configurations
-	)};
-	return XFreeHandle<::XVisualInfo>{::glXGetVisualFromFBConfig(server, *framebuffer_configurations.get())};
-}
+// 	auto number_of_matching_configurations = 0;
+// 	auto const framebuffer_configurations = XFreeHandle<::GLXFBConfig>{::glXChooseFBConfig(
+// 		server, 
+// 		DefaultScreen(server), 
+// 		framebuffer_attributes.data(), 
+// 		&number_of_matching_configurations
+// 	)};
+// 	return XFreeHandle<::XVisualInfo>{::glXGetVisualFromFBConfig(server, *framebuffer_configurations.get())};
+// }
 
 [[nodiscard]]
-ColormapHandle create_colormap(::Display* const server, ::XVisualInfo const* const visual_info) 
+ColormapHandle create_colormap(::Display* const server, ::XVisualInfo const& visual_info) 
 {
 	return {
 		server, 
-		::XCreateColormap(server, RootWindow(server, visual_info->screen), visual_info->visual, 0)
+		::XCreateColormap(server, RootWindow(server, visual_info.screen), visual_info.visual, 0)
 	};
 }
 
 [[nodiscard]]
-x11::WindowHandle create_window_handle(::Display* const server, ::XVisualInfo const* const visual_info, 
+x11::WindowHandle create_window_handle(::Display* const server, ::XVisualInfo const& visual_info, 
 	XSetWindowAttributes& attributes, Window* const parent, math::Size<Pixels> const size)
 {
 	return x11::WindowHandle{
@@ -136,13 +136,13 @@ x11::WindowHandle create_window_handle(::Display* const server, ::XVisualInfo co
 			server,
 			parent 
 				? std::any_cast<::Window>(parent->native_handle()) 
-				: RootWindow(server, visual_info->screen),
+				: RootWindow(server, visual_info.screen),
 			0, 0, // Initial x and y are ignored by the window manager
-			size.x, size.y,
+			static_cast<unsigned int>(size.x), static_cast<unsigned int>(size.y),
 			0,
-			visual_info->depth,
+			visual_info.depth,
 			InputOutput,
-			visual_info->visual,
+			visual_info.visual,
 			CWEventMask | CWBorderPixel | CWColormap,
 			&attributes
 		)
@@ -369,9 +369,9 @@ void set_window_state(::Display* const server, ::Window const window,
 		.format = 32
 	};
 	event.xclient.data.l[0] = static_cast<long>(state_action);
-	event.xclient.data.l[1] = ::XInternAtom(server, action_0.data(), false);
+	event.xclient.data.l[1] = static_cast<long>(::XInternAtom(server, action_0.data(), false));
 	if (not action_1.empty()) {
-		event.xclient.data.l[2] = ::XInternAtom(server, action_1.data(), false);
+		event.xclient.data.l[2] = static_cast<long>(::XInternAtom(server, action_1.data(), false));
 	}
 
 	XSendEvent(server, window, false, SubstructureNotifyMask, &event);
@@ -436,9 +436,18 @@ private:
 	void create_window_(Parameters const& parameters) {
 		unit_converter_ = ScreenUnitConverter{get_dpi(server_.get())};
 		
-		auto const visual_info = select_opengl_visual(server_.get());
+		// auto const visual_info = select_opengl_visual(server_.get());
+		
+		// auto const visual = Visual{
+		// 	.bits_per_rgb = 32,
+		// 	.
+		// }
+		// XGetVisualInfo()
 
-		colormap_ = create_colormap(server_.get(), visual_info.get());
+		auto visual_info = ::XVisualInfo{};
+		::XMatchVisualInfo(server_.get(), DefaultScreen(server_.get()), /*Depth*/ 24, TrueColor, &visual_info);
+
+		colormap_ = create_colormap(server_.get(), visual_info);
 
 		auto const pixel_size = unit_converter_.dip_to_pixels(parameters.size);
 
@@ -446,7 +455,7 @@ private:
 			.event_mask = event_mask,
 			.colormap = colormap_.get(),
 		};
-		handle_ = create_window_handle(server_.get(), visual_info.get(), 
+		handle_ = create_window_handle(server_.get(), visual_info, 
 			window_attributes, parameters.parent, pixel_size);
 
 		initialize_styles(server_.get(), handle_.get(), parameters, unit_converter_);
@@ -572,7 +581,7 @@ public:
 	void size(math::Size<Dip> const size) {
 		size_ = size;
 		auto const pixel_size = ScreenUnitConverter{dpi_}.dip_to_pixels(size);
-		::XResizeWindow(window_thread_.get_server(), window_thread_.get_handle(), pixel_size.x, pixel_size.y);
+		::XResizeWindow(window_thread_.get_server(), window_thread_.get_handle(), static_cast<unsigned int>(pixel_size.x), static_cast<unsigned int>(pixel_size.y));
 		::XFlush(window_thread_.get_server());
 	}
 	[[nodiscard]]

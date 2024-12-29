@@ -5,8 +5,8 @@ add_compile_options(
 	-Wall 
 	-Wpedantic 
 	-Wextra 
-	-Wduplicated-branches 
-	-Wduplicated-cond 
+	# -Wduplicated-branches 
+	# -Wduplicated-cond 
 	-Wcast-qual 
 	-Wcast-align
 	-Wconversion
@@ -16,8 +16,8 @@ add_compile_options(
 )
 
 add_compile_options(
-	-fconcepts-diagnostics-depth=2
-	-fmax-errors=5
+	# -fconcepts-diagnostics-depth=2
+	# -fmax-errors=5
 )
 
 if (DEFINED ENV{VCPKG_ROOT})

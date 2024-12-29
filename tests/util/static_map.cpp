@@ -1,6 +1,6 @@
 #include <avo/util/static_map.hpp>
 
-#include <catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 constexpr void test_static_map(auto& map)
 {

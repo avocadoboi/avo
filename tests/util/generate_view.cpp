@@ -1,7 +1,7 @@
 #include <avo/util/generate_view.hpp>
 #include <avo/util/int_range.hpp>
 
-#include <catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("avo::util::generate") {
 	auto generator = avo::util::generate([i = 0]() mutable {

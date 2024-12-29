@@ -8,6 +8,7 @@
 #include "util/miscellaneous.hpp"
 
 #include <any>
+#include <memory>
 #include <variant>
 
 namespace avo::window {

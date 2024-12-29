@@ -2,7 +2,7 @@
 
 #include <avo/util/int_range.hpp>
 
-#include <catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("CircularStackBuffer push_back, push_front, size, front, back, indexing") {
 	auto stack_buffer = avo::util::CircularStackBuffer<int, 3>{};

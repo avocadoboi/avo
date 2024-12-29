@@ -1,6 +1,6 @@
 #include <avo/math/angle.hpp>
 
-#include <catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("avo::math::ArithmeticBase formatting") {
 	using namespace avo::math::literals;

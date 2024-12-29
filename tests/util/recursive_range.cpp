@@ -1,6 +1,6 @@
 #include <avo/util/recursive_range.hpp>
 
-#include <catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 //------------------------------
 

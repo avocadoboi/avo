@@ -1,7 +1,7 @@
 #ifndef AVO_UTILS_INT_RANGE_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_INT_RANGE_HPP_BJORN_SUNDIN_JUNE_2021
 
-#include <mdspan>
+// #include <mdspan>
 #include <ranges>
 
 namespace avo::util {
@@ -83,10 +83,10 @@ public:
 		[[nodiscard]]
 		constexpr Iterator operator-(difference_type const offset) const {
 			if constexpr (is_reverse) {
-				return current_value_ + offset;
+				return static_cast<Value_>(current_value_ + offset);
 			}
 			else {
-				return current_value_ - offset;
+				return static_cast<Value_>(current_value_ - offset);
 			}
 		}
 		[[nodiscard]]
@@ -210,31 +210,31 @@ struct Indices {
 	constexpr Range<std::size_t> operator()(std::ranges::sized_range auto const& range) const {
 		return Range{std::ranges::size(range)};
 	}
-	template<typename T, std::integral I, std::size_t ... dimensions>
-	constexpr auto operator()(std::mdspan<T, std::extents<I, dimensions...>> const span) const {
-		return operator()(span.extents());
-	}
+	// template<typename T, std::integral I, std::size_t ... dimensions>
+	// constexpr auto operator()(std::mdspan<T, std::extents<I, dimensions...>> const span) const {
+	// 	return operator()(span.extents());
+	// }
 
-	// Static extents
-	template<std::integral I, std::size_t ... dimensions>
-	constexpr auto operator()(std::extents<I, dimensions...>) const 
-	{
-		return std::views::cartesian_product(Range{dimensions} ...);
-	}
+	// // Static extents
+	// template<std::integral I, std::size_t ... dimensions>
+	// constexpr auto operator()(std::extents<I, dimensions...>) const 
+	// {
+	// 	return std::views::cartesian_product(Range{dimensions} ...);
+	// }
 
-	// Dynamic extents
-	template<std::integral I, std::size_t ... dimensions>
-	constexpr auto operator()(std::extents<I, dimensions...> const span) const 
-		requires ((dimensions == std::dynamic_extent) && ...)
-	{
-		return helper_(span, std::make_index_sequence<sizeof...(dimensions)>{});
-	}
+	// // Dynamic extents
+	// template<std::integral I, std::size_t ... dimensions>
+	// constexpr auto operator()(std::extents<I, dimensions...> const span) const 
+	// 	requires ((dimensions == std::dynamic_extent) && ...)
+	// {
+	// 	return helper_(span, std::make_index_sequence<sizeof...(dimensions)>{});
+	// }
 	
 private:
-	template<std::integral I, std::size_t ... dimensions, std::size_t ... indices>
-	constexpr auto helper_(std::extents<I, dimensions...> const span, std::index_sequence<indices...>) const {
-		return std::views::cartesian_product(Range{span.extent(indices)} ...);
-	}
+	// template<std::integral I, std::size_t ... dimensions, std::size_t ... indices>
+	// constexpr auto helper_(std::extents<I, dimensions...> const span, std::index_sequence<indices...>) const {
+	// 	return std::views::cartesian_product(Range{span.extent(indices)} ...);
+	// }
 };
 
 constexpr auto operator|(auto const& range, Indices const indices) {

@@ -1,4 +1,10 @@
-#ifdef __GNUG__
+#if defined(__GNUC__) && !defined(__clang__)
+#	define GCC_COMPILER 1
+#else
+#	define GCC_COMPILER 0
+#endif
+
+#if GCC_COMPILER
 #	pragma GCC diagnostic push
 // GCC doesn't know that these headers will only ever be included in this translation unit.
 #	pragma GCC diagnostic ignored "-Wsubobject-linkage"
@@ -12,7 +18,7 @@
 #	include "windows/window.hpp"
 #endif
 
-#ifdef __GNUG__
+#if GCC_COMPILER
 #pragma GCC diagnostic pop
 #endif
 

@@ -1,6 +1,6 @@
 #include <avo/node.hpp>
 
-#include <catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 class SomeComponent {
 public:

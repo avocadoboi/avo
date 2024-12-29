@@ -1,6 +1,6 @@
 #include <avo/id.hpp>
 
-#include <catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("avo::Id formatting") {
 	REQUIRE(std::format("{}", avo::Id{91}) == "91");

@@ -1,14 +1,11 @@
-cmake_minimum_required(VERSION 3.18.0)
+cmake_minimum_required(VERSION 3.15...3.31)
 project(Avo VERSION 0.1.0 LANGUAGES CXX)
-
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib/)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin/)
 
 #--------------------------------------------
 # Library target.
 
 add_library(avo STATIC)
-add_library(${PROJECT_NAME}::avo ALIAS avo)
+add_library(Avo::avo ALIAS avo)
 
 #--------------------------------------------
 # Set up library target options.
@@ -38,59 +35,40 @@ if (CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 	if (BUILD_TESTING)
 		add_subdirectory(tests)
 	endif ()
-endif ()
 
-add_subdirectory(examples)
+	add_subdirectory(examples)
+endif ()
 
 #--------------------------------------------
 # Set up installation.
 
-include(CMakePackageConfigHelpers)
-
-set(CONFIG_VERSION_FILE_NAME ${PROJECT_NAME}ConfigVersion.cmake)
-
-# Create a file that contains information about package versioning.
-write_basic_package_version_file(
-	${CONFIG_VERSION_FILE_NAME}
-	VERSION ${PROJECT_VERSION}
-	COMPATIBILITY AnyNewerVersion
-)
-
-# During installation, the version file will be installed.
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_VERSION_FILE_NAME}"
-	DESTINATION lib/cmake/${PROJECT_NAME}) # Relative to the installation path.
-
-set(TARGET_EXPORT_NAME ${PROJECT_NAME}Targets)
-
-# Specifies the target(s) that will be installed, and where to install 
-# the compiled library (relative to package installation path ${CMAKE_INSTALL_PREFIX}).
 install(
 	TARGETS avo
-	EXPORT ${TARGET_EXPORT_NAME}
+	EXPORT AvoTargets
 	ARCHIVE DESTINATION lib
-)
-
-# During installation, a target configuration file will be exported to a *Targets.cmake file
-# that is included by the *Config.cmake.in file which finds the dependencies of the library.
-install(
-	EXPORT ${TARGET_EXPORT_NAME}
-	FILE ${TARGET_EXPORT_NAME}.cmake
-	NAMESPACE ${PROJECT_NAME}::
-	DESTINATION lib/cmake/${PROJECT_NAME}
-)
-
-# This uses the *Config.cmake.in file to generate a *Config.cmake file with
-# the variables passed through the PATH_VARS parameter inserted.
-configure_package_config_file(
-	cmake/${PROJECT_NAME}Config.cmake.in
-	${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
-	INSTALL_DESTINATION lib/cmake/${PROJECT_NAME}
-	PATH_VARS TARGET_EXPORT_NAME
-)
-
-install(
-	FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-	DESTINATION lib/cmake/${PROJECT_NAME}
+	INCLUDES DESTINATION include
 )
 
 install(DIRECTORY include DESTINATION .)
+
+install(
+	EXPORT AvoTargets
+	NAMESPACE Avo::
+	DESTINATION lib/cmake/Avo
+)
+
+include(CMakePackageConfigHelpers)
+
+write_basic_package_version_file(
+  AvoConfigVersion.cmake
+  COMPATIBILITY SameMajorVersion
+)
+
+configure_file(cmake/AvoConfig.cmake.in AvoConfig.cmake @ONLY)
+
+install(
+	FILES "${CMAKE_CURRENT_BINARY_DIR}/AvoConfig.cmake"
+		"${CMAKE_CURRENT_BINARY_DIR}/AvoConfigVersion.cmake"
+	DESTINATION lib/cmake/Avo
+)
+

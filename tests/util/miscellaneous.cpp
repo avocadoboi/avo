@@ -1,6 +1,6 @@
 #include <avo/util/miscellaneous.hpp>
 
-#include <catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 static_assert(avo::util::IsTrivial<avo::util::MinMax<int>>);
 

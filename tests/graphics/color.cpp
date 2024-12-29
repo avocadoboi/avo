@@ -1,6 +1,6 @@
 #include <avo/graphics/color.hpp>
 
-#include <catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 using avo::graphics::Color,
 	avo::math::Degrees;

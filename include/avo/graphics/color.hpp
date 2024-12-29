@@ -328,7 +328,8 @@ struct Color final {
 	*/
 	[[nodiscard]]
 	constexpr value_type hsb_saturation() const {
-		if (auto const current_brightness = brightness()) {
+		auto const current_brightness = brightness();
+		if (current_brightness != 0) {
 			return 1.f - math::min(red, green, blue)/current_brightness;
 		}
 		return 0.f;

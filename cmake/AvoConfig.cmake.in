@@ -1,5 +1,3 @@
-@PACKAGE_INIT@
-
 include(CMakeFindDependencyMacro)
 
 # Find dependency packages
@@ -7,7 +5,9 @@ include(CMakeFindDependencyMacro)
 if (WIN32)
 
 else ()
+	find_dependency(X11 REQUIRED)
+	find_dependency(Threads REQUIRED)
 	find_dependency(Iconv REQUIRED)
 endif ()
 
-include("${CMAKE_CURRENT_LIST_DIR}/@TARGET_EXPORT_NAME@.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/AvoTargets.cmake")

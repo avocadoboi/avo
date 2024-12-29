@@ -1,6 +1,6 @@
 #include <avo/math/vector2d.hpp>
 
-#include <catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 using namespace avo::math;
 
