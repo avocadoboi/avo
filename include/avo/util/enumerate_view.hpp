@@ -1,6 +1,8 @@
 #ifndef AVO_UTILS_ENUMERATE_VIEW_HPP_BJORN_SUNDIN_JUNE_2021
 #define AVO_UTILS_ENUMERATE_VIEW_HPP_BJORN_SUNDIN_JUNE_2021
 
+#include "concepts.hpp"
+
 #include <ranges>
 
 namespace avo::util {
@@ -161,13 +163,20 @@ public:
 	}
 
 	template<std::ranges::input_range Range_>
-		requires std::ranges::viewable_range<Range_>
+		requires std::ranges::viewable_range<Range_> && (not IsInstantiationOf<Range_, EnumerateView>)
 	constexpr explicit EnumerateView(Range_&& range) :
 		base_{std::views::all(std::forward<Range_>(range))}
 	{}
 
 	constexpr explicit EnumerateView(T view) :
 		base_{std::move(view)}
+	{}
+
+	constexpr EnumerateView(EnumerateView&& other) :
+		base_{std::move(other.base_)}
+	{}
+	constexpr EnumerateView(EnumerateView const& other) :
+		base_{other.base_}
 	{}
 
 	constexpr EnumerateView() = default;

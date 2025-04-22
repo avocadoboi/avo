@@ -23,7 +23,7 @@ TEST_CASE("avo::util::enumerate") {
 TEST_CASE("Random access avo::util::enumerate") {
 	constexpr auto container = std::array{3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 6};
 	
-	auto const range = avo::util::enumerate(container) | std::views::reverse;
+	auto const range = std::views::reverse(avo::util::enumerate(container));// | std::views::reverse;
 	
 	for (auto const correct_index : avo::util::indices(container)) 
 	{

@@ -16,6 +16,7 @@ add_compile_options(
 )
 
 add_compile_options(
+	-ftemplate-backtrace-limit=0
 	# -fconcepts-diagnostics-depth=2
 	# -fmax-errors=5
 )

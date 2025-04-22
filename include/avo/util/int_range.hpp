@@ -150,14 +150,10 @@ public:
 		return end_ - start_;
 	}
 
-// TODO: Remove when MSVC doesn't get confused by the = default.
-#ifdef _MSC_VER
+	// Cannot use default implementation on Clang or MSVC.  
 	constexpr bool operator==(Range const& other) const {
 		return start_ == other.start_ && end_ == other.end_;
 	}
-#else
-	constexpr bool operator==(Range const&) const = default;
-#endif
 
 	/*
 		Creates a range of integers starting with start and ending with inclusive_end.
@@ -166,7 +162,7 @@ public:
 		start_{start},
 		end_{inclusive_end + 1}
 	{}
-	constexpr Range(Value_ const start, Value_ const inclusive_end) requires is_reverse :
+	constexpr Range(Value_ const start, Value_ const inclusive_end) requires (is_reverse) :
 		start_{start},
 		end_{inclusive_end - 1}
 	{}
@@ -184,6 +180,10 @@ private:
 	Iterator start_;
 	Iterator end_;
 };
+
+// Clang complains without this
+template <std::integral T>
+Range(T, T) -> Range<T, false>;
 
 } // namespace avo::util
 
