@@ -120,19 +120,19 @@ std::pair<Return_, Return_> cos_sin(IsAngle auto angle) {
 
 inline namespace angle_literals {
 
-constexpr Degrees<double> operator"" _deg(long double const value) {
+constexpr Degrees<double> operator""_deg(long double const value) {
 	return Degrees{static_cast<double>(value)};
 }
-constexpr Degrees<float> operator"" _degf(long double const value) {
+constexpr Degrees<float> operator""_degf(long double const value) {
 	return Degrees{static_cast<float>(value)};
 }
-constexpr Degrees<int> operator"" _deg(unsigned long long const value) {
+constexpr Degrees<int> operator""_deg(unsigned long long const value) {
 	return Degrees{static_cast<int>(value)};
 }
-constexpr Radians<double> operator"" _rad(long double const value) {
+constexpr Radians<double> operator""_rad(long double const value) {
 	return Radians{static_cast<double>(value)};
 }
-constexpr Radians<float> operator"" _radf(long double const value) {
+constexpr Radians<float> operator""_radf(long double const value) {
 	return Radians{static_cast<float>(value)};
 }
 

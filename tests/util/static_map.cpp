@@ -2,7 +2,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-constexpr void test_static_map(auto& map)
+constexpr void test_static_map(auto const& map)
 {
 	REQUIRE(std::ranges::size(map) == 6);
 	REQUIRE(*map.find(-9) == '+');
