@@ -105,7 +105,8 @@ static_assert(
 );
 
 static_assert(
-	Range{5}.size() == 5 && Range{5}.reverse().size() == 5 && Range{-8, 3}.size() == 12 && Range{-8, 3}.reverse().size() == 12,
+	Range{5}.size() == 5 && Range{5}.reverse().size() == 5 && Range{-8, 3}.size() == 12 && Range{-8, 3}.reverse().size() == 12
+	&& Range{std::size_t{5}}.size() == 5 && Range{std::size_t{5}}.reverse().size() == 5,
 	"avo::util::Range::size() does not work."
 );
 

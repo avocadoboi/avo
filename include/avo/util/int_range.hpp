@@ -147,7 +147,9 @@ public:
 
 	[[nodiscard]]
 	constexpr Value_ size() const {
-		return end_ - start_;
+		// This will always be non-negative even for reversed ranges, 
+		// see the definition of the iterator subtraction operator above.
+		return static_cast<Value_>(end_ - start_);
 	}
 
 	// Cannot use default implementation on Clang or MSVC.  
